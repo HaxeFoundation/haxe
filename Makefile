@@ -10,7 +10,7 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
-INSTALL_DIR=$(DESTDIR)/usr/local
+INSTALL_DIR=/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
@@ -21,17 +21,20 @@ PACKAGE_SRC_EXTENSION=.tar.gz
 MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
-OUTPUT=haxe
+HAXE_OUTPUT=haxe
+HAXELIB_OUTPUT=haxelib
+PREBUILD_OUTPUT=prebuild
 EXTENSION=
 LFLAGS=
 STATICLINK?=0
 
 # Configuration
 
-HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
+# Modules in these directories should only depend on modules that are in directories to the left
+HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators generators/jvm optimization filters macro macro/eval macro/eval/bytes typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib rope ptmap
+OPAM_LIBS=sedlex xml-light extlib ptmap sha
 
 FINDLIB_LIBS=$(OCAML_LIBS)
 FINDLIB_LIBS+=$(OPAM_LIBS)
@@ -43,7 +46,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
 
@@ -81,7 +84,8 @@ COMMIT_DATE=$(shell \
 	fi \
 )
 PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
-HAXE_VERSION=$(shell $(OUTPUT) -version 2>&1 | awk '{print $$1;}')
+HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
+HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
@@ -119,7 +123,7 @@ build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
 _build/src/syntax/grammar.ml:src/syntax/grammar.mly
-	camlp4o -impl $< -o $@
+	camlp5o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
 ifneq ($(ADD_REVISION),0)
@@ -128,7 +132,16 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
+_build/src/core/defineList.ml: src-json/define.json prebuild
+	./$(PREBUILD_OUTPUT) define $< > $@
+
+_build/src/core/metaList.ml: src-json/meta.json prebuild
+	./$(PREBUILD_OUTPUT) meta $< > $@
+
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
+
+prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
+	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
@@ -148,7 +161,12 @@ build_pass_3:
 	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+	$(COMPILER) -safe-string -linkpkg -g -o $(HAXE_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+
+kill_exe_win:
+ifdef SYSTEMROOT
+	-@taskkill /F /IM haxe.exe 2>/dev/null
+endif
 
 plugin:
 ifeq ($(BYTECODE),1)
@@ -171,41 +189,29 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 endif
 
 haxelib:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
-	mv extra/haxelib_src/run$(EXTENSION) haxelib$(EXTENSION)
+	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
+	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
 
 tools: haxelib
 
 install: uninstall
-	mkdir -p $(INSTALL_BIN_DIR)
-	mkdir -p $(INSTALL_LIB_DIR)/lib
-	mkdir -p $(INSTALL_STD_DIR)
-	cp -rf std/* $(INSTALL_STD_DIR)
-	cp -rf extra $(INSTALL_LIB_DIR)
-	cp haxe $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
-	cp haxelib $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
-	chmod -R a+rx $(INSTALL_LIB_DIR)
-	chmod 777 $(INSTALL_LIB_DIR)/lib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-
-# will install native version of the tools instead of script ones
-install_tools: tools
-	cp haxelib ${INSTALL_BIN_DIR}/haxelib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
+	mkdir -p "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	cp $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	mkdir -p "$(DESTDIR)$(INSTALL_STD_DIR)"
+	cp -r std/* "$(DESTDIR)$(INSTALL_STD_DIR)"
 
 uninstall:
-	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-	if [ -d "$(INSTALL_LIB_DIR)/lib" ] && find "$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
-		echo "The local haxelib repo at $(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
-		find $(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
+	rm -rf $(DESTDIR)$(INSTALL_BIN_DIR)/$(HAXE_OUTPUT) $(DESTDIR)$(INSTALL_BIN_DIR)/$(HAXELIB_OUTPUT)
+	if [ -d "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" ] && find "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
+		echo "The local haxelib repo at $(DESTDIR)$(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
+		find $(DESTDIR)$(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
 	else \
-		rm -rf $(INSTALL_LIB_DIR); \
+		rm -rf $(DESTDIR)$(INSTALL_LIB_DIR); \
 	fi
+	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
+	opam install $(OPAM_LIBS) camlp5 ocamlfind --yes
 
 # Dependencies
 
@@ -225,47 +231,33 @@ package_unix:
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
-	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
+	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
 
 package_bin: package_$(PLATFORM)
 
-install_dox:
-	haxelib git hxparse https://github.com/Simn/hxparse master src
-	haxelib git hxtemplo https://github.com/Simn/hxtemplo
-	haxelib git hxargs https://github.com/Simn/hxargs
-	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
-	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
-	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/HaxeFoundation/dox
+xmldoc:
+	cd extra && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) git hxjava https://github.com/HaxeFoundation/hxjava  && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcs   https://github.com/HaxeFoundation/hxcs    && \
+	PATH="$(CURDIR):$(PATH)" $(CURDIR)/$(HAXE_OUTPUT) doc.hxml
 
-package_doc:
-	mkdir -p $(PACKAGE_OUT_DIR)
-	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
-	$(eval VERSION := $(shell haxe -version 2>&1))
-	cd $$(haxelib path dox | head -n 1) && \
-		haxe run.hxml && \
-		haxe gen.hxml && \
-		haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown \
-		-cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" \
-		--title "Haxe API" -o $(OUTFILE) \
-		-D version "$(VERSION)" -i bin/xml -ex microsoft -ex javax -ex cs.internal \
-		-D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+$(INSTALLER_TMP_DIR):
+	mkdir -p $(INSTALLER_TMP_DIR)
 
-deploy_doc:
-	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
-	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
+$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
+	wget -nv http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
 # Installer
 
-package_installer_mac:
-	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
-	$(eval VERSION := $(shell haxe -version 2>&1))
+	$(eval VERSION := $(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1))
 	$(eval NEKOVER := $(shell neko -version 2>&1))
 	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
 	mkdir $(INSTALLER_TMP_DIR)/resources
@@ -314,10 +306,10 @@ clean_libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
 
 clean_haxe:
-	rm -f -r _build $(OUTPUT)
+	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
 
 clean_tools:
-	rm -f $(OUTPUT) haxelib
+	rm -f $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXELIB_OUTPUT)
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)

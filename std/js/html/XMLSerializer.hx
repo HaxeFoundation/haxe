@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,15 @@
 
 package js.html;
 
+/**
+	The `XMLSerializer` interface provides the `serializeToString()` method to construct an XML string representing a DOM tree.
+
+	Documentation [XMLSerializer](https://developer.mozilla.org/en-US/docs/Web/API/XMLSerializer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLSerializer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLSerializer>
+**/
 @:native("XMLSerializer")
-extern class XMLSerializer
-{
+extern class XMLSerializer {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */

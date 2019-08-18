@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,55 +19,59 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
-enum FileHandle {
-}
+enum FileHandle {}
 
 @:coreApi class File {
-
-	public static function getContent( path : String ) : String {
+	public static function getContent(path:String):String {
 		return new String(file_contents(untyped path.__s));
 	}
 
-	public static function getBytes( path : String ) : haxe.io.Bytes {
+	public static function getBytes(path:String):haxe.io.Bytes {
 		return neko.Lib.bytesReference(getContent(path));
 	}
 
-	public static function saveContent( path : String, content : String ) : Void {
+	public static function saveContent(path:String, content:String):Void {
 		var f = write(path);
 		f.writeString(content);
 		f.close();
 	}
 
-	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
+	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {
 		var f = write(path);
 		f.write(bytes);
 		f.close();
 	}
 
-	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return untyped new FileInput(file_open(path.__s,(if( binary ) "rb" else "r").__s));
+	public static function read(path:String, binary:Bool = true):FileInput {
+		return untyped new FileInput(file_open(path.__s, (if (binary) "rb" else "r").__s));
 	}
 
-	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return untyped new FileOutput(file_open(path.__s,(if( binary ) "wb" else "w").__s));
+	public static function write(path:String, binary:Bool = true):FileOutput {
+		return untyped new FileOutput(file_open(path.__s, (if (binary) "wb" else "w").__s));
 	}
 
-	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		return untyped new FileOutput(file_open(path.__s,(if( binary ) "ab" else "a").__s));
+	public static function append(path:String, binary:Bool = true):FileOutput {
+		return untyped new FileOutput(file_open(path.__s, (if (binary) "ab" else "a").__s));
 	}
 
-	public static function copy( srcPath : String, dstPath : String ) : Void {
-		var s = read(srcPath,true);
-		var d = write(dstPath,true);
+	public static function update(path:String, binary:Bool = true):FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
+		return untyped new FileOutput(file_open(path.__s, (if (binary) "rb+" else "r+").__s));
+	}
+
+	public static function copy(srcPath:String, dstPath:String):Void {
+		var s = read(srcPath, true);
+		var d = write(dstPath, true);
 		d.writeInput(s);
 		s.close();
 		d.close();
 	}
 
-	private static var file_contents = neko.Lib.load("std","file_contents",1);
-	private static var file_open = neko.Lib.load("std","file_open",2);
-
-
+	private static var file_contents = neko.Lib.load("std", "file_contents", 1);
+	private static var file_open = neko.Lib.load("std", "file_open", 2);
 }

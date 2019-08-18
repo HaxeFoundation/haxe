@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement>
 **/
 @:native("HTMLCanvasElement")
-extern class CanvasElement extends Element
-{
+extern class CanvasElement extends Element {
 	
 	/**
 		Is a positive `integer` reflecting the `width` HTML attribute of the `canvas` element interpreted in CSS pixels. When the attribute is not specified, or if it is set to an invalid value, like a negative, the default value of `300` is used.
@@ -45,24 +44,30 @@ extern class CanvasElement extends Element
 	**/
 	var height : Int;
 	
-	/** @throws DOMError */
 	
 	/**
-		Returns a drawing context on the canvas, or null if the context ID is not supported. A drawing context lets you draw on the canvas. Calling getContext with `"2d"` returns a `CanvasRenderingContext2D` object, whereas calling it with `"experimental-webgl"` (or `"webgl"`) returns a `WebGLRenderingContext` object. This context is only available on browsers that implement WebGL.
+		Returns a drawing context on the canvas, or null if the context ID is not supported. A drawing context lets you draw on the canvas. Calling getContext with `"2d"` returns a `CanvasRenderingContext2D` object, whereas calling it with `"webgl"` (or `"experimental-webgl"`) returns a `WebGLRenderingContext` object. This context is only available on browsers that implement WebGL.
+		@throws DOMError
 	**/
-	function getContext( contextId : String, ?contextOptions : Dynamic ) : Dynamic/*MISSING nsISupports*/;
-	/** @throws DOMError */
+	function getContext( contextId : String, ?contextOptions : Dynamic ) : Dynamic;
 	
 	/**
 		Returns a data-URL containing a representation of the image in the format specified by the `type` parameter (defaults to `png`). The returned image is in a resolution of 96dpi.
+		@throws DOMError
 	**/
-	function toDataURL( ?type : String = "", ?encoderOptions : Dynamic ) : String;
-	/** @throws DOMError */
+	function toDataURL( type : String = "", ?encoderOptions : Dynamic ) : String;
 	
 	/**
 		Creates a `Blob` object representing the image contained in the canvas; this file may be cached on the disk or stored in memory at the discretion of the user agent.
+		@throws DOMError
 	**/
-	function toBlob( callback : Blob -> Void, ?type : String = "", ?encoderOptions : Dynamic ) : Void;
+	function toBlob( callback : Blob -> Void, type : String = "", ?encoderOptions : Dynamic ) : Void;
+	
+	/**
+		Returns a `CanvasCaptureMediaStream` that is a real-time video capture of the surface of the canvas.
+		@throws DOMError
+	**/
+	function captureStream( ?frameRate : Float ) : CanvasCaptureMediaStream;
 	
 	/** Shorthand for getting a CanvasRenderingContext2D. */
 	inline function getContext2d( ?attribs : {} ) : CanvasRenderingContext2D {
@@ -71,6 +76,10 @@ extern class CanvasElement extends Element
 	/** Shorthand for getting a js.html.webgl.RenderingContext. */
 	inline function getContextWebGL( ?attribs : js.html.webgl.ContextAttributes ) : js.html.webgl.RenderingContext {
 		return CanvasUtil.getContextWebGL(this, attribs);
+	}
+	/** Shorthand for getting a js.html.webgl.WebGL2RenderingContext. */
+	inline function getContextWebGL2( ?attribs : js.html.webgl.ContextAttributes ) : js.html.webgl.WebGL2RenderingContext {
+		return this.getContext('webgl2', attribs);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,33 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement>
 **/
 @:native("SVGImageElement")
-extern class ImageElement extends GraphicsElement
-{
+extern class ImageElement extends GraphicsElement {
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `image` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y` attribute of the given `image` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `width` attribute of the given `image` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `height` attribute of the given `image` element.
+	**/
 	var height(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedPreserveAspectRatio` corresponding to the `preserveAspectRatio` attribute of the given `image` element.
+	**/
 	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
+	var decoding : String;
 	var href(default,null) : AnimatedString;
 	
 }

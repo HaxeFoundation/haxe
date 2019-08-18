@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("VideoTrackList")
-extern class VideoTrackList extends EventTarget implements ArrayAccess<VideoTrack>
-{
+extern class VideoTrackList extends EventTarget implements ArrayAccess<VideoTrack> {
 	var length(default,null) : Int;
 	var selectedIndex(default,null) : Int;
 	var onchange : haxe.Constraints.Function;

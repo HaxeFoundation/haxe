@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,25 +30,22 @@ import haxe.macro.Expr;
 	additional methods on `haxe.macro.ComplexType` instances.
 **/
 class ComplexTypeTools {
-
 	/**
 		Converts type `c` to a human-readable `String` representation.
 
 		The result is guaranteed to be valid Haxe code, but there may be
 		differences from the original lexical syntax.
 	**/
-	static public function toString( c : ComplexType ) : String
+	static public function toString(c:ComplexType):String
 		return new Printer().printComplexType(c);
 
-	#if macro
-
+	#if (macro || display)
 	/**
 		Returns a type corresponding to `c`.
 
 		If `c` is null, the result is null.
 	**/
-	static public function toType( c : ComplexType ) : Null<Type>
-		return c == null ? null : Context.resolveType(c,Context.currentPos());
-
+	static public function toType(c:ComplexType):Null<Type>
+		return c == null ? null : Context.resolveType(c, Context.currentPos());
 	#end
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -118,9 +118,9 @@ let follow_once t =
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
-let alloc_var n t = Type.alloc_var n t null_pos
+let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
-let mk_local = ExprBuilder.make_local
+let mk_local = Texpr.Builder.make_local
 
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
@@ -136,7 +136,7 @@ let debug_expr = s_expr debug_type
 
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
-let timer name = if !debug_mode then Common.timer name else fun () -> ()
+let timer name = if !debug_mode then Timer.timer name else fun () -> ()
 
 let is_string t =
 	match follow t with
@@ -186,7 +186,7 @@ let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); e
 
 let mk_static_field_access_infer cl field pos params =
 	try
-		let e_type = ExprBuilder.make_static_this cl pos in
+		let e_type = Texpr.Builder.make_static_this cl pos in
 		let cf = PMap.find field cl.cl_statics in
 		let t = if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type in
 		mk (TField(e_type, FStatic(cl, cf))) t pos
@@ -302,7 +302,7 @@ class ['tp, 'ret] rule_dispatcher name =
 				if key < priority then begin
 					let q = Hashtbl.find tbl key in
 					Stack.iter (fun (n, rule) ->
-						let t = if !debug_mode then Common.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
+						let t = if !debug_mode then Timer.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(tp) in
 						t();
 						if is_some r then begin ret := r; raise Exit end
@@ -362,7 +362,7 @@ class ['tp] rule_map_dispatcher name = object(self)
 				let q = Hashtbl.find tbl key in
 				Stack.iter (fun (n, rule) ->
 					trace ("running rule " ^ n);
-					let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
+					let t = if !debug_mode then Timer.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
 					cur := rule !cur;
 					t();
 				) q
@@ -550,7 +550,12 @@ let new_ctx con =
 			| TClassDecl cl -> Hashtbl.add types cl.cl_path mt
 			| TEnumDecl e -> Hashtbl.add types e.e_path mt
 			| TTypeDecl t -> Hashtbl.add types t.t_path mt
-			| TAbstractDecl a -> Hashtbl.add types a.a_path mt
+			| TAbstractDecl a ->
+				(* There are some cases where both an abstract and a class
+				   have the same name (e.g. java.lang.Double/Integer/etc)
+				   in this case we generally want the class to have priority *)
+				if not (Hashtbl.mem types a.a_path) then
+					Hashtbl.add types a.a_path mt
 	) con.types;
 
 	let get_type path =
@@ -719,7 +724,7 @@ let run_filters gen =
 	let has_errors = ref false in
 	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
-	let t = Common.timer ["gencommon_filters"] in
+	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
 	let run_filters (filter : texpr rule_map_dispatcher) =
 		let rec loop acc mds =
@@ -815,7 +820,7 @@ let write_file gen w source_dir path extension out_files =
 	let t = timer ["write";"file"] in
 	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
-	mkdir_from_path s_path;
+	Path.mkdir_from_path s_path;
 
 	let contents = SourceWriter.contents w in
 	let should_write = if not (Common.defined gen.gcon Define.ReplaceFiles) && Sys.file_exists s_path then begin
@@ -942,19 +947,19 @@ let dump_descriptor gen name path_s module_s =
 				file
 	in
 	if Common.platform gen.gcon Java then
-		List.iter (fun (s,std,_,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".jar");
+		List.iter (fun java_lib ->
+			if not (java_lib#has_flag NativeLibraries.FlagIsStd) && not (java_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path java_lib#get_file_path ".jar");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.java_libs
+		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
-		List.iter (fun (s,std,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".dll");
+		List.iter (fun net_lib ->
+			if not (net_lib#has_flag NativeLibraries.FlagIsStd) && not (net_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path net_lib#get_name ".dll");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.net_libs;
+		) gen.gcon.native_libs.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
 	let args = gen.gcon.c_args in
@@ -1078,8 +1083,7 @@ let rec replace_mono t =
 
 (* helper *)
 let mk_class_field name t public pos kind params =
-	let f = mk_field name t pos null_pos in
-	f.cf_public <- public;
+	let f = mk_field name ~public t pos null_pos in
 	f.cf_meta <- [ Meta.CompilerGenerated, [], null_pos ]; (* annotate that this class field was generated by the compiler *)
 	f.cf_kind <- kind;
 	f.cf_params <- params;
@@ -1246,7 +1250,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ -> FNotFound
 
 let field_access_esp gen t field = match field with
-	| FStatic(cl,cf) | FInstance(cl,_,cf) when Meta.has Meta.Extern cf.cf_meta ->
+	| FStatic(cl,cf) | FInstance(cl,_,cf) when has_class_field_flag cf CfExtern ->
 		let static = match field with
 			| FStatic _ -> true
 			| _ -> false
@@ -1310,6 +1314,6 @@ let get_type gen path =
 	try Hashtbl.find gen.gtypes path with | Not_found -> raise (TypeNotFound path)
 
 
-let fun_args (l : (tvar * tconstant option) list)=
+let fun_args l =
 	List.map (fun (v,s) -> (v.v_name, (s <> None), v.v_type)) l
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement>
 **/
 @:native("HTMLObjectElement")
-extern class ObjectElement extends Element
-{
+extern class ObjectElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `data` HTML attribute, specifying the address of a resource's data.
@@ -155,6 +154,7 @@ extern class ObjectElement extends Element
 		Retuns a `Boolean` that always is `true`, because `object` objects are never candidates for constraint validation.
 	**/
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
 	
 	/**
 		Sets a custom validity message for the element. If this message is not the empty string, then the element is suffering from a custom validity error, and does not validate.

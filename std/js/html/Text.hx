@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Text>
 **/
 @:native("Text")
-extern class Text extends CharacterData
-{
+extern class Text extends CharacterData {
 	
 	/**
 		Returns a `DOMString` containing the text of all `Text` nodes logically adjacent to this `Node`, concatenated in document order.
@@ -41,13 +40,19 @@ extern class Text extends CharacterData
 	var wholeText(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?data : String = "" ) : Void;
+	function new( data : String = "" ) : Void;
 	/** @throws DOMError */
 	function splitText( offset : Int ) : Text;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( quad : DOMQuad, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( quad : DOMQuad, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertQuadFromNode( quad : DOMQuad, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( rect : DOMRectReadOnly, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( rect : DOMRectReadOnly, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertRectFromNode( rect : DOMRectReadOnly, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	@:overload( function( point : DOMPointInit, from : Element, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	@:overload( function( point : DOMPointInit, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	function convertPointFromNode( point : DOMPointInit, from : Text, ?options : ConvertCoordinateOptions ) : DOMPoint;
 }

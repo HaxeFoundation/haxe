@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `Screen` interface represents a screen, usually the one on which the current window is being rendered.
+	The `Screen` interface represents a screen, usually the one on which the current window is being rendered, and is obtained using `window.screen`.
 
 	Documentation [Screen](https://developer.mozilla.org/en-US/docs/Web/API/Screen) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Screen$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Screen>
 **/
 @:native("Screen")
-extern class Screen extends EventTarget
-{
+extern class Screen extends EventTarget {
 	var availWidth(default,null) : Int;
 	var availHeight(default,null) : Int;
 	var width(default,null) : Int;

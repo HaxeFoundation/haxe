@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,17 +32,44 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent>
 **/
 @:native("TouchEvent")
-extern class TouchEvent extends UIEvent
-{
+extern class TouchEvent extends UIEvent {
+	
+	/**
+		A `TouchList` of all the `Touch` objects representing all current points of contact with the surface, regardless of target or changed status.
+	**/
 	var touches(default,null) : TouchList;
+	
+	/**
+		A `TouchList` of all the `Touch` objects that are both currently in contact with the touch surface and were also started on the same element that is the target of the event.
+	**/
 	var targetTouches(default,null) : TouchList;
+	
+	/**
+		A `TouchList` of all the `Touch` objects representing individual points of contact whose states changed between the previous touch event and this one.
+	**/
 	var changedTouches(default,null) : TouchList;
+	
+	/**
+		A Boolean value indicating whether or not the alt key was down when the touch event was fired.
+	**/
 	var altKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the meta key was down when the touch event was fired.
+	**/
 	var metaKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the control key was down when the touch event was fired.
+	**/
 	var ctrlKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the shift key was down when the touch event was fired.
+	**/
 	var shiftKey(default,null) : Bool;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TouchEventInit ) : Void;
-	function initTouchEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, touches : TouchList, targetTouches : TouchList, changedTouches : TouchList ) : Void;
+	function initTouchEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, detail : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, ?touches : TouchList, ?targetTouches : TouchList, ?changedTouches : TouchList ) : Void;
 }

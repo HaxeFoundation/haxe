@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 import php.*;
@@ -26,20 +27,19 @@ import haxe.format.JsonPrinter;
 
 @:coreApi
 class Json {
-
-	public static inline function parse( text : String ) : Dynamic {
+	public static inline function parse(text:String):Dynamic {
 		#if haxeJSON
-			return haxe.format.JsonParser.parse(text);
+		return haxe.format.JsonParser.parse(text);
 		#else
-			return phpJsonDecode(text);
+		return phpJsonDecode(text);
 		#end
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
+	public static inline function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
 		#if haxeJSON
-			return JsonPrinter.print(value, replacer, space);
+		return JsonPrinter.print(value, replacer, space);
 		#else
-			return phpJsonEncode(value, replacer, space);
+		return phpJsonEncode(value, replacer, space);
 		#end
 	}
 
@@ -74,8 +74,8 @@ class Json {
 		return value;
 	}
 
-	static function phpJsonEncode(value:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String):String {
-		if(null != replacer || null != space) {
+	static function phpJsonEncode(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
+		if (null != replacer || null != space) {
 			return JsonPrinter.print(value, replacer, space);
 		}
 

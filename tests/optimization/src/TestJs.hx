@@ -62,7 +62,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}tmp;")
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {((e) instanceof js__$Boot_HaxeError);tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
@@ -73,7 +73,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a_v_0_b = 1;a_v_0_b == 1;")
+	@:js("var a_v_0_b = 1;a_v_0_b;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -91,13 +91,13 @@ class TestJs {
 		forEach(function(x) use(x + 2));
 	}
 
-	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
+	@:js('var a = "";var e;if(a.toLowerCase() == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
 		var e = switch (a) {
 			case _.toLowerCase() => "e": 0;
-			default: throw new js.Error();
+			default: throw new js.lib.Error();
 		}
 	}
 
@@ -172,16 +172,25 @@ class TestJs {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;TestJs.use(e);}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {TestJs.use(((e) instanceof js__$Boot_HaxeError) ? e.val : e);}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
 		try throw false catch (e:Dynamic) use(e);
 	}
 
-	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;if( js_Boot.__instanceof(e,Bool) ) {} else throw(e);}")
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) != "boolean") {throw e;}}')
 	static function testHaxeErrorUnwrappingWhenTypeChecked() {
 		try throw false catch (e:Bool) {};
 	}
 
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {TestJs.use(e);} else {throw e;}}')
+	static function testGetOriginalException() {
+		try throw false catch (e:Bool) use(js.Lib.getOriginalException());
+	}
+
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {throw e;} else {throw e;}}')
+	static function testRethrow() {
+		try throw false catch (e:Bool) js.Lib.rethrow();
+	}
 
 	@:js('TestJs.use(2);')
 	static function testIssue3938() {
@@ -483,11 +492,19 @@ class TestJs {
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
 
+	#if js_enums_as_arrays
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
+	#else
+	@:js('
+		var _g = Type.typeof("");
+		var v = _g._hx_index == 6 && _g.c == String;
+		TestJs.use(v);
+	')
+	#end
 	static function testIssue4745() {
 		var o = "";
 		var v = Type.typeof(o).match(TClass(String));
@@ -522,6 +539,13 @@ class TestJs {
 		Extern.test(x);
 		var closure = Extern.test;
 		closure("baz");
+	}
+
+	static var v = false;
+
+	@:js('')
+	static function testIssue7874() {
+		if (v && v) {}
 	}
 }
 

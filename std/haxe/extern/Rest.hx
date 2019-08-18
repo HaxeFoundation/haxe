@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ package haxe.extern;
 	Should be used as a type for the last argument of an extern method,
 	representing that arbitrary number of arguments of given type can be
 	passed to that method.
-	
+
 	@see <https://haxe.org/manual/lf-externs.html>
 **/
 abstract Rest<T>(Array<T>) {}

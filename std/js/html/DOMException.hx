@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `DOMException` interface represents an abnormal event (called an exception) which occurs as a result of calling a method or accessing a property of a web API. This is basically how error conditions are described in web APIs.
+	The `DOMException` interface represents an abnormal event (called an exception) which occurs as a result of calling a method or accessing a property of a web API.
 
 	Documentation [DOMException](https://developer.mozilla.org/en-US/docs/Web/API/DOMException) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMException$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMException>
 **/
 @:native("DOMException")
-extern class DOMException
-{
+extern class DOMException {
 	static inline var INDEX_SIZE_ERR : Int = 1;
 	static inline var DOMSTRING_SIZE_ERR : Int = 2;
 	static inline var HIERARCHY_REQUEST_ERR : Int = 3;
@@ -60,16 +59,28 @@ extern class DOMException
 	static inline var INVALID_NODE_TYPE_ERR : Int = 24;
 	static inline var DATA_CLONE_ERR : Int = 25;
 	
-	var code(default,null) : Int;
-	var message(default,null) : String;
-	var result(default,null) : Int;
+	
+	/**
+		Returns a `DOMString` that contains one of the strings associated with an error name.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		Returns a `DOMString` representing a message or description associated with the given error name.
+	**/
+	var message(default,null) : String;
+	
+	/**
+		Returns a `short` that contains one of the `Error codes`, or `0` if none match. This field is used for historical reasons. New DOM exceptions don't use this anymore: they put this info in the `DOMException.name` attribute.
+	**/
+	var code(default,null) : Int;
+	var result(default,null) : Int;
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var data(default,null) : Dynamic/*MISSING nsISupports*/;
+	var data(default,null) : Dynamic;
 	var stack(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?message : String = "", ?name : String ) : Void;
+	function new( message : String = "", ?name : String ) : Void;
 }

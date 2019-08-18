@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,34 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet>
 **/
 @:native("CSSStyleSheet")
-extern class CSSStyleSheet extends StyleSheet
-{
+extern class CSSStyleSheet extends StyleSheet {
+	
+	/**
+		If this style sheet is imported into the document using an `@import` rule, the `ownerRule` property will return that `CSSImportRule`, otherwise it returns `null`.
+	**/
 	var ownerRule(default,null) : CSSRule;
+	
+	/**
+		Returns a live `CSSRuleList`, listing the `CSSRule` objects in the style sheet.
+		
+		 This is normally used to access individual rules like this:
+		
+		 `   styleSheet.cssRules[i] // where i = 0..cssRules.length-1`
+		
+		 To add or remove items in `cssRules`, use the `CSSStyleSheet`'s `deleteRule()` and `insertRule()` methods, described below.
+	**/
 	var cssRules(default,null) : CSSRuleList;
 	
-	/** @throws DOMError */
-	function insertRule( rule : String, index : Int ) : Int;
-	/** @throws DOMError */
+	
+	/**
+		Inserts a new rule at the specified position in the style sheet, given the textual representation of the rule.
+		@throws DOMError
+	**/
+	function insertRule( rule : String, index : Int = 0 ) : Int;
+	
+	/**
+		Deletes a rule at the specified position from the style sheet.
+		@throws DOMError
+	**/
 	function deleteRule( index : Int ) : Void;
 }

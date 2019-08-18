@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,12 +25,11 @@
 package js.html;
 
 @:native("ScrollAreaEvent")
-extern class ScrollAreaEvent extends UIEvent
-{
+extern class ScrollAreaEvent extends UIEvent {
 	var x(default,null) : Float;
 	var y(default,null) : Float;
 	var width(default,null) : Float;
 	var height(default,null) : Float;
 	
-	function initScrollAreaEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, x : Float, y : Float, width : Float, height : Float ) : Void;
+	function initScrollAreaEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, detail : Int = 0, x : Float = 0.0, y : Float = 0.0, width : Float = 0.0, height : Float = 0.0 ) : Void;
 }

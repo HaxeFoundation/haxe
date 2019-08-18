@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
 
+package python.lib;
 
 @:pythonImport("shutil")
 extern class Shutil {
+	public static function rmtree(path:String, ?ignore_errors:Bool = false, ?onerror:python.Exceptions.BaseException->Void):Void;
 
-	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:python.Exceptions.BaseException->Void):Void;
+	public static function copyfile(src:String, dst:String):Void;
 
-	public static function copyfile (src:String, dst:String):Void;
-
-	public static function copy (src:String, dst:String):Void;
-	public static function copy2 (src:String, dst:String):Void;
+	public static function copy(src:String, dst:String):Void;
+	public static function copy2(src:String, dst:String):Void;
 }

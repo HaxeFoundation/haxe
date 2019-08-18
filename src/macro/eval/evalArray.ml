@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -26,20 +26,19 @@ let create values = {
 }
 
 let array_join a f sep =
-	let buf = Rope.Buffer.create 0 in
-	let last = Array.length a - 1 in
-	Array.iteri (fun i v ->
-		Rope.Buffer.add_rope buf (f v);
-		if i <> last then Rope.Buffer.add_rope buf sep;
-	) a;
-	Rope.Buffer.contents buf
+	let l = Array.map f a in
+	let l = Array.to_list l in
+	EvalString.join sep l
 
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
+
+let make len =
+	try Array.make len vnull with _ -> EvalContext.error_message "Array allocation is too large"
 
 let set_length a l =
 	a.alength <- l;
 	if a.alength > Array.length a.avalues then begin
-		let values' = Array.make (a.alength * 2) vnull in
+		let values' = make (a.alength * 2) in
 		Array.blit a.avalues 0 values' 0 (Array.length a.avalues);
 		a.avalues <- values'
 	end
@@ -48,7 +47,7 @@ let unsafe_get a i = a.avalues.(i)
 let unsafe_set a i v = a.avalues.(i) <- v
 
 let concat a a2 =
-	let values' = Array.make (a.alength + a2.alength) vnull in
+	let values' = make (a.alength + a2.alength) in
 	Array.blit a.avalues 0 values' 0 a.alength;
 	let values2 = (Obj.magic a2.avalues) in
 	Array.blit values2 0 values' a.alength a2.alength;
@@ -71,7 +70,7 @@ let rec indexOf a equals x fromIndex =
 
 let insert a pos x =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
 		a.avalues <- values'
 	end;
@@ -115,13 +114,14 @@ let pop a =
 		vnull
 	else begin
 		let v = get a (a.alength - 1) in
+		unsafe_set a (a.alength - 1) vnull;
 		a.alength <- a.alength - 1;
 		v
 	end
 
 let push a v =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
 		Array.set values' a.alength v;
 		a.avalues <- values'
@@ -147,7 +147,7 @@ let reverse a =
 let set a i v =
 	if i >= a.alength then begin
 		if i >= Array.length a.avalues then begin
-			let values' = Array.make (i + 5) vnull in
+			let values' = make (max (i + 5) (Array.length a.avalues * 2 + 5)) in
 			Array.blit a.avalues 0 values' 0 a.alength;
 			a.avalues <- values';
 		end;
@@ -183,7 +183,7 @@ let splice a pos len end' =
 
 let unshift a v =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 1 a.alength;
 		a.avalues <- values'
 	end else begin
@@ -191,3 +191,12 @@ let unshift a v =
 	end;
 	Array.set a.avalues 0 v;
 	a.alength <- a.alength + 1
+
+let resize a l =
+	if a.alength < l then begin
+		set a (l - 1) vnull;
+		()
+	end else if a.alength > l then begin
+		ignore(splice a l (a.alength - l) a.alength);
+		()
+	end else ()

@@ -1,7 +1,7 @@
 var vec = new haxe.ds.Vector(3);
-var vNullInt = #if (flash || cpp || java || cs || hl) 0 #else null #end;
-var vNullBool = #if (flash || cpp || java || cs || hl) false #else null #end;
-var vNullFloat = #if (flash || cpp || java || cs || hl) 0.0 #else null #end;
+var vNullInt = #if static 0 #else null #end;
+var vNullBool = #if static false #else null #end;
+var vNullFloat = #if static 0.0 #else null #end;
 vec.length == 3;
 vec.get(0) == vNullInt;
 vec.get(1) == vNullInt;
@@ -30,13 +30,23 @@ vec.get(2) == vNullBool;
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
-#if (!flash && !neko && !cs && !java && !lua && !eval)
+#if (!flash && !neko && !cs && !java && !lua && !eval && !php)
 arr != vec.toData();
 #end
 vec.length == 3;
 vec.get(0) == "1";
 vec.get(1) == "2";
 vec.get(2) == "3";
+
+// toArray
+var vec = new haxe.ds.Vector(3);
+vec.set(1, 2);
+var arr = vec.toArray();
+arr[0] == vNullInt;
+arr[1] == 2;
+#if !as3
+arr[3] == vNullInt;
+#end
 
 // objects
 var tpl = new C();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java;
 
 import haxe.extern.Rest;
@@ -26,8 +27,7 @@ import haxe.extern.Rest;
 /**
 	Represents a java fixed-size Array (`T[]`)
 **/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T>
-{
+@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
 	/**
 		Creates a new array with the specified elements.
 
@@ -35,16 +35,16 @@ import haxe.extern.Rest;
 		```haxe
 		var elements = NativeArray.make(1,2,3,4,5,6);
 		```
-	 **/
+	**/
 	public static function make<T>(elements:Rest<T>):NativeArray<T>;
 
 	/**
 		The length of the array
-	 **/
+	**/
 	public var length(default, null):Int;
 
 	/**
 		Allocates a new array with size `len`
-	 **/
+	**/
 	public function new(len:Int):Void;
 }

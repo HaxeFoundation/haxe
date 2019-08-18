@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,10 @@
 
 package js.html;
 
-typedef SpeechSynthesisEventInit =
-{
-	> EventInit,
-	@:optional var charIndex : Int;
-	@:optional var elapsedTime : Float;
-	@:optional var name : String;
+typedef SpeechSynthesisEventInit = EventInit & {
+	var ?charIndex : Int;
+	var ?charLength : Int;
+	var ?elapsedTime : Float;
+	var ?name : String;
 	var utterance : SpeechSynthesisUtterance;
 }

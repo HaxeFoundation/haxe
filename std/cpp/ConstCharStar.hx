@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,19 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
 
-@:extern abstract ConstCharStar( RawConstPointer<Char> ) to(RawConstPointer<Char>)
-{
-   inline function new(s:String) this = untyped s.__s;
+package cpp;
 
-   @:from
-   static public inline function fromString(s:String) return new ConstCharStar(s);
+extern abstract ConstCharStar(RawConstPointer<Char>) to(RawConstPointer<Char>) {
+	inline function new(s:String)
+		this = untyped s.__s;
 
-   @:to @:extern
-   public inline function toString():String return new String(untyped this);
+	@:from
+	static public inline function fromString(s:String):ConstCharStar
+		return new ConstCharStar(s);
 
-    @:to @:extern
-    public inline function toPointer() return this;
+	@:to extern public inline function toString():String
+		return new String(untyped this);
+
+	@:to extern public inline function toPointer():RawConstPointer<Char>
+		return this;
 }
-

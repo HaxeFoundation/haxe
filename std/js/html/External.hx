@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,7 @@
 
 package js.html;
 
-@:native("External")
-extern class External
-{
+typedef External = {
 	function AddSearchProvider( aDescriptionURL : String ) : Void;
 	function IsSearchProviderInstalled( aSearchURL : String ) : Int;
-	function addSearchEngine( engineURL : String, iconURL : String, suggestedTitle : String, suggestedCategory : String ) : Void;
 }

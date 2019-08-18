@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel>
 **/
 @:native("BroadcastChannel")
-extern class BroadcastChannel extends EventTarget
-{
+extern class BroadcastChannel extends EventTarget {
 	
 	/**
 		Returns a `DOMString`, the name of the channel.
@@ -41,16 +40,21 @@ extern class BroadcastChannel extends EventTarget
 	var name(default,null) : String;
 	
 	/**
-		Is an `EventHandler` property that specifies the function to execute when a `message` event is fired on this object.
+		An `EventHandler` property that specifies the function to execute when a `message` event is fired on this object.
 	**/
 	var onmessage : haxe.Constraints.Function;
 	
+	/**
+		An `EventHandler` called when a `MessageEvent` of type `MessageError` is fired—that is, when it receives a message that cannot be deserialized.
+	**/
+	var onmessageerror : haxe.Constraints.Function;
+	
 	/** @throws DOMError */
 	function new( channel : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sends the message, of any type of object, to each `BroadcastChannel` object listening to the same channel.
+		@throws DOMError
 	**/
 	function postMessage( message : Dynamic ) : Void;
 	

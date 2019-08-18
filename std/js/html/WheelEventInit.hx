@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef WheelEventInit =
-{
-	> MouseEventInit,
-	@:optional var deltaMode : Int;
-	@:optional var deltaX : Float;
-	@:optional var deltaY : Float;
-	@:optional var deltaZ : Float;
+typedef WheelEventInit = MouseEventInit & {
+	var ?deltaMode : Int;
+	var ?deltaX : Float;
+	var ?deltaY : Float;
+	var ?deltaZ : Float;
 }

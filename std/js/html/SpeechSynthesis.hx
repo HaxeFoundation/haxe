@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis>
 **/
 @:native("SpeechSynthesis")
-extern class SpeechSynthesis
-{
+extern class SpeechSynthesis extends EventTarget {
 	
 	/**
 		A `Boolean` that returns `true` if the utterance queue contains as-yet-unspoken utterances.
@@ -49,6 +48,11 @@ extern class SpeechSynthesis
 		A `Boolean` that returns `true` if the `SpeechSynthesis` object is in a paused state.
 	**/
 	var paused(default,null) : Bool;
+	
+	/**
+		Fired when the list of `SpeechSynthesisVoice` objects that would be returned by the `SpeechSynthesis.getVoices()` method has changed.
+	**/
+	var onvoiceschanged : haxe.Constraints.Function;
 	
 	
 	/**

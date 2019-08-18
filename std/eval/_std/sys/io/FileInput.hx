@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 // This class is not extern because externs overriding non-externs messes with DCE
-
 @:coreApi
 class FileInput extends haxe.io.Input {
-	@:extern public override function close():Void { }
-	@:extern public function eof():Bool { return false; }
-	@:extern public function seek(p:Int, pos:FileSeek):Void { }
-	@:extern public function tell():Int { return 0; }
-	@:extern public override function readByte():Int { return 0; }
-	@:extern public override function readBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int { return 0; }
+	extern public override function close():Void;
+
+	extern public function eof():Bool;
+
+	extern public function seek(p:Int, pos:FileSeek):Void;
+
+	extern public function tell():Int;
+
+	extern public override function readByte():Int;
+
+	extern public override function readBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int;
 }

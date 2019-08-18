@@ -1,7 +1,7 @@
 package unit.issues;
 
 private class C {
-	@:extern inline function get() {
+	extern inline function get() {
 		var intStruct = { i: 0 };
 		return intStruct;
 	}

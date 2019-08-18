@@ -1,8 +1,3 @@
-#if php
-// php's haxe.Utf8 uses mbstring
-if (untyped __call__("extension_loaded", "mbstring")) {
-#end
-
 #if false
 // disabled tests with outside BMP chars (will be reenabled when we support them)
 var str = "あ𠀀い";
@@ -48,18 +43,14 @@ haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), "") == 0;
 
 // #if (neko || php || cpp || lua || macro)
 // TODO neko, cpp, macro
-#if (php || lua)
-haxe.Utf8.validate("\xf0\xa9\xb8\xbd\xe3\x81\x82\xc3\xab\x61") == true;
-haxe.Utf8.validate("\xed\x9f\xbf") == true;
-haxe.Utf8.validate("\xee\x80\x80") == true;
-haxe.Utf8.validate("\xf4\x8f\xbf\xbf") == true;
-haxe.Utf8.validate("\xf0\xa9\xb8\xbd\xe3\x81\xc3\xab\x61") == false;
-haxe.Utf8.validate("\xc0\xaf") == false; // redundant sequence
-haxe.Utf8.validate("\xed\xa0\x80") == false; // surrogate byte sequence
-haxe.Utf8.validate("\xed\xbf\xbf") == false; // surrogate byte sequence
-haxe.Utf8.validate("\xf4\x90\x80\x80") == false; // U+110000
-#end
-
 #if php
-}
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("f0a9b8bde38182c3ab61").toString()) == true;
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("ed9fbf").toString()) == true;
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("ee8080").toString()) == true;
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("f48fbfbf").toString()) == true;
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("f0a9b8bde381c3ab61").toString()) == false;
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("c0af").toString()) == false; // redundant sequence
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("eda080").toString()) == false; // surrogate byte sequence
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("edbfbf").toString()) == false; // surrogate byte sequence
+haxe.Utf8.validate(haxe.io.Bytes.ofHex("f4908080").toString()) == false; // U+110000
 #end

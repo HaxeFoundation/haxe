@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,13 +25,14 @@
 package js.html.audio;
 
 /**
-	`PeriodicWave` has no inputs or outputs; it is used to create custom oscillators via `OscillatorNode.setPeriodicWave`. The `PeriodicWave` itself is created/returned by `AudioContext.createPeriodicWave`.
+	`PeriodicWave` has no inputs or outputs; it is used to define custom oscillators when calling `OscillatorNode.setPeriodicWave()`. The `PeriodicWave` itself is created/returned by `AudioContext.createPeriodicWave()`.
 
 	Documentation [PeriodicWave](https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave>
 **/
 @:native("PeriodicWave")
-extern class PeriodicWave
-{
+extern class PeriodicWave {
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : PeriodicWaveOptions ) : Void;
 }

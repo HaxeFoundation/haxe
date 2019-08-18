@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder>
 **/
 @:native("TextEncoder")
-extern class TextEncoder
-{
+extern class TextEncoder {
 	
 	/**
 		Is a `DOMString` containing the name of the encoder, that is a string describing the method the `TextEncoder` will use.
@@ -41,10 +40,10 @@ extern class TextEncoder
 	var encoding(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?utfLabel : String = "utf-8" ) : Void;
+	function new() : Void;
 	
 	/**
 		Returns a `Uint8Array` containing utf-8 encoded text.
 	**/
-	function encode( ?input : String = "" ) : Uint8Array;
+	function encode( input : String = "" ) : js.lib.Uint8Array;
 }

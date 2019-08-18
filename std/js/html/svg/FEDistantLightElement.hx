@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,24 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEDistantLightElement` interface corresponds to the `feDistantLight` element.
+
+	Documentation [SVGFEDistantLightElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDistantLightElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDistantLightElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDistantLightElement>
+**/
 @:native("SVGFEDistantLightElement")
-extern class FEDistantLightElement extends Element
-{
+extern class FEDistantLightElement extends Element {
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `azimuth` attribute of the given element.
+	**/
 	var azimuth(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `elevation` attribute of the given element.
+	**/
 	var elevation(default,null) : AnimatedNumber;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,83 +32,82 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode>
 **/
 @:native("BiquadFilterNode")
-extern class BiquadFilterNode extends AudioNode
-{
+extern class BiquadFilterNode extends AudioNode {
 	
 	/**
 		Is a string value defining the kind of filtering algorithm the node is implementing.<br>
-		  
-		 <table class="standard-table">
-		  The meaning of the different parameters depending of the type of the filter (detune has the same meaning regardless, so isn't listed below)
-		  
-		   <tr>
-		    <code>type</code>
-		    Description
-		    <code>frequency</code>
-		    <code>Q</code>
-		    <code>gain</code>
-		   </tr>
-		  
-		  
-		   <tr>
-		    <code>lowpass</code>
-		    <td>Standard second-order resonant lowpass filter with 12dB/octave rolloff. Frequencies below the cutoff pass through; frequencies above it are attenuated.</td>
-		    <td>The cutoff frequency.</td>
-		    <td>Indicates how peaked the frequency is around the cutoff. The greater the value is, the greater is the peak.</td>
-		    <td>Not used</td>
-		   </tr>
-		   <tr>
-		    <code>highpass</code>
-		    <td>Standard second-order resonant highpass filter with 12dB/octave rolloff. Frequencies below the cutoff are attenuated; frequencies above it pass through.</td>
-		    <td>The cutoff frequency.</td>
-		    <td>Indicates how peaked the frequency is around the cutoff. The greater the value, the greater the peak.</td>
-		    <td>Not used</td>
-		   </tr>
-		   <tr>
-		    <code>bandpass</code>
-		    <td>Standard second-order bandpass filter. Frequencies outside the given range of frequencies are attenuated; the frequencies inside it pass through.</td>
-		    <td>The center of the range of frequencies.</td>
-		    <td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
-		    <td>Not used</td>
-		   </tr>
-		   <tr>
-		    <code>lowshelf</code>
-		    <td>Standard second-order lowshelf filer. Frequencies lower than the frequency get a boost, or an attenuation; frequencies over it are unchanged.</td>
-		    <td>The upper limit of the frequencies getting a boost or an attenuation.</td>
-		    <td>Not used</td>
-		    <td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
-		   </tr>
-		   <tr>
-		    <code>highshelf</code>
-		    <td>Standard second-order highshelf filer. Frequencies higher than the frequency get a boost or an attenuation; frequencies lower than it are unchanged.</td>
-		    <td>The lower limit of the frequencies getting a boost or an attenuation.</td>
-		    <td>Not used</td>
-		    <td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
-		   </tr>
-		   <tr>
-		    <code>peaking</code>
-		    <td>Frequencies inside the range get a boost or an attenuation; frequencies outside it are unchanged.</td>
-		    <td>The middle of the frequency range getting a boost or an attenuation.</td>
-		    <td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
-		    <td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
-		   </tr>
-		   <tr>
-		    <code>notch</code>
-		    <td>Standard notch filter, also called a band-stop or band-rejection filter. It is the opposite of a bandpass filter: frequencies outside the give range of frequencies pass through; frequencies inside it are attenuated.</td>
-		    <td>The center of the range of frequencies.</td>
-		    <td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
-		    <td>Not used</td>
-		   </tr>
-		   <tr>
-		    <code>allpass</code>
-		    <td>Standard second-order allpass filter. It lets all frequencies through, but changes the phase-relationship between the various frequencies.</td>
-		    <td>The frequency with the maximal group delay, that is, the frequency where the center of the phase transition occurs.</td>
-		    <td>Controls how sharp the transition is at the medium frequency. The larger this parameter is, the sharper and larger the transition will be.</td>
-		    <td>Not used</td>
-		   </tr>
-		  
-		 </table>
-		 
+			 
+			<table class="standard-table">
+				The meaning of the different parameters depending of the type of the filter (detune has the same meaning regardless, so isn't listed below)
+				
+					<tr>
+						<code>type</code>
+						Description
+						<code>frequency</code>
+						<code>Q</code>
+						<code>gain</code>
+					</tr>
+				
+				
+					<tr>
+						<code>lowpass</code>
+						<td>Standard second-order resonant lowpass filter with 12dB/octave rolloff. Frequencies below the cutoff pass through; frequencies above it are attenuated.</td>
+						<td>The cutoff frequency.</td>
+						<td>Indicates how peaked the frequency is around the cutoff. The greater the value is, the greater is the peak.</td>
+						<td>Not used</td>
+					</tr>
+					<tr>
+						<code>highpass</code>
+						<td>Standard second-order resonant highpass filter with 12dB/octave rolloff. Frequencies below the cutoff are attenuated; frequencies above it pass through.</td>
+						<td>The cutoff frequency.</td>
+						<td>Indicates how peaked the frequency is around the cutoff. The greater the value, the greater the peak.</td>
+						<td>Not used</td>
+					</tr>
+					<tr>
+						<code>bandpass</code>
+						<td>Standard second-order bandpass filter. Frequencies outside the given range of frequencies are attenuated; the frequencies inside it pass through.</td>
+						<td>The center of the range of frequencies.</td>
+						<td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
+						<td>Not used</td>
+					</tr>
+					<tr>
+						<code>lowshelf</code>
+						<td>Standard second-order lowshelf filter. Frequencies lower than the frequency get a boost, or an attenuation; frequencies over it are unchanged.</td>
+						<td>The upper limit of the frequencies getting a boost or an attenuation.</td>
+						<td>Not used</td>
+						<td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
+					</tr>
+					<tr>
+						<code>highshelf</code>
+						<td>Standard second-order highshelf filter. Frequencies higher than the frequency get a boost or an attenuation; frequencies lower than it are unchanged.</td>
+						<td>The lower limit of the frequencies getting a boost or an attenuation.</td>
+						<td>Not used</td>
+						<td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
+					</tr>
+					<tr>
+						<code>peaking</code>
+						<td>Frequencies inside the range get a boost or an attenuation; frequencies outside it are unchanged.</td>
+						<td>The middle of the frequency range getting a boost or an attenuation.</td>
+						<td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
+						<td>The boost, in dB, to be applied; if negative, it will be an attenuation.</td>
+					</tr>
+					<tr>
+						<code>notch</code>
+						<td>Standard notch filter, also called a band-stop or band-rejection filter. It is the opposite of a bandpass filter: frequencies outside the give range of frequencies pass through; frequencies inside it are attenuated.</td>
+						<td>The center of the range of frequencies.</td>
+						<td>Controls the width of the frequency band. The greater the <code>Q</code> value, the smaller the frequency band.</td>
+						<td>Not used</td>
+					</tr>
+					<tr>
+						<code>allpass</code>
+						<td>Standard second-order allpass filter. It lets all frequencies through, but changes the phase-relationship between the various frequencies.</td>
+						<td>The frequency with the maximal group delay, that is, the frequency where the center of the phase transition occurs.</td>
+						<td>Controls how sharp the transition is at the medium frequency. The larger this parameter is, the sharper and larger the transition will be.</td>
+						<td>Not used</td>
+					</tr>
+				
+			</table>
+			
 	**/
 	var type : BiquadFilterType;
 	
@@ -132,9 +131,11 @@ extern class BiquadFilterNode extends AudioNode
 	**/
 	var gain(default,null) : AudioParam;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : BiquadFilterOptions ) : Void;
 	
 	/**
 		From the current filter parameter settings this method calculates the frequency response for frequencies specified in the provided array of frequencies.
 	**/
-	function getFrequencyResponse( frequencyHz : js.html.Float32Array, magResponse : js.html.Float32Array, phaseResponse : js.html.Float32Array ) : Void;
+	function getFrequencyResponse( frequencyHz : js.lib.Float32Array, magResponse : js.lib.Float32Array, phaseResponse : js.lib.Float32Array ) : Void;
 }

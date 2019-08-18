@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html.webgl;
 
 /**
-	The WebGLRenderingContext interface provides the OpenGL ES 2.0 rendering context for the drawing surface of an HTML `canvas` element.
+	The `WebGLRenderingContext` interface provides the OpenGL ES 2.0 rendering context for the drawing surface of an HTML `canvas` element.
 
 	Documentation [WebGLRenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext>
 **/
 @:native("WebGLRenderingContext")
-extern class RenderingContext
-{
+extern class RenderingContext {
 	static inline var DEPTH_BUFFER_BIT : Int = 256;
 	static inline var STENCIL_BUFFER_BIT : Int = 1024;
 	static inline var COLOR_BUFFER_BIT : Int = 16384;
@@ -296,7 +295,6 @@ extern class RenderingContext
 	static inline var RGB5_A1 : Int = 32855;
 	static inline var RGB565 : Int = 36194;
 	static inline var DEPTH_COMPONENT16 : Int = 33189;
-	static inline var STENCIL_INDEX : Int = 6401;
 	static inline var STENCIL_INDEX8 : Int = 36168;
 	static inline var DEPTH_STENCIL : Int = 34041;
 	static inline var RENDERBUFFER_WIDTH : Int = 36162;
@@ -332,179 +330,619 @@ extern class RenderingContext
 	static inline var UNPACK_COLORSPACE_CONVERSION_WEBGL : Int = 37443;
 	static inline var BROWSER_DEFAULT_WEBGL : Int = 37444;
 	
+	
+	/**
+		A read-only back-reference to the `HTMLCanvasElement`. Might be `null` if it is not associated with a `canvas` element.
+	**/
 	var canvas(default,null) : js.html.CanvasElement;
+	
+	/**
+		The read-only width of the current drawing buffer. Should match the width of the canvas element associated with this context.
+	**/
 	var drawingBufferWidth(default,null) : Int;
+	
+	/**
+		The read-only height of the current drawing buffer. Should match the height of the canvas element associated with this context.
+	**/
 	var drawingBufferHeight(default,null) : Int;
 	
-	function getContextAttributes() : ContextAttributes;
-	function isContextLost() : Bool;
-	function getSupportedExtensions() : Array<String>;
-	/** @throws DOMError */
-	function getExtension( name : String ) : Dynamic;
-	function activeTexture( texture : Int ) : Void;
-	function attachShader( program : Program, shader : Shader ) : Void;
-	function bindAttribLocation( program : Program, index : Int, name : String ) : Void;
-	function bindBuffer( target : Int, buffer : Buffer ) : Void;
-	function bindFramebuffer( target : Int, framebuffer : Framebuffer ) : Void;
-	function bindRenderbuffer( target : Int, renderbuffer : Renderbuffer ) : Void;
-	function bindTexture( target : Int, texture : Texture ) : Void;
-	function blendColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;
-	function blendEquation( mode : Int ) : Void;
-	function blendEquationSeparate( modeRGB : Int, modeAlpha : Int ) : Void;
-	function blendFunc( sfactor : Int, dfactor : Int ) : Void;
-	function blendFuncSeparate( srcRGB : Int, dstRGB : Int, srcAlpha : Int, dstAlpha : Int ) : Void;
+	
+	/**
+		Updates buffer data.
+	**/
 	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
-	@:overload( function( target : Int, data : js.html.ArrayBufferView, usage : Int ) : Void {} )
-	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
-	function bufferData( target : Int, data : Dynamic/*MISSING SharedArrayBuffer*/, usage : Int ) : Void;
-	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBufferView ) : Void {} )
-	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
-	function bufferSubData( target : Int, offset : Int, data : Dynamic/*MISSING SharedArrayBuffer*/ ) : Void;
-	function checkFramebufferStatus( target : Int ) : Int;
-	function clear( mask : Int ) : Void;
-	function clearColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;
-	function clearDepth( depth : Float ) : Void;
-	function clearStencil( s : Int ) : Void;
-	function colorMask( red : Bool, green : Bool, blue : Bool, alpha : Bool ) : Void;
-	function compileShader( shader : Shader ) : Void;
-	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, data : js.html.ArrayBufferView ) : Void;
-	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, data : js.html.ArrayBufferView ) : Void;
-	function copyTexImage2D( target : Int, level : Int, internalformat : Int, x : Int, y : Int, width : Int, height : Int, border : Int ) : Void;
-	function copyTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, x : Int, y : Int, width : Int, height : Int ) : Void;
-	function createBuffer() : Buffer;
-	function createFramebuffer() : Framebuffer;
-	function createProgram() : Program;
-	function createRenderbuffer() : Renderbuffer;
-	function createShader( type : Int ) : Shader;
-	function createTexture() : Texture;
-	function cullFace( mode : Int ) : Void;
-	function deleteBuffer( buffer : Buffer ) : Void;
-	function deleteFramebuffer( framebuffer : Framebuffer ) : Void;
-	function deleteProgram( program : Program ) : Void;
-	function deleteRenderbuffer( renderbuffer : Renderbuffer ) : Void;
-	function deleteShader( shader : Shader ) : Void;
-	function deleteTexture( texture : Texture ) : Void;
-	function depthFunc( func : Int ) : Void;
-	function depthMask( flag : Bool ) : Void;
-	function depthRange( zNear : Float, zFar : Float ) : Void;
-	function detachShader( program : Program, shader : Shader ) : Void;
-	function disable( cap : Int ) : Void;
-	function disableVertexAttribArray( index : Int ) : Void;
-	function drawArrays( mode : Int, first : Int, count : Int ) : Void;
-	function drawElements( mode : Int, count : Int, type : Int, offset : Int ) : Void;
-	function enable( cap : Int ) : Void;
-	function enableVertexAttribArray( index : Int ) : Void;
-	function finish() : Void;
-	function flush() : Void;
-	function framebufferRenderbuffer( target : Int, attachment : Int, renderbuffertarget : Int, renderbuffer : Renderbuffer ) : Void;
-	function framebufferTexture2D( target : Int, attachment : Int, textarget : Int, texture : Texture, level : Int ) : Void;
-	function frontFace( mode : Int ) : Void;
-	function generateMipmap( target : Int ) : Void;
-	function getActiveAttrib( program : Program, index : Int ) : ActiveInfo;
-	function getActiveUniform( program : Program, index : Int ) : ActiveInfo;
-	function getAttachedShaders( program : Program ) : Array<Shader>;
-	function getAttribLocation( program : Program, name : String ) : Int;
-	function getBufferParameter( target : Int, pname : Int ) : Dynamic;
-	/** @throws DOMError */
-	function getParameter( pname : Int ) : Dynamic;
-	function getError() : Int;
-	/** @throws DOMError */
-	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Dynamic;
-	function getProgramParameter( program : Program, pname : Int ) : Dynamic;
-	function getProgramInfoLog( program : Program ) : String;
-	function getRenderbufferParameter( target : Int, pname : Int ) : Dynamic;
-	function getShaderParameter( shader : Shader, pname : Int ) : Dynamic;
-	function getShaderPrecisionFormat( shadertype : Int, precisiontype : Int ) : ShaderPrecisionFormat;
-	function getShaderInfoLog( shader : Shader ) : String;
-	function getShaderSource( shader : Shader ) : String;
-	function getTexParameter( target : Int, pname : Int ) : Dynamic;
-	function getUniform( program : Program, location : UniformLocation ) : Dynamic;
-	function getUniformLocation( program : Program, name : String ) : UniformLocation;
-	/** @throws DOMError */
-	function getVertexAttrib( index : Int, pname : Int ) : Dynamic;
-	function getVertexAttribOffset( index : Int, pname : Int ) : Int;
-	function hint( target : Int, mode : Int ) : Void;
-	function isBuffer( buffer : Buffer ) : Bool;
-	function isEnabled( cap : Int ) : Bool;
-	function isFramebuffer( framebuffer : Framebuffer ) : Bool;
-	function isProgram( program : Program ) : Bool;
-	function isRenderbuffer( renderbuffer : Renderbuffer ) : Bool;
-	function isShader( shader : Shader ) : Bool;
-	function isTexture( texture : Texture ) : Bool;
-	function lineWidth( width : Float ) : Void;
-	function linkProgram( program : Program ) : Void;
-	function pixelStorei( pname : Int, param : Int ) : Void;
-	function polygonOffset( factor : Float, units : Float ) : Void;
-	/** @throws DOMError */
-	function readPixels( x : Int, y : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void;
-	function renderbufferStorage( target : Int, internalformat : Int, width : Int, height : Int ) : Void;
-	function sampleCoverage( value : Float, invert : Bool ) : Void;
-	function scissor( x : Int, y : Int, width : Int, height : Int ) : Void;
-	function shaderSource( shader : Shader, source : String ) : Void;
-	function stencilFunc( func : Int, ref : Int, mask : Int ) : Void;
-	function stencilFuncSeparate( face : Int, func : Int, ref : Int, mask : Int ) : Void;
-	function stencilMask( mask : Int ) : Void;
-	function stencilMaskSeparate( face : Int, mask : Int ) : Void;
-	function stencilOp( fail : Int, zfail : Int, zpass : Int ) : Void;
-	function stencilOpSeparate( face : Int, fail : Int, zfail : Int, zpass : Int ) : Void;
-	/** @throws DOMError */
-	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
+	@:overload( function( target : Int, data : js.lib.ArrayBuffer, usage : Int ) : Void {} )
+	function bufferData( target : Int, data : js.lib.ArrayBufferView, usage : Int ) : Void;
+	
+	/**
+		Updates buffer data starting at a passed offset.
+	**/
+	@:overload( function( target : Int, offset : Int, data : js.lib.ArrayBuffer ) : Void {} )
+	function bufferSubData( target : Int, offset : Int, data : js.lib.ArrayBufferView ) : Void;
+	
+	/**
+		Specifies a 2D texture image in a compressed format.
+	**/
+	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, data : js.lib.ArrayBufferView ) : Void;
+	
+	/**
+		Specifies a 2D texture sub-image in a compressed format.
+	**/
+	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, data : js.lib.ArrayBufferView ) : Void;
+	
+	/**
+		Reads a block of pixels from the `WebGLFrameBuffer`.
+		@throws DOMError
+	**/
+	function readPixels( x : Int, y : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void;
+	
+	/**
+		Specifies a 2D texture image.
+		@throws DOMError
+	**/
+	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void {} )
+	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
 	function texImage2D( target : Int, level : Int, internalformat : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
-	function texParameterf( target : Int, pname : Int, param : Float ) : Void;
-	function texParameteri( target : Int, pname : Int, param : Int ) : Void;
-	/** @throws DOMError */
-	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
+	
+	/**
+		Updates a sub-rectangle of the current `WebGLTexture`.
+		@throws DOMError
+	**/
+	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void {} )
+	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
 	function texSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform1fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform2fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform3fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform4fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform1iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform2iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform3iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform4iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
+	
+	/**
+		Returns a `WebGLContextAttributes` object that contains the actual context parameters. Might return `null`, if the context is lost.
+	**/
+	function getContextAttributes() : ContextAttributes;
+	
+	/**
+		Returns `true` if the context is lost, otherwise returns `false`.
+	**/
+	function isContextLost() : Bool;
+	
+	/**
+		Returns an `Array` of `DOMString` elements with all the supported WebGL extensions.
+	**/
+	function getSupportedExtensions() : Array<String>;
+	
+	/**
+		Returns an extension object.
+		@throws DOMError
+	**/
+	function getExtension<T>( name : Extension<T> ) : T;
+	
+	/**
+		Selects the active texture unit.
+	**/
+	function activeTexture( texture : Int ) : Void;
+	
+	/**
+		Attaches a `WebGLShader` to a `WebGLProgram`.
+	**/
+	function attachShader( program : Program, shader : Shader ) : Void;
+	
+	/**
+		Binds a generic vertex index to a named attribute variable.
+	**/
+	function bindAttribLocation( program : Program, index : Int, name : String ) : Void;
+	
+	/**
+		Binds a `WebGLBuffer` object to a given target.
+	**/
+	function bindBuffer( target : Int, buffer : Buffer ) : Void;
+	
+	/**
+		Binds a `WebGLFrameBuffer` object to a given target.
+	**/
+	function bindFramebuffer( target : Int, framebuffer : Framebuffer ) : Void;
+	
+	/**
+		Binds a `WebGLRenderBuffer` object to a given target.
+	**/
+	function bindRenderbuffer( target : Int, renderbuffer : Renderbuffer ) : Void;
+	
+	/**
+		Binds a `WebGLTexture` object to a given target.
+	**/
+	function bindTexture( target : Int, texture : Texture ) : Void;
+	
+	/**
+		Sets the source and destination blending factors.
+	**/
+	function blendColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;
+	
+	/**
+		Sets both the RGB blend equation and alpha blend equation to a single equation.
+	**/
+	function blendEquation( mode : Int ) : Void;
+	
+	/**
+		Sets the RGB blend equation and alpha blend equation separately.
+	**/
+	function blendEquationSeparate( modeRGB : Int, modeAlpha : Int ) : Void;
+	
+	/**
+		Defines which function is used for blending pixel arithmetic.
+	**/
+	function blendFunc( sfactor : Int, dfactor : Int ) : Void;
+	
+	/**
+		Defines which function is used for blending pixel arithmetic for RGB and alpha components separately.
+	**/
+	function blendFuncSeparate( srcRGB : Int, dstRGB : Int, srcAlpha : Int, dstAlpha : Int ) : Void;
+	
+	/**
+		Returns the status of the framebuffer.
+	**/
+	function checkFramebufferStatus( target : Int ) : Int;
+	
+	/**
+		Clears specified buffers to preset values.
+	**/
+	function clear( mask : Int ) : Void;
+	
+	/**
+		Specifies the color values used when clearing color buffers.
+	**/
+	function clearColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;
+	
+	/**
+		Specifies the depth value used when clearing the depth buffer.
+	**/
+	function clearDepth( depth : Float ) : Void;
+	
+	/**
+		Specifies the stencil value used when clearing the stencil buffer.
+	**/
+	function clearStencil( s : Int ) : Void;
+	
+	/**
+		Sets which color components to enable or to disable when drawing or rendering to a `WebGLFramebuffer`.
+	**/
+	function colorMask( red : Bool, green : Bool, blue : Bool, alpha : Bool ) : Void;
+	
+	/**
+		Compiles a `WebGLShader`.
+	**/
+	function compileShader( shader : Shader ) : Void;
+	
+	/**
+		Copies a 2D texture image.
+	**/
+	function copyTexImage2D( target : Int, level : Int, internalformat : Int, x : Int, y : Int, width : Int, height : Int, border : Int ) : Void;
+	
+	/**
+		Copies a 2D texture sub-image.
+	**/
+	function copyTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, x : Int, y : Int, width : Int, height : Int ) : Void;
+	
+	/**
+		Creates a `WebGLBuffer` object.
+	**/
+	function createBuffer() : Buffer;
+	
+	/**
+		Creates a `WebGLFrameBuffer` object.
+	**/
+	function createFramebuffer() : Framebuffer;
+	
+	/**
+		Creates a `WebGLProgram`.
+	**/
+	function createProgram() : Program;
+	
+	/**
+		Creates a `WebGLRenderBuffer` object.
+	**/
+	function createRenderbuffer() : Renderbuffer;
+	
+	/**
+		Creates a `WebGLShader`.
+	**/
+	function createShader( type : Int ) : Shader;
+	
+	/**
+		Creates a `WebGLTexture` object.
+	**/
+	function createTexture() : Texture;
+	
+	/**
+		Specifies whether or not front- and/or back-facing polygons can be culled.
+	**/
+	function cullFace( mode : Int ) : Void;
+	
+	/**
+		Deletes a `WebGLBuffer` object.
+	**/
+	function deleteBuffer( buffer : Buffer ) : Void;
+	
+	/**
+		Deletes a `WebGLFrameBuffer` object.
+	**/
+	function deleteFramebuffer( framebuffer : Framebuffer ) : Void;
+	
+	/**
+		Deletes a `WebGLProgram`.
+	**/
+	function deleteProgram( program : Program ) : Void;
+	
+	/**
+		Deletes a `WebGLRenderBuffer` object.
+	**/
+	function deleteRenderbuffer( renderbuffer : Renderbuffer ) : Void;
+	
+	/**
+		Deletes a `WebGLShader`.
+	**/
+	function deleteShader( shader : Shader ) : Void;
+	
+	/**
+		Deletes a `WebGLTexture` object.
+	**/
+	function deleteTexture( texture : Texture ) : Void;
+	
+	/**
+		Specifies a function that compares incoming pixel depth to the current depth buffer value.
+	**/
+	function depthFunc( func : Int ) : Void;
+	
+	/**
+		Sets whether writing into the depth buffer is enabled or disabled.
+	**/
+	function depthMask( flag : Bool ) : Void;
+	
+	/**
+		Specifies the depth range mapping from normalized device coordinates to window or viewport coordinates.
+	**/
+	function depthRange( zNear : Float, zFar : Float ) : Void;
+	
+	/**
+		Detaches a `WebGLShader`.
+	**/
+	function detachShader( program : Program, shader : Shader ) : Void;
+	
+	/**
+		Disables specific WebGL capabilities for this context.
+	**/
+	function disable( cap : Int ) : Void;
+	
+	/**
+		Disables a vertex attribute array at a given position.
+	**/
+	function disableVertexAttribArray( index : Int ) : Void;
+	
+	/**
+		Renders primitives from array data.
+	**/
+	function drawArrays( mode : Int, first : Int, count : Int ) : Void;
+	
+	/**
+		Renders primitives from element array data.
+	**/
+	function drawElements( mode : Int, count : Int, type : Int, offset : Int ) : Void;
+	
+	/**
+		Enables specific WebGL capabilities for this context.
+	**/
+	function enable( cap : Int ) : Void;
+	
+	/**
+		Enables a vertex attribute array at a given position.
+	**/
+	function enableVertexAttribArray( index : Int ) : Void;
+	
+	/**
+		Blocks execution until all previously called commands are finished.
+	**/
+	function finish() : Void;
+	
+	/**
+		Empties different buffer commands, causing all commands to be executed as quickly as possible.
+	**/
+	function flush() : Void;
+	
+	/**
+		Attaches a `WebGLRenderingBuffer` object to a `WebGLFrameBuffer` object.
+	**/
+	function framebufferRenderbuffer( target : Int, attachment : Int, renderbuffertarget : Int, renderbuffer : Renderbuffer ) : Void;
+	
+	/**
+		Attaches a textures image to a `WebGLFrameBuffer` object.
+	**/
+	function framebufferTexture2D( target : Int, attachment : Int, textarget : Int, texture : Texture, level : Int ) : Void;
+	
+	/**
+		Specifies whether polygons are front- or back-facing by setting a winding orientation.
+	**/
+	function frontFace( mode : Int ) : Void;
+	
+	/**
+		Generates a set of mipmaps for a `WebGLTexture` object.
+	**/
+	function generateMipmap( target : Int ) : Void;
+	
+	/**
+		Returns information about an active attribute variable.
+	**/
+	function getActiveAttrib( program : Program, index : Int ) : ActiveInfo;
+	
+	/**
+		Returns information about an active uniform variable.
+	**/
+	function getActiveUniform( program : Program, index : Int ) : ActiveInfo;
+	
+	/**
+		Returns a list of `WebGLShader` objects attached to a `WebGLProgram`.
+	**/
+	function getAttachedShaders( program : Program ) : Array<Shader>;
+	
+	/**
+		Returns the location of an attribute variable.
+	**/
+	function getAttribLocation( program : Program, name : String ) : Int;
+	
+	/**
+		Returns information about the buffer.
+	**/
+	function getBufferParameter( target : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Returns a value for the passed parameter name.
+		@throws DOMError
+	**/
+	function getParameter( pname : Int ) : Dynamic;
+	
+	/**
+		Returns error information.
+	**/
+	function getError() : Int;
+	
+	/**
+		Returns information about the framebuffer.
+		@throws DOMError
+	**/
+	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Returns information about the program.
+	**/
+	function getProgramParameter( program : Program, pname : Int ) : Dynamic;
+	
+	/**
+		Returns the information log for a `WebGLProgram` object.
+	**/
+	function getProgramInfoLog( program : Program ) : String;
+	
+	/**
+		Returns information about the renderbuffer.
+	**/
+	function getRenderbufferParameter( target : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Returns information about the shader.
+	**/
+	function getShaderParameter( shader : Shader, pname : Int ) : Dynamic;
+	
+	/**
+		Returns a `WebGLShaderPrecisionFormat` object describing the precision for the numeric format of the shader.
+	**/
+	function getShaderPrecisionFormat( shadertype : Int, precisiontype : Int ) : ShaderPrecisionFormat;
+	
+	/**
+		Returns the information log for a `WebGLShader` object.
+	**/
+	function getShaderInfoLog( shader : Shader ) : String;
+	
+	/**
+		Returns the source code of a `WebGLShader` as a string.
+	**/
+	function getShaderSource( shader : Shader ) : String;
+	
+	/**
+		Returns information about the texture.
+	**/
+	function getTexParameter( target : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Returns the value of a uniform variable at a given location.
+	**/
+	function getUniform( program : Program, location : UniformLocation ) : Dynamic;
+	
+	/**
+		Returns the location of a uniform variable.
+	**/
+	function getUniformLocation( program : Program, name : String ) : UniformLocation;
+	
+	/**
+		Returns information about a vertex attribute at a given position.
+		@throws DOMError
+	**/
+	function getVertexAttrib( index : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Returns the address of a given vertex attribute.
+	**/
+	function getVertexAttribOffset( index : Int, pname : Int ) : Int;
+	
+	/**
+		Specifies hints for certain behaviors. The interpretation of these hints depend on the implementation.
+	**/
+	function hint( target : Int, mode : Int ) : Void;
+	
+	/**
+		Returns a Boolean indicating if the passed buffer is valid.
+	**/
+	function isBuffer( buffer : Buffer ) : Bool;
+	
+	/**
+		Tests whether a specific WebGL capability is enabled or not for this context.
+	**/
+	function isEnabled( cap : Int ) : Bool;
+	
+	/**
+		Returns a Boolean indicating if the passed `WebGLFrameBuffer` object is valid.
+	**/
+	function isFramebuffer( framebuffer : Framebuffer ) : Bool;
+	
+	/**
+		Returns a Boolean indicating if the passed `WebGLProgram` is valid.
+	**/
+	function isProgram( program : Program ) : Bool;
+	
+	/**
+		Returns a Boolean indicating if the passed `WebGLRenderingBuffer` is valid.
+	**/
+	function isRenderbuffer( renderbuffer : Renderbuffer ) : Bool;
+	
+	/**
+		Returns a Boolean indicating if the passed `WebGLShader` is valid.
+	**/
+	function isShader( shader : Shader ) : Bool;
+	
+	/**
+		Returns a Boolean indicating if the passed `WebGLTexture` is valid.
+	**/
+	function isTexture( texture : Texture ) : Bool;
+	
+	/**
+		Sets the line width of rasterized lines.
+	**/
+	function lineWidth( width : Float ) : Void;
+	
+	/**
+		Links the passed `WebGLProgram` object.
+	**/
+	function linkProgram( program : Program ) : Void;
+	
+	/**
+		Specifies the pixel storage modes
+	**/
+	function pixelStorei( pname : Int, param : Int ) : Void;
+	
+	/**
+		Specifies the scale factors and units to calculate depth values.
+	**/
+	function polygonOffset( factor : Float, units : Float ) : Void;
+	
+	/**
+		Creates a renderbuffer data store.
+	**/
+	function renderbufferStorage( target : Int, internalformat : Int, width : Int, height : Int ) : Void;
+	
+	/**
+		Specifies multi-sample coverage parameters for anti-aliasing effects.
+	**/
+	function sampleCoverage( value : Float, invert : Bool ) : Void;
+	
+	/**
+		Defines the scissor box.
+	**/
+	function scissor( x : Int, y : Int, width : Int, height : Int ) : Void;
+	
+	/**
+		Sets the source code in a `WebGLShader`.
+	**/
+	function shaderSource( shader : Shader, source : String ) : Void;
+	
+	/**
+		Sets the both front and back function and reference value for stencil testing.
+	**/
+	function stencilFunc( func : Int, ref : Int, mask : Int ) : Void;
+	
+	/**
+		Sets the front and/or back function and reference value for stencil testing.
+	**/
+	function stencilFuncSeparate( face : Int, func : Int, ref : Int, mask : Int ) : Void;
+	
+	/**
+		Controls enabling and disabling of both the front and back writing of individual bits in the stencil planes.
+	**/
+	function stencilMask( mask : Int ) : Void;
+	
+	/**
+		Controls enabling and disabling of front and/or back writing of individual bits in the stencil planes.
+	**/
+	function stencilMaskSeparate( face : Int, mask : Int ) : Void;
+	
+	/**
+		Sets both the front and back-facing stencil test actions.
+	**/
+	function stencilOp( fail : Int, zfail : Int, zpass : Int ) : Void;
+	
+	/**
+		Sets the front and/or back-facing stencil test actions.
+	**/
+	function stencilOpSeparate( face : Int, fail : Int, zfail : Int, zpass : Int ) : Void;
+	function texParameterf( target : Int, pname : Int, param : Float ) : Void;
+	function texParameteri( target : Int, pname : Int, param : Int ) : Void;
 	function uniform1f( location : UniformLocation, x : Float ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Float32Array ) : Void {} )
-	function uniform1fv( location : UniformLocation, v : Array<Float> ) : Void;
-	function uniform1i( location : UniformLocation, x : Int ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Int32Array ) : Void {} )
-	function uniform1iv( location : UniformLocation, v : Array<Int> ) : Void;
 	function uniform2f( location : UniformLocation, x : Float, y : Float ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Float32Array ) : Void {} )
-	function uniform2fv( location : UniformLocation, v : Array<Float> ) : Void;
-	function uniform2i( location : UniformLocation, x : Int, y : Int ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Int32Array ) : Void {} )
-	function uniform2iv( location : UniformLocation, v : Array<Int> ) : Void;
 	function uniform3f( location : UniformLocation, x : Float, y : Float, z : Float ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Float32Array ) : Void {} )
-	function uniform3fv( location : UniformLocation, v : Array<Float> ) : Void;
-	function uniform3i( location : UniformLocation, x : Int, y : Int, z : Int ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Int32Array ) : Void {} )
-	function uniform3iv( location : UniformLocation, v : Array<Int> ) : Void;
 	function uniform4f( location : UniformLocation, x : Float, y : Float, z : Float, w : Float ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Float32Array ) : Void {} )
-	function uniform4fv( location : UniformLocation, v : Array<Float> ) : Void;
+	function uniform1i( location : UniformLocation, x : Int ) : Void;
+	function uniform2i( location : UniformLocation, x : Int, y : Int ) : Void;
+	function uniform3i( location : UniformLocation, x : Int, y : Int, z : Int ) : Void;
 	function uniform4i( location : UniformLocation, x : Int, y : Int, z : Int, w : Int ) : Void;
-	@:overload( function( location : UniformLocation, v : js.html.Int32Array ) : Void {} )
-	function uniform4iv( location : UniformLocation, v : Array<Int> ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, value : js.html.Float32Array ) : Void {} )
-	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, value : Array<Float> ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, value : js.html.Float32Array ) : Void {} )
-	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, value : Array<Float> ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, value : js.html.Float32Array ) : Void {} )
-	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, value : Array<Float> ) : Void;
+	
+	/**
+		Uses the specified `WebGLProgram` as part the current rendering state.
+	**/
 	function useProgram( program : Program ) : Void;
+	
+	/**
+		Validates a `WebGLProgram`.
+	**/
 	function validateProgram( program : Program ) : Void;
 	function vertexAttrib1f( indx : Int, x : Float ) : Void;
-	@:overload( function( indx : Int, values : js.html.Float32Array ) : Void {} )
-	function vertexAttrib1fv( indx : Int, values : Array<Float> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib1fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib2f( indx : Int, x : Float, y : Float ) : Void;
-	@:overload( function( indx : Int, values : js.html.Float32Array ) : Void {} )
-	function vertexAttrib2fv( indx : Int, values : Array<Float> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib2fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib3f( indx : Int, x : Float, y : Float, z : Float ) : Void;
-	@:overload( function( indx : Int, values : js.html.Float32Array ) : Void {} )
-	function vertexAttrib3fv( indx : Int, values : Array<Float> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib3fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib4f( indx : Int, x : Float, y : Float, z : Float, w : Float ) : Void;
-	@:overload( function( indx : Int, values : js.html.Float32Array ) : Void {} )
-	function vertexAttrib4fv( indx : Int, values : Array<Float> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib4fv( indx : Int, values : js.lib.Float32Array ) : Void;
+	
+	/**
+		Specifies the data formats and locations of vertex attributes in a vertex attributes array.
+	**/
 	function vertexAttribPointer( indx : Int, size : Int, type : Int, normalized : Bool, stride : Int, offset : Int ) : Void;
+	
+	/**
+		Sets the viewport.
+	**/
 	function viewport( x : Int, y : Int, width : Int, height : Int ) : Void;
 }

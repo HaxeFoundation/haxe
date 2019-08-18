@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -38,14 +38,13 @@ let instance_field vi name =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name)
 
 let object_field_raise o name =
-	try o.ofields.(get_instance_field_index_raise o.oproto name)
-	with Not_found -> IntMap.find name o.oextra
+	o.ofields.(get_instance_field_index_raise o.oproto name)
 
 let object_field o name =
 	try object_field_raise o name with Not_found -> vnull
 
 let field_raise v f =
-	match v with
+	match vresolve v with
 	| VObject o -> object_field_raise o f
 	| VInstance {ikind = IBytes s} when f = key_length -> vint (Bytes.length s)
 	| VPrototype proto -> proto_field_raise proto f
@@ -55,8 +54,8 @@ let field_raise v f =
 	| VVector vv ->
 		if f = key_length then vint (Array.length vv)
 		else proto_field_direct (get_ctx()).vector_prototype f
-	| VString (_,s) ->
-		if f = key_length then vint (String.length (Lazy.force s))
+	| VString s ->
+		if f = key_length then vint (s.slength)
 		else proto_field_direct (get_ctx()).string_prototype f
 	| VInstance vi -> (try instance_field vi f with Not_found -> proto_field_raise vi.iproto f)
 	| _ -> raise Not_found

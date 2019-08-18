@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement>
 **/
 @:native("HTMLProgressElement")
-extern class ProgressElement extends Element
-{
+extern class ProgressElement extends Element {
 	
 	/**
 		Is a `double` value that reflects the current value; if the progress bar is an indeterminate progress bar, it returns `0`.
@@ -49,5 +48,10 @@ extern class ProgressElement extends Element
 		Returns a `double` value returning the result of dividing the current value (`value`) by the maximum value (`max`); if the progress bar is an indeterminate progress bar, it returns `-1`.
 	**/
 	var position(default,null) : Float;
+	
+	/**
+		Returns `NodeList` containing the list of `label` elements that are labels for this element.
+	**/
+	var labels(default,null) : NodeList;
 	
 }

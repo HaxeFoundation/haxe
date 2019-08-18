@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,16 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGScriptElement>
 **/
 @:native("SVGScriptElement")
-extern class ScriptElement extends Element
-{
+extern class ScriptElement extends Element {
+	
+	/**
+		A `DOMString` corresponding to the `type` attribute of the given `script` element. A `DOMException` is raised with the code `NO_MODIFICATION_ALLOWED_ERR` on an attempt to change the value of a read only attribut.
+	**/
 	var type : String;
+	
+	/**
+		A `DOMString` corresponding to the `crossorigin` attribute of the given `script` element.
+	**/
 	var crossOrigin : String;
 	var href(default,null) : AnimatedString;
 	

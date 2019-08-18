@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGPathSeg")
-extern class PathSeg
-{
+extern class PathSeg {
 	static inline var PATHSEG_UNKNOWN : Int = 0;
 	static inline var PATHSEG_CLOSEPATH : Int = 1;
 	static inline var PATHSEG_MOVETO_ABS : Int = 2;

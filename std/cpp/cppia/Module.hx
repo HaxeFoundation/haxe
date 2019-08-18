@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,17 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.cppia;
 
+package cpp.cppia;
 
 @:native("hx::CppiaLoadedModule")
 @:build(cpp.cppia.HostClasses.include())
-extern class Module
-{
-   @:native("__scriptable_cppia_from_string")
-   public static function fromString(sourceCode:String) : Module;
-   public function boot():Void;
-   public function run():Void;
-   public function resolveClass(inName:String):Class<Dynamic>;
-}
+extern class Module {
+	@:native("__scriptable_cppia_from_string")
+	public static function fromString(sourceCode:String):Module;
+	@:native("__scriptable_cppia_from_data")
+	public static function fromData(data:haxe.io.BytesData):Module;
 
+	public function boot():Void;
+	public function run():Void;
+	public function resolveClass(inName:String):Class<Dynamic>;
+}

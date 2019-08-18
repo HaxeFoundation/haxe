@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,14 @@
 
 package js.html;
 
-typedef MouseEventInit =
-{
-	> EventModifierInit,
-	@:optional var button : Int;
-	@:optional var buttons : Int;
-	@:optional var clientX : Int;
-	@:optional var clientY : Int;
-	@:optional var movementX : Int;
-	@:optional var movementY : Int;
-	@:optional var relatedTarget : EventTarget;
-	@:optional var screenX : Int;
-	@:optional var screenY : Int;
+typedef MouseEventInit = EventModifierInit & {
+	var ?button : Int;
+	var ?buttons : Int;
+	var ?clientX : Int;
+	var ?clientY : Int;
+	var ?movementX : Int;
+	var ?movementY : Int;
+	var ?relatedTarget : EventTarget;
+	var ?screenX : Int;
+	var ?screenY : Int;
 }

@@ -1,9 +1,10 @@
 package flash.concurrent;
 
-@:final @:require(flash11_4) extern class Mutex {
+@:require(flash11_4) extern final class Mutex {
 	function new() : Void;
 	function lock() : Void;
 	function tryLock() : Bool;
 	function unlock() : Void;
-	static var isSupported(default,never) : Bool;
+	@:flash.property static var isSupported(get,never) : Bool;
+	private static function get_isSupported() : Bool;
 }

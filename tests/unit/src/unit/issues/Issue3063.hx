@@ -1,12 +1,10 @@
 package unit.issues;
 
-@:enum
-private abstract AString(String) to String {
+private enum abstract AString(String) to String {
 	var CTOR1 = "foo";
 }
 
-@:enum
-private abstract AInt(Int) to Int {
+private enum abstract AInt(Int) to Int {
 	var CTOR2 = 12;
 }
 

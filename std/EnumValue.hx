@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,4 +27,35 @@
 	@see https://haxe.org/manual/types-enum-instance.html
 **/
 @:coreType abstract EnumValue {
+	/**
+		Matches enum instance `e` against pattern `pattern`, returning `true` if
+		matching succeeded and `false` otherwise.
+
+		Example usage:
+
+		```haxe
+		if (e.match(pattern)) {
+			// codeIfTrue
+		} else {
+			// codeIfFalse
+		}
+		```
+
+		This is equivalent to the following code:
+
+		```haxe
+		switch (e) {
+			case pattern:
+				// codeIfTrue
+			case _:
+				// codeIfFalse
+		}
+		```
+
+		This method is implemented in the compiler. This definition exists only
+		for documentation.
+	**/
+	public function match(pattern:Dynamic):Bool {
+		return false;
+	}
 }

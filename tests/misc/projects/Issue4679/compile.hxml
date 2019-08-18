@@ -1,2 +1,3 @@
--main Main
--x test
+-m Main
+-neko test.n
+--cmd "neko test.n"

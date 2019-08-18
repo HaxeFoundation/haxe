@@ -1,12 +1,12 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum StageAlign {
-	BOTTOM;
-	BOTTOM_LEFT;
-	BOTTOM_RIGHT;
-	LEFT;
-	RIGHT;
-	TOP;
-	TOP_LEFT;
-	TOP_RIGHT;
+@:native("flash.display.StageAlign") extern enum abstract StageAlign(String) {
+	var BOTTOM;
+	var BOTTOM_LEFT;
+	var BOTTOM_RIGHT;
+	var LEFT;
+	var RIGHT;
+	var TOP;
+	var TOP_LEFT;
+	var TOP_RIGHT;
 }

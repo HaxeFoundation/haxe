@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `EventSource` interface is used to receive server-sent events. It connects to a server over HTTP and receives events in `text/event-stream` format without closing the connection.
+	The `EventSource` interface is web content's interface to server-sent events. An `EventSource` instance opens a persistent connection to an HTTP server, which sends events in `text/event-stream` format.
 
 	Documentation [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventSource>
 **/
 @:native("EventSource")
-extern class EventSource extends EventTarget
-{
+extern class EventSource extends EventTarget {
 	static inline var CONNECTING : Int = 0;
 	static inline var OPEN : Int = 1;
 	static inline var CLOSED : Int = 2;
@@ -43,25 +42,29 @@ extern class EventSource extends EventTarget
 		A `DOMString` representing the URL of the source.
 	**/
 	var url(default,null) : String;
+	
+	/**
+		A `Boolean` indicating whether the `EventSource` object was instantiated with cross-origin (CORS) credentials set (`true`), or not (`false`, the default).
+	**/
 	var withCredentials(default,null) : Bool;
 	
 	/**
-		An `unsigned short` representing the state of the connection. Possible values are `CONNECTING` (`0`), `OPEN` (`1`), or `CLOSED` (`2`).
+		A number representing the state of the connection. Possible values are `CONNECTING` (`0`), `OPEN` (`1`), or `CLOSED` (`2`).
 	**/
 	var readyState(default,null) : Int;
 	
 	/**
-		Is an `EventHandler` being called when an `open` event is received, that is when the connection was just opened.
+		Is an `EventHandler` called when an `open` event is received, that is when the connection was just opened.
 	**/
 	var onopen : haxe.Constraints.Function;
 	
 	/**
-		Is an `EventHandler` being called when a `message` event is received, that is when a message is coming from the source.
+		Is an `EventHandler` called when a `message` event is received, that is when a message is coming from the source.
 	**/
 	var onmessage : haxe.Constraints.Function;
 	
 	/**
-		Is an `EventHandler` being called when an error occurs and the `error` event is dispatched on this object.
+		Is an `EventHandler` called when an error occurs and the `error` event is dispatched on an `EventSource` object.
 	**/
 	var onerror : haxe.Constraints.Function;
 	

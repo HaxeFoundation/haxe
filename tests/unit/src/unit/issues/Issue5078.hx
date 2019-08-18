@@ -8,6 +8,8 @@ class Issue5078 extends Test {
 	function test() {
 		#if !(js || php || lua)
 		eq(getToLower()(), "abc");
+		#else
+		noAssert();
 		#end
 	}
 }

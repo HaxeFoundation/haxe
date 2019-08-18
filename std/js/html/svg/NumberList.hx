@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList>
 **/
 @:native("SVGNumberList")
-extern class NumberList implements ArrayAccess<Number>
-{
+extern class NumberList implements ArrayAccess<Number> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

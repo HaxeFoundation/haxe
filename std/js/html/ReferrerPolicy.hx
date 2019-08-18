@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,14 @@
 
 package js.html;
 
-@:enum abstract ReferrerPolicy(String)
-{
+enum abstract ReferrerPolicy(String) {
 	var NONE = "";
 	var NO_REFERRER = "no-referrer";
 	var NO_REFERRER_WHEN_DOWNGRADE = "no-referrer-when-downgrade";
-	var ORIGIN_ONLY = "origin-only";
+	var ORIGIN = "origin";
 	var ORIGIN_WHEN_CROSS_ORIGIN = "origin-when-cross-origin";
 	var UNSAFE_URL = "unsafe-url";
+	var SAME_ORIGIN = "same-origin";
+	var STRICT_ORIGIN = "strict-origin";
+	var STRICT_ORIGIN_WHEN_CROSS_ORIGIN = "strict-origin-when-cross-origin";
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	`KeyboardEvent` objects describe a user interaction with the keyboard. Each event describes a key; the event type (`keydown`, `keypress`, or `keyup`) identifies what kind of activity was performed.
+	`KeyboardEvent` objects describe a user interaction with the keyboard; each event describes a single interaction between the user and a key (or combination of a key with modifier keys) on the keyboard.
 
 	Documentation [KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent>
 **/
 @:native("KeyboardEvent")
-extern class KeyboardEvent extends UIEvent
-{
+extern class KeyboardEvent extends UIEvent {
 	static inline var DOM_KEY_LOCATION_STANDARD : Int = 0;
 	static inline var DOM_KEY_LOCATION_LEFT : Int = 1;
 	static inline var DOM_KEY_LOCATION_RIGHT : Int = 2;
@@ -201,6 +200,7 @@ extern class KeyboardEvent extends UIEvent
 	static inline var DOM_VK_ALTGR : Int = 225;
 	static inline var DOM_VK_WIN_ICO_HELP : Int = 227;
 	static inline var DOM_VK_WIN_ICO_00 : Int = 228;
+	static inline var DOM_VK_PROCESSKEY : Int = 229;
 	static inline var DOM_VK_WIN_ICO_CLEAR : Int = 230;
 	static inline var DOM_VK_WIN_OEM_RESET : Int = 233;
 	static inline var DOM_VK_WIN_OEM_JUMP : Int = 234;
@@ -279,16 +279,27 @@ extern class KeyboardEvent extends UIEvent
 	**/
 	var key(default,null) : String;
 	
+	/**
+		Returns a `DOMString` with the code value of the key represented by the event.
+	**/
+	var code(default,null) : String;
+	
 	/** @throws DOMError */
 	function new( typeArg : String, ?keyboardEventInitDict : KeyboardEventInit ) : Void;
 	
 	/**
-		Returns a `Boolean` indicating if the modifier key, like Alt, Shift, Ctrl, or Meta, was pressed when the event was created.
+		Returns a `Boolean` indicating if a modifier key such as Alt, Shift, Ctrl, or Meta, was pressed when the event was created.
 	**/
 	function getModifierState( key : String ) : Bool;
 	
 	/**
-		Initializes a `KeyboardEvent` object. This has only been implemented by Gecko (others used `KeyboardEvent.initKeyboardEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
+		Initializes a `KeyboardEvent` object. This is now deprecated. You should instead use the `KeyboardEvent.KeyboardEvent` constructor.
+		@throws DOMError
 	**/
-	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
+	function initKeyboardEvent( typeArg : String, bubblesArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, keyArg : String = "", locationArg : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false ) : Void;
+	
+	/**
+		Initializes a `KeyboardEvent` object. This was implemented only by Firefox, and is no longer supported even there; instead, you should use the `KeyboardEvent.KeyboardEvent` constructor.
+	**/
+	function initKeyEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, keyCode : Int = 0, charCode : Int = 0 ) : Void;
 }

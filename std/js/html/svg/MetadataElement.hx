@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGMetadataElement` interface corresponds to the `metadata` element.
+
+	Documentation [SVGMetadataElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGMetadataElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGMetadataElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMetadataElement>
+**/
 @:native("SVGMetadataElement")
-extern class MetadataElement extends Element
-{
+extern class MetadataElement extends Element {
 }

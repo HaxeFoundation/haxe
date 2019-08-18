@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,19 +24,45 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEDisplacementMapElement` interface corresponds to the `feDisplacementMap` element.
+
+	Documentation [SVGFEDisplacementMapElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDisplacementMapElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDisplacementMapElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDisplacementMapElement>
+**/
 @:native("SVGFEDisplacementMapElement")
-extern class FEDisplacementMapElement extends Element
-{
+extern class FEDisplacementMapElement extends Element {
 	static inline var SVG_CHANNEL_UNKNOWN : Int = 0;
 	static inline var SVG_CHANNEL_R : Int = 1;
 	static inline var SVG_CHANNEL_G : Int = 2;
 	static inline var SVG_CHANNEL_B : Int = 3;
 	static inline var SVG_CHANNEL_A : Int = 4;
 	
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in2` attribute of the given element.
+	**/
 	var in2(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `scale` attribute of the given element.
+	**/
 	var scale(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `xChannelSelect` attribute of the given element. It takes one of the `SVG_CHANNEL_*` constants defined on this interface.
+	**/
 	var xChannelSelector(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `yChannelSelect` attribute of the given element. It takes one of the `SVG_CHANNEL_*` constants defined on this interface.
+	**/
 	var yChannelSelector(default,null) : AnimatedEnumeration;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

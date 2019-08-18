@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Keyframe.webidl. Do not edit!
+// This file is generated from mozilla\BaseKeyframeTypes.webidl. Do not edit!
 
 package js.html;
 
-@:enum abstract CompositeOperation(String)
-{
+enum abstract CompositeOperation(String) {
 	var REPLACE = "replace";
 	var ADD = "add";
 	var ACCUMULATE = "accumulate";

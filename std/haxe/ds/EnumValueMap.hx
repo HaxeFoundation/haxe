@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,23 +28,26 @@ package haxe.ds;
 	Keys are compared by value and recursively over their parameters. If any
 	parameter is not an enum value, `Reflect.compare` is used to compare them.
 **/
-class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements haxe.Constraints.IMap<K,V> {
-
+class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	override function compare(k1:EnumValue, k2:EnumValue):Int {
 		var d = k1.getIndex() - k2.getIndex();
-		if (d != 0) return d;
+		if (d != 0)
+			return d;
 		var p1 = k1.getParameters();
 		var p2 = k2.getParameters();
-		if (p1.length == 0 && p2.length == 0) return 0;
+		if (p1.length == 0 && p2.length == 0)
+			return 0;
 		return compareArgs(p1, p2);
 	}
 
 	function compareArgs(a1:Array<Dynamic>, a2:Array<Dynamic>):Int {
 		var ld = a1.length - a2.length;
-		if (ld != 0) return ld;
+		if (ld != 0)
+			return ld;
 		for (i in 0...a1.length) {
 			var d = compareArg(a1[i], a2[i]);
-			if (d != 0) return d;
+			if (d != 0)
+				return d;
 		}
 		return 0;
 	}
@@ -57,5 +60,11 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 		} else {
 			Reflect.compare(v1, v2);
 		}
+	}
+
+	override function copy():EnumValueMap<K, V> {
+		var copied = new EnumValueMap<K, V>();
+		copied.root = root;
+		return copied;
 	}
 }

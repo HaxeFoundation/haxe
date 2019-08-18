@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,18 +25,13 @@
 package js.html;
 
 /**
-	The `LocalMediaStream` interface represents a stream of media content fetched from a local data source. This is the interface returned by `getUserMedia()`.
+	The `LocalMediaStream` interface was part of the Media Capture and Streams API, representing a stream of data being generated locally (such as by `getUserMedia()`. However, `getUserMedia()` now returns a `MediaStream` instead, and this interface has been removed from the specification.
 
 	Documentation [LocalMediaStream](https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream>
 **/
 @:native("LocalMediaStream")
-extern class LocalMediaStream extends MediaStream
-{
-	
-	/**
-		Stops the stream. When the source of the stream is a connected device (such as a camera or microphone), stops capture on the device.
-	**/
+extern class LocalMediaStream extends MediaStream {
 	function stop() : Void;
 }

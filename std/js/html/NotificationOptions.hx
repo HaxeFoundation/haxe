@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,12 @@
 
 package js.html;
 
-typedef NotificationOptions =
-{
-	@:optional var body : String;
-	@:optional var data : Dynamic;
-	@:optional var dir : NotificationDirection;
-	@:optional var icon : String;
-	@:optional var lang : String;
-	@:optional var tag : String;
+typedef NotificationOptions = {
+	var ?body : String;
+	var ?data : Dynamic;
+	var ?dir : NotificationDirection;
+	var ?icon : String;
+	var ?lang : String;
+	var ?requireInteraction : Bool;
+	var ?tag : String;
 }

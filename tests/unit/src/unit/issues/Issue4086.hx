@@ -6,6 +6,7 @@ private typedef FruitItem = { name: String, count: Int };
 class Issue4086 extends Test {
 	function test() {
 		check(apply3("apple", 5));
+		noAssert();
 	}
 
 	static function check(item:GroceryItem) { }

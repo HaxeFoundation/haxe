@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,20 +25,19 @@
 package js.html.audio;
 
 /**
-	The `AudioNode` interface is a generic interface for representing an audio processing module like an audio source (e.g. an HTML `audio` or `video` element, an `OscillatorNode`, etc.), the audio destination, intermediate processing module (e.g. a filter like `BiquadFilterNode` or `ConvolverNode`), or volume control (like `GainNode`).
+	The `AudioNode` interface is a generic interface for representing an audio processing module. Examples include:
 
 	Documentation [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode>
 **/
 @:native("AudioNode")
-extern class AudioNode extends js.html.EventTarget
-{
+extern class AudioNode extends js.html.EventTarget {
 	
 	/**
-		Returns the associated `AudioContext`, that is the object representing the processing graph the node is participating in.
+		Returns the associated `BaseAudioContext`, that is the object representing the processing graph the node is participating in.
 	**/
-	var context(default,null) : AudioContext;
+	var context(default,null) : BaseAudioContext;
 	
 	/**
 		Returns the number of inputs feeding the node. Source nodes are defined as nodes having a `numberOfInputs` property with a value of `0`.
@@ -67,17 +66,23 @@ extern class AudioNode extends js.html.EventTarget
 	**/
 	var channelInterpretation : ChannelInterpretation;
 	
-	/** @throws DOMError */
-	@:overload( function( destination : AudioNode, ?output : Int = 0, ?input : Int = 0 ) : AudioNode {} )
 	
 	/**
-		Allows us to connect one output of this node to one input of an audio parameter.
+		Allows us to connect the output of this node to be input into another node, either as audio data or as the value of an `AudioParam`.
+		@throws DOMError
 	**/
-	function connect( destination : AudioParam, ?output : Int = 0 ) : Void;
-	/** @throws DOMError */
+	@:overload( function( destination : AudioNode, output : Int = 0, input : Int = 0 ) : AudioNode {} )
+	function connect( destination : AudioParam, output : Int = 0 ) : Void;
 	
 	/**
 		Allows us to disconnect the current node from another one it is already connected to.
+		@throws DOMError
 	**/
-	function disconnect( ?output : Int = 0 ) : Void;
+	@:overload( function() : Void {} )
+	@:overload( function( output : Int ) : Void {} )
+	@:overload( function( destination : AudioNode ) : Void {} )
+	@:overload( function( destination : AudioNode, output : Int ) : Void {} )
+	@:overload( function( destination : AudioNode, output : Int, input : Int ) : Void {} )
+	@:overload( function( destination : AudioParam ) : Void {} )
+	function disconnect( destination : AudioParam, output : Int ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,19 @@
  */
 
 package lua.lib.luasocket;
+
+import lua.lib.luasocket.socket.*;
+
 @:luaRequire("socket")
 extern class Socket {
-	public static function gettime() : Float; // TODO : find a smaller lib for this? 
+	public static var _DEBUG:Bool;
+	public static var _VERSION:String;
+	public static function tcp():Result<TcpMaster>;
+	public static function bind(address:String, port:Int, ?backlog:Int):Result<TcpServer>;
+	public static function connect(address:String, port:Int, ?locaddr:String, ?locport:Int):Result<TcpClient>;
+	public static function gettime():Float;
+	public static function select(recvt:Table<Int, Socket>, sendt:Table<Int, Socket>, ?timeout:Float):SelectResult;
+	public function close():Void;
+	public function getsockname():AddrInfo;
+	public function settimeout(value:Float, ?mode:TimeoutMode):Void;
 }

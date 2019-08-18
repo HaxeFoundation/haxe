@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,14 +32,32 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope>
 **/
 @:native("DedicatedWorkerGlobalScope")
-extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope
-{
+extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope {
+	
+	/**
+		The name that the `Worker` was (optionally) given when it was created using the `Worker.Worker` constructor. This is mainly useful for debugging purposes.
+	**/
+	var name(default,null) : String;
 	
 	/**
 		Is an `EventHandler` representing the code to be called when the `message` event is raised. These events are of type `MessageEvent` and will be called when the worker receives a message from the document that started it (i.e. from the `Worker.postMessage` method.)
 	**/
 	var onmessage : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
+	/**
+		Is an `EventHandler` representing the code to be called when the `messageerror` event is raised.
+	**/
+	var onmessageerror : haxe.Constraints.Function;
+	
+	
+	/**
+		Sends a message — which can consist of `any` JavaScript object — to the parent document that first spawned the worker.
+		@throws DOMError
+	**/
 	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
+	
+	/**
+		Discards any tasks queued in the `WorkerGlobalScope`'s event loop, effectively closing this particular scope.
+	**/
+	function close() : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,8 @@
 
 package js.html;
 
-typedef TouchEventInit =
-{
-	> EventModifierInit,
-	@:optional var changedTouches : Array<Touch>;
-	@:optional var targetTouches : Array<Touch>;
-	@:optional var touches : Array<Touch>;
+typedef TouchEventInit = EventModifierInit & {
+	var ?changedTouches : Array<Touch>;
+	var ?targetTouches : Array<Touch>;
+	var ?touches : Array<Touch>;
 }

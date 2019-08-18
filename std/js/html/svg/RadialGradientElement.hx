@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,19 +25,35 @@
 package js.html.svg;
 
 /**
-	The `SVGRadialGradientElement` interface corresponds to the `radialGradient` element.
+	The `SVGRadialGradientElement` interface corresponds to the `RadialGradient` element.
 
 	Documentation [SVGRadialGradientElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGRadialGradientElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGRadialGradientElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRadialGradientElement>
 **/
 @:native("SVGRadialGradientElement")
-extern class RadialGradientElement extends GradientElement
-{
+extern class RadialGradientElement extends GradientElement {
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `cx` attribute of the given `RadialGradient` element.
+	**/
 	var cx(default,null) : AnimatedLength;
 	var cy(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `r` attribute of the given `RadialGradient` element.
+	**/
 	var r(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `fx` attribute of the given `RadialGradient` element.
+	**/
 	var fx(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `fy` attribute of the given `RadialGradient` element.
+	**/
 	var fy(default,null) : AnimatedLength;
+	var fr(default,null) : AnimatedLength;
 	
 }

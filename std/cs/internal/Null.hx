@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs.internal;
 
 @:classCode('//This function is here to be used with Reflection, when the haxe.lang.Null type is known
@@ -46,20 +47,20 @@ package cs.internal;
 			private __NoValue__() {}
 		}
 
+		override public string ToString() {
+			if (!hasValue) return "null";
+			else return value.ToString();
+		}
 ')
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-@:keep @:struct @:nativeGen @:native("haxe.lang.Null") private class Nullable<T>
-{
+@:keep @:struct @:nativeGen @:native("haxe.lang.Null") private class Nullable<T> {
+	@:readOnly public var value(default, never):T;
+	@:readOnly public var hasValue(default, never):Bool;
 
-	@:readOnly public var value(default,never):T;
-	@:readOnly public var hasValue(default,never):Bool;
-
-	public function new(v:T, hasValue:Bool)
-	{
-		if (hasValue && cs.system.Object.ReferenceEquals(v, null))
-		{
+	public function new(v:T, hasValue:Bool) {
+		if (hasValue && cs.system.Object.ReferenceEquals(v, null)) {
 			hasValue = false;
 		}
 		untyped this.value = v;
@@ -75,13 +76,11 @@ package cs.internal;
 			} else {
 				return new haxe.lang.Null<D>((D) obj, true);
 			}')
-	public static function ofDynamic<D>(obj:Dynamic):Nullable<D>
-	{
+	public static function ofDynamic<D>(obj:Dynamic):Nullable<D> {
 		return null;
 	}
 
-	public function toDynamic():Dynamic
-	{
+	public function toDynamic():Dynamic {
 		if (this.hasValue)
 			return value;
 		return null;

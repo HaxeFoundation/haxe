@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,20 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGElement>
 **/
 @:native("SVGElement")
-extern class Element extends js.html.DOMElement
-{
+extern class Element extends js.html.DOMElement {
+	
+	/**
+		An `SVGSVGElement` referring to the nearest ancestor `svg` element. `null` if the given element is the outermost `svg` element.
+	**/
 	var ownerSVGElement(default,null) : SVGElement;
+	
+	/**
+		The `SVGElement`, which established the current viewport. Often, the nearest ancestor `svg` element. `null` if the given element is the outermost `svg` element.
+	**/
 	var viewportElement(default,null) : Element;
 	
+	/** @throws DOMError */
+	function focus() : Void;
+	/** @throws DOMError */
+	function blur() : Void;
 }

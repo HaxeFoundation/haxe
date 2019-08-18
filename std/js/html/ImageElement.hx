@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement>
 **/
 @:native("HTMLImageElement")
-extern class ImageElement extends Element
-{
+extern class ImageElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `alt` HTML attribute,  thus indicating fallback context for the image.
@@ -61,6 +60,11 @@ extern class ImageElement extends Element
 	var useMap : String;
 	
 	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use in order to fetch the image.
+	**/
+	var referrerPolicy : String;
+	
+	/**
 		Is a `Boolean` that reflects the `ismap` HTML attribute, indicating that the image is part of a server-side image map.
 	**/
 	var isMap : Bool;
@@ -74,6 +78,11 @@ extern class ImageElement extends Element
 		Is a `unsigned long` that reflects the `height` HTML attribute, indicating the rendered height of the image in CSS pixels.
 	**/
 	var height : Int;
+	
+	/**
+		Returns a `DOMString` representing a hint given to the browser on how it should decode the image.
+	**/
+	var decoding : String;
 	
 	/**
 		Returns a `unsigned long` representing the intrinsic width of the image in CSS pixels, if it is available; otherwise, it will show `0`.
@@ -96,7 +105,7 @@ extern class ImageElement extends Element
 	var name : String;
 	
 	/**
-		Is a `DOMString` indicating the alignment of the image with respect to the surrounding context.
+		Is a `DOMString` indicating the alignment of the image with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
 	**/
 	var align : String;
 	
@@ -129,6 +138,10 @@ extern class ImageElement extends Element
 		Returns a `DOMString` representing the URL to the currently displayed image (which may change, for example in response to media queries).
 	**/
 	var currentSrc(default,null) : String;
+	
+	/**
+		Is a `DOMString` that refers to a low-quality (but faster to load) copy of the image.
+	**/
 	var lowsrc : String;
 	
 	/**

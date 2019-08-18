@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,15 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-extern class NSLog
-{
-   @:native("NSLog")
-   @:overload(function(format:NSString,a0:NSObject):Void { })
-   @:overload(function(format:NSString,a0:NSObject,a1:NSObject):Void { })
-   public static function log(format:NSString):Void;
-
+extern class NSLog {
+	@:native("NSLog")
+	@:overload(function(format:NSString, a0:NSObject):Void {})
+	@:overload(function(format:NSString, a0:NSObject, a1:NSObject):Void {})
+	public static function log(format:NSString):Void;
 }
-
-

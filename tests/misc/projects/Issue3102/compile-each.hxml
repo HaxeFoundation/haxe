@@ -1,3 +1,4 @@
--dce full
--main Main
--x test
+--dce full
+-m Main
+-neko test.n
+--cmd "neko test.n"

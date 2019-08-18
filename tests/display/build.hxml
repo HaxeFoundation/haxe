@@ -1,4 +1,7 @@
--cp src
--main Main
+-p src
+-p src-shared
+--main Main
+-lib utest
+-lib haxeserver
 --interp
 -D use-rtti-doc

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,23 +32,31 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot>
 **/
 @:native("ShadowRoot")
-extern class ShadowRoot extends DocumentFragment
-{
+extern class ShadowRoot extends DocumentFragment {
 	
 	/**
-		The DOM tree inside the `ShadowRoot`.
+		The mode of the `ShadowRoot` — either `open` or `closed`. This defines whether or not the shadow root's internal features are accessible from JavaScript.
 	**/
-	var innerHTML : String;
+	var mode(default,null) : ShadowRootMode;
 	
 	/**
-		A DOM element to which the `ShadowRoot` is attatched.
+		Returns a reference to the DOM element the `ShadowRoot` is attached to.
 	**/
 	var host(default,null) : Element;
-	var olderShadowRoot(default,null) : ShadowRoot;
-	var applyAuthorStyles : Bool;
-	var styleSheets(default,null) : StyleSheetList;
 	
+	/**
+		Sets or returns a reference to the DOM tree inside the `ShadowRoot`.
+	**/
+	var innerHTML : String;
+	var activeElement(default,null) : Element;
+	var styleSheets(default,null) : StyleSheetList;
+	var pointerLockElement(default,null) : Element;
+	var fullscreenElement(default,null) : Element;
+	
+	function getElementById( elementId : String ) : Element;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace : String, localName : String ) : HTMLCollection;
 	function getElementsByClassName( classNames : String ) : HTMLCollection;
+	function elementFromPoint( x : Float, y : Float ) : Element;
+	function elementsFromPoint( x : Float, y : Float ) : Array<Element>;
 }

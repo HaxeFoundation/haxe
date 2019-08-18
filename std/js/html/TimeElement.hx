@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement>
 **/
 @:native("HTMLTimeElement")
-extern class TimeElement extends Element
-{
+extern class TimeElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `datetime` HTML attribute, containing a machine-readable form of the element's date and time value.

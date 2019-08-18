@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement>
 **/
 @:native("HTMLPreElement")
-extern class PreElement extends Element
-{
+extern class PreElement extends Element {
 	
 	/**
 		Is a `long` value reflecting the obsolete `width` attribute, containing a fixed-size length for the `pre` element.

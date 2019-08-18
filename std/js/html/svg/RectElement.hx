@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,36 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRectElement>
 **/
 @:native("SVGRectElement")
-extern class RectElement extends GraphicsElement
-{
+extern class RectElement extends GeometryElement {
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `x` attribute of the given `rect` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `y` attribute of the given `rect` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `width` attribute of the given `rect` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `height` attribute of the given `rect` element.
+	**/
 	var height(default,null) : AnimatedLength;
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `rx` attribute of the given `rect` element.
+	**/
 	var rx(default,null) : AnimatedLength;
+	
+	/**
+		Returns an `SVGAnimatedLength` corresponding to the `ry` attribute of the given `rect` element.
+	**/
 	var ry(default,null) : AnimatedLength;
 	
 }

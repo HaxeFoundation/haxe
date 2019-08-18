@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,26 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLinearGradientElement>
 **/
 @:native("SVGLinearGradientElement")
-extern class LinearGradientElement extends GradientElement
-{
+extern class LinearGradientElement extends GradientElement {
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x1` attribute of the given `linearGradient` element.
+	**/
 	var x1(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y1` attribute of the given `linearGradient` element.
+	**/
 	var y1(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x2` attribute of the given `linearGradient` element.
+	**/
 	var x2(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y2` attribute of the given `linearGradient` element.
+	**/
 	var y2(default,null) : AnimatedLength;
 	
 }

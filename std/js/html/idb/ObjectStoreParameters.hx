@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html.idb;
 
-typedef ObjectStoreParameters =
-{
-	@:optional var autoIncrement : Bool;
-	@:optional var keyPath : haxe.extern.EitherType<String,Array<String>>;
+typedef ObjectStoreParameters = {
+	var ?autoIncrement : Bool;
+	var ?keyPath : haxe.extern.EitherType<String,Array<String>>;
 }

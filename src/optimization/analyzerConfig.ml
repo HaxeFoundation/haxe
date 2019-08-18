@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -57,25 +57,7 @@ let all_flags =
 	) [] [flag_optimize;flag_const_propagation;flag_copy_propagation;flag_local_dce;flag_fusion;flag_ignore;flag_dot_debug;flag_user_var_fusion]
 
 let has_analyzer_option meta s =
-	try
-		let rec loop ml = match ml with
-			| (Meta.Analyzer,el,_) :: ml ->
-				if List.exists (fun (e,p) ->
-					match e with
-						| EConst(Ident s2) when s = s2 -> true
-						| _ -> false
-				) el then
-					true
-				else
-					loop ml
-			| _ :: ml ->
-				loop ml
-			| [] ->
-				false
-		in
-		loop meta
-	with Not_found ->
-		false
+	Ast.has_meta_option meta Meta.Analyzer s
 
 let is_ignored meta =
 	has_analyzer_option meta flag_ignore
@@ -121,7 +103,7 @@ let update_config_from_meta com config meta =
 							config
 					end
 				| _ ->
-					let s = Ast.s_expr e in
+					let s = Ast.Printer.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el

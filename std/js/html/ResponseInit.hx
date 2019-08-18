@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,8 @@
 
 package js.html;
 
-typedef ResponseInit =
-{
-	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>>;
-	@:optional var status : Int;
-	@:optional var statusText : String;
+typedef ResponseInit = {
+	var ?headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
+	var ?status : Int;
+	var ?statusText : String;
 }

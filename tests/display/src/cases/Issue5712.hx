@@ -2,15 +2,15 @@ package cases;
 
 class Issue5712 extends DisplayTestCase {
 	/**
-	typedef Struct = {
-		{-1-}field:Float{-2-}
-	}
-	class Main {
-		public static function main() {
-			var s:Struct = { fi{-3-}eld: 0 };
-			s.fi{-4-}eld;
+		typedef Struct = {
+			{-1-}field{-2-}:Float
 		}
-	}
+		class Main {
+			public static function main() {
+				var s:Struct = { fi{-3-}eld: 0 };
+				s.fi{-4-}eld;
+			}
+		}
 	**/
 	function testType1() {
 		eq(range(1, 2), position(pos(3)));

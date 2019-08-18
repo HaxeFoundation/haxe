@@ -1,3 +1,5 @@
+open StringHelper
+
 let get_path_parts f =
 	(*
 		this function is quite weird: it tries to determine whether the given
@@ -38,22 +40,13 @@ let parse_path f =
 		| x :: l ->
 			if String.length x = 0 then
 				error "empty part"
-			else if x.[0] < 'a' || x.[0] > 'z' then
+			else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
 				error "Package name must start with a lower case character";
 			invalid_char x;
 			let path,name = loop l in
 			x :: path,name
 	in
 	loop cl
-
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
-
-let check_uppercase x =
-	if String.length x = 0 then
-		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
 
 let parse_type_path s =
 	let pack,name = parse_path s in
@@ -159,6 +152,18 @@ let make_valid_filename s =
 	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
 	Str.global_substitute r (fun s -> "_") s
 
+let module_name_of_file file =
+	match List.rev (Str.split path_regex (get_real_path file)) with
+	| s :: _ ->
+		let s = match List.rev (ExtString.String.nsplit s ".") with
+		| [s] -> s
+		| _ :: sl -> String.concat "." (List.rev sl)
+		| [] -> ""
+		in
+		s
+	| [] ->
+		assert false
+
 let rec create_file bin ext acc = function
 	| [] -> assert false
 	| d :: [] ->
@@ -171,3 +176,79 @@ let rec create_file bin ext acc = function
 		let dir = String.concat "/" (List.rev (d :: acc)) in
 		if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755;
 		create_file bin ext (d :: acc) l
+
+let rec mkdir_recursive base dir_list =
+	match dir_list with
+	| [] -> ()
+	| dir :: remaining ->
+		let path = match base with
+				   | "" ->  dir
+				   | "/" -> "/" ^ dir
+				   | _ -> base ^ "/" ^ dir
+		in
+		let path_len = String.length path in
+		let path =
+			if path_len > 0 && (path.[path_len - 1] = '/' || path.[path_len - 1] == '\\') then
+				String.sub path 0 (path_len - 1)
+			else
+				path
+		in
+		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
+			if not (Sys.file_exists path) then
+				Unix.mkdir path 0o755;
+		mkdir_recursive (if (path = "") then "/" else path) remaining
+
+let mkdir_from_path path =
+	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
+	match parts with
+		| [] -> (* path was "" *) ()
+		| _ ->
+			let dir_list = List.rev (List.tl (List.rev parts)) in
+			mkdir_recursive "" dir_list
+
+let full_dot_path pack mname tname =
+	if tname = mname then (pack,mname) else (pack @ [mname],tname)
+
+module FilePath = struct
+	type t = {
+		directory : string option;
+		file_name : string option;
+		extension : string option;
+		backslash : bool;
+	}
+
+	let create directory file_name extension backslash = {
+		directory = directory;
+		file_name = file_name;
+		extension = extension;
+		backslash = backslash;
+	}
+
+	let parse path = match path with
+		| "." | ".." ->
+			create (Some path) None None false
+		| _ ->
+			let c1 = String.rindex path '/' in
+			let c2 = String.rindex path '\\' in
+			let split s at = String.sub s 0 at,String.sub s (at + 1) (String.length s - at - 1) in
+			let dir,path,backslash = if c1 < c2 then begin
+				let dir,path = split path c2 in
+				Some dir,path,true
+			end else if c2 < c1 then begin
+				let dir,path = split path c1 in
+				Some dir,path,false
+			end else
+				None,path,false
+			in
+			let file,ext = if String.length path = 0 then
+				None,None
+			else begin
+				let cp = String.rindex path '.' in
+				if cp <> -1 then begin
+					let file,ext = split path cp in
+					Some file,Some ext
+				end else
+					Some path,None
+			end in
+			create dir file ext backslash
+end

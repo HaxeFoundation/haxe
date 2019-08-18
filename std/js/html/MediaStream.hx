@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,19 +32,37 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStream>
 **/
 @:native("MediaStream")
-extern class MediaStream extends EventTarget
-{
+extern class MediaStream extends EventTarget {
 	
 	/**
 		A `DOMString` containing 36 characters denoting a universally unique identifier (UUID) for the object.
 	**/
 	var id(default,null) : String;
+	
+	/**
+		A Boolean value that returns `true` if the `MediaStream` is active, or `false` otherwise.
+	**/
+	var active(default,null) : Bool;
+	
+	/**
+		An `EventHandler` containing the action to perform when an `addtrack` event is fired when a new `MediaStreamTrack` object is added.
+	**/
+	var onaddtrack : haxe.Constraints.Function;
+	
+	/**
+		An `EventHandler` containing the action to perform when a `removetrack` event is fired when a  `MediaStreamTrack` object is removed from it.
+	**/
+	var onremovetrack : haxe.Constraints.Function;
 	var currentTime(default,null) : Float;
 	
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	@:overload( function( stream : MediaStream ) : Void {} )
 	function new( tracks : Array<MediaStreamTrack> ) : Void;
+	
+	/**
+		Returns a list of the `MediaStreamTrack` objects stored in the MediaStream` object that have their kind` attribute set to "audio"`. The order is not defined, and may not only vary from one browser to another, but also from one call to another.
+	**/
 	function getAudioTracks() : Array<AudioStreamTrack>;
 	
 	/**
@@ -58,6 +76,11 @@ extern class MediaStream extends EventTarget
 	function getTracks() : Array<MediaStreamTrack>;
 	
 	/**
+		Returns the track whose ID corresponds to the one given in parameters, trackid`. If no parameter is given, or if no track with that ID does exist, it returns null`. If several tracks have the same ID, it returns the first one.
+	**/
+	function getTrackById( trackId : String ) : MediaStreamTrack;
+	
+	/**
 		Stores a copy of the `MediaStreamTrack` given as argument. If the track has already been added to the `MediaStream` object, nothing happens.
 	**/
 	function addTrack( track : MediaStreamTrack ) : Void;
@@ -66,4 +89,9 @@ extern class MediaStream extends EventTarget
 		Removes the `MediaStreamTrack` given as argument. If the track is not part of the MediaStream` object, nothing happens.
 	**/
 	function removeTrack( track : MediaStreamTrack ) : Void;
+	
+	/**
+		Returns a clone of the `MediaStream` object. The clone will, however, have a unique value for `MediaStream.id`.
+	**/
+	function clone() : MediaStream;
 }

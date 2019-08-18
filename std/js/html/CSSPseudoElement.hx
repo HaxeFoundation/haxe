@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,12 +25,12 @@
 package js.html;
 
 @:native("CSSPseudoElement")
-extern class CSSPseudoElement
-{
+extern class CSSPseudoElement {
 	var type(default,null) : String;
 	var parentElement(default,null) : Element;
 	
 	/** @throws DOMError */
-	function animate( frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeAnimationOptions*/> ) : Animation;
-	function getAnimations() : Array<Animation>;
+	@:overload( function( keyframes : Dynamic, ?options : KeyframeAnimationOptions) : Animation {} )
+	function animate( keyframes : Dynamic, ?options : Float ) : Animation;
+	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
 }

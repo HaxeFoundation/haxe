@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap>
 **/
 @:native("NamedNodeMap")
-extern class NamedNodeMap implements ArrayAccess<Attr>
-{
+extern class NamedNodeMap implements ArrayAccess<Attr> {
 	
 	/**
 		Returns the amount of objects in the map.
@@ -45,16 +44,16 @@ extern class NamedNodeMap implements ArrayAccess<Attr>
 		Returns a `Attr`, corresponding to the given name.
 	**/
 	function getNamedItem( name : String ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Replaces, or adds, the `Attr` identified in the map by the given name.
+		@throws DOMError
 	**/
 	function setNamedItem( arg : Attr ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Removes the `Attr` identified by the given map.
+		@throws DOMError
 	**/
 	function removeNamedItem( name : String ) : Attr;
 	
@@ -67,16 +66,16 @@ extern class NamedNodeMap implements ArrayAccess<Attr>
 		Returns a `Attr` identified by a namespace and related local name.
 	**/
 	function getNamedItemNS( namespaceURI : String, localName : String ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Replaces, or adds, the `Attr` identified in the map by the given namespace and related local name.
+		@throws DOMError
 	**/
 	function setNamedItemNS( arg : Attr ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Removes the `Attr` identified by the given namespace and related local name.
+		@throws DOMError
 	**/
 	function removeNamedItemNS( namespaceURI : String, localName : String ) : Attr;
 }

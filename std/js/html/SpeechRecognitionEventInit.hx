@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef SpeechRecognitionEventInit =
-{
-	> EventInit,
-	@:optional var emma : HTMLDocument;
-	@:optional var interpretation : Dynamic;
-	@:optional var resultIndex : Int;
-	@:optional var results : SpeechRecognitionResultList;
+typedef SpeechRecognitionEventInit = EventInit & {
+	var ?emma : HTMLDocument;
+	var ?interpretation : Dynamic;
+	var ?resultIndex : Int;
+	var ?results : SpeechRecognitionResultList;
 }

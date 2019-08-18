@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageData>
 **/
 @:native("ImageData")
-extern class ImageData
-{
+extern class ImageData {
 	
 	/**
 		Is an `unsigned` `long` representing the actual width, in pixels, of the `ImageData`.
@@ -48,9 +47,9 @@ extern class ImageData
 	/**
 		Is a `Uint8ClampedArray` representing a one-dimensional array containing the data in the RGBA order, with integer values between `0` and `255` (included).
 	**/
-	var data(default,null) : Uint8ClampedArray;
+	var data(default,null) : js.lib.Uint8ClampedArray;
 	
 	/** @throws DOMError */
 	@:overload( function( sw : Int, sh : Int ) : Void {} )
-	function new( data : Uint8ClampedArray, sw : Int, ?sh : Int ) : Void;
+	function new( data : js.lib.Uint8ClampedArray, sw : Int, ?sh : Int ) : Void;
 }

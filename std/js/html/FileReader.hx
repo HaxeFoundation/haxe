@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReader>
 **/
 @:native("FileReader")
-extern class FileReader extends EventTarget
-{
+extern class FileReader extends EventTarget {
 	static inline var EMPTY : Int = 0;
 	static inline var LOADING : Int = 1;
 	static inline var DONE : Int = 2;
@@ -70,9 +69,9 @@ extern class FileReader extends EventTarget
 	var result(default,null) : Dynamic;
 	
 	/**
-		A `DOMError` representing the error that occurred while reading the file.
+		A `DOMException` representing the error that occurred while reading the file.
 	**/
-	var error(default,null) : DOMError;
+	var error(default,null) : DOMException;
 	
 	/**
 		A handler for the `loadstart` event. This event is triggered each time the reading is starting.
@@ -106,34 +105,33 @@ extern class FileReader extends EventTarget
 	
 	/** @throws DOMError */
 	function new() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Starts reading the contents of the specified `Blob`, once finished, the `result` attribute contains an `ArrayBuffer` representing the file's data.
+		@throws DOMError
 	**/
 	function readAsArrayBuffer( blob : Blob ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Starts reading the contents of the specified `Blob`, once finished, the `result` attribute contains the raw binary data from the file as a string.
+		@throws DOMError
+	**/
+	function readAsBinaryString( filedata : Blob ) : Void;
 	
 	/**
 		Starts reading the contents of the specified `Blob`, once finished, the `result` attribute contains the contents of the file as a text string.
+		@throws DOMError
 	**/
-	function readAsText( blob : Blob, ?label : String = "" ) : Void;
-	/** @throws DOMError */
+	function readAsText( blob : Blob, ?label : String ) : Void;
 	
 	/**
 		Starts reading the contents of the specified `Blob`, once finished, the `result` attribute contains a `data:` URL representing the file's data.
+		@throws DOMError
 	**/
 	function readAsDataURL( blob : Blob ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Aborts the read operation. Upon return, the `readyState` will be `DONE`.
 	**/
 	function abort() : Void;
-	/** @throws DOMError */
-	
-	/**
-		Starts reading the contents of the specified `Blob`, once finished, the `result` attribute contains the raw binary data from the file as a string.
-	**/
-	function readAsBinaryString( filedata : Blob ) : Void;
 }

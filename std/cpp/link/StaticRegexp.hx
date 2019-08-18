@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.link;
 
-#if (hxcpp_api_level>=330)
-class StaticRegexp { }
+#if (hxcpp_api_level >= 330)
+class StaticRegexp {}
 #else
-
-@:cppFileCode( 'extern "C" int regexp_register_prims();')
+@:cppFileCode('extern "C" int regexp_register_prims();')
 @:buildXml("
 <target id='haxe'>
   <lib name='${HXCPP}/lib/${BINDIR}/libregexp${LIBEXTRA}${LIBEXT}'/>
 </target>
 ")
-@:keep class StaticRegexp
-{
-   static function __init__()
-   {
-     untyped __cpp__("regexp_register_prims();");
-   }
+@:keep class StaticRegexp {
+	static function __init__() {
+		untyped __cpp__("regexp_register_prims();");
+	}
 }
-
 #end

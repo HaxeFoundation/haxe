@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker>
 **/
 @:native("TreeWalker")
-extern class TreeWalker
-{
+extern class TreeWalker {
 	
 	/**
 		Returns a `Node` representing the root node as specified when the `TreeWalker` was created.
@@ -41,7 +40,7 @@ extern class TreeWalker
 	var root(default,null) : Node;
 	
 	/**
-		Returns an <code>unsigned long</code> being a bitmask made of constants describing the types of <code>Node</code> that must to be presented. Non-matching nodes are skipped, but their children may be included, if relevant. The possible values are:
+		Returns an <code>unsigned long</code> being a bitmask made of constants describing the types of <code>Node</code> that must be presented. Non-matching nodes are skipped, but their children may be included, if relevant. The possible values are:
 		 <table class="standard-table">
 		  
 		   <tr>
@@ -57,7 +56,7 @@ extern class TreeWalker
 		   <tr>
 		    <td><code>NodeFilter.SHOW_ATTRIBUTE</code> {{deprecated_inline}}</td>
 		    <td><code>2</code></td>
-		    <td>Shows attribute <code>Attr</code> nodes. This is meaningful only when creating a <code>TreeWalker</code> with an <code>Attr</code> node as its root; in this case, it means that the attribute node will appear in the first position of the iteration or traversal. Since attributes are never children of other nodes, they do not appear when traversing over the document tree.</td>
+		    <td>Shows attribute <code>Attr</code> nodes. This is meaningful only when creating a <code>TreeWalker</code> with an <code>Attr</code> node as its root. In this case, it means that the attribute node will appear in the first position of the iteration or traversal. Since attributes are never children of other nodes, they do not appear when traversing over the document tree.</td>
 		   </tr>
 		   <tr>
 		    <td><code>NodeFilter.SHOW_CDATA_SECTION</code> {{deprecated_inline}}</td>
@@ -123,53 +122,53 @@ extern class TreeWalker
 	/**
 		Returns a `NodeFilter` used to select the relevant nodes.
 	**/
-	var filter(default,null) : NodeFilter;
+	var filter(default,null) : haxe.extern.EitherType<Node -> Int, NodeFilter>;
 	
 	/**
 		Is the `Node` on which the `TreeWalker` is currently pointing at.
 	**/
 	var currentNode : Node;
 	
-	/** @throws DOMError */
 	
 	/**
 		Moves the current `Node` to the first visible ancestor node in the document order, and returns the found node. It also moves the current node to this one. If no such node exists, or if it is before that the root node defined at the object construction, returns `null` and the current node is not changed.
+		@throws DOMError
 	**/
 	function parentNode() : Node;
-	/** @throws DOMError */
 	
 	/**
 		Moves the current `Node` to the first visible child of the current node, and returns the found child. It also moves the current node to this child. If no such child exists, returns `null` and the current node is not changed.
+		@throws DOMError
 	**/
 	function firstChild() : Node;
-	/** @throws DOMError */
 	
 	/**
-		Moves the current `Node` to the last visible child of the current node, and returns the found child. It also moves the current node to this child. If no such child exists, returns `null` and the current node is not changed.
+		Moves the current `Node` to the last visible child of the current node, and returns the found child. It also moves the current node to this child. If no such child exists, `null` is returned and the current node is not changed.
+		@throws DOMError
 	**/
 	function lastChild() : Node;
-	/** @throws DOMError */
 	
 	/**
 		Moves the current `Node` to its previous sibling, if any, and returns the found sibling. If there is no such node, return `null` and the current node is not changed.
+		@throws DOMError
 	**/
 	function previousSibling() : Node;
-	/** @throws DOMError */
 	
 	/**
-		Moves the current `Node` to its next sibling, if any, and returns the found sibling. If there is no such node, return `null` and the current node is not changed.
+		Moves the current `Node` to its next sibling, if any, and returns the found sibling. If there is no such node, `null` is returned and the current node is not changed.
+		@throws DOMError
 	**/
 	function nextSibling() : Node;
-	/** @throws DOMError */
 	
 	/**
-		Moves the current `Node` to the previous visible node in the document order, and returns the found node. It also moves the current node to this one. If no such node exists,or if it is before that the root node defined at the object construction, returns `null` and the current node is not changed.
+		Moves the current `Node` to the previous visible node in the document order, and returns the found node. It also moves the current node to this one. If no such node exists, or if it is before that the root node defined at the object construction, returns `null` and the current node is not changed.
+		@throws DOMError
 	**/
 	function previousNode() : Node;
-	/** @throws DOMError */
 	
 	/**
 		Moves the current `Node` to the next visible node in the document order, and returns the found node. It also moves the current node to this one. If no such node exists, returns `null` and the current node is not changed.
+		@throws DOMError
 	**/
 	function nextNode() : Node;
 }

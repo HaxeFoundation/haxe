@@ -60,6 +60,7 @@
     <hidden path="runjava.n" />
     <hidden path="server.bat" />
     <hidden path="obj" />
+    <hidden path="serializedValues.txt" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>"$(CompilerPath)/haxe.exe" compile$(TargetBuild).hxml</preBuildCommand>

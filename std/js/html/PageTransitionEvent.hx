@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,18 @@
 package js.html;
 
 /**
-	Page transition events fire when a webpage is being loaded or unloaded.
+	The `PageTransitionEvent` is fired when a document is being loaded or unloaded.
 
 	Documentation [PageTransitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent>
 **/
 @:native("PageTransitionEvent")
-extern class PageTransitionEvent extends Event
-{
+extern class PageTransitionEvent extends Event {
+	
+	/**
+		Indicates if the document is loading from a cache.
+	**/
 	var persisted(default,null) : Bool;
 	
 	/** @throws DOMError */

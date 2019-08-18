@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,12 +31,22 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints>
 **/
-typedef MediaStreamConstraints =
-{
-	@:optional var audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
-	@:optional var fake : Bool;
-	@:optional var fakeTracks : Bool;
-	@:optional var peerIdentity : String;
-	@:optional var picture : Bool;
-	@:optional var video : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
+typedef MediaStreamConstraints = {
+	
+	/**
+		Either a Boolean (which indicates whether or not an audio track is requested) or a `MediaTrackConstraints` object providing the constraints which must be met by the audio track included in the returned `MediaStream`. If constraints are specified, an audio track is inherently requested.
+	**/
+	var ?audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
+	var ?fake : Bool;
+	
+	/**
+		A `DOMString` identifying the peer who has sole access to the stream. If this property is specified, only the indicated peer can receive and use the stream. Streams isolated in this way can only be displayed in a media element (`audio` or `video`) where the content is protected just as if `CORS` cross-origin rules were in effect. When a peer identity is set, `MediaStreamTrack`s from that peer have their `MediaStreamTrack.isolated` flag set to `true`.
+	**/
+	var ?peerIdentity : String;
+	var ?picture : Bool;
+	
+	/**
+		Either a Boolean (which indicates whether or not a video track is requested) or a `MediaTrackConstraints` object providing the constraints which must be met by the video track included in the returned `MediaStream`. If constraints are specified, a video track is inherently requested.
+	**/
+	var ?video : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
 }

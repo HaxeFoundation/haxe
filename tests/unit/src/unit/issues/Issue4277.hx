@@ -5,7 +5,7 @@ class Issue4277 extends Test {
 		t(unit.HelperMacros.typeError(fancyInlineMethod));
 	}
 
-	@:extern private inline static function fancyInlineMethod(y:Int = 3):Int {
+	extern private inline static function fancyInlineMethod(y:Int = 3):Int {
 		var x = 5;
 		return x + (x += x) - y;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,27 +19,25 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp;
 
 import haxe.extern.Rest;
 
 @:include("stdio.h")
-extern class Stdio
-{
-   @:native("printf")
-   public static function printf(format:ConstCharStar, rest:Rest<VarArg>):Void;
+extern class Stdio {
+	@:native("printf")
+	public static function printf(format:ConstCharStar, rest:Rest<VarArg>):Void;
 
-   @:native("fopen")
-   public static function fopen(filename:ConstCharStar, mode:ConstCharStar) : FILE;
+	@:native("fopen")
+	public static function fopen(filename:ConstCharStar, mode:ConstCharStar):FILE;
 
-   @:native("fwrite")
-   public static function fwrite<T>(data:RawPointer<T>, elemSize:SizeT, elemCount:SizeT, file:FILE ) : SizeT;
+	@:native("fwrite")
+	public static function fwrite<T>(data:RawPointer<T>, elemSize:SizeT, elemCount:SizeT, file:FILE):SizeT;
 
-   @:native("fclose")
-   public static function fclose(file:FILE) : Int;
+	@:native("fclose")
+	public static function fclose(file:FILE):Int;
 
-
-   @:native("fprintf")
-   public static function fprintf(file:FILE,format:ConstCharStar, rest:Rest<VarArg>):Void;
+	@:native("fprintf")
+	public static function fprintf(file:FILE, format:ConstCharStar, rest:Rest<VarArg>):Void;
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	HTML script elements expose the `HTMLScriptElement` interface, which provides special properties and methods (beyond the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `script` elements.
+	HTML `script` elements expose the `HTMLScriptElement` interface, which provides special properties and methods for manipulating the behavior and execution of `script` elements (beyond the inherited `HTMLElement` interface).
 
 	Documentation [HTMLScriptElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLScriptElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLScriptElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLScriptElement>
 **/
 @:native("HTMLScriptElement")
-extern class ScriptElement extends Element
-{
+extern class ScriptElement extends Element {
 	var src : String;
 	var type : String;
 	var charset : String;

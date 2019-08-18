@@ -12,6 +12,7 @@ class Issue4751 extends Test{
 	function testNadako() {
 		var o:{?v:O} = {};
 		func(if (cond()) o.v.get() else throw "oh");
+		noAssert();
 	}
 
 	function testGama() {
@@ -23,6 +24,7 @@ class Issue4751 extends Test{
 			dy = t;
 		};
 		func(dy * 1.1);
+		noAssert();
 	}
 
 	static function cond() return true;

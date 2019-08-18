@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,8 @@
 
 package js.html.idb;
 
-typedef IndexParameters =
-{
-	@:optional var locale : String;
-	@:optional var multiEntry : Bool;
-	@:optional var unique : Bool;
+typedef IndexParameters = {
+	var ?locale : String;
+	var ?multiEntry : Bool;
+	var ?unique : Bool;
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@ let rec filter_param t =
 		TAbstract(a, List.map filter_param tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
 		TAbstract(a,[filter_param t])
-	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+	| TAbstract(a,tl) when (Meta.has Meta.MultiType a.a_meta) ->
 		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) ->
 		TAbstract(a, List.map filter_param tl)

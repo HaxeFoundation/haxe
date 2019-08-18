@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ open Common
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (* ******************************************* *)
@@ -121,7 +122,21 @@ let rec is_hxgeneric md =
 		| TAbstract(a,_) -> not (Meta.has Meta.NativeGeneric a.a_meta)
 		| _ -> true
 
+type nativegeneric_reason =
+	| ReasonField of string * Type.t
+	| ReasonSuper of Globals.path
+	| ReasonExplicit
+
+exception Cannot_be_native of Globals.path * pos * Globals.path * nativegeneric_reason
+
 let rec set_hxgeneric gen mds isfirst md =
+	let iface_path, raise_pos, raise_if_native = match md with
+		| TClassDecl(cl) -> (try
+			(fst (List.find (fun (cl,_) -> (set_hxgeneric gen mds isfirst (TClassDecl cl) ) = Some(true) ) cl.cl_implements)).cl_path, cl.cl_pos, true
+		with Not_found ->
+			([],""), Globals.null_pos, false)
+		| _ -> ([],""), Globals.null_pos, false
+	in
 	let path = t_path md in
 	if List.exists (fun m -> path = t_path m) mds then begin
 		if isfirst then
@@ -136,14 +151,14 @@ let rec set_hxgeneric gen mds isfirst md =
 				| None -> has_unresolved := true; false
 				| Some true -> false
 		in
-
 		let mds = md :: mds in
 		match md with
 			| TClassDecl(cl)	->
 				(* first see if any meta is present (already processed) *)
-				if Meta.has Meta.NativeGeneric cl.cl_meta then
+				if Meta.has Meta.NativeGeneric cl.cl_meta then begin
+					if raise_if_native then raise (Cannot_be_native(path, raise_pos, iface_path, ReasonExplicit));
 					Some false
-				else if Meta.has Meta.HaxeGeneric cl.cl_meta then
+				end else if Meta.has Meta.HaxeGeneric cl.cl_meta then
 					Some true
 				else if cl.cl_params = [] && is_hxgen md then
 					(cl.cl_meta <- (Meta.HaxeGeneric,[],cl.cl_pos) :: cl.cl_meta;
@@ -162,6 +177,7 @@ let rec set_hxgeneric gen mds isfirst md =
 					(* on the first pass, our job is to find any evidence that makes it not be hxgeneric. Otherwise it will be hxgeneric *)
 					match cl.cl_super with
 						| Some (c,_) when is_false (set_hxgeneric gen mds isfirst (TClassDecl c)) ->
+							if raise_if_native then raise (Cannot_be_native(path, raise_pos, iface_path, ReasonSuper(c.cl_path)));
 							cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 							Some false
 						| _ ->
@@ -177,20 +193,28 @@ let rec set_hxgeneric gen mds isfirst md =
 								| _ ->
 									(* if it is, loop through all fields + statics and look for non-hxgeneric
 										generic classes that have KTypeParameter as params *)
-									let rec loop cfs =
+									let raise_or_return_true = if raise_if_native then
+											(fun cf -> raise (Cannot_be_native(path, raise_pos, iface_path, ReasonField(cf.cf_name, cf.cf_type))))
+										else
+											(fun cf -> true)
+									in
+									let rec cfs_must_be_native cfs =
 										match cfs with
 											| [] -> false
-											| cf :: cfs ->
+											| cf :: cfs when Type.is_physical_field cf ->
 												let t = follow (gen.greal_type cf.cf_type) in
-												match t with
-													| TInst( { cl_kind = KTypeParameter _ }, _ ) -> loop cfs
+												(match t with
+													| TInst( { cl_kind = KTypeParameter _ }, _ ) -> cfs_must_be_native cfs
 													| TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
-														if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop cfs
+														if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then raise_or_return_true cf else cfs_must_be_native cfs
 													| TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
-														if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop cfs
-													| _ -> loop cfs (* TAbstracts / Dynamics can't be generic *)
+														if not (Hashtbl.mem gen.gtparam_cast e.e_path) then raise_or_return_true cf else cfs_must_be_native cfs
+													| _ -> cfs_must_be_native cfs (* TAbstracts / Dynamics can't be generic *)
+												)
+											| _ :: cfs ->
+												cfs_must_be_native cfs
 									in
-									if loop cl.cl_ordered_fields then begin
+									if cfs_must_be_native cl.cl_ordered_fields then begin
 										cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 										Some false
 									end else if isfirst && !has_unresolved then
@@ -201,9 +225,10 @@ let rec set_hxgeneric gen mds isfirst md =
 									end
 				end
 			| TEnumDecl e ->
-				if Meta.has Meta.NativeGeneric e.e_meta then
+				if Meta.has Meta.NativeGeneric e.e_meta then begin
+					if raise_if_native then raise (Cannot_be_native(path, raise_pos, iface_path, ReasonExplicit));
 					Some false
-				else if Meta.has Meta.HaxeGeneric e.e_meta then
+				end else if Meta.has Meta.HaxeGeneric e.e_meta then
 					Some true
 				else if not (is_hxgen (TEnumDecl e)) then begin
 					e.e_meta <- (Meta.NativeGeneric, [], e.e_pos) :: e.e_meta;
@@ -215,7 +240,12 @@ let rec set_hxgeneric gen mds isfirst md =
 							e.e_meta <- (Meta.HaxeGeneric, [], e.e_pos) :: e.e_meta;
 							Some true
 						| _ ->
-							let rec loop efs =
+							let raise_or_return_true = if raise_if_native then
+									(fun name t -> raise (Cannot_be_native(path, raise_pos, iface_path, ReasonField(name, t))))
+								else
+									(fun _ _ -> true)
+							in
+							let rec efs_must_be_native efs =
 								match efs with
 									| [] -> false
 									| ef :: efs ->
@@ -228,18 +258,18 @@ let rec set_hxgeneric gen mds isfirst md =
 														| TInst( { cl_kind = KTypeParameter _ }, _ ) ->
 															false
 														| TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
-															not (Hashtbl.mem gen.gtparam_cast cl.cl_path)
+															if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then raise_or_return_true ef.ef_name t else false
 														| TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
-															not (Hashtbl.mem gen.gtparam_cast e.e_path)
+															if not (Hashtbl.mem gen.gtparam_cast e.e_path) then raise_or_return_true ef.ef_name t else false
 														| _ -> false
 												) args then
 													true
 												else
-													loop efs
-											| _ -> loop efs
+													efs_must_be_native efs
+											| _ -> efs_must_be_native efs
 							in
 							let efs = PMap.fold (fun ef acc -> ef :: acc) e.e_constrs [] in
-							if loop efs then begin
+							if efs_must_be_native efs then begin
 								e.e_meta <- (Meta.NativeGeneric, [], e.e_pos) :: e.e_meta;
 								Some false
 							end else if isfirst && !has_unresolved then
@@ -252,47 +282,66 @@ let rec set_hxgeneric gen mds isfirst md =
 			| _ -> assert false
 	end
 
+let path_s = function
+	| [],name -> name
+	| pack,name -> String.concat "." pack ^ "." ^ name
+
 let set_hxgeneric gen md =
-	let ret = match md with
-		| TClassDecl { cl_kind = KAbstractImpl a } -> (match follow_all_md md with
-			| (TInst _ | TEnum _ as t) -> (
-				let md = match t with
-					| TInst(cl,_) -> TClassDecl cl
-					| TEnum(e,_) -> TEnumDecl e
-					| _ -> assert false
+	try
+		let ret = match md with
+			| TClassDecl { cl_kind = KAbstractImpl a } -> (match follow_all_md md with
+				| (TInst _ | TEnum _ as t) -> (
+					let md = match t with
+						| TInst(cl,_) -> TClassDecl cl
+						| TEnum(e,_) -> TEnumDecl e
+						| _ -> assert false
+					in
+					let ret = set_hxgeneric gen [] true md in
+					if ret = None then get (set_hxgeneric gen [] false md) else get ret)
+				| TAbstract(a,_) -> true
+				| _ -> true)
+			| _ -> match set_hxgeneric gen [] true md with
+				| None ->
+					get (set_hxgeneric gen [] false md)
+				| Some v ->
+					v
+		in
+		if not ret then begin
+			match md with
+			| TClassDecl c ->
+				let set_hxgeneric (_,param) = match follow param with
+					| TInst(c,_) ->
+						c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
+					| _ -> ()
 				in
-				let ret = set_hxgeneric gen [] true md in
-				if ret = None then get (set_hxgeneric gen [] false md) else get ret)
-			| TAbstract(a,_) -> true
-			| _ -> true)
-		| _ -> match set_hxgeneric gen [] true md with
-			| None ->
-				get (set_hxgeneric gen [] false md)
-			| Some v ->
-				v
-	in
-	if not ret then begin
-		match md with
-		| TClassDecl c ->
-			let set_hxgeneric (_,param) = match follow param with
-				| TInst(c,_) ->
-					c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
-				| _ -> ()
-			in
-			List.iter set_hxgeneric c.cl_params;
-			let rec handle_field cf =
-				List.iter set_hxgeneric cf.cf_params;
-				List.iter handle_field cf.cf_overloads
-			in
-			(match c.cl_kind with
-				| KAbstractImpl a ->
-					List.iter set_hxgeneric a.a_params;
-				| _ -> ());
-			List.iter handle_field c.cl_ordered_fields;
-			List.iter handle_field c.cl_ordered_statics
-		| _ -> ()
-	end;
-	ret
+				List.iter set_hxgeneric c.cl_params;
+				let rec handle_field cf =
+					List.iter set_hxgeneric cf.cf_params;
+					List.iter handle_field cf.cf_overloads
+				in
+				(match c.cl_kind with
+					| KAbstractImpl a ->
+						List.iter set_hxgeneric a.a_params;
+					| _ -> ());
+				List.iter handle_field c.cl_ordered_fields;
+				List.iter handle_field c.cl_ordered_statics
+			| _ -> ()
+		end;
+		ret
+	with Cannot_be_native(path, pos, iface_path, reason) ->
+		let reason_start = "The class at path " ^ path_s path ^ " implements a haxe generic interface " ^ path_s iface_path
+			^ ". It however cannot be a haxe generic class "
+		in
+		let reason = reason_start ^ match reason with
+			| ReasonField (field_name, t) ->
+				"because its field " ^ field_name ^ " is of type " ^ debug_type t
+			| ReasonSuper (path) ->
+				"because it extends the type " ^ path_s path ^ " that was determined to be a native generic type"
+			| ReasonExplicit ->
+				"because it explicitly has the metadata @:nativeGeneric set"
+		in
+		gen.gcon.error (reason) pos;
+		assert false
 
 let params_has_tparams params =
 	List.fold_left (fun acc t -> acc || has_type_params t) false params
@@ -416,6 +465,7 @@ struct
 		let params = List.map snd cparams in
 
 		let fields = get_fields gen cl (List.map snd cl.cl_params) params [] in
+		let fields = List.filter (fun (cf,_,_) -> Type.is_physical_field cf) fields in
 
 		(* now create the contents of the function *)
 		(*
@@ -459,21 +509,25 @@ struct
 				| _ -> assert false
 			in
 			List.map (fun (cf, t_cl, t_cf) ->
+				let t_cf = follow (gen.greal_type t_cf) in
 				let this_field = mk (TField (this, FInstance (cl, List.map snd cl.cl_params, cf))) t_cl pos in
 				let expr =
 					binop
 						OpAssign
 						(mk (TField (local_new_me, FInstance(cl, List.map snd cl.cl_params, cf))) t_cf pos)
-						(try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with Not_found -> (* if not found tparam cast, it shouldn't be a valid hxgeneric *) assert false)
+						(try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with Not_found ->
+							(* if not found tparam cast, it shouldn't be a valid hxgeneric *)
+							print_endline ("Could not find a gtparam_cast for " ^ (String.concat "." (fst (get_path t_cf)) ^ "." ^ (snd (get_path t_cf))));
+							assert false)
 						t_cf
 						pos
 				in
-				[ExprBuilder.make_string gen.gcon cf.cf_name pos], expr
+				[make_string gen.gcon.basic cf.cf_name pos], expr
 			) fields
 		in
 
 		let mk_typehandle =
-			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
+			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [make_static_this cl pos])) t_dynamic pos)
 		in
 		let mk_eq cl1 cl2 =
 			binop OpEq (mk_typehandle cl1) (mk_typehandle cl2) basic.tbool pos
@@ -503,7 +557,7 @@ struct
 				(* var fields = Reflect.fields(this); *)
 				mk (TVar (fields_var, Some (gen.gtools.r_fields true this))) basic.tvoid pos;
 				(* var i = 0; *)
-				mk (TVar (i_var, Some (ExprBuilder.make_int gen.gcon 0 pos))) basic.tvoid pos;
+				mk (TVar (i_var, Some (make_int gen.gcon.basic 0 pos))) basic.tvoid pos;
 				(* while (i < fields.length) *)
 				mk (TWhile (
 					binop OpLt local_i (mk_field_access gen local_fields "length" pos) basic.tbool pos,
@@ -666,7 +720,7 @@ struct
 							not (has_type_params cf_type)
 						) cl.cl_ordered_fields
 					in
-					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type f.cf_public f.cf_pos f.cf_kind f.cf_params) fields in
+					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params) fields in
 					let fields = iface_cf :: fields in
 					iface.cl_ordered_fields <- fields;
 					List.iter (fun f -> iface.cl_fields <- PMap.add f.cf_name f iface.cl_fields) fields;

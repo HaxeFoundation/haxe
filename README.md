@@ -1,9 +1,15 @@
+<p align="center">
+  <a href="https://haxe.org/" title="haxe.org"><img src="extra/images/Readme.png" /></a>
+</p>
 
-# [<img src="https://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](https://haxe.org) - [The Cross-Platform Toolkit](https://haxe.org)
-[![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
-[![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+<p align="center">
+	<a href="https://dev.azure.com/HaxeFoundation/GitHubPublic/_build/latest?definitionId=1&branchName=development"><img src="https://dev.azure.com/HaxeFoundation/GitHubPublic/_apis/build/status/HaxeFoundation.haxe?branchName=development" alt="Azure Pipelines Build Status"></a>
+	<a href="https://saucelabs.com/u/haxe"><img src="https://saucelabs.com/buildstatus/haxe" alt="SauceLabs Test Status"></a>
+	<a href="https://gitter.im/HaxeFoundation/haxe?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge"><img src="https://badges.gitter.im/Join%20Chat.svg" alt="Gitter"></a>
+	<a href="https://discordapp.com/invite/0uEuWH3spjck73Lo"><img src="https://img.shields.io/discord/162395145352904705.svg?logo=discord" alt="Discord"></a>
+</p>
+
+#
 
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
@@ -13,21 +19,22 @@ Haxe is an open source toolkit that allows you to easily build cross-platform to
 
 Haxe allows you to compile for the following targets:
 
- * ActionScript 3
+ * JavaScript
  * C++
  * C#
- * Flash
- * [HashLink](http://hashlink.haxe.org/)
  * Java
- * JavaScript
  * Lua
- * [NekoVM](http://nekovm.org/)
  * PHP
  * Python 3
+ * [HashLink](https://hashlink.haxe.org/)
+ * [NekoVM](https://nekovm.org/)
+ * Flash (SWF Bytecode)
+ * ActionScript 3
+ * And its own [interpreter](https://haxe.org/blog/eval/)
 
 You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
 
-For more information about Haxe, head to the [offical Haxe website](https://haxe.org).
+For more information about Haxe, head to the [official Haxe website](https://haxe.org).
 
 ## License
 
@@ -55,45 +62,45 @@ Automated development builds are available from [build.haxe.org](http://build.ha
 
 ## Building from source
 
- 1. Clone the repository using git. Be sure to initialize and fetch the submodules.
-
-        git clone --recursive git://github.com/HaxeFoundation/haxe.git
-        cd haxe
-
- 2. Follow the [documentation on building Haxe for your platform](https://haxe.org/documentation/introduction/building-haxe.html).
+See [extra/BUILDING.md](extra/BUILDING.md).
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
+For information on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
 
  * [Haxe Introduction](https://haxe.org/documentation/introduction/), an introduction to the Haxe toolkit
  * [The Haxe Manual](https://haxe.org/manual/), the reference manual for the Haxe language
- * [Haxe Code Cookbook](http://code.haxe.org), code snippets / learning resource
- * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
- * [Haxelib](https://lib.haxe.org), a repository of Haxe libraries for a variety of needs
+ * [Haxe Code Cookbook](https://code.haxe.org), code snippets / learning resource
+ * [Haxe API](https://api.haxe.org), documentation for the Haxe standard and native APIs
+ * [Haxelib](https://lib.haxe.org), Haxelib is the package manager for the Haxe Toolkit.
 
 ## Community
 
 You can get help and talk with fellow Haxers from around the world via:
 
+ * [Haxe Community Forum](http://community.haxe.org)
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
- * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
- * [#Haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
- * the [Haxe IRC chatroom](https://unic0rn.github.io/tiramisu/haxe/), #haxe on chat.freenode.net
+ * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
+ * [Haxe Discord server](https://discordapp.com/invite/0uEuWH3spjck73Lo)
+ * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
 
-:+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) or [Google+](https://plus.google.com/+HaxeOrg)
+:+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
 
 ## Version compatibility
 
-Haxe   | neko
-----   | -----
-2.*    | 1.*
-3.0.0  | 2.0.0
-3.1.3  | 2.0.0
-3.2.0  | 2.0.0
-3.3.0  | 2.1.0
-3.4.0  | 2.1.0
-
+Haxe            | Neko  | SWF |  Python   | HL    | PHP   | Lua  |
+----            | ----  | ----   | ----   |  ---- | ----  | ---- |
+2.*             | 1.*   | 8-10   | -      | -     | -     | -    |
+3.0.0           | 2.0.0 |        | -      | -     | 5.1+  | -    |
+3.2.0           |       | 12-14  | 3.2+   | -     |       | -    |
+3.3.0           | 2.1.0 | 21     |        | -     |       | 5.1, 5.2, 5.3, LuaJIT 2.0, 2.1 |
+3.4.0           |       |        |        | 1.1   | 5.4+ and 7.0+ (with `-D php7`)   |      |
+4.0.0-preview.1 |       |        |        | 1.2   | 7.0+  |      |
+4.0.0-preview.3 |       |        |        | 1.3   |       |      |
+4.0.0-preview.4 |       |        |        | 1.6   |       |      |
+4.0.0-preview.5 |       |        |        | 1.8   |       |      |
+4.0.0-rc.1      |       |        |        | 1.9   |       |      |
+4.0.0-rc.3      |       |        |        | 1.10  |       |      |
 
 ## Contributing
 

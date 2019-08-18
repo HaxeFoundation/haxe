@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@ package haxe;
 	type, the underlying type will be `Dynamic`.
 **/
 @:callable
-abstract Function(Dynamic) { }
+abstract Function(Dynamic) {}
 
 /**
 	This type unifies with an enum instance if all constructors of the enum
@@ -38,13 +38,14 @@ abstract Function(Dynamic) { }
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
-abstract FlatEnum(Dynamic) { }
+abstract FlatEnum(Dynamic) {}
 
 /**
 	This type unifies with any instance of classes that have a constructor
 	which
-		* is public and
-		* unifies with the type used for type parameter `T`.
+
+	  * is public and
+	  * unifies with the type used for type parameter `T`.
 
 	If a type parameter A is assigned to a type parameter B which is constrained
 	to `Constructible<T>`, A must be explicitly constrained to
@@ -53,15 +54,16 @@ abstract FlatEnum(Dynamic) { }
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
-abstract Constructible<T>(Dynamic) { }
+abstract Constructible<T>(Dynamic) {}
 
-interface IMap<K,V> {
+interface IMap<K, V> {
 	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;
 	public function remove(k:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
-	public function copy():IMap<K,V>;
+	public function keyValueIterator():KeyValueIterator<K, V>;
+	public function copy():IMap<K, V>;
 	public function toString():String;
 }

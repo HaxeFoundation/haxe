@@ -2,7 +2,7 @@ package unit.issues;
 import unit.Test;
 
 class Issue3585 extends Test {
-	#if (flash || java || cs || cpp) // this is only relevant on static platforms
+	#if static // this is only relevant on static platforms
 	function test() {
 		var v = inlineUnwrap();
 		eq(getType(v), "Int");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker>
 **/
 @:native("ServiceWorker")
-extern class ServiceWorker extends EventTarget
-{
+extern class ServiceWorker extends EventTarget {
 	
 	/**
 		Returns the `ServiceWorker` serialized script URL defined as part of `ServiceWorkerRegistration`. The URL must be on the same origin as the document that registers the `ServiceWorker`.

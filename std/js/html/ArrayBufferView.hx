@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-/**
-	`ArrayBufferView` is a helper type representing any of the following JavaScript `TypedArray` types:
-
-	Documentation [ArrayBufferView](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
-
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView>
-**/
-@:native("ArrayBufferView")
-extern class ArrayBufferView
-{
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
-	
-}
+@:deprecated typedef ArrayBufferView = js.lib.ArrayBufferView;

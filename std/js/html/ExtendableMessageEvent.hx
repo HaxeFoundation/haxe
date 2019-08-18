@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent>
 **/
 @:native("ExtendableMessageEvent")
-extern class ExtendableMessageEvent extends ExtendableEvent
-{
+extern class ExtendableMessageEvent extends ExtendableEvent {
 	
 	/**
 		Returns the event's data. It can be any data type.
@@ -58,7 +57,7 @@ extern class ExtendableMessageEvent extends ExtendableEvent
 	/**
 		Returns the array containing the `MessagePort` objects representing the ports of the associated message channel.
 	**/
-	var ports(default,null) : MessagePortList;
+	var ports(default,null) : Array<MessagePort>;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ExtendableMessageEventInit ) : Void;

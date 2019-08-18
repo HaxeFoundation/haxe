@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker>
 **/
 @:native("SharedWorker")
-extern class SharedWorker extends EventTarget
-{
+extern class SharedWorker extends EventTarget {
 	
 	/**
 		Returns a `MessagePort` object used to communicate and control the shared worker.
@@ -42,5 +41,6 @@ extern class SharedWorker extends EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( scriptURL : String, ?name : String ) : Void;
+	@:overload( function( scriptURL : String, ?options : WorkerOptions) : SharedWorker {} )
+	function new( scriptURL : String, ?options : String ) : Void;
 }

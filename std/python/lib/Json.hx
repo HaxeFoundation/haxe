@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.KwArgs;
@@ -27,28 +28,25 @@ import python.lib.json.JSONEncoder;
 import python.Tuple.Tuple2;
 
 typedef JsonDumpsOptions = {
-	@:optional var skipkeys : Bool;
-	@:optional var ensure_ascii : Bool;
-	@:optional var check_circular : Bool;
-	@:optional var allow_nan : Bool;
-	@:optional var cls : Dynamic;
-	@:optional var indent : String;
-	@:optional var separators:Tuple2<String,String>;
-	@:optional @:native("default") var def:Dynamic->String;
-	@:optional var sort_keys:Bool;
-
+	var ?skipkeys:Bool;
+	var ?ensure_ascii:Bool;
+	var ?check_circular:Bool;
+	var ?allow_nan:Bool;
+	var ?cls:Dynamic;
+	var ?indent:String;
+	var ?separators:Tuple2<String, String>;
+	@:native("default") var ?def:Dynamic->String;
+	var ?sort_keys:Bool;
 }
 
 typedef JsonLoadsOptions = {
-	@:optional var encoding:String;
-	@:optional var cls : Dynamic;
-	@:optional var object_hook:Dict<String, Dynamic>->Dynamic;
+	var ?encoding:String;
+	var ?cls:Dynamic;
+	var ?object_hook:Dict<String, Dynamic>->Dynamic;
 }
 
 @:pythonImport("json")
 extern class Json {
-
-	public static function loads ( s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
-	public static function dumps (x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
-
+	public static function loads(s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
+	public static function dumps(x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
 }

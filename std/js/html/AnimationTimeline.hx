@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationTimeline>
 **/
 @:native("AnimationTimeline")
-extern class AnimationTimeline
-{
+extern class AnimationTimeline {
 	
 	/**
 		Returns the time value in milliseconds for this timeline or `null` if this timeline is inactive.

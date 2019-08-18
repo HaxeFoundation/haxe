@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,52 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-typedef ThreadHandle = Dynamic;
-
-class Thread {
-
-	public var handle(default,null) : ThreadHandle;
-
-	function new(h) {
-		handle = h;
-	}
-
-	/**
-		Send a message to the thread queue. This message can be read by using `readMessage`.
-	**/
-	public function sendMessage( msg : Dynamic ) {
-		untyped __global__.__hxcpp_thread_send(handle,msg);
-	}
-
-
-	/**
-		Returns the current thread.
-	**/
-	public static function current() {
-		return new Thread(untyped __global__.__hxcpp_thread_current());
-	}
-
-	/**
-		Creates a new thread that will execute the `callb` function, then exit.
-	**/
-	public static function create( callb : Void -> Void ) {
-		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
-	}
-
-	/**
-		Reads a message from the thread queue. If `block` is true, the function
-		blocks until a message is available. If `block` is false, the function
-		returns `null` if no message is available.
-	**/
-	public static function readMessage( block : Bool ) : Dynamic {
-		return untyped __global__.__hxcpp_thread_read_message(block);
-	}
-
-	@:keep function __compare(t) : Int {
-		return handle == t.handle ? 0 : 1;
-	}
-
-}
-
+@:deprecated typedef Thread = sys.thread.Thread;

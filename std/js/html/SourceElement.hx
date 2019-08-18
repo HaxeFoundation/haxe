@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,12 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement>
 **/
 @:native("HTMLSourceElement")
-extern class SourceElement extends Element
-{
+extern class SourceElement extends Element {
 	
 	/**
-		Is a `DOMString` reflecting the `src` HTML attribute, containing the URL for the media resource. The `HTMLSourceElement.src` property has a meaning only when the associated `source` element is nested in a media element that is a `video` or an `audio` element. It has no meaning and is ignored when it is nested in a `picture` element.
+		Is a `DOMString` reflecting the `src` HTML attribute, containing the URL for the media resource. The `HTMLSourceElement.src` property has a meaning only when the associated `source` element is nested in a media element that is a `video` or an `audio` element. It has no meaning and is ignored when it is nested in a `picture` element. 
+		 Note: If the `src` property is updated (along with any siblings), the parent `HTMLMediaElement`'s `load` method should be called when done, since `source` elements are not re-scanned automatically.
+		 
 	**/
 	var src : String;
 	

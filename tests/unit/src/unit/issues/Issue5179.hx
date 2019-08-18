@@ -1,7 +1,6 @@
 package unit.issues;
 
-@:enum
-private abstract TP_KIND<T>(Int) {
+private enum abstract TP_KIND<T>(Int) {
 
     public function new () this = 0;
 
@@ -16,6 +15,6 @@ private abstract TP_KIND<T>(Int) {
 
 class Issue5179 extends unit.Test {
 	function test() {
-
+		noAssert();
 	}
 }

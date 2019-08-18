@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
@@ -32,7 +33,6 @@ package haxe;
 	Type.enumIndex() reflection is used.
 **/
 abstract EnumFlags<T:EnumValue>(Int) {
-
 	/**
 		Initializes the bitflags to `i`.
 	**/
@@ -48,7 +48,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 		If `v` is null, the result is unspecified.
 	**/
-	public inline function has( v : T ) : Bool {
+	public inline function has(v:T):Bool {
 		return this & (1 << Type.enumIndex(v)) != 0;
 	}
 
@@ -60,7 +60,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 		If `v` is null, the result is unspecified.
 	**/
-	public inline function set( v : T ) : Void {
+	public inline function set(v:T):Void {
 		this |= 1 << Type.enumIndex(v);
 	}
 
@@ -72,7 +72,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 		If `v` is null, the result is unspecified.
 	**/
-	public inline function unset( v : T ) : Void {
+	public inline function unset(v:T):Void {
 		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));
 	}
 
@@ -80,7 +80,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert a integer bitflag into a typed one (this is a no-op, it does not
 		have any impact on speed).
 	**/
-	public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
+	public inline static function ofInt<T:EnumValue>(i:Int):EnumFlags<T> {
 		return new EnumFlags<T>(i);
 	}
 
@@ -88,7 +88,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert the typed bitflag into the corresponding int value (this is a
 		no-op, it doesn't have any impact on speed).
 	**/
-	public inline function toInt() : Int {
+	public inline function toInt():Int {
 		return this;
 	}
 }

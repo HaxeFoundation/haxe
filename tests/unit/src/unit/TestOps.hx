@@ -39,6 +39,7 @@ class TestOps extends Test {
 		eq( 2 << 3 >> 1, 8 );
 		eq( (2 << 3) >> 1, 8 );
 		eq( 2 << (3 >> 1), 4 );
+		eq( (getA().a + 1) >> 1, 1 );
 
 		f( (1 & 0x8000) != 0 );
 		f( 1 & 0x8000 != 0 );
@@ -97,5 +98,7 @@ class TestOps extends Test {
 		eq(5 * @foo 3 + 4, 19);
 		eq(5 * @foo @bar 3 + @baz 4, 19);
 	}
+
+	static function getA() return { a:1 };
 
 }

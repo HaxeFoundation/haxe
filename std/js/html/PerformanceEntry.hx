@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,16 +32,15 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry>
 **/
 @:native("PerformanceEntry")
-extern class PerformanceEntry
-{
+extern class PerformanceEntry {
 	
 	/**
-		A `DOMString` representing the name of a performance entry when the metric was created.
+		A value that further specifies the value returned by the `PerformanceEntry.entryType` property. The value of both depends on the subtype. See property page for valid values.
 	**/
 	var name(default,null) : String;
 	
 	/**
-		A `DOMString` representing the type of performance metric such as "`mark`". See `PerformanceEntry.entryType` for a list of valid values.
+		A `DOMString` representing the type of performance metric such as, for example, "`mark`". See property page for valid values.
 	**/
 	var entryType(default,null) : String;
 	
@@ -55,4 +54,5 @@ extern class PerformanceEntry
 	**/
 	var duration(default,null) : Float;
 	
+	function toJSON() : Dynamic;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,15 +24,43 @@
 
 package js.html;
 
+import js.lib.Promise;
+
+/**
+	The `ScreenOrientation` interface of the the Screen Orientation API provides information about the current orientation of the document.
+
+	Documentation [ScreenOrientation](https://developer.mozilla.org/en-US/docs/Web/API/ScreenOrientation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ScreenOrientation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ScreenOrientation>
+**/
 @:native("ScreenOrientation")
-extern class ScreenOrientation extends EventTarget
-{
+extern class ScreenOrientation extends EventTarget {
+
+	/**
+		Returns the document's current orientation type, one of "portrait-primary", "portrait-secondary", "landscape-primary", or "landscape-secondary".
+	**/
 	var type(default,null) : OrientationType;
+
+	/**
+		Returns the document's current orientation angle.
+	**/
 	var angle(default,null) : Int;
+
+	/**
+		Fired whenever is the `EventHandler` called when the screen changes orientation.
+	**/
 	var onchange : haxe.Constraints.Function;
-	
-	/** @throws DOMError */
+
+
+	/**
+		Locks the orientation of the containing document to its default orientation and returns a `Promise`. 
+		@throws DOMError
+	**/
 	function lock( orientation : OrientationLockType ) : Promise<Void>;
-	/** @throws DOMError */
+
+	/**
+		Unlocks the orientation of the containing document from its default orientation.
+		@throws DOMError
+	**/
 	function unlock() : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/UIEvent>
 **/
 @:native("UIEvent")
-extern class UIEvent extends Event
-{
+extern class UIEvent extends Event {
 	static inline var SCROLL_PAGE_UP : Int = -32768;
 	static inline var SCROLL_PAGE_DOWN : Int = 32768;
 	
@@ -75,21 +74,11 @@ extern class UIEvent extends Event
 	var rangeParent(default,null) : Node;
 	var rangeOffset(default,null) : Int;
 	
-	/**
-		Is a `Boolean` indicating whether the bubbling of the event has been canceled or not.
-	**/
-	var cancelBubble : Bool;
-	
-	/**
-		Returns a `Boolean` indicating whether the event produced a key character or not.
-	**/
-	var isChar(default,null) : Bool;
-	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : UIEventInit ) : Void;
 	
 	/**
 		Initializes a `UIEvent` object. If the event has already being dispatched, this method does nothing.
 	**/
-	function initUIEvent( aType : String, aCanBubble : Bool, aCancelable : Bool, aView : Window, aDetail : Int ) : Void;
+	function initUIEvent( aType : String, aCanBubble : Bool = false, aCancelable : Bool = false, ?aView : Window, aDetail : Int = 0 ) : Void;
 }

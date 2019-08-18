@@ -147,12 +147,9 @@ class Issue2754 extends unit.Test
 	// which kind of defeats the purpose of the checks
 	private function nulleq<T>(v1:Null<T>, v2:Null<T>,?pos:haxe.PosInfos)
 	{
-		this.infos("v1 == null");
 		this.t(v1 == null,pos);
-		this.infos("v2 == null");
 		this.t(v2 == null,pos);
 		this.eq(v1,v2);
-		this.infos(null);
 	}
 }
 

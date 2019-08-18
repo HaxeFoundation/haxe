@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl. Do not edit!
+// This file is generated from mozilla\CSSPageRule.webidl. Do not edit!
 
 package js.html;
 
@@ -32,13 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule>
 **/
 @:native("CSSPageRule")
-extern class CSSPageRule extends CSSRule
-{
-	
-	/**
-		Represents the text of the page selector associated with the at-rule.
-	**/
-	var selectorText : String;
+extern class CSSPageRule extends CSSRule {
 	
 	/**
 		Returns the declaration block associated with the at-rule.

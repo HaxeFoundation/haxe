@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef ExtendableMessageEventInit =
-{
-	> ExtendableEventInit,
-	@:optional var data : Dynamic;
-	@:optional var lastEventId : String;
-	@:optional var origin : String;
-	@:optional var ports : Array<MessagePort>;
-	@:optional var source : haxe.extern.EitherType<Client,haxe.extern.EitherType<ServiceWorker,MessagePort>>;
+typedef ExtendableMessageEventInit = ExtendableEventInit & {
+	var ?data : Dynamic;
+	var ?lastEventId : String;
+	var ?origin : String;
+	var ?ports : Array<MessagePort>;
+	var ?source : haxe.extern.EitherType<Client,haxe.extern.EitherType<ServiceWorker,MessagePort>>;
 }

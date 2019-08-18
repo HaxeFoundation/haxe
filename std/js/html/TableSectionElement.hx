@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement>
 **/
 @:native("HTMLTableSectionElement")
-extern class TableSectionElement extends Element
-{
+extern class TableSectionElement extends Element {
 	
 	/**
 		Returns a live `HTMLCollection` containing the rows in the section. The `HTMLCollection` is live and is automatically updated when rows are added or removed.
@@ -60,16 +59,16 @@ extern class TableSectionElement extends Element
 	**/
 	var vAlign : String;
 	
-	/** @throws DOMError */
 	
 	/**
 		Inserts a new row just before the given position in the section. If the given position is not given or is `-1`, it appends the row to the end of section. If the given position is greater (or equal as it starts at zero) than the amount of rows in the section, or is smaller than `-1`, it raises a `DOMException` with the `IndexSizeError` value.
+		@throws DOMError
 	**/
-	function insertRow( ?index : Int = -1 ) : Element;
-	/** @throws DOMError */
+	function insertRow( index : Int = -1 ) : Element;
 	
 	/**
 		Removes the cell at the given position in the section. If the given position is greater (or equal as it starts at zero) than the amount of rows in the section, or is smaller than `0`, it raises a `DOMException` with the `IndexSizeError` value.
+		@throws DOMError
 	**/
 	function deleteRow( index : Int ) : Void;
 }

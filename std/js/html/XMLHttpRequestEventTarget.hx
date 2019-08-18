@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,8 @@
 
 package js.html;
 
-/**
-	`XMLHttpRequestEventTarget` is the interface that describes the event handlers you can implement in an object that will handle events for an `XMLHttpRequest`.
-
-	Documentation [XMLHttpRequestEventTarget](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
-
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget>
-**/
 @:native("XMLHttpRequestEventTarget")
-extern class XMLHttpRequestEventTarget extends EventTarget
-{
+extern class XMLHttpRequestEventTarget extends EventTarget {
 	var onloadstart : haxe.Constraints.Function;
 	var onprogress : haxe.Constraints.Function;
 	var onabort : haxe.Constraints.Function;

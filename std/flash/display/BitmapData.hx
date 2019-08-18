@@ -1,10 +1,10 @@
 package flash.display;
 
 extern class BitmapData implements IBitmapDrawable {
-	var height(default,never) : Int;
-	var rect(default,never) : flash.geom.Rectangle;
-	var transparent(default,never) : Bool;
-	var width(default,never) : Int;
+	@:flash.property var height(get,never) : Int;
+	@:flash.property var rect(get,never) : flash.geom.Rectangle;
+	@:flash.property var transparent(get,never) : Bool;
+	@:flash.property var width(get,never) : Int;
 	function new(width : Int, height : Int, transparent : Bool = true, fillColor : UInt = 0xFFFFFFFF) : Void;
 	function applyFilter(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, filter : flash.filters.BitmapFilter) : Void;
 	function clone() : BitmapData;
@@ -25,6 +25,10 @@ extern class BitmapData implements IBitmapDrawable {
 	function getPixel32(x : Int, y : Int) : UInt;
 	function getPixels(rect : flash.geom.Rectangle) : flash.utils.ByteArray;
 	@:require(flash10) function getVector(rect : flash.geom.Rectangle) : flash.Vector<UInt>;
+	private function get_height() : Int;
+	private function get_rect() : flash.geom.Rectangle;
+	private function get_transparent() : Bool;
+	private function get_width() : Int;
 	@:require(flash10) function histogram(?hRect : flash.geom.Rectangle) : flash.Vector<flash.Vector<Float>>;
 	function hitTest(firstPoint : flash.geom.Point, firstAlphaThreshold : UInt, secondObject : flash.utils.Object, ?secondBitmapDataPoint : flash.geom.Point, secondAlphaThreshold : UInt = 1) : Bool;
 	function lock() : Void;

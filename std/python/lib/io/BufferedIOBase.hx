@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,33 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.lib.io.IOBase;
-
 import python.lib.io.RawIOBase;
 import python.Bytearray;
 
 @:pythonImport("io", "BufferedIOBase")
 extern class BufferedIOBase extends IOBase implements IBufferedIOBase {
-
 	/* not always available */
 	public var raw:RawIOBase;
 
-	public function write (b:Bytearray):Int;
-	public function readinto (b:Bytearray):Int;
-	public function detach ():RawIOBase;
+	public function write(b:Bytearray):Int;
+	public function readinto(b:Bytearray):Int;
+	public function detach():RawIOBase;
 	public function read(n:Int = -1):Null<Bytes>;
 	public function read1(n:Int = -1):Null<Bytes>;
 }
 
-
 @:remove extern interface IBufferedIOBase extends IIOBase {
 	public var raw:RawIOBase;
 
-	public function write (b:Bytearray):Int;
-	public function readinto (b:Bytearray):Int;
-	public function detach ():RawIOBase;
+	public function write(b:Bytearray):Int;
+	public function readinto(b:Bytearray):Int;
+	public function detach():RawIOBase;
 	public function read(n:Int = -1):Null<Bytes>;
 	public function read1(n:Int = -1):Null<Bytes>;
 }

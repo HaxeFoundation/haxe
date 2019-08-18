@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html.idb;
 
 /**
-	Inherits from: EventTarget
+	The `IDBDatabase` interface of the IndexedDB API provides a connection to a database; you can use an `IDBDatabase` object to open a transaction on your database then create, manipulate, and delete objects (data) in that database. The interface provides the only way to get and manage versions of the database.
 
 	Documentation [IDBDatabase](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase>
 **/
 @:native("IDBDatabase")
-extern class Database extends js.html.EventTarget
-{
+extern class Database extends js.html.EventTarget {
 	
 	/**
 		A `DOMString` that contains the name of the connected database.
@@ -56,6 +55,11 @@ extern class Database extends js.html.EventTarget
 	var onabort : haxe.Constraints.Function;
 	
 	/**
+		Fires when the `close` event occurs; this happens when the database is unexpectedly closed, such as during application shutdown.
+	**/
+	var onclose : haxe.Constraints.Function;
+	
+	/**
 		Fires when access to the database fails.
 	**/
 	var onerror : haxe.Constraints.Function;
@@ -67,24 +71,25 @@ extern class Database extends js.html.EventTarget
 	**/
 	var onversionchange : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
 	
 	/**
 		Creates and returns a new object store or index.
+		@throws DOMError
 	**/
 	function createObjectStore( name : String, ?optionalParameters : ObjectStoreParameters ) : ObjectStore;
-	/** @throws DOMError */
 	
 	/**
 		Destroys the object store with the given name in the connected database, along with any indexes that reference it.
+		@throws DOMError
 	**/
 	function deleteObjectStore( name : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Immediately returns a transaction object (`IDBTransaction`) containing the `IDBTransaction.objectStore` method, which you can use to access your object store. Runs in a separate thread.
+		@throws DOMError
 	**/
-	function transaction( storeNames : haxe.extern.EitherType<String,Array<String>>, ?mode : TransactionMode = "readonly" ) : Transaction;
+	@:overload( function( storeNames : Array<String>, mode : TransactionMode = READONLY) : Transaction {} )
+	function transaction( storeNames : String, mode : TransactionMode = READONLY ) : Transaction;
 	
 	/**
 		Returns immediately and closes the connection to a database in a separate thread.

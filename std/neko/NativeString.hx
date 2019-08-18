@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package neko;
 
 class NativeString {
-
-	public static inline function ofString( s : String ) : NativeString {
+	public static inline function ofString(s:String):NativeString {
 		return untyped s.__s;
 	}
 
-	public static inline function toString( s : NativeString ) : String {
+	public static inline function toString(s:NativeString):String {
 		return new String(cast s);
 	}
 
-	public static inline function length( s : NativeString ) : Int {
+	public static inline function length(s:NativeString):Int {
 		return untyped $ssize(s);
 	}
-	
-	public static inline function alloc( size : Int ) : NativeString {
+
+	public static inline function alloc(size:Int):NativeString {
 		return untyped $smake(size);
 	}
-
 }

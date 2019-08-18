@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,14 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
 
-extern class ArrayBase
-{
-   // Length is number of elements
-   public var length(default,null):Int;
-   public function getElementSize():Int;
-   public function getByteCount():Int;
-   public function getBase():RawPointer<Char>;
+package cpp;
+
+extern class ArrayBase {
+	// Length is number of elements
+	public var length(default, null):Int;
+	public function getElementSize():Int;
+	public function getByteCount():Int;
+	public function getBase():RawPointer<Char>;
 }
-

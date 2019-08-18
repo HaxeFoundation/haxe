@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.ArrayBuffer;
-
-@:native("ArrayBuffer")
-extern class ArrayBuffer
-{
-	static function isView( value : Dynamic ) : Bool;
-	var byteLength(default,null) : Int;
-	
-	/** @throws DOMError */
-	function new( length : Int ) : Void;
-	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
-}
+@:deprecated typedef ArrayBuffer = js.lib.ArrayBuffer;

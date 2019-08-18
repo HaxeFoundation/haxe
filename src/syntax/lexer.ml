@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -28,10 +28,17 @@ type error_msg =
 	| Unterminated_regexp
 	| Unclosed_comment
 	| Unclosed_code
-	| Invalid_escape of char
+	| Invalid_escape of char * (string option)
 	| Invalid_option
+	| Unterminated_markup
 
 exception Error of error_msg * pos
+
+type xml_lexing_context = {
+	open_tag : string;
+	close_tag : string;
+	lexbuf : Sedlexing.lexbuf;
+}
 
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
@@ -40,8 +47,10 @@ let error_msg = function
 	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
 	| Unclosed_code -> "Unclosed code string"
-	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
+	| Invalid_escape (c,None) -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
+	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
+	| Unterminated_markup -> "Unterminated markup literal"
 
 type lexer_file = {
 	lfile : string;
@@ -84,7 +93,8 @@ let keywords =
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
 		Cast;Override;Dynamic;Typedef;Package;
-		Inline;Using;Null;True;False;Abstract;Macro;Final];
+		Inline;Using;Null;True;False;Abstract;Macro;Final;
+		Operator;Overload];
 	h
 
 let is_valid_identifier s = try
@@ -188,7 +198,20 @@ let resolve_pos file =
 			| '\r' ->
 				ignore(input_char ch);
 				inc 2
-			| _ -> fun () -> 1
+			| c -> (fun () ->
+				let rec skip n =
+					if n > 0 then begin
+						ignore(input_char ch);
+						skip (n - 1)
+					end
+				in
+				let code = int_of_char c in
+				if code < 0xC0 then ()
+				else if code < 0xE0 then skip 1
+				else if code < 0xF0 then skip 2
+				else skip 3;
+				1
+			)
 		in
 		loop (p + i())
 	in
@@ -243,11 +266,13 @@ let mk lexbuf t =
 
 let mk_ident lexbuf =
 	let s = lexeme lexbuf in
-	mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
+	mk lexbuf (Const (Ident s))
+
+let mk_keyword lexbuf kwd =
+	mk lexbuf (Kwd kwd)
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
-
 
 let ident = [%sedlex.regexp?
 	(
@@ -265,9 +290,26 @@ let ident = [%sedlex.regexp?
 	)
 ]
 
+let sharp_ident = [%sedlex.regexp?
+	(
+		('a'..'z' | 'A'..'Z' | '_'),
+		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
+		Star (
+			'.',
+			('a'..'z' | 'A'..'Z' | '_'),
+			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
+		)
+	)
+]
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
+
+(* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
+let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
+let xml_name_char = [%sedlex.regexp? xml_name_start_char | '-' | '.' | '0'..'9' | 0xB7 | 0x0300 .. 0x036F | 0x203F .. 0x2040]
+let xml_name = [%sedlex.regexp? Opt(xml_name_start_char, Star xml_name_char)]
 
 let rec skip_header lexbuf =
 	match%sedlex lexbuf with
@@ -354,13 +396,13 @@ let rec token lexbuf =
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
-		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
+		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
 		mk_tok (Const (String str)) pmin pmax;
 	| "'" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
+		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
 		let t = mk_tok (Const (String str)) pmin pmax in
 		fast_add_fmt_string (snd t);
 		t
@@ -378,6 +420,57 @@ let rec token lexbuf =
 		let v = lexeme lexbuf in
 		let v = String.sub v 1 (String.length v - 1) in
 		mk lexbuf (Dollar v)
+	(* type decl *)
+	| "package" -> mk_keyword lexbuf Package
+	| "import" -> mk_keyword lexbuf Import
+	| "using" -> mk_keyword lexbuf Using
+	| "class" -> mk_keyword lexbuf Class
+	| "interface" -> mk_keyword lexbuf Interface
+	| "enum" -> mk_keyword lexbuf Enum
+	| "abstract" -> mk_keyword lexbuf Abstract
+	| "typedef" -> mk_keyword lexbuf Typedef
+	(* relations *)
+	| "extends" -> mk_keyword lexbuf Extends
+	| "implements" -> mk_keyword lexbuf Implements
+	(* modifier *)
+	| "extern" -> mk_keyword lexbuf Extern
+	| "static" -> mk_keyword lexbuf Static
+	| "public" -> mk_keyword lexbuf Public
+	| "private" -> mk_keyword lexbuf Private
+	| "override" -> mk_keyword lexbuf Override
+	| "dynamic" -> mk_keyword lexbuf Dynamic
+	| "inline" -> mk_keyword lexbuf Inline
+	| "macro" -> mk_keyword lexbuf Macro
+	| "final" -> mk_keyword lexbuf Final
+	| "operator" -> mk_keyword lexbuf Operator
+	| "overload" -> mk_keyword lexbuf Overload
+	(* fields *)
+	| "function" -> mk_keyword lexbuf Function
+	| "var" -> mk_keyword lexbuf Var
+	(* values *)
+	| "null" -> mk_keyword lexbuf Null
+	| "true" -> mk_keyword lexbuf True
+	| "false" -> mk_keyword lexbuf False
+	| "this" -> mk_keyword lexbuf This
+	(* expr *)
+	| "if" -> mk_keyword lexbuf If
+	| "else" -> mk_keyword lexbuf Else
+	| "while" -> mk_keyword lexbuf While
+	| "do" -> mk_keyword lexbuf Do
+	| "for" -> mk_keyword lexbuf For
+	| "break" -> mk_keyword lexbuf Break
+	| "continue" -> mk_keyword lexbuf Continue
+	| "return" -> mk_keyword lexbuf Return
+	| "switch" -> mk_keyword lexbuf Switch
+	| "case" -> mk_keyword lexbuf Case
+	| "default" -> mk_keyword lexbuf Default
+	| "throw" -> mk_keyword lexbuf Throw
+	| "try" -> mk_keyword lexbuf Try
+	| "catch" -> mk_keyword lexbuf Catch
+	| "untyped" -> mk_keyword lexbuf Untyped
+	| "new" -> mk_keyword lexbuf New
+	| "in" -> mk_keyword lexbuf In
+	| "cast" -> mk_keyword lexbuf Cast
 	| ident -> mk_ident lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char lexbuf
@@ -443,7 +536,11 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
+		let save = contents() in
+		reset();
 		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
+		reset();
+		Buffer.add_string buf save;
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
@@ -472,3 +569,74 @@ and regexp_options lexbuf =
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
 	| _ -> assert false
+
+and not_xml ctx depth in_open =
+	let lexbuf = ctx.lexbuf in
+	match%sedlex lexbuf with
+	| eof ->
+		raise Exit
+	| '\n' | '\r' | "\r\n" ->
+		newline lexbuf;
+		store lexbuf;
+		not_xml ctx depth in_open
+	(* closing tag *)
+	| '<','/',xml_name,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
+		if s = ctx.close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml ctx (depth - 1) false
+		end else
+			not_xml ctx depth false
+	(* opening tag *)
+	| '<',xml_name ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
+		not_xml ctx depth in_open
+	(* /> *)
+	| '/','>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+		   In that case, decrease depth and finish if it's 0. *)
+		let depth = if in_open then depth - 1 else depth in
+		if depth < 0 then lexeme_end lexbuf
+		else not_xml ctx depth false
+	| '<' | '/' | '>' ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| _ ->
+		assert false
+
+let rec sharp_token lexbuf =
+	match%sedlex lexbuf with
+	| sharp_ident -> mk_ident lexbuf
+	| Plus (Chars " \t") -> sharp_token lexbuf
+	| "\r\n" -> newline lexbuf; sharp_token lexbuf
+	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| _ -> token lexbuf
+
+let lex_xml p lexbuf =
+	let name,pmin = match%sedlex lexbuf with
+	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
+	| _ -> invalid_char lexbuf
+	in
+	if p + 1 <> pmin then invalid_char lexbuf;
+	Buffer.add_string buf ("<" ^ name);
+	let open_tag = "<" ^ name in
+	let close_tag = "</" ^ name ^ ">" in
+	let ctx = {
+		open_tag = open_tag;
+		close_tag = close_tag;
+		lexbuf = lexbuf;
+	} in
+	try
+		not_xml ctx 0 (name <> "") (* don't allow self-closing fragments *)
+	with Exit ->
+		error Unterminated_markup p

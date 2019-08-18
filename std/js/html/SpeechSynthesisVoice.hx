@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice>
 **/
 @:native("SpeechSynthesisVoice")
-extern class SpeechSynthesisVoice
-{
+extern class SpeechSynthesisVoice {
 	
 	/**
 		Returns the type of URI and location of the speech synthesis service for this voice.
@@ -54,6 +53,10 @@ extern class SpeechSynthesisVoice
 		A `Boolean` indicating whether the voice is supplied by a local speech synthesizer service (`true`), or a remote speech synthesizer service (`false`.)
 	**/
 	var localService(default,null) : Bool;
+	
+	/**
+		A `Boolean` indicating whether the voice is the default voice for the current app language (`true`), or not (`false`.)
+	**/
 	@:native("default")
 	var default_(default,null) : Bool;
 	

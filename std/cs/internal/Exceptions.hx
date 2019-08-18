@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,47 +19,44 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs.internal;
+
 import cs.system.Exception;
 
 @:nativeGen @:keep @:native("haxe.lang.Exceptions") class Exceptions {
-
 	@:allow(haxe.CallStack)
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:cs.system.Exception;
 }
 
-//should NOT be usable inside Haxe code
+// should NOT be usable inside Haxe code
+
 @:classCode('override public string Message { get { return this.toString(); } }\n\n')
-@:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception
-{
+@:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception {
 	private var obj:Dynamic;
 
-	public function new(obj:Dynamic)
-	{
+	public function new(obj:Dynamic) {
 		super();
 
-		if (Std.is(obj, HaxeException))
-		{
+		if (Std.is(obj, HaxeException)) {
 			var _obj:HaxeException = cast obj;
 			obj = _obj.getObject();
 		}
 		this.obj = obj;
 	}
 
-	public function getObject():Dynamic
-	{
+	public function getObject():Dynamic {
 		return obj;
 	}
 
-	public function toString():String
-	{
+	public function toString():String {
 		return Std.string(obj);
 	}
 
-	public static function wrap(obj:Dynamic):Exception
-	{
-		if (Std.is(obj, Exception)) return obj;
+	public static function wrap(obj:Dynamic):Exception {
+		if (Std.is(obj, Exception))
+			return obj;
 
 		return new HaxeException(obj);
 	}

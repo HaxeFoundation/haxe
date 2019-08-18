@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,47 +25,35 @@
 package js.html.audio;
 
 /**
-	The `OscillatorNode` interface represents a periodic waveform, like a sine wave. It is an `AudioNode` audio-processing module that causes a given frequency of sine wave to be created — in effect, a constant tone.
+	The `OscillatorNode` interface represents a periodic waveform, such as a sine wave. It is an `AudioScheduledSourceNode` audio-processing module that causes a specified frequency of a given wave to be created—in effect, a constant tone.
 
 	Documentation [OscillatorNode](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode>
 **/
 @:native("OscillatorNode")
-extern class OscillatorNode extends AudioNode
-{
+extern class OscillatorNode extends AudioScheduledSourceNode {
 	
 	/**
-		Represents the shape of the oscillator wave generated. Different waves will produce different tones.
+		A string which specifies the shape of waveform to play; this can be one of a number of standard values, or `custom` to use a `PeriodicWave` to describe a custom waveform. Different waves will produce different tones. Standard values are `"sine"`, `"square"`, `"sawtooth"`, `"triangle"` and `"custom"`. The default is `"sine"`.
 	**/
 	var type : OscillatorType;
 	
 	/**
-		An a-rate `AudioParam` representing the frequency of oscillation in hertz (though the AudioParam` returned is read-only, the value it represents is not.)
+		An a-rate `AudioParam` representing the frequency of oscillation in hertz (though the AudioParam` returned is read-only, the value it represents is not). The default value is 440 Hz (a standard middle-A note).
 	**/
 	var frequency(default,null) : AudioParam;
 	
 	/**
-		An a-rate `AudioParam` representing detuning of oscillation in cents (though the AudioParam` returned is read-only, the value it represents is not.)
+		An a-rate `AudioParam` representing detuning of oscillation in cents (though the AudioParam` returned is read-only, the value it represents is not). The default value is 0.
 	**/
 	var detune(default,null) : AudioParam;
-	var onended : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : OscillatorOptions ) : Void;
 	
 	/**
-		This method specifies the exact time to start playing the tone.
-	**/
-	function start( ?when : Float = 0.0 ) : Void;
-	/** @throws DOMError */
-	
-	/**
-		This method specifies the exact time to stop playing the tone.
-	**/
-	function stop( ?when : Float = 0.0 ) : Void;
-	
-	/**
-		Used to point to a `PeriodicWave` defining a periodic waveform that can be used to shape the oscillator's output, when `type = "custom"` is used. This replaces the now-obsolete `OscillatorNode.setWaveTable`.
+		Sets a `PeriodicWave` which describes a periodic waveform to be used instead of one of the standard waveforms; calling this sets the `type` to `custom`. This replaces the now-obsolete `OscillatorNode.setWaveTable()` method.
 	**/
 	function setPeriodicWave( periodicWave : PeriodicWave ) : Void;
 }

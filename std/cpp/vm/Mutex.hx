@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,22 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-class Mutex {
-	var m : Dynamic;
-
-	public function new() {
-		m = untyped __global__.__hxcpp_mutex_create();
-	}
-	public function acquire() {
-		untyped __global__.__hxcpp_mutex_acquire(m);
-	}
-	public function tryAcquire() : Bool {
-		return untyped __global__.__hxcpp_mutex_try(m);
-	}
-	public function release() {
-		untyped __global__.__hxcpp_mutex_release(m);
-	}
-}
-
+@:deprecated typedef Mutex = sys.thread.Mutex;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,32 +32,31 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBKeyRange>
 **/
 @:native("IDBKeyRange")
-extern class KeyRange
-{
-	/** @throws DOMError */
-	static 
+extern class KeyRange {
+	
 	/**
 		Creates a new key range containing a single value.
+		@throws DOMError
 	**/
-	function only( value : Dynamic ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function only( value : Dynamic ) : KeyRange;
+	
 	/**
 		Creates a new key range with only a lower bound.
+		@throws DOMError
 	**/
-	function lowerBound( lower : Dynamic, ?open : Bool = false ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function lowerBound( lower : Dynamic, open : Bool = false ) : KeyRange;
+	
 	/**
 		Creates a new upper-bound key range.
+		@throws DOMError
 	**/
-	function upperBound( upper : Dynamic, ?open : Bool = false ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function upperBound( upper : Dynamic, open : Bool = false ) : KeyRange;
+	
 	/**
 		Creates a new key range with upper and lower bounds.
+		@throws DOMError
 	**/
-	function bound( lower : Dynamic, upper : Dynamic, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
+	static function bound( lower : Dynamic, upper : Dynamic, lowerOpen : Bool = false, upperOpen : Bool = false ) : KeyRange;
 	
 	/**
 		Lower bound of the key range.
@@ -79,10 +78,10 @@ extern class KeyRange
 	**/
 	var upperOpen(default,null) : Bool;
 	
-	/** @throws DOMError */
 	
 	/**
 		Returns a boolean indicating whether a specified key is inside the key range.
+		@throws DOMError
 	**/
 	function includes( key : Dynamic ) : Bool;
 }

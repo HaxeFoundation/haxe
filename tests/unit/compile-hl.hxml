@@ -1,5 +1,6 @@
 compile-each.hxml
--main unit.TestMain
+--main unit.TestMain
 -hl bin/unit.hl
--D interp
+#-D interp
 -D hl-check
+-D hl-ver=1.11.0

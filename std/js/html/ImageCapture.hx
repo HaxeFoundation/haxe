@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,15 +24,25 @@
 
 package js.html;
 
+/**
+	The `ImageCapture` interface of the MediaStream Image Capture API provides an interface for capturing images from a photographic device referenced through a valid `MediaStreamTrack`.
+
+	Documentation [ImageCapture](https://developer.mozilla.org/en-US/docs/Web/API/ImageCapture) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ImageCapture$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageCapture>
+**/
 @:native("ImageCapture")
-extern class ImageCapture extends EventTarget
-{
+extern class ImageCapture extends EventTarget {
 	var videoStreamTrack(default,null) : VideoStreamTrack;
 	var onphoto : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( track : VideoStreamTrack ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Takes a single exposure using the video capture device sourcing a `MediaStreamTrack` and returns a `Promise` that resolves with a `Blob` containing the data.
+		@throws DOMError
+	**/
 	function takePhoto() : Void;
 }

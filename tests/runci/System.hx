@@ -15,13 +15,13 @@ class System {
 
 
 	static public function successMsg(msg:String):Void {
-		Sys.println('\x1b[32m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[32m' + msg + '\x1b[0m' : msg);
 	}
 	static public function failMsg(msg:String):Void {
-		Sys.println('\x1b[31m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[31m' + msg + '\x1b[0m' : msg);
 	}
 	static public function infoMsg(msg:String):Void {
-		Sys.println('\x1b[36m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[36m' + msg + '\x1b[0m' : msg);
 	}
 
 	static public function commandSucceed(cmd:String, args:Array<String>):Bool {
@@ -83,17 +83,31 @@ class System {
 			fail();
 	}
 
+	/**
+	 * Recursively delete a directory.
+	 * @return Int Exit code of a system command executed to perform deletion.
+	 */
+	static public function deleteDirectoryRecursively(dir:String):Int {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				Sys.command("rmdir", ["/S", "/Q", StringTools.replace(sys.FileSystem.fullPath(dir), "/", "\\")]);
+			case _:
+				Sys.command("rm", ["-rf", dir]);
+		}
+	}
+
 	static public function fail():Void {
 		success = false;
 		throw Fail;
 	}
 
 	static public function addToPATH(path:String):Void {
+		infoMsg('Prepending $path to PATH.');
 		switch (systemName) {
 			case "Windows":
-				Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" + path);
+				Sys.putEnv("PATH", path + ";" + Sys.getEnv("PATH"));
 			case "Mac", "Linux":
-				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + path);
+				Sys.putEnv("PATH", path + ":" + Sys.getEnv("PATH"));
 		}
 	}
 

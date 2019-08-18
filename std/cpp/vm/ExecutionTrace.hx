@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.vm;
 
-class ExecutionTrace
-{
-   public static function traceOff()
-   {
-      untyped __hxcpp_execution_trace(0);
-   }
-   public static function traceFunctions()
-   {
-      untyped __hxcpp_execution_trace(1);
-   }
-   public static function traceLines()
-   {
-      untyped __hxcpp_execution_trace(2);
-   }
+package cpp.vm;
+
+class ExecutionTrace {
+	public static function traceOff() {
+		untyped __hxcpp_execution_trace(0);
+	}
+
+	public static function traceFunctions() {
+		untyped __hxcpp_execution_trace(1);
+	}
+
+	public static function traceLines() {
+		untyped __hxcpp_execution_trace(2);
+	}
 }

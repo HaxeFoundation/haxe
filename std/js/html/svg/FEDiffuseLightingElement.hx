@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,39 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEDiffuseLightingElement` interface corresponds to the `feDiffuseLighting` element.
+
+	Documentation [SVGFEDiffuseLightingElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDiffuseLightingElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDiffuseLightingElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDiffuseLightingElement>
+**/
 @:native("SVGFEDiffuseLightingElement")
-extern class FEDiffuseLightingElement extends Element
-{
+extern class FEDiffuseLightingElement extends Element {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `surfaceScale` attribute of the given element.
+	**/
 	var surfaceScale(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `diffuseConstant` attribute of the given element.
+	**/
 	var diffuseConstant(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the X component of the `kernelUnitLength` attribute of the given element.
+	**/
 	var kernelUnitLengthX(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the Y component of the `kernelUnitLength` attribute of the given element.
+	**/
 	var kernelUnitLengthY(default,null) : AnimatedNumber;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

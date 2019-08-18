@@ -51,8 +51,8 @@ import python.lib.io.RawIOBase;
 import python.lib.io.StringIO;
 import python.lib.io.TextIOBase;
 
-import python.lib.net.Address;
-import python.lib.net.Socket;
+import python.lib.socket.Address;
+import python.lib.socket.Socket;
 
 import python.lib.subprocess.Popen;
 
@@ -67,7 +67,7 @@ import python.lib.json.JSONEncoder;
 
 private typedef T = {
 	var value:Int;
-	@:optional var maybeValue:Int;
+	var ?maybeValue:Int;
 }
 
 private enum MyEnum {
@@ -99,6 +99,7 @@ class TestPython extends Test {
 
 	public function testKeywords () {
 		var list = new Array();
+		noAssert();
 	}
 
 	public function testStringMethod() {
@@ -205,16 +206,6 @@ class TestPython extends Test {
 		eq(5, Reflect.field(x, "__iter__"));
 	}
 
-
-	function testMakeVarArgs () {
-		var f = function (a:Array<Dynamic>) {
-			return a[0] + a[1];
-		}
-		var g = Reflect.makeVarArgs(f);
-		var res = g(1,2);
-		eq(3, res);
-	}
-
 	function testKwArgsAfterVarArgs () {
 		function test (va:VarArgs<Dynamic>, kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
@@ -319,12 +310,13 @@ class TestPython extends Test {
 		catch (e:Dynamic) {
 			e = 1;
 		}
+		noAssert();
 	}
 
 	var _s:String;
 
 	var s(get, null):String;
-	var s2(null, set_s2):String;
+	var s2(null, set):String;
 	var s3(get, set):String;
 
 	function get_s() return s;
@@ -350,18 +342,18 @@ class TestPython extends Test {
 
 	function testPythonCodeStringInterpolation () {
 		var z = 1;
-		var a = (Syntax.pythonCode('[{0}, {1}]', z, 2):Array<Int>);
+		var a = (Syntax.code('[{0}, {1}]', z, 2):Array<Int>);
 
 		eq(a[0], z);
 		eq(a[1], 2);
 
 		function test2 (x:Int) {
 			x += 1;
-			return (Syntax.pythonCode("{0}", x):Int);
+			return (Syntax.code("{0}", x):Int);
 		}
 
 		function test3 (x:Int) {
-			return (Syntax.pythonCode('[{0}]', x):Array<Int>);
+			return (Syntax.code('[{0}]', x):Array<Int>);
 		}
 
 		var x = 1;
@@ -370,15 +362,15 @@ class TestPython extends Test {
 		eq(1, x);
 		eq(1, test3(1)[0]);
 
-		eq("foo1bar", Syntax.pythonCode("'foo' + str({0}) + 'bar'", x));
+		eq("foo1bar", Syntax.code("'foo' + str({0}) + 'bar'", x));
 
 
 		function test4a (x:Int) {
-			return (Syntax.pythonCode("[{0}][0]", x+x):Int);
+			return (Syntax.code("[{0}][0]", x+x):Int);
 		}
 
 		function test4b (x:Int):String {
-			return Syntax.pythonCode('[{0}][0]', (function () return Std.string(x+x))() );
+			return Syntax.code('[{0}][0]', (function () return Std.string(x+x))() );
 		}
 
 		eq(2, test4a(1));

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,39 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEMorphologyElement` interface corresponds to the `feMorphology` element.
+
+	Documentation [SVGFEMorphologyElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMorphologyElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMorphologyElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMorphologyElement>
+**/
 @:native("SVGFEMorphologyElement")
-extern class FEMorphologyElement extends Element
-{
+extern class FEMorphologyElement extends Element {
 	static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN : Int = 0;
 	static inline var SVG_MORPHOLOGY_OPERATOR_ERODE : Int = 1;
 	static inline var SVG_MORPHOLOGY_OPERATOR_DILATE : Int = 2;
 	
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
-	var operator(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `operator` attribute of the given element. It takes one of the `SVG_MORPHOLOGY_OPERATOR_*` constants defined on this interface.
+	**/
+	@:native("operator")
+	var operator_(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the X component of the `radius` attribute of the given element.
+	**/
 	var radiusX(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the Y component of the `radius` attribute of the given element.
+	**/
 	var radiusY(default,null) : AnimatedNumber;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

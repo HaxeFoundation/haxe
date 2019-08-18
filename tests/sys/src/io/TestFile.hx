@@ -4,8 +4,7 @@ import utest.Assert;
 import sys.io.File;
 import sys.FileSystem;
 
-class TestFile {
-	public function new() { }
+class TestFile extends utest.Test {
 
 	public function testCopyOverwrite() {
 		var fileA = "temp/a.txt";
@@ -20,5 +19,16 @@ class TestFile {
 		// cleanup
 		FileSystem.deleteFile(fileA);
 		FileSystem.deleteFile(fileB);
+	}
+
+	public function testCopyNonExistentSource() {
+		try {
+			File.copy('non-existent-src', 'non-existent-dst');
+		} catch(e:Dynamic) {
+			//see https://github.com/HaxeFoundation/haxe/issues/8098
+			Assert.pass();
+			return;
+		}
+		Assert.fail();
 	}
 }

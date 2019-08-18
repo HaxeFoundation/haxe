@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Location>
 **/
 @:native("Location")
-extern class Location
-{
+extern class Location {
 	
 	/**
 		Is a `DOMString` containing the entire URL. If changed, the associated document navigates to the new page. It can be set from a different origin than the associated document.
@@ -71,7 +70,7 @@ extern class Location
 	var pathname : String;
 	
 	/**
-		Is a `DOMString` containing a `'?'` followed by the parameters of the URL. Also known as "querystring".
+		Is a `DOMString` containing a `'?'` followed by the parameters or "querystring" of the URL. Modern browsers provide URLSearchParams and URL.searchParams to make it easy to parse out the parameters from the querystring.
 	**/
 	var search : String;
 	
@@ -80,22 +79,22 @@ extern class Location
 	**/
 	var hash : String;
 	
-	/** @throws DOMError */
 	
 	/**
 		Loads the resource at the URL provided in parameter.
+		@throws DOMError
 	**/
 	function assign( url : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Replaces the current resource with the one at the provided URL. The difference from the `assign()` method is that after using `replace()` the current page will not be saved in session `History`, meaning the user won't be able to use the back button to navigate to it.
+		@throws DOMError
 	**/
 	function replace( url : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Reloads the resource from the current URL. Its optional unique parameter is a `Boolean`, which, when it is `true`, causes the page to always be reloaded from the server. If it is `false` or not specified, the browser may reload the page from its cache.
+		@throws DOMError
 	**/
-	function reload( ?forceget : Bool = false ) : Void;
+	function reload( forceget : Bool = false ) : Void;
 }

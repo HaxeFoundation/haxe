@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,37 +32,38 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode>
 **/
 @:native("DynamicsCompressorNode")
-extern class DynamicsCompressorNode extends AudioNode
-{
+extern class DynamicsCompressorNode extends AudioNode {
 	
 	/**
-		Is a `AudioParam` representing the decibel value above which the compression will start taking effect.
+		Is a k-rate `AudioParam` representing the decibel value above which the compression will start taking effect.
 	**/
 	var threshold(default,null) : AudioParam;
 	
 	/**
-		Is a `AudioParam` containing a decibel value representing the range above the threshold where the curve smoothly transitions to the compressed portion.
+		Is a k-rate `AudioParam` containing a decibel value representing the range above the threshold where the curve smoothly transitions to the compressed portion.
 	**/
 	var knee(default,null) : AudioParam;
 	
 	/**
-		Is a `AudioParam` representing the amount of change, in dB, needed in the input for a 1 dB change in the output.
+		Is a k-rate `AudioParam` representing the amount of change, in dB, needed in the input for a 1 dB change in the output.
 	**/
 	var ratio(default,null) : AudioParam;
 	
 	/**
-		Is a `float `representing the amount of gain reduction currently applied by the compressor to the signal.
+		Is a `float` representing the amount of gain reduction currently applied by the compressor to the signal.
 	**/
 	var reduction(default,null) : Float;
 	
 	/**
-		Is a `AudioParam` representing the amount of time, in seconds, required to reduce the gain by 10 dB.
+		Is a k-rate `AudioParam` representing the amount of time, in seconds, required to reduce the gain by 10 dB.
 	**/
 	var attack(default,null) : AudioParam;
 	
 	/**
-		Is a `AudioParam` representing the amount of time, in seconds, required to increase the gain by 10 dB.
+		Is a k-rate `AudioParam` representing the amount of time, in seconds, required to increase the gain by 10 dB.
 	**/
 	var release(default,null) : AudioParam;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : DynamicsCompressorOptions ) : Void;
 }

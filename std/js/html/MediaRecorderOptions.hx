@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,9 @@
 
 package js.html;
 
-typedef MediaRecorderOptions =
-{
-	@:optional var audioBitsPerSecond : Int;
-	@:optional var bitsPerSecond : Int;
-	@:optional var mimeType : String;
-	@:optional var videoBitsPerSecond : Int;
+typedef MediaRecorderOptions = {
+	var ?audioBitsPerSecond : Int;
+	var ?bitsPerSecond : Int;
+	var ?mimeType : String;
+	var ?videoBitsPerSecond : Int;
 }

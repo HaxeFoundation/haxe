@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import haxe.extern.Rest;
@@ -32,7 +33,7 @@ extern class Set<T> {
 	@:overload(function(?array:Array<T>):Void {})
 	function new(?iterable:NativeIterable<T>):Void;
 
-	var length(get,never):Int;
+	var length(get, never):Int;
 	private inline function get_length():Int {
 		return UBuiltins.len(this);
 	}

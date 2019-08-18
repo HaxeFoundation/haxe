@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,16 +25,16 @@
 package js.html;
 
 /**
-	The `MessagePort` interface of the Channel Messaging API represents one of the two ports of a `MessageChannel`, allowing sending of messages from one port and listening out for them arriving at the other.
+	The `MessagePort` interface of the Channel Messaging API represents one of the two ports of a `MessageChannel`, allowing messages to be sent from one port and listening out for them arriving at the other.
 
 	Documentation [MessagePort](https://developer.mozilla.org/en-US/docs/Web/API/MessagePort) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessagePort$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessagePort>
 **/
 @:native("MessagePort")
-extern class MessagePort extends EventTarget
-{
+extern class MessagePort extends EventTarget {
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function postMessage( message : Dynamic, ?transferable : Array<Dynamic> ) : Void;

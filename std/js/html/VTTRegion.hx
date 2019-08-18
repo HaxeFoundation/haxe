@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,15 @@
 package js.html;
 
 @:native("VTTRegion")
-extern class VTTRegion
-{
+extern class VTTRegion {
+	var id : String;
 	var width : Float;
 	var lines : Int;
 	var regionAnchorX : Float;
 	var regionAnchorY : Float;
 	var viewportAnchorX : Float;
 	var viewportAnchorY : Float;
-	var scroll : String;
+	var scroll : ScrollSetting;
 	
 	/** @throws DOMError */
 	function new() : Void;

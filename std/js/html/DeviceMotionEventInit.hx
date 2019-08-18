@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef DeviceMotionEventInit =
-{
-	> EventInit,
-	@:optional var acceleration : DeviceAccelerationInit;
-	@:optional var accelerationIncludingGravity : DeviceAccelerationInit;
-	@:optional var interval : Float;
-	@:optional var rotationRate : DeviceRotationRateInit;
+typedef DeviceMotionEventInit = EventInit & {
+	var ?acceleration : DeviceAccelerationInit;
+	var ?accelerationIncludingGravity : DeviceAccelerationInit;
+	var ?interval : Float;
+	var ?rotationRate : DeviceRotationRateInit;
 }

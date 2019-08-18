@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,28 +32,95 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMatrix>
 **/
 @:native("SVGMatrix")
-extern class Matrix
-{
+extern class Matrix {
+	
+	/**
+		A float representing the a component of the matrix.
+	**/
 	var a : Float;
+	
+	/**
+		A float representing the b component of the matrix.
+	**/
 	var b : Float;
+	
+	/**
+		A float representing the c component of the matrix.
+	**/
 	var c : Float;
+	
+	/**
+		A float representing the d component of the matrix.
+	**/
 	var d : Float;
+	
+	/**
+		A float representing the e component of the matrix.
+	**/
 	var e : Float;
+	
+	/**
+		A float representing the f component of the matrix.
+	**/
 	var f : Float;
 	
+	
+	/**
+		Performs matrix multiplication. This matrix is post-multiplied by another matrix, returning the resulting new matrix as `SVGMatrix`.
+	**/
 	function multiply( secondMatrix : Matrix ) : Matrix;
-	/** @throws DOMError */
+	
+	/**
+		Returns the inverse matrix as `SVGMatrix`.
+		@throws DOMError
+	**/
 	function inverse() : Matrix;
+	
+	/**
+		Post-multiplies a translation transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function translate( x : Float, y : Float ) : Matrix;
+	
+	/**
+		Post-multiplies a uniform scale transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function scale( scaleFactor : Float ) : Matrix;
+	
+	/**
+		Post-multiplies a non-uniform scale transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function scaleNonUniform( scaleFactorX : Float, scaleFactorY : Float ) : Matrix;
+	
+	/**
+		Post-multiplies a rotation transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function rotate( angle : Float ) : Matrix;
-	/** @throws DOMError */
+	
+	/**
+		Post-multiplies a rotation transformation on the current matrix and returns the resulting matrix as `SVGMatrix`. The rotation angle is determined by taking (+/-) atan(y/x). The direction of the vector (x, y) determines whether the positive or negative angle value is used.
+		@throws DOMError
+	**/
 	function rotateFromVector( x : Float, y : Float ) : Matrix;
+	
+	/**
+		Post-multiplies the transformation [-1 0 0 1 0 0] and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function flipX() : Matrix;
+	
+	/**
+		Post-multiplies the transformation [1 0 0 -1 0 0] and returns the resulting matrix as `SVGMatrix`.
+	**/
 	function flipY() : Matrix;
-	/** @throws DOMError */
+	
+	/**
+		Post-multiplies a skewX transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+		@throws DOMError
+	**/
 	function skewX( angle : Float ) : Matrix;
-	/** @throws DOMError */
+	
+	/**
+		Post-multiplies a skewY transformation on the current matrix and returns the resulting matrix as `SVGMatrix`.
+		@throws DOMError
+	**/
 	function skewY( angle : Float ) : Matrix;
 }

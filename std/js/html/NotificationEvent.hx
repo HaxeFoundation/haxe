@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,19 @@
 
 package js.html;
 
+/**
+	The parameter passed into the `onnotificationclick` handler, the `NotificationEvent` interface represents a notification click event that is dispatched on the `ServiceWorkerGlobalScope` of a `ServiceWorker`.
+
+	Documentation [NotificationEvent](https://developer.mozilla.org/en-US/docs/Web/API/NotificationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NotificationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NotificationEvent>
+**/
 @:native("NotificationEvent")
-extern class NotificationEvent extends ExtendableEvent
-{
+extern class NotificationEvent extends ExtendableEvent {
+	
+	/**
+		Returns a `Notification` object representing the notification that was clicked to fire the event.
+	**/
 	var notification(default,null) : Notification;
 	
 	/** @throws DOMError */

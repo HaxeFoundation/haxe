@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,24 +24,19 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	Documentation [Permissions](https://developer.mozilla.org/en-US/docs/Web/API/Permissions) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Permissions$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Permissions>
 **/
 @:native("Permissions")
-extern class Permissions
-{
-	/** @throws DOMError */
-	
+extern class Permissions {
+
 	/**
 		Returns the user permission status for a given API.
+		@throws DOMError
 	**/
 	function query( permission : Dynamic ) : Promise<PermissionStatus>;
-	/** @throws DOMError */
-	
-	/**
-		Revokes the permission currently set on a given API.
-	**/
-	function revoke( permission : Dynamic ) : Promise<PermissionStatus>;
 }

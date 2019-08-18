@@ -4,11 +4,11 @@ import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 }
 
 class ClassWithProp implements InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 	var _x : Int;
 
 	public function new() {
@@ -23,7 +23,7 @@ class ClassWithProp implements InterfWithProp {
 		return v;
 	}
 
-	public static var STAT_X(default, set_STAT_X) : Int;
+	public static var STAT_X(default, set) : Int;
 
 	static function set_STAT_X(v) {
 		STAT_X = v * 2;
@@ -97,7 +97,6 @@ class TestReflect extends Test {
 		for( i in 1...TYPES.length ) {
 			var t : Dynamic = TYPES[i];
 			var name = TNAMES[i];
-			infos("type "+name);
 			f( t == null );
 			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
@@ -109,11 +108,9 @@ class TestReflect extends Test {
 				eq( Type.resolveClass(name), t );
 			}
 		}
-		infos(null);
 	}
 
 	public function testIs() {
-		is(null,null);
 		is(0,Int,Float);
 		is(1,Int,Float);
 		is(-1,Int,Float);
@@ -151,10 +148,8 @@ class TestReflect extends Test {
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
 		for( i in 0...TYPES.length ) {
 			var c : Dynamic = TYPES[i];
-			infos(Std.string(v)+" is "+TNAMES[i]);
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
-		infos(null);
 		t( (v is Dynamic), pos );
 	}
 
@@ -205,7 +200,6 @@ class TestReflect extends Test {
 
 	function typeof( v : Dynamic, rt : ValueType, ?pos : haxe.PosInfos ) {
 		var vt = Type.typeof(v);
-		infos("typeof("+Std.string(v)+") = "+vt);
 		t( Type.enumEq(vt,rt), pos );
 	}
 
@@ -230,7 +224,6 @@ class TestReflect extends Test {
 	}
 
 	function testCreate() {
-		#if !java
 		var i = Type.createInstance(MyClass,[33]);
 		t( (i is MyClass) );
 		eq( i.get(), 33 );
@@ -249,7 +242,6 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
 		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
-		#end
 	}
 
 	static function compareMethodsDummy() {}

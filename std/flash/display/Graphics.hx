@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class Graphics {
+extern final class Graphics {
 	function new() : Void;
 	function beginBitmapFill(bitmap : BitmapData, ?matrix : flash.geom.Matrix, repeat : Bool = true, smooth : Bool = false) : Void;
 	function beginFill(color : UInt, alpha : Float = 1) : Void;

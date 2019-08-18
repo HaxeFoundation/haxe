@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package lua;
+
 import haxe.extern.EitherType;
 import haxe.extern.Rest;
 import sys.io.FileInput;
 
 extern class FileHandle extends UserData {
-	public function flush() : Void;
-	public function read(arg : Rest<EitherType<String,Int>>) : String;
-	public function close() : Void;
+	public function flush():Void;
+	public function read(arg:Rest<EitherType<String, Int>>):String;
+	public function close():Void;
 
-	public function write(str : String) : Void;
+	public function write(str:String):Void;
 
-	@:overload(function () : Int {})
-	@:overload(function (arg : String) : Int {})
-	public function seek(arg : String, pos : Int) : Void;
+	@:overload(function():Int {})
+	@:overload(function(arg:String):Int {})
+	public function seek(arg:String, pos:Int):Void;
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,36 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
+/**
+	The `RTCRtpReceiver` interface of the the WebRTC API manages the reception and decoding of data for a `MediaStreamTrack` on an `RTCPeerConnection`.
+
+	Documentation [RTCRtpReceiver](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver>
+**/
 @:native("RTCRtpReceiver")
-extern class RtpReceiver
-{
+extern class RtpReceiver {
+
+	/**
+		Returns the `MediaStreamTrack` associated with the current `RTCRtpReceiver` instance. 
+	**/
 	var track(default,null) : js.html.MediaStreamTrack;
-	
+
+
+	/**
+		Returns a `Promise` whose fulfillment handler receives a `RTCStatsReport` which contains statistics about the incoming streams and their dependencies.
+	**/
+	function getStats() : Promise<StatsReport>;
+
+	/**
+		Returns an array of `RTCRtpContributingSource` instances for each unique CSRC (contributing source) identifier received by the current `RTCRtpReceiver` in the last ten seconds.
+	**/
+	function getContributingSources() : Array<RtpContributingSource>;
+
+	/**
+		Returns an array including one `RTCRtpSynchronizationSource` instance for each unique SSRC (synchronization source) identifier received by the current `RTCRtpReceiver` in the last ten seconds.
+	**/
+	function getSynchronizationSources() : Array<RtpSynchronizationSource>;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl. Do not edit!
+// This file is generated from mozilla\CSSMediaRule.webidl. Do not edit!
 
 package js.html;
 
@@ -32,15 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule>
 **/
 @:native("CSSMediaRule")
-extern class CSSMediaRule extends CSSRule
-{
+extern class CSSMediaRule extends CSSConditionRule {
 	
 	/**
 		Specifies a `MediaList` representing the intended destination medium for style information.
 	**/
 	var media(default,null) : MediaList;
-	var cssRules(default,null) : CSSRuleList;
 	
-	function insertRule( rule : String, index : Int ) : Int;
-	function deleteRule( index : Int ) : Void;
 }

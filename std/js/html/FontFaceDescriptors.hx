@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,13 @@
 
 package js.html;
 
-typedef FontFaceDescriptors =
-{
-	@:optional var display : String;
-	@:optional var featureSettings : String;
-	@:optional var stretch : String;
-	@:optional var style : String;
-	@:optional var unicodeRange : String;
-	@:optional var variant : String;
-	@:optional var weight : String;
+typedef FontFaceDescriptors = {
+	var ?display : String;
+	var ?featureSettings : String;
+	var ?stretch : String;
+	var ?style : String;
+	var ?unicodeRange : String;
+	var ?variant : String;
+	var ?variationSettings : String;
+	var ?weight : String;
 }

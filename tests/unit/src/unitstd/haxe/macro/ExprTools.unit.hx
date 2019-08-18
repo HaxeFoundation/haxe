@@ -106,7 +106,7 @@ var map = haxe.macro.ExprTools.map;
 function check(e, ?pos) {
 	var e2 = map(e, wrap);
 	var e3 = map(e, unwrap);
-	eq(Std.string(e.expr), Std.string(e3.expr), pos);
+	eq(haxe.macro.ExprTools.toString(e), haxe.macro.ExprTools.toString(e3), pos);
 }
 map(econst, wrap).expr == econst.expr;
 map(econtinue, wrap).expr == econtinue.expr;

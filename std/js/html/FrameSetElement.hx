@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,24 +32,24 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement>
 **/
 @:native("HTMLFrameSetElement")
-extern class FrameSetElement extends Element
-{
+extern class FrameSetElement extends Element {
 	
 	/**
-		Is a `DOMString` that represents the foreground color of text.
+		Is a `DOMString` structured as a comma-seperated list specifing the width of each column inside a frameset.
 	**/
 	var cols : String;
 	
 	/**
-		Is a `DOMString` that represents the color of visited links.
+		Is a `DOMString` structured as a comma-seperated list specifing the height of each column inside a frameset.
 	**/
 	var rows : String;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;
-	var onbeforeunload : Event -> String;
+	var onbeforeunload : Event -> Null<String>;
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var onpagehide : haxe.Constraints.Function;

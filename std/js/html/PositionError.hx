@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionError>
 **/
 @:native("PositionError")
-extern class PositionError
-{
+extern class PositionError {
 	static inline var PERMISSION_DENIED : Int = 1;
 	static inline var POSITION_UNAVAILABLE : Int = 2;
 	static inline var TIMEOUT : Int = 3;

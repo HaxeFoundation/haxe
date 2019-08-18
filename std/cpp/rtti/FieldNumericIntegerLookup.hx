@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.rtti;
 
 /**
 	If you implement this interface, then the backend will generate code that
 	allows fast numeric access to fields by integer id.  This should speed up the CFFI.
 **/
-interface FieldNumericIntegerLookup {
-}
+interface FieldNumericIntegerLookup {}

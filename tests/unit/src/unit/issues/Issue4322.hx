@@ -4,7 +4,7 @@ private class InlineTest {
 	public var a: Int;
 	public var b: Int;
 
-	@:extern
+	extern
 	public inline function new(a: Int, b: Int) {
 		this.a = a;
 		this.b = b;

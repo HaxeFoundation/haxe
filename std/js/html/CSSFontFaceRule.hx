@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl. Do not edit!
+// This file is generated from mozilla\CSSFontFaceRule.webidl. Do not edit!
 
 package js.html;
 
 @:native("CSSFontFaceRule")
-extern class CSSFontFaceRule extends CSSRule
-{
+extern class CSSFontFaceRule extends CSSRule {
 	var style(default,null) : CSSStyleDeclaration;
 	
 }

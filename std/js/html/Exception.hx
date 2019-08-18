@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,14 @@
 
 package js.html;
 
-@:native("Exception")
-extern class Exception
-{
+typedef Exception = {
+	var name(default,null) : String;
 	var message(default,null) : String;
 	var result(default,null) : Int;
-	var name(default,null) : String;
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var data(default,null) : Dynamic/*MISSING nsISupports*/;
+	var data(default,null) : Dynamic;
 	var stack(default,null) : String;
 	
 }

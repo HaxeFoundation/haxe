@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,26 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect>
 **/
 @:native("KeyframeEffect")
-extern class KeyframeEffect extends KeyframeEffectReadOnly
-{
+extern class KeyframeEffect extends AnimationEffect {
+	
+	/**
+		Gets and sets the element or pseudo-element being animated by this object. This may be `null` for animations that do not target a specific element.
+	**/
+	var target : haxe.extern.EitherType<Element,CSSPseudoElement>;
+	
 	/** @throws DOMError */
-	function new( target : haxe.extern.EitherType<Element,CSSPseudoElement>, frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeEffectOptions*/> ) : Void;
+	@:overload( function( target : haxe.extern.EitherType<Element,CSSPseudoElement>, keyframes : Dynamic, ?options : haxe.extern.EitherType<Float,KeyframeEffectOptions> ) : Void {} )
+	function new( source : KeyframeEffect ) : Void;
+	
+	/**
+		Returns the computed keyframes that make up this effect along with their computed keyframe offsets.
+		@throws DOMError
+	**/
+	function getKeyframes() : Array<Dynamic>;
+	
+	/**
+		Replaces the set of keyframes that make up this effect.
+		@throws DOMError
+	**/
+	function setKeyframes( keyframes : Dynamic ) : Void;
 }

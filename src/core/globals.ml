@@ -4,8 +4,11 @@ type pos = {
 	pmax : int;
 }
 
+type path = string list * string
+
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
+module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
 type platform =
 	| Cross
@@ -25,8 +28,11 @@ let version = 4000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
+let version_pre = Some "rc.3"
 
 let macro_platform = ref Neko
+
+let return_partial_type = ref false
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
@@ -66,3 +72,6 @@ let platform_list_help = function
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
+
+let starts_with s c =
+	String.length s > 0 && s.[0] = c

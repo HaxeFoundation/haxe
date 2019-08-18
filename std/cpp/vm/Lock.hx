@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,19 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-
-class Lock {
-	var l : Dynamic;
-	public function new() {
-		l = untyped __global__.__hxcpp_lock_create();
-	}
-	public function wait( ?timeout : Float = -1) : Bool {
-		return untyped __global__.__hxcpp_lock_wait(l,timeout);
-	}
-	public function release() {
-		untyped __global__.__hxcpp_lock_release(l);
-	}
-}
-
+@:deprecated typedef Lock = sys.thread.Lock;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPreserveAspectRatio>
 **/
 @:native("SVGPreserveAspectRatio")
-extern class PreserveAspectRatio
-{
+extern class PreserveAspectRatio {
 	static inline var SVG_PRESERVEASPECTRATIO_UNKNOWN : Int = 0;
 	static inline var SVG_PRESERVEASPECTRATIO_NONE : Int = 1;
 	static inline var SVG_PRESERVEASPECTRATIO_XMINYMIN : Int = 2;

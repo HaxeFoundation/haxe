@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement>
 **/
 @:native("HTMLDataElement")
-extern class DataElement extends Element
-{
+extern class DataElement extends Element {
 	
 	/**
 		Is a `DOMString` reflecting the `value` HTML attribute, containing a machine-readable form of the element's value.

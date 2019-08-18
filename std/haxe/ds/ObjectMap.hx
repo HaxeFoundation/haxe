@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
-
+extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		Creates a new ObjectMap.
 	**/
@@ -61,18 +60,35 @@ extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 
 	/**
 		See `Map.keys`
+
+		(cs, java) Implementation detail: Do not `set()` any new value while
+		iterating, as it may cause a resize, which will break iteration.
 	**/
 	public function keys():Iterator<K>;
 
 	/**
 		See `Map.iterator`
+
+		(cs, java) Implementation detail: Do not `set()` any new value while
+		iterating, as it may cause a resize, which will break iteration.
 	**/
 	public function iterator():Iterator<V>;
-	
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+	#if eval
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+	#else
+	public function keyValueIterator():KeyValueIterator<K, V>;
+	#end
+
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : ObjectMap<K,V>;
+	public function copy():ObjectMap<K, V>;
 
 	/**
 		See `Map.toString`

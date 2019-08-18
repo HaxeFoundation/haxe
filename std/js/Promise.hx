@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,32 +22,7 @@
 
 package js;
 
-import haxe.extern.EitherType;
-
-@:native("Promise")
-extern class Promise<T>
-{
-	@:overload(function<T>(promise : Promise<T>) : Promise<T> {})
-	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
-	static function resolve<T>( ?value : T ) : Promise<T>;
-
-	static function reject<T>( ?value : Dynamic ) : Promise<T>;
-
-	static function all( iterable : Array<Dynamic> ) : Promise<Array<Dynamic>>;
-
-	static function race( iterable : Array<Dynamic> ) : Promise<Dynamic>;
-
-	/** @throws DOMError */
-	function new( init : (T -> Void) -> (Dynamic -> Void) -> Void ) : Void;
-
-	function then<TOut>( fulfillCallback : Null<PromiseCallback<T, TOut>>, ?rejectCallback : EitherType<Dynamic -> Void, PromiseCallback<Dynamic, TOut>> ) : Promise<TOut>;
-
-	@:native("catch")
-	function catchError<TOut>( rejectCallback : EitherType<Dynamic -> Void, PromiseCallback<Dynamic, TOut>> ) : Promise<TOut>;
-}
-
-typedef PromiseCallback<T, TOut> = EitherType<T -> TOut, T -> Promise<TOut>>;
-
-typedef Thenable<T> = {
-	function then(resolve:T->Void, ?reject:Dynamic->Void):Void;
-}
+@:deprecated typedef Promise<T> = js.lib.Promise<T>;
+@:deprecated typedef PromiseHandler<T, TOut> = js.lib.Promise.PromiseHandler<T, TOut>;
+@:deprecated typedef Thenable<T> = js.lib.Promise.Thenable<T>;
+@:deprecated typedef ThenableStruct<T> = js.lib.Promise.ThenableStruct<T>;

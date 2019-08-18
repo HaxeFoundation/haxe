@@ -1,8 +1,8 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum TextLineCreationResult {
-	COMPLETE;
-	EMERGENCY;
-	INSUFFICIENT_WIDTH;
-	SUCCESS;
+@:native("flash.text.engine.TextLineCreationResult") extern enum abstract TextLineCreationResult(String) {
+	var COMPLETE;
+	var EMERGENCY;
+	var INSUFFICIENT_WIDTH;
+	var SUCCESS;
 }

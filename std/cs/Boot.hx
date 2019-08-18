@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
+
 import cs.internal.Exceptions;
 import cs.internal.FieldLookup;
 import cs.internal.Function;
@@ -37,12 +39,10 @@ import haxe.ds.StringMap;
 import Reflect;
 
 @:dox(hide)
-class Boot
-{
-
-	@:keep public static function init():Void
-	{
+class Boot {
+	@:keep public static function init():Void {
+		cs.system.Console.InputEncoding = new cs.system.text.UTF8Encoding();
+		cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
 		cs.Lib.applyCultureChanges();
 	}
-
 }

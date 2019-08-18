@@ -9,10 +9,10 @@ class Issue4232CreateMe {
 }
 
 class Issue4232 extends Test {
+	#if !hl // too many arguments in HL
 	function test() {
-		#if !hl
 		var c:Issue4232CreateMe = Type.createInstance(Issue4232CreateMe, [for (i in 1...15) "" + i]);
 		eq("1234567891011121314", c.value);
-		#end
 	}
+	#end
 }

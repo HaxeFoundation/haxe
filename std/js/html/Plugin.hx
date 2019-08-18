@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,26 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Plugin>
 **/
 @:native("Plugin")
-extern class Plugin implements ArrayAccess<MimeType>
-{
+extern class Plugin implements ArrayAccess<MimeType> {
+	
+	/**
+		A human readable description of the plugin.
+	**/
 	var description(default,null) : String;
+	
+	/**
+		The filename of the plugin file.
+	**/
 	var filename(default,null) : String;
+	
+	/**
+		The plugin's version number string.
+	**/
 	var version(default,null) : String;
+	
+	/**
+		The name of the plugin.
+	**/
 	var name(default,null) : String;
 	var length(default,null) : Int;
 	

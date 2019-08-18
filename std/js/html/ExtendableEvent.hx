@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `ExtendableEvent` interface extends the lifetime of the `install` and `activate` events dispatched on the global scope as part of the service worker lifecycle. This ensures that any functional events (like `FetchEvent`) are not dispatched until it upgrades database schemas and deletes the outdated cache entries.
 
@@ -32,8 +34,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent>
 **/
 @:native("ExtendableEvent")
-extern class ExtendableEvent extends Event
-{
+extern class ExtendableEvent extends Event {
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ExtendableEventInit ) : Void;
 	/** @throws DOMError */

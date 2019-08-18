@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,19 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEMergeNodeElement` interface corresponds to the `feMergeNode` element.
+
+	Documentation [SVGFEMergeNodeElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeNodeElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeNodeElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeNodeElement>
+**/
 @:native("SVGFEMergeNodeElement")
-extern class FEMergeNodeElement extends Element
-{
+extern class FEMergeNodeElement extends Element {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
 	
 }

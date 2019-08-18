@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html.idb;
 
 @:native("IDBFileHandle")
-extern class FileHandle extends js.html.EventTarget
-{
+extern class FileHandle extends js.html.EventTarget {
 	var mutableFile(default,null) : MutableFile;
 	var fileHandle(default,null) : MutableFile;
 	var mode(default,null) : js.html.FileMode;
@@ -43,9 +42,15 @@ extern class FileHandle extends js.html.EventTarget
 	/** @throws DOMError */
 	function readAsText( size : Int, ?encoding : String ) : FileRequest;
 	/** @throws DOMError */
-	function write( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.html.Blob) : FileRequest {} )
+	function write( value : String ) : FileRequest;
 	/** @throws DOMError */
-	function append( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.html.Blob) : FileRequest {} )
+	function append( value : String ) : FileRequest;
 	/** @throws DOMError */
 	function truncate( ?size : Int ) : FileRequest;
 	/** @throws DOMError */

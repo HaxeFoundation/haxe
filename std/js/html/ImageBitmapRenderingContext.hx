@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,13 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext>
 **/
 @:native("ImageBitmapRenderingContext")
-extern class ImageBitmapRenderingContext
-{
+extern class ImageBitmapRenderingContext {
 	
 	/**
 		
-		 Displays the given `ImageBitmap` in the canvas associated with this rendering context. Ownership of the `ImageBitmap` is transferred to the canvas.
+		 Displays the given `ImageBitmap` in the canvas associated with this rendering context. Ownership of the `ImageBitmap` is transferred to the canvas. This was previously named `transferImageBitmap()`, but was renamed in a spec change. The old name is being kept as an alias to avoid code breakage.
 		 
 	**/
+	function transferFromImageBitmap( bitmap : ImageBitmap ) : Void;
 	function transferImageBitmap( bitmap : ImageBitmap ) : Void;
 }

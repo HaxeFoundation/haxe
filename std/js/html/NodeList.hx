@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method.
+	`NodeList` objects are collections of nodes such as those returned by properties such as `Node.childNodes` and the `document.querySelectorAll()` method.
 
 	Documentation [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList>
 **/
 @:native("NodeList")
-extern class NodeList implements ArrayAccess<Node>
-{
+extern class NodeList implements ArrayAccess<Node> {
 	
 	/**
 		The number of nodes in the `NodeList`.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,60 +19,78 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package lua;
+
 import lua.Lua;
 import lua.Io;
 import lua.NativeStringTools;
 
 /**
-	Platform-specific Lua Library. Provides some platform-specific functions 
-	for the Lua target, such as conversion from Haxe types to native types 
+	Platform-specific Lua Library. Provides some platform-specific functions
+	for the Lua target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
-	public static inline function println( v : Dynamic ) : Void {
+	public static inline function println(v:Dynamic):Void {
 		Lua.print(Std.string(v));
 	}
 
 	/**
 		Print the specified value on the default output.
 	**/
-	public static inline function print(v:Dynamic) : Void {
+	public static inline function print(v:Dynamic):Void {
 		Io.write(Std.string(v));
 		Io.flush();
 	}
 
-	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		return Boot.defArray(t, length);
+	/**
+		Copies the table argument and converts it to an Array
+	**/
+	public inline static function tableToArray<T>(t:Table<Int, T>, ?length:Int):Array<T> {
+		return Boot.defArray(PairTools.copy(t), length);
 	}
 
-	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
-		return Boot.tableToObject(t);
+	/**
+		Copies the table argument and converts it to an Object.
+	**/
+	public inline static function tableToObject<T>(t:Table<String, T>):Dynamic<T> {
+		return Boot.tableToObject(PairTools.copy(t));
 	}
 
-	public inline static function patternQuote(str:String) : String {
-		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
+	/**
+		Perform Lua-style pattern quoting on a given string.
+	**/
+	public inline static function patternQuote(str:String):String {
+		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String) {
+			return "%" + c;
+		});
 	}
 
-	public inline static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
-		return Boot.defArray(tab, length);
-	}
-
-	public static function fillArray<T>(itr:Void->T) : Array<T> {
-		var i: T = null;
-		var ret : Array<T> = [];
-		while({i = itr(); i != null;}){
+	/**
+		Fills an array with the result of a simple iterator.
+	**/
+	public static function fillArray<T>(itr:Void->T):Array<T> {
+		var i:T = null;
+		var ret:Array<T> = [];
+		while ({
+			i = itr();
+			i != null;
+		}) {
 			ret.push(i);
 		}
 		return ret;
 	}
 
-	public static function isShellAvailable() : Bool {
-		var ret : Dynamic = Os.execute();
-		if (Lua.type(ret) == "bool"){
+	/**
+		Simple test for the presence of an available shell.
+	**/
+	public static function isShellAvailable():Bool {
+		var ret:Dynamic = Os.execute();
+		if (Lua.type(ret) == "bool") {
 			return ret;
 		} else {
 			return ret != 0;

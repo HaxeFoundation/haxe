@@ -1,0 +1,3 @@
+-cs bin
+-D unsafe
+-main Main

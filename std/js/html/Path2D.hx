@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Path2D>
 **/
 @:native("Path2D")
-extern class Path2D
-{
+extern class Path2D {
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	@:overload( function( other : Path2D ) : Void {} )
@@ -52,7 +51,7 @@ extern class Path2D
 	function arcTo( x1 : Float, y1 : Float, x2 : Float, y2 : Float, radius : Float ) : Void;
 	function rect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	/** @throws DOMError */
-	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, anticlockwise : Bool = false ) : Void;
 	/** @throws DOMError */
-	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, anticlockwise : Bool = false ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,19 @@
 
 package js.html.svg;
 
+/**
+	The `SVGGraphicsElement` interface represents SVG elements whose primary purpose is to directly render graphics into a group.
+
+	Documentation [SVGGraphicsElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGGraphicsElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGGraphicsElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGraphicsElement>
+**/
 @:native("SVGGraphicsElement")
-extern class GraphicsElement extends Element
-{
+extern class GraphicsElement extends Element {
+	
+	/**
+		An `SVGAnimatedTransformList` reflecting the computed value of the `transform` property and its corresponding `transform` attribute of the given element.
+	**/
 	var transform(default,null) : AnimatedTransformList;
 	var nearestViewportElement(default,null) : Element;
 	var farthestViewportElement(default,null) : Element;
@@ -34,9 +44,21 @@ extern class GraphicsElement extends Element
 	var requiredExtensions(default,null) : StringList;
 	var systemLanguage(default,null) : StringList;
 	
-	/** @throws DOMError */
+	
+	/**
+		Returns a `DOMRect` representing the computed bounding box of the current element.
+		@throws DOMError
+	**/
 	function getBBox( ?aOptions : BoundingBoxOptions ) : Rect;
+	
+	/**
+		Returns a `DOMMatrix` representing the matrix that transforms the current element's coordinate system to its SVG viewport's coordinate system.
+	**/
 	function getCTM() : Matrix;
+	
+	/**
+		Returns a `DOMMatrix` representing the matrix that transforms the current element's coordinate system to the coordinate system of the SVG viewport for the SVG document fragment.
+	**/
 	function getScreenCTM() : Matrix;
 	/** @throws DOMError */
 	function getTransformToElement( element : GraphicsElement ) : Matrix;

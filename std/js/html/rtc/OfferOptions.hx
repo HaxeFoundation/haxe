@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,8 @@
 
 package js.html.rtc;
 
-typedef OfferOptions =
-{
-	> OfferAnswerOptions,
-	@:optional var mandatory : Dynamic/*MISSING DeprecatedRTCOfferOptionsSet*/;
-	@:optional var offerToReceiveAudio : Int;
-	@:optional var offerToReceiveVideo : Int;
-	@:optional var optional : Array<Dynamic/*MISSING DeprecatedRTCOfferOptionsSet*/>;
+typedef OfferOptions = OfferAnswerOptions & {
+	var ?iceRestart : Bool;
+	var ?offerToReceiveAudio : Bool;
+	var ?offerToReceiveVideo : Bool;
 }

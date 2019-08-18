@@ -2,6 +2,8 @@ import js.node.Fs;
 import sys.FileSystem;
 import haxe.io.Path;
 
+using DateTools;
+
 class Vfs {
 	var physicalPath:String;
 
@@ -16,8 +18,9 @@ class Vfs {
 	public function touchFile(path:String) {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
-		var notNow = DateTools.delta(Date.now(), 1000);
 		var file = Fs.openSync(path.dir + "/" + path.file + "." + path.ext, 'a');
+		var last = Date.fromString(Fs.fstatSync(file).mtime.format("%T"));
+		var notNow = last.delta(1000);
 		Fs.futimesSync(file, notNow, notNow);
 		Fs.closeSync(file);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `HTMLLIElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating list elements.
+	The `HTMLLIElement` interface exposes specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating list elements.
 
 	Documentation [HTMLLIElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement>
 **/
 @:native("HTMLLIElement")
-extern class LIElement extends Element
-{
+extern class LIElement extends Element {
 	
 	/**
 		Is a `long` indicating the ordinal position of the list element inside a given `ol`. It reflects the `value` attribute of the HTML `li` element, and can be smaller than `0`. If the `li` element is not a child of an `ol` element, the property has no meaning.

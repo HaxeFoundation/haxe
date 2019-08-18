@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent>
 **/
 @:native("CustomEvent")
-extern class CustomEvent extends Event
-{
+extern class CustomEvent extends Event {
 	
 	/**
 		Any data passed when initializing the event.
@@ -42,12 +41,11 @@ extern class CustomEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : CustomEventInit ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		
 		 Initializes a `CustomEvent` object. If the event has already being dispatched, this method does nothing.
 		 
 	**/
-	function initCustomEvent( type : String, canBubble : Bool, cancelable : Bool, detail : Dynamic ) : Void;
+	function initCustomEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?detail : Dynamic ) : Void;
 }

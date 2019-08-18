@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator>
 **/
 @:native("WorkerNavigator")
-extern class WorkerNavigator
-{
+extern class WorkerNavigator {
 	var hardwareConcurrency(default,null) : Int;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;
@@ -44,6 +43,7 @@ extern class WorkerNavigator
 	var language(default,null) : String;
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
+	var storage(default,null) : StorageManager;
 	
 	function taintEnabled() : Bool;
 }

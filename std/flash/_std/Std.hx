@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,38 +19,44 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import flash.Boot;
 
 @:coreApi class Std {
-
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped flash.Boot.__instanceof(v,t);
+	public static function is(v:Dynamic, t:Dynamic):Bool {
+		return flash.Boot.__instanceof(v, t);
 	}
 
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
 		return flash.Lib.as(value, c);
 	}
 
-	public static function string( s : Dynamic ) : String {
-		return untyped flash.Boot.__string_rec(s,"");
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+		return downcast(value, c);
 	}
 
-	public inline static function int( x : Float ) : Int {
+	public static function string(s:Dynamic):String {
+		return flash.Boot.__string_rec(s, "");
+	}
+
+	public inline static function int(x:Float):Int {
 		return untyped __int__(x);
 	}
 
-	public static function parseInt( x : String ) : Null<Int> untyped {
-		var v = __global__["parseInt"](x);
-		if( __global__["isNaN"](v) )
-			return null;
-		return v;
-	}
+	public static function parseInt(x:String):Null<Int>
+		untyped {
+			var v = __global__["parseInt"](x);
+			if (__global__["isNaN"](v))
+				return null;
+			return v;
+		}
 
-	public static function parseFloat( x : String ) : Float {
+	public static function parseFloat(x:String):Float {
 		return untyped __global__["parseFloat"](x);
 	}
 
-	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+	public static function random(x:Int):Int {
+		return x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
 }

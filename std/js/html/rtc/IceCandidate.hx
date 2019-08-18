@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,31 +25,31 @@
 package js.html.rtc;
 
 /**
-	The `RTCIceCandidate` interface of the the WebRTC API represents a candidate internet connectivity establishment (ICE) server for establishing an `RTCPeerConnection`.
+	The `RTCIceCandidate` interface—part of the WebRTC API—represents a candidate Internet Connectivity Establishment (ICE) configuration which may be used to establish an `RTCPeerConnection`.
 
 	Documentation [RTCIceCandidate](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate>
 **/
 @:native("RTCIceCandidate")
-extern class IceCandidate
-{
+extern class IceCandidate {
 	
 	/**
-		Returns a transport address for the candidate that can be used for connectivity checks. The format of this address is a `candidate-attribute` as defined in RTC 5245.
+		A `DOMString` representing the transport address for the candidate that can be used for connectivity checks. The format of this address is a `candidate-attribute` as defined in {{RFC(5245)}}. This string is empty (`""`) if the `RTCIceCandidate` is an "end of candidates" indicator.
 	**/
 	var candidate : String;
 	
 	/**
-		If not `null`, this contains the identifier of the "media stream identification" (as defined in RFC 5888) for the media component this candidate is associated with.
+		A `DOMString` specifying the candidate's media stream identification tag which uniquely identifies the media stream within the component with which the candidate is associated, or `null` if no such association exists.
 	**/
 	var sdpMid : String;
 	
 	/**
-		If not `null`, this indicates the index (starting at zero) of the media description (as defined in RFC 4566) in the SDP this candidate is associated with.
+		If not `null`, `sdpMLineIndex` indicates the zero-based index number of the media description (as defined in RFC 4566) in the `SDP` with which the candidate is associated.
 	**/
 	var sdpMLineIndex : Int;
 	
 	/** @throws DOMError */
-	function new( ?candidateInitDict : IceCandidateInit ) : Void;
+	function new( candidateInitDict : IceCandidateInit ) : Void;
+	function toJSON() : Dynamic;
 }

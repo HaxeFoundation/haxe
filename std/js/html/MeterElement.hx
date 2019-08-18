@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,41 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement>
 **/
 @:native("HTMLMeterElement")
-extern class MeterElement extends Element
-{
+extern class MeterElement extends Element {
+	
+	/**
+		A `double` representing the currrent value, reflecting the `value` attribute.
+	**/
 	var value : Float;
+	
+	/**
+		A `double` representing the minimum value, reflecting the `min` attribute.
+	**/
 	var min : Float;
+	
+	/**
+		A `double` representing the maximum value, reflecting the `max` attribute.
+	**/
 	var max : Float;
+	
+	/**
+		A `double` representing the value of the low boundary, reflecting the `low`attribute.
+	**/
 	var low : Float;
+	
+	/**
+		A `double` representing the value of the high boundary, reflecting the `high` attribute.
+	**/
 	var high : Float;
+	
+	/**
+		A `double` representing the optimum, reflecting the `optimum` attribute.
+	**/
 	var optimum : Float;
+	
+	/**
+		A `NodeList` of `label` elements that are associated with the element.
+	**/
+	var labels(default,null) : NodeList;
 	
 }

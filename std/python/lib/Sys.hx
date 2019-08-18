@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.Exceptions.BaseException;
@@ -27,18 +28,16 @@ import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 import python.Tuple;
 
-
 extern class TB {}
 extern class Frame {}
 
 @:pythonImport("sys")
 extern class Sys {
-
 	public static var argv(default, never):Array<String>;
 
 	public static var executable(default, never):String;
 
-	public static function exit (x:Int):Void;
+	public static function exit(x:Int):Void;
 
 	public static function getfilesystemencoding():String;
 
@@ -49,11 +48,11 @@ extern class Sys {
 	public static var stdin(default, never):TextIOBase;
 	public static var stderr(default, never):TextIOBase;
 
-	public static function getsizeof (t:Dynamic):Int;
+	public static function getsizeof(t:Dynamic):Int;
 
 	public static var maxsize:Int;
 
 	public static function exc_info<T:BaseException>():Tuple3<Class<T>, T, TB>;
 
-	public static var version_info:Tuple5<Int,Int,Int,String,Int>;
+	public static var version_info:Tuple5<Int, Int, Int, String, Int>;
 }

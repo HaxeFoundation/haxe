@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract OscillatorType(String)
-{
+enum abstract OscillatorType(String) {
 	var SINE = "sine";
 	var SQUARE = "square";
 	var SAWTOOTH = "sawtooth";

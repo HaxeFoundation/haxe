@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent>
 **/
 @:native("DeviceMotionEvent")
-extern class DeviceMotionEvent extends Event
-{
+extern class DeviceMotionEvent extends Event {
 	
 	/**
 		An object giving the acceleration of the device on the three axis X, Y and Z. Acceleration is expressed in m/s2.
@@ -46,7 +45,7 @@ extern class DeviceMotionEvent extends Event
 	var accelerationIncludingGravity(default,null) : DeviceAcceleration;
 	
 	/**
-		An object giving the rate of change of the device's orientation on the three orientation axis alpha, beta and gamma. Rotation rate is express in degrees per seconds.
+		An object giving the rate of change of the device's orientation on the three orientation axis alpha, beta and gamma. Rotation rate is expressed in degrees per seconds.
 	**/
 	var rotationRate(default,null) : DeviceRotationRate;
 	
@@ -57,5 +56,5 @@ extern class DeviceMotionEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DeviceMotionEventInit ) : Void;
-	function initDeviceMotionEvent( type : String, canBubble : Bool, cancelable : Bool, acceleration : DeviceAccelerationInit, accelerationIncludingGravity : DeviceAccelerationInit, rotationRate : DeviceRotationRateInit, interval : Float ) : Void;
+	function initDeviceMotionEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?acceleration : DeviceAccelerationInit, ?accelerationIncludingGravity : DeviceAccelerationInit, ?rotationRate : DeviceRotationRateInit, ?interval : Float ) : Void;
 }

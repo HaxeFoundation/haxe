@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression>
 **/
 @:native("XPathExpression")
-extern class XPathExpression
-{
-	/** @throws DOMError */
-	function evaluate( contextNode : Node, type : Int, result : Dynamic ) : XPathResult;
+extern class XPathExpression {
+	
+	/**
+		provide a context node/document, `XPathResult` constant, and `XPathResult` to store the query or null to return a new XPathResult.
+		@throws DOMError
+	**/
+	function evaluate( contextNode : Node, type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

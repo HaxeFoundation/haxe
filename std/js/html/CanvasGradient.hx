@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient>
 **/
 @:native("CanvasGradient")
-extern class CanvasGradient
-{
-	/** @throws DOMError */
+extern class CanvasGradient {
 	
 	/**
 		Adds a new stop, defined by an `offset` and a `color`, to the gradient. If the offset is not between `0` and `1` an `INDEX_SIZE_ERR` is raised, if the color can't be parsed as a CSS `color`, a `SYNTAX_ERR` is raised.
+		@throws DOMError
 	**/
 	function addColorStop( offset : Float, color : String ) : Void;
 }

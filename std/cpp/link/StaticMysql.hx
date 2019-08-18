@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.link;
 
-#if (hxcpp_api_level>=330)
-class StaticMysql { }
+#if (hxcpp_api_level >= 330)
+class StaticMysql {}
 #else
-
-@:cppFileCode( 'extern "C" int mysql_register_prims();')
+@:cppFileCode('extern "C" int mysql_register_prims();')
 @:buildXml("
 <target id='haxe'>
   <lib name='${HXCPP}/lib/${BINDIR}/libmysql5${LIBEXTRA}${LIBEXT}'/>
   <lib name='ws2_32.lib' if='windows'/>
 </target>
 ")
-@:keep class StaticMysql
-{
-   static function __init__()
-   {
-     untyped __cpp__("mysql_register_prims();");
-   }
+@:keep class StaticMysql {
+	static function __init__() {
+		untyped __cpp__("mysql_register_prims();");
+	}
 }
-
 #end

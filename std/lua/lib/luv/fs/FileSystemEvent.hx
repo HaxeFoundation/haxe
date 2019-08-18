@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,16 @@ package lua.lib.luv.fs;
 
 @:luaRequire("luv")
 extern class FileSystemEvent {
-  static function new_fs_event() : FileSystemEvent;
-  @:native("new_fs_event") function new() : Void;
+	static function new_fs_event():FileSystemEvent;
+	@:native("new_fs_event") function new():Void;
 
-  function start(path : String, options : StartOptions, cb : String->Bool->Void) : Int;
-  function stop() : Int;
-  function getpath() : String;
+	function start(path:String, options:StartOptions, cb:String->Bool->Void):Int;
+	function stop():Int;
+	function getpath():String;
 }
 
 typedef StartOptions = {
-  watch_entry : Bool,
-  stat        : Bool,
-  recursive   : Bool
+	watch_entry:Bool,
+	stat:Bool,
+	recursive:Bool
 }
