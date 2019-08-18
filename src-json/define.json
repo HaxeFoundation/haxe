@@ -236,13 +236,13 @@
 	},
 	{
 		"name": "HxcppGcGenerational",
-		"define": "hxcpp_gc_generational",
+		"define": "HXCPP_GC_GENERATIONAL",
 		"doc": "Experimental Garbage Collector.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppDebugger",
-		"define": "hxcpp_debugger",
+		"define": "HXCPP_DEBUGGER",
 		"doc": "Include additional information for hxcpp_debugger.",
 		"platforms": ["cpp"]
 	},
