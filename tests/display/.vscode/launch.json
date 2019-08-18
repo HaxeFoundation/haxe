@@ -1,0 +1,11 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Interpreter",
+			"type": "haxe-eval",
+			"request": "launch",
+			"args": ["build.hxml", "-lib", "test-adapter"]
+		}
+	]
+}

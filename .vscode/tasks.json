@@ -1,0 +1,51 @@
+{
+    "version": "2.0.0",
+	"tasks": [
+		{
+			"label": "make: haxe",
+			"type": "shell",
+			"command": "make ADD_REVISION=1 -s -j haxe",
+			"windows": {
+				"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe"
+			},
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "make: libs",
+			"type": "shell",
+			"command": "make -s -j libs",
+			"windows": {
+				"command": "make -f Makefile.win -s -j libs"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "make: haxelib",
+			"type": "shell",
+			"command": "make -s haxelib",
+			"windows": {
+				"command": "make -f Makefile.win -s haxelib"
+			},
+			"problemMatcher": ["$haxe", "$haxe-absolute"]
+		},
+		{
+			"label": "make: all",
+			"type": "shell",
+			"command": "make s -j libs && make ADD_REVISION=1 -s -j haxe && make -s haxelib",
+			"windows": {
+				"command": "make -f Makefile.win -s -j libs && make ADD_REVISION=1 -f Makefile.win -s -j haxe && make -f Makefile.win -s haxelib"
+			},
+			"problemMatcher": ["$haxe", "$haxe-absolute"]
+		},
+		{
+			"label": "make: clean",
+			"type": "shell",
+			"command": "make clean",
+			"problemMatcher": []
+		}
+	]
+}

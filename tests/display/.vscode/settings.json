@@ -1,0 +1,11 @@
+{
+	"editor.formatOnSave": true,
+	"haxe.enableCompilationServer": false,
+	"haxeTestExplorer.testCommand": [
+		"${haxe}",
+		"build.hxml",
+		"-lib",
+		"test-adapter"
+	],
+	"haxeTestExplorer.launchConfiguration": "Interpreter"
+}
