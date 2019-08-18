@@ -508,9 +508,12 @@ and encode_null_expr e =
 
 and encode_function_kind kind =
 	match kind with
-	| FKAnonymous -> encode_enum IFunctionKind 0 []
-	| FKNamed name -> encode_enum IFunctionKind 1 [encode_placed_name name]
-	| FKArrow -> encode_enum IFunctionKind 2 []
+	| FKAnonymous ->
+		encode_enum IFunctionKind 0 []
+	| FKNamed (name,inline) ->
+		encode_enum IFunctionKind 1 [encode_placed_name name; vbool inline]
+	| FKArrow ->
+		encode_enum IFunctionKind 2 []
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
@@ -709,7 +712,7 @@ and decode_display_kind v = match (decode_enum v) with
 
 and decode_function_kind kind = match decode_enum kind with
 	| 0, [] -> FKAnonymous
-	| 1, [name] -> FKNamed (decode_string name,Globals.null_pos)
+	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_bool inline)
 	| 2, [] -> FKArrow
 	| _ -> raise Invalid_expr
 

@@ -665,7 +665,7 @@ let optimize_completion_expr e args =
 			(EBlock (List.rev el),p)
 		| EFunction (kind,f) ->
 			(match kind with
-			| FKNamed (name,_) ->
+			| FKNamed ((name,_),_) ->
 				decl name None (Some e)
 			| _ -> ());
 			let old = save() in

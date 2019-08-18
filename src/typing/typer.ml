@@ -1992,16 +1992,17 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx kind inline f with_type p =
-	let params = TypeloadFunction.type_function_params ctx f (match kind with FKNamed (n,_) -> n | _ -> "localfun") p in
+and type_local_function ctx kind f with_type p =
+	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
+	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
-		(match kind with FKNamed _ -> () | _ -> display_error ctx "Type parameters not supported in unnamed local functions" p);
+		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
 	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
-	let v,pname = (match kind with
-		| FKAnonymous | FKArrow -> None,p
-		| FKNamed (v,pn) -> Some v,pn
+	let v,pname = (match name with
+		| None -> None,p
+		| Some (v,pn) -> Some v,pn
 	) in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
@@ -2034,7 +2035,7 @@ and type_local_function ctx kind inline f with_type p =
 		in
 		loop t
 	| WithType.NoValue ->
-		(match kind with FKNamed _ -> () | _ -> display_error ctx "Unnamed lvalue functions are not supported" p)
+		if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 	| _ ->
 		());
 	let ft = TFun (fun_args args,rt) in
@@ -2334,8 +2335,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
-			| EFunction(FKNamed _ as kind,e1) ->
-				type_local_function ctx kind true e1 with_type p
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
@@ -2559,7 +2558,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (kind,f) ->
-		type_local_function ctx kind false f with_type p
+		type_local_function ctx kind f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
