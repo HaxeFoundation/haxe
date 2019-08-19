@@ -270,7 +270,8 @@ let display_meta com meta p = match com.display.dms_kind with
 	| DMDefault ->
 		let all = Meta.get_all() in
 		let all = List.map make_ci_metadata all in
-		raise_fields all CRMetadata (Some p)
+		let subject = if meta = Meta.Last then None else Some (Meta.to_string meta) in
+		raise_fields all CRMetadata (make_subject subject p);
 	| _ ->
 		()
 
@@ -305,5 +306,5 @@ let check_field_modifiers ctx c cf override display_modifier =
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
 			let l = sort_fields l NoValue TKOverride in
-			raise_fields l CROverride None
+			raise_fields l CROverride (make_subject (Some cf.cf_name) p)
 		| _ -> ()

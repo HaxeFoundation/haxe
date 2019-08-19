@@ -14,8 +14,7 @@ type hover_result = {
 type fields_result = {
 	fitems : CompletionItem.t list;
 	fkind : CompletionResultKind.t;
-	finsert_pos : pos option;
-	fsubject : placed_name option;
+	fsubject : completion_subject;
 }
 
 type signature_kind =
@@ -42,8 +41,7 @@ let raise_metadata s = raise (DisplayException(Metadata s))
 let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures(Some(l,isig,iarg,kind))))
 let raise_hover item expected p = raise (DisplayException(DisplayHover(Some {hitem = item;hpos = p;hexpected = expected})))
 let raise_positions pl = raise (DisplayException(DisplayPositions pl))
-let raise_fields ckl cr po = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;finsert_pos = po;fsubject = None}))))
-let raise_fields2 ckl cr po subject = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;finsert_pos = po;fsubject = Some subject}))))
+let raise_fields ckl cr subj = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;fsubject = subj}))))
 let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
@@ -51,12 +49,12 @@ let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([
 let last_completion_pos = ref None
 let max_completion_items = ref 0
 
-let filter_somehow ctx items subject kind po =
+let filter_somehow ctx items kind subj =
 	let ret = DynArray.create () in
 	let acc_types = DynArray.create () in
-	let subject = match subject with
+	let subject = match subj.s_name with
 		| None -> ""
-		| Some(subject,_) -> String.lowercase subject
+		| Some name-> String.lowercase name
 	in
 	let subject_matches s =
 		let rec loop i o =
@@ -73,7 +71,7 @@ let filter_somehow ctx items subject kind po =
 	in
 	let rec loop items index =
 		match items with
-		| _ when DynArray.length ret > !max_completion_items ->
+		| _ when DynArray.length ret >= !max_completion_items ->
 			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
@@ -99,23 +97,23 @@ let filter_somehow ctx items subject kind po =
 	) acc_types;
 	DynArray.to_list ret,DynArray.length ret = !max_completion_items
 
-let fields_to_json ctx fields kind po subject =
+let fields_to_json ctx fields kind subj =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
 	let ja,did_filter = if needs_filtering then
-		filter_somehow ctx fields subject kind po
+		filter_somehow ctx fields kind subj
 	else
 		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,false
  	in
-	if did_filter then begin match subject with
-		| Some(_,p) -> last_completion_pos := Some p;
-		| None -> last_completion_pos := None
-	end;
+	if did_filter then last_completion_pos := Some subj.s_start_pos;
 	let fl =
 		("items",jarray ja) ::
 		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range (Parser.cut_pos_at_display p)]) in
+		("filterString",(match subj.s_name with None -> jnull | Some name -> jstring name)) ::
+		("replaceRange",generate_pos_as_range (Parser.cut_pos_at_display subj.s_insert_pos)) ::
+		[]
+	in
 	jobject fl
 
 let to_json ctx de =
@@ -183,6 +181,6 @@ let to_json ctx de =
 	| DisplayFields None ->
 		jnull
 	| DisplayFields Some r ->
-		fields_to_json ctx r.fitems r.fkind r.finsert_pos r.fsubject
+		fields_to_json ctx r.fitems r.fkind r.fsubject
 	| DisplayPackage pack ->
 		jarray (List.map jstring pack)

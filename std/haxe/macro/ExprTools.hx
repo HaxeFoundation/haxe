@@ -187,7 +187,7 @@ class ExprTools {
 					for (c in cases)
 						ret.push({expr: opt(c.expr, f), guard: opt(c.guard, f), values: ExprArrayTools.map(c.values, f)});
 					ESwitch(f(e), ret, edef == null || edef.expr == null ? edef : f(edef));
-				case EFunction(name, func):
+				case EFunction(kind, func):
 					var ret = [];
 					for (arg in func.args)
 						ret.push({
@@ -196,7 +196,7 @@ class ExprTools {
 							type: arg.type,
 							value: opt(arg.value, f)
 						});
-					EFunction(name, {
+					EFunction(kind, {
 						args: ret,
 						ret: func.ret,
 						params: func.params,

@@ -2892,7 +2892,7 @@ module TExprToExpr = struct
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
-			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
+			EFunction (FKAnonymous,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
 			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)

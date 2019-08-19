@@ -280,21 +280,14 @@ let reify in_macro =
 				] in
 				to_obj fields p
 			) vl p]
-		| EFunction (name,f) ->
-			let name = match name with
-				| None ->
-					to_null null_pos
-				| Some (name,pn) ->
-					if ExtString.String.starts_with name "inline_$" then begin
-						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name pn in
-						let e_inline = to_string "inline_" p in
-						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
-						e_add
-					end else
-						to_string name pn
+		| EFunction (kind,f) ->
+			let kind, args = match kind with
+				| FKAnonymous -> "FAnonymous", []
+				| FKArrow -> "FArrow", []
+				| FKNamed ((name,pn),inline) -> "FNamed", [to_string name pn; to_bool inline pn]
 			in
-			expr "EFunction" [name; to_fun f p]
+			let kind = mk_enum "FunctionKind" kind args p in
+			expr "EFunction" [kind; to_fun f p]
 		| EBlock el ->
 			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->

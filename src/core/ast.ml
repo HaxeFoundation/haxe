@@ -177,6 +177,11 @@ and func = {
 
 and placed_name = string * pos
 
+and function_kind =
+	| FKAnonymous
+	| FKNamed of placed_name * bool (* bool for `inline` *)
+	| FKArrow
+
 and display_kind =
 	| DKCall
 	| DKDot
@@ -196,7 +201,7 @@ and expr_def =
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (placed_name * bool * type_hint option * expr option) list
-	| EFunction of placed_name option * func
+	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
@@ -628,7 +633,7 @@ let map_expr loop (e,p) =
 			let eo = opt loop eo in
 			n,b,t,eo
 		) vl)
-	| EFunction (n,f) -> EFunction (n,func f)
+	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
 	| EFor (e1,e2) ->
 		let e1 = loop e1 in
@@ -734,8 +739,9 @@ module Printer = struct
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (Some (n,_),f) -> "function " ^ n ^ s_func tabs f
-		| EFunction (None,f) -> "function" ^ s_func tabs f
+		| EFunction (FKNamed((n,_),inline),f) -> (if inline then "inline " else "") ^ "function " ^ n ^ s_func tabs f
+		| EFunction (FKAnonymous,f) -> "function" ^ s_func tabs f
+		| EFunction (FKArrow,f) -> "function" ^ s_func ~is_arrow:true tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
 		| EBlock el -> s_block tabs el "{" "\n" "}"
@@ -805,10 +811,11 @@ module Printer = struct
 		match t with
 		| Some(t,_) -> pre ^ s_complex_type tabs t
 		| None -> ""
-	and s_func tabs f =
+	and s_func ?(is_arrow=false) tabs f =
 		s_type_param_list tabs f.f_params ^
 		"(" ^ String.concat ", " (List.map (s_func_arg tabs) f.f_args) ^ ")" ^
 		s_opt_type_hint tabs f.f_type ":" ^
+		(if is_arrow then " -> " else "") ^
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
 		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
@@ -973,7 +980,7 @@ module Expr = struct
 					| Some e ->
 						loop' (Printf.sprintf "%s      " tabs) e
 				) vl
-			| EFunction(so,f) ->
+			| EFunction(_,f) ->
 				add "EFunction";
 				Option.may loop f.f_expr;
 			| EBlock el ->

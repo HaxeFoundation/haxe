@@ -242,7 +242,7 @@ let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
 	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
 	match get() with
-	| Some cs when Define.raw_defined com.defines "haxe.cacheNativeLibs" ->
+	| Some cs when not (Define.raw_defined com.defines "haxe.noNativeLibsCache") ->
 		let init () =
 			let file = lib#get_file_path in
 			let key = file in

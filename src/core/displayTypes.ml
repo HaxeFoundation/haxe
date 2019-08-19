@@ -293,3 +293,15 @@ type reference_kind =
 	| KEnumField
 	| KModuleType
 	| KConstructor
+
+type completion_subject = {
+	s_name : string option;
+	s_start_pos : pos;
+	s_insert_pos : pos;
+}
+
+let make_subject name ?(start_pos=None) insert_pos = {
+	s_name = name;
+	s_start_pos = (match start_pos with None -> insert_pos | Some p -> p);
+	s_insert_pos = insert_pos;
+}
