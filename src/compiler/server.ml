@@ -396,11 +396,7 @@ let check_module sctx ctx m p =
 				let old_mark = m.m_extra.m_mark in
 				m.m_extra.m_mark <- mark;
 				if old_mark <= start_mark then begin
-					(* Workaround for preview.4 Java issue *)
-					begin match m.m_extra.m_kind with
-						| MExtern -> check_module_path()
-						| _ -> if not (has_policy NoCheckShadowing) then check_module_path();
-					end;
+					if not (has_policy NoCheckShadowing) then check_module_path();
 					if not (has_policy NoCheckFileTimeModification) then check_file();
 				end;
 				if not (has_policy NoCheckDependencies) then check_dependencies();
