@@ -560,8 +560,8 @@ and init_meta_overloads ctx co cf =
 	let cf_meta = List.filter filter_meta cf.cf_meta in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
-		| (Meta.Overload,[(EFunction (fname,f),p)],_)  ->
-			if fname <> None then error "Function name must not be part of @:overload" p;
+		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
+			(match kind with FKNamed _ -> error "Function name must not be part of @:overload" p | _ -> ());
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
 			let old = ctx.type_params in
 			(match cf.cf_params with

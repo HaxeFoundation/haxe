@@ -1992,7 +1992,8 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx name inline f with_type p =
+and type_local_function ctx kind f with_type p =
+	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
@@ -2334,8 +2335,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
-			| EFunction(Some(_) as name,e1) ->
-				type_local_function ctx name true e1 with_type p
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
@@ -2558,8 +2557,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
-	| EFunction (name,f) ->
-		type_local_function ctx name false f with_type p
+	| EFunction (kind,f) ->
+		type_local_function ctx kind f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
