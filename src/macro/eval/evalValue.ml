@@ -103,6 +103,7 @@ type vuv_value =
 	| UvUdp of Uv.t_udp
 	| UvTimer of Uv.t_timer
 	| UvProcess of Uv.t_process
+	| UvPipe of Uv.t_pipe
 
 type value =
 	| VNull

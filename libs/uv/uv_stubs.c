@@ -41,6 +41,7 @@
 #define GetAddrInfo_val(v) UV_UNWRAP(v, uv_getaddrinfo_t)
 #define Handle_val(v) UV_UNWRAP(v, uv_handle_t)
 #define Loop_val(v) UV_UNWRAP(v, uv_loop_t)
+#define Pipe_val(v) UV_UNWRAP(v, uv_pipe_t)
 #define Process_val(v) UV_UNWRAP(v, uv_process_t)
 #define Shutdown_val(v) UV_UNWRAP(v, uv_shutdown_t)
 #define Stream_val(v) UV_UNWRAP(v, uv_stream_t)
@@ -402,6 +403,10 @@ typedef struct {
 			value cb_exit;
 			value unused1;
 		} process;
+		struct {
+			value unused1;
+			value unused2;
+		} pipe;
 	} u;
 } uv_w_handle_t;
 
@@ -458,6 +463,15 @@ static uv_w_handle_t *alloc_data_process(value cb_exit) {
 		caml_register_global_root(&(data->cb_close));
 		data->u.process.cb_exit = cb_exit;
 		caml_register_global_root(&(data->u.process.cb_exit));
+	}
+	return data;
+}
+
+static uv_w_handle_t *alloc_data_pipe(void) {
+	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
+	if (data != NULL) {
+		data->cb_close = Val_unit;
+		caml_register_global_root(&(data->cb_close));
 	}
 	return data;
 }
@@ -1104,11 +1118,11 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 			}
 		} else {
 			stdio_u[i].flags = UV_CREATE_PIPE;
-			// TODO: probably need to give a stream in data.stream?
 			if (Bool_val(Field(stdio_entry, 0)))
-				stdio_u[i].flags = UV_READABLE_PIPE;
+				stdio_u[i].flags |= UV_READABLE_PIPE;
 			if (Bool_val(Field(stdio_entry, 1)))
-				stdio_u[i].flags = UV_WRITABLE_PIPE;
+				stdio_u[i].flags |= UV_WRITABLE_PIPE;
+			stdio_u[i].data.stream = Stream_val(Field(stdio_entry, 2));
 		}
 	}
 	uv_process_options_t options = {
@@ -1141,4 +1155,16 @@ CAMLprim value w_process_kill(value handle, value signum) {
 CAMLprim value w_process_get_pid(value handle) {
 	CAMLparam1(handle);
 	CAMLreturn(Val_int(Process_val(handle)->pid));
+}
+
+// ------------- PIPES ----------------------------------------------
+
+CAMLprim value w_pipe_init(value loop, value ipc) {
+	CAMLparam2(loop, ipc);
+	UV_ALLOC_CHECK(handle, uv_pipe_t);
+	UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(handle), Bool_val(ipc)), free(Pipe_val(handle)));
+	UV_HANDLE_DATA(Pipe_val(handle)) = alloc_data_pipe();
+	if (UV_HANDLE_DATA(Pipe_val(handle)) == NULL)
+		UV_ERROR(0);
+	UV_SUCCESS(handle);
 }

@@ -3772,6 +3772,40 @@ module StdUv = struct
 		let unref = wrap_unref this
 	end
 
+	module Pipe = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvPipe t)} -> t
+			| v -> unexpected_value v "UvPipe"
+		let new_ = (fun vl ->
+			match vl with
+				| [] ->
+					let pipe = wrap_sync (Uv.pipe_init (loop ()) false) in
+					encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe pipe))
+				| _ -> assert false
+		)
+		let write = vifun2 (fun vthis data cb ->
+			let this = this vthis in
+			let data = decode_bytes data in
+			wrap_sync (Uv.write this data (wrap_cb_unit cb));
+			vnull
+		)
+		let startRead = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.read_start this (wrap_cb cb encode_bytes));
+			vnull
+		)
+		let stopRead = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.read_stop this);
+			vnull
+		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.close this (wrap_cb_unit cb));
+			vnull
+		)
+	end
+
 	module Process = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvProcess t)} -> t
@@ -3784,13 +3818,14 @@ module StdUv = struct
 					let env = Array.of_list (List.map decode_string (decode_array env)) in
 					let cwd = decode_string cwd in
 					let flags = decode_int flags in
-					let stdio = Array.of_list (List.map (function
-							| VEnumValue {eindex = 0; eargs = [|readable; writable|]} ->
+					let stdio = Array.of_list (List.map (fun stdio -> match (decode_enum stdio) with
+							| 0, [readable; writable; pipe] ->
 								let readable = decode_bool readable in
 								let writable = decode_bool writable in
-								Uv.UvIoPipe (readable, writable)
-							| VEnumValue {eindex = 1} -> Uv.UvIoIgnore
-							| VEnumValue {eindex = 2} -> Uv.UvIoInherit
+								let pipe = Pipe.this pipe in
+								Uv.UvIoPipe (readable, writable, pipe)
+							| 1, [] -> Uv.UvIoIgnore
+							| 2, [] -> Uv.UvIoInherit
 							| _ -> assert false
 						) (decode_array stdio)) in
 					let uid = decode_int uid in
@@ -4005,7 +4040,8 @@ let init_constructors builtins =
 	add key_eval_uv_Socket StdUv.Socket.new_;
 	add key_eval_uv_UdpSocket StdUv.UdpSocket.new_;
 	add key_eval_uv_Timer StdUv.Timer.new_;
-	add key_eval_uv_Process StdUv.Process.new_
+	add key_eval_uv_Process StdUv.Process.new_;
+	add key_eval_uv_Pipe StdUv.Pipe.new_
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -4567,4 +4603,10 @@ let init_standard_library builtins =
 		"getPid",StdUv.Process.getPid;
 		"ref",StdUv.Process.ref_;
 		"unref",StdUv.Process.unref;
+	];
+	init_fields builtins (["eval";"uv"],"Pipe") [] [
+		"write",StdUv.Pipe.write;
+		"startRead",StdUv.Pipe.startRead;
+		"stopRead",StdUv.Pipe.stopRead;
+		"close",StdUv.Pipe.close;
 	]

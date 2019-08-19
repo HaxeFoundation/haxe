@@ -245,10 +245,14 @@ external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"
 type process_cb = (int * int) uv_result -> unit
 
 type process_io =
-	| UvIoPipe of bool * bool
+	| UvIoPipe of bool * bool * t_pipe
 	| UvIoIgnore
 	| UvIoInherit
 
 external spawn : t_loop -> process_cb -> string -> string array -> string array -> string -> int -> process_io array -> int -> int -> t_process uv_result = "w_spawn_bytecode" "w_spawn"
 external process_kill : t_process -> int -> unit uv_result = "w_process_kill"
 external process_get_pid : t_process -> int = "w_process_get_pid"
+
+(* ------------- PIPES ---------------------------------------------- *)
+
+external pipe_init : t_loop -> bool -> t_pipe uv_result = "w_pipe_init"
