@@ -73,7 +73,7 @@ let filter_somehow ctx items subject kind po =
 	in
 	let rec loop items index =
 		match items with
-		| _ when DynArray.length ret > !max_completion_items ->
+		| _ when DynArray.length ret >= !max_completion_items ->
 			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
