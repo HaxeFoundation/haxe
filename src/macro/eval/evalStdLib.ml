@@ -3846,6 +3846,11 @@ module StdUv = struct
 			let this = this vthis in
 			vint (Uv.process_get_pid this)
 		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.close this (wrap_cb_unit cb));
+			vnull
+		)
 		let ref_ = wrap_ref this
 		let unref = wrap_unref this
 	end
@@ -4601,6 +4606,7 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"uv"],"Process") [] [
 		"kill",StdUv.Process.kill;
 		"getPid",StdUv.Process.getPid;
+		"close",StdUv.Process.close;
 		"ref",StdUv.Process.ref_;
 		"unref",StdUv.Process.unref;
 	];
