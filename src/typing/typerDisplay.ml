@@ -399,9 +399,9 @@ and display_expr ctx e_ast e dk with_type p =
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->
 				display_fields e1 e2 (String.length s)
-			(* | EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
+			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
 				(* This is what the parser emits for #8651. Bit of a dodgy heuristic but should be fine. *)
-				raise_toplevel ctx dk with_type (name,pn) None *)
+				raise_toplevel ctx dk with_type (name,pn) None
 			| _ ->
 				if dk = DKDot then display_fields e_ast e 0
 				else begin
