@@ -439,14 +439,14 @@ let collect ctx tk with_type =
 	t();
 	l
 
-let collect_and_raise ctx tk with_type cr subject pinsert =
+let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	let fields = match !DisplayException.last_completion_pos with
-	| Some p' when (pos subject).pmin = p'.pmin ->
+	| Some p' when pname.pmin = p'.pmin ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
 		collect ctx tk with_type
 	in
-	DisplayException.raise_fields2 fields cr pinsert subject
+	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in

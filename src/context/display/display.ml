@@ -43,7 +43,7 @@ module ExprPreprocessing = struct
 		let annotate_marked e = annotate e DKMarked in
 		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
 		let loop_el el =
-			let pr = DisplayPosition.display_position#get in
+			let pr = DisplayPosition.display_position#with_pos (pos e) in
 			let rec loop el = match el with
 				| [] -> [mk_null pr]
 				| e :: el ->

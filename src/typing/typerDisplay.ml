@@ -140,9 +140,9 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
 
-let raise_toplevel ctx dk with_type (subject,psubject) po =
+let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
-	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) po
+	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) psubject
 
 let display_dollar_type ctx p make_type =
 	let mono = mk_mono() in
@@ -394,20 +394,22 @@ and display_expr ctx e_ast e dk with_type p =
 		let display_fields e_ast e1 l =
 			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in
 			let item = completion_item_of_expr ctx e1 in
-			raise_fields fields (CRField(item,e1.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - l;})
+			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject None ~start_pos:(Some (pos e_ast)) {e.epos with pmin = e.epos.pmax - l;})
 		in
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->
 				display_fields e1 e2 (String.length s)
 			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
 				(* This is what the parser emits for #8651. Bit of a dodgy heuristic but should be fine. *)
-				raise_toplevel ctx dk with_type (name,pn) None
+				raise_toplevel ctx dk with_type (name,pn)
 			| _ ->
 				if dk = DKDot then display_fields e_ast e 0
 				else begin
 					let name = try String.concat "." (string_list_of_expr_path_raise e_ast) with Exit -> "" in
 					let name = if name = "null" then "" else name in
-					raise_toplevel ctx dk with_type (name,pos e_ast) None
+					let p = pos e_ast in
+					let p = if name <> "" then p else (DisplayPosition.display_position#with_pos p) in
+					raise_toplevel ctx dk with_type (name,p)
 				end
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
@@ -434,7 +436,7 @@ and display_expr ctx e_ast e dk with_type p =
 			end with Error _ | Not_found ->
 				None
 		in
-		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) None
+		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (pos e_ast))
 
 let handle_structure_display ctx e fields origin =
 	let p = pos e in
@@ -444,18 +446,36 @@ let handle_structure_display ctx e fields origin =
 		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
+	let make_field_item cf =
+		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)
+	in
 	match fst e with
 	| EObjectDecl fl ->
-		let fields = List.fold_left (fun acc cf ->
-			if Expr.field_mem_assoc cf.cf_name fl then acc
-			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) :: acc
-		) [] fields in
-		raise_fields fields CRStructureField None
+		let fields = ref fields in
+		let rec loop subj fl = match fl with
+			| [] -> subj
+			| ((n,p,_),_) :: fl ->
+				let subj = if DisplayPosition.display_position#enclosed_in p then
+					Some(n,p)
+				else begin
+					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
+					subj
+				end in
+				loop subj fl
+		in
+		let subj = loop None fl in
+		let name,pinsert = match subj with
+			| None -> None,DisplayPosition.display_position#with_pos (pos e)
+			| Some(name,p) -> Some name,p
+		in
+		let fields = List.map make_field_item !fields in
+		raise_fields fields CRStructureField (make_subject name pinsert)
 	| EBlock [] ->
 		let fields = List.fold_left (fun acc cf ->
-			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type) :: acc
+			(make_field_item cf) :: acc
 		) [] fields in
-		raise_fields fields CRStructureField None
+		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
+		raise_fields fields CRStructureField (make_subject None pinsert)
 	| _ ->
 		error "Expected object expression" p
 
@@ -494,14 +514,14 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 		| Some fn -> fn ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type (n,p) (Some p)
+		else raise_toplevel ctx dk with_type (n,p)
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) None
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
 			raise err
 		end else
-			raise_toplevel ctx dk with_type (s_type_path path,p) (Some p)
+			raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
@@ -547,7 +567,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 			| _ -> false
 		) r.fitems in
 		timer();
-		raise_fields l CRNew r.finsert_pos
+		raise_fields l CRNew r.fsubject
 	in
 	let e = match e.eexpr with
 		| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
@@ -604,6 +624,6 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 		begin try
 			handle_display ctx e dk with_type
 		with DisplayException(DisplayFields Some({fkind = CRToplevel _} as r)) ->
-			raise_fields r.fitems (CRPattern ((get_expected_type ctx with_type),outermost)) r.finsert_pos
+			raise_fields r.fitems (CRPattern ((get_expected_type ctx with_type),outermost)) r.fsubject
 		end
 	| _ -> handle_display ctx e dk with_type

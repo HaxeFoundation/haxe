@@ -1143,7 +1143,7 @@ with
 					| [] -> [],""
 				in
 				let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-				f (DisplayException.fields_to_json ctx fields kind None None);
+				f (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end
