@@ -115,7 +115,9 @@ let fields_to_json ctx fields kind po subject =
 		("items",jarray ja) ::
 		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range (Parser.cut_pos_at_display p)]) in
+		("filterString",(match subject with None -> jnull | Some(name,_) -> jstring name)) ::
+		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range (Parser.cut_pos_at_display p)])
+	in
 	jobject fl
 
 let to_json ctx de =
