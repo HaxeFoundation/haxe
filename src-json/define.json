@@ -434,6 +434,12 @@
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
 	},
 	{
+		"name": "KeepInlinePositions",
+		"define": "keep_inline_positions",
+		"doc": "Don't substitute positions of inlined expressions with the position of the place of inlining.",
+		"links": ["https://haxe.org/manual/class-field-inline.html"]
+	},
+	{
 		"name": "NoRoot",
 		"define": "no_root",
 		"doc": "Generate top-level types into the `haxe.root` namespace.",
