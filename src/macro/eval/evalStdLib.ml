@@ -3677,6 +3677,8 @@ module StdUv = struct
 			let size = decode_int size in
 			vint (Uv.udp_set_send_buffer_size this size)
 		)
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	module Dns = struct
@@ -4605,6 +4607,8 @@ let init_standard_library builtins =
 		"getSendBufferSize",StdUv.UdpSocket.getSendBufferSize;
 		"setRecvBufferSize",StdUv.UdpSocket.setRecvBufferSize;
 		"setSendBufferSize",StdUv.UdpSocket.setSendBufferSize;
+		"ref",StdUv.UdpSocket.ref_;
+		"unref",StdUv.UdpSocket.unref;
 	];
 	init_fields builtins (["nusys";"net"],"Dns") [
 		"lookup_native",StdUv.Dns.lookup_native;
