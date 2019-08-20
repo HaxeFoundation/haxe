@@ -33,7 +33,9 @@ let reify in_macro =
 		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
 		| Int i -> cst "CInt" i
-		| String(s,qs) -> cst "CString" s (* STRINGTODO: qs *)
+		| String(s,qs) ->
+			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
+			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
 		| Float s -> cst "CFloat" s
 		| Ident s -> cst "CIdent" s
 		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
