@@ -140,7 +140,6 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("Empty.hx", "");
 		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
 		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		var completion = parseCompletion();
 		assertHasCompletion(completion, module -> switch (module.kind) {
