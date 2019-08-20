@@ -590,7 +590,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		else if ExtType.is_void t then unify_min ctx el
 		else t
 	in
-	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
+	let map_pos =
+		if self_calling_closure || Common.defined ctx.com Define.KeepInlinePositions then (fun e -> e)
+		else (fun e -> { e with epos = p })
+	in
 	let rec map term in_call e =
 		let po = e.epos in
 		let e = map_pos e in

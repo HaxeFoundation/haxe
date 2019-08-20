@@ -1061,9 +1061,9 @@ with
 		begin
 			DisplayPosition.display_position#reset;
 			match ctx.com.json_out with
-			| Some (f,_,jsonrpc) ->
-				let ctx = DisplayJson.create_json_context jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
-				f (DisplayException.to_json ctx de)
+			| Some api ->
+				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
+				api.send_result (DisplayException.to_json ctx de)
 			| _ -> assert false
 		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
@@ -1136,14 +1136,14 @@ with
 		| None -> ()
 		| Some fields ->
 			begin match ctx.com.json_out with
-			| Some (f,_,jsonrpc) ->
-				let ctx = DisplayJson.create_json_context jsonrpc false in
+			| Some api ->
+				let ctx = DisplayJson.create_json_context api.jsonrpc false in
 				let path = match List.rev p with
 					| name :: pack -> List.rev pack,name
 					| [] -> [],""
 				in
 				let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-				f (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
+				api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end
