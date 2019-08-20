@@ -926,10 +926,9 @@ and parse_constraint_param s =
 		raise Stream.Failure;
 
 and parse_type_path_or_resume p1 s =
-	let pnext = next_pos s in
 	let check_resume exc =
-		if !in_display_file && display_position#enclosed_in (punion p1 pnext) then
-			(magic_type_path,punion_next p1 s),true
+		if would_skip_display_position p1 s then
+			(magic_type_path,display_position#with_pos p1),true
 		else
 			raise exc
 	in
