@@ -3767,6 +3767,13 @@ module StdUv = struct
 			wrap_sync (Uv.pipe_connect_ipc this path (wrap_cb_unit cb));
 			vnull
 		)
+		let getName fn = vifun0 (fun vthis ->
+			let this = this vthis in
+			let path = wrap_sync (fn this) in
+			encode_enum_value key_nusys_net_SocketAddress 1 [|encode_string path|] None
+		)
+		let getSockName = getName Uv.pipe_getsockname
+		let getPeerName = getName Uv.pipe_getpeername
 		let asStream = vifun0 (fun vthis ->
 			let this = this vthis in
 			let stream = Uv.stream_of_handle this in
@@ -4619,6 +4626,8 @@ let init_standard_library builtins =
 		"accept",StdUv.Pipe.accept;
 		"bindIpc",StdUv.Pipe.bindIpc;
 		"connectIpc",StdUv.Pipe.connectIpc;
+		"getSockName",StdUv.Pipe.getSockName;
+		"getPeerName",StdUv.Pipe.getPeerName;
 		"asStream",StdUv.Pipe.asStream;
 	];
 	init_fields builtins (["eval";"uv"],"Stream") [] [

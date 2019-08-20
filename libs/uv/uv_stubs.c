@@ -1199,3 +1199,21 @@ CAMLprim value w_pipe_connect_ipc(value handle, value path, value cb) {
 	uv_pipe_connect(Connect_val(req), Pipe_val(handle), String_val(path), (void (*)(uv_connect_t *, int))handle_stream_cb);
 	UV_SUCCESS_UNIT;
 }
+
+CAMLprim value w_pipe_getsockname(value handle) {
+	CAMLparam1(handle);
+	char path[256];
+	size_t path_size = 255;
+	UV_ERROR_CHECK(uv_pipe_getsockname(Pipe_val(handle), path, &path_size));
+	path[path_size] = 0;
+	UV_SUCCESS(caml_copy_string(path));
+}
+
+CAMLprim value w_pipe_getpeername(value handle) {
+	CAMLparam1(handle);
+	char path[256];
+	size_t path_size = 255;
+	UV_ERROR_CHECK(uv_pipe_getpeername(Pipe_val(handle), path, &path_size));
+	path[path_size] = 0;
+	UV_SUCCESS(caml_copy_string(path));
+}
