@@ -281,7 +281,11 @@ and parse_import s p1 =
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[],INormal)
+		| [< >] ->
+			if would_skip_display_position p1 s then
+				(display_position#with_pos p1,[],INormal)
+			else
+				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -307,7 +311,11 @@ and parse_using s p1 =
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[])
+		| [< >] ->
+			if would_skip_display_position p1 s then
+				(display_position#with_pos p1,[])
+			else
+				syntax_error (Expected ["identifier"]) s (p1,[])
 	) in
 	(EUsing path,punion p1 p2)
 
