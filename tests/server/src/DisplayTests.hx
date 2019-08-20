@@ -150,4 +150,30 @@ typedef Foo = {
 			case _: false;
 		});
 	}
+
+	function testIssue8651() {
+		var content = "class Main { static function main() { {-1-}buffer{-2-} } }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("buffer", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
+
+	function testIssue8659() {
+		var content = "class Main extends {-1-}StreamTokenizer{-2-} { }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("StreamTokenizer", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
 }

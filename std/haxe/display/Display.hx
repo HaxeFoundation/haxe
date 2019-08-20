@@ -435,6 +435,7 @@ typedef CompletionResponse<T1, T2> = {
 	var mode:CompletionMode<T2>;
 	var ?replaceRange:Range;
 	var ?isIncomplete:Bool;
+	var ?filterString:String;
 }
 
 typedef CompletionResult = Response<Null<CompletionResponse<Dynamic, Dynamic>>>;
