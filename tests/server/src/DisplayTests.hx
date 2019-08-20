@@ -312,14 +312,14 @@ typedef Foo = {
 		Assert.equals(transform.markers[1], r.replaceRange.start.character);
 		Assert.equals(transform.markers[1], r.replaceRange.end.character);
 
-		// var transform = Marker.extractMarkers("import {-1-}Cl{-2-}");
-		// vfs.putContent("Main.hx", transform.source);
-		// runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		// var result = parseCompletion();
-		// var r = result.result;
+		var transform = Marker.extractMarkers("import {-1-}Cl{-2-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
 		// Assert.equals("Cl", r.filterString);
-		// Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		// Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
 	}
 
 	function testIssue8669_using() {
@@ -331,13 +331,13 @@ typedef Foo = {
 		Assert.equals(transform.markers[1], r.replaceRange.start.character);
 		Assert.equals(transform.markers[1], r.replaceRange.end.character);
 
-		// var transform = Marker.extractMarkers("using {-1-}Cl{-2-}");
-		// vfs.putContent("Main.hx", transform.source);
-		// runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		// var result = parseCompletion();
-		// var r = result.result;
+		var transform = Marker.extractMarkers("using {-1-}Cl{-2-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
 		// Assert.equals("Cl", r.filterString);
-		// Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		// Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
 	}
 }
