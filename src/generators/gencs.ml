@@ -998,12 +998,12 @@ let generate con =
 			let ret t =
 				let t_changed = real_type stack t in
 				match is_hxgeneric, t_changed with
-				| false, _ -> t
 				(*
 					Because Null<> types need a special compiler treatment for many operations (e.g. boxing/unboxing),
 					Null<> type parameters will be transformed into Dynamic.
 				*)
-				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| _, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| false, _ -> t
 				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
