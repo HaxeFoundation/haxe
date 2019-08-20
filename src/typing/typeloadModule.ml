@@ -56,9 +56,9 @@ module StrictMeta = struct
 			| TAbstractDecl a -> a.a_path, a.a_meta
 		in
 		let rec loop acc = function
-			| (Meta.JavaCanonical,[EConst(String pack),_; EConst(String name),_],_) :: _ ->
+			| (Meta.JavaCanonical,[EConst(String(pack,_)),_; EConst(String(name,_)),_],_) :: _ ->
 				ExtString.String.nsplit pack ".", name
-			| (Meta.Native,[EConst(String name),_],_) :: meta ->
+			| (Meta.Native,[EConst(String(name,_)),_],_) :: meta ->
 				loop (Ast.parse_path name) meta
 			| _ :: meta ->
 				loop acc meta
@@ -86,7 +86,7 @@ module StrictMeta = struct
 		| TConst(TFloat f) ->
 			(EConst(Float f), expr.epos)
 		| TConst(TString s) ->
-			(EConst(String s), expr.epos)
+			(EConst(String(s,SDoubleQuotes)), expr.epos)
 		| TConst TNull ->
 			(EConst(Ident "null"), expr.epos)
 		| TConst(TBool b) ->

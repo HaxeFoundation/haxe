@@ -385,7 +385,7 @@ let rec type_field cfg ctx e i p mode =
 					true
 				| _ ->
 					List.exists (fun e -> match fst e with
-						| EConst(Ident s | String s) -> s = i
+						| EConst(Ident s | String(s,_)) -> s = i
 						| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
 					) el
 		with Not_found ->
@@ -409,7 +409,7 @@ let rec type_field cfg ctx e i p mode =
 					with Unify_error l ->
 						display_error ctx "Field resolve has an invalid type" f.cf_pos;
 						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Texpr.type_constant ctx.com.basic (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Texpr.type_constant ctx.com.basic (String(i,SDoubleQuotes)) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
@@ -610,7 +610,7 @@ let rec type_field cfg ctx e i p mode =
 				if is_write then
 					AKFieldSet(e,ef,i,r)
 				else
-					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String i),p] NoValue p)
+					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
 			in
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
 			get_resolve (mode = MSet)

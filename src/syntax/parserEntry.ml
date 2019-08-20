@@ -64,10 +64,10 @@ let rec eval ctx (e,p) =
 	match e with
 	| EConst (Ident i) ->
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
-	| EConst (String s) -> TString s
+	| EConst (String(s,_)) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
-	| ECall ((EConst (Ident "version"),_),[(EConst (String s), p)]) -> parse_version s p
+	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
@@ -165,7 +165,7 @@ let parse ctx code file =
 			process_token (enter_macro (snd tk))
 		| Sharp "error" ->
 			(match Lexer.token code with
-			| (Const (String s),p) -> error (Custom s) p
+			| (Const (String(s,_)),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with

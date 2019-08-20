@@ -171,7 +171,7 @@ and convert_signature ctx p jsig =
 
 let convert_constant ctx p const =
 	Option.map_default (function
-		| ConstString s -> Some (EConst (String s), p)
+		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
 		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
 		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
 		| _ -> None) None const
@@ -217,7 +217,7 @@ let del_override field =
 	{ field with jf_attributes = List.filter (fun a -> not (is_override_attrib a)) field.jf_attributes }
 
 let get_canonical ctx p pack name =
-	(Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst (String name), p], p)
+	(Meta.JavaCanonical, [EConst (String (String.concat "." pack,SDoubleQuotes)), p; EConst (String (name,SDoubleQuotes)), p], p)
 
 let show_in_completion ctx jc =
 	if not ctx.is_std then true
@@ -226,7 +226,7 @@ let show_in_completion ctx jc =
 		| _ -> false
 
 let convert_java_enum ctx p pe =
-	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ]) in
+	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
 	let data = ref [] in
 	List.iter (fun f ->
 		(* if List.mem JEnum f.jf_flags then *)
@@ -303,7 +303,7 @@ let convert_java_enum ctx p pe =
 		List.iter (fun jsig ->
 			match convert_signature ctx p jsig with
 				| CTPath path ->
-					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname))), p],p) :: !cff_meta
+					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname),SDoubleQuotes)), p],p) :: !cff_meta
 				| _ -> ()
 		) field.jf_throws;
 
@@ -358,17 +358,17 @@ let convert_java_enum ctx p pe =
 					let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 					if not (is_haxe_keyword name) then
 						cff_meta := (Meta.Deprecated, [EConst(String(
-							"This static field `_" ^ name ^ "` is deprecated and will be removed in later versions. Please use `" ^ name ^ "` instead")
+							"This static field `_" ^ name ^ "` is deprecated and will be removed in later versions. Please use `" ^ name ^ "` instead",SDoubleQuotes)
 						),p], p) :: !cff_meta;
 					"_" ^ name,
-					(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+					(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 				| _ ->
 					match String.nsplit cff_name "$" with
 						| [ no_dollar ] ->
 							cff_name, !cff_meta
 						| parts ->
 							String.concat "_" parts,
-							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
+							(Meta.Native, [EConst (String (cff_name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		in
 		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
@@ -417,7 +417,7 @@ let convert_java_enum ctx p pe =
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
 			(* todo: instead of JavaNative, use more specific definitions *)
-			let meta = ref [Meta.JavaNative, [], p; Meta.Native, [EConst (String (real_java_path ctx jc.cpath) ), p], p; get_canonical ctx p (fst jc.cpath) (snd jc.cpath)] in
+			let meta = ref [Meta.JavaNative, [], p; Meta.Native, [EConst (String (real_java_path ctx jc.cpath,SDoubleQuotes) ), p], p; get_canonical ctx p (fst jc.cpath) (snd jc.cpath)] in
 			let force_check = Common.defined ctx.jcom Define.ForceLibCheck in
 			if not force_check then
 				meta := (Meta.LibType,[],p) :: !meta;
@@ -912,11 +912,11 @@ class virtual java_library com name file_path = object(self)
 		Hashtbl.find hxpack_to_jpack path
 
 	method private replace_canonical_name p pack name_original name_replace decl =
-		let mk_meta name = (Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst(String name), p], p) in
+		let mk_meta name = (Meta.JavaCanonical, [EConst (String (String.concat "." pack,SDoubleQuotes)), p; EConst(String (name,SDoubleQuotes)), p], p) in
 		let add_meta name metas =
 			if Meta.has Meta.JavaCanonical metas then
 				List.map (function
-					| (Meta.JavaCanonical,[EConst (String cpack), _; EConst(String cname), _],_) ->
+					| (Meta.JavaCanonical,[EConst (String(cpack,_)), _; EConst(String(cname,_)), _],_) ->
 						let did_replace,name = String.replace cname name_original name_replace in
 						if not did_replace then print_endline (cname ^ " -> " ^ name_original ^ " -> " ^ name_replace);
 						mk_meta name

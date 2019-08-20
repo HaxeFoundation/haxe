@@ -160,6 +160,7 @@ let encode_enum i pos index pl =
 		| IDisplayKind -> key_haxe_macro_DisplayKind
 		| IMessage -> key_haxe_macro_Message
 		| IFunctionKind -> key_haxe_macro_FunctionKind
+		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind
 	in
 	encode_enum_value key index (Array.of_list pl) pos
 

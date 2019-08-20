@@ -723,7 +723,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			safe_decode v expected mret p process
 	in
 	let e = if ctx.in_macro then
-		Some (EThrow((EConst(String "macro-in-macro")),p),p)
+		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
 	else
 		call()
 	in
