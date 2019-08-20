@@ -174,6 +174,7 @@ external listen : 'a -> int -> unit_cb -> unit uv_result = "w_listen"
 external write : 'a -> bytes -> unit_cb -> unit uv_result = "w_write"
 external read_start : 'a -> stream_bytes_cb -> unit uv_result = "w_read_start"
 external read_stop : 'a -> unit uv_result = "w_read_stop"
+external stream_of_handle : 'a -> t_stream = "w_stream_of_handle"
 
 (* ------------- TCP ------------------------------------------------ *)
 
@@ -245,7 +246,7 @@ external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"
 type process_cb = (int * int) uv_result -> unit
 
 type process_io =
-	| UvIoPipe of bool * bool * t_pipe
+	| UvIoPipe of bool * bool * t_stream
 	| UvIoIgnore
 	| UvIoInherit
 
@@ -256,3 +257,6 @@ external process_get_pid : t_process -> int = "w_process_get_pid"
 (* ------------- PIPES ---------------------------------------------- *)
 
 external pipe_init : t_loop -> bool -> t_pipe uv_result = "w_pipe_init"
+external pipe_accept : t_loop -> t_pipe -> t_pipe uv_result = "w_pipe_accept"
+external pipe_bind_ipc : t_pipe -> string -> unit uv_result = "w_pipe_bind_ipc"
+external pipe_connect_ipc : t_pipe -> string -> unit_cb -> unit uv_result = "w_pipe_connect_ipc"

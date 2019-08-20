@@ -662,6 +662,11 @@ CAMLprim value w_read_stop(value stream) {
 	UV_SUCCESS_UNIT;
 }
 
+CAMLprim value w_stream_of_handle(value handle) {
+	CAMLparam1(handle);
+	CAMLreturn(handle);
+}
+
 // ------------- NETWORK MACROS -------------------------------------
 
 #define UV_SOCKADDR_IPV4(var, host, port) \
@@ -1167,4 +1172,30 @@ CAMLprim value w_pipe_init(value loop, value ipc) {
 	if (UV_HANDLE_DATA(Pipe_val(handle)) == NULL)
 		UV_ERROR(0);
 	UV_SUCCESS(handle);
+}
+
+CAMLprim value w_pipe_accept(value loop, value server) {
+	CAMLparam2(loop, server);
+	UV_ALLOC_CHECK(client, uv_pipe_t);
+	UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(client), 0), free(Pipe_val(client)));
+	UV_HANDLE_DATA(Pipe_val(client)) = alloc_data_pipe();
+	if (UV_HANDLE_DATA(Pipe_val(client)) == NULL)
+		UV_ERROR(0);
+	UV_ERROR_CHECK_C(uv_accept(Stream_val(server), Stream_val(client)), free(Pipe_val(client)));
+	UV_SUCCESS(client);
+}
+
+CAMLprim value w_pipe_bind_ipc(value handle, value path) {
+	CAMLparam2(handle, path);
+	UV_ERROR_CHECK(uv_pipe_bind(Pipe_val(handle), String_val(path)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_pipe_connect_ipc(value handle, value path, value cb) {
+	CAMLparam3(handle, path, cb);
+	UV_ALLOC_CHECK(req, uv_connect_t);
+	UV_REQ_DATA(Connect_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(Connect_val(req)));
+	uv_pipe_connect(Connect_val(req), Pipe_val(handle), String_val(path), (void (*)(uv_connect_t *, int))handle_stream_cb);
+	UV_SUCCESS_UNIT;
 }

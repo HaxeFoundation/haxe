@@ -3476,12 +3476,6 @@ module StdUv = struct
 			let s = wrap_sync (Uv.tcp_init (loop ())) in
 			encode_instance key_eval_uv_Socket ~kind:(IUv (UvTcp s))
 		)
-		let listen = vifun2 (fun vthis backlog cb ->
-			let this = this vthis in
-			let backlog = decode_int backlog in
-			wrap_sync (Uv.listen this backlog (wrap_cb_unit cb));
-			vnull;
-		)
 		let accept = vifun0 (fun vthis ->
 			let this = this vthis in
 			let res = wrap_sync (Uv.tcp_accept (loop ()) this) in
@@ -3515,36 +3509,6 @@ module StdUv = struct
 				| _ -> assert false);
 			vnull
 		)
-		let write = vifun2 (fun vthis data cb ->
-			let this = this vthis in
-			let data = decode_bytes data in
-			wrap_sync (Uv.write this data (wrap_cb_unit cb));
-			vnull
-		)
-		let startRead = vifun1 (fun vthis cb ->
-			let this = this vthis in
-			wrap_sync (Uv.read_start this (wrap_cb cb encode_bytes));
-			vnull
-		)
-		let stopRead = vifun0 (fun vthis ->
-			let this = this vthis in
-			wrap_sync (Uv.read_stop this);
-			vnull
-		)
-		let end_ = vifun1 (fun vthis cb ->
-			let this = this vthis in
-			wrap_sync (Uv.shutdown this (fun res ->
-				match res with
-					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
-					| Uv.UvSuccess () -> wrap_sync (Uv.close this (wrap_cb_unit cb))
-				));
-			vnull
-		)
-		let close = vifun1 (fun vthis cb ->
-			let this = this vthis in
-			wrap_sync (Uv.close this (wrap_cb_unit cb));
-			vnull
-		)
 		let setKeepAlive = vifun2 (fun vthis enable initialDelay ->
 			let this = this vthis in
 			let enable = decode_bool enable in
@@ -3569,8 +3533,11 @@ module StdUv = struct
 		)
 		let getSockName = getName Uv.tcp_getsockname
 		let getPeerName = getName Uv.tcp_getpeername
-		let ref_ = wrap_ref this
-		let unref = wrap_unref this
+		let asStream = vifun0 (fun vthis ->
+			let this = this vthis in
+			let stream = Uv.stream_of_handle this in
+			encode_instance key_eval_uv_Stream ~kind:(IUv (UvStream stream))
+		)
 	end
 
 	module UdpSocket = struct
@@ -3783,10 +3750,47 @@ module StdUv = struct
 					encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe pipe))
 				| _ -> assert false
 		)
+		let accept = vifun0 (fun vthis ->
+			let this = this vthis in
+			let res = wrap_sync (Uv.pipe_accept (loop ()) this) in
+			encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe res))
+		)
+		let bindIpc = vifun1 (fun vthis path ->
+			let this = this vthis in
+			let path = decode_string path in
+			Uv.pipe_bind_ipc this path;
+			vnull
+		)
+		let connectIpc = vifun2 (fun vthis path cb ->
+			let this = this vthis in
+			let path = decode_string path in
+			wrap_sync (Uv.pipe_connect_ipc this path (wrap_cb_unit cb));
+			vnull
+		)
+		let asStream = vifun0 (fun vthis ->
+			let this = this vthis in
+			let stream = Uv.stream_of_handle this in
+			encode_instance key_eval_uv_Stream ~kind:(IUv (UvStream stream))
+		)
+	end
+
+	module Stream = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvStream t)} -> t
+			| v -> unexpected_value v "UvStream"
 		let write = vifun2 (fun vthis data cb ->
 			let this = this vthis in
 			let data = decode_bytes data in
 			wrap_sync (Uv.write this data (wrap_cb_unit cb));
+			vnull
+		)
+		let end_ = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.shutdown this (fun res ->
+				match res with
+					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
+					| Uv.UvSuccess () -> wrap_sync (Uv.close this (wrap_cb_unit cb))
+				));
 			vnull
 		)
 		let startRead = vifun1 (fun vthis cb ->
@@ -3799,11 +3803,19 @@ module StdUv = struct
 			wrap_sync (Uv.read_stop this);
 			vnull
 		)
+		let listen = vifun2 (fun vthis backlog cb ->
+			let this = this vthis in
+			let backlog = decode_int backlog in
+			wrap_sync (Uv.listen this backlog (wrap_cb_unit cb));
+			vnull;
+		)
 		let close = vifun1 (fun vthis cb ->
 			let this = this vthis in
 			wrap_sync (Uv.close this (wrap_cb_unit cb));
 			vnull
 		)
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	module Process = struct
@@ -3822,7 +3834,7 @@ module StdUv = struct
 							| 0, [readable; writable; pipe] ->
 								let readable = decode_bool readable in
 								let writable = decode_bool writable in
-								let pipe = Pipe.this pipe in
+								let pipe = Stream.this pipe in
 								Uv.UvIoPipe (readable, writable, pipe)
 							| 1, [] -> Uv.UvIoIgnore
 							| 2, [] -> Uv.UvIoInherit
@@ -4561,19 +4573,12 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"uv"],"Socket") [] [
 		"bindTcp",StdUv.Socket.bindTcp;
 		"connectTcp",StdUv.Socket.connectTcp;
-		"listen",StdUv.Socket.listen;
 		"accept",StdUv.Socket.accept;
-		"write",StdUv.Socket.write;
-		"startRead",StdUv.Socket.startRead;
-		"stopRead",StdUv.Socket.stopRead;
-		"end",StdUv.Socket.end_;
-		"close",StdUv.Socket.close;
 		"setKeepAlive",StdUv.Socket.setKeepAlive;
 		"setNoDelay",StdUv.Socket.setNoDelay;
 		"getSockName",StdUv.Socket.getSockName;
 		"getPeerName",StdUv.Socket.getPeerName;
-		"ref",StdUv.Socket.ref_;
-		"unref",StdUv.Socket.unref;
+		"asStream",StdUv.Socket.asStream;
 	];
 	init_fields builtins (["eval";"uv"],"UdpSocket") [] [
 		"addMembership",StdUv.UdpSocket.addMembership;
@@ -4611,8 +4616,18 @@ let init_standard_library builtins =
 		"unref",StdUv.Process.unref;
 	];
 	init_fields builtins (["eval";"uv"],"Pipe") [] [
-		"write",StdUv.Pipe.write;
-		"startRead",StdUv.Pipe.startRead;
-		"stopRead",StdUv.Pipe.stopRead;
-		"close",StdUv.Pipe.close;
+		"accept",StdUv.Pipe.accept;
+		"bindIpc",StdUv.Pipe.bindIpc;
+		"connectIpc",StdUv.Pipe.connectIpc;
+		"asStream",StdUv.Pipe.asStream;
+	];
+	init_fields builtins (["eval";"uv"],"Stream") [] [
+		"listen",StdUv.Stream.listen;
+		"write",StdUv.Stream.write;
+		"startRead",StdUv.Stream.startRead;
+		"stopRead",StdUv.Stream.stopRead;
+		"end",StdUv.Stream.end_;
+		"close",StdUv.Stream.close;
+		"ref",StdUv.Stream.ref_;
+		"unref",StdUv.Stream.unref;
 	]

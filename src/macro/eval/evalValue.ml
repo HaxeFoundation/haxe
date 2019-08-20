@@ -99,6 +99,7 @@ type vuv_value =
 	| UvFsEvent of Uv.t_fs_event
 	| UvStat of Uv.t_stat
 	| UvDirent of (string * int)
+	| UvStream of Uv.t_stream
 	| UvTcp of Uv.t_tcp
 	| UvUdp of Uv.t_udp
 	| UvTimer of Uv.t_timer
