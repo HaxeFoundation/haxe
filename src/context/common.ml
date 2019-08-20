@@ -166,6 +166,12 @@ type shared_context = {
 	shared_display_information : shared_display_information;
 }
 
+type json_api = {
+	send_result : Json.t -> unit;
+	send_error : Json.t list -> unit;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
+}
+
 type context = {
 	(* config *)
 	version : int;
@@ -216,7 +222,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit) * Jsonrpc_handler.jsonrpc_handler) option;
+	mutable json_out : json_api option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;

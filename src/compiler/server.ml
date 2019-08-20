@@ -53,7 +53,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 		| _ ->
 			f_otherwise ()
 		end
-	| Some(_,f,_) ->
+	| Some api ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
@@ -67,7 +67,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 					"message",JString msg;
 				]
 			) (List.rev ctx.messages) in
-			f errors
+			api.send_error errors
 		end
 
 let default_flush ctx =

@@ -277,7 +277,11 @@ let parse_input com input report_times =
 		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
-	com.json_out <- Some(send_result,send_error,jsonrpc);
+	com.json_out <- Some({
+		send_result = send_result;
+		send_error = send_error;
+		jsonrpc = jsonrpc
+	});
 
 	let cs = match CompilationServer.get() with
 		| Some cs -> cs
