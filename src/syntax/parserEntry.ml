@@ -147,7 +147,7 @@ let parse ctx code file =
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
-			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment (pos tk);
+			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment None (pos tk);
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with

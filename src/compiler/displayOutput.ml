@@ -741,7 +741,7 @@ let find_doc t =
 	in
 	doc
 
-let handle_syntax_completion com kind p =
+let handle_syntax_completion com kind subj =
 	let open Parser in
 	let l,kind = match kind with
 		| SCClassRelation ->
@@ -751,7 +751,7 @@ let handle_syntax_completion com kind p =
 		| SCComment ->
 			[],CRTypeRelation
 		| SCTypeDecl mode ->
-			let in_import_hx = Filename.basename p.pfile = "import.hx" in
+			let in_import_hx = Filename.basename subj.s_insert_pos.pfile = "import.hx" in
 			let l = if in_import_hx then [] else [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
 				| TCBeforePackage -> Package :: Import :: Using :: l
@@ -786,4 +786,4 @@ let handle_syntax_completion com kind p =
 			raise (Completion s)
 		| Some api ->
 			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
-			api.send_result(fields_to_json ctx l kind (make_subject None p))
+			api.send_result(fields_to_json ctx l kind subj)

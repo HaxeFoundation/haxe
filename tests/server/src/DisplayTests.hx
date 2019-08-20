@@ -226,4 +226,42 @@ typedef Foo = {
 			case _: false;
 		});
 	}
+
+	function testIssue8669_type() {
+		var transform = Marker.extractMarkers("{-1-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+
+		var transform = Marker.extractMarkers("{-1-}cl{-2-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("cl", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
+
+	function testIssue8669_modifier() {
+		var transform = Marker.extractMarkers("extern {-1-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+
+		var transform = Marker.extractMarkers("extern {-1-}cl{-2-}");
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("cl", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
 }
