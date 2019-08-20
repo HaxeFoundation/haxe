@@ -569,6 +569,21 @@ and parse_type_path1 p0 pack = parser
 		parse_type_path2 p0 pack name p1 s
 
 and parse_type_path2 p0 pack name p1 s =
+	let check_display f =
+		let p = match p0 with
+			| None -> p1
+			| Some p -> punion p p1
+		in
+		if !in_display_file && display_position#enclosed_in p then begin
+			{
+				tpackage = List.rev pack;
+				tname = name;
+				tsub = None;
+				tparams = [];
+			},p
+		end else
+			f()
+	in
 	if is_lower_ident name then
 		(match s with parser
 		| [< '(Dot,p) >] ->
@@ -576,8 +591,9 @@ and parse_type_path2 p0 pack name p1 s =
 				(fun () -> raise (TypePath (List.rev (name :: pack),None,false,punion (match p0 with None -> p1 | Some p0 -> p0) p)))
 				(fun () -> parse_type_path1 (match p0 with None -> Some p1 | Some _ -> p0) (name :: pack) s)
 		| [< '(Semicolon,_) >] ->
-			error (Custom "Type name should start with an uppercase letter") p1
-		| [< >] -> serror())
+			check_display (fun () -> error (Custom "Type name should start with an uppercase letter") p1)
+		| [< >] ->
+			check_display serror)
 	else
 		let sub,p2 = (match s with parser
 			| [< '(Dot,p); s >] ->
