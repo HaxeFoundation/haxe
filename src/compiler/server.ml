@@ -538,6 +538,7 @@ let create sctx write params =
 				ServerMessage.class_paths_changed ctx.com "";
 				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
 				CompilationServer.clear_directories cs sign;
+				CompilationServer.set_initialized cs sign false;
 			end;
 		with Not_found ->
 			Hashtbl.add sctx.class_paths sign ctx.com.class_path;

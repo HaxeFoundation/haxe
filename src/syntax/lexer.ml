@@ -109,10 +109,10 @@ let is_valid_identifier s = try
 with Exit ->
 	false
 
-let init file do_add =
+let init file =
 	let f = make_file file in
 	cur := f;
-	if do_add then Hashtbl.replace all_files file f
+	Hashtbl.replace all_files file f
 
 let save() =
 	!cur

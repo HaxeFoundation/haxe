@@ -150,4 +150,80 @@ typedef Foo = {
 			case _: false;
 		});
 	}
+
+	function testIssue8651() {
+		var content = "class Main { static function main() { {-1-}buffer{-2-} } }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("buffer", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
+
+	function testIssue8657() {
+		var content = "class Main { static function main() { var x:{-1-}stream{-2-} } }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("stream", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
+
+	function testIssue8659() {
+		var content = "class Main extends {-1-}StreamTokenizer{-2-} { }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		var result = parseCompletion();
+		var r = result.result;
+		Assert.equals("StreamTokenizer", r.filterString);
+		Assert.equals(transform.markers[1], r.replaceRange.start.character);
+		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	}
+
+	function testIssue8666() {
+		vfs.putContent("cp1/HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("cp2/MyClass.hx", "class MyClass { }");
+		var args = ["-cp", "cp1", "--interp"];
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("cp1/HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "MyClass";
+			case _: false;
+		});
+		runHaxeJson(args.concat(["-cp", "cp2"]), DisplayMethods.Completion, {file: new FsPath("cp1/HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "MyClass";
+			case _: false;
+		});
+	}
+
+	function testIssue8666_lib() {
+		vfs.putContent("cp1/HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("cp2/MyClass.hx", "class MyClass { }");
+		var args = ["-cp", "cp1", "--interp"];
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("cp1/HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "MyClass";
+			case _: false;
+		});
+		runHaxeJson(args.concat(["-cp", "cp2", "-D", "imalibrary"]), DisplayMethods.Completion,
+			{file: new FsPath("cp1/HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "MyClass";
+			case _: false;
+		});
+	}
 }

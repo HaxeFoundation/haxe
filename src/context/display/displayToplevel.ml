@@ -59,7 +59,7 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 									let name = String.sub file 0 (l - 3) in
 									let path = (List.rev pack,name) in
 									let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
-									if (List.mem dot_path !exclude) then () else f_module path;
+									if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
 								with _ ->
 									()
 							end
@@ -74,36 +74,39 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 
 let read_class_paths com timer =
 	let sign = Define.get_signature com.defines in
-	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun path ->
-		let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
-		match CompilationServer.get() with
-		| Some cs when pack <> fst path ->
-			let file = Path.unique_full_path file in
-			CompilationServer.remove_file_for_real cs (file,sign)
-		| _ ->
-			()
+	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
+		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
+		if not (DisplayPosition.display_position#is_in_file file) then begin
+			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
+			match CompilationServer.get() with
+			| Some cs when pack <> fst path ->
+				let file = Path.unique_full_path file in
+				CompilationServer.remove_file_for_real cs (file,sign)
+			| _ ->
+				()
+		end
 	)
 
 let init_or_update_server cs com timer_name =
-	if not (CompilationServer.is_initialized cs) then begin
-		CompilationServer.set_initialized cs;
+	let sign = Define.get_signature com.defines in
+	if not (CompilationServer.is_initialized cs sign) then begin
+		CompilationServer.set_initialized cs sign true;
 		read_class_paths com timer_name
-	end else begin
-		(* Iterate all removed files of the current context. If they aren't part of the context again,
-		   re-parse them and remove them from c_removed_files. *)
-		let sign = Define.get_signature com.defines in
-		let removed_removed_files = DynArray.create () in
-		Hashtbl.iter (fun (file,sign') () ->
-			if sign = sign' then begin
-				DynArray.add removed_removed_files (file,sign');
-				try
-					ignore(find_file cs (file,sign));
-				with Not_found ->
-					try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
-			end;
-		) cs.cache.c_removed_files;
-		DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files;
-	end
+	end;
+	(* Iterate all removed files of the current context. If they aren't part of the context again,
+		re-parse them and remove them from c_removed_files. *)
+	let sign = Define.get_signature com.defines in
+	let removed_removed_files = DynArray.create () in
+	Hashtbl.iter (fun (file,sign') () ->
+		if sign = sign' then begin
+			DynArray.add removed_removed_files (file,sign');
+			try
+				ignore(find_file cs (file,sign));
+			with Not_found ->
+				try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+		end;
+	) cs.cache.c_removed_files;
+	DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files
 
 module CollectionContext = struct
 	open ImportStatus
@@ -386,7 +389,7 @@ let collect ctx tk with_type =
 		(* offline: explore class paths *)
 		let class_paths = ctx.com.class_path in
 		let class_paths = List.filter (fun s -> s <> "") class_paths in
-		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun path ->
+		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun file path ->
 			if not (path_exists cctx path) then begin
 				let _,decls = Display.parse_module ctx path Globals.null_pos in
 				ignore(process_decls (fst path) (snd path) decls)
