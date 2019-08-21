@@ -384,4 +384,16 @@ typedef Foo = {
 		checkReplaceRange(markers, 1, 2, response);
 		equals("get", response.filterString);
 	}
+
+	function testIssue8669_typedef() {
+		complete("typedef Foo = {-1-}
+		", 1);
+		checkReplaceRange(markers, 1, 1, response);
+		equals("", response.filterString);
+
+		complete("typedef Foo = {-1-}Cl{-2-}
+		", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+	}
 }

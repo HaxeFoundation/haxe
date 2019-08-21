@@ -110,7 +110,7 @@ let fields_to_json ctx fields kind subj =
 		("items",jarray ja) ::
 		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		("filterString",(match subj.s_name with None -> jnull | Some name -> jstring name)) ::
+		("filterString",(match subj.s_name with None -> jstring "" | Some name -> jstring name)) ::
 		("replaceRange",generate_pos_as_range (Parser.cut_pos_at_display subj.s_insert_pos)) ::
 		[]
 	in
