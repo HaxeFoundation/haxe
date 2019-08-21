@@ -186,7 +186,8 @@ and parse_type_decl mode s =
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
 				let check_display p1 =
-					if not had_display && !in_display_file && display_position#enclosed_in p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None p0
+					if not had_display && !in_display_file && display_position#enclosed_in p1 then
+						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None p0
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
@@ -205,10 +206,15 @@ and parse_type_decl mode s =
 					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
-					check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
-					syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
+					begin match Stream.peek s with
+					| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
+						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) (Some name) p
+					| _ ->
+						check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+						syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
+					end
 			in
-			let hl = loop false (last_pos s) [] in
+			let hl = loop false (next_pos s) [] in
 			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;

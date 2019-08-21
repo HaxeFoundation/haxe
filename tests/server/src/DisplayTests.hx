@@ -1,3 +1,4 @@
+import haxe.PosInfos;
 import haxe.display.Server;
 import utest.Assert;
 import utest.Assert.*;
@@ -237,9 +238,9 @@ typedef Foo = {
 		});
 	}
 
-	function checkReplaceRange<S, T>(markers:Map<Int, Int>, startIndex:Int, endIndex:Int, response:CompletionResponse<S, T>) {
-		equals(markers[startIndex], response.replaceRange.start.character);
-		equals(markers[endIndex], response.replaceRange.end.character);
+	function checkReplaceRange<S, T>(markers:Map<Int, Int>, startIndex:Int, endIndex:Int, response:CompletionResponse<S, T>, ?p:PosInfos) {
+		equals(markers[startIndex], response.replaceRange.start.character, p);
+		equals(markers[endIndex], response.replaceRange.end.character, p);
 	}
 
 	function testIssue8669_type() {
@@ -267,6 +268,13 @@ typedef Foo = {
 		complete("class C extends {-1-}Cl{-2-}", 2);
 		equals("Cl", response.filterString);
 		checkReplaceRange(markers, 1, 2, response);
+
+		complete("class C {-1-}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("class C {-1-}ex{-2-}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("ex", response.filterString);
 	}
 
 	function testIssue8669_implements() {
