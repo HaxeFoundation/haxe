@@ -1122,12 +1122,20 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 					break;
 			}
 		} else {
-			stdio_u[i].flags = UV_CREATE_PIPE;
-			if (Bool_val(Field(stdio_entry, 0)))
-				stdio_u[i].flags |= UV_READABLE_PIPE;
-			if (Bool_val(Field(stdio_entry, 1)))
-				stdio_u[i].flags |= UV_WRITABLE_PIPE;
-			stdio_u[i].data.stream = Stream_val(Field(stdio_entry, 2));
+			switch (Tag_val(stdio_entry)) {
+				case 0: // Pipe
+					stdio_u[i].flags = UV_CREATE_PIPE;
+					if (Bool_val(Field(stdio_entry, 0)))
+						stdio_u[i].flags |= UV_READABLE_PIPE;
+					if (Bool_val(Field(stdio_entry, 1)))
+						stdio_u[i].flags |= UV_WRITABLE_PIPE;
+					stdio_u[i].data.stream = Stream_val(Field(stdio_entry, 2));
+					break;
+				default: // 1, Ipc
+					stdio_u[i].flags = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+					stdio_u[i].data.stream = Stream_val(Field(stdio_entry, 0));
+					break;
+			}
 		}
 	}
 	uv_process_options_t options = {
@@ -1174,6 +1182,12 @@ CAMLprim value w_pipe_init(value loop, value ipc) {
 	UV_SUCCESS(handle);
 }
 
+CAMLprim value w_pipe_open(value pipe, value fd) {
+	CAMLparam2(pipe, fd);
+	UV_ERROR_CHECK(uv_pipe_open(Pipe_val(pipe), Int_val(fd)));
+	UV_SUCCESS_UNIT;
+}
+
 CAMLprim value w_pipe_accept(value loop, value server) {
 	CAMLparam2(loop, server);
 	UV_ALLOC_CHECK(client, uv_pipe_t);
@@ -1200,6 +1214,42 @@ CAMLprim value w_pipe_connect_ipc(value handle, value path, value cb) {
 	UV_SUCCESS_UNIT;
 }
 
+CAMLprim value w_pipe_pending_count(value handle) {
+	CAMLparam1(handle);
+	CAMLreturn(Val_int(uv_pipe_pending_count(Pipe_val(handle))));
+}
+
+CAMLprim value w_pipe_accept_pending(value loop, value handle) {
+	CAMLparam2(loop, handle);
+	CAMLlocal1(ret);
+	switch (uv_pipe_pending_type(Pipe_val(handle))) {
+		case UV_NAMED_PIPE: {
+			ret = caml_alloc(1, 0);
+			UV_ALLOC_CHECK(client, uv_pipe_t);
+			UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(client), 0), free(Pipe_val(client)));
+			UV_HANDLE_DATA(Pipe_val(client)) = alloc_data_pipe();
+			if (UV_HANDLE_DATA(Pipe_val(client)) == NULL)
+				UV_ERROR(0);
+			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Pipe_val(client)));
+			Store_field(ret, 0, client);
+		}; break;
+		case UV_TCP: {
+			ret = caml_alloc(1, 1);
+			UV_ALLOC_CHECK(client, uv_pipe_t);
+			UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(client)), free(Tcp_val(client)));
+			UV_HANDLE_DATA(Tcp_val(client)) = alloc_data_tcp(Val_unit, Val_unit);
+			if (UV_HANDLE_DATA(Tcp_val(client)) == NULL)
+				UV_ERROR(0);
+			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Tcp_val(client)));
+			Store_field(ret, 0, client);
+		}; break;
+		default:
+			UV_ERROR(0);
+			break;
+	}
+	UV_SUCCESS(ret);
+}
+
 CAMLprim value w_pipe_getsockname(value handle) {
 	CAMLparam1(handle);
 	char path[256];
@@ -1216,4 +1266,14 @@ CAMLprim value w_pipe_getpeername(value handle) {
 	UV_ERROR_CHECK(uv_pipe_getpeername(Pipe_val(handle), path, &path_size));
 	path[path_size] = 0;
 	UV_SUCCESS(caml_copy_string(path));
+}
+
+CAMLprim value w_pipe_write_handle(value handle, value data, value send_handle, value cb) {
+	CAMLparam4(handle, data, send_handle, cb);
+	UV_ALLOC_CHECK(req, uv_write_t);
+	UV_REQ_DATA(Write_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(Write_val(req)));
+	uv_buf_t buf = uv_buf_init(&Byte(data, 0), caml_string_length(data));
+	UV_ERROR_CHECK_C(uv_write2(Write_val(req), Stream_val(handle), &buf, 1, Stream_val(send_handle), (void (*)(uv_write_t *, int))handle_stream_cb), free(Write_val(req)));
+	UV_SUCCESS_UNIT;
 }

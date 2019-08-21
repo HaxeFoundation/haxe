@@ -3741,48 +3741,6 @@ module StdUv = struct
 		let unref = wrap_unref this
 	end
 
-	module Pipe = struct
-		let this vthis = match vthis with
-			| VInstance {ikind = IUv (UvPipe t)} -> t
-			| v -> unexpected_value v "UvPipe"
-		let new_ = (fun vl ->
-			match vl with
-				| [] ->
-					let pipe = wrap_sync (Uv.pipe_init (loop ()) false) in
-					encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe pipe))
-				| _ -> assert false
-		)
-		let accept = vifun0 (fun vthis ->
-			let this = this vthis in
-			let res = wrap_sync (Uv.pipe_accept (loop ()) this) in
-			encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe res))
-		)
-		let bindIpc = vifun1 (fun vthis path ->
-			let this = this vthis in
-			let path = decode_string path in
-			Uv.pipe_bind_ipc this path;
-			vnull
-		)
-		let connectIpc = vifun2 (fun vthis path cb ->
-			let this = this vthis in
-			let path = decode_string path in
-			wrap_sync (Uv.pipe_connect_ipc this path (wrap_cb_unit cb));
-			vnull
-		)
-		let getName fn = vifun0 (fun vthis ->
-			let this = this vthis in
-			let path = wrap_sync (fn this) in
-			encode_enum_value key_nusys_net_SocketAddress 1 [|encode_string path|] None
-		)
-		let getSockName = getName Uv.pipe_getsockname
-		let getPeerName = getName Uv.pipe_getpeername
-		let asStream = vifun0 (fun vthis ->
-			let this = this vthis in
-			let stream = Uv.stream_of_handle this in
-			encode_instance key_eval_uv_Stream ~kind:(IUv (UvStream stream))
-		)
-	end
-
 	module Stream = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvStream t)} -> t
@@ -3827,6 +3785,77 @@ module StdUv = struct
 		let unref = wrap_unref this
 	end
 
+	module Pipe = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvPipe t)} -> t
+			| v -> unexpected_value v "UvPipe"
+		let new_ = (fun vl ->
+			match vl with
+				| [ipc] ->
+					let ipc = decode_bool ipc in
+					let pipe = wrap_sync (Uv.pipe_init (loop ()) ipc) in
+					encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe pipe))
+				| _ -> assert false
+		)
+		let open_ = vifun1 (fun vthis fd ->
+			let this = this vthis in
+			let fd = decode_int fd in
+			wrap_sync (Uv.pipe_open this fd);
+			vnull
+		)
+		let accept = vifun0 (fun vthis ->
+			let this = this vthis in
+			let res = wrap_sync (Uv.pipe_accept (loop ()) this) in
+			encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe res))
+		)
+		let bindIpc = vifun1 (fun vthis path ->
+			let this = this vthis in
+			let path = decode_string path in
+			wrap_sync (Uv.pipe_bind_ipc this path);
+			vnull
+		)
+		let connectIpc = vifun2 (fun vthis path cb ->
+			let this = this vthis in
+			let path = decode_string path in
+			wrap_sync (Uv.pipe_connect_ipc this path (wrap_cb_unit cb));
+			vnull
+		)
+		let writeHandle = vifun3 (fun vthis data handle cb ->
+			let this = this vthis in
+			let data = decode_bytes data in
+			let handle = Stream.this handle in
+			wrap_sync (Uv.pipe_write_handle this data handle (wrap_cb_unit cb));
+			vnull
+		)
+		let pendingCount = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (Uv.pipe_pending_count this)
+		)
+		let acceptPending = vifun0 (fun vthis ->
+			let this = this vthis in
+			let accepted = wrap_sync (Uv.pipe_accept_pending (loop ()) this) in
+			match accepted with
+				| UvTcp v ->
+					let handle = encode_instance key_eval_uv_Socket ~kind:(IUv (UvTcp v)) in
+					encode_enum_value key_eval_uv_PipeAccept 0 [|handle|] None
+				| UvPipe v ->
+					let handle = encode_instance key_eval_uv_Pipe ~kind:(IUv (UvPipe v)) in
+					encode_enum_value key_eval_uv_PipeAccept 1 [|handle|] None
+		)
+		let getName fn = vifun0 (fun vthis ->
+			let this = this vthis in
+			let path = wrap_sync (fn this) in
+			encode_enum_value key_nusys_net_SocketAddress 1 [|encode_string path|] None
+		)
+		let getSockName = getName Uv.pipe_getsockname
+		let getPeerName = getName Uv.pipe_getpeername
+		let asStream = vifun0 (fun vthis ->
+			let this = this vthis in
+			let stream = Uv.stream_of_handle this in
+			encode_instance key_eval_uv_Stream ~kind:(IUv (UvStream stream))
+		)
+	end
+
 	module Process = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvProcess t)} -> t
@@ -3840,13 +3869,16 @@ module StdUv = struct
 					let cwd = decode_string cwd in
 					let flags = decode_int flags in
 					let stdio = Array.of_list (List.map (fun stdio -> match (decode_enum stdio) with
-							| 0, [readable; writable; pipe] ->
+							| 0, [] -> Uv.UvIoIgnore
+							| 1, [] -> Uv.UvIoInherit
+							| 2, [readable; writable; pipe] ->
 								let readable = decode_bool readable in
 								let writable = decode_bool writable in
 								let pipe = Stream.this pipe in
 								Uv.UvIoPipe (readable, writable, pipe)
-							| 1, [] -> Uv.UvIoIgnore
-							| 2, [] -> Uv.UvIoInherit
+							| 3, [pipe] ->
+								let pipe = Stream.this pipe in
+								Uv.UvIoIpc pipe
 							| _ -> assert false
 						) (decode_array stdio)) in
 					let uid = decode_int uid in
@@ -4627,9 +4659,13 @@ let init_standard_library builtins =
 		"unref",StdUv.Process.unref;
 	];
 	init_fields builtins (["eval";"uv"],"Pipe") [] [
+		"open",StdUv.Pipe.open_;
 		"accept",StdUv.Pipe.accept;
 		"bindIpc",StdUv.Pipe.bindIpc;
 		"connectIpc",StdUv.Pipe.connectIpc;
+		"writeHandle",StdUv.Pipe.writeHandle;
+		"pendingCount",StdUv.Pipe.pendingCount;
+		"acceptPending",StdUv.Pipe.acceptPending;
 		"getSockName",StdUv.Pipe.getSockName;
 		"getPeerName",StdUv.Pipe.getPeerName;
 		"asStream",StdUv.Pipe.asStream;

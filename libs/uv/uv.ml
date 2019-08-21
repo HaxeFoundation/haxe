@@ -246,9 +246,10 @@ external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"
 type process_cb = (int * int) uv_result -> unit
 
 type process_io =
-	| UvIoPipe of bool * bool * t_stream
 	| UvIoIgnore
 	| UvIoInherit
+	| UvIoPipe of bool * bool * t_stream
+	| UvIoIpc of t_stream
 
 external spawn : t_loop -> process_cb -> string -> string array -> string array -> string -> int -> process_io array -> int -> int -> t_process uv_result = "w_spawn_bytecode" "w_spawn"
 external process_kill : t_process -> int -> unit uv_result = "w_process_kill"
@@ -256,9 +257,17 @@ external process_get_pid : t_process -> int = "w_process_get_pid"
 
 (* ------------- PIPES ---------------------------------------------- *)
 
+type pipe_accepted =
+	| UvPipe of t_pipe
+	| UvTcp of t_tcp
+
 external pipe_init : t_loop -> bool -> t_pipe uv_result = "w_pipe_init"
+external pipe_open : t_pipe -> int -> unit uv_result = "w_pipe_open"
 external pipe_accept : t_loop -> t_pipe -> t_pipe uv_result = "w_pipe_accept"
 external pipe_bind_ipc : t_pipe -> string -> unit uv_result = "w_pipe_bind_ipc"
 external pipe_connect_ipc : t_pipe -> string -> unit_cb -> unit uv_result = "w_pipe_connect_ipc"
+external pipe_write_handle : t_pipe -> bytes -> t_stream -> unit_cb -> unit uv_result = "w_pipe_write_handle"
+external pipe_pending_count : t_pipe -> int = "w_pipe_pending_count"
+external pipe_accept_pending : t_loop -> t_pipe -> pipe_accepted uv_result = "w_pipe_accept_pending"
 external pipe_getsockname : t_pipe -> string uv_result = "w_pipe_getsockname"
 external pipe_getpeername : t_pipe -> string uv_result = "w_pipe_getpeername"
