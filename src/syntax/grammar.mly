@@ -550,7 +550,7 @@ and parse_structural_extension = parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
 				end;
-				magic_type_path,null_pos
+				magic_type_path,display_position#with_pos p1
 			end else raise Stream.Failure
 
 and parse_complex_type_inner allow_named = parser
@@ -684,7 +684,7 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< >] ->
 			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
-				make_fun ct null_pos
+				make_fun ct (display_position#with_pos pa)
 			end else serror()
 		end
 	| [< '(Binop OpAnd,pa); s >] ->
@@ -693,7 +693,7 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< >] ->
 			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
-				make_intersection ct null_pos
+				make_intersection ct (display_position#with_pos pa)
 			end else serror()
 		end
 	| [< >] -> t
@@ -703,7 +703,7 @@ and parse_function_type_next tl p1 = parser
 		begin match s with parser
 		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
 		| [< >] -> if would_skip_display_position pa s then begin
-				let ct = (CTPath magic_type_path),null_pos in
+				let ct = (CTPath magic_type_path),(display_position#with_pos pa) in
 				CTFunction (tl,ct), punion p1 pa
 			end else serror()
 		end

@@ -335,4 +335,20 @@ typedef Foo = {
 		checkReplaceRange(markers, 1, 2, response);
 		equals("Cl", response.filterString);
 	}
+
+	function testIssue8669_structuralExtension() {
+		complete("typedef Main = { } & {-1-}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("typedef Main = { } & {-1-}Cl{-2-}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+
+		complete("typedef Main = { > {-1-}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("typedef Main = { > {-1-}Cl{-2-}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+	}
 }
