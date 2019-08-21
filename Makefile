@@ -34,7 +34,7 @@ STATICLINK?=0
 HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators generators/jvm optimization filters macro macro/eval macro/eval/bytes typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib ptmap sha
+OPAM_LIBS=sedlex.ppx xml-light extlib ptmap sha
 
 FINDLIB_LIBS=$(OCAML_LIBS)
 FINDLIB_LIBS+=$(OPAM_LIBS)
@@ -141,7 +141,7 @@ _build/src/core/metaList.ml: src-json/meta.json prebuild
 build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
 
 prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
-	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
+	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex.ppx -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1

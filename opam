@@ -22,7 +22,7 @@ depends: [
   "ocaml"               {>= "4.02"}
   "ocamlfind"           {build}
   "camlp5"              {build}
-  "sedlex"              {build & <= "1.99.4"} #https://github.com/HaxeFoundation/haxe/issues/7958
+  "sedlex"              {build}
   "ppx_tools_versioned" {build & != "5.2.1"} #https://github.com/alainfrisch/sedlex/issues/64
   "xml-light"           {build}
   "extlib"              {build & >= "1.7.6"}
