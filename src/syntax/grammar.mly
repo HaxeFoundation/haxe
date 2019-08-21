@@ -959,7 +959,7 @@ and parse_class_herit = parser
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 (name,p,NoQuotes) (Ident name) p s
-	| [< '(Const (String name),p); s >] -> block2 (name,p,DoubleQuotes) (String name) p s
+	| [< '(Const (String(name,qs)),p); s >] -> block2 (name,p,DoubleQuotes) (String(name,qs)) p s (* STRINGTODO: qs... hmm *)
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p s =
@@ -1035,7 +1035,7 @@ and parse_obj_decl name e p0 s =
 			in
 			begin match s with parser
 				| [< name,p = ident >] -> next (name,p,NoQuotes)
-				| [< '(Const (String name),p) >] -> next (name,p,DoubleQuotes)
+				| [< '(Const (String(name,qs)),p) >] -> next (name,p,DoubleQuotes) (* STRINGTODO: use qs? *)
 				| [< >] -> acc,p_end
 			end
 		| [< >] -> acc,p_end
@@ -1538,8 +1538,8 @@ let rec parse_macro_cond s =
 		let cond = (match s with parser
 			| [< '(Const (Ident t),p) >] ->
 				parse_macro_ident t p s
-			| [< '(Const (String s),p) >] ->
-				None, (EConst (String s),p)
+			| [< '(Const (String(s,qs)),p) >] ->
+				None, (EConst (String(s,qs)),p)
 			| [< '(Const (Int i),p) >] ->
 				None, (EConst (Int i),p)
 			| [< '(Const (Float f),p) >] ->

@@ -17,7 +17,7 @@ let warn_deprecation com s p_usage =
 
 let print_deprecation_message com meta s p_usage =
 	let s = match meta with
-		| _,[EConst(String s),_],_ -> s
+		| _,[EConst(String(s,_)),_],_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
 	warn_deprecation com s p_usage

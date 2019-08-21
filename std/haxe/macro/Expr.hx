@@ -47,6 +47,11 @@ typedef Position = {
 }
 #end
 
+enum StringLiteralKind {
+	DoubleQuotes;
+	SingleQuotes;
+}
+
 /**
 	Represents a constant.
 	@see https://haxe.org/manual/expression-constants.html
@@ -65,7 +70,7 @@ enum Constant {
 	/**
 		Represents a string literal.
 	**/
-	CString(s:String);
+	CString(s:String, ?kind:StringLiteralKind);
 
 	/**
 		Represents an identifier.

@@ -30,13 +30,15 @@ let reify in_macro =
 		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
+		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
 		| Int i -> cst "CInt" i
-		| String s -> cst "CString" s
+		| String(s,qs) ->
+			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
+			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
 		| Float s -> cst "CFloat" s
 		| Ident s -> cst "CIdent" s
-		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
+		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
 	in
 	let rec to_binop o p =
 		let op n = mk_enum "Binop" n [] p in
@@ -71,7 +73,7 @@ let reify in_macro =
 		if len > 1 && s.[0] = '$' then
 			(EConst (Ident (String.sub s 1 (len - 1))),p)
 		else
-			(EConst (String s),p)
+			(EConst (String(s,SDoubleQuotes)),p)
 	in
 	let to_placed_name (s,p) =
 		to_string s p
@@ -215,7 +217,7 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String p.pfile),p) in
+		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
 		if in_macro then

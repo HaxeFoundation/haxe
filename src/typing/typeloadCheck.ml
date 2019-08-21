@@ -141,7 +141,7 @@ let get_native_name meta =
 	in
 	let (_,e,mp) = get_native meta in
 	match e with
-	| [Ast.EConst (Ast.String name),p] ->
+	| [Ast.EConst (Ast.String(name,_)),p] ->
 		name,p
 	| [] ->
 		raise Not_found

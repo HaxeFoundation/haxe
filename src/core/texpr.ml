@@ -314,7 +314,7 @@ let type_constant basic c p =
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
-	| String s -> mk (TConst (TString s)) basic.tstring p
+	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p

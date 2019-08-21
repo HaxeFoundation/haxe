@@ -272,7 +272,7 @@ let handle_xml_literal p1 =
 	Lexer.reset();
 	let i = Lexer.lex_xml p1.pmin !code_ref in
 	let xml = Lexer.contents() in
-	let e = EConst (String xml),{p1 with pmax = i} in
+	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in
 	e
 

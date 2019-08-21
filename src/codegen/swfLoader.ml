@@ -194,10 +194,10 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes)]) :: !meta;
 					[APublic,null_pos]
 				| HNInternal (Some ns) ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns; Ident "internal"]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes); Ident "internal"]) :: !meta;
 					[APublic,null_pos]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic,null_pos]
@@ -274,7 +274,7 @@ let build_class com c file =
 							| None -> None
 							| Some v ->
 								(* add for -D gen-hx-classes generation *)
-								meta := (Meta.DefParam,[String aname;v]) :: !meta;
+								meta := (Meta.DefParam,[String(aname,SDoubleQuotes);v]) :: !meta;
 								Some (EConst v,pos)
 					in
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
@@ -419,7 +419,7 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String native_path),null_pos)],null_pos)];
+			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
 			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
@@ -432,7 +432,7 @@ let build_class com c file =
 		match c.hlc_name with
 		| HMPath (pack,name) when (pack <> [] && pack <> path.tpackage) ->
 			let native_path = (String.concat "." pack) ^ "." ^ name in
-			[(Meta.Native,[(EConst (String native_path), pos)],pos)]
+			[(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)), pos)],pos)]
 		| _ ->
 			[]
 	in

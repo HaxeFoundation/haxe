@@ -1515,7 +1515,7 @@ and format_string ctx s p =
 	in
 	let add_sub start pos =
 		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
 	in
 	let len = String.length s in
 	let rec parse start pos =
@@ -2448,7 +2448,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
-	| EField ((EConst (String s),ps),"code") ->
+	| EField ((EConst (String(s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when starts_with n '$' ->
@@ -2465,7 +2465,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
-	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
+	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p

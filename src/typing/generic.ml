@@ -303,7 +303,7 @@ let rec build_generic ctx c p tl =
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
-			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],null_pos) :: cg.cl_meta;
+			cg.cl_meta <- (Meta.Native,[EConst(String (n,SDoubleQuotes)),p],null_pos) :: cg.cl_meta;
 		end;
 		TInst (cg,[])
 	end
