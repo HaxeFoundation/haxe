@@ -162,7 +162,7 @@ module ConditionDisplay = struct
 		| TNull -> "null",(Type.mk_mono(),CTMono)
 		| TBool b -> string_of_bool b,(com.basic.tbool,ct "Bool")
 		| TFloat f -> string_of_float f,(com.basic.tfloat,ct "Float")
-		| TString s -> s,(com.basic.tstring,ct "String")
+		| TString s -> "\"" ^ StringHelper.s_escape s ^ "\"",(com.basic.tstring,ct "String")
 		| TVersion(r,p) -> Semver.to_string (r,p),(com.basic.tstring,ct "String")
 
 	let check_condition com e =
@@ -194,7 +194,16 @@ let parse_module_file com file p =
 			| [] -> ()
 			end;
 			if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.display_information.dead_blocks file pdi.pd_dead_blocks;
-			List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
+			begin match com.display.dms_kind with
+			| DMHover ->
+				List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
+				List.iter (fun p ->
+					if DisplayPosition.display_position#enclosed_in p then
+						DisplayException.raise_hover (CompletionItem.make_ci_literal "" (Type.mk_mono(),CTMono)) None p
+				) pdi.pd_dead_blocks;
+			| _ ->
+				()
+			end;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
