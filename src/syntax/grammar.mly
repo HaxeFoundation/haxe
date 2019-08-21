@@ -1548,8 +1548,8 @@ let rec parse_macro_cond s =
 				parse_macro_ident (s_keyword k) p s
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->
 				tk, make_unop op e p
-			| [< '(POpen,p1); (e,p) = expr; '(PClose,_) >] ->
-				None, (EParenthesis(validate_macro_cond s (e,p)),p1)) in
+			| [< '(POpen,p1); (e,p) = expr; '(PClose,p2) >] ->
+				None, (EParenthesis(validate_macro_cond s (e,p)),punion p1 p2)) in
 		parsing_macro_cond := false;
 		cond
 	with e ->

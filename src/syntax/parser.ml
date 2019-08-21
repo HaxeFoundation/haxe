@@ -72,7 +72,7 @@ type parse_error = (error_msg * pos)
 
 type 'a parse_result =
 	(* Parsed display file. There can be errors. *)
-	| ParseDisplayFile of 'a * parse_error list
+	| ParseDisplayFile of 'a * parse_error list * pos list
 	(* Parsed non-display-file without errors. *)
 	| ParseSuccess of 'a
 	(* Parsed non-display file with errors *)
