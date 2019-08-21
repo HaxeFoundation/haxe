@@ -303,4 +303,36 @@ typedef Foo = {
 		// equals("Cl", response.filterString);
 		checkReplaceRange(markers, 1, 2, response);
 	}
+
+	function testIssue8669_to() {
+		complete("abstract A(String) to {-1-}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("abstract A(String) to {-1-} { }", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("abstract A(String) to {-1-}Cl{-2-}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+
+		complete("abstract A(String) to {-1-}Cl{-2-} { }", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+	}
+
+	function testIssue8669_from() {
+		complete("abstract A(String) from {-1-}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("abstract A(String) from {-1-} { }", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("abstract A(String) from {-1-}Cl{-2-}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+
+		complete("abstract A(String) from {-1-}Cl{-2-} { }", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Cl", response.filterString);
+	}
 }

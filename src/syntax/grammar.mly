@@ -330,7 +330,7 @@ and parse_abstract_relations s =
 		if !in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
-			((CTPath magic_type_path,p2))
+			((CTPath magic_type_path,display_position#with_pos p2))
 		else
 			(ct,p2)
 	in
@@ -495,7 +495,11 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< s >] -> if would_skip_display_position p s then CTPath magic_type_path,p else serror()
+	| [< s >] ->
+		if would_skip_display_position p s then
+			CTPath magic_type_path,display_position#with_pos p
+		else
+			serror()
 
 and parse_type_hint = parser
 	| [< '(DblDot,p1); s >] ->
