@@ -274,7 +274,15 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function map<S>(f:T->S):Array<S>;
+	@:runtime inline function map<S>(f:T->S):Array<S> {
+		#if (cpp && !cppia)
+		var result = cpp.NativeArray.create(length);
+		for (i in 0...length) cpp.NativeArray.unsafeSet(result, i, f(cpp.NativeArray.unsafeGet(this, i)));
+		return result;
+		#else
+		return [for (v in this) f(v)];
+		#end
+	}
 
 	/**
 		Returns an Array containing those elements of `this` for which `f`
@@ -284,7 +292,9 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function filter(f:T->Bool):Array<T>;
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
 
 	/**
 		Set the length of the Array.
