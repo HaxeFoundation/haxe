@@ -483,7 +483,8 @@ module TypePathHandler = struct
 			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
 			   does not raise another TypePath exception. However, we still want to have it treated like the
 			   display file, so we just set the position to 0 (#6558). *)
-			DisplayPosition.display_position#set {DisplayPosition.display_position#get with pmin = 0; pmax = 0};
+			let old = DisplayPosition.display_position#get in
+			DisplayPosition.display_position#set {old with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					TypeloadModule.load_module ctx (p,s_module) null_pos
@@ -495,7 +496,7 @@ module TypePathHandler = struct
 					else
 						raise e
 			in
-			let m = lookup sl_pack in
+			let m = Std.finally (fun () -> DisplayPosition.display_position#set old) lookup sl_pack in
 			let statics = ref None in
 			let enum_statics = ref None in
 			let public_types = List.filter (fun t ->
