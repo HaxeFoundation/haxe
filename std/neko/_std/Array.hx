@@ -295,7 +295,7 @@
 		return ret;
 	}
 
-	public inline function filter( f : T -> Bool ) : Array<T> {
+	public inline function filter(f:T->Bool):Array<T> {
 		var ret = [];
 		for (elt in this)
 			if (f(elt))
