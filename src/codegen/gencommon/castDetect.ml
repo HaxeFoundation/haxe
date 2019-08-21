@@ -334,17 +334,6 @@ let rec handle_cast gen e real_to_t real_from_t =
 		| TInst( { cl_path = ([], "String") }, []), _ ->
 			mk_cast false to_t e
 		| TInst( ({ cl_path = (["cs"|"java"], "NativeArray") } as c_array), [tp_to] ), TInst({ cl_path = (["cs"|"java"], "NativeArray") }, [tp_from]) when not (type_iseq gen (gen.greal_type tp_to) (gen.greal_type tp_from)) ->
-				(* when running e.g. var nativeArray:NativeArray<Dynamic> = @:privateAccess someIntMap.vals, we end up with a bad cast because of the type parameters differences *)
-				(* se clean these kinds of casts *)
-				let rec clean_cast e = match e.eexpr with
-					| TCast(expr,_) -> (match gen.greal_type e.etype with
-						| TInst({ cl_path = (["cs"|"java"],"NativeArray") }, _) ->
-							clean_cast expr
-						| _ ->
-							e)
-					| TParenthesis(e) | TMeta(_,e) -> clean_cast e
-					| _ -> e
-				in
 			(* see #5751 . NativeArray is special because of its ties to Array. We could potentially deal with this for all *)
 			(* TNew expressions, but it's not that simple, since we don't want to retype the whole expression list with the *)
 			(* updated type. *)
