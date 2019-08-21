@@ -1,7 +1,7 @@
 package flash.system;
 
-@:fakeEnum(String) extern enum TouchscreenType {
-	FINGER;
-	NONE;
-	STYLUS;
+@:native("flash.system.TouchscreenType") extern enum abstract TouchscreenType(String) {
+	var FINGER;
+	var NONE;
+	var STYLUS;
 }

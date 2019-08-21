@@ -55,4 +55,33 @@ class TestLoose {
 			var notNullable:String = o.o2.field;
 		}
 	}
+
+	function checkedAgainstNullInLocalFunction_shouldPass(?callback:()->Void) {
+		function bar() {
+			if (callback != null) {
+				callback();
+			}
+		}
+		bar();
+	}
+
+	static var struct:Null<{foo:String}>;
+
+	static function checkAgainstNull_checkAndFieldAccess() {
+		struct == null
+			|| struct.foo != ""
+			|| struct.foo != "";
+		struct != null
+			&& struct.foo != ""
+			&& struct.foo != "";
+	}
+
+	static function safeNullable_capturedInLocalFunction_shouldPass(?a:String) {
+		if(a == null) {
+			return;
+		}
+		var fn = function():String {
+			return a;
+		}
+	}
 }

@@ -1,8 +1,8 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum FontStyle {
-	BOLD;
-	BOLD_ITALIC;
-	ITALIC;
-	REGULAR;
+@:native("flash.text.FontStyle") extern enum abstract FontStyle(String) {
+	var BOLD;
+	var BOLD_ITALIC;
+	var ITALIC;
+	var REGULAR;
 }

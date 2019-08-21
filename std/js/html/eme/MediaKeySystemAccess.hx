@@ -24,6 +24,8 @@
 
 package js.html.eme;
 
+import js.lib.Promise;
+
 /**
 	The `MediaKeySystemAccess` interface of the EncryptedMediaExtensions API provides access to a Key System for decryption and/or a content protection provider. You can request an instance of this object using the `Navigator.requestMediaKeySystemAccess` method.
 
@@ -33,18 +35,18 @@ package js.html.eme;
 **/
 @:native("MediaKeySystemAccess")
 extern class MediaKeySystemAccess {
-	
+
 	/**
 		Returns a `DOMString` identifying the key system being used.
 	**/
 	var keySystem(default,null) : String;
-	
-	
+
+
 	/**
 		Returns a `MediaKeySystemConfiguration` object with the supported combination of configuration options.
 	**/
 	function getConfiguration() : MediaKeySystemConfiguration;
-	
+
 	/**
 		Returns a `Promise` that resolves to a new `MediaKeys` object.
 	**/

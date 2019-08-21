@@ -1,7 +1,7 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum GridFitType {
-	NONE;
-	PIXEL;
-	SUBPIXEL;
+@:native("flash.text.GridFitType") extern enum abstract GridFitType(String) {
+	var NONE;
+	var PIXEL;
+	var SUBPIXEL;
 }

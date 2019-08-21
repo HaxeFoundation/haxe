@@ -35,8 +35,8 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context may_resolve =
-	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let create_json_context jsonrpc may_resolve =
+	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string j =
 	raise (DisplayOutput.Completion j)
@@ -44,19 +44,10 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-let debug_context_sign = ref None
-
 class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 	val cs = cs;
 
 	method get_cs = cs
-
-	method set_debug_context_sign sign =
-		debug_context_sign := sign
-
-	method get_sign = match !debug_context_sign with
-		| None -> Define.get_signature com.defines
-		| Some sign -> sign
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -75,7 +66,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = file;
 			pmin = pos;
 			pmax = pos;
@@ -96,6 +87,9 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
+			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
+			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> assert false) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
 			hctx.send_result (JObject [
 				"methods",jarray methods;
@@ -108,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 2;
+					"minor",jint 3;
 					"patch",jint 0;
 				]
 			])
@@ -118,7 +112,7 @@ let handler =
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
 				let ctx = Genjson.create_context GMFull in
-				hctx.send_result (jobject ["item",CompletionItem.to_json ctx item])
+				hctx.send_result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
 				hctx.send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
 			end
@@ -157,37 +151,27 @@ let handler =
 		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
-				CompilationServer.set_initialized hctx.display#get_cs;
+				CompilationServer.set_initialized hctx.display#get_cs (Define.get_signature hctx.com.defines) true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
-				hctx.send_result (jstring "class paths read");
+				let files = CompilationServer.get_files hctx.display#get_cs in
+				hctx.send_result (jobject [
+					"files", jint (Hashtbl.length files)
+				]);
 			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,(jo,_)) -> jobject [
-				"signature",jstring (Digest.to_hex sign);
-				"context",jo;
-			]) (CompilationServer.get_signs hctx.display#get_cs) in
+			let l = List.map (fun (sign,csign) -> csign.cs_json) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.send_result (jarray l)
 		);
-		"server/select", (fun hctx ->
-			let i = hctx.jsonrpc#get_int_param "index" in
-			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs i
-			with Not_found ->
-				hctx.send_error [jstring "No such context"]
-			in
-			hctx.display#set_debug_context_sign (Some sign);
-			hctx.send_result (jstring (Printf.sprintf "Context %i selected" i))
-		 );
-		 "server/modules", (fun hctx ->
-			let sign = hctx.display#get_sign in
+		"server/modules", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let l = Hashtbl.fold (fun (_,sign') m acc ->
 				if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
 			) hctx.display#get_cs.cache.c_modules [] in
 			hctx.send_result (jarray l)
-		 );
+		);
 		"server/module", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let m = try
 				CompilationServer.find_module hctx.display#get_cs (path,sign)
@@ -196,15 +180,25 @@ let handler =
 			in
 			hctx.send_result (generate_module () m)
 		);
+		"server/moduleCreated", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let file = Path.unique_full_path file in
+			let cs = hctx.display#get_cs in
+			List.iter (fun (sign,_) ->
+				Hashtbl.replace cs.cache.c_removed_files (file,sign) ()
+			) (CompilationServer.get_signs cs);
+			hctx.send_result (jstring file);
+		);
 		"server/files", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
 			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
+			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (file,cfile) ->
 				jobject [
 					"file",jstring file;
 					"time",jfloat cfile.c_time;
-					"package",jstring (String.concat "." cfile.c_package);
+					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
 				]
 			) files in
@@ -213,7 +207,9 @@ let handler =
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			CompilationServer.taint_modules hctx.display#get_cs file;
+			let cs = hctx.display#get_cs in
+			CompilationServer.taint_modules cs file;
+			CompilationServer.remove_files cs file;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->
@@ -232,6 +228,10 @@ let handler =
 				()
 			) ();
 			hctx.send_result (jarray !l)
+		);
+		"server/memory",(fun hctx ->
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs in
+			hctx.send_result j
 		);
 		(* TODO: wait till gama complains about the naming, then change it to something else *)
 		"typer/compiledTypes", (fun hctx ->
@@ -264,6 +264,11 @@ let parse_input com input report_times =
 			| Some jo -> ("timers",jo) :: fl
 			end
 		end else fl in
+		let fl = if DynArray.length com.pass_debug_messages > 0 then
+			("passMessages",jarray (List.map jstring (DynArray.to_list com.pass_debug_messages))) :: fl
+		else
+			fl
+		in
 		let jo = jobject fl in
 		send_json (JsonRpc.result jsonrpc#get_id  jo)
 	in
@@ -272,7 +277,11 @@ let parse_input com input report_times =
 		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
-	com.json_out <- Some(send_result,send_error);
+	com.json_out <- Some({
+		send_result = send_result;
+		send_error = send_error;
+		jsonrpc = jsonrpc
+	});
 
 	let cs = match CompilationServer.get() with
 		| Some cs -> cs

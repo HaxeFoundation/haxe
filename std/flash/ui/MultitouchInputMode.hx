@@ -1,7 +1,7 @@
 package flash.ui;
 
-@:fakeEnum(String) @:require(flash10_1) extern enum MultitouchInputMode {
-	GESTURE;
-	NONE;
-	TOUCH_POINT;
+@:native("flash.ui.MultitouchInputMode") @:require(flash10_1) extern enum abstract MultitouchInputMode(String) {
+	var GESTURE;
+	var NONE;
+	var TOUCH_POINT;
 }

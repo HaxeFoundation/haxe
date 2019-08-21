@@ -2,8 +2,8 @@ package cases;
 
 class Issue7211 extends DisplayTestCase {
 	/**
-	var s:{f:String} = null;
-	switch s.{-1-}
+		var s:{f:String} = null;
+		switch s.{-1-}
 	**/
 	@:funcCode
 	function test() {

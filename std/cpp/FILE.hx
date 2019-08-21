@@ -24,5 +24,4 @@ package cpp;
 
 @:include("stdio.h")
 @:native(" ::cpp::Pointer<FILE>")
-extern class FILE { }
-
+extern class FILE {}

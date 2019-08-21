@@ -19,11 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi
 extern class Resource {
-	public static function listNames() : Array<String>;
-	public static function getString( name : String ) : String;
-	public static function getBytes( name : String ) : haxe.io.Bytes;
+	public static function listNames():Array<String>;
+	public static function getString(name:String):String;
+	public static function getBytes(name:String):haxe.io.Bytes;
 }

@@ -7,5 +7,6 @@ class Issue2989 extends Test
 		var n = null;
 		(n is Array);
 		new haxe.ds.Vector<Int>(10);
+		noAssert();
 	}
 }

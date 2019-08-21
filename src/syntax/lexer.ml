@@ -28,9 +28,9 @@ type error_msg =
 	| Unterminated_regexp
 	| Unclosed_comment
 	| Unclosed_code
-	| Invalid_escape of char
+	| Invalid_escape of char * (string option)
 	| Invalid_option
-	| Unterminated_xml
+	| Unterminated_markup
 
 exception Error of error_msg * pos
 
@@ -47,9 +47,10 @@ let error_msg = function
 	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
 	| Unclosed_code -> "Unclosed code string"
-	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
+	| Invalid_escape (c,None) -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
+	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
-	| Unterminated_xml -> "Unterminated XML literal"
+	| Unterminated_markup -> "Unterminated markup literal"
 
 type lexer_file = {
 	lfile : string;
@@ -108,10 +109,10 @@ let is_valid_identifier s = try
 with Exit ->
 	false
 
-let init file do_add =
+let init file =
 	let f = make_file file in
 	cur := f;
-	if do_add then Hashtbl.replace all_files file f
+	Hashtbl.replace all_files file f
 
 let save() =
 	!cur
@@ -197,7 +198,20 @@ let resolve_pos file =
 			| '\r' ->
 				ignore(input_char ch);
 				inc 2
-			| _ -> fun () -> 1
+			| c -> (fun () ->
+				let rec skip n =
+					if n > 0 then begin
+						ignore(input_char ch);
+						skip (n - 1)
+					end
+				in
+				let code = int_of_char c in
+				if code < 0xC0 then ()
+				else if code < 0xE0 then skip 1
+				else if code < 0xF0 then skip 2
+				else skip 3;
+				1
+			)
 		in
 		loop (p + i())
 	in
@@ -273,6 +287,18 @@ let ident = [%sedlex.regexp?
 		Plus '_',
 		'0'..'9',
 		Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
+	)
+]
+
+let sharp_ident = [%sedlex.regexp?
+	(
+		('a'..'z' | 'A'..'Z' | '_'),
+		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
+		Star (
+			'.',
+			('a'..'z' | 'A'..'Z' | '_'),
+			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
+		)
 	)
 ]
 
@@ -370,14 +396,14 @@ let rec token lexbuf =
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
-		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
-		mk_tok (Const (String str)) pmin pmax;
+		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
+		mk_tok (Const (String(str,SDoubleQuotes))) pmin pmax;
 	| "'" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
-		let t = mk_tok (Const (String str)) pmin pmax in
+		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
+		let t = mk_tok (Const (String(str,SSingleQuotes))) pmin pmax in
 		fast_add_fmt_string (snd t);
 		t
 	| "~/" ->
@@ -588,6 +614,14 @@ and not_xml ctx depth in_open =
 	| _ ->
 		assert false
 
+let rec sharp_token lexbuf =
+	match%sedlex lexbuf with
+	| sharp_ident -> mk_ident lexbuf
+	| Plus (Chars " \t") -> sharp_token lexbuf
+	| "\r\n" -> newline lexbuf; sharp_token lexbuf
+	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| _ -> token lexbuf
+
 let lex_xml p lexbuf =
 	let name,pmin = match%sedlex lexbuf with
 	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
@@ -605,4 +639,4 @@ let lex_xml p lexbuf =
 	try
 		not_xml ctx 0 (name <> "") (* don't allow self-closing fragments *)
 	with Exit ->
-		error Unterminated_xml p
+		error Unterminated_markup p

@@ -21,22 +21,17 @@ open EvalValue
 
 let vstring s = VString s
 
-let get_offset s =
-	let l = String.length s in
-	if l > 5 then VSOOne (ref (0,0))
-	else VSONone
-
 let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
-		soffset = get_offset s;
+		soffsets = [];
 	}
 
 let create_with_length s length = {
 	sstring = s;
 	slength = length;
-	soffset = get_offset s;
+	soffsets = [];
 }
 
 let create_unknown s =
@@ -57,7 +52,7 @@ let join sep sl =
 	) (true,0) sl in
 	create_with_length (Buffer.contents buf) length
 
-let get_offset s c_index =
+let get_offset' s c_index =
 	let rec get_b_offset c_len b_offset =
 		if c_len = 0 then b_offset else
 		get_b_offset (c_len - 1) (UTF8.next s.sstring b_offset)
@@ -66,11 +61,15 @@ let get_offset s c_index =
 		if c_len = 0 then b_offset else
 		rget_b_offset (c_len + 1) (UTF8.prev s.sstring b_offset)
 	in
-	match s.soffset with
-	| VSONone ->
-		get_b_offset c_index 0
-	| VSOOne r1 ->
-		let (c_index1,b_offset1) = !r1 in
+	match s.soffsets with
+	| [] ->
+		let b_offset = get_b_offset c_index 0 in
+		let r = (ref c_index,ref b_offset) in
+		s.soffsets <- r :: s.soffsets;
+		b_offset,r
+	| [(cr_index1,br_offset1) as r1] ->
+		let c_index1 = !cr_index1 in
+		let b_offset1 = !br_offset1 in
 		let diff = c_index - c_index1 in
 		let b_offset = match diff with
 			| 0 -> b_offset1
@@ -87,26 +86,31 @@ let get_offset s c_index =
 		in
 		(* If our jump is larger than the scientifically determined value 20, upgrade
 		   to two offset pointers. *)
-		if abs diff > 20 then s.soffset <- VSOTwo(r1,ref (c_index,b_offset))
-		else r1 := (c_index,b_offset);
-		b_offset
-	| VSOTwo(r1,r2) ->
-		let (c_index1,b_offset1) = !r1 in
-		let (c_index2,b_offset2) = !r2 in
+		let r = if diff > 20 || diff < -20 then begin
+			let r2 = (ref c_index,ref b_offset) in
+			s.soffsets <- r2 :: s.soffsets;
+			r2
+		end else
+			r1
+		in
+		b_offset,r
+	| [(cr_index1,br_offset1) as r1;(cr_index2,br_offset2) as r2] ->
+		let (c_index1,b_offset1) = !cr_index1,!br_offset1 in
+		let (c_index2,b_offset2) = !cr_index2,!br_offset2 in
 		let diff1 = c_index - c_index1 in
 		let diff2 = c_index - c_index2 in
-		let first,b_offset = match diff1,diff2 with
-			| 0,_ -> true,b_offset1
-			| _,0 -> false,b_offset2
-			| 1,_ -> true,UTF8.next s.sstring b_offset1
-			| _,1 -> false,UTF8.next s.sstring b_offset2
-			| -1,_ -> true,UTF8.prev s.sstring b_offset1
-			| _,-1 -> false,UTF8.prev s.sstring b_offset2
+		let r,b_offset = match diff1,diff2 with
+			| 0,_ -> r1,b_offset1
+			| _,0 -> r2,b_offset2
+			| 1,_ -> r1,UTF8.next s.sstring b_offset1
+			| _,1 -> r2,UTF8.next s.sstring b_offset2
+			| -1,_ -> r1,UTF8.prev s.sstring b_offset1
+			| _,-1 -> r2,UTF8.prev s.sstring b_offset2
 			| _ ->
-				let first,diff,b_offset' = if abs diff1 > abs diff2 then
-					false,diff2,b_offset2
+				let r,diff,b_offset' = if abs diff1 > abs diff2 then
+					r2,diff2,b_offset2
 				else
-					true,diff1,b_offset1
+					r1,diff1,b_offset1
 				in
 				let b_offset = if diff > 0 then
 					get_b_offset diff b_offset'
@@ -116,16 +120,68 @@ let get_offset s c_index =
 				else
 					rget_b_offset diff b_offset'
 				in
-				first,b_offset
+				r,b_offset
 		in
-		if first then r1 := (c_index,b_offset)
-		else r2 := (c_index,b_offset);
-		b_offset
+		b_offset,r
+	| _ ->
+		assert false
+
+let get_offset s c_index =
+	let b_offset,(cr_index,br_offset) = get_offset' s c_index in
+	cr_index := c_index;
+	br_offset := b_offset;
+	b_offset
 
 let char_at s c_index =
-	let b_offset = get_offset s c_index in
-	let char = UTF8.look s.sstring b_offset in
-	UChar.int_of_uchar char
+	let b_offset,(cr_index,br_offset) = get_offset' s c_index in
+	let i = b_offset in
+	let s = s.sstring in
+    let n = Char.code s.[i] in
+    let char,diff =
+		if n < 0x80 then n,1
+		else if n <= 0xdf then
+		(n - 0xc0) lsl 6 lor (0x7f land (Char.code s.[i + 1])),2
+		else if n <= 0xef then
+		let n' = n - 0xe0 in
+		let m0 = Char.code s.[i + 2] in
+		let m = Char.code (String.unsafe_get s (i + 1)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		n' lsl 6 lor (0x7f land m0),3
+		else if n <= 0xf7 then
+		let n' = n - 0xf0 in
+		let m0 = Char.code s.[i + 3] in
+		let m = Char.code (String.unsafe_get s (i + 1)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 2)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		n' lsl 6 lor (0x7f land m0),4
+		else if n <= 0xfb then
+		let n' = n - 0xf8 in
+		let m0 = Char.code s.[i + 4] in
+		let m = Char.code (String.unsafe_get s (i + 1)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 2)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 3)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		n' lsl 6 lor (0x7f land m0),5
+		else if n <= 0xfd then
+		let n' = n - 0xfc in
+		let m0 = Char.code s.[i + 5] in
+		let m = Char.code (String.unsafe_get s (i + 1)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 2)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 3)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		let m = Char.code (String.unsafe_get s (i + 4)) in
+		let n' = n' lsl 6 lor (0x7f land m) in
+		n' lsl 6 lor (0x7f land m0),6
+		else invalid_arg "UTF8.look"
+	in
+	cr_index := c_index + 1;
+	br_offset := b_offset + diff;
+	char
 
 let string_of_char_code i =
 	UTF8.init 1 (fun _ ->  UChar.uchar_of_int i)

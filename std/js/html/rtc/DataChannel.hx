@@ -54,6 +54,6 @@ extern class DataChannel extends js.html.EventTarget {
 	/** @throws DOMError */
 	@:overload( function( data : String ) : Void {} )
 	@:overload( function( data : js.html.Blob ) : Void {} )
-	@:overload( function( data : js.html.ArrayBuffer ) : Void {} )
-	function send( data : js.html.ArrayBufferView ) : Void;
+	@:overload( function( data : js.lib.ArrayBuffer ) : Void {} )
+	function send( data : js.lib.ArrayBufferView ) : Void;
 }

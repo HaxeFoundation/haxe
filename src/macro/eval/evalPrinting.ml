@@ -61,7 +61,7 @@ let rec s_object depth o =
 	) fields;
 	Buffer.add_string buf "}";
 	let s = Buffer.contents buf in
-	create_with_length s (UTF8.length s)
+	create_with_length s (try UTF8.length s with _ -> String.length s)
 
 and s_array depth va =
 	join rempty [
@@ -125,6 +125,7 @@ and s_value depth v =
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d
 	| VInstance {ikind=IPos p} -> create_ascii ("#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")") (* STODO: not ascii? *)
+	| VInstance {ikind=IRegex r} -> r.r_rex_string
 	| VInstance i -> (try call_to_string () with Not_found -> s_hash i.iproto.ppath)
 	| VObject o -> (try call_to_string () with Not_found -> s_object (depth + 1) o)
 	| VLazy f -> s_value depth (!f())

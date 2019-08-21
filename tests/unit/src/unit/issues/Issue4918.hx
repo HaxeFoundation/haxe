@@ -11,5 +11,6 @@ class Issue4918 extends Test {
 		var f = function() {
 			trace(minParams);
 		};
+		noAssert();
 	}
 }

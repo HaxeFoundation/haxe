@@ -1,6 +1,5 @@
 package cases;
 
-import TestSafeFieldInUnsafeClass;
 import Validator.shouldFail;
 
 private enum DummyEnum {
@@ -146,6 +145,7 @@ class TestStrict {
 			initializedInAllBranchesOfConstructor = 'hello';
 		}
 		shouldFail(acceptThis(this));
+		@:nullSafety(Off) acceptThis(this);
 		var self = this;
 		shouldFail(acceptThis(self));
 		shouldFail(instanceMethod());
@@ -267,6 +267,15 @@ class TestStrict {
 		shouldFail((true ? 'hello' : v).length);
 	}
 
+	static function ternary_returnedFromInlinedFunction_shouldPass() {
+		var str:String = inlinedNullableSafeString([null]);
+	}
+
+	static inline function inlinedNullableSafeString(nullables:Array<Null<String>>):String {
+		var s = nullables[0];
+		return (s != null ? s : 'hello' );
+	}
+
 	static function arrayAccess_nullableArray_shouldFail() {
 		var a:Null<Array<Int>> = null;
 		shouldFail(a[0]);
@@ -336,27 +345,35 @@ class TestStrict {
 		}
 	}
 
-	static function checkAgainstNull_checkAndFieldAccess(?a:String) {
-		var s:Null<String> = null;
+	static function checkAgainstNull_checkAndFieldAccess(?a:String, ?s:String) {
 		if(s != null && s.length == 0) {}
 		if(s == null || s.length == 0) {}
-		s != null && s.length == 0;
-		s == null || s.length == 0;
+		s != null
+			&& s.length == 0
+			&& s.length == 0;
+		s == null
+			|| s.length == 0
+			|| s.length == 0;
 		!(s == null || a == null) && s.length == a.length;
 
 		shouldFail(if(s != null || s.length == 0) {});
 		shouldFail(if(s == null && s.length == 0) {});
 		shouldFail(s != null || s.length == 0);
 		shouldFail(s == null && s.length == 0);
+	}
 
-		//checked against not-nullable value, so it's not null
-		var nullable:Null<String> = null;
+	static function checkedAgainstNotNullableValue(?a:String) {
 		var s = 'world';
-		if(nullable == s) {
-			s = nullable;
+		if(a == s) {
+			a.charAt(0);
 		} else {
-			shouldFail(s = nullable);
+			shouldFail(a.charAt(0));
 		}
+		// if(a != s) {
+		// 	shouldFail(a.charAt(0));
+		// } else {
+		// 	a.charAt(0);
+		// }
 	}
 
 	static function checkedAgainstNull_nullifiedAfterCheck_shouldFail(?a:String) {
@@ -543,6 +560,27 @@ class TestStrict {
 		while(a == null) shouldFail(b = a);
 	}
 
+	static function while_checkAgainstNullInConditionAndReassignInBody(?a:{value:String, ?parent:Dynamic}) {
+		while (a != null) {
+			var s:String = a.value;
+			a = a.parent;
+			shouldFail(a.value);
+		}
+
+		do {
+			a = shouldFail(a.parent);
+		} while (a != null);
+
+		a = {value:'hello', parent:null};
+		do {
+			var s:String = a.value;
+			a = a.parent;
+			shouldFail(a.value);
+		} while (a != null);
+
+		shouldFail(a.value);
+	}
+
 	static function throw_nullableValue_shouldFail() {
 		var s:Null<String> = null;
 		shouldFail(throw s);
@@ -712,9 +750,12 @@ class TestStrict {
 		}
 	}
 
-	static public function localNamedFunction_shouldPass() {
+	var foo:Null<String>;
+	public function localNamedFunction_shouldPass() {
 		function cb() {
-			cb();
+			if(foo != null) {
+				cb();
+			}
 		}
 	}
 
@@ -783,6 +824,12 @@ class TestStrict {
 		a = b;
 	}
 
+	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
 		if (o.f != null) {
@@ -801,6 +848,32 @@ class TestStrict {
 
 	static function return_assignNonNullable_shouldPass(?n:String):String {
 		return n = 'hello';
+	}
+
+	static function stringConcat_shouldPass(?a:String) {
+		'hello, ' + a;
+		a += 'hello';
+	}
+
+	static function stringConcat_twoNullables_shouldFail(?a:String, ?b:String) {
+		shouldFail(a + b);
+		shouldFail(a += b);
+	}
+
+	static function anonFields_checkedForNull() {
+		var i:Null<Int> = null;
+		shouldFail(({a: i} : {a:Int}));
+		if (i != null) {
+			({a: i} : {a:Int});
+			({a: i} : {a:Null<Int>});
+			({a: 0, b: i} : {a:Int, b: Int});
+		}
+	}
+
+	static function immediateFunction_keepsSafety(?s:String) {
+		if (s != null) {
+			(function() s.length)();
+		}
 	}
 }
 

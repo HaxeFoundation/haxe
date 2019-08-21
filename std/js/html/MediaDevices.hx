@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `MediaDevices` interface provides access to connected media input devices like cameras and microphones, as well as screen sharing. In essence, it lets you obtain access to any hardware source of media data.
 
@@ -33,12 +35,12 @@ package js.html;
 **/
 @:native("MediaDevices")
 extern class MediaDevices extends EventTarget {
-	
+
 	/**
 		The event handler for the `devicechange` event. This event is delivered to the `MediaDevices` object when a media input or output device is attached to or removed from the user's computer.
 	**/
 	var ondevicechange : haxe.Constraints.Function;
-	
+
 	function getSupportedConstraints() : MediaTrackSupportedConstraints;
 	/** @throws DOMError */
 	function enumerateDevices() : Promise<Array<MediaDeviceInfo>>;

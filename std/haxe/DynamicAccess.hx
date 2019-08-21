@@ -19,8 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
+import haxe.iterators.DynamicAccessIterator;
 import haxe.iterators.DynamicAccessKeyValueIterator;
 
 /**
@@ -32,11 +34,11 @@ import haxe.iterators.DynamicAccessKeyValueIterator;
 	Basically, it wraps `Reflect` calls in a `Map`-like interface.
 **/
 abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
-
 	/**
 		Creates a new structure.
 	**/
-	public inline function new() this = {};
+	public inline function new()
+		this = {};
 
 	/**
 		Returns a value by specified `key`.
@@ -78,7 +80,8 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function exists(key:String):Bool return Reflect.hasField(this, key);
+	public inline function exists(key:String):Bool
+		return Reflect.hasField(this, key);
 
 	/**
 		Removes a specified `key` from the structure.
@@ -87,17 +90,29 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function remove(key:String):Bool return Reflect.deleteField(this, key);
+	public inline function remove(key:String):Bool
+		return Reflect.deleteField(this, key);
 
 	/**
 		Returns an array of `keys` in a structure.
 	**/
-	public inline function keys():Array<String> return Reflect.fields(this);
-	
+	public inline function keys():Array<String>
+		return Reflect.fields(this);
+
 	/**
 		Returns a shallow copy of the structure
 	**/
-	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
+	public inline function copy():DynamicAccess<T>
+		return Reflect.copy(this);
+
+	/**
+		Returns an Iterator over the values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function iterator():DynamicAccessIterator<T> {
+		return new DynamicAccessIterator(this);
+	}
 
 	/**
 		Returns an Iterator over the keys and values of this `DynamicAccess`.

@@ -26,6 +26,7 @@ class Issue5031 extends Test {
 				case B:
 			}
 		}
+		noAssert();
 	}
 
 	function isInvalidFrameHeader(hdr:MP3Header) {

@@ -1,6 +1,6 @@
 package flash.system;
 
-@:fakeEnum(String) extern enum ImageDecodingPolicy {
-	ON_DEMAND;
-	ON_LOAD;
+@:native("flash.system.ImageDecodingPolicy") extern enum abstract ImageDecodingPolicy(String) {
+	var ON_DEMAND;
+	var ON_LOAD;
 }

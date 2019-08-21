@@ -1,9 +1,9 @@
 package flash.geom;
 
 @:require(flash10) extern class Matrix3D {
-	var determinant(default,never) : Float;
-	var position : Vector3D;
-	var rawData : flash.Vector<Float>;
+	@:flash.property var determinant(get,never) : Float;
+	@:flash.property var position(get,set) : Vector3D;
+	@:flash.property var rawData(get,set) : flash.Vector<Float>;
 	function new(?v : flash.Vector<Float>) : Void;
 	function append(lhs : Matrix3D) : Void;
 	function appendRotation(degrees : Float, axis : Vector3D, ?pivotPoint : Vector3D) : Void;
@@ -20,6 +20,9 @@ package flash.geom;
 	@:require(flash11) function copyToMatrix3D(dest : Matrix3D) : Void;
 	function decompose(?orientationStyle : Orientation3D) : flash.Vector<Vector3D>;
 	function deltaTransformVector(v : Vector3D) : Vector3D;
+	private function get_determinant() : Float;
+	private function get_position() : Vector3D;
+	private function get_rawData() : flash.Vector<Float>;
 	function identity() : Void;
 	function interpolateTo(toMat : Matrix3D, percent : Float) : Void;
 	function invert() : Bool;
@@ -29,6 +32,8 @@ package flash.geom;
 	function prependScale(xScale : Float, yScale : Float, zScale : Float) : Void;
 	function prependTranslation(x : Float, y : Float, z : Float) : Void;
 	function recompose(components : flash.Vector<Vector3D>, ?orientationStyle : Orientation3D) : Bool;
+	private function set_position(value : Vector3D) : Vector3D;
+	private function set_rawData(value : flash.Vector<Float>) : flash.Vector<Float>;
 	function transformVector(v : Vector3D) : Vector3D;
 	function transformVectors(vin : flash.Vector<Float>, vout : flash.Vector<Float>) : Void;
 	function transpose() : Void;

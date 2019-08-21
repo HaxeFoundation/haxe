@@ -218,12 +218,96 @@ class TestPhp extends Test
 
 	@:analyzer(no_user_var_fusion)
 	function testSyntaxNativeClassName() {
-		eq("Array_hx", Syntax.nativeClassName(Array));
-		eq("unit\\Annotation", Syntax.nativeClassName(Annotation));
+		var phpPrefix = #if php_prefix Boot.getPrefix() + "\\" #else "" #end;
+		eq(phpPrefix + "Array_hx", Syntax.nativeClassName(Array));
+		eq(phpPrefix + "unit\\Annotation", Syntax.nativeClassName(Annotation));
 		var cls = php.Web;
-		eq("php\\Web", Syntax.nativeClassName(cls));
+		eq(phpPrefix + "php\\Web", Syntax.nativeClassName(cls));
 		var enm = Annotation;
-		eq("unit\\Annotation", Syntax.nativeClassName(enm));
+		eq(phpPrefix + "unit\\Annotation", Syntax.nativeClassName(enm));
+	}
+
+	function testNativeString() {
+		var expected:php.NativeString = '123456';
+
+		var actual = '';
+		for(c in expected) {
+			actual += c;
+		}
+		eq(expected, actual);
+
+		var actual = '';
+		var keys = [];
+		for(i => c in expected) {
+			keys.push(i);
+			actual += c;
+		}
+		eq(expected, actual);
+		aeq([0, 1, 2, 3, 4, 5], keys);
+	}
+
+	function testNativeArray() {
+		var keys:Array<Dynamic> = ['hello', 12];
+		var values:Array<Dynamic> = [10, 'world'];
+		var a = new php.NativeArray();
+		for(i in 0...keys.length) {
+			a[keys[i]] = values[i];
+		}
+
+		var actualValues = [for(v in a) v];
+		aeq(values, actualValues);
+
+		var actualKeys:Array<Dynamic> = [];
+		var actualValues:Array<Dynamic> = [];
+		for(k => v in a) {
+			actualKeys.push(k);
+			actualValues.push(v);
+		}
+		aeq(keys, actualKeys);
+		aeq(values, actualValues);
+	}
+
+	function testNativeIndexedArray() {
+		var expected = [10, 20, 30];
+		var a = new NativeIndexedArray<Int>();
+		for(v in expected) {
+			a.push(v);
+		}
+
+		var actual = [for(v in a) v];
+		aeq(expected, actual);
+
+		var indexes = [];
+		var values = [];
+		for(i => v in a) {
+			indexes.push(i);
+			values.push(v);
+		}
+		aeq([for(i in 0...expected.length) i], indexes);
+		aeq(expected, values);
+
+		eq('[10,20,30]', Std.string(a));
+	}
+
+	function testNativeAssocArray() {
+		var keys = ['one', 'two'];
+		var values = [1, 2];
+		var a = new NativeAssocArray<Int>();
+		for(i in 0...keys.length) {
+			a[keys[i]] = values[i];
+		}
+
+		var actualValues = [for(v in a) v];
+		aeq(values, actualValues);
+
+		var actualKeys = [];
+		var actualValues = [];
+		for(k => v in a) {
+			actualKeys.push(k);
+			actualValues.push(v);
+		}
+		aeq(keys, actualKeys);
+		aeq(values, actualValues);
 	}
 }
 

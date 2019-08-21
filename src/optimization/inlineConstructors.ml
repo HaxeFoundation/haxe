@@ -165,7 +165,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || cf.cf_extern in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
 		| [] -> mk (TBlock[]) ctx.t.tvoid p
 		| [e] -> e
@@ -174,7 +174,7 @@ let inline_constructors ctx e =
 	let make_expr_for_rev_list (el:texpr list) (t:t) (p:pos) : texpr = make_expr_for_list (List.rev el) t p in
 	let current_io_id = ref 0 in
 	let increment_io_id e = match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ -> incr current_io_id
+		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) -> incr current_io_id
 		| _ -> ()
 	in
 	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =

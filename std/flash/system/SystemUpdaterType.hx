@@ -1,6 +1,6 @@
 package flash.system;
 
-@:fakeEnum(String) extern enum SystemUpdaterType {
-	DRM;
-	SYSTEM;
+@:native("flash.system.SystemUpdaterType") extern enum abstract SystemUpdaterType(String) {
+	var DRM;
+	var SYSTEM;
 }

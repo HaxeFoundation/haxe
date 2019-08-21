@@ -145,7 +145,7 @@ module BetterErrors = struct
 			s_type_path e.e_path ^ s_type_params ctx tl
 		| TInst (c,tl) ->
 			(match c.cl_kind with
-			| KExpr e -> Ast.s_expr e
+			| KExpr e -> Ast.Printer.s_expr e
 			| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 		| TType (t,tl) ->
 			s_type_path t.t_path ^ s_type_params ctx tl
@@ -290,3 +290,5 @@ let error_require r p =
 		"'" ^ r ^ "' to be enabled"
 	in
 	error ("Accessing this field requires " ^ r) p
+
+let invalid_assign p = error "Invalid assign" p

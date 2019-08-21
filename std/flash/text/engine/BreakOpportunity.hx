@@ -1,8 +1,8 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum BreakOpportunity {
-	ALL;
-	ANY;
-	AUTO;
-	NONE;
+@:native("flash.text.engine.BreakOpportunity") extern enum abstract BreakOpportunity(String) {
+	var ALL;
+	var ANY;
+	var AUTO;
+	var NONE;
 }

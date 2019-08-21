@@ -187,13 +187,13 @@ extern class DOMMatrixReadOnly {
 		Returns a `Float32Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
 		@throws DOMError
 	**/
-	function toFloat32Array() : Float32Array;
+	function toFloat32Array() : js.lib.Float32Array;
 	
 	/**
 		Returns a `Float64Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
 		@throws DOMError
 	**/
-	function toFloat64Array() : Float64Array;
+	function toFloat64Array() : js.lib.Float64Array;
 	
 	/**
 		Returns a JSON representation of the `DOMMatrixReadOnly` object.

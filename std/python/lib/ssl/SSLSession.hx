@@ -19,11 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.ssl;
 
 @:require(python_version >= 3.6)
 @:pythonImport("ssl", "SSLSession")
-extern class SSLSession {
-
-}
-
+extern class SSLSession {}

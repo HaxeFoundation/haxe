@@ -1,5 +1,3 @@
 class Empty {
-	public static function main() {
-
-	}
+	public static function main() {}
 }

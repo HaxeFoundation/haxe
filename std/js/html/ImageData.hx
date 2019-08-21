@@ -47,9 +47,9 @@ extern class ImageData {
 	/**
 		Is a `Uint8ClampedArray` representing a one-dimensional array containing the data in the RGBA order, with integer values between `0` and `255` (included).
 	**/
-	var data(default,null) : Uint8ClampedArray;
+	var data(default,null) : js.lib.Uint8ClampedArray;
 	
 	/** @throws DOMError */
 	@:overload( function( sw : Int, sh : Int ) : Void {} )
-	function new( data : Uint8ClampedArray, sw : Int, ?sh : Int ) : Void;
+	function new( data : js.lib.Uint8ClampedArray, sw : Int, ?sh : Int ) : Void;
 }

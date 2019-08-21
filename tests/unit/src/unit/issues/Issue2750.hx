@@ -19,11 +19,14 @@ private class Parent extends Test {
 
 class Issue2750 extends Parent {
 	function test() {
-		new Issue2750();
+		new Issue2750().run();
 	}
 
 	public function new() {
 		super();
+	}
+
+	function run() {
 		eq(3, foo());
 		eq(3, bind());
 		eq(3, match());

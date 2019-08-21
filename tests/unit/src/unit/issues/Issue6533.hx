@@ -31,5 +31,6 @@ class Issue6533 extends Test {
         var example:ClassWithNullableField<Int> = new ClassWithNullableField<Int>();
         example.nullableField = 42;
         var c = new AbstractC();
+		noAssert();
     }
 }

@@ -164,8 +164,7 @@ class TestXML extends Test {
 		var values = ['<', '>', '"', '&', "'", '&euro;', '@', "ô", String.fromCharCode(0x3F), "ÿ"];
 
 		for( i in 0...entities.length) {
-			infos(entities[i]);
-			eq( haxe.xml.Parser.parse(entities[i], false).firstChild().nodeValue, values[i] );
+			eq( values[i], haxe.xml.Parser.parse(entities[i], false).firstChild().nodeValue );
 		}
 
 		var s = "<a>&gt;<b>&lt;</b>&lt;&gt;<b>&gt;&lt;</b>\"</a>";

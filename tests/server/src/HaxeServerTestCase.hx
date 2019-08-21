@@ -1,70 +1,74 @@
-import haxe.display.JsonModuleTypes.JsonModuleType;
+import haxeserver.HaxeServerRequestResult;
+import haxe.display.JsonModuleTypes;
+import haxe.display.Display;
+import haxe.display.Protocol;
 import haxe.Json;
-import HaxeServer;
+import haxeserver.process.HaxeServerProcessNode;
+import haxeserver.HaxeServerAsync;
 import utest.Assert;
+import utest.ITest;
+
 using StringTools;
 using Lambda;
 
-class TestContext {
-	public var messages:Array<String> = []; // encapsulation is overrated
-
-	public var displayServerConfig:DisplayServerConfigBase;
-
-	public function new(config:DisplayServerConfigBase) {
-		this.displayServerConfig = config;
-	}
-
-	public function sendErrorMessage(msg:String) { }
-
-	public function sendLogMessage(msg:String) {
-		var split = msg.split("\n");
-		for (message in split) {
-			messages.push(message.trim());
-		}
-	}
-}
-
-class HaxeServerTestCase {
-	var context:TestContext;
-	var server:HaxeServer;
+@:autoBuild(AsyncMacro.build())
+class HaxeServerTestCase implements ITest {
+	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
-	var storedTypes:Array<JsonModuleType<Any>>;
+	var lastResult:HaxeServerRequestResult;
+	var messages:Array<String> = [];
+	var errorMessages = [];
 
-	public function new() {
-		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
-	}
+	static var i:Int = 0;
+
+	public function new() {}
 
 	public function setup() {
-		context = new TestContext({
-			haxePath: "haxe",
-			arguments: ["-v", "--cwd", testDir],
-			env: { }
-		});
+		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServer(context);
-		server.start();
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
 	}
 
 	public function teardown() {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, storeTypes = false, done:Void -> Void) {
-		context.messages = [];
-		storedTypes = [];
-		if (storeTypes) {
-			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
-		}
-		server.process(args, null, function(result) {
-			if (storeTypes) {
-				storedTypes = Json.parse(result).result.result;
+	function runHaxe(args:Array<String>, done:Void->Void) {
+		messages = [];
+		errorMessages = [];
+		server.rawRequest(args, null, function(result) {
+			lastResult = result;
+			sendLogMessage(result.stdout);
+			for (print in result.prints) {
+				var line = print.trim();
+				messages.push('Haxe print: $line');
+			}
+			if (result.hasError) {
+				sendErrorMessage(result.stderr);
 			}
 			done();
-		}, function(message) {
-			Assert.fail(message);
-			done();
-		});
+		}, sendErrorMessage);
+	}
+
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:Void->Void) {
+		var methodArgs = {method: method, id: 1, params: methodArgs};
+		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		runHaxe(args, done);
+	}
+
+	function sendErrorMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			errorMessages.push(message.trim());
+		}
+	}
+
+	function sendLogMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			messages.push(message.trim());
+		}
 	}
 
 	function getTemplate(templateName:String) {
@@ -72,7 +76,7 @@ class HaxeServerTestCase {
 	}
 
 	function hasMessage<T>(msg:String) {
-		for (message in context.messages) {
+		for (message in messages) {
 			if (message.endsWith(msg)) {
 				return true;
 			}
@@ -80,13 +84,48 @@ class HaxeServerTestCase {
 		return false;
 	}
 
-	function getStoredType(typePackage:String, typeName:String) {
+	function hasErrorMessage<T>(msg:String) {
+		for (message in errorMessages) {
+			if (message.endsWith(msg)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function getStoredType<T>(typePackage:String, typeName:String) {
+		var storedTypes:Array<JsonModuleType<T>> = try {
+			Json.parse(lastResult.stderr).result.result;
+		} catch (e:Dynamic) {
+			trace(e);
+			[];
+		}
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {
 				return type;
 			}
 		}
 		return null;
+	}
+
+	function parseCompletion():CompletionResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseHover():HoverResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseSignatureHelp():SignatureHelpResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function assertSuccess(?p:haxe.PosInfos) {
+		Assert.isTrue(0 == errorMessages.length, p);
+	}
+
+	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasErrorMessage(message), p);
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
@@ -115,7 +154,7 @@ class HaxeServerTestCase {
 
 	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
 		var type = getStoredType(typePackage, typeName);
-		Assert.isTrue(type != null);
+		Assert.isTrue(type != null, p);
 		function check<T>(type:JsonModuleType<T>) {
 			return switch [type.kind, type.args] {
 				case [Class, c]:
@@ -126,5 +165,25 @@ class HaxeServerTestCase {
 		if (type != null) {
 			Assert.isTrue(check(type), null, p);
 		}
+	}
+
+	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
+			if (f(type)) {
+				Assert.pass();
+				return;
+			}
+		}
+		Assert.fail("No such completion", p);
+	}
+
+	function assertHasNoCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
+			if (f(type)) {
+				Assert.fail("Unexpected completion", p);
+				return;
+			}
+		}
+		Assert.pass();
 	}
 }

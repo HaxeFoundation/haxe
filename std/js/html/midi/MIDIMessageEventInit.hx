@@ -25,5 +25,5 @@
 package js.html.midi;
 
 typedef MIDIMessageEventInit = EventInit & {
-	var ?data : js.html.Uint8Array;
+	var ?data : js.lib.Uint8Array;
 }

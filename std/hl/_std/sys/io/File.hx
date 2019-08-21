@@ -19,78 +19,88 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 #if doc_gen
-enum FileHandle { }
+enum FileHandle {}
 #else
 typedef FileHandle = hl.Abstract<"hl_fdesc">;
 #end
 
 @:access(Sys)
 @:coreApi class File {
-
-	public static function getContent( path : String ) : String {
+	public static function getContent(path:String):String {
 		var bytes = file_contents(Sys.getPath(path), null);
-		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
+		if (bytes == null)
+			throw new Sys.SysError("Can't read " + path);
 		return @:privateAccess String.fromUTF8(bytes);
 	}
 
-	public static function getBytes( path : String ) : haxe.io.Bytes {
+	public static function getBytes(path:String):haxe.io.Bytes {
 		var size = 0;
 		var bytes = file_contents(Sys.getPath(path), size);
-		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
+		if (bytes == null)
+			throw new Sys.SysError("Can't read " + path);
 		return @:privateAccess new haxe.io.Bytes(bytes, size);
 	}
 
-	public static function saveContent( path : String, content : String ) : Void {
+	public static function saveContent(path:String, content:String):Void {
 		var f = write(path);
 		f.writeString(content);
 		f.close();
 	}
 
-	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
+	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {
 		var f = write(path);
 		f.write(bytes);
 		f.close();
 	}
 
-	public static function read( path : String, binary : Bool = true ) : FileInput {
-		var f = file_open(Sys.getPath(path),0,binary);
-		if( f == null ) throw new Sys.SysError("Can't open "+path);
+	public static function read(path:String, binary:Bool = true):FileInput {
+		var f = file_open(Sys.getPath(path), 0, binary);
+		if (f == null)
+			throw new Sys.SysError("Can't open " + path);
 		return @:privateAccess new FileInput(f);
 	}
 
-	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		var f = file_open(Sys.getPath(path),1,binary);
-		if( f == null ) throw new Sys.SysError("Can't open "+path+" for writing");
+	public static function write(path:String, binary:Bool = true):FileOutput {
+		var f = file_open(Sys.getPath(path), 1, binary);
+		if (f == null)
+			throw new Sys.SysError("Can't open " + path + " for writing");
 		return @:privateAccess new FileOutput(f);
 	}
 
-	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		var f = file_open(Sys.getPath(path),2,binary);
-		if( f == null ) throw new Sys.SysError("Can't open "+path+" for append");
+	public static function append(path:String, binary:Bool = true):FileOutput {
+		var f = file_open(Sys.getPath(path), 2, binary);
+		if (f == null)
+			throw new Sys.SysError("Can't open " + path + " for append");
 		return @:privateAccess new FileOutput(f);
 	}
 
-	public static function update( path : String, binary : Bool = true ) : FileOutput {
+	public static function update(path:String, binary:Bool = true):FileOutput {
 		if (!FileSystem.exists(path)) {
 			write(path).close();
 		}
-		var f = file_open(Sys.getPath(path),3,binary);
-		if( f == null ) throw new Sys.SysError("Can't open "+path+" for update");
+		var f = file_open(Sys.getPath(path), 3, binary);
+		if (f == null)
+			throw new Sys.SysError("Can't open " + path + " for update");
 		return @:privateAccess new FileOutput(f);
 	}
 
-	public static function copy( srcPath : String, dstPath : String ) : Void {
-		var s = read(srcPath,true);
-		var d = write(dstPath,true);
+	public static function copy(srcPath:String, dstPath:String):Void {
+		var s = read(srcPath, true);
+		var d = write(dstPath, true);
 		d.writeInput(s);
 		s.close();
 		d.close();
 	}
 
-	@:hlNative("std", "file_open") static function file_open( path : hl.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
-	@:hlNative("std", "file_contents") static function file_contents( path : hl.Bytes, size : hl.Ref<Int> ) : hl.Bytes { return null; }
+	@:hlNative("std", "file_open") static function file_open(path:hl.Bytes, mode:Int, binary:Bool):FileHandle {
+		return null;
+	}
 
+	@:hlNative("std", "file_contents") static function file_contents(path:hl.Bytes, size:hl.Ref<Int>):hl.Bytes {
+		return null;
+	}
 }

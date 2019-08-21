@@ -1,9 +1,9 @@
 package flash.ui;
 
-@:fakeEnum(UInt) extern enum KeyLocation {
-	D_PAD;
-	LEFT;
-	NUM_PAD;
-	RIGHT;
-	STANDARD;
+@:native("flash.ui.KeyLocation") extern enum abstract KeyLocation(UInt) {
+	var D_PAD;
+	var LEFT;
+	var NUM_PAD;
+	var RIGHT;
+	var STANDARD;
 }

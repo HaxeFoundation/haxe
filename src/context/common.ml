@@ -21,6 +21,7 @@ open Ast
 open Type
 open Globals
 open Define
+open NativeLibraries
 
 type package_rule =
 	| Forbidden
@@ -98,9 +99,16 @@ type platform_config = {
 	pf_supports_function_equality : bool;
 	(** uses utf16 encoding with ucs2 api **)
 	pf_uses_utf16 : bool;
+	(** target supports accessing `this` before calling `super(...)` **)
+	pf_this_before_super : bool;
+	(** target supports threads **)
+	pf_supports_threads : bool;
+	(** target supports Unicode **)
+	pf_supports_unicode : bool;
 }
 
 class compiler_callbacks = object(self)
+	val mutable before_typer_create = [];
 	val mutable after_init_macros = [];
 	val mutable after_typing = [];
 	val mutable before_save = [];
@@ -108,6 +116,9 @@ class compiler_callbacks = object(self)
 	val mutable after_filters = [];
 	val mutable after_generation = [];
 	val mutable null_safety_report = [];
+
+	method add_before_typer_create (f : unit -> unit) : unit =
+		before_typer_create <- f :: before_typer_create
 
 	method add_after_init_macros (f : unit -> unit) : unit =
 		after_init_macros <- f :: after_init_macros
@@ -130,6 +141,7 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
+	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
@@ -141,17 +153,24 @@ end
 
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
-	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
+	mutable dead_blocks : (string,pos list) Hashtbl.t;
 }
 
 (* This information is shared between normal and macro context. *)
 type shared_context = {
 	shared_display_information : shared_display_information;
+}
+
+type json_api = {
+	send_result : Json.t -> unit;
+	send_error : Json.t list -> unit;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
 type context = {
@@ -172,18 +191,23 @@ type context = {
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
+	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
-	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
+	mutable get_messages : unit -> compiler_message list;
+	mutable filter_messages : (compiler_message -> bool) -> unit;
+	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	readdir_cache : (string * string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
-	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
+	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -194,14 +218,12 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
-	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
-	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
-	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
+	mutable native_libs : native_libraries;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit)) option;
+	mutable json_out : json_api option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -239,6 +261,9 @@ let define_value com k v =
 let raw_defined_value com k =
 	Define.raw_defined_value com.defines k
 
+let get_es_version com =
+	try int_of_string (defined_value com Define.JsEs) with _ -> 0
+
 let short_platform_name = function
 	| Cross -> "x"
 	| Js -> "js"
@@ -273,6 +298,9 @@ let default_config =
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
 		pf_uses_utf16 = true;
+		pf_this_before_super = true;
+		pf_supports_threads = false;
+		pf_supports_unicode = true;
 	}
 
 let get_config com =
@@ -287,6 +315,7 @@ let get_config com =
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
 		}
 	| Lua ->
 		{
@@ -301,6 +330,8 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
+			pf_supports_unicode = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -330,6 +361,8 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
+			pf_supports_threads = true;
+			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 		}
 	| Cs ->
 		{
@@ -337,6 +370,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_overload = true;
+			pf_supports_threads = true;
 		}
 	| Java ->
 		{
@@ -344,6 +378,8 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_overload = true;
+			pf_supports_threads = true;
+			pf_this_before_super = false;
 		}
 	| Python ->
 		{
@@ -357,6 +393,7 @@ let get_config com =
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
+			pf_supports_threads = true;
 		}
 	| Eval ->
 		{
@@ -364,6 +401,8 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
+			pf_capture_policy = CPWrapRef;
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -387,6 +426,7 @@ let create version s_version args =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			dead_blocks = Hashtbl.create 0;
 		};
 		sys_args = args;
 		debug = false;
@@ -409,10 +449,8 @@ let create version s_version args =
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		swf_libs = [];
-		java_libs = [];
-		net_libs = [];
 		net_std = [];
+		native_libs = create_native_libs();
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];
@@ -424,8 +462,12 @@ let create version s_version args =
 			values = defines;
 		};
 		get_macros = (fun() -> None);
+		info = (fun _ _ -> assert false);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
+		get_messages = (fun() -> []);
+		filter_messages = (fun _ -> ());
+		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = m;
 			tint = m;
@@ -436,6 +478,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
@@ -454,17 +497,20 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			dead_blocks = Hashtbl.create 0;
 		};
 		defines = {
 			values = com.defines.values;
 			defines_signature = com.defines.defines_signature;
-		}
+		};
+		native_libs = create_native_libs();
 	}
 
 let file_time file = Extc.filetime file
@@ -478,7 +524,7 @@ let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0;18.0;19.0;20.0;21.0;22.0;23.0;24.0;25.0;26.0;27.0;28.0;29.0;31.0;32.0]
 
 let flash_version_tag = function
 	| 6. -> 6
@@ -505,11 +551,28 @@ let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
-	if com.config.pf_static then define com Define.Static;
-	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
-	if com.config.pf_uses_utf16 then define com Define.Utf16;
+	if com.config.pf_static then begin
+		raw_define_value com.defines "target.static" "true";
+		define com Define.Static;
+	end;
+	if com.config.pf_sys then begin
+		raw_define_value com.defines "target.sys" "true";
+		define com Define.Sys
+	end else
+		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then begin
+		raw_define_value com.defines "target.utf16" "true";
+		define com Define.Utf16;
+	end;
+	if com.config.pf_supports_threads then begin
+		raw_define_value com.defines "target.threaded" "true";
+	end;
+	if com.config.pf_supports_unicode then begin
+		raw_define_value com.defines "target.unicode" "true";
+	end;
+	raw_define_value com.defines "target.name" name;
 	raw_define com name
 
 let add_feature com f =
@@ -569,34 +632,81 @@ let platform ctx p = ctx.platform = p
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let normalize_dir_separator path =
+	if is_windows then String.map (fun c -> if c = '/' then '\\' else c) path
+	else path
+
 let find_file ctx f =
 	try
-		(match Hashtbl.find ctx.file_lookup_cache f with
+		match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
-		| Some f -> f)
+		| Some f -> f
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+		let remove_extension file =
+			try String.sub file 0 (String.rindex file '.')
+			with Not_found -> file
+		in
+		let extension file =
+			try
+				let dot_pos = String.rindex file '.' in
+				String.sub file dot_pos (String.length file - dot_pos)
+			with Not_found -> file
+		in
+		let f_dir = Filename.dirname f
+		and platform_ext = "." ^ (platform_name_macro ctx)
+		and is_core_api = defined ctx Define.CoreApi in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
-				if Sys.file_exists file then begin
-					(try
-						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
-						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
-					with Not_found ->
-						file)
-				end else
+				let dir = Filename.dirname file in
+				if Hashtbl.mem ctx.readdir_cache (p,dir) then
 					loop (had_empty || p = "") l
+				else begin
+					let found = ref "" in
+					let dir_listing =
+						try Some (Sys.readdir dir);
+						with Sys_error _ -> None
+					in
+					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
+					let normalized_f = normalize_dir_separator f in
+					Option.may
+						(Array.iter (fun file_name ->
+							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
+							let pf,current_f =
+								if is_core_api then false,current_f
+								else begin
+									let ext = extension current_f in
+									let pf_ext = extension (remove_extension current_f) in
+									if platform_ext = pf_ext then
+										true,(remove_extension (remove_extension current_f)) ^ ext
+									else
+										false,current_f
+								end
+							in
+							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
+							if is_core_api || pf || not is_cached then begin
+								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
+								if is_cached then
+									Hashtbl.remove ctx.file_lookup_cache current_f;
+								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+								if normalize_dir_separator current_f = normalized_f then
+									found := full_path;
+							end
+						))
+						dir_listing;
+					if !found <> "" then !found
+					else loop (had_empty || p = "") l
+				end
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
-		(match r with
+		match r with
 		| None -> raise Not_found
-		| Some f -> f)
+		| Some f -> f
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in
@@ -696,9 +806,9 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p sev =
+let add_diagnostics_message com s p kind sev =
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
+	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 

@@ -26,11 +26,6 @@ type cmp =
 	| CInf
 	| CUndef
 
-type vstring_offset =
-	| VSONone
-	| VSOOne of (int * int) ref
-	| VSOTwo of (int * int) ref * (int * int) ref
-
 type vstring = {
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
@@ -38,7 +33,7 @@ type vstring = {
 	(* The length of the string. *)
 	slength : int;
 	(* The current (character * byte) offsets. *)
-	mutable soffset : vstring_offset;
+	mutable soffsets : (int ref * int ref) list;
 }
 
 type vstring_buffer = {
@@ -79,6 +74,7 @@ end
 
 type vregex = {
 	r : Pcre.regexp;
+	r_rex_string : vstring;
 	r_global : bool;
 	mutable r_string : string;
 	mutable r_groups : Pcre.substrings array;
@@ -158,7 +154,11 @@ and vinstance_kind =
 	| IInChannel of in_channel * bool ref (* FileInput *)
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
-	| IThread of Thread.t
+	| IThread of vthread
+	| IMutex of vmutex
+	| ILock of vlock
+	| ITls of int
+	| IDeque of vdeque
 	| IZip of vzlib (* Compress/Uncompress *)
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
@@ -189,6 +189,26 @@ and venum_value = {
 	eargs : value array;
 	epath : int;
 	enpos : pos option;
+}
+
+and vthread = {
+	mutable tthread : Thread.t;
+	tdeque : vdeque;
+	mutable tstorage : value IntMap.t;
+}
+
+and vdeque = {
+	mutable dvalues : value list;
+	dmutex : Mutex.t;
+}
+
+and vmutex = {
+	mmutex : Mutex.t;
+	mutable mowner : int option; (* thread ID *)
+}
+
+and vlock = {
+	ldeque : vdeque;
 }
 
 let rec equals a b = match a,b with
