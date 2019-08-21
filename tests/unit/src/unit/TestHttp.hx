@@ -12,6 +12,14 @@ class TestHttp extends Test {
 	}
 
 	function run(async:Async, test:()->Void) {
+		// { comment this out to run http tests locally
+		#if !azure
+		noAssert();
+		async.done();
+		return;
+		#end
+		// }
+
 		#if (js && !nodejs)
 		if(js.Syntax.code('typeof XMLHttpRequest == "undefined"')) {
 			noAssert();

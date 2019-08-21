@@ -537,21 +537,31 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let rec map_var v =
+		let rec map_var map_type v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
 				if not (self#read v).i_outside then begin
 					v.v_type <- map_type v.v_type;
 					match v.v_extra with
 					| Some(tl,Some e) ->
-						v.v_extra <- Some(tl,Some (map_expr_type e));
+						v.v_extra <- Some(tl,Some (map_expr_type map_type e));
 					| _ ->
 						()
 				end
 			end;
 			v
-		and map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
-		map_expr_type e
+		and map_expr_type map_type e =
+			(*
+				No need to change typing of arguments of inlined call
+				because they were already properly typed prior to inlining.
+			*)
+			let map_type =
+				if List.memq e params then (fun t -> t)
+				else map_type
+			in
+			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
+		in
+		map_expr_type map_type e
 end
 
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
@@ -580,7 +590,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		else if ExtType.is_void t then unify_min ctx el
 		else t
 	in
-	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
+	let map_pos =
+		if self_calling_closure || Common.defined ctx.com Define.KeepInlinePositions then (fun e -> e)
+		else (fun e -> { e with epos = p })
+	in
 	let rec map term in_call e =
 		let po = e.epos in
 		let e = map_pos e in

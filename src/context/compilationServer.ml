@@ -28,6 +28,7 @@ type cache = {
 	c_directories : (string, cached_directory list) Hashtbl.t;
 	c_removed_files : (string * string,unit) Hashtbl.t;
 	c_native_libs : (string,cached_native_lib) Hashtbl.t;
+	c_initialization_status : (string,bool) Hashtbl.t;
 }
 
 type context_sign = {
@@ -38,7 +39,6 @@ type context_sign = {
 type t = {
 	cache : cache;
 	mutable signs : (string * context_sign) list;
-	mutable initialized : bool;
 }
 
 type context_options =
@@ -55,13 +55,13 @@ let create_cache () = {
 	c_directories = Hashtbl.create 0;
 	c_removed_files = Hashtbl.create 0;
 	c_native_libs = Hashtbl.create 0;
+	c_initialization_status = Hashtbl.create 0;
 }
 
 let create () =
 	let cs = {
 		cache = create_cache();
 		signs = [];
-		initialized = false;
 	} in
 	instance := Some cs;
 	cs
@@ -74,11 +74,11 @@ let runs () =
 
 let force () = match !instance with None -> assert false | Some i -> i
 
-let is_initialized cs =
-	cs.initialized = true
+let is_initialized cs sign =
+	try Hashtbl.find cs.cache.c_initialization_status sign with Not_found -> false
 
-let set_initialized cs =
-	cs.initialized <- true
+let set_initialized cs sign value =
+	Hashtbl.replace cs.cache.c_initialization_status sign value
 
 let get_context_files cs signs =
 	Hashtbl.fold (fun (file,sign) cfile acc ->
@@ -242,7 +242,7 @@ let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
 	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
 	match get() with
-	| Some cs when Define.raw_defined com.defines "haxe.cacheNativeLibs" ->
+	| Some cs when not (Define.raw_defined com.defines "haxe.noNativeLibsCache") ->
 		let init () =
 			let file = lib#get_file_path in
 			let key = file in

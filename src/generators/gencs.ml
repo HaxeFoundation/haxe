@@ -998,12 +998,12 @@ let generate con =
 			let ret t =
 				let t_changed = real_type stack t in
 				match is_hxgeneric, t_changed with
-				| false, _ -> t
 				(*
 					Because Null<> types need a special compiler treatment for many operations (e.g. boxing/unboxing),
 					Null<> type parameters will be transformed into Dynamic.
 				*)
-				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| _, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| false, _ -> t
 				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
@@ -1352,7 +1352,7 @@ let generate con =
 							do_call w e [v]
 					| TField (e, ((FStatic(_, cf) | FInstance(_, _, cf)) as f)) when Meta.has Meta.Native cf.cf_meta ->
 						let rec loop meta = match meta with
-							| (Meta.Native, [EConst (String s), _],_) :: _ ->
+							| (Meta.Native, [EConst (String(s,_)), _],_) :: _ ->
 								expr_s w e; write w "."; (get_write_field f) w s
 							| _ :: tl -> loop tl
 							| [] -> expr_s w e; write w "."; (get_write_field f) w (cf.cf_name)
@@ -1844,7 +1844,7 @@ let generate con =
 			| EConst c, p -> (match c with
 				| Int s | Float s | Ident s ->
 					write w s
-				| String s ->
+				| String(s,_) ->
 					write w "\"";
 					write w (escape s);
 					write w "\""
@@ -1880,7 +1880,7 @@ let generate con =
 
 		let gen_attributes w metadata =
 			List.iter (function
-				| Meta.Meta, [EConst(String s), _], _ ->
+				| Meta.Meta, [EConst(String(s,_)), _], _ ->
 					write w "[";
 					write w s;
 					write w "]";
@@ -2332,7 +2332,7 @@ let generate con =
 									end else
 										write_method_expr expr
 									)
-								| (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+								| (Meta.FunctionCode, [Ast.EConst (Ast.String(contents,_)),_],_) :: tl ->
 									begin_block w;
 									write w contents;
 									end_block w
@@ -2540,7 +2540,7 @@ let generate con =
 				in
 				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> assert false) [] in
 				cl.cl_meta <- (Meta.Meta, [
-					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))") ), cl.cl_pos
+					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))",SDoubleQuotes) ), cl.cl_pos
 				], cl.cl_pos) :: cl.cl_meta
 			with Not_found ->
 				());
@@ -2595,7 +2595,7 @@ let generate con =
 			let rec loop meta =
 				match meta with
 					| [] -> ()
-					| (Meta.ClassCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+					| (Meta.ClassCode, [Ast.EConst (Ast.String(contents,_)),_],_) :: tl ->
 						write w contents
 					| _ :: tl -> loop tl
 			in

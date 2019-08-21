@@ -227,11 +227,11 @@ class Array<T> {
 		return [for (i in this) i];
 	}
 
-	public function map<S>(f:T->S):Array<S> {
+	public inline function map<S>(f:T->S):Array<S> {
 		return [for (i in this) f(i)];
 	}
 
-	public function filter(f:T->Bool):Array<T> {
+	public inline function filter(f:T->Bool):Array<T> {
 		return [for (i in this) if (f(i)) i];
 	}
 

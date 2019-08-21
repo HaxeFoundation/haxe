@@ -247,6 +247,12 @@
 		"internal": true
 	},
 	{
+		"name": "DisplayOverride",
+		"metadata": ":?display.override",
+		"doc": "Internally used to mark override fields for completion",
+		"internal": true
+	},
+	{
 		"name": "DynamicObject",
 		"metadata": ":dynamicObject",
 		"doc": "Used internally to identify the Dynamic Object implementation.",

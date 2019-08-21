@@ -64,10 +64,10 @@ let rec eval ctx (e,p) =
 	match e with
 	| EConst (Ident i) ->
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
-	| EConst (String s) -> TString s
+	| EConst (String(s,_)) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
-	| ECall ((EConst (Ident "version"),_),[(EConst (String s), p)]) -> parse_version s p
+	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
@@ -104,6 +104,25 @@ and eval_binop_exprs ctx e1 e2 =
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
 
+class dead_block_collector = object(self)
+	val dead_blocks = DynArray.create ()
+	val mutable current_block = []
+
+	method open_dead_block (p : pos) =
+		current_block <- {p with pmin = p.pmax} :: current_block
+
+	method close_dead_block (p : pos) = match current_block with
+		| [] ->
+			error (Custom "Internal error: Trying to close dead block that's not open") p;
+		| p0 :: pl ->
+			current_block <- pl;
+			DynArray.add dead_blocks ({p0 with pmax = p.pmin})
+
+	method get_dead_blocks =
+		assert(current_block = []);
+		DynArray.to_list dead_blocks
+end
+
 (* parse main *)
 let parse ctx code file =
 	let old = Lexer.save() in
@@ -135,6 +154,7 @@ let parse ctx code file =
 		error (Custom line) p
 	in
 
+	let dbc = new dead_block_collector in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
@@ -147,7 +167,7 @@ let parse ctx code file =
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
-			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment (pos tk);
+			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment None (pos tk);
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with
@@ -155,17 +175,28 @@ let parse ctx code file =
 			| _ :: l ->
 				mstack := l;
 				next_token())
-		| Sharp "else" | Sharp "elseif" ->
+		| Sharp "elseif" ->
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
+				let _,(_,pe) = parse_macro_cond sraw in
+				dbc#open_dead_block pe;
 				mstack := l;
-				process_token (skip_tokens (snd tk) false))
+				let tk = skip_tokens (pos tk) false in
+				process_token tk)
+		| Sharp "else" ->
+			(match !mstack with
+			| [] -> tk
+			| _ :: l ->
+				dbc#open_dead_block (pos tk);
+				mstack := l;
+				let tk = skip_tokens (pos tk) false in
+				process_token tk)
 		| Sharp "if" ->
 			process_token (enter_macro (snd tk))
 		| Sharp "error" ->
 			(match Lexer.token code with
-			| (Const (String s),p) -> error (Custom s) p
+			| (Const (String(s,_)),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
@@ -185,22 +216,36 @@ let parse ctx code file =
 		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
 			tk
-		end else
+		end else begin
+			dbc#open_dead_block (pos e);
 			skip_tokens_loop p true tk
+		end
 
 	and skip_tokens_loop p test tk =
 		match fst tk with
 		| Sharp "end" ->
+			dbc#close_dead_block (pos tk);
 			Lexer.token code
-		| Sharp "elseif" | Sharp "else" when not test ->
+		| Sharp "elseif" when not test ->
+			dbc#close_dead_block (pos tk);
+			let _,(_,pe) = parse_macro_cond sraw in
+			dbc#open_dead_block pe;
+			skip_tokens p test
+		| Sharp "else" when not test ->
+			dbc#close_dead_block (pos tk);
+			dbc#open_dead_block (pos tk);
 			skip_tokens p test
 		| Sharp "else" ->
+			dbc#close_dead_block (pos tk);
 			mstack := snd tk :: !mstack;
 			Lexer.token code
 		| Sharp "elseif" ->
+			dbc#close_dead_block (pos tk);
 			enter_macro (snd tk)
 		| Sharp "if" ->
-			skip_tokens_loop p test (skip_tokens p false)
+			dbc#open_dead_block (pos tk);
+			let tk = skip_tokens p false in
+			skip_tokens_loop p test tk
 		| Sharp ("error" | "line") ->
 			skip_tokens p test
 		| Sharp s ->
@@ -225,7 +270,7 @@ let parse ctx code file =
 		restore();
 		Lexer.restore old;
 		if was_display_file then
-			ParseDisplayFile(l,List.rev !syntax_errors)
+			ParseDisplayFile(l,List.rev !syntax_errors,dbc#get_dead_blocks)
 		else begin match List.rev !syntax_errors with
 			| [] -> ParseSuccess l
 			| error :: errors -> ParseError(l,error,errors)
@@ -260,7 +305,7 @@ let parse_string com s p error inlined =
 		syntax_errors := old_syntax_errors;
 		Lexer.restore old
 	in
-	Lexer.init p.pfile true;
+	Lexer.init p.pfile;
 	if not inlined then begin
 		display_position#reset;
 		in_display_file := false;
@@ -288,4 +333,4 @@ let parse_expr_string com s p error inl =
 	match parse_string com (head ^ s ^ ";}") p error inl with
 	| ParseSuccess data -> ParseSuccess(extract_expr data)
 	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
-	| ParseDisplayFile(data,errors) -> ParseDisplayFile(extract_expr data,errors)
+	| ParseDisplayFile(data,errors,dead) -> ParseDisplayFile(extract_expr data,errors,dead)

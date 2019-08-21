@@ -109,10 +109,10 @@ let is_valid_identifier s = try
 with Exit ->
 	false
 
-let init file do_add =
+let init file =
 	let f = make_file file in
 	cur := f;
-	if do_add then Hashtbl.replace all_files file f
+	Hashtbl.replace all_files file f
 
 let save() =
 	!cur
@@ -397,13 +397,13 @@ let rec token lexbuf =
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
-		mk_tok (Const (String str)) pmin pmax;
+		mk_tok (Const (String(str,SDoubleQuotes))) pmin pmax;
 	| "'" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
-		let t = mk_tok (Const (String str)) pmin pmax in
+		let t = mk_tok (Const (String(str,SSingleQuotes))) pmin pmax in
 		fast_add_fmt_string (snd t);
 		t
 	| "~/" ->

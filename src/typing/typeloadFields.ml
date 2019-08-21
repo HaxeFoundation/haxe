@@ -349,7 +349,7 @@ let build_enum_abstract ctx c a fields p =
 				| None ->
 					if not c.cl_extern then begin match mode with
 						| EAString ->
-							set_field (EConst (String (fst field.cff_name)),null_pos)
+							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
 							set_field (EConst (Int (string_of_int !i)),null_pos);
 							incr i;
@@ -1118,7 +1118,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if cf.cf_name = Parser.magic_display_field_name then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
@@ -1384,7 +1384,7 @@ let init_class ctx c p context_init herits fields =
 						| _ -> ""
 					in
 					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
-						Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+						Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
 			in
@@ -1394,7 +1394,7 @@ let init_class ctx c p context_init herits fields =
 	in
 	let rec check_if_feature = function
 		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String s) -> s | _ -> error "String expected" p) el
+		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> error "String expected" p) el
 		| _ :: l -> check_if_feature l
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in

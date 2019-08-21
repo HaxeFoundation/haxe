@@ -236,13 +236,13 @@
 	},
 	{
 		"name": "HxcppGcGenerational",
-		"define": "hxcpp_gc_generational",
+		"define": "HXCPP_GC_GENERATIONAL",
 		"doc": "Experimental Garbage Collector.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppDebugger",
-		"define": "hxcpp_debugger",
+		"define": "HXCPP_DEBUGGER",
 		"doc": "Include additional information for hxcpp_debugger.",
 		"platforms": ["cpp"]
 	},
@@ -431,6 +431,12 @@
 		"name": "NoInline",
 		"define": "no_inline",
 		"doc": "Disable inlining.",
+		"links": ["https://haxe.org/manual/class-field-inline.html"]
+	},
+	{
+		"name": "KeepInlinePositions",
+		"define": "keep_inline_positions",
+		"doc": "Don't substitute positions of inlined expressions with the position of the place of inlining.",
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
 	},
 	{

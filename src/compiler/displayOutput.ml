@@ -483,7 +483,8 @@ module TypePathHandler = struct
 			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
 			   does not raise another TypePath exception. However, we still want to have it treated like the
 			   display file, so we just set the position to 0 (#6558). *)
-			DisplayPosition.display_position#set {DisplayPosition.display_position#get with pmin = 0; pmax = 0};
+			let old = DisplayPosition.display_position#get in
+			DisplayPosition.display_position#set {old with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					TypeloadModule.load_module ctx (p,s_module) null_pos
@@ -495,7 +496,7 @@ module TypePathHandler = struct
 					else
 						raise e
 			in
-			let m = lookup sl_pack in
+			let m = Std.finally (fun () -> DisplayPosition.display_position#set old) lookup sl_pack in
 			let statics = ref None in
 			let enum_statics = ref None in
 			let public_types = List.filter (fun t ->
@@ -741,7 +742,7 @@ let find_doc t =
 	in
 	doc
 
-let handle_syntax_completion com kind p =
+let handle_syntax_completion com kind subj =
 	let open Parser in
 	let l,kind = match kind with
 		| SCClassRelation ->
@@ -751,7 +752,7 @@ let handle_syntax_completion com kind p =
 		| SCComment ->
 			[],CRTypeRelation
 		| SCTypeDecl mode ->
-			let in_import_hx = Filename.basename p.pfile = "import.hx" in
+			let in_import_hx = Filename.basename subj.s_insert_pos.pfile = "import.hx" in
 			let l = if in_import_hx then [] else [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
 				| TCBeforePackage -> Package :: Import :: Using :: l
@@ -784,6 +785,6 @@ let handle_syntax_completion com kind p =
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in
 			raise (Completion s)
-		| Some(f,_,jsonrpc) ->
-			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
-			f(fields_to_json ctx l kind None None)
+		| Some api ->
+			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
+			api.send_result(fields_to_json ctx l kind subj)

@@ -248,7 +248,7 @@ let enum_is_flag ilcls =
 
 let convert_ilenum ctx p ?(is_flag=false) ilcls =
 	let meta = ref [
-		Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p;
+		Meta.Native, [EConst (String (ilpath_s ilcls.cpath,SDoubleQuotes) ), p], p;
 		Meta.CsNative, [], p;
 	] in
 
@@ -332,7 +332,7 @@ let convert_ilfield ctx p field =
 		if String.get cff_name 0 = '%' then
 			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 			"_" ^ name,
-			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+			(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		else
 			cff_name, !cff_meta
 	in
@@ -485,7 +485,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		if String.get cff_name 0 = '%' then
 			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 			"_" ^ name,
-			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: meta
+			(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: meta
 		else
 			cff_name, meta
 	in
@@ -719,7 +719,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			let sup = sup @ List.map (fun i -> IlMetaDebug.ilsig_s i.ssig) ilcls.cimplements in
 			print_endline ("converting " ^ ilpath_s ilcls.cpath ^ " : " ^ (String.concat ", " sup))
 		end;
-		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
+		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath,SDoubleQuotes) ), p], p] in
 		let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 		if not force_check then
 			meta := (Meta.LibType,[],p) :: !meta;

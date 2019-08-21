@@ -1282,7 +1282,12 @@ class expr_checker mode immediate_execution report =
 		method private check_call callee args p =
 			if self#is_nullable_expr callee then
 				self#error "Cannot call a nullable value." [callee.epos; p];
-			self#check_expr callee;
+			(match callee.eexpr with
+				| TFunction fn | TParenthesis { eexpr = TFunction fn } ->
+					self#check_function ~immediate_execution:true fn
+				| _ ->
+					self#check_expr callee
+			);
 			match follow callee.etype with
 				| TFun (types, _) ->
 					self#check_args callee args types

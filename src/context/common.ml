@@ -159,11 +159,18 @@ type shared_display_information = {
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
+	mutable dead_blocks : (string,pos list) Hashtbl.t;
 }
 
 (* This information is shared between normal and macro context. *)
 type shared_context = {
 	shared_display_information : shared_display_information;
+}
+
+type json_api = {
+	send_result : Json.t -> unit;
+	send_error : Json.t list -> unit;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
 type context = {
@@ -216,7 +223,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit) * Jsonrpc_handler.jsonrpc_handler) option;
+	mutable json_out : json_api option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -419,6 +426,7 @@ let create version s_version args =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			dead_blocks = Hashtbl.create 0;
 		};
 		sys_args = args;
 		debug = false;
@@ -496,6 +504,7 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			dead_blocks = Hashtbl.create 0;
 		};
 		defines = {
 			values = com.defines.values;

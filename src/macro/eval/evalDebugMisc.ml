@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess data | ParseDisplayFile(data,_) -> data
+	| ParseSuccess data | ParseDisplayFile(data,_,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)
@@ -201,7 +201,7 @@ let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> EvalString.create_unknown s
+				| String(s,_) -> EvalString.create_unknown s
 				| Int s -> VInt32 (Int32.of_string s)
 				| Float s -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue

@@ -106,7 +106,7 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 *)
 let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint None;
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
@@ -251,7 +251,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 					begin try
 						let msg = match Meta.get Meta.Deprecated td.t_meta with
-							| _,[EConst(String s),_],_ -> s
+							| _,[EConst(String(s,_)),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
 						in
 						DeprecationCheck.warn_deprecation ctx.com msg p
@@ -285,7 +285,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
-						| EConst (String s) -> "S" ^ s
+						| EConst (String(s,_)) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
@@ -355,7 +355,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
-		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (Some {pn with pmin = pn.pmax - String.length s;})
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) {pn with pmin = pn.pmax - String.length s;}
 
 (*
 	build an instance from a complex type
@@ -375,7 +375,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
 				) r.fitems in
-				raise_fields l (CRStructExtension true) r.finsert_pos
+				raise_fields l (CRStructExtension true) r.fsubject
 		) tl in
 		let tr = ref None in
 		let t = TMono tr in
@@ -417,7 +417,7 @@ and load_complex_type' ctx allow_display (t,p) =
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
 					) r.fitems in
-					raise_fields l (CRStructExtension false) r.finsert_pos
+					raise_fields l (CRStructExtension false) r.fsubject
 			) tl in
 			let tr = ref None in
 			let t = TMono tr in
@@ -560,8 +560,8 @@ and init_meta_overloads ctx co cf =
 	let cf_meta = List.filter filter_meta cf.cf_meta in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
-		| (Meta.Overload,[(EFunction (fname,f),p)],_)  ->
-			if fname <> None then error "Function name must not be part of @:overload" p;
+		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
+			(match kind with FKNamed _ -> error "Function name must not be part of @:overload" p | _ -> ());
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
 			let old = ctx.type_params in
 			(match cf.cf_params with
@@ -846,7 +846,7 @@ let handle_path_display ctx path p =
 	in
 	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
 		| (IDKPackage [s],p),DMDefault ->
-			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) (Some p)
+			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) p
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl
@@ -907,7 +907,7 @@ let handle_using ctx path p =
 		| (s1,_) :: sl ->
 			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in
 	let types = (match t.tsub with
 		| None ->

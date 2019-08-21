@@ -1366,7 +1366,7 @@ and handle_efield ctx e p mode =
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then begin
 										if ctx.com.json_out = None then raise (Parser.TypePath (sl,None,false,p))
-										else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) (Some p0)
+										else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 									end;
 									raise e)
 		in
@@ -1515,7 +1515,7 @@ and format_string ctx s p =
 	in
 	let add_sub start pos =
 		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
 	in
 	let len = String.length s in
 	let rec parse start pos =
@@ -1577,7 +1577,7 @@ and format_string ctx s p =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
 				try
 					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseSuccess data | ParseDisplayFile(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 					end
 				with Exit ->
@@ -1992,7 +1992,8 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx name inline f with_type p =
+and type_local_function ctx kind f with_type p =
+	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
@@ -2334,8 +2335,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
-			| EFunction(Some(_) as name,e1) ->
-				type_local_function ctx name true e1 with_type p
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
@@ -2449,7 +2448,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
-	| EField ((EConst (String s),ps),"code") ->
+	| EField ((EConst (String(s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when starts_with n '$' ->
@@ -2466,7 +2465,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
-	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
+	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
@@ -2558,8 +2557,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
-	| EFunction (name,f) ->
-		type_local_function ctx name false f with_type p
+	| EFunction (kind,f) ->
+		type_local_function ctx kind f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;

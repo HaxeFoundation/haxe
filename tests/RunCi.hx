@@ -31,9 +31,11 @@ class RunCi {
 
 		infoMsg('Going to test: $tests');
 
-		changeDirectory('echoServer');
-		runCommand('haxe', ['build.hxml']);
-		changeDirectory(cwd);
+		if (isCi()) {
+			changeDirectory('echoServer');
+			runCommand('haxe', ['build.hxml']);
+			changeDirectory(cwd);
+		}
 
 		for (test in tests) {
 			switch (ci) {

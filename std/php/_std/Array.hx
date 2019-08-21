@@ -45,12 +45,10 @@ final class Array<T> implements ArrayAccess<Int, T> {
 
 	public inline function filter(f:T->Bool):Array<T> {
 		var result = Syntax.arrayDecl();
-		var i = 0;
-		while (i < length) {
-			if (f(arr[i])) {
-				result.push(arr[i]);
+		for(item in arr) {
+			if (f(item)) {
+				result.push(item);
 			}
-			i++;
 		}
 		return wrap(result);
 	}
@@ -109,10 +107,8 @@ final class Array<T> implements ArrayAccess<Int, T> {
 
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
-		var i = 0;
-		while (i < length) {
-			result.push(f(arr[i]));
-			i++;
+		for(item in arr) {
+			result.push(f(item));
 		}
 		return wrap(result);
 	}

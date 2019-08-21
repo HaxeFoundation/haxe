@@ -29,7 +29,7 @@ open Error
 
 let parse_file_from_lexbuf com file p lexbuf =
 	let t = Timer.timer ["parsing"] in
-	Lexer.init file true;
+	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
 		ParserEntry.parse com.defines lexbuf file
@@ -43,7 +43,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match !Parser.display_mode,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess data | ParseDisplayFile(data,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
+		| DMModuleSymbols filter,(ParseSuccess data | ParseDisplayFile(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
 			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
@@ -122,7 +122,7 @@ let resolve_module_file com m remap p =
 			| [] -> []
 		in
 		let meta =  match parse_result with
-			| ParseSuccess(_,decls) | ParseDisplayFile((_,decls),_) -> loop decls
+			| ParseSuccess(_,decls) | ParseDisplayFile((_,decls),_,_) -> loop decls
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
@@ -154,11 +154,12 @@ let parse_module_file com file p =
 	in
 	let pack,decls = match (!parse_hook) com file p with
 		| ParseSuccess data -> data
-		| ParseDisplayFile(data,errors) ->
+		| ParseDisplayFile(data,errors,dead) ->
 			begin match errors with
 			| (msg,p) :: _ -> handle_parser_error msg p
 			| [] -> ()
 			end;
+			if dead <> [] then Hashtbl.replace com.display_information.dead_blocks file dead;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;

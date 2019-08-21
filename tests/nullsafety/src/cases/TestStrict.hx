@@ -869,6 +869,12 @@ class TestStrict {
 			({a: 0, b: i} : {a:Int, b: Int});
 		}
 	}
+
+	static function immediateFunction_keepsSafety(?s:String) {
+		if (s != null) {
+			(function() s.length)();
+		}
+	}
 }
 
 private class FinalNullableFields {

@@ -47,6 +47,11 @@ typedef Position = {
 }
 #end
 
+enum StringLiteralKind {
+	DoubleQuotes;
+	SingleQuotes;
+}
+
 /**
 	Represents a constant.
 	@see https://haxe.org/manual/expression-constants.html
@@ -65,7 +70,7 @@ enum Constant {
 	/**
 		Represents a string literal.
 	**/
-	CString(s:String);
+	CString(s:String, ?kind:StringLiteralKind);
 
 	/**
 		Represents an identifier.
@@ -378,6 +383,24 @@ typedef ObjectField = {
 }
 
 /**
+	Represents function kind in the AST
+**/
+enum FunctionKind {
+	/**
+		Anonymous function
+	**/
+	FAnonymous;
+	/**
+		Named function
+	**/
+	FNamed(name:String, inlined:Bool);
+	/**
+		Arrow function
+	**/
+	FArrow;
+}
+
+/**
 	Represents the kind of a node in the AST.
 **/
 enum ExprDef {
@@ -447,7 +470,7 @@ enum ExprDef {
 	/**
 		A function declaration.
 	**/
-	EFunction(name:Null<String>, f:Function);
+	EFunction(kind:FunctionKind, f:Function);
 
 	/**
 		A block of expressions `{exprs}`.

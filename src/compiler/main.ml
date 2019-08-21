@@ -549,7 +549,7 @@ let handle_display ctx tctx display_file_dot_path =
 	let com = ctx.com in
 	if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
 	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
-		| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
+		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
 	if ctx.com.display.dms_exit_during_typing then begin
@@ -1061,9 +1061,9 @@ with
 		begin
 			DisplayPosition.display_position#reset;
 			match ctx.com.json_out with
-			| Some (f,_,jsonrpc) ->
-				let ctx = DisplayJson.create_json_context jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
-				f (DisplayException.to_json ctx de)
+			| Some api ->
+				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
+				api.send_result (DisplayException.to_json ctx de)
 			| _ -> assert false
 		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
@@ -1136,19 +1136,19 @@ with
 		| None -> ()
 		| Some fields ->
 			begin match ctx.com.json_out with
-			| Some (f,_,jsonrpc) ->
-				let ctx = DisplayJson.create_json_context jsonrpc false in
+			| Some api ->
+				let ctx = DisplayJson.create_json_context api.jsonrpc false in
 				let path = match List.rev p with
 					| name :: pack -> List.rev pack,name
 					| [] -> [],""
 				in
 				let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-				f (DisplayException.fields_to_json ctx fields kind None None);
+				api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end
-	| Parser.SyntaxCompletion(kind,pos) ->
-		DisplayOutput.handle_syntax_completion com kind pos;
+	| Parser.SyntaxCompletion(kind,subj) ->
+		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;

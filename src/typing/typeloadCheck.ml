@@ -141,7 +141,7 @@ let get_native_name meta =
 	in
 	let (_,e,mp) = get_native meta in
 	match e with
-	| [Ast.EConst (Ast.String name),p] ->
+	| [Ast.EConst (Ast.String(name,_)),p] ->
 		name,p
 	| [] ->
 		raise Not_found
@@ -503,7 +503,7 @@ module Inheritance = struct
 					Typeload.load_instance ~allow_display:true ctx (ct,p) false
 				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
-					if not is_extends && c.cl_interface then raise_fields [] CRImplements r.finsert_pos;
+					if not is_extends && c.cl_interface then raise_fields [] CRImplements r.fsubject;
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
@@ -512,7 +512,7 @@ module Inheritance = struct
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
 					) r.fitems in
-					raise_fields l (if is_extends then CRExtends else CRImplements) r.finsert_pos
+					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->

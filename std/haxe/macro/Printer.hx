@@ -217,7 +217,7 @@ class Printer {
 			case ENew(tp, el): 'new ${printTypePath(tp)}(${printExprs(el, ", ")})';
 			case EUnop(op, true, e1): printExpr(e1) + printUnop(op);
 			case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
-			case EFunction(no, func) if (no != null): 'function $no' + printFunction(func);
+			case EFunction(FNamed(no,inlined), func): (inlined ? 'inline ' : '') + 'function $no' + printFunction(func);
 			case EFunction(_, func): "function" + printFunction(func);
 			case EVars(vl): "var " + vl.map(printVar).join(", ");
 			case EBlock([]): '{ }';
@@ -438,7 +438,7 @@ class Printer {
 							loopI(v.expr);
 						}
 					}
-				case EFunction(name, f):
+				case EFunction(_, f):
 					add("EFunction");
 					if (f.expr != null) {
 						loopI(f.expr);

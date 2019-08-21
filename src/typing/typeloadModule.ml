@@ -56,9 +56,9 @@ module StrictMeta = struct
 			| TAbstractDecl a -> a.a_path, a.a_meta
 		in
 		let rec loop acc = function
-			| (Meta.JavaCanonical,[EConst(String pack),_; EConst(String name),_],_) :: _ ->
+			| (Meta.JavaCanonical,[EConst(String(pack,_)),_; EConst(String(name,_)),_],_) :: _ ->
 				ExtString.String.nsplit pack ".", name
-			| (Meta.Native,[EConst(String name),_],_) :: meta ->
+			| (Meta.Native,[EConst(String(name,_)),_],_) :: meta ->
 				loop (Ast.parse_path name) meta
 			| _ :: meta ->
 				loop acc meta
@@ -86,7 +86,7 @@ module StrictMeta = struct
 		| TConst(TFloat f) ->
 			(EConst(Float f), expr.epos)
 		| TConst(TString s) ->
-			(EConst(String s), expr.epos)
+			(EConst(String(s,SDoubleQuotes)), expr.epos)
 		| TConst TNull ->
 			(EConst(Ident "null"), expr.epos)
 		| TConst(TBool b) ->
@@ -377,7 +377,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport None;
+				(* p spans `import |` (to the display position), so we take the pmax here *)
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -910,7 +911,7 @@ let handle_import_hx ctx m decls p =
 			if Sys.file_exists path then begin
 				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
 					| ParseSuccess data -> data
-					| ParseDisplayFile(data,_) -> data
+					| ParseDisplayFile(data,_,_) -> data
 					| ParseError(_,(msg,p),_) -> Parser.error msg p
 				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;

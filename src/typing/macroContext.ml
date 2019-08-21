@@ -129,7 +129,7 @@ let make_macro_api ctx p =
 			try
 				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
 					| ParseSuccess data -> data
-					| ParseDisplayFile(data,_) when inl -> data (* ignore errors when inline-parsing in display file *)
+					| ParseDisplayFile(data,_,_) when inl -> data (* ignore errors when inline-parsing in display file *)
 					| ParseDisplayFile _ -> assert false (* cannot happen because ParserEntry.parse_string sets `display_position := null_pos;` *)
 					| ParseError _ -> raise MacroApi.Invalid_expr
 				end
@@ -723,7 +723,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			safe_decode v expected mret p process
 	in
 	let e = if ctx.in_macro then
-		Some (EThrow((EConst(String "macro-in-macro")),p),p)
+		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
 	else
 		call()
 	in

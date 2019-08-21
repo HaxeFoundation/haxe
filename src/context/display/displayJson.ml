@@ -102,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 2;
+					"minor",jint 3;
 					"patch",jint 0;
 				]
 			])
@@ -151,7 +151,7 @@ let handler =
 		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
-				CompilationServer.set_initialized hctx.display#get_cs;
+				CompilationServer.set_initialized hctx.display#get_cs (Define.get_signature hctx.com.defines) true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
 				let files = CompilationServer.get_files hctx.display#get_cs in
 				hctx.send_result (jobject [
@@ -277,7 +277,11 @@ let parse_input com input report_times =
 		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
-	com.json_out <- Some(send_result,send_error,jsonrpc);
+	com.json_out <- Some({
+		send_result = send_result;
+		send_error = send_error;
+		jsonrpc = jsonrpc
+	});
 
 	let cs = match CompilationServer.get() with
 		| Some cs -> cs
