@@ -351,4 +351,16 @@ typedef Foo = {
 		checkReplaceRange(markers, 1, 2, response);
 		equals("Cl", response.filterString);
 	}
+
+	function testIssue8669_fields() {
+		complete('class Main { static function main() "".{-1-}', 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete('class Main { static function main() "".{-1-}char', 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete('class Main { static function main() "".{-1-}char{-2-}', 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("char", response.filterString);
+	}
 }
