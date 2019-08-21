@@ -508,7 +508,7 @@ and parse_type_hint = parser
 			(fun p2 ->
 				let ct = CTPath magic_type_path in
 				pignore(f);
-				ct,null_pos
+				ct,display_position#with_pos p1
 			)
 			f
 
