@@ -296,7 +296,7 @@ let check_field_modifiers ctx c cf override display_modifier =
 			| _ ->
 				()
 			end
-		| _,Some (AOverride,p) when ctx.com.display.dms_kind = DMDefault ->
+		| Some _,_ when ctx.com.display.dms_kind = DMDefault ->
 			let all_fields = TClass.get_all_super_fields c in
 			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
 			let l = PMap.fold (fun (c,cf) fields ->
@@ -306,5 +306,5 @@ let check_field_modifiers ctx c cf override display_modifier =
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
 			let l = sort_fields l NoValue TKOverride in
-			raise_fields l CROverride (make_subject (Some cf.cf_name) p)
+			raise_fields l CROverride (make_subject (Some cf.cf_name) cf.cf_name_pos)
 		| _ -> ()

@@ -309,6 +309,17 @@ let check_resume_range p s fyes fno =
 	end else
 		fno()
 
+let check_completion p0 s =
+	match Stream.peek s with
+	| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
+		Stream.junk s;
+		(Some(Some name,p))
+	| _ ->
+		if would_skip_display_position p0 s then
+			Some(None,DisplayPosition.display_position#with_pos p0)
+		else
+			None
+
 let check_type_decl_flag_completion mode flags s =
 	if not !in_display_file || not (is_completion()) then raise Stream.Failure;
 	let mode () = match flags with

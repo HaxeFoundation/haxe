@@ -1118,7 +1118,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if cf.cf_name = Parser.magic_display_field_name then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf

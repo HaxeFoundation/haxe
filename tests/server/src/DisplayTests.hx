@@ -374,4 +374,14 @@ typedef Foo = {
 		checkReplaceRange(markers, 1, 2, response);
 		equals("char", response.filterString);
 	}
+
+	function testIssue8669_override() {
+		complete("import haxe.io.Bytes; class Main extends Bytes { static function main() { } override {-1-}}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+		equals("", response.filterString);
+
+		complete("import haxe.io.Bytes; class Main extends Bytes { static function main() { } override {-1-}get{-2-}}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("get", response.filterString);
+	}
 }
