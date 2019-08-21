@@ -70,9 +70,14 @@ type parse_data = string list * (type_def * pos) list
 
 type parse_error = (error_msg * pos)
 
+type parser_display_information = {
+	pd_errors : parse_error list;
+	pd_dead_blocks : pos list;
+}
+
 type 'a parse_result =
 	(* Parsed display file. There can be errors. *)
-	| ParseDisplayFile of 'a * parse_error list * pos list
+	| ParseDisplayFile of 'a * parser_display_information
 	(* Parsed non-display-file without errors. *)
 	| ParseSuccess of 'a
 	(* Parsed non-display file with errors *)

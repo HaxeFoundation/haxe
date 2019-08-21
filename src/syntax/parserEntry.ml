@@ -270,7 +270,7 @@ let parse ctx code file =
 		restore();
 		Lexer.restore old;
 		if was_display_file then
-			ParseDisplayFile(l,List.rev !syntax_errors,dbc#get_dead_blocks)
+			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks})
 		else begin match List.rev !syntax_errors with
 			| [] -> ParseSuccess l
 			| error :: errors -> ParseError(l,error,errors)
@@ -333,4 +333,4 @@ let parse_expr_string com s p error inl =
 	match parse_string com (head ^ s ^ ";}") p error inl with
 	| ParseSuccess data -> ParseSuccess(extract_expr data)
 	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
-	| ParseDisplayFile(data,errors,dead) -> ParseDisplayFile(extract_expr data,errors,dead)
+	| ParseDisplayFile(data,pdi) -> ParseDisplayFile(extract_expr data,pdi)
