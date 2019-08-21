@@ -822,3 +822,6 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let dump_path com =
+	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath

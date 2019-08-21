@@ -917,9 +917,6 @@ try
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			assert false
 		),"<[host:]port>","connect on the given port and run commands there)");
-		("Compilation",["--dump-file-path"],[], Arg.String (fun path ->        
-            com.dump_file_path <- Some path;    
-		),"<dump file dir>","if dump_dependencies is defined, this is where the files will go. (default to CWD)");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			assert false
 		),"<dir>","set current working directory");

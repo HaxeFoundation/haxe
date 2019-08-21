@@ -112,6 +112,11 @@
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
+		"name": "DumpPath",
+		"define": "dump_path",
+		"doc": "Path to generate dumps to (default: \"dump\")."
+	},
+	{
 		"name": "DumpDependencies",
 		"define": "dump_dependencies",
 		"doc": "Dump the classes dependencies in a dump subdirectory."
