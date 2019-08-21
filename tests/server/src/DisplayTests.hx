@@ -237,69 +237,62 @@ typedef Foo = {
 		});
 	}
 
+	function checkReplaceRange<S, T>(markers:Map<Int, Int>, startIndex:Int, endIndex:Int, response:CompletionResponse<S, T>) {
+		equals(markers[startIndex], response.replaceRange.start.character);
+		equals(markers[endIndex], response.replaceRange.end.character);
+	}
+
 	function testIssue8669_type() {
 		complete("{-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("{-1-}cl{-2-}", 2);
 		equals("cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 
 	function testIssue8669_modifier() {
 		complete("extern {-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("extern {-1-}cl{-2-}", 2);
 		equals("cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 
 	function testIssue8669_extends() {
 		complete("class C extends {-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("class C extends {-1-}Cl{-2-}", 2);
 		equals("Cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 
 	function testIssue8669_implements() {
 		complete("class C implements {-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("class C implements {-1-}Cl{-2-}", 2);
 		equals("Cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 
 	function testIssue8669_import() {
 		complete("import {-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("import {-1-}Cl{-2-}", 2);
 		// equals("Cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 
 	function testIssue8669_using() {
 		complete("using {-1-}", 1);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[1], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 1, response);
 
 		complete("using {-1-}Cl{-2-}", 2);
 		// equals("Cl", response.filterString);
-		equals(markers[1], response.replaceRange.start.character);
-		equals(markers[2], response.replaceRange.end.character);
+		checkReplaceRange(markers, 1, 2, response);
 	}
 }
