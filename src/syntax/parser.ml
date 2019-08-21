@@ -191,9 +191,11 @@ let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
 	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
-let would_skip_display_position p1 s =
+let would_skip_display_position p1 plus_one s =
 	if !in_display_file then match Stream.npeek 1 s with
-		| [ (_,p2) ] -> display_position#enclosed_in (punion p1 p2)
+		| [ (_,p2) ] ->
+			let p2 = {p2 with pmin = p1.pmax + (if plus_one then 1 else 0)} in
+			display_position#enclosed_in p2
 		| _ -> false
 	else false
 
@@ -309,13 +311,13 @@ let check_resume_range p s fyes fno =
 	end else
 		fno()
 
-let check_completion p0 s =
+let check_completion p0 plus_one s =
 	match Stream.peek s with
 	| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
 		Stream.junk s;
 		(Some(Some name,p))
 	| _ ->
-		if would_skip_display_position p0 s then
+		if would_skip_display_position p0 plus_one s then
 			Some(None,DisplayPosition.display_position#with_pos p0)
 		else
 			None
@@ -335,7 +337,7 @@ let check_type_decl_flag_completion mode flags s =
 			the parser would fail otherwise anyway. *)
 		| Some((Const(Ident name),p)) when display_position#enclosed_in p -> syntax_completion (mode()) (Some name) p
 		| _ -> match flags with
-			| (_,p) :: _ when would_skip_display_position p s ->
+			| (_,p) :: _ when would_skip_display_position p true s ->
 				let flags = List.map fst flags in
 				syntax_completion (SCAfterTypeFlag flags) None (DisplayPosition.display_position#with_pos p)
 			| _ ->

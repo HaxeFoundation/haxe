@@ -288,7 +288,7 @@ and parse_import s p1 =
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
-			if would_skip_display_position p1 s then
+			if would_skip_display_position p1 true s then
 				(display_position#with_pos p1,[],INormal)
 			else
 				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
@@ -318,7 +318,7 @@ and parse_using s p1 =
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
-			if would_skip_display_position p1 s then
+			if would_skip_display_position p1 true s then
 				(display_position#with_pos p1,[])
 			else
 				syntax_error (Expected ["identifier"]) s (p1,[])
@@ -496,7 +496,7 @@ and parse_class_flags = parser
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
 	| [< s >] ->
-		if would_skip_display_position p s then
+		if would_skip_display_position p false s then
 			CTPath magic_type_path,display_position#with_pos p
 		else
 			serror()
@@ -545,7 +545,7 @@ and parse_structural_extension = parser
 				| [< >] -> syntax_error (Expected [","]) s t
 			end;
 		| [< >] ->
-			if would_skip_display_position p1 s then begin
+			if would_skip_display_position p1 false s then begin
 				begin match s with parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
@@ -656,7 +656,7 @@ and parse_type_path_or_const plt = parser
 	| [< e = expr >] -> TPExpr e
 	| [< s >] ->
 		if !in_display_file then begin
-			if would_skip_display_position plt s then begin
+			if would_skip_display_position plt false s then begin
 				let ct = CTPath magic_type_path in
 				TPType (ct,display_position#with_pos plt)
 			end else
@@ -682,7 +682,7 @@ and parse_complex_type_next (t : type_hint) s =
 		begin match s with parser
 		| [< t2,p2 = parse_complex_type >] -> make_fun t2 p2
 		| [< >] ->
-			if would_skip_display_position pa s then begin
+			if would_skip_display_position pa false s then begin
 				let ct = CTPath magic_type_path in
 				make_fun ct (display_position#with_pos pa)
 			end else serror()
@@ -691,7 +691,7 @@ and parse_complex_type_next (t : type_hint) s =
 		begin match s with parser
 		| [< t2,p2 = parse_complex_type >] -> make_intersection t2 p2
 		| [< >] ->
-			if would_skip_display_position pa s then begin
+			if would_skip_display_position pa false s then begin
 				let ct = CTPath magic_type_path in
 				make_intersection ct (display_position#with_pos pa)
 			end else serror()
@@ -702,7 +702,7 @@ and parse_function_type_next tl p1 = parser
 	| [< '(Arrow,pa); s >] ->
 		begin match s with parser
 		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
-		| [< >] -> if would_skip_display_position pa s then begin
+		| [< >] -> if would_skip_display_position pa false s then begin
 				let ct = (CTPath magic_type_path),(display_position#with_pos pa) in
 				CTFunction (tl,ct), punion p1 pa
 			end else serror()
@@ -843,7 +843,7 @@ and parse_class_field tdecl s =
 			begin match List.rev al with
 				| [] -> raise Stream.Failure
 				| (AOverride,po) :: _ ->
-					begin match check_completion po s with
+					begin match check_completion po true s with
 					| None ->
 						serror()
 					| Some(so,p) ->
@@ -943,7 +943,7 @@ and parse_constraint_param s =
 
 and parse_type_path_or_resume p1 s =
 	let check_resume exc =
-		if would_skip_display_position p1 s then
+		if would_skip_display_position p1 true s then
 			(magic_type_path,display_position#with_pos p1),true
 		else
 			raise exc
@@ -1310,7 +1310,7 @@ and expr = parser
 		begin match s with parser
 		| [< e = expr >] -> (EReturn (Some e),punion p (pos e))
 		| [< >] ->
-			if would_skip_display_position p s then (EReturn (Some (mk_null_expr (punion_next p s))),p)
+			if would_skip_display_position p true s then (EReturn (Some (mk_null_expr (punion_next p s))),p)
 			else (EReturn None,p)
 		end
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
