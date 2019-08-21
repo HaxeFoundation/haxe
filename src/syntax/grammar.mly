@@ -658,7 +658,7 @@ and parse_type_path_or_const plt = parser
 		if !in_display_file then begin
 			if would_skip_display_position plt s then begin
 				let ct = CTPath magic_type_path in
-				TPType (ct,plt)
+				TPType (ct,display_position#with_pos plt)
 			end else
 				raise Stream.Failure
 		end else
