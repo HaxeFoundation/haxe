@@ -42,6 +42,10 @@ class AsyncMacro {
 				var e = transformHaxeCalls(el);
 				args.push(macro() -> $e);
 				macro runHaxeJson($a{args});
+			case macro complete($a{args}):
+				var e = transformHaxeCalls(el);
+				args.push(macro function(response, markers) $e);
+				macro complete($a{args});
 			case _:
 				macro {$e0; ${transformHaxeCalls(el)}};
 		}

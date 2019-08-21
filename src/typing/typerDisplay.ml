@@ -391,19 +391,20 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMTypeDefinition ->
 		raise_position_of_type e.etype
 	| DMDefault when not (!Parser.had_resume)->
-		let display_fields e_ast e1 l =
+		let display_fields e_ast e1 so =
+			let l = match so with None -> 0 | Some s -> String.length s in
 			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in
 			let item = completion_item_of_expr ctx e1 in
-			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject None ~start_pos:(Some (pos e_ast)) {e.epos with pmin = e.epos.pmax - l;})
+			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject so ~start_pos:(Some (pos e_ast)) {e.epos with pmin = e.epos.pmax - l;})
 		in
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->
-				display_fields e1 e2 (String.length s)
+				display_fields e1 e2 (Some s)
 			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
 				(* This is what the parser emits for #8651. Bit of a dodgy heuristic but should be fine. *)
 				raise_toplevel ctx dk with_type (name,pn)
 			| _ ->
-				if dk = DKDot then display_fields e_ast e 0
+				if dk = DKDot then display_fields e_ast e None
 				else begin
 					let name = try String.concat "." (string_list_of_expr_path_raise e_ast) with Exit -> "" in
 					let name = if name = "null" then "" else name in
@@ -436,7 +437,7 @@ and display_expr ctx e_ast e dk with_type p =
 			end with Error _ | Not_found ->
 				None
 		in
-		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (pos e_ast))
+		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
 let handle_structure_display ctx e fields origin =
 	let p = pos e in

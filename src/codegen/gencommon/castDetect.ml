@@ -352,12 +352,8 @@ let rec handle_cast gen e real_to_t real_from_t =
 				| TNew(c,_,el) when c == c_array ->
 					mk_cast false (TInst(c_array,[tp_to])) { e with eexpr = TNew(c, [tp_to], el); etype = TInst(c_array,[tp_to]) }
 				| _ ->
-					try
-						type_eq gen EqRightDynamic tp_from tp_to;
-						e
-					with | Unify_error _ ->
-						mk_cast false to_t (clean_cast e))
-
+					e
+			)
 		| TInst(cl_to, params_to), TInst(cl_from, params_from) ->
 			let ret = ref None in
 			(*
@@ -1137,6 +1133,9 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			with | Not_found ->
 				gen.gcon.warning "No overload found for this constructor call" e.epos;
 				{ e with eexpr = TNew(cl, tparams, List.map run eparams) })
+			| TUnop((Increment | Decrement) as op, flag, ({ eexpr = TArray (arr, idx) } as e2))
+				when (match follow arr.etype with TInst({ cl_path = ["cs"],"NativeArray" },_) -> true | _ -> false) ->
+				{ e with eexpr = TUnop(op, flag, { e2 with eexpr = TArray(run arr, idx) })}
 			| TArray(arr, idx) ->
 				let arr_etype = match follow arr.etype with
 					| (TInst _ as t) -> t
@@ -1154,6 +1153,11 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let e = { e with eexpr = TArray(run arr, idx) } in
 				(* get underlying class (if it's a class *)
 				(match arr_etype with
+					| TInst({ cl_path = ["cs"],"NativeArray" }, _) when
+							(match Abstract.follow_with_abstracts e.etype with TInst _ | TEnum _ -> true | _ -> false)
+							|| Common.defined gen.gcon Define.EraseGenerics
+						->
+						mk_cast e.etype e
 					| TInst(cl, params) ->
 						(* see if it implements ArrayAccess *)
 						(match cl.cl_array_access with

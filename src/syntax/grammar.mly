@@ -186,7 +186,8 @@ and parse_type_decl mode s =
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
 				let check_display p1 =
-					if not had_display && !in_display_file && display_position#enclosed_in p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
+					if not had_display && !in_display_file && display_position#enclosed_in p1 then
+						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
@@ -205,8 +206,13 @@ and parse_type_decl mode s =
 					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
-					check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
-					syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
+					begin match Stream.peek s with
+					| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
+						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) (Some name) p
+					| _ ->
+						check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+						syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
+					end
 			in
 			let hl = loop false (last_pos s) [] in
 			let fl, p2 = parse_class_fields false p1 s in
@@ -281,7 +287,11 @@ and parse_import s p1 =
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[],INormal)
+		| [< >] ->
+			if would_skip_display_position p1 s then
+				(display_position#with_pos p1,[],INormal)
+			else
+				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -307,7 +317,11 @@ and parse_using s p1 =
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[])
+		| [< >] ->
+			if would_skip_display_position p1 s then
+				(display_position#with_pos p1,[])
+			else
+				syntax_error (Expected ["identifier"]) s (p1,[])
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -316,7 +330,7 @@ and parse_abstract_relations s =
 		if !in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
-			((CTPath magic_type_path,p2))
+			((CTPath magic_type_path,display_position#with_pos p2))
 		else
 			(ct,p2)
 	in
@@ -481,7 +495,11 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< s >] -> if would_skip_display_position p s then CTPath magic_type_path,p else serror()
+	| [< s >] ->
+		if would_skip_display_position p s then
+			CTPath magic_type_path,display_position#with_pos p
+		else
+			serror()
 
 and parse_type_hint = parser
 	| [< '(DblDot,p1); s >] ->
@@ -532,7 +550,7 @@ and parse_structural_extension = parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
 				end;
-				magic_type_path,null_pos
+				magic_type_path,display_position#with_pos p1
 			end else raise Stream.Failure
 
 and parse_complex_type_inner allow_named = parser
@@ -666,7 +684,7 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< >] ->
 			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
-				make_fun ct null_pos
+				make_fun ct (display_position#with_pos pa)
 			end else serror()
 		end
 	| [< '(Binop OpAnd,pa); s >] ->
@@ -675,7 +693,7 @@ and parse_complex_type_next (t : type_hint) s =
 		| [< >] ->
 			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
-				make_intersection ct null_pos
+				make_intersection ct (display_position#with_pos pa)
 			end else serror()
 		end
 	| [< >] -> t
@@ -685,7 +703,7 @@ and parse_function_type_next tl p1 = parser
 		begin match s with parser
 		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
 		| [< >] -> if would_skip_display_position pa s then begin
-				let ct = (CTPath magic_type_path),null_pos in
+				let ct = (CTPath magic_type_path),(display_position#with_pos pa) in
 				CTFunction (tl,ct), punion p1 pa
 			end else serror()
 		end
@@ -926,10 +944,9 @@ and parse_constraint_param s =
 		raise Stream.Failure;
 
 and parse_type_path_or_resume p1 s =
-	let pnext = next_pos s in
 	let check_resume exc =
-		if !in_display_file && display_position#enclosed_in (punion p1 pnext) then
-			(magic_type_path,punion_next p1 s),true
+		if would_skip_display_position p1 s then
+			(magic_type_path,display_position#with_pos p1),true
 		else
 			raise exc
 	in
