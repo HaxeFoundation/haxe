@@ -73,6 +73,7 @@ type parse_error = (error_msg * pos)
 type parser_display_information = {
 	pd_errors : parse_error list;
 	pd_dead_blocks : pos list;
+	pd_conditions : expr list;
 }
 
 type 'a parse_result =

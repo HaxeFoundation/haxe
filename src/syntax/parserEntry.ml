@@ -131,6 +131,7 @@ let parse ctx code file =
 	let was_display_file = !in_display_file in
 	let old_code = !code_ref in
 	let old_macro = !in_macro in
+	let conditions = ref [] in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
@@ -179,7 +180,8 @@ let parse ctx code file =
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
-				let _,(_,pe) = parse_macro_cond sraw in
+				let _,(e,pe) = parse_macro_cond sraw in
+				conditions := (e,pe) :: !conditions;
 				dbc#open_dead_block pe;
 				mstack := l;
 				let tk = skip_tokens (pos tk) false in
@@ -212,6 +214,7 @@ let parse ctx code file =
 
 	and enter_macro p =
 		let tk, e = parse_macro_cond sraw in
+		conditions := e :: !conditions;
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
 		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
@@ -228,7 +231,8 @@ let parse ctx code file =
 			Lexer.token code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
-			let _,(_,pe) = parse_macro_cond sraw in
+			let _,(e,pe) = parse_macro_cond sraw in
+			conditions := (e,pe) :: !conditions;
 			dbc#open_dead_block pe;
 			skip_tokens p test
 		| Sharp "else" when not test ->
@@ -244,6 +248,8 @@ let parse ctx code file =
 			enter_macro (snd tk)
 		| Sharp "if" ->
 			dbc#open_dead_block (pos tk);
+			let _,e = parse_macro_cond sraw in
+			conditions := e :: !conditions;
 			let tk = skip_tokens p false in
 			skip_tokens_loop p test tk
 		| Sharp ("error" | "line") ->
@@ -270,7 +276,7 @@ let parse ctx code file =
 		restore();
 		Lexer.restore old;
 		if was_display_file then
-			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks})
+			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = !conditions})
 		else begin match List.rev !syntax_errors with
 			| [] -> ParseSuccess l
 			| error :: errors -> ParseError(l,error,errors)

@@ -144,6 +144,40 @@ let resolve_module_file com m remap p =
 	let timer = Timer.timer ["typing";"resolve_module_file"] in
 	Std.finally timer (resolve_module_file com m remap) p *)
 
+module ConditionDisplay = struct
+	open ParserEntry
+	open CompletionItem.CompletionType
+
+	exception Result of expr
+
+	let ct name = CTAbstract {
+		ct_pack = [];
+		ct_type_name = name;
+		ct_module_name = name;
+		ct_params = [];
+		ct_import_status = Imported;
+	}
+
+	let convert_small_type com = function
+		| TNull -> "null",(Type.mk_mono(),CTMono)
+		| TBool b -> string_of_bool b,(com.basic.tbool,ct "Bool")
+		| TFloat f -> string_of_float f,(com.basic.tfloat,ct "Float")
+		| TString s -> s,(com.basic.tstring,ct "String")
+		| TVersion(r,p) -> Semver.to_string (r,p),(com.basic.tstring,ct "String")
+
+	let check_condition com e =
+		let rec loop (e,p) =
+			Ast.iter_expr loop (e,p);
+			if DisplayPosition.display_position#enclosed_in p then raise (Result (e,p))
+		in
+		try
+			loop e;
+		with Result e ->
+			let v = eval com.defines e in
+			let s,(t,ct) = convert_small_type com v in
+			DisplayException.raise_hover (CompletionItem.make_ci_literal s (t,ct)) None (pos e)
+end
+
 let parse_module_file com file p =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
@@ -160,6 +194,7 @@ let parse_module_file com file p =
 			| [] -> ()
 			end;
 			if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.display_information.dead_blocks file pdi.pd_dead_blocks;
+			List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
