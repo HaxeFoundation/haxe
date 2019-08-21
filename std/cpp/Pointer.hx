@@ -75,7 +75,9 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T> {
 	override public function inc():Pointer<T>;
 	override public function dec():Pointer<T>;
 	override public function incBy(inT:Int):Pointer<T>;
+	override public function decBy(inT:Int):Pointer<T>;
 	override public function add(inT:Int):Pointer<T>;
+	override public function sub(inT:Int):Pointer<T>;
 
 	public function postIncRef():Reference<T>;
 

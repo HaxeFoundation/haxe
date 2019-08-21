@@ -263,7 +263,7 @@ let collect ctx e_ast e dk with_type p =
 	in
 	(* Add special `.code` field if we have a string of length 1 *)
 	let items = match fst e_ast with
-		| EConst(String s) when String.length s = 1 ->
+		| EConst(String(s,_)) when String.length s = 1 ->
 			let cf = mk_field "code" ctx.t.tint e.epos null_pos in
 			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };

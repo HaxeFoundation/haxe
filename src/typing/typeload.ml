@@ -251,7 +251,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 					begin try
 						let msg = match Meta.get Meta.Deprecated td.t_meta with
-							| _,[EConst(String s),_],_ -> s
+							| _,[EConst(String(s,_)),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
 						in
 						DeprecationCheck.warn_deprecation ctx.com msg p
@@ -285,7 +285,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
-						| EConst (String s) -> "S" ^ s
+						| EConst (String(s,_)) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->

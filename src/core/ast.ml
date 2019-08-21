@@ -99,10 +99,15 @@ type unop =
 	| Neg
 	| NegBits
 
+type string_literal_kind =
+	| SDoubleQuotes
+	| SSingleQuotes
+	(* | SMarkup *)
+
 type constant =
 	| Int of string
 	| Float of string
-	| String of string
+	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
 
@@ -362,7 +367,11 @@ let parse_path s =
 let s_constant = function
 	| Int s -> s
 	| Float s -> s
-	| String s -> "\"" ^ StringHelper.s_escape s ^ "\""
+	| String(s,qs) ->
+		begin match qs with
+		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		| SSingleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		end
 	| Ident s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 

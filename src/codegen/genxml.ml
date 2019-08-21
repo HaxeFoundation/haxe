@@ -60,7 +60,7 @@ let gen_arg_name (name,opt,_) =
 let real_path path meta =
 	let rec loop = function
 		| [] -> path
-		| (Meta.RealPath,[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
+		| (Meta.RealPath,[(Ast.EConst (Ast.String(s,_)),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop meta
@@ -165,7 +165,7 @@ and gen_field att f =
 	let field_name cf =
 		try
 			begin match Meta.get Meta.RealPath cf.cf_meta with
-				| _,[EConst (String (s)),_],_ -> s
+				| _,[EConst (String (s,_)),_],_ -> s
 				| _ -> raise Not_found
 			end;
 		with Not_found ->
