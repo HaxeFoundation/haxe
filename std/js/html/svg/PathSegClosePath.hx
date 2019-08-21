@@ -24,6 +24,5 @@
 
 package js.html.svg;
 
-typedef PathSegClosePath =
-{
+typedef PathSegClosePath = {
 }

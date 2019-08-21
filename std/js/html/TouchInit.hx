@@ -24,18 +24,17 @@
 
 package js.html;
 
-typedef TouchInit =
-{
-	@:optional var clientX : Int;
-	@:optional var clientY : Int;
-	@:optional var force : Float;
+typedef TouchInit = {
+	var ?clientX : Int;
+	var ?clientY : Int;
+	var ?force : Float;
 	var identifier : Int;
-	@:optional var pageX : Int;
-	@:optional var pageY : Int;
-	@:optional var radiusX : Float;
-	@:optional var radiusY : Float;
-	@:optional var rotationAngle : Float;
-	@:optional var screenX : Int;
-	@:optional var screenY : Int;
+	var ?pageX : Int;
+	var ?pageY : Int;
+	var ?radiusX : Float;
+	var ?radiusY : Float;
+	var ?rotationAngle : Float;
+	var ?screenX : Int;
+	var ?screenY : Int;
 	var target : EventTarget;
 }

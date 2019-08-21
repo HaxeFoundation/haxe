@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCDTMFToneChangeEvent>
 **/
 @:native("RTCDTMFToneChangeEvent")
-extern class DTMFToneChangeEvent extends js.html.Event
-{
+extern class DTMFToneChangeEvent extends js.html.Event {
 	
 	/**
 		A `DOMString` specifying the tone which has begun playing, or an empty string (`""`) if the previous tone has finished playing.

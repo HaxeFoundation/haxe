@@ -2,13 +2,13 @@ package cases;
 
 class Issue6434 extends DisplayTestCase {
 	/**
-	import misc.ModuleWithPrivateType;
+		import misc.ModuleWithPrivateType;
 
-	class Main {
-		static function main() {
-			{-1-}
+		class Main {
+			static function main() {
+				{-1-}
+			}
 		}
-	}
 	**/
 	function test() {
 		var toplevel = toplevel(pos(1));

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMParser>
 **/
 @:native("DOMParser")
-extern class DOMParser
-{
+extern class DOMParser {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */

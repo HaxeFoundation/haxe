@@ -1,7 +1,7 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum Kerning {
-	AUTO;
-	OFF;
-	ON;
+@:native("flash.text.engine.Kerning") extern enum abstract Kerning(String) {
+	var AUTO;
+	var OFF;
+	var ON;
 }

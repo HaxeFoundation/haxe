@@ -24,11 +24,9 @@
 
 package js.html.audio;
 
-typedef AnalyserOptions =
-{
-	> AudioNodeOptions,
-	@:optional var fftSize : Int;
-	@:optional var maxDecibels : Float;
-	@:optional var minDecibels : Float;
-	@:optional var smoothingTimeConstant : Float;
+typedef AnalyserOptions = AudioNodeOptions & {
+	var ?fftSize : Int;
+	var ?maxDecibels : Float;
+	var ?minDecibels : Float;
+	var ?smoothingTimeConstant : Float;
 }

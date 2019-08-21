@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEGaussianBlurElement>
 **/
 @:native("SVGFEGaussianBlurElement")
-extern class FEGaussianBlurElement extends Element
-{
+extern class FEGaussianBlurElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect>
 **/
 @:native("KeyframeEffect")
-extern class KeyframeEffect extends AnimationEffect
-{
+extern class KeyframeEffect extends AnimationEffect {
 	
 	/**
 		Gets and sets the element or pseudo-element being animated by this object. This may be `null` for animations that do not target a specific element.

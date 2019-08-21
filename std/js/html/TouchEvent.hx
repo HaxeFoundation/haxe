@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent>
 **/
 @:native("TouchEvent")
-extern class TouchEvent extends UIEvent
-{
+extern class TouchEvent extends UIEvent {
 	
 	/**
 		A `TouchList` of all the `Touch` objects representing all current points of contact with the surface, regardless of target or changed status.
@@ -72,5 +71,5 @@ extern class TouchEvent extends UIEvent
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TouchEventInit ) : Void;
-	function initTouchEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?detail : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?touches : TouchList, ?targetTouches : TouchList, ?changedTouches : TouchList ) : Void;
+	function initTouchEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, detail : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, ?touches : TouchList, ?targetTouches : TouchList, ?changedTouches : TouchList ) : Void;
 }

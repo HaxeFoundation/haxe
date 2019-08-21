@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ClientType(String)
-{
+enum abstract ClientType(String) {
 	var WINDOW = "window";
 	var WORKER = "worker";
 	var SHAREDWORKER = "sharedworker";

@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCSessionDescription>
 **/
 @:native("RTCSessionDescription")
-extern class SessionDescription
-{
+extern class SessionDescription {
 	
 	/**
 		An enum of type ``RTCSdpType`` describing the session description's type.

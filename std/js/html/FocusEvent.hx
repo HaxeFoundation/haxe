@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent>
 **/
 @:native("FocusEvent")
-extern class FocusEvent extends UIEvent
-{
+extern class FocusEvent extends UIEvent {
 	
 	/**
 		Is an `EventTarget` representing a secondary target for this event. As in some cases (like when tabbing in or out a page), this property may be set to `null` for security reasons.

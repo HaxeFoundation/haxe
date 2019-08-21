@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet>
 **/
 @:native("StyleSheet")
-extern class StyleSheet
-{
+extern class StyleSheet {
 	
 	/**
 		Returns a `DOMString` representing the style sheet language for this style sheet.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming>
 **/
 @:native("PerformanceNavigationTiming")
-extern class PerformanceNavigationTiming extends PerformanceResourceTiming
-{
+extern class PerformanceNavigationTiming extends PerformanceResourceTiming {
 	
 	/**
 		A `DOMHighResTimeStamp` representing the time value equal to the time immediately before the user agent starts the unload event of the previous document.

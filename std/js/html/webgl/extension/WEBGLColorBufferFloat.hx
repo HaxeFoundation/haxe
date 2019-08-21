@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_color_buffer_float>
 **/
 @:native("WEBGL_color_buffer_float")
-extern class WEBGLColorBufferFloat
-{
+extern class WEBGLColorBufferFloat {
 	
 	/**
 		RGBA 32-bit floating-point color-renderable format.

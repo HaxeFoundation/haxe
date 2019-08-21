@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataListElement>
 **/
 @:native("HTMLDataListElement")
-extern class DataListElement extends Element
-{
+extern class DataListElement extends Element {
 	
 	/**
 		Is a `HTMLCollection` representing a collection of the contained option elements.

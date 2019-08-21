@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList>
 **/
 @:native("SourceBufferList")
-extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer>
-{
+extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer> {
 	
 	/**
 		Returns the number of `SourceBuffer` objects in the list.

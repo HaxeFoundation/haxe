@@ -24,15 +24,14 @@
 
 package js.html.rtc;
 
-typedef RtpEncodingParameters =
-{
-	@:optional var active : Bool;
-	@:optional var degradationPreference : DegradationPreference;
-	@:optional var fec : FecParameters;
-	@:optional var maxBitrate : Int;
-	@:optional var priority : PriorityType;
-	@:optional var rid : String;
-	@:optional var rtx : RtxParameters;
-	@:optional var scaleResolutionDownBy : Float;
-	@:optional var ssrc : Int;
+typedef RtpEncodingParameters = {
+	var ?active : Bool;
+	var ?degradationPreference : DegradationPreference;
+	var ?fec : FecParameters;
+	var ?maxBitrate : Int;
+	var ?priority : PriorityType;
+	var ?rid : String;
+	var ?rtx : RtxParameters;
+	var ?scaleResolutionDownBy : Float;
+	var ?ssrc : Int;
 }

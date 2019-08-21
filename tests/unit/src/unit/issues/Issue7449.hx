@@ -1,9 +1,12 @@
 package unit.issues;
 
 class Issue7449 extends unit.Test {
-	function test() {
-		#if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
-		eq(220, "\xDC".charCodeAt(0));
-		#end
-	}
+	/**
+	 * Not happens since https://github.com/HaxeFoundation/haxe/pull/8141
+	 */
+	// #if target.unicode
+	// function test() {
+	// 	eq(220, "\xDC".charCodeAt(0));
+	// }
+	// #end
 }

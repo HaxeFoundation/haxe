@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CSSAnimation")
-extern class CSSAnimation extends Animation
-{
+extern class CSSAnimation extends Animation {
 	var animationName(default,null) : String;
 	
 }

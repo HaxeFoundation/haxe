@@ -25,33 +25,29 @@ class Issue3826 extends Test {
 		eq( get(8.5), "2/8.5" );
 
 		eq( get(inull), "2/4.25" );
-		eq( get(inull,fnull), "2/4.25" );		
-		eq( get(inull,inull), "2/4.25" );		
+		eq( get(inull,fnull), "2/4.25" );
+		eq( get(inull,inull), "2/4.25" );
 		eq( get(fnull), "2/4.25" );
 		eq( get(dnull,dnull), "2/4.25" );
 		eq( get(ival,fval), "5/8.5" );
 		eq( get(dval,dval), "6/6" );
-		
+
 		#end
 	}
 
+	#if !((java && !jvm) || cs || flash)
 	public function testReflect() {
-		#if (java || cs || lua)
-		return; // TODO
-		#end
-			
-		#if !flash
 		eq( Reflect.callMethod(this, get, []), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );
 		eq( Reflect.callMethod(this, get, [5,8.5]), "5/8.5" );
 		eq( Reflect.callMethod(this, get, [null,8.5]), "2/8.5" );
 
 		eq( Reflect.callMethod(this, get, [null]), "2/4.25" );
-		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );		
-		eq( Reflect.callMethod(this, get, [ival,fval]), "5/8.5" );		
-		eq( Reflect.callMethod(this, get, [dval,dval]), "6/6" );		
-		#end
+		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );
+		eq( Reflect.callMethod(this, get, [ival,fval]), "5/8.5" );
+		eq( Reflect.callMethod(this, get, [dval,dval]), "6/6" );
 	}
+	#end
 
 	function getOpt( ?a = 2, ?b = 4.25 ) {
 		return ""+a+"/"+b;

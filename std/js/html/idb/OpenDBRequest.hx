@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest>
 **/
 @:native("IDBOpenDBRequest")
-extern class OpenDBRequest extends Request
-{
+extern class OpenDBRequest extends Request {
 	
 	/**
 		The event handler for the blocked event. This event is triggered when the `upgradeneeded` event should be triggered because of a version change but the database is still in use (i.e. not closed) somewhere, even after the `versionchange` event was sent.

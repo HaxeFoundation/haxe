@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef MessageEventInit =
-{
-	> EventInit,
-	@:optional var data : Dynamic;
-	@:optional var lastEventId : String;
-	@:optional var origin : String;
-	@:optional var ports : Array<MessagePort>;
-	@:optional var source : haxe.extern.EitherType<Window,haxe.extern.EitherType<MessagePort,ServiceWorker>>;
+typedef MessageEventInit = EventInit & {
+	var ?data : Dynamic;
+	var ?lastEventId : String;
+	var ?origin : String;
+	var ?ports : Array<MessagePort>;
+	var ?source : haxe.extern.EitherType<Window,haxe.extern.EitherType<MessagePort,ServiceWorker>>;
 }

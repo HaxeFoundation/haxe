@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent>
 **/
 @:native("StorageEvent")
-extern class StorageEvent extends Event
-{
+extern class StorageEvent extends Event {
 	var key(default,null) : String;
 	var oldValue(default,null) : String;
 	var newValue(default,null) : String;
@@ -42,5 +41,5 @@ extern class StorageEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : StorageEventInit ) : Void;
-	function initStorageEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?key : String, ?oldValue : String, ?newValue : String, ?url : String, ?storageArea : Storage ) : Void;
+	function initStorageEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?key : String, ?oldValue : String, ?newValue : String, ?url : String, ?storageArea : Storage ) : Void;
 }

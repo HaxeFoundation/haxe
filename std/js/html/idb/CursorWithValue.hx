@@ -30,8 +30,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursorWithValue>
 **/
 @:native("IDBCursorWithValue")
-extern class CursorWithValue extends Cursor
-{
+extern class CursorWithValue extends Cursor {
 	
 	/**
 		Returns the value of the current cursor.

@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB>
 **/
 @:native("EXT_sRGB")
-extern class EXTSrgb
-{
+extern class EXTSrgb {
 	
 	/**
 		Unsized sRGB format that leaves the precision up to the driver.

@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest>
 **/
 @:native("IDBRequest")
-extern class Request extends js.html.EventTarget
-{
+extern class Request extends js.html.EventTarget {
 	
 	/**
 		

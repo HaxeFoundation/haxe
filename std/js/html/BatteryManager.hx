@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BatteryManager>
 **/
 @:native("BatteryManager")
-extern class BatteryManager extends EventTarget
-{
+extern class BatteryManager extends EventTarget {
 	
 	/**
 		A Boolean value indicating whether or not the battery is currently being charged.

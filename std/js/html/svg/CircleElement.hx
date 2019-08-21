@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement>
 **/
 @:native("SVGCircleElement")
-extern class CircleElement extends GeometryElement
-{
+extern class CircleElement extends GeometryElement {
 	
 	/**
 		

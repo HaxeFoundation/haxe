@@ -10,6 +10,7 @@ let has_side_effect e =
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
 		| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
 		| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) -> List.iter loop el
+		| TField(_,fa) when PurityState.is_explicitly_impure fa -> raise Exit
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
@@ -209,7 +210,7 @@ let optimize_binop e op e1 e2 =
 		(match op with
 		| OpAssign -> e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
 	| _ ->
 		e)
 

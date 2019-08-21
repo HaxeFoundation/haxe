@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationTimeline>
 **/
 @:native("AnimationTimeline")
-extern class AnimationTimeline
-{
+extern class AnimationTimeline {
 	
 	/**
 		Returns the time value in milliseconds for this timeline or `null` if this timeline is inactive.

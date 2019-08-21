@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLength>
 **/
 @:native("SVGLength")
-extern class Length
-{
+extern class Length {
 	static inline var SVG_LENGTHTYPE_UNKNOWN : Int = 0;
 	static inline var SVG_LENGTHTYPE_NUMBER : Int = 1;
 	static inline var SVG_LENGTHTYPE_PERCENTAGE : Int = 2;

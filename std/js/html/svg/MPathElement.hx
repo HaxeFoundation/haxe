@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMPathElement>
 **/
 @:native("SVGMPathElement")
-extern class MPathElement extends Element
-{
+extern class MPathElement extends Element {
 	var href(default,null) : AnimatedString;
 	
 }

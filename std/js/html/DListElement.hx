@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement>
 **/
 @:native("HTMLDListElement")
-extern class DListElement extends Element
-{
+extern class DListElement extends Element {
 	
 	/**
 		Is a `Boolean` indicating that spacing between list items should be reduced.

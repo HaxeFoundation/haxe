@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGPathSeg")
-extern class PathSeg
-{
+extern class PathSeg {
 	static inline var PATHSEG_UNKNOWN : Int = 0;
 	static inline var PATHSEG_CLOSEPATH : Int = 1;
 	static inline var PATHSEG_MOVETO_ABS : Int = 2;

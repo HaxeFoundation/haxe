@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement>
 **/
 @:native("HTMLTableRowElement")
-extern class TableRowElement extends Element
-{
+extern class TableRowElement extends Element {
 	
 	/**
 		Returns a `long` value which gives the logical position of the row within the entire table. If the row is not part of a table, returns `-1`.
@@ -80,7 +79,7 @@ extern class TableRowElement extends Element
 		Inserts a new cell just before the given position in the row. If the given position is not given or is `-1`, it appends the cell to the row. If the given position is greater (or equal as it starts at zero) than the amount of cells in the row, or is smaller than `-1`, it raises a `DOMException` with the `IndexSizeError` value. Returns a reference to a HTMLTableCellElement [en-US].
 		@throws DOMError
 	**/
-	function insertCell( ?index : Int = -1 ) : Element;
+	function insertCell( index : Int = -1 ) : Element;
 	
 	/**
 		Removes the cell at the given position in the row. If the given position is greater (or equal as it starts at zero) than the amount of cells in the row, or is smaller than `0`, it raises a `DOMException` with the `IndexSizeError` value.

@@ -1,5 +1,5 @@
 #if js
-if( untyped js.html.Float64Array == "notsupported" ) return;
+if( untyped js.lib.Float64Array == "notsupported" ) return;
 #end
 
 var b = new haxe.io.Float64Array(5);

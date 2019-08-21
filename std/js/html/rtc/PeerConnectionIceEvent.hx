@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnectionIceEvent>
 **/
 @:native("RTCPeerConnectionIceEvent")
-extern class PeerConnectionIceEvent extends js.html.Event
-{
+extern class PeerConnectionIceEvent extends js.html.Event {
 	
 	/**
 		Contains the `RTCIceCandidate` containing the candidate associated with the event.

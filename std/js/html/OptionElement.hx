@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionElement>
 **/
 @:native("HTMLOptionElement")
-extern class OptionElement extends Element
-{
+extern class OptionElement extends Element {
 	var disabled : Bool;
 	var form(default,null) : FormElement;
 	var label : String;

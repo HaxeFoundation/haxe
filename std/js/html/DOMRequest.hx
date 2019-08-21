@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("DOMRequest")
-extern class DOMRequest extends EventTarget
-{
+extern class DOMRequest extends EventTarget {
 	var readyState(default,null) : DOMRequestReadyState;
 	var result(default,null) : Dynamic;
 	var error(default,null) : DOMException;

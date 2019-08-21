@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement>
 **/
 @:native("HTMLTextAreaElement")
-extern class TextAreaElement extends Element
-{
+extern class TextAreaElement extends Element {
 	var autocomplete : String;
 	var autofocus : Bool;
 	var cols : Int;
@@ -65,7 +64,7 @@ extern class TextAreaElement extends Element
 	function select() : Void;
 	/** @throws DOMError */
 	@:overload( function( replacement : String ) : Void {} )
-	function setRangeText( replacement : String, start : Int, end : Int, ?selectionMode : SelectionMode = "preserve" ) : Void;
+	function setRangeText( replacement : String, start : Int, end : Int, selectionMode : SelectionMode = PRESERVE ) : Void;
 	/** @throws DOMError */
 	function setSelectionRange( start : Int, end : Int, ?direction : String ) : Void;
 }

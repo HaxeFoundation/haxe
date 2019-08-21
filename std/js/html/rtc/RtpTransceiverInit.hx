@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef RtpTransceiverInit =
-{
-	@:optional var direction : RtpTransceiverDirection;
-	@:optional var streams : Array<js.html.MediaStream>;
+typedef RtpTransceiverInit = {
+	var ?direction : RtpTransceiverDirection;
+	var ?streams : Array<js.html.MediaStream>;
 }

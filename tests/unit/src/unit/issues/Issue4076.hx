@@ -7,5 +7,6 @@ class Issue4076 extends Test {
 		while (b && ((i = 18) < 18)) {
 		  ++i;
 		}
+		noAssert();
 	}
 }

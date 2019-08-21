@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance>
 **/
 @:native("SpeechSynthesisUtterance")
-extern class SpeechSynthesisUtterance extends EventTarget
-{
+extern class SpeechSynthesisUtterance extends EventTarget {
 	
 	/**
 		Gets and sets the text that will be synthesised when the utterance is spoken.

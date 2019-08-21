@@ -19,11 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 @:pythonImport("io", "BufferedRWPair")
-extern class BufferedRWPair extends BufferedIOBase {
-
-
-
-}
+extern class BufferedRWPair extends BufferedIOBase {}

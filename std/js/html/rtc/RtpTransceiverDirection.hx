@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract RtpTransceiverDirection(String)
-{
+enum abstract RtpTransceiverDirection(String) {
 	var SENDRECV = "sendrecv";
 	var SENDONLY = "sendonly";
 	var RECVONLY = "recvonly";

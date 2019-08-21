@@ -9,5 +9,6 @@ class Issue6106 extends unit.Test {
 
 		var f = function() assertEquals(1, 1);
 		f();
+		noAssert();
 	}
 }

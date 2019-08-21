@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_standard_derivatives>
 **/
 @:native("OES_standard_derivatives")
-extern class OESStandardDerivatives
-{
+extern class OESStandardDerivatives {
 	
 	/**
 		A `Glenum` indicating the accuracy of the derivative calculation for the GLSL built-in functions: `dFdx`, `dFdy`, and `fwidth`.

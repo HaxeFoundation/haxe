@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis>
 **/
 @:native("SpeechSynthesis")
-extern class SpeechSynthesis extends EventTarget
-{
+extern class SpeechSynthesis extends EventTarget {
 	
 	/**
 		A `Boolean` that returns `true` if the utterance queue contains as-yet-unspoken utterances.

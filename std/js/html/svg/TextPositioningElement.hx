@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextPositioningElement>
 **/
 @:native("SVGTextPositioningElement")
-extern class TextPositioningElement extends TextContentElement
-{
+extern class TextPositioningElement extends TextContentElement {
 	
 	/**
 		Returns an `SVGAnimatedLengthList` reflecting the `x` attribute of the given element.

@@ -12,6 +12,7 @@ class Issue3935 extends Test {
 		var m2 = new MyClass();
 		var c:haxe.ds.ObjectMap<MyClass, Dynamic> = [m => 1, m2 => "1"];
 		var c:haxe.ds.EnumValueMap<haxe.macro.Expr.ExprDef, Dynamic> = [EBreak => 1, EContinue => "2"];
+		noAssert();
 	}
 
 	function testMap() {
@@ -21,6 +22,7 @@ class Issue3935 extends Test {
 		var m2 = new MyClass();
 		var c:Map<MyClass, Dynamic> = [m => 1, m2 => "1"];
 		var c:Map<haxe.macro.Expr.ExprDef, Dynamic> = [EBreak => 1, EContinue => "2"];
+		noAssert();
 	}
 
 	function testFail() {

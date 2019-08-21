@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventSource>
 **/
 @:native("EventSource")
-extern class EventSource extends EventTarget
-{
+extern class EventSource extends EventTarget {
 	static inline var CONNECTING : Int = 0;
 	static inline var OPEN : Int = 1;
 	static inline var CLOSED : Int = 2;

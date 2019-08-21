@@ -24,6 +24,5 @@
 
 package js.html.webgl.extension;
 
-typedef OESTextureHalfFloatLinear =
-{
+typedef OESTextureHalfFloatLinear = {
 }

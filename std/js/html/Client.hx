@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client>
 **/
 @:native("Client")
-extern class Client
-{
+extern class Client {
 	
 	/**
 		The URL of the client as a string.
@@ -56,5 +55,5 @@ extern class Client
 		Sends a message to the client.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList>
 **/
 @:native("SVGStringList")
-extern class StringList implements ArrayAccess<String>
-{
+extern class StringList implements ArrayAccess<String> {
 	var length(default,null) : Int;
 	var numberOfItems(default,null) : Int;
 	

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement>
 **/
 @:native("HTMLTrackElement")
-extern class TrackElement extends Element
-{
+extern class TrackElement extends Element {
 	static inline var NONE : Int = 0;
 	static inline var LOADING : Int = 1;
 	static inline var LOADED : Int = 2;

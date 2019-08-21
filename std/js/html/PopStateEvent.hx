@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PopStateEvent>
 **/
 @:native("PopStateEvent")
-extern class PopStateEvent extends Event
-{
+extern class PopStateEvent extends Event {
 	var state(default,null) : Dynamic;
 	
 	/** @throws DOMError */

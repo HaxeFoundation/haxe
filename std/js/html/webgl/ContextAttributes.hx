@@ -24,14 +24,13 @@
 
 package js.html.webgl;
 
-typedef ContextAttributes =
-{
-	@:optional var alpha : Bool;
-	@:optional var antialias : Bool;
-	@:optional var depth : Bool;
-	@:optional var failIfMajorPerformanceCaveat : Bool;
-	@:optional var powerPreference : PowerPreference;
-	@:optional var premultipliedAlpha : Bool;
-	@:optional var preserveDrawingBuffer : Bool;
-	@:optional var stencil : Bool;
+typedef ContextAttributes = {
+	var ?alpha : Bool;
+	var ?antialias : Bool;
+	var ?depth : Bool;
+	var ?failIfMajorPerformanceCaveat : Bool;
+	var ?powerPreference : PowerPreference;
+	var ?premultipliedAlpha : Bool;
+	var ?preserveDrawingBuffer : Bool;
+	var ?stencil : Bool;
 }

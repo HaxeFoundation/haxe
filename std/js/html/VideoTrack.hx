@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("VideoTrack")
-extern class VideoTrack
-{
+extern class VideoTrack {
 	var id(default,null) : String;
 	var kind(default,null) : String;
 	var label(default,null) : String;

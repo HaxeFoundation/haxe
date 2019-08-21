@@ -182,7 +182,7 @@ struct
 
 		let getTag_cf_type = tfun [] basic.tstring in
 		let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
-		getTag_cf.cf_final <- true;
+		add_class_field_flag getTag_cf CfFinal;
 		getTag_cf.cf_expr <- Some {
 			eexpr = TFunction {
 				tf_args = [];

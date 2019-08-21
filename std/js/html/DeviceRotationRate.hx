@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate>
 **/
-typedef DeviceRotationRate =
-{
+typedef DeviceRotationRate = {
 	
 	/**
 		The amount of rotation around the Z axis, in degrees per second.

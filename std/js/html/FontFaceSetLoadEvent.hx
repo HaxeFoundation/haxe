@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSetLoadEvent>
 **/
 @:native("FontFaceSetLoadEvent")
-extern class FontFaceSetLoadEvent extends Event
-{
+extern class FontFaceSetLoadEvent extends Event {
 	
 	/**
 		Returns an array of `FontFace` instances each of which represents a single usable font.

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("PropertyNodeList")
-extern class PropertyNodeList extends NodeList
-{
+extern class PropertyNodeList extends NodeList {
 	/** @throws DOMError */
 	function getValues() : Array<Dynamic>;
 }

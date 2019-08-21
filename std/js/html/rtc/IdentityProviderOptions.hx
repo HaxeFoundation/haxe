@@ -24,9 +24,8 @@
 
 package js.html.rtc;
 
-typedef IdentityProviderOptions =
-{
-	@:optional var peerIdentity : String;
-	@:optional var protocol : String;
-	@:optional var usernameHint : String;
+typedef IdentityProviderOptions = {
+	var ?peerIdentity : String;
+	var ?protocol : String;
+	var ?usernameHint : String;
 }

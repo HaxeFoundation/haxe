@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSKeyframesRule>
 **/
 @:native("CSSKeyframesRule")
-extern class CSSKeyframesRule extends CSSRule
-{
+extern class CSSKeyframesRule extends CSSRule {
 	
 	/**
 		Represents the name of the animation, used by the `animation-name` property.

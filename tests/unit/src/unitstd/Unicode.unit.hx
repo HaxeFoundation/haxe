@@ -1,4 +1,4 @@
-#if !(neko || (cpp && !cppia && !hxcpp_smart_strings)) // these platforms will not be made unicode-compatible
+#if target.unicode // neko and cpp with -D disable_unicode_strings will not be made Unicode compatible
 
 
 var s = String.fromCharCode(0xE9);
@@ -10,6 +10,10 @@ var s = String.fromCharCode("あ".code);
 s == "あ";
 s.length == 1;
 s.charCodeAt(0) == "あ".code;
+
+//outside of BMP
+var s = String.fromCharCode("𠜎".code);
+s == "𠜎";
 
 var s = "aa😂éé";
 s.indexOf(String.fromCharCode(0x80))<0;
@@ -206,11 +210,18 @@ var b1 = haxe.io.Bytes.ofString(s1, RawNative);
 var s2 = b1.getString(0, b1.length, RawNative);
 s1 == s2;
 
-var obj:Dynamic = { };
+var obj:Dynamic = { abc: "ok" };
 var field = "äabc".substr(1);
-Reflect.setField(obj, field, "ok");
-obj.abc == "ok";
 Reflect.field(obj, field) == "ok";
+Reflect.hasField(obj, field) == true;
+Reflect.deleteField(obj, field) == true;
+Reflect.deleteField(obj, field) == false;
+Reflect.hasField(obj, field) == false;
+Reflect.field(obj, field) == null;
+
+var obj:Dynamic = { };
+Reflect.setField(obj, field, "still ok");
+Reflect.field(obj, field) == "still ok";
 Reflect.hasField(obj, field) == true;
 Reflect.deleteField(obj, field) == true;
 Reflect.deleteField(obj, field) == false;
@@ -233,11 +244,7 @@ function test(left:String, middle:String, right:String, ?rex:EReg) {
 		eq(pos.len, middle.length + 2);
 	}
 
-	if (!rex.match(s)) {
-		assert();
-		infos("For " + s);
-		return;
-	}
+	t(rex.match(s));
 	check(rex);
 
 	var split = rex.split(s);
@@ -292,4 +299,12 @@ test("()", "ä", "[]", ~/:(\w):/);
 test("a", "É", "b", ~/:(é):/i);
 test("a", "é", "b", ~/:(É):/i);
 
+#else
+1 == 1;
 #end
+
+//Border values for surrogate pairs
+"𐀀".code == 65536; //D800,DC00 - U+10000
+"𐏿".code == 66559; //D800,DFFF - U+103FF
+"􏰀".code == 1113088; //DBFF,DC00 - U+10FC00
+"􏿿".code == 1114111; //DBFF,DFFF - U+10FFFF

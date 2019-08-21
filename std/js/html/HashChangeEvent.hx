@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent>
 **/
 @:native("HashChangeEvent")
-extern class HashChangeEvent extends Event
-{
+extern class HashChangeEvent extends Event {
 	
 	/**
 		The previous URL from which the window was navigated.
@@ -47,5 +46,5 @@ extern class HashChangeEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	function initHashChangeEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?oldURLArg : String = "", ?newURLArg : String = "" ) : Void;
+	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, oldURLArg : String = "", newURLArg : String = "" ) : Void;
 }

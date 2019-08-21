@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly>
 **/
 @:native("DOMRectReadOnly")
-extern class DOMRectReadOnly
-{
+extern class DOMRectReadOnly {
 	
 	/**
 		The x coordinate of the `DOMRect`'s origin.
@@ -76,6 +75,6 @@ extern class DOMRectReadOnly
 	var left(default,null) : Float;
 	
 	/** @throws DOMError */
-	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?width : Float = 0.0, ?height : Float = 0.0 ) : Void;
+	function new( x : Float = 0.0, y : Float = 0.0, width : Float = 0.0, height : Float = 0.0 ) : Void;
 	function toJSON() : Dynamic;
 }

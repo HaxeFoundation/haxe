@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReader>
 **/
 @:native("FileReader")
-extern class FileReader extends EventTarget
-{
+extern class FileReader extends EventTarget {
 	static inline var EMPTY : Int = 0;
 	static inline var LOADING : Int = 1;
 	static inline var DONE : Int = 2;

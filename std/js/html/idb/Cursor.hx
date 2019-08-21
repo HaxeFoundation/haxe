@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor>
 **/
 @:native("IDBCursor")
-extern class Cursor
-{
+extern class Cursor {
 	
 	/**
 		Returns the `IDBObjectStore` or `IDBIndex` that the cursor is iterating. This function never returns null or throws an exception, even if the cursor is currently being iterated, has iterated past its end, or its transaction is not active.

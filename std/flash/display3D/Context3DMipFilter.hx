@@ -1,7 +1,7 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DMipFilter {
-	MIPLINEAR;
-	MIPNEAREST;
-	MIPNONE;
+@:native("flash.display3D.Context3DMipFilter") extern enum abstract Context3DMipFilter(String) {
+	var MIPLINEAR;
+	var MIPNEAREST;
+	var MIPNONE;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMError>
 **/
 @:native("DOMError")
-extern class DOMError
-{
+extern class DOMError {
 	
 	/**
 		Returns a `DOMString` representing one of the error type names (see below).
@@ -46,5 +45,5 @@ extern class DOMError
 	var message(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( name : String, ?message : String = "" ) : Void;
+	function new( name : String, message : String = "" ) : Void;
 }

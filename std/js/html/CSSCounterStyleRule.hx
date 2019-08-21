@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSCounterStyleRule>
 **/
 @:native("CSSCounterStyleRule")
-extern class CSSCounterStyleRule extends CSSRule
-{
+extern class CSSCounterStyleRule extends CSSRule {
 	
 	/**
 		Is a `DOMString` object that contains the serialization of the `counter-style-name` defined for the associated rule.

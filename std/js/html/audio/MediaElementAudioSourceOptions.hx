@@ -24,7 +24,6 @@
 
 package js.html.audio;
 
-typedef MediaElementAudioSourceOptions =
-{
+typedef MediaElementAudioSourceOptions = {
 	var mediaElement : js.html.MediaElement;
 }

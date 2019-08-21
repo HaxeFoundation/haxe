@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("TextTrackCueList")
-extern class TextTrackCueList implements ArrayAccess<VTTCue>
-{
+extern class TextTrackCueList implements ArrayAccess<VTTCue> {
 	var length(default,null) : Int;
 	
 	function getCueById( id : String ) : VTTCue;

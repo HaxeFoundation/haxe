@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_pvrtc>
 **/
 @:native("WEBGL_compressed_texture_pvrtc")
-extern class WEBGLCompressedTexturePvrtc
-{
+extern class WEBGLCompressedTexturePvrtc {
 	
 	/**
 		RGB compression in 4-bit mode. One block for each 4×4 pixels.

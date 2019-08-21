@@ -19,6 +19,7 @@
 
 open Type
 open Common
+open FlashProps
 
 type context_infos = {
 	com : Common.context;
@@ -146,7 +147,7 @@ let valid_as3_ident s =
 
 let anon_field s =
 	let s = s_ident s in
-	if not (valid_as3_ident s) then "\"" ^ (Ast.s_escape s) ^ "\"" else s
+	if not (valid_as3_ident s) then "\"" ^ (StringHelper.s_escape s) ^ "\"" else s
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -263,24 +264,10 @@ let rec type_str ctx t p =
 		| [], "Int" -> "int"
 		| [], "Float" -> "Number"
 		| [], "Bool" -> "Boolean"
+		| ["flash"], "AnyType" -> "*"
 		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
-		if e.e_extern then (match e.e_path with
-			| [], "Void" -> "void"
-			| [], "Bool" -> "Boolean"
-			| _ ->
-				let rec loop = function
-					| [] -> "Object"
-					| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
-						(match n with
-						| "Int" -> "int"
-						| "UInt" -> "uint"
-						| _ -> n)
-					| _ :: l -> loop l
-				in
-				loop e.e_meta
-		) else
-			s_path ctx true e.e_path p
+		if e.e_extern then "Object" else s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
 		(match pt with
 		| TInst({cl_kind = KTypeParameter _},_) -> "*"
@@ -352,7 +339,7 @@ let generate_resources infos =
 			k := !k + 1;
 			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" (Bytes.unsafe_to_string (Base64.str_encode name));
 			print ctx "\t\tpublic static var %s:Class;\n" varname;
-			inits := ("list[\"" ^ Ast.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
+			inits := ("list[\"" ^ StringHelper.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
 		) infos.com.resources;
 		spr ctx "\t\tstatic public function __init__():void {\n";
 		spr ctx "\t\t\tlist = new Dictionary();\n";
@@ -368,7 +355,7 @@ let generate_resources infos =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> print ctx "\"%s\"" (StringHelper.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -496,6 +483,9 @@ and gen_call ctx e el r =
 		spr ctx ")";
 	| TIdent "__unprotect__", [e] ->
 		gen_value ctx e
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		spr ctx (type_str ctx t e.epos);
 	| TIdent "__vector__", [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";
@@ -536,11 +526,55 @@ and gen_call ctx e el r =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 		print ctx ") as %s)" s
+	| TField (e1, f), el ->
+		begin
+		let default () = gen_call_default ctx e el in
+		let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
+		let mk_static_acccess cl prop_cf = mk (TField (e1, FStatic (cl, prop_cf))) prop_cf.cf_type e.epos in
+		let gen_assign lhs rhs = gen_expr ctx (mk (TBinop (OpAssign, lhs, rhs)) rhs.etype e.epos) in
+		match f, el with
+		| FInstance (cl, tl, cf), [] ->
+			(match is_extern_instance_accessor ~isget:true cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FInstance (cl, tl, cf), [evalue] ->
+			(match is_extern_instance_accessor ~isget:false cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [] ->
+			(match is_extern_static_accessor ~isget:true cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [evalue] ->
+			(match is_extern_static_accessor ~isget:false cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+		| _ ->
+			default ()
+		end
 	| _ ->
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		gen_call_default ctx e el
+
+and gen_call_default ctx e el =
+	gen_value ctx e;
+	spr ctx "(";
+	concat ctx "," (gen_value ctx) el;
+	spr ctx ")"
 
 and gen_value_op ctx e =
 	match e.eexpr with
@@ -978,8 +1012,8 @@ let generate_field ctx static f =
 		| Meta.Meta, [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
 			let mk_arg (a,p) =
 				match a with
-				| Ast.EConst (Ast.String s) -> (None, s)
-				| Ast.EBinop (Ast.OpAssign,(Ast.EConst (Ast.Ident n),_),(Ast.EConst (Ast.String s),_)) -> (Some n, s)
+				| Ast.EConst (Ast.String(s,_)) -> (None, s)
+				| Ast.EBinop (Ast.OpAssign,(Ast.EConst (Ast.Ident n),_),(Ast.EConst (Ast.String(s,_)),_)) -> (Some n, s)
 				| _ -> abort "Invalid meta definition" p
 			in
 			print ctx "[%s" n;
@@ -996,16 +1030,19 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
+	let cfl_overridden = TClass.get_overridden_fields ctx.curclass f in
+	let overrides_public = List.exists (fun cf -> Meta.has Meta.Public cf.cf_meta) cfl_overridden in
+	let public = (has_class_field_flag f CfPublic) || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
 		|| f.cf_name = "resolve" || Meta.has Meta.Public f.cf_meta
 		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
+		|| overrides_public
 	in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s%s " rights (if static || not f.cf_final then "" else " final ");
+		print ctx "%s%s " rights (if static || not (has_class_field_flag f CfFinal) then "" else " final ");
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -1027,8 +1064,8 @@ let generate_field ctx static f =
 			| TFun (args,r) when (match f.cf_kind with Method MethDynamic | Var _ -> false | _ -> true) ->
 				let rec loop = function
 					| [] -> f.cf_name
-					| (Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
-					| (Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
+					| (Meta.Getter,[Ast.EConst (Ast.String(name,_)),_],_) :: _ -> "get " ^ name
+					| (Meta.Setter,[Ast.EConst (Ast.String(name,_)),_],_) :: _ -> "set " ^ name
 					| _ :: l -> loop l
 				in
 				print ctx "function %s(" (loop f.cf_meta);
@@ -1114,7 +1151,7 @@ let generate_class ctx c =
 	| Some f ->
 		let f = { f with
 			cf_name = snd c.cl_path;
-			cf_public = true;
+			cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic);
 			cf_kind = Method MethNormal;
 		} in
 		ctx.constructor_block <- true;
@@ -1209,7 +1246,7 @@ let generate_enum ctx e =
 		print ctx "public static var __meta__ : * = ";
 		gen_expr ctx e;
 		newline ctx);
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ StringHelper.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
 	print ctx "}";
@@ -1241,6 +1278,7 @@ let generate_base_enum ctx =
 	newline ctx
 
 let generate com =
+	com.warning "-as3 target is deprecated. Use -swf instead. See https://github.com/HaxeFoundation/haxe/issues/8295" Globals.null_pos;
 	let infos = {
 		com = com;
 	} in

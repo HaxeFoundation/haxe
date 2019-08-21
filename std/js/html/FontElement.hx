@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFontElement>
 **/
 @:native("HTMLFontElement")
-extern class FontElement extends Element
-{
+extern class FontElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `color` HTML attribute, containing either a named color or a color specified in the hexadecimal #RRGGBB format.

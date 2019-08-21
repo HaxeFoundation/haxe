@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisErrorEvent>
 **/
 @:native("SpeechSynthesisErrorEvent")
-extern class SpeechSynthesisErrorEvent extends SpeechSynthesisEvent
-{
+extern class SpeechSynthesisErrorEvent extends SpeechSynthesisEvent {
 	
 	/**
 		Returns an error code indicating what has gone wrong with a speech synthesis attempt.

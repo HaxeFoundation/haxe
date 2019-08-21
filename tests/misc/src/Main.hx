@@ -1,7 +1,7 @@
+import haxe.macro.Compiler;
 import sys.FileSystem;
 import sys.io.File;
 import haxe.io.Path;
-import haxe.macro.Expr;
 
 using StringTools;
 
@@ -17,17 +17,22 @@ class Main {
 		Sys.exit(result.failures);
 	}
 
-	macro static public function compileProjects():ExprOf<Result> {
+	static public function compileProjects():Result {
 		var count = 0;
 		var failures = 0;
-		var filter = haxe.macro.Context.definedValue("MISC_TEST_FILTER");
+		var filter = Compiler.getDefine("MISC_TEST_FILTER");
 		var filterRegex = filter == null ? ~/.*/ : new EReg(filter, "");
 		function browse(dirPath) {
 			var dir = FileSystem.readDirectory(dirPath);
+			dir.sort(Reflect.compare);
 			for (file in dir) {
 				var path = Path.join([dirPath, file]);
 				if (FileSystem.isDirectory(path)) {
-					browse(path);
+					if(path.endsWith('.disabled')) {
+						Sys.println('Skipping $path');
+					} else {
+						browse(path);
+					}
 				} else if (file.endsWith(".hxml") && !file.endsWith("-each.hxml") && filterRegex.match(path)) {
 					var old = Sys.getCwd();
 					Sys.setCwd(dirPath);
@@ -44,12 +49,10 @@ class Main {
 			}
 		}
 		browse("projects");
-		return macro $v{
-			{
-				count: $v{count},
-				failures: $v{failures}
-			}
-		};
+		return {
+			count: count,
+			failures: failures
+		}
 	}
 
 	static function prepareExpectedOutput(s:String):String {
@@ -76,10 +79,24 @@ class Main {
 	}
 
 	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
+		#if timeout
+		switch Sys.systemName() {
+			case 'Linux':
+				args.unshift(command);
+				args.unshift(Compiler.getDefine('timeout'));
+				command = 'timeout';
+			case _:
+				throw 'Running tests with timeout is not implemented for this OS';
+		}
+		#end
 		var proc = new sys.io.Process(command, args);
 		var stdout = proc.stdout.readAll();
 		var exit = proc.exitCode();
 		var success = exit == 0;
+		// 124 - exit code of linux `timeout` command in case it actually timed out
+		if(exit == 124) {
+			Sys.println('Timeout. No response in ${Compiler.getDefine('timeout')} seconds.');
+		}
 		var result = switch [success, expectFailure] {
 			case [true, false]:
 				true;

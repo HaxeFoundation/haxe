@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract TextTrackKind(String)
-{
+enum abstract TextTrackKind(String) {
 	var SUBTITLES = "subtitles";
 	var CAPTIONS = "captions";
 	var DESCRIPTIONS = "descriptions";

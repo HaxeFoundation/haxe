@@ -24,15 +24,16 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	Documentation [Permissions](https://developer.mozilla.org/en-US/docs/Web/API/Permissions) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Permissions$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Permissions>
 **/
 @:native("Permissions")
-extern class Permissions
-{
-	
+extern class Permissions {
+
 	/**
 		Returns the user permission status for a given API.
 		@throws DOMError

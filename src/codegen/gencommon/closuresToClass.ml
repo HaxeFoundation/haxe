@@ -278,8 +278,9 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 
 let rec get_type_params acc t =
 	match t with
-		| TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
-			if List.memq cl acc then acc else cl :: acc
+		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
+			let params = List.fold_left get_type_params acc constraints in
+			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
 		| TDynamic t ->
@@ -413,6 +414,10 @@ let configure gen ft =
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
 
+		(* forward NativeGen meta for Cs target *)
+		if (Common.platform gen.gcon Cs) && not(is_hxgen (TClassDecl (get gen.gcurrent_class))) && Meta.has(Meta.NativeGen) (get gen.gcurrent_class).cl_meta then
+			cls.cl_meta <- (Meta.NativeGen,[],null_pos) :: cls.cl_meta;
+
 		if Common.defined gen.gcon Define.EraseGenerics then begin
 			cls.cl_meta <- (Meta.HaxeGeneric,[],null_pos) :: cls.cl_meta
 		end;
@@ -463,7 +468,7 @@ let configure gen ft =
 				let pos = cls.cl_pos in
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
-				cf.cf_final <- true;
+				add_class_field_flag cf CfFinal;
 				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
 				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
 				(* invoke function body: call Delegate function *)

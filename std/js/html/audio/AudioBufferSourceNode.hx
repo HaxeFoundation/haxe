@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode>
 **/
 @:native("AudioBufferSourceNode")
-extern class AudioBufferSourceNode extends AudioScheduledSourceNode
-{
+extern class AudioBufferSourceNode extends AudioScheduledSourceNode {
 	
 	/**
 		An `AudioBuffer` that defines the audio asset to be played, or when set to the value `null`, defines a single channel of silence (in which every sample is 0.0).
@@ -72,5 +71,5 @@ extern class AudioBufferSourceNode extends AudioScheduledSourceNode
 		Used to schedule playback of the audio data contained in the buffer, or to begin playback immediately.
 		@throws DOMError
 	**/
-	function start( ?when : Float = 0.0, ?grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
+	function start( when : Float = 0.0, grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
 }

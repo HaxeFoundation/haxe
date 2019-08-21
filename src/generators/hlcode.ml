@@ -47,6 +47,7 @@ type ttype =
 	| HEnum of enum_proto
 	| HNull of ttype
 	| HMethod of ttype list * ttype
+	| HStruct of class_proto
 
 and class_proto = {
 	pname : string;
@@ -254,9 +255,12 @@ let list_mapi f l =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid -> false
 
+let is_struct = function
+	| HStruct _ -> true
+	| _ -> false
 
 let is_int = function
 	| HUI8 | HUI16 | HI32 | HI64 -> true
@@ -285,6 +289,7 @@ let rec tsame t1 t2 =
 	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
 	| HObj p1, HObj p2 -> p1 == p2
 	| HEnum e1, HEnum e2 -> e1 == e2
+	| HStruct p1, HStruct p2 -> p1 == p2
 	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
 	| HVirtual v1, HVirtual v2 ->
 		if v1 == v2 then true else
@@ -316,6 +321,12 @@ let rec safe_cast t1 t2 =
 		in
 		loop 0
 	| HObj p1, HObj p2 ->
+		(* allow subtyping *)
+		let rec loop p =
+			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
+		in
+		loop p1
+	| HStruct p1, HStruct p2 ->
 		(* allow subtyping *)
 		let rec loop p =
 			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
@@ -380,7 +391,7 @@ let gather_types (code:code) =
 		| HFun (args, ret) | HMethod (args, ret) ->
 			List.iter get_type args;
 			get_type ret
-		| HObj p ->
+		| HObj p | HStruct p ->
 			Array.iter (fun (_,n,t) -> get_type t) p.pfields
 		| HNull t | HRef t ->
 			get_type t
@@ -424,11 +435,13 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HDyn  -> "dyn"
 	| HFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~stack ~detailed ret
 	| HMethod (args,ret) -> "method:(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~stack ~detailed ret
-	| HObj o when not detailed -> "#" ^ o.pname
-	| HObj o ->
+	| HObj o when not detailed -> o.pname
+	| HStruct s when not detailed -> "@" ^ s.pname
+	| HObj o | HStruct o ->
 		let fields = "{" ^ String.concat "," (List.map (fun(s,_,t) -> s ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pfields)) ^ "}" in
 		let proto = "{"  ^ String.concat "," (List.map (fun p -> (match p.fvirtual with None -> "" | Some _ -> "virtual ") ^ p.fname ^ "@" ^  string_of_int p.fmethod) (Array.to_list o.pproto)) ^ "}" in
-		"#" ^ o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]"
+		let str = o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]" in
+		(match t with HObj o -> str | _ -> "@" ^ str)
 	| HArray ->
 		"array"
 	| HType ->

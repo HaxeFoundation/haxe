@@ -19,23 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
+
 import cs.system.Type;
 
 /**
 	Platform-specific C# Library. Provides some platform-specific functions for the C# target,
 	such as conversion from haxe types to native types and vice-versa.
 **/
-class Lib
-{
+class Lib {
 	private static var decimalSeparator:String;
 
 	/**
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	public static function applyCultureChanges():Void
-	{
+	public static function applyCultureChanges():Void {
 		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
 		decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
 		ci.NumberFormat.NumberDecimalSeparator = ".";
@@ -45,8 +45,7 @@ class Lib
 	/**
 		Reverts the culture changes to the default settings.
 	**/
-	public static function revertDefaultCulture():Void
-	{
+	public static function revertDefaultCulture():Void {
 		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
 		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
@@ -57,26 +56,24 @@ class Lib
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
-	{
+	extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T> {
 		var ret = new cs.NativeArray(arr.length);
-#if erase_generics
+		#if erase_generics
 		for (i in 0...arr.length)
 			ret[i] = arr[i];
-#else
-		p_nativeArray(arr,ret);
-#end
+		#else
+		p_nativeArray(arr, ret);
+		#end
 		return ret;
 	}
 
-#if !erase_generics
-	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void
-	{
+	#if !erase_generics
+	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void {
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
 		cs.system.Array.Copy(native, 0, ret, 0, len);
 	}
-#end
+	#end
 
 	/**
 		Provides support for the "as" keyword in C#.
@@ -85,8 +82,7 @@ class Lib
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
 	@:pure
-	extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
-	{
+	extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T {
 		return untyped __as__(obj);
 	}
 
@@ -96,8 +92,7 @@ class Lib
 		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
-	public static inline function fromNativeType(t:cs.system.Type):Class<Dynamic>
-	{
+	public static inline function fromNativeType(t:cs.system.Type):Class<Dynamic> {
 		return untyped t;
 	}
 
@@ -107,16 +102,14 @@ class Lib
 		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
-	public static inline function toNativeType(cl:Class<Dynamic>):Type
-	{
+	public static inline function toNativeType(cl:Class<Dynamic>):Type {
 		return untyped cl;
 	}
 
 	/**
 		Returns a System.Type equivalent to the Haxe Enum<> type.
 	**/
-	public static inline function toNativeEnum(cl:Enum<Dynamic>):Type
-	{
+	public static inline function toNativeEnum(cl:Enum<Dynamic>):Type {
 		return untyped cl;
 	}
 
@@ -125,28 +118,25 @@ class Lib
 		[deprecated] - use `getNativeType` instead
 	**/
 	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
-	public static inline function nativeType(obj:Dynamic):Type
-	{
+	public static inline function nativeType(obj:Dynamic):Type {
 		return untyped obj.GetType();
 	}
 
 	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
 	**/
-	public static inline function getNativeType(obj:Dynamic):Type
-	{
+	public static inline function getNativeType(obj:Dynamic):Type {
 		return untyped obj.GetType();
 	}
 
-#if erase_generics
-	inline private static function mkDynamic<T>(native:NativeArray<T>):NativeArray<Dynamic>
-	{
+	#if erase_generics
+	inline private static function mkDynamic<T>(native:NativeArray<T>):NativeArray<Dynamic> {
 		var ret = new cs.NativeArray<Dynamic>(native.Length);
 		for (i in 0...native.Length)
 			ret[i] = native[i];
 		return ret;
 	}
-#end
+	#end
 
 	/**
 		Returns a Haxe Array of a native Array.
@@ -154,21 +144,19 @@ class Lib
 		so unless any operation triggers an array resize, all changes made to the Haxe array
 		will affect the native array argument.
 	**/
-	inline public static function array<T>(native:cs.NativeArray<T>):Array<T>
-	{
-#if erase_generics
+	inline public static function array<T>(native:cs.NativeArray<T>):Array<T> {
+		#if erase_generics
 		var dyn:NativeArray<Dynamic> = mkDynamic(native);
 		return @:privateAccess Array.ofNative(dyn);
-#else
+		#else
 		return @:privateAccess Array.ofNative(native);
-#end
+		#end
 	}
 
 	/**
 		Allocates a new Haxe Array with a predetermined size
 	**/
-	inline public static function arrayAlloc<T>(size:Int):Array<T>
-	{
+	inline public static function arrayAlloc<T>(size:Int):Array<T> {
 		return @:privateAccess Array.alloc(size);
 	}
 
@@ -176,8 +164,7 @@ class Lib
 		Rethrow an exception. This is useful when manually filtering an exception in order
 		to keep the previous exception stack.
 	**/
-	extern inline public static function rethrow(e:Dynamic):Void
-	{
+	extern inline public static function rethrow(e:Dynamic):Void {
 		throw untyped __rethrow__;
 	}
 
@@ -194,8 +181,7 @@ class Lib
 			});
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function checked<V>(block:V):Void
-	{
+	extern public static inline function checked<V>(block:V):Void {
 		untyped __checked__(block);
 	}
 
@@ -206,12 +192,12 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function lock<O,V>(obj:O, block:V):Void
-	{
+	extern public static inline function lock<O, V>(obj:O, block:V):Void {
 		untyped __lock__(obj, block);
 	}
 
-	//Unsafe code manipulation
+	// Unsafe code manipulation
+
 	#if unsafe
 	/**
 		Marks its parameters as fixed objects inside the defined block.
@@ -228,8 +214,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function fixed<V>(block:V):Void
-	{
+	extern public static inline function fixed<V>(block:V):Void {
 		untyped __fixed__(block);
 	}
 
@@ -242,8 +227,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function unsafe<V>(block:V):Void
-	{
+	extern public static inline function unsafe<V>(block:V):Void {
 		untyped __unsafe__(block);
 	}
 
@@ -260,8 +244,7 @@ class Lib
 		This method only exists at compile-time, so it can't be called via reflection.
 		Warning: This method will only work if a local variable is passed as an argument.
 	**/
-	extern public static inline function addressOf<T>(variable:T):cs.Pointer<T>
-	{
+	extern public static inline function addressOf<T>(variable:T):cs.Pointer<T> {
 		return untyped __addressOf__(variable);
 	}
 
@@ -279,8 +262,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
-	{
+	extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T {
 		return untyped __valueOf__(pointer);
 	}
 
@@ -300,16 +282,14 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
-	{
+	extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T> {
 		return untyped __ptr__(array);
 	}
 
 	/**
 		Returns the byte size of the given struct. Only works with structs and basic types.
 	**/
-	extern public static inline function sizeof(struct:Class<Dynamic>):Int
-	{
+	extern public static inline function sizeof(struct:Class<Dynamic>):Int {
 		return untyped __sizeof__(struct);
 	}
 	#end

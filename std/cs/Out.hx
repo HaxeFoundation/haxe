@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
 
 /**
@@ -27,7 +28,6 @@ package cs;
 
 	Note: Using this type should be considered a bad practice unless overriding a native function is needed.
 **/
-@:analyzer(no_simplification)
 @:analyzer(no_local_dce)
 @:semantics(reference)
 typedef Out<T> = T;

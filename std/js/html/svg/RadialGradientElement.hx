@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRadialGradientElement>
 **/
 @:native("SVGRadialGradientElement")
-extern class RadialGradientElement extends GradientElement
-{
+extern class RadialGradientElement extends GradientElement {
 	
 	/**
 		An `SVGAnimatedLength` corresponding to the `cx` attribute of the given `RadialGradient` element.

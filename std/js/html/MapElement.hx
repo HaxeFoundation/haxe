@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement>
 **/
 @:native("HTMLMapElement")
-extern class MapElement extends Element
-{
+extern class MapElement extends Element {
 	
 	/**
 		Is a `DOMString` representing the `map` element for referencing it other context. If the `id` attribute is set, this must have the same value; and it cannot be `null` or empty.

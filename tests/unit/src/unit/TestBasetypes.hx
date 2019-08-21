@@ -31,13 +31,9 @@ class TestBasetypes extends Test {
 		unspec(function() String.fromCharCode(0));
 		unspec(function() String.fromCharCode(-1));
 		unspec(function() String.fromCharCode(256));
-#if php
-		eq( Std.string(null) + "x", "nullx" );
-		eq( "x" + Std.string(null), "xnull" );
-#else
+
 		eq( null + "x", "nullx" );
 		eq( "x" + null, "xnull" );
-#end
 
 		var abc = "abc".split("");
 		eq( abc.length, 3 );
@@ -122,7 +118,7 @@ class TestBasetypes extends Test {
 		try {
 			"" + x.iterator();
 		} catch (e:Dynamic)	{
-			Test.report("Could not convert Iterator to String");
+			assert("Could not convert Iterator to String");
 		}
 
 		var str = "he\nlo\"'";

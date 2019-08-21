@@ -1,10 +1,10 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum TextFormatAlign {
-	CENTER;
-	END;
-	JUSTIFY;
-	LEFT;
-	RIGHT;
-	START;
+@:native("flash.text.TextFormatAlign") extern enum abstract TextFormatAlign(String) {
+	var CENTER;
+	var END;
+	var JUSTIFY;
+	var LEFT;
+	var RIGHT;
+	var START;
 }

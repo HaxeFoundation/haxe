@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSNamespaceRule>
 **/
 @:native("CSSNamespaceRule")
-extern class CSSNamespaceRule extends CSSRule
-{
+extern class CSSNamespaceRule extends CSSRule {
 	
 	/**
 		Returns a `DOMString` containing the text of the URI of the given namespace.

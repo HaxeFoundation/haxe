@@ -32,7 +32,6 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream>
 **/
 @:native("LocalMediaStream")
-extern class LocalMediaStream extends MediaStream
-{
+extern class LocalMediaStream extends MediaStream {
 	function stop() : Void;
 }

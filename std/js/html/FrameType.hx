@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract FrameType(String)
-{
+enum abstract FrameType(String) {
 	var AUXILIARY = "auxiliary";
 	var TOP_LEVEL = "top-level";
 	var NESTED = "nested";

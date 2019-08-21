@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent>
 **/
 @:native("AnimationEvent")
-extern class AnimationEvent extends Event
-{
+extern class AnimationEvent extends Event {
 	
 	/**
 		Is a `DOMString` containing the value of the `animation-name` CSS property associated with the transition.

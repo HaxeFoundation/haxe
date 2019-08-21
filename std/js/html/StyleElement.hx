@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement>
 **/
 @:native("HTMLStyleElement")
-extern class StyleElement extends Element
-{
+extern class StyleElement extends Element {
 	
 	/**
 		Is a `Boolean` value representing whether or not the stylesheet is disabled (true) or not (false).

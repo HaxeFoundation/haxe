@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent>
 **/
 @:native("KeyboardEvent")
-extern class KeyboardEvent extends UIEvent
-{
+extern class KeyboardEvent extends UIEvent {
 	static inline var DOM_KEY_LOCATION_STANDARD : Int = 0;
 	static inline var DOM_KEY_LOCATION_LEFT : Int = 1;
 	static inline var DOM_KEY_LOCATION_RIGHT : Int = 2;
@@ -297,10 +296,10 @@ extern class KeyboardEvent extends UIEvent
 		Initializes a `KeyboardEvent` object. This is now deprecated. You should instead use the `KeyboardEvent.KeyboardEvent` constructor.
 		@throws DOMError
 	**/
-	function initKeyboardEvent( typeArg : String, ?bubblesArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?keyArg : String = "", ?locationArg : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false ) : Void;
+	function initKeyboardEvent( typeArg : String, bubblesArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, keyArg : String = "", locationArg : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false ) : Void;
 	
 	/**
 		Initializes a `KeyboardEvent` object. This was implemented only by Firefox, and is no longer supported even there; instead, you should use the `KeyboardEvent.KeyboardEvent` constructor.
 	**/
-	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
+	function initKeyEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, keyCode : Int = 0, charCode : Int = 0 ) : Void;
 }

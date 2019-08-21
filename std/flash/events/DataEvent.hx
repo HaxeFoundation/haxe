@@ -1,8 +1,10 @@
 package flash.events;
 
 extern class DataEvent extends TextEvent {
-	var data : String;
+	@:flash.property var data(get,set) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : String) : Void;
-	static var DATA(default,never) : String;
-	static var UPLOAD_COMPLETE_DATA(default,never) : String;
+	private function get_data() : String;
+	private function set_data(value : String) : String;
+	static final DATA : String;
+	static final UPLOAD_COMPLETE_DATA : String;
 }

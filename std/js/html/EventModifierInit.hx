@@ -24,20 +24,18 @@
 
 package js.html;
 
-typedef EventModifierInit =
-{
-	> UIEventInit,
-	@:optional var altKey : Bool;
-	@:optional var ctrlKey : Bool;
-	@:optional var metaKey : Bool;
-	@:optional var modifierAltGraph : Bool;
-	@:optional var modifierCapsLock : Bool;
-	@:optional var modifierFn : Bool;
-	@:optional var modifierFnLock : Bool;
-	@:optional var modifierNumLock : Bool;
-	@:optional var modifierOS : Bool;
-	@:optional var modifierScrollLock : Bool;
-	@:optional var modifierSymbol : Bool;
-	@:optional var modifierSymbolLock : Bool;
-	@:optional var shiftKey : Bool;
+typedef EventModifierInit = UIEventInit & {
+	var ?altKey : Bool;
+	var ?ctrlKey : Bool;
+	var ?metaKey : Bool;
+	var ?modifierAltGraph : Bool;
+	var ?modifierCapsLock : Bool;
+	var ?modifierFn : Bool;
+	var ?modifierFnLock : Bool;
+	var ?modifierNumLock : Bool;
+	var ?modifierOS : Bool;
+	var ?modifierScrollLock : Bool;
+	var ?modifierSymbol : Bool;
+	var ?modifierSymbolLock : Bool;
+	var ?shiftKey : Bool;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement>
 **/
 @:native("HTMLIFrameElement")
-extern class IFrameElement extends Element
-{
+extern class IFrameElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `src` HTML attribute, containing the address of the content to be embedded.

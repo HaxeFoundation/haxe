@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Location>
 **/
 @:native("Location")
-extern class Location
-{
+extern class Location {
 	
 	/**
 		Is a `DOMString` containing the entire URL. If changed, the associated document navigates to the new page. It can be set from a different origin than the associated document.
@@ -97,5 +96,5 @@ extern class Location
 		Reloads the resource from the current URL. Its optional unique parameter is a `Boolean`, which, when it is `true`, causes the page to always be reloaded from the server. If it is `false` or not specified, the browser may reload the page from its cache.
 		@throws DOMError
 	**/
-	function reload( ?forceget : Bool = false ) : Void;
+	function reload( forceget : Bool = false ) : Void;
 }

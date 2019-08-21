@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement>
 **/
 @:native("HTMLImageElement")
-extern class ImageElement extends Element
-{
+extern class ImageElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `alt` HTML attribute,  thus indicating fallback context for the image.

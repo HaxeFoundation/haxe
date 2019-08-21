@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_atc>
 **/
 @:native("WEBGL_compressed_texture_atc")
-extern class WEBGLCompressedTextureAtc
-{
+extern class WEBGLCompressedTextureAtc {
 	
 	/**
 		Compresses RGB textures with no alpha channel.

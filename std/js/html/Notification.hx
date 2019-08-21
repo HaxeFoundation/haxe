@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Notification>
 **/
 @:native("Notification")
-extern class Notification extends EventTarget
-{
+extern class Notification extends EventTarget {
 	
 	/**
 		A string representing the current permission to display notifications. Possible values are:

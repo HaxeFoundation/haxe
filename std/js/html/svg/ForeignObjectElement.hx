@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGForeignObjectElement>
 **/
 @:native("SVGForeignObjectElement")
-extern class ForeignObjectElement extends GraphicsElement
-{
+extern class ForeignObjectElement extends GraphicsElement {
 	
 	/**
 		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `foreignObject` element.

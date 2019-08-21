@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent>
 **/
 @:native("ProgressEvent")
-extern class ProgressEvent extends Event
-{
+extern class ProgressEvent extends Event {
 	
 	/**
 		Is a `Boolean` flag indicating if the total work to be done, and the amount of work already done, by the underlying process is calculable. In other words, it tells if the progress is measurable or not.

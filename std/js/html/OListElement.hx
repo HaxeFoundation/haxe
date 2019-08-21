@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOListElement>
 **/
 @:native("HTMLOListElement")
-extern class OListElement extends Element
-{
+extern class OListElement extends Element {
 	
 	/**
 		Is a `Boolean` value reflecting the `reversed` and defining if the numbering is descending, that is its value is `true`, or ascending (`false`).

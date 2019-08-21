@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.lib.ssl.SSLContext;
 
 @:pythonImport("ssl")
 extern class Ssl {
-
 	@:require(python_version >= 3.4)
 	public static function create_default_context(purpose:String):SSLContext;
 
@@ -35,6 +35,7 @@ extern class Ssl {
 		protocol version.
 	**/
 	public static var OP_NO_TLSv1:Int;
+
 	/**
 		Prevents a TLSv1.1 connection. This option is only applicable in conjunction
 		with PROTOCOL_TLS. It prevents the peers from choosing TLSv1.1 as the
@@ -50,7 +51,6 @@ extern class Ssl {
 
 	public static var OP_NO_COMPRESSION:Int;
 
-
 	#if (python_version >= 3.6)
 	@:deprecated("deprecated, use PROTOCOL_TLS instead")
 	#end
@@ -60,6 +60,4 @@ extern class Ssl {
 	public static var PROTOCOL_TLS:String;
 
 	public static var CERT_REQUIRED:Int;
-
-
 }

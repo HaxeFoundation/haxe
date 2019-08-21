@@ -37,8 +37,8 @@ Reflect.getProperty(c, "v") == "var";
 Reflect.getProperty(c, "prop") == "prop";
 Reflect.getProperty(c, "func")() == "foo";
 Reflect.getProperty(c, "propAcc") == "1";
-//Reflect.getProperty(null, "a") == null;
-//Reflect.getProperty(null, null) == null;
+Reflect.getProperty(null, "a") == null;
+Reflect.getProperty(null, null) == null;
 
 // setProperty
 Reflect.setProperty(x, "a", 2);
@@ -80,6 +80,7 @@ var y = Reflect.copy(x);
 Reflect.field(y, "a") == 2;
 Reflect.field(y, "b") == null;
 Reflect.field(y, "c") == null;
+Reflect.copy(null) == null;
 
 //compare
 Reflect.compare(1,2) < 0;

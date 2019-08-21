@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport>
 **/
 @:native("RTCStatsReport")
-extern class StatsReport
-{
+extern class StatsReport {
 	var size(default,null) : Int;
 	
 	/** @throws DOMError */

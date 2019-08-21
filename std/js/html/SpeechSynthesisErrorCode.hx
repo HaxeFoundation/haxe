@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract SpeechSynthesisErrorCode(String)
-{
+enum abstract SpeechSynthesisErrorCode(String) {
 	var CANCELED = "canceled";
 	var INTERRUPTED = "interrupted";
 	var AUDIO_BUSY = "audio-busy";

@@ -6,5 +6,6 @@ class Issue3894 extends Test {
 		// this doesn't actually error until post-processing so we cannot test it like this
 		//t(unit.HelperMacros.typeError((null : haxe.Int64)));
 		#end
+		noAssert();
 	}
 }

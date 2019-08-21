@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffect>
 **/
 @:native("AnimationEffect")
-extern class AnimationEffect
-{
+extern class AnimationEffect {
 	function getTiming() : EffectTiming;
 	function getComputedTiming() : ComputedEffectTiming;
 	/** @throws DOMError */

@@ -11,3 +11,8 @@ compile-each.hxml
 compile-each.hxml
 --main ExitCode
 -python bin/python/ExitCode.py
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-python bin/python/UtilityProcess.py

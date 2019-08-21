@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Node>
 **/
 @:native("Node")
-extern class Node extends EventTarget
-{
+extern class Node extends EventTarget {
 	static inline var ELEMENT_NODE : Int = 1;
 	static inline var ATTRIBUTE_NODE : Int = 2;
 	static inline var TEXT_NODE : Int = 3;
@@ -229,7 +228,7 @@ extern class Node extends EventTarget
 		Clone a `Node`, and optionally, all of its contents. By default, it clones the content of the node.
 		@throws DOMError
 	**/
-	function cloneNode( ?deep : Bool = false ) : Node;
+	function cloneNode( deep : Bool = false ) : Node;
 	
 	/**
 		Returns a `Boolean` value indicating whether or not the two nodes are the same (that is, they reference the same object).

@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef CompositionEventInit =
-{
-	> UIEventInit,
-	@:optional var data : String;
+typedef CompositionEventInit = UIEventInit & {
+	var ?data : String;
 }

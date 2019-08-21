@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageCapture>
 **/
 @:native("ImageCapture")
-extern class ImageCapture extends EventTarget
-{
+extern class ImageCapture extends EventTarget {
 	var videoStreamTrack(default,null) : VideoStreamTrack;
 	var onphoto : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;

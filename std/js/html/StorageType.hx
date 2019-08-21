@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract StorageType(String)
-{
+enum abstract StorageType(String) {
 	var PERSISTENT = "persistent";
 	var TEMPORARY = "temporary";
 	var DEFAULT = "default";

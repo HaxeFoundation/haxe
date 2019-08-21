@@ -33,8 +33,7 @@ package js.html.audio;
 **/
 @:deprecated("OfflineAudioCompletionEvent is deprecated")
 @:native("OfflineAudioCompletionEvent")
-extern class OfflineAudioCompletionEvent extends js.html.Event
-{
+extern class OfflineAudioCompletionEvent extends js.html.Event {
 	
 	/**
 		An `AudioBuffer` containing the result of processing an `OfflineAudioContext`.

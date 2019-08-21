@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef MediaStreamEventInit =
-{
-	> EventInit,
-	@:optional var stream : MediaStream;
+typedef MediaStreamEventInit = EventInit & {
+	var ?stream : MediaStream;
 }

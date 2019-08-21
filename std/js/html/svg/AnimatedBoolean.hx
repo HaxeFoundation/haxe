@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedBoolean>
 **/
 @:native("SVGAnimatedBoolean")
-extern class AnimatedBoolean
-{
+extern class AnimatedBoolean {
 	var baseVal : Bool;
 	var animVal(default,null) : Bool;
 	

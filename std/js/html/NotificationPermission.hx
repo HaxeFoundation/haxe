@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract NotificationPermission(String)
-{
+enum abstract NotificationPermission(String) {
 	var DEFAULT = "default";
 	var DENIED = "denied";
 	var GRANTED = "granted";

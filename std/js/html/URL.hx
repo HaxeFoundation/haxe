@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/URL>
 **/
 @:native("URL")
-extern class URL
-{
+extern class URL {
 	/** @throws DOMError */
 	@:overload( function( blob : Blob ) : String {} )
 	static function createObjectURL( source : MediaSource ) : String;

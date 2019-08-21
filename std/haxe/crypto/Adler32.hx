@@ -19,15 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 /**
-    Calculates the Adler32 of the given Bytes.
-*/
+	Calculates the Adler32 of the given Bytes.
+ */
 class Adler32 {
-
-	var a1 : Int;
-	var a2 : Int;
+	var a1:Int;
+	var a2:Int;
 
 	public function new() {
 		a1 = 1;
@@ -38,9 +38,9 @@ class Adler32 {
 		return (a2 << 16) | a1;
 	}
 
-	public function update( b : haxe.io.Bytes, pos, len ) {
+	public function update(b:haxe.io.Bytes, pos, len) {
 		var a1 = a1, a2 = a2;
-		for( p in pos...pos + len ) {
+		for (p in pos...pos + len) {
 			var c = b.get(p);
 			a1 = (a1 + c) % 65521;
 			a2 = (a2 + a1) % 65521;
@@ -49,15 +49,15 @@ class Adler32 {
 		this.a2 = a2;
 	}
 
-	public function equals( a : Adler32 ) {
+	public function equals(a:Adler32) {
 		return a.a1 == a1 && a.a2 == a2;
 	}
 
 	public function toString() {
-		return StringTools.hex(a2,8) + StringTools.hex(a1,8);
+		return StringTools.hex(a2, 8) + StringTools.hex(a1, 8);
 	}
 
-	public static function read( i : haxe.io.Input ) {
+	public static function read(i:haxe.io.Input) {
 		var a = new Adler32();
 		var a2a = i.readByte();
 		var a2b = i.readByte();
@@ -68,11 +68,9 @@ class Adler32 {
 		return a;
 	}
 
-	public static function make( b : haxe.io.Bytes ) {
+	public static function make(b:haxe.io.Bytes) {
 		var a = new Adler32();
-		a.update(b,0,b.length);
+		a.update(b, 0, b.length);
 		return a.get();
 	}
-
-
 }
