@@ -163,6 +163,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
+			ctx.static_prototypes#init_all;
 			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
 			let env = push_environment ctx info 0 0 in
 			env.env_leave_pmin <- p.pmin;
@@ -450,7 +451,13 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = if ctx.had_error then None else eval_expr ctx EKEntrypoint e
+let eval_expr ctx e =
+	if ctx.had_error then
+		None
+	else begin
+		ctx.static_prototypes#init_all;
+		eval_expr ctx EKEntrypoint e
+	end
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
