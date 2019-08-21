@@ -275,6 +275,10 @@ typedef Foo = {
 		complete("class C {-1-}ex{-2-}", 2);
 		checkReplaceRange(markers, 1, 2, response);
 		equals("ex", response.filterString);
+
+		complete("class C {-1-}ext{-2-} {}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("ext", response.filterString);
 	}
 
 	function testIssue8669_implements() {
@@ -284,6 +288,13 @@ typedef Foo = {
 		complete("class C implements {-1-}Cl{-2-}", 2);
 		equals("Cl", response.filterString);
 		checkReplaceRange(markers, 1, 2, response);
+
+		complete("class C {-1-} {}", 1);
+		checkReplaceRange(markers, 1, 1, response);
+
+		complete("class C {-1-}impl{-2-} {}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("impl", response.filterString);
 	}
 
 	function testIssue8669_import() {

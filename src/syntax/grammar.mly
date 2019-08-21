@@ -187,7 +187,7 @@ and parse_type_decl mode s =
 			let rec loop had_display p0 acc =
 				let check_display p1 =
 					if not had_display && !in_display_file && display_position#enclosed_in p1 then
-						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None p0
+						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
@@ -214,7 +214,7 @@ and parse_type_decl mode s =
 						syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
 					end
 			in
-			let hl = loop false (next_pos s) [] in
+			let hl = loop false (last_pos s) [] in
 			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;
