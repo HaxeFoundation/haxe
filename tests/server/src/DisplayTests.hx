@@ -1,5 +1,6 @@
 import haxe.display.Server;
 import utest.Assert;
+import utest.Assert.*;
 import haxe.display.Display;
 import haxe.display.FsPath;
 
@@ -227,117 +228,78 @@ typedef Foo = {
 		});
 	}
 
-	function testIssue8669_type() {
-		var transform = Marker.extractMarkers("{-1-}");
+	function complete<S, T>(content:String, markerIndex:Int, cb:(response:CompletionResponse<S, T>, markers:Map<Int, Int>) -> Void) {
+		var transform = Marker.extractMarkers(content);
 		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[markerIndex], wasAutoTriggered: true}, function() {
+			var result = parseCompletion();
+			cb(result.result, transform.markers);
+		});
+	}
 
-		var transform = Marker.extractMarkers("{-1-}cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals("cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+	function testIssue8669_type() {
+		complete("{-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
+
+		complete("{-1-}cl{-2-}", 2);
+		equals("cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 
 	function testIssue8669_modifier() {
-		var transform = Marker.extractMarkers("extern {-1-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		complete("extern {-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
 
-		var transform = Marker.extractMarkers("extern {-1-}cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals("cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		complete("extern {-1-}cl{-2-}", 2);
+		equals("cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 
 	function testIssue8669_extends() {
-		var transform = Marker.extractMarkers("class C extends {-1-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		complete("class C extends {-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
 
-		var transform = Marker.extractMarkers("class C extends {-1-}Cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals("Cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		complete("class C extends {-1-}Cl{-2-}", 2);
+		equals("Cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 
 	function testIssue8669_implements() {
-		var transform = Marker.extractMarkers("class C implements {-1-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		complete("class C implements {-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
 
-		var transform = Marker.extractMarkers("class C implements {-1-}Cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals("Cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		complete("class C implements {-1-}Cl{-2-}", 2);
+		equals("Cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 
 	function testIssue8669_import() {
-		var transform = Marker.extractMarkers("import {-1-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		complete("import {-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
 
-		var transform = Marker.extractMarkers("import {-1-}Cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		// Assert.equals("Cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		complete("import {-1-}Cl{-2-}", 2);
+		// equals("Cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 
 	function testIssue8669_using() {
-		var transform = Marker.extractMarkers("using {-1-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[1], r.replaceRange.end.character);
+		complete("using {-1-}", 1);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[1], response.replaceRange.end.character);
 
-		var transform = Marker.extractMarkers("using {-1-}Cl{-2-}");
-		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
-		var result = parseCompletion();
-		var r = result.result;
-		// Assert.equals("Cl", r.filterString);
-		Assert.equals(transform.markers[1], r.replaceRange.start.character);
-		Assert.equals(transform.markers[2], r.replaceRange.end.character);
+		complete("using {-1-}Cl{-2-}", 2);
+		// equals("Cl", response.filterString);
+		equals(markers[1], response.replaceRange.start.character);
+		equals(markers[2], response.replaceRange.end.character);
 	}
 }
