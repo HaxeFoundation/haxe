@@ -213,5 +213,26 @@ class TestFileInput extends utest.Test {
 		}
 		file.close();
 	}
+
+	function testIssue7544() {
+		var file = sys.io.File.read(path, true);
+		var buf = haxe.io.Bytes.alloc(contentBytes.length);
+
+		function next() {
+			try {
+				var read = file.readBytes(buf, 0, contentBytes.length);
+				return Std.string(read);
+			} catch(e:haxe.io.Eof) {
+				return Std.string('eof');
+			} catch(e:Dynamic) {
+				return Std.string(e);
+			}
+		}
+
+		Assert.equals('24', next());
+		next(); // TODO: at this line, some target produce '0', some produce 'eof', do we need to unify?
+		Assert.equals('eof', next());
+		file.close();
+	}
 }
 
