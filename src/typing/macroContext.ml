@@ -482,15 +482,12 @@ let get_macro_context ctx p =
 		com2.main_class <- None;
 		(* Inherit most display settings, but require normal typing. *)
 		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
-		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		let name = platform_name !Globals.macro_platform in
 		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
-		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
-		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
-		com2.defines.Define.values <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines.Define.values PMap.empty;
-		Common.define com2 Define.Macro;
+		let defines = adapt_defines_to_macro_context com2.defines; in
+		com2.defines.values <- defines.values;
+		com2.defines.defines_signature <- None;
 		Common.init_platform com2 !Globals.macro_platform;
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;

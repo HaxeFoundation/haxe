@@ -478,20 +478,23 @@ let run_or_diagnose com f arg =
 	| _ ->
 		f arg
 
-(** Creates the typer context and types [classes] into it. *)
-let do_type ctx native_libs config_macros classes =
+let create_typer_context ctx native_libs =
 	let com = ctx.com in
 	ctx.setup();
 	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 	Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
-	let t = Timer.timer ["typing"] in
 	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
 	(* Native lib pass 1: Register *)
 	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) native_libs in
 	(* Native lib pass 2: Initialize *)
 	List.iter (fun f -> f()) fl;
-	let tctx = Typer.create com in
+	Typer.create com
+
+(** Creates the typer context and types [classes] into it. *)
+let do_type tctx config_macros classes =
+	let com = tctx.Typecore.com in
+	let t = Timer.timer ["typing"] in
 	let add_signature desc =
 		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
 	in
@@ -509,8 +512,7 @@ let do_type ctx native_libs config_macros classes =
 		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t();
-	tctx
+	t()
 
 let load_display_module_in_macro tctx display_file_dot_path clear = match display_file_dot_path with
 	| Some cpath ->
@@ -1013,7 +1015,12 @@ try
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = do_type ctx !native_libs !config_macros !classes in
+		let tctx = create_typer_context ctx !native_libs in
+		begin try
+			do_type tctx !config_macros !classes;
+		with TypeloadParse.DisplayInMacroBlock ->
+			ignore(load_display_module_in_macro tctx display_file_dot_path true);
+		end;
 		handle_display ctx tctx display_file_dot_path;
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;

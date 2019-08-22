@@ -27,6 +27,8 @@ open Common
 open Typecore
 open Error
 
+exception DisplayInMacroBlock
+
 let parse_file_from_lexbuf com file p lexbuf =
 	let t = Timer.timer ["parsing"] in
 	Lexer.init file;
@@ -196,17 +198,30 @@ let parse_module_file com file p =
 			| (msg,p) :: _ -> handle_parser_error msg p
 			| [] -> ()
 			end;
-			if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.display_information.dead_blocks file pdi.pd_dead_blocks;
+			if com.display.dms_kind <> DMNone then begin
+				List.iter (fun (p,e) ->
+					if DisplayPosition.display_position#enclosed_in p then begin
+						if not (Define.defined com.defines Define.Macro) then begin
+							let defines = adapt_defines_to_macro_context com.defines in
+							if ParserEntry.is_true (ParserEntry.eval defines e) then
+								raise DisplayInMacroBlock
+						end;
+						begin match com.display.dms_kind with
+						| DMHover ->
+							DisplayException.raise_hover (CompletionItem.make_ci_literal "" (Type.mk_mono(),CTMono)) None p
+						| _ ->
+							()
+						end;
+					end;
+				) pdi.pd_dead_blocks;
+			end;
 			begin match com.display.dms_kind with
 			| DMHover ->
 				List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
-				(* List.iter (fun p ->
-					if DisplayPosition.display_position#enclosed_in p then
-						DisplayException.raise_hover (CompletionItem.make_ci_literal "" (Type.mk_mono(),CTMono)) None p
-				) pdi.pd_dead_blocks; *)
 			| _ ->
 				()
 			end;
+			if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.display_information.dead_blocks file pdi.pd_dead_blocks;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;

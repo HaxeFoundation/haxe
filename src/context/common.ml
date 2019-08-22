@@ -159,7 +159,7 @@ type shared_display_information = {
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
-	mutable dead_blocks : (string,pos list) Hashtbl.t;
+	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -825,3 +825,12 @@ let dump_context com = s_record_fields "" [
 
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
+
+let adapt_defines_to_macro_context defines =
+	let values = ref defines.values in
+	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
+	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
+	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
+	values := PMap.add "macro" "1" !values;
+	{values = !values; defines_signature = None }

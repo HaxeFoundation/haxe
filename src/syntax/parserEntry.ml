@@ -104,24 +104,108 @@ and eval_binop_exprs ctx e1 e2 =
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
 
-class dead_block_collector = object(self)
+class condition_handler_nop = object(self)
+	val null = EConst(Ident "null"),null_pos
+
+	method cond_if (e : expr) =
+		()
+
+	method cond_else =
+		()
+
+	method cond_elseif (e : expr) =
+		()
+
+	method cond_end =
+		()
+
+	method get_current_condition : expr =
+		null
+end
+
+class condition_Handler = object(self)
+	inherit condition_handler_nop
+	val mutable conditional_expressions = []
+	val mutable conditional_stack = []
+	val mutable depths = []
+
+	method private maybe_parent allow_and e = match fst e with
+		| EBinop(op,_,_) ->
+			if op = OpBoolAnd && allow_and then e
+			else (EParenthesis e,pos e)
+		| _ -> e
+
+	method private negate (e : expr) = match fst e with
+		| EUnop(Not,_,e1) -> e1
+		| EBinop(OpBoolAnd,e1,e2) -> (EBinop(OpBoolOr,self#negate e1,self#negate e2),(pos e))
+		| EBinop(OpBoolOr,e1,e2) -> (EBinop(OpBoolAnd,self#negate e1,self#negate e2),(pos e))
+		| _ -> (EUnop(Not,Prefix,e),(pos e))
+
+	method private conjoin (lhs : expr) (rhs : expr) =
+		let lhs = self#maybe_parent true lhs in
+		let rhs = self#maybe_parent true rhs in
+		(EBinop(OpBoolAnd,lhs,rhs),punion (pos lhs) (pos rhs))
+
+	method private cond_if' (e : expr) =
+		conditional_expressions <- e :: conditional_expressions;
+		conditional_stack <- e :: conditional_stack
+
+	method cond_if (e : expr) =
+		self#cond_if' e;
+		depths <- 1 :: depths
+
+	method cond_else = match conditional_stack with
+		| e :: el ->
+			conditional_stack <- (self#negate e) :: el
+		| [] ->
+			assert false
+
+	method cond_elseif (e : expr) =
+		self#cond_else;
+		self#cond_if' e;
+		match depths with
+		| [] -> assert false
+		| depth :: depths' ->
+			depths <- (depth + 1) :: depths'
+
+	method cond_end =
+		let rec loop d el =
+			if d = 0 then el
+			else loop (d - 1) (List.tl el)
+		in
+		match depths with
+			| [] -> assert false
+			| depth :: depths' ->
+				conditional_stack <- loop depth conditional_stack;
+				depths <- depths'
+
+	method get_current_condition = match conditional_stack with
+		| e :: el ->
+			List.fold_left self#conjoin e el
+		| [] ->
+			(EConst (Ident "true"),null_pos)
+end
+
+class dead_block_collector conds = object(self)
 	val dead_blocks = DynArray.create ()
 	val mutable current_block = []
 
 	method open_dead_block (p : pos) =
-		current_block <- {p with pmin = p.pmax} :: current_block
+		current_block <- ({p with pmin = p.pmax},conds#get_current_condition) :: current_block
 
 	method close_dead_block (p : pos) = match current_block with
 		| [] ->
 			error (Custom "Internal error: Trying to close dead block that's not open") p;
-		| p0 :: pl ->
+		| (p0,cond) :: pl ->
 			current_block <- pl;
-			DynArray.add dead_blocks ({p0 with pmax = p.pmin})
+			DynArray.add dead_blocks ({p0 with pmax = p.pmin},cond)
 
-	method get_dead_blocks =
+	method get_dead_blocks : (pos * expr) list =
 		assert(current_block = []);
 		DynArray.to_list dead_blocks
 end
+
+let nop_handler = new condition_handler_nop
 
 (* parse main *)
 let parse ctx code file =
@@ -155,7 +239,8 @@ let parse ctx code file =
 		error (Custom line) p
 	in
 
-	let dbc = new dead_block_collector in
+	let conds = if !in_display_file then new condition_Handler else nop_handler in
+	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
@@ -174,6 +259,7 @@ let parse ctx code file =
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
+				conds#cond_end;
 				mstack := l;
 				next_token())
 		| Sharp "elseif" ->
@@ -182,6 +268,7 @@ let parse ctx code file =
 			| _ :: l ->
 				let _,(e,pe) = parse_macro_cond sraw in
 				conditions := (e,pe) :: !conditions;
+				conds#cond_elseif (e,pe);
 				dbc#open_dead_block pe;
 				mstack := l;
 				let tk = skip_tokens (pos tk) false in
@@ -190,12 +277,13 @@ let parse ctx code file =
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
+				conds#cond_else;
 				dbc#open_dead_block (pos tk);
 				mstack := l;
 				let tk = skip_tokens (pos tk) false in
 				process_token tk)
 		| Sharp "if" ->
-			process_token (enter_macro (snd tk))
+			process_token (enter_macro true (snd tk))
 		| Sharp "error" ->
 			(match Lexer.token code with
 			| (Const (String(s,_)),p) -> error (Custom s) p
@@ -212,9 +300,10 @@ let parse ctx code file =
 		| _ ->
 			tk
 
-	and enter_macro p =
+	and enter_macro is_if p =
 		let tk, e = parse_macro_cond sraw in
 		conditions := e :: !conditions;
+		(if is_if then conds#cond_if else conds#cond_elseif) e;
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
 		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
@@ -227,28 +316,33 @@ let parse ctx code file =
 	and skip_tokens_loop p test tk =
 		match fst tk with
 		| Sharp "end" ->
+			conds#cond_end;
 			dbc#close_dead_block (pos tk);
 			Lexer.token code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
 			let _,(e,pe) = parse_macro_cond sraw in
+			conds#cond_elseif (e,pe);
 			conditions := (e,pe) :: !conditions;
 			dbc#open_dead_block pe;
 			skip_tokens p test
 		| Sharp "else" when not test ->
+			conds#cond_else;
 			dbc#close_dead_block (pos tk);
 			dbc#open_dead_block (pos tk);
 			skip_tokens p test
 		| Sharp "else" ->
+			conds#cond_else;
 			dbc#close_dead_block (pos tk);
 			mstack := snd tk :: !mstack;
 			Lexer.token code
 		| Sharp "elseif" ->
 			dbc#close_dead_block (pos tk);
-			enter_macro (snd tk)
+			enter_macro false (snd tk)
 		| Sharp "if" ->
 			dbc#open_dead_block (pos tk);
 			let _,e = parse_macro_cond sraw in
+			conds#cond_if e;
 			conditions := e :: !conditions;
 			let tk = skip_tokens p false in
 			skip_tokens_loop p test tk
