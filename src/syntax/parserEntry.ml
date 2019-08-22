@@ -121,6 +121,9 @@ class condition_handler_nop = object(self)
 
 	method get_current_condition : expr =
 		null
+
+	method get_conditions : expr list =
+		[]
 end
 
 class condition_Handler = object(self)
@@ -184,6 +187,9 @@ class condition_Handler = object(self)
 			List.fold_left self#conjoin e el
 		| [] ->
 			(EConst (Ident "true"),null_pos)
+
+	method get_conditions =
+		conditional_expressions
 end
 
 class dead_block_collector conds = object(self)
@@ -215,7 +221,6 @@ let parse ctx code file =
 	let was_display_file = !in_display_file in
 	let old_code = !code_ref in
 	let old_macro = !in_macro in
-	let conditions = ref [] in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
@@ -267,7 +272,6 @@ let parse ctx code file =
 			| [] -> tk
 			| _ :: l ->
 				let _,(e,pe) = parse_macro_cond sraw in
-				conditions := (e,pe) :: !conditions;
 				conds#cond_elseif (e,pe);
 				dbc#open_dead_block pe;
 				mstack := l;
@@ -302,7 +306,6 @@ let parse ctx code file =
 
 	and enter_macro is_if p =
 		let tk, e = parse_macro_cond sraw in
-		conditions := e :: !conditions;
 		(if is_if then conds#cond_if else conds#cond_elseif) e;
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
 		if is_true (eval ctx e) then begin
@@ -323,7 +326,6 @@ let parse ctx code file =
 			dbc#close_dead_block (pos tk);
 			let _,(e,pe) = parse_macro_cond sraw in
 			conds#cond_elseif (e,pe);
-			conditions := (e,pe) :: !conditions;
 			dbc#open_dead_block pe;
 			skip_tokens p test
 		| Sharp "else" when not test ->
@@ -340,10 +342,9 @@ let parse ctx code file =
 			dbc#close_dead_block (pos tk);
 			enter_macro false (snd tk)
 		| Sharp "if" ->
-			dbc#open_dead_block (pos tk);
 			let _,e = parse_macro_cond sraw in
 			conds#cond_if e;
-			conditions := e :: !conditions;
+			dbc#open_dead_block (pos tk);
 			let tk = skip_tokens p false in
 			skip_tokens_loop p test tk
 		| Sharp ("error" | "line") ->
@@ -370,7 +371,7 @@ let parse ctx code file =
 		restore();
 		Lexer.restore old;
 		if was_display_file then
-			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = !conditions})
+			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions})
 		else begin match List.rev !syntax_errors with
 			| [] -> ParseSuccess l
 			| error :: errors -> ParseError(l,error,errors)
