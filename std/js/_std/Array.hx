@@ -63,7 +63,11 @@ extern class Array<T> {
 	}
 
 	@:runtime inline function map<S>(f:T->S):Array<S> {
-		return [for (v in this) f(v)];
+		var result:Array<S> = js.Syntax.code("new Array({0})", length);
+		for(i in 0...length) {
+			result[i] = f(this[i]);
+		}
+		return result;
 	}
 
 	@:runtime inline function filter(f:T->Bool):Array<T> {
