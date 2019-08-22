@@ -217,7 +217,15 @@ module PdiHandler = struct
 		end;
 		let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
 		let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) pdi.pd_dead_blocks in
-		if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.shared.shared_display_information.dead_blocks file dead_blocks
+		let sdi = com.shared.shared_display_information in
+		begin try
+			let dead_blocks2 = Hashtbl.find sdi.dead_blocks file in
+			(* Intersect *)
+			let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
+			Hashtbl.replace sdi.dead_blocks file dead_blocks2
+		with Not_found ->
+			Hashtbl.add sdi.dead_blocks file dead_blocks
+		end;
 end
 
 let parse_module_file com file p =
