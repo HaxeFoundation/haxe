@@ -197,10 +197,10 @@ let parse_module_file com file p =
 			begin match com.display.dms_kind with
 			| DMHover ->
 				List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
-				List.iter (fun p ->
+				(* List.iter (fun p ->
 					if DisplayPosition.display_position#enclosed_in p then
 						DisplayException.raise_hover (CompletionItem.make_ci_literal "" (Type.mk_mono(),CTMono)) None p
-				) pdi.pd_dead_blocks;
+				) pdi.pd_dead_blocks; *)
 			| _ ->
 				()
 			end;
