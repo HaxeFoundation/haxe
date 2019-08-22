@@ -161,11 +161,11 @@ module ConditionDisplay = struct
 	}
 
 	let convert_small_type com = function
-		| TNull -> None,(Type.mk_mono(),CTMono)
-		| TBool b -> Some (string_of_bool b),(com.basic.tbool,ct "Bool")
-		| TFloat f -> Some (string_of_float f),(com.basic.tfloat,ct "Float")
-		| TString s -> Some ("\"" ^ StringHelper.s_escape s ^ "\""),(com.basic.tstring,ct "String")
-		| TVersion(r,p) -> Some (Semver.to_string (r,p)),(com.basic.tstring,ct "String")
+		| TNull -> "null",(Type.mk_mono(),CTMono)
+		| TBool b -> string_of_bool b,(com.basic.tbool,ct "Bool")
+		| TFloat f -> string_of_float f,(com.basic.tfloat,ct "Float")
+		| TString s -> "\"" ^ StringHelper.s_escape s ^ "\"",(com.basic.tstring,ct "String")
+		| TVersion(r,p) -> Semver.to_string (r,p),(com.basic.tstring,ct "String")
 
 	let check_condition com e =
 		let rec loop (e,p) =
@@ -176,10 +176,16 @@ module ConditionDisplay = struct
 			loop e;
 		with Result (e,p) ->
 			let v = eval com.defines (e,p) in
-			let s,(t,ct) = convert_small_type com v in
 			DisplayException.raise_hover (match e with
-				| EConst(Ident(n)) -> CompletionItem.make_ci_define n s (t,ct)
-				| _ -> CompletionItem.make_ci_literal (match s with | Some s -> s | None -> "null") (t,ct)
+				| EConst(Ident(n)) ->
+					CompletionItem.make_ci_define n (match v with
+						| TNull -> None
+						| TString s -> Some (StringHelper.s_escape s)
+						| _ -> assert false
+					) (com.basic.tstring,ct "String")
+				| _ ->
+					let s,(t,ct) = convert_small_type com v in
+					CompletionItem.make_ci_literal s (t,ct)
 			) None p;
 end
 
