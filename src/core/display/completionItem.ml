@@ -163,14 +163,14 @@ module CompletionModuleType = struct
 			| Some c ->
 				try
 					let cf = PMap.find "_new" c.cl_statics in
-					if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No
 		in
 		let ctor c =
 			try
 				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-				if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
 		in
@@ -230,14 +230,16 @@ module CompletionModuleType = struct
 			("kind",jint (to_int cm.kind)) ::
 			(match ctx.generation_mode with
 			| GMFull | GMWithoutDoc ->
+				("meta",generate_metadata ctx cm.meta) ::
 				("pos",generate_pos ctx cm.pos) ::
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
-				("meta",generate_metadata ctx cm.meta) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
 				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
 			| GMMinimum ->
-				[]
+				match generate_minimum_metadata ctx cm.meta with
+					| None -> []
+					| Some meta -> [("meta",meta)]
 			)
 		in
 		jobject fields
@@ -369,7 +371,7 @@ module CompletionType = struct
 		"opt",jbool cfa.ct_optional;
 		"t",generate_type ctx cfa.ct_type;
 		"value",jopt (fun e -> jobject [
-			"string",jstring (Ast.s_expr e);
+			"string",jstring (Ast.Printer.s_expr e);
 		]) cfa.ct_value;
 	]
 
@@ -431,6 +433,7 @@ type t_kind =
 	| ITAnonymous of tanon
 	| ITExpression of texpr
 	| ITTypeParameter of tclass
+	| ITDefine of string * string
 
 type t = {
 	ci_kind : t_kind;
@@ -456,6 +459,7 @@ let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
 let make_ci_expr e t = make (ITExpression e) (Some t)
 let make_ci_type_param c t = make (ITTypeParameter c) (Some t)
+let make_ci_define n v t = make (ITDefine(n,v)) (Some t)
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -472,6 +476,7 @@ let get_index item = match item.ci_kind with
 	| ITAnonymous _ -> 11
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
+	| ITDefine _ -> 14
 
 let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITLocal v ->
@@ -521,7 +526,8 @@ let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITAnonymous _
 	| ITExpression _
 	| ITTimer _
-	| ITMetadata _ ->
+	| ITMetadata _
+	| ITDefine _ ->
 		500,""
 
 let legacy_sort item = match item.ci_kind with
@@ -547,6 +553,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITAnonymous _ -> 11,""
 	| ITExpression _ -> 12,""
 	| ITTypeParameter _ -> 13,""
+	| ITDefine _ -> 14,""
 
 let get_name item = match item.ci_kind with
 	| ITLocal v -> v.v_name
@@ -562,8 +569,25 @@ let get_name item = match item.ci_kind with
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
 	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_type item = item.ci_type
+
+let get_filter_name item = match item.ci_kind with
+	| ITLocal v -> v.v_name
+	| ITClassField(cf) | ITEnumAbstractField(_,cf) -> cf.field.cf_name
+	| ITEnumField ef -> ef.efield.ef_name
+	| ITType(cm,_) -> s_type_path (cm.pack,cm.name)
+	| ITPackage(path,_) -> s_type_path path
+	| ITModule path -> s_type_path path
+	| ITLiteral s -> s
+	| ITTimer(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
+	| ITKeyword kwd -> s_keyword kwd
+	| ITAnonymous _ -> ""
+	| ITExpression _ -> ""
+	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_documentation item = match item.ci_kind with
 	| ITClassField cf | ITEnumAbstractField(_,cf) -> cf.field.cf_doc
@@ -571,7 +595,7 @@ let get_documentation item = match item.ci_kind with
 	| ITType(mt,_) -> mt.doc
 	| _ -> None
 
-let to_json ctx item =
+let to_json ctx index item =
 	let open ClassFieldOrigin in
 	let kind,data = match item.ci_kind with
 		| ITLocal v -> "Local",generate_tvar ctx v
@@ -651,16 +675,15 @@ let to_json ctx item =
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
 			in
-			let rec loop internal params platforms targets l = match l with
-				| HasParam s :: l -> loop internal (s :: params) platforms targets l
-				| Platform pl :: l -> loop internal params (platform_name pl :: platforms) targets l
-				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets l
-				| UsedOn usage :: l -> loop internal params platforms (usage_to_string usage :: targets) l
-				| UsedOnEither usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
-				| UsedInternally :: l -> loop true params platforms targets l
-				| [] -> internal,params,platforms,targets
+			let rec loop internal params platforms targets links l = match l with
+				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
+				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
+				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) links l
+				| UsedInternally :: l -> loop true params platforms targets links l
+				| Link url :: l -> loop internal params platforms targets (url :: links) l
+				| [] -> internal,params,platforms,targets,links
 			in
-			let internal,params,platforms,targets = loop false [] [] [] params in
+			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
 			"Metadata",jobject [
 				"name",jstring name;
 				"doc",jstring doc;
@@ -668,6 +691,7 @@ let to_json ctx item =
 				"platforms",jlist jstring platforms;
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
+				"links",jlist jstring links;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
@@ -684,9 +708,23 @@ let to_json ctx item =
 				]
 			| _ -> assert false
 			end
+		| ITDefine(n,v) -> "Define",jobject [
+			"name",jstring n;
+			"value",jstring v;
+			(* TODO: docs etc *)
+		]
+	in
+	let jindex = match index with
+		| None -> []
+		| Some index -> ["index",jint index]
 	in
 	jobject (
 		("kind",jstring kind) ::
 		("args",data) ::
-		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
+		(match item.ci_type with
+			| None ->
+				jindex
+			| Some t ->
+				("type",CompletionType.to_json ctx (snd t)) :: jindex
+		)
 	)

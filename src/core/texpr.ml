@@ -47,7 +47,7 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TThrow e1,TThrow e2 -> equal e1 e2
 	| TCast(e1,None),TCast(e2,None) -> equal e1 e2
 	| TCast(e1,Some mt1),TCast(e2,Some mt2) -> equal e1 e2 && mt1 == mt2
-	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.s_expr e1) = (Ast.s_expr e2)) el1 el2 && equal e1 e2
+	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.Printer.s_expr e1) = (Ast.Printer.s_expr e2)) el1 el2 && equal e1 e2
 	| (TBreak,TBreak) | (TContinue,TContinue) -> true
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
@@ -314,7 +314,7 @@ let type_constant basic c p =
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
-	| String s -> mk (TConst (TString s)) basic.tstring p
+	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
@@ -389,3 +389,147 @@ let build_metadata api t =
 		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
 		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
 		Some (mk (TObjectDecl meta_obj) t_dynamic p)
+
+let dump_with_pos tabs e =
+	let buf = Buffer.create 0 in
+	let add = Buffer.add_string buf in
+	let rec loop' tabs e =
+		let p = e.epos in
+		let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+		let loop e = loop' (tabs ^ "  ") e in
+		match e.eexpr with
+		| TConst ct -> add (s_const ct)
+		| TLocal v -> add ("TLocal " ^ v.v_name)
+		| TTypeExpr mt -> add ("TTypeExpr " ^ (s_type_path (t_infos mt).mt_path))
+		| TIdent s -> add ("TIdent " ^ s)
+		| TEnumParameter(e1,ef,_) ->
+			add ("TEnumParameter " ^ ef.ef_name);
+			loop e1
+		| TEnumIndex e1 ->
+			add "TEnumIndex";
+			loop e1
+		| TArray(e1,e2) ->
+			add "TArray";
+			loop e1;
+			loop e2;
+		| TBinop(op,e1,e2) ->
+			add ("TBinop " ^ (s_binop op));
+			loop e1;
+			loop e2;
+		| TField(e1,s) ->
+			add ("TField " ^ (field_name s));
+			loop e1
+		| TParenthesis e1 ->
+			add "TParenthesis";
+			loop e1
+		| TObjectDecl fl ->
+			add "TObjectDecl";
+			List.iter (fun ((n,p,_),e1) ->
+				Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+				loop e1
+			) fl;
+		| TArrayDecl el ->
+			add "TArrayDecl";
+			List.iter loop el
+		| TCall(e1,el) ->
+			add "TCall";
+			loop e1;
+			List.iter loop el
+		| TNew(c,_,el) ->
+			add ("TNew " ^ s_type_path c.cl_path);
+			List.iter loop el
+		| TUnop(op,_,e1) ->
+			add ("TUnop " ^ (s_unop op));
+			loop e1
+		| TVar(v,eo) ->
+			add ("TVar " ^ v.v_name);
+			begin match eo with
+				| None -> ()
+				| Some e ->
+					loop' (Printf.sprintf "%s  " tabs) e
+			end
+		| TFunction tf ->
+			add "TFunction";
+			loop tf.tf_expr;
+		| TBlock el ->
+			add "TBlock";
+			List.iter loop el
+		| TFor(v,e1,e2) ->
+			add ("TFor " ^ v.v_name);
+			loop e1;
+			loop e2;
+		| TIf(e1,e2,eo) ->
+			add "TIf";
+			loop e1;
+			loop e2;
+			Option.may loop eo;
+		| TWhile(e1,e2,_) ->
+			add "TWhile";
+			loop e1;
+			loop e2;
+		| TSwitch(e1,cases,def) ->
+			add "TSwitch";
+			loop e1;
+			List.iter (fun (el,e) ->
+				List.iter (loop' (tabs ^ "    ")) el;
+				loop' (tabs ^ "      ") e;
+			) cases;
+			Option.may (loop' (tabs ^ "      ")) def
+		| TTry(e1,catches) ->
+			add "TTry";
+			loop e1;
+			List.iter (fun (v,e) ->
+				loop' (tabs ^ "    ") e
+			) catches
+		| TReturn eo ->
+			add "TReturn";
+			Option.may loop eo;
+		| TBreak ->
+			add "TBreak";
+		| TContinue ->
+			add "TContinue"
+		| TThrow e1 ->
+			add "EThrow";
+			loop e1
+		| TCast(e1,_) ->
+			add "TCast";
+			loop e1;
+		| TMeta((m,_,_),e1) ->
+			add ("TMeta " ^ fst (Meta.get_info m));
+			loop e1
+	in
+	loop' tabs e;
+	Buffer.contents buf
+
+let collect_captured_vars e =
+	let known = Hashtbl.create 0 in
+	let unknown = ref [] in
+	let accesses_this = ref false in
+	let declare v = Hashtbl.add known v.v_id () in
+	let rec loop e = match e.eexpr with
+		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
+			Hashtbl.add known id ();
+			unknown := v :: !unknown
+		| TConst (TThis | TSuper) ->
+			accesses_this := true;
+		| TVar(v,eo) ->
+			Option.may loop eo;
+			declare v
+		| TFor(v,e1,e2) ->
+			declare v;
+			loop e1;
+			loop e2;
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			loop tf.tf_expr
+		| TTry(e1,catches) ->
+			loop e1;
+			List.iter (fun (v,e) ->
+				declare v;
+				loop e;
+			) catches
+		| _ ->
+			Type.iter loop e
+	in
+	loop e;
+	List.rev !unknown,!accesses_this

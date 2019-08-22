@@ -2,12 +2,12 @@ package cases;
 
 class Issue7098 extends DisplayTestCase {
 	/**
-	import misc.issue7098.Bar;
-	class Main {
-		public static function main() {
-			Bar.foo(Va{-1-}lue);
+		import misc.issue7098.Bar;
+		class Main {
+			public static function main() {
+				Bar.foo(Va{-1-}lue);
+			}
 		}
-	}
 	**/
 	function test() {
 		var pos = position(pos(1));

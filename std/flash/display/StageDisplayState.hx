@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum StageDisplayState {
-	FULL_SCREEN;
-	FULL_SCREEN_INTERACTIVE;
-	NORMAL;
+@:native("flash.display.StageDisplayState") extern enum abstract StageDisplayState(String) {
+	var FULL_SCREEN;
+	var FULL_SCREEN_INTERACTIVE;
+	var NORMAL;
 }

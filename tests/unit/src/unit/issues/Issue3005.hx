@@ -21,5 +21,6 @@ class Issue3005 extends Test {
 	function test() {
 		var a = new A<String>();
 		a.foo();
+		noAssert();
 	}
 }

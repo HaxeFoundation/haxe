@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Crypto>
 **/
 @:native("Crypto")
-extern class Crypto
-{
+extern class Crypto {
 	
 	/**
 		Returns a `SubtleCrypto` object providing access to common cryptographic primitives, like hashing, signing, encryption or decryption.
@@ -45,5 +44,5 @@ extern class Crypto
 		Fills the passed `TypedArray` with cryptographically sound random values.
 		@throws DOMError
 	**/
-	function getRandomValues( array : ArrayBufferView ) : ArrayBufferView;
+	function getRandomValues( array : js.lib.ArrayBufferView ) : js.lib.ArrayBufferView;
 }

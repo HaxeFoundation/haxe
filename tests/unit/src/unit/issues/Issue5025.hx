@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue5025 extends Test {
 	function test() {
-		// nothing to do here, we just want to see if the switch (null) compiles
+		noAssert();
 	}
 
 	function shouldCompile() {

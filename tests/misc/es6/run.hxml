@@ -1,0 +1,4 @@
+-main Test
+-js test.js
+-D js-es=6
+-cmd node test.js

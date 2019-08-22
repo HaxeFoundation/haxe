@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import haxe.SysTools;
+
 @:coreApi class Sys {
 
 	public static function print( v : Dynamic ) : Void {
@@ -99,11 +101,11 @@
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
+						SysTools.quoteWinArg(a, true)
 					].join(" ");
 					return sys_command(untyped cmd.__s);
 				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 					return sys_command(untyped cmd.__s);
 			}
 		}

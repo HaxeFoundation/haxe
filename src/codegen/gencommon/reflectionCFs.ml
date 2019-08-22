@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -989,10 +989,13 @@ let implement_get_set ctx cl =
 
 		let content =
 			let fields = get_fields() in
-			let fields = List.filter (fun (_, cf) -> match is_set, cf.cf_kind with
-				| true, Var { v_write = AccCall } -> true
-				| false, Var { v_read = AccCall } -> true
-				| _ -> Type.is_physical_field cf) fields
+			let fields = List.filter
+				(fun (_, cf) -> match is_set, cf.cf_kind with
+					| true, Var { v_write = AccCall } -> true
+					| false, Var { v_read = AccCall } -> true
+					| _ -> Type.is_physical_field cf && not (has_meta Meta.ReadOnly cf.cf_meta)
+				)
+				fields
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->

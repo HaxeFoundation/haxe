@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range>
 **/
 @:native("Range")
-extern class Range
-{
+extern class Range {
 	static inline var START_TO_START : Int = 0;
 	static inline var START_TO_END : Int = 1;
 	static inline var END_TO_END : Int = 2;
@@ -112,7 +111,7 @@ extern class Range
 	/**
 		Collapses the `Range` to one of its boundary points.
 	**/
-	function collapse( ?toStart : Bool = false ) : Void;
+	function collapse( toStart : Bool = false ) : Void;
 	
 	/**
 		Sets the `Range` to contain the `Node` and its contents.

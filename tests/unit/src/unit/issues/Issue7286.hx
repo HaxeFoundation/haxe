@@ -3,6 +3,7 @@ package unit.issues;
 class Issue7286 extends unit.Test {
 	function test() {
 		new TestMap();
+		noAssert();
 	}
 }
 

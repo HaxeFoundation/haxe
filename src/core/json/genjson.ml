@@ -11,6 +11,7 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
+	request : JsonRequest.json_request option
 }
 
 let jnull = Json.JNull
@@ -158,6 +159,20 @@ and generate_metadata ctx ml =
 		not (List.mem UsedInternally flags)
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
+
+and generate_minimum_metadata ctx ml =
+	match ctx.request with
+		| None -> None
+		| Some request ->
+			match request#get_requested_meta_list with
+				| None -> None
+				| Some requested ->
+					let ml =
+						List.filter
+							(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
+							ml
+					in
+					Some (jlist (generate_metadata_entry ctx) ml)
 
 (* AST.ml structures *)
 
@@ -504,8 +519,13 @@ and generate_class_field' ctx cfs cf =
 						None
 			in
 			begin match value with
-				| None -> jnull
-				| Some e -> jobject ["string",jstring (Ast.s_expr e)]
+				| None ->
+					if Meta.has (Meta.Custom ":testHack") cf.cf_meta then begin match cf.cf_expr with
+						| Some e -> jobject ["testHack",jstring (s_expr_pretty false "" false (s_type (print_context())) e)] (* TODO: haha *)
+						| None -> jnull
+					end else
+						jnull
+				| Some e -> jobject ["string",jstring (Ast.Printer.s_expr e)]
 			end
 		| GMMinimum ->
 			jnull
@@ -513,8 +533,8 @@ and generate_class_field' ctx cfs cf =
 	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
-		"isPublic",jbool cf.cf_public;
-		"isFinal",jbool cf.cf_final;
+		"isPublic",jbool (has_class_field_flag cf CfPublic);
+		"isFinal",jbool (has_class_field_flag cf CfFinal);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
@@ -666,12 +686,16 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		"dependencies",jarray (PMap.fold (fun m acc -> generate_module_path m.m_path :: acc) m.m_extra.m_deps []);
+		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
+			"path",jstring (s_type_path m.m_path);
+			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		]) :: acc) m.m_extra.m_deps []);
 	]
 
-let create_context gm = {
+let create_context ?jsonrpc gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
+	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
 }
 
 let generate types file =

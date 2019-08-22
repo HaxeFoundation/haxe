@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query>
 **/
 @:native("EXT_disjoint_timer_query")
-extern class EXTDisjointTimerQuery
-{
+extern class EXTDisjointTimerQuery {
 	
 	/**
 		A `GLint` indicating the number of bits used to hold the query result for the given target.

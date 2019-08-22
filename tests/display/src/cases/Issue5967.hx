@@ -2,8 +2,8 @@ package cases;
 
 class Issue5967 extends DisplayTestCase {
 	/**
-	function call():Void { };
-	call({-1-}a{-2-},{-3-},{-4-} {-5-}
+		function call():Void { };
+		call({-1-}a{-2-},{-3-},{-4-} {-5-}
 	**/
 	@:funcCode function test1() {
 		sigEq(0, [[]], signature(pos(1)));

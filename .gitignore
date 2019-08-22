@@ -8,6 +8,7 @@
 *.a
 *.exe
 .*.swp
+.haxelib
 /out
 /installer
 
@@ -26,6 +27,7 @@
 /haxelib*
 /haxedoc*
 /lib
+/prebuild
 
 /src/syntax/lexer.ml
 /libs/xml-light/xml_lexer.ml
@@ -64,6 +66,9 @@
 /tests/unit/unit.n
 /tests/unit/node_modules/
 
+/tests/nullsafety/bin
+/tests/nullsafety/dump
+
 /haxe.sublime*
 .idea
 build.bat
@@ -78,6 +83,7 @@ tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
 tests/sys/bin/
 /tests/sys/dump/
+/tests/sys/test-res/
 tests/optimization/dump/
 tests/misc/projects/*/*.n
 tests/misc/*/*/*.lua
@@ -97,6 +103,7 @@ tests/misc/projects/Issue4070/cpp/
 *.vscode/
 
 /tests/sys/temp
+/tests/sys/temp-unicode
 *.dll
 _build/
 Makefile.dependencies
@@ -106,8 +113,6 @@ Makefile.modules
 
 /tests/unit/compiler_loops/log.txt
 tests/benchs/mandelbrot/bin/
-tests/server/test/cases/
-tests/server/test.js
 
 tests/unit/pypy3-*
 tmp.tmp
@@ -115,7 +120,12 @@ tmp.tmp
 dev-display.hxml
 
 .DS_Store
+.history
 tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/
 tests/benchs/dump/
+tests/display/.unittest/
+tests/unit/.unittest/
+tests/threads/export/
+tests/server/test.js.map

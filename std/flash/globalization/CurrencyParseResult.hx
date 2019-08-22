@@ -1,7 +1,9 @@
 package flash.globalization;
 
-@:final extern class CurrencyParseResult {
-	var currencyString(default,never) : String;
-	var value(default,never) : Float;
+extern final class CurrencyParseResult {
+	@:flash.property var currencyString(get,never) : String;
+	@:flash.property var value(get,never) : Float;
 	function new(value : Float = 0./*NaN*/, ?symbol : String) : Void;
+	private function get_currencyString() : String;
+	private function get_value() : Float;
 }

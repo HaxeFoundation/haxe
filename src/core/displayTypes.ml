@@ -63,9 +63,29 @@ module DiagnosticsSeverity = struct
 		| Hint -> 4
 end
 
+module DiagnosticsKind = struct
+	type t =
+		| DKUnusedImport
+		| DKUnresolvedIdentifier
+		| DKCompilerError
+		| DKRemovableCode
+		| DKParserError
+		| DKDeprecationWarning
+		| DKInactiveBlock
+
+	let to_int = function
+		| DKUnusedImport -> 0
+		| DKUnresolvedIdentifier -> 1
+		| DKCompilerError -> 2
+		| DKRemovableCode -> 3
+		| DKParserError -> 4
+		| DKDeprecationWarning -> 5
+		| DKInactiveBlock -> 6
+end
+
 module CompletionResultKind = struct
 	type t =
-		| CRField of CompletionItem.t * pos
+		| CRField of CompletionItem.t * pos * Type.t option * (Type.t * Type.t) option
 		| CRStructureField
 		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
 		| CRMetadata
@@ -90,7 +110,7 @@ module CompletionResultKind = struct
 				]
 		in
 		let i,args = match kind with
-			| CRField(item,p) ->
+			| CRField(item,p,iterator,keyValueIterator) ->
 				let t = CompletionItem.get_type item in
 				let t = match t with
 					| None ->
@@ -99,16 +119,30 @@ module CompletionResultKind = struct
 						try
 							let mt = module_type_of_type t in
 							let ctx = {ctx with generate_abstract_impl = true} in
-							Some (generate_module_type ctx mt,CompletionItem.CompletionType.to_json ctx ct)
+							let make mt = generate_module_type ctx mt in
+							let j_mt = make mt in
+							let j_mt_followed = if t == follow t then jnull else make (module_type_of_type (follow t)) in
+							Some (j_mt,j_mt_followed,CompletionItem.CompletionType.to_json ctx ct)
 						with _ ->
 							None
 				in
 				let fields =
-					("item",CompletionItem.to_json ctx item) ::
+					("item",CompletionItem.to_json ctx None item) ::
 					("range",generate_pos_as_range p) ::
+					("iterator", match iterator with
+						| None -> jnull
+						| Some t -> jobject ["type",generate_type ctx t]
+					) ::
+					("keyValueIterator", match keyValueIterator with
+						| None -> jnull
+						| Some (key,value) -> jobject [
+							"key",generate_type ctx key;
+							"value",generate_type ctx value
+						]
+					) ::
 					(match t with
 						| None -> []
-						| Some (mt,ct) -> ["type",ct;"moduleType",mt]
+						| Some (mt,mt_followed,ct) -> ["type",ct;"moduleType",mt;"moduleTypeFollowed",mt_followed]
 					)
 				in
 				0,Some (jobject fields)
@@ -261,3 +295,15 @@ type reference_kind =
 	| KEnumField
 	| KModuleType
 	| KConstructor
+
+type completion_subject = {
+	s_name : string option;
+	s_start_pos : pos;
+	s_insert_pos : pos;
+}
+
+let make_subject name ?(start_pos=None) insert_pos = {
+	s_name = name;
+	s_start_pos = (match start_pos with None -> insert_pos | Some p -> p);
+	s_insert_pos = insert_pos;
+}

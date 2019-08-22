@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Element>
 **/
 @:native("Element")
-extern class DOMElement extends Node
-{
+extern class DOMElement extends Node {
 	
 	/**
 		The namespace URI of the element, or `null` if it is no namespace.
@@ -241,6 +240,7 @@ extern class DOMElement extends Node
 	var ontimeupdate : haxe.Constraints.Function;
 	var onvolumechange : haxe.Constraints.Function;
 	var onwaiting : haxe.Constraints.Function;
+	var onselectstart : haxe.Constraints.Function;
 	var ontoggle : haxe.Constraints.Function;
 	var onpointercancel : haxe.Constraints.Function;
 	var onpointerdown : haxe.Constraints.Function;
@@ -416,7 +416,7 @@ extern class DOMElement extends Node
 	/**
 		Sets up mouse event capture, redirecting all mouse events to this element.
 	**/
-	function setCapture( ?retargetToElement : Bool = false ) : Void;
+	function setCapture( retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
 	
 	/**
@@ -499,6 +499,12 @@ extern class DOMElement extends Node
 		@throws DOMError
 	**/
 	function attachShadow( shadowRootInitDict : ShadowRootInit ) : ShadowRoot;
+	
+	/**
+		Asynchronously asks the browser to make the element full-screen.
+		@throws DOMError
+	**/
+	function requestFullscreen() : Void;
 	
 	/**
 		Allows to asynchronously ask for the pointer to be locked on the given element.

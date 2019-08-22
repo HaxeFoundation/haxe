@@ -1,8 +1,8 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum LineJustification {
-	ALL_BUT_LAST;
-	ALL_BUT_MANDATORY_BREAK;
-	ALL_INCLUDING_LAST;
-	UNJUSTIFIED;
+@:native("flash.text.engine.LineJustification") extern enum abstract LineJustification(String) {
+	var ALL_BUT_LAST;
+	var ALL_BUT_MANDATORY_BREAK;
+	var ALL_INCLUDING_LAST;
+	var UNJUSTIFIED;
 }

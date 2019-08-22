@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Selection>
 **/
 @:native("Selection")
-extern class Selection
-{
+extern class Selection {
 	
 	/**
 		Returns the `Node` in which the selection begins.
@@ -102,9 +101,9 @@ extern class Selection
 		Collapses the current selection to a single point.
 		@throws DOMError
 	**/
-	function collapse( node : Node, ?offset : Int = 0 ) : Void;
+	function collapse( node : Node, offset : Int = 0 ) : Void;
 	/** @throws DOMError */
-	function setPosition( node : Node, ?offset : Int = 0 ) : Void;
+	function setPosition( node : Node, offset : Int = 0 ) : Void;
 	
 	/**
 		Collapses the selection to the start of the first range in the selection.
@@ -122,7 +121,7 @@ extern class Selection
 		Moves the focus of the selection to a specified point.
 		@throws DOMError
 	**/
-	function extend( node : Node, ?offset : Int = 0 ) : Void;
+	function extend( node : Node, offset : Int = 0 ) : Void;
 	
 	/**
 		Sets the selection to be a range including all or parts of two specified DOM nodes, and any content located between them.
@@ -146,7 +145,7 @@ extern class Selection
 		Indicates if a certain node is part of the selection.
 		@throws DOMError
 	**/
-	function containsNode( node : Node, ?allowPartialContainment : Bool = false ) : Bool;
+	function containsNode( node : Node, allowPartialContainment : Bool = false ) : Bool;
 	
 	/**
 		Changes the current selection.

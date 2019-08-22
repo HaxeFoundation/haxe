@@ -14,9 +14,13 @@ Alternatively, source .zip archives or tarballs can be obtained from the [GitHub
 
 The Haxe compiler is written in OCaml, so you have to set up an OCaml development environment. In addition, we make use of a number of OCaml libraries. We recommend using OPAM, which is an OCaml package manager that can also manage OCaml installations.
 
-To install OPAM on Unix (e.g. Mac, Linux) systems, follow the [instruction given by OPAM](https://opam.ocaml.org/doc/Install.html). On Windows, we recommend using the [Cygwin/MinGW-based OPAM environment provided by fdopen](https://fdopen.github.io/opam-repository-mingw/installation/), choose the 64-bit versions of everything.
+The Haxe compiler requires OCaml version 4.02 or higher. Since some of the OCaml libraries Haxe depends on were uploaded in the OPAM 2 format, you should use OPAM 2.x instead of OPAM 1.x.
 
-The Haxe compiler requires OCaml version 4.02 or higher.
+To install OPAM on Unix (e.g. Mac, Linux) systems, follow the [instruction given by OPAM](https://opam.ocaml.org/doc/Install.html). On Windows, we recommend using the [Cygwin/MinGW-based OPAM environment provided by fdopen](https://fdopen.github.io/opam-repository-mingw/installation/), choose the 64-bit versions of everything, also make sure to [use the OPAM 2 version](https://github.com/fdopen/opam-repository-mingw/issues/48).
+
+In case you messed up the OPAM installation, you can uninstall OPAM and remove `~/.opam`, which contains the OCaml switches (OCaml compilers and libraries), and start over.
+
+Also note that since OPAM 2 on Linux will try to use bubblewrap, which uses Linux user namespaces, which might not be available on environments like Docker or Windows Subsystem for Linux (WSL). In case of encountering related errors, use `--disable-sandboxing` during `opam init`.
 
 ## Installing dependencies
 
@@ -45,7 +49,7 @@ To install the OCaml libraries, use OPAM as follows:
 
 ```sh
 # pin the haxe package to the checked out Haxe source directory
-opam pin add haxe path/to/haxe --no-action
+opam pin add haxe path/to/haxe --kind=path --no-action
 
 # install the haxe package dependencies (as listed in the `opam` file)
 opam install haxe --deps-only

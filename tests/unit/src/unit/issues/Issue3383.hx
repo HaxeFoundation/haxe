@@ -21,6 +21,7 @@ class Issue3383 extends Test {
 			eq(n, null);
 			#else
 			Sys.stderr().writeString("https://github.com/HaxeFoundation/haxe/issues/5503 pending\n");
+			noAssert();
 			#end
 	}
 #end

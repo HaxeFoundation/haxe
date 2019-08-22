@@ -1,6 +1,6 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DProgramType {
-	FRAGMENT;
-	VERTEX;
+@:native("flash.display3D.Context3DProgramType") extern enum abstract Context3DProgramType(String) {
+	var FRAGMENT;
+	var VERTEX;
 }

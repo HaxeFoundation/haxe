@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,8 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
 /**
 	The `RTCPeerConnection` interface represents a WebRTC connection between the local computer and a remote peer. It provides methods to connect to a remote peer, maintain and monitor the connection, and close the connection once it's no longer needed.
 
@@ -32,8 +34,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection>
 **/
 @:native("RTCPeerConnection")
-extern class PeerConnection extends js.html.EventTarget
-{
+extern class PeerConnection extends js.html.EventTarget {
 	/** @throws DOMError */
 	@:overload( function( keygenAlgorithm : String) : Promise<Certificate> {} )
 	static function generateCertificate( keygenAlgorithm : Dynamic ) : Promise<Certificate>;
@@ -59,7 +60,7 @@ extern class PeerConnection extends js.html.EventTarget
 	var oniceconnectionstatechange : haxe.Constraints.Function;
 	var onicegatheringstatechange : haxe.Constraints.Function;
 	var ondatachannel : haxe.Constraints.Function;
-	
+
 	/** @throws DOMError */
 	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
 	function setIdentityProvider( provider : String, ?options : IdentityProviderOptions ) : Void;

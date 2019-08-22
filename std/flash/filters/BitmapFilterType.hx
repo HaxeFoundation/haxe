@@ -1,7 +1,7 @@
 package flash.filters;
 
-@:fakeEnum(String) extern enum BitmapFilterType {
-	FULL;
-	INNER;
-	OUTER;
+@:native("flash.filters.BitmapFilterType") extern enum abstract BitmapFilterType(String) {
+	var FULL;
+	var INNER;
+	var OUTER;
 }

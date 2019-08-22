@@ -1,8 +1,8 @@
 package flash.desktop;
 
-@:fakeEnum(String) @:require(flash10) extern enum ClipboardTransferMode {
-	CLONE_ONLY;
-	CLONE_PREFERRED;
-	ORIGINAL_ONLY;
-	ORIGINAL_PREFERRED;
+@:native("flash.desktop.ClipboardTransferMode") @:require(flash10) extern enum abstract ClipboardTransferMode(String) {
+	var CLONE_ONLY;
+	var CLONE_PREFERRED;
+	var ORIGINAL_ONLY;
+	var ORIGINAL_PREFERRED;
 }

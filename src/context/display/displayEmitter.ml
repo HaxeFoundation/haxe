@@ -15,7 +15,12 @@ open Display
 open DisplayPosition
 
 let get_expected_name with_type = match with_type with
-	| WithType.Value (Some s) | WithType.WithType(_,Some s) -> Some s
+	| WithType.Value (Some src) | WithType.WithType(_,Some src) ->
+		(match src with
+		| WithType.FunctionArgument name -> Some name
+		| WithType.StructureField name -> Some name
+		| WithType.ImplicitReturn -> None
+		)
 	| _ -> None
 
 let sort_fields l with_type tk =
@@ -25,7 +30,7 @@ let sort_fields l with_type tk =
 	in
 	let expected_name = get_expected_name with_type in
 	let l = List.map (fun ci ->
-		let i = get_sort_index tk ci (Option.default Globals.null_pos p) (Option.map fst expected_name) in
+		let i = get_sort_index tk ci (Option.default Globals.null_pos p) expected_name in
 		ci,i
 	) l in
 	let sort l =
@@ -144,9 +149,9 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		begin match mt with
 		| TClassDecl c when Meta.has Meta.CoreApi c.cl_meta ->
 			let c' = ctx.g.do_load_core_class ctx c in
-			raise_position [c.cl_name_pos;c'.cl_name_pos]
+			raise_positions [c.cl_name_pos;c'.cl_name_pos]
 		| _ ->
-			raise_position [(t_infos mt).mt_name_pos];
+			raise_positions [(t_infos mt).mt_name_pos];
 		end
 	| DMUsage _ ->
 		let infos = t_infos mt in
@@ -180,7 +185,7 @@ let check_display_type ctx t p =
 		md.m_type_hints <- (p,t) :: md.m_type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && encloses_display_position p then
+		if ctx.is_display_file && display_position#enclosed_in p then
 			display_type ctx t p
 	in
 	add_type_hint();
@@ -190,7 +195,7 @@ let raise_position_of_type t =
 	let mt =
 		let rec follow_null t =
 			match t with
-				| TMono r -> (match !r with None -> raise_position [null_pos] | Some t -> follow_null t)
+				| TMono r -> (match !r with None -> raise_positions [null_pos] | Some t -> follow_null t)
 				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 				| TDynamic _ -> !t_dynamic_def
@@ -199,12 +204,12 @@ let raise_position_of_type t =
 		try
 			Type.module_type_of_type (follow_null t)
 		with
-			Exit -> raise_position [null_pos]
+			Exit -> raise_positions [null_pos]
 	in
-	raise_position [(t_infos mt).mt_name_pos]
+	raise_positions [(t_infos mt).mt_name_pos]
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [v.v_pos]
+	| DMDefinition -> raise_positions [v.v_pos]
 	| DMTypeDefinition -> raise_position_of_type v.v_type
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,KVar)
 	| DMHover ->
@@ -213,7 +218,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| _ -> ()
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [cf.cf_name_pos]
+	| DMDefinition -> raise_positions [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type cf.cf_type
 	| DMUsage _ ->
 		let name,kind = match cf.cf_name,origin with
@@ -239,10 +244,10 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| _ -> ()
 
 let maybe_display_field ctx origin scope cf p =
-	if encloses_display_position p then display_field ctx origin scope cf p
+	if display_position#enclosed_in p then display_field ctx origin scope cf p
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [ef.ef_name_pos]
+	| DMDefinition -> raise_positions [ef.ef_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ef.ef_type
 	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->
@@ -265,15 +270,16 @@ let display_meta com meta p = match com.display.dms_kind with
 	| DMDefault ->
 		let all = Meta.get_all() in
 		let all = List.map make_ci_metadata all in
-		raise_fields all CRMetadata (Some p)
+		let subject = if meta = Meta.Last then None else Some (Meta.to_string meta) in
+		raise_fields all CRMetadata (make_subject subject p);
 	| _ ->
 		()
 
 let check_display_metadata ctx meta =
 	List.iter (fun (meta,args,p) ->
-		if encloses_display_position p then display_meta ctx.com meta p;
+		if display_position#enclosed_in p then display_meta ctx.com meta p;
 		List.iter (fun e ->
-			if encloses_display_position (pos e) then begin
+			if display_position#enclosed_in (pos e) then begin
 				let e = ExprPreprocessing.process_expr ctx.com e in
 				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
@@ -282,7 +288,7 @@ let check_display_metadata ctx meta =
 
 let check_field_modifiers ctx c cf override display_modifier =
 	match override,display_modifier with
-		| Some p,_ when encloses_display_position p && ctx.com.display.dms_kind = DMDefinition ->
+		| Some p,_ when display_position#enclosed_in p && ctx.com.display.dms_kind = DMDefinition ->
 			begin match c.cl_super with
 			| Some(c,tl) ->
 				let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
@@ -290,7 +296,7 @@ let check_field_modifiers ctx c cf override display_modifier =
 			| _ ->
 				()
 			end
-		| _,Some (AOverride,p) when ctx.com.display.dms_kind = DMDefault ->
+		| Some _,_ when ctx.com.display.dms_kind = DMDefault ->
 			let all_fields = TClass.get_all_super_fields c in
 			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
 			let l = PMap.fold (fun (c,cf) fields ->
@@ -300,5 +306,5 @@ let check_field_modifiers ctx c cf override display_modifier =
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
 			let l = sort_fields l NoValue TKOverride in
-			raise_fields l CROverride None
+			raise_fields l CROverride (make_subject (Some cf.cf_name) cf.cf_name_pos)
 		| _ -> ()

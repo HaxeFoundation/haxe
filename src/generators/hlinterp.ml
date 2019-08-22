@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,6 +41,7 @@ type value =
 	| VEnum of enum_proto * int * value array
 	| VAbstract of vabstract
 	| VVarArgs of vfunction * value option
+	| VStruct of vobject
 
 and ref_value =
 	| RStack of int
@@ -163,6 +164,7 @@ let rec is_compatible v t =
 	| VRef (_,t1), HRef t2 -> tsame t1 t2
 	| VAbstract _, HAbstract _ -> true
 	| VEnum _, HEnum _ -> true
+	| VStruct v, HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
 	| _ -> false
 
 type cast =
@@ -204,6 +206,10 @@ let alloc_obj ctx t =
 		let obj = VObj { oproto = p; ofields = ftable } in
 		List.iter (fun (fid,mk) -> ftable.(fid) <- mk obj) bindings;
 		obj
+	| HStruct p ->
+		let p, fields, bindings = get_proto ctx p in
+		let ftable = Array.map default fields in
+		VStruct { oproto = p; ofields = ftable }
 	| HVirtual v ->
 		let o = {
 			dfields = Hashtbl.create 0;
@@ -346,7 +352,7 @@ let rec vstr_d ctx v =
 	| VBool b -> if b then "true" else "false"
 	| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 	| VObj o ->
-		let p = "#" ^ o.oproto.pclass.pname in
+		let p = o.oproto.pclass.pname in
 		(match get_to_string ctx o.oproto.pclass with
 		| Some f -> p ^ ":" ^ vstr_d (ctx.fcall f [v])
 		| None -> p)
@@ -364,6 +370,7 @@ let rec vstr_d ctx v =
 	| VEnum (e,i,vals) -> let n, _, _ = e.efields.(i) in if Array.length vals = 0 then n else n ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 	| VAbstract _ -> "abstract"
 	| VVarArgs _ -> "varargs"
+	| VStruct v -> "@" ^ v.oproto.pclass.pname
 
 let rec to_virtual ctx v vp =
 	match v with
@@ -563,7 +570,7 @@ let rec dyn_get_field ctx obj field rt =
 			get_with d.dvalues.(idx) d.dtypes.(idx)
 		with Not_found ->
 			default rt)
-	| VObj o ->
+	| VObj o | VDyn (VStruct o, HStruct _) ->
 		let default rt =
 			match get_method o.oproto.pclass "__get_field" with
 			| None -> default rt
@@ -705,7 +712,7 @@ let rec vstr ctx v t =
 		vstr v t
 	| VObj o ->
 		(match get_to_string ctx o.oproto.pclass with
-		| None -> "#" ^ o.oproto.pclass.pname
+		| None -> o.oproto.pclass.pname
 		| Some f -> vstr (ctx.fcall f [v]) HBytes)
 	| VBytes b -> (try hl_to_caml b with _ -> "?" ^ String.escaped b)
 	| VClosure (f,_) -> fstr f
@@ -738,6 +745,7 @@ let rec vstr ctx v t =
 			in
 			n ^ "(" ^ String.concat "," (loop 0) ^ ")"
 	| VVarArgs _ -> "varargs"
+	| VStruct s -> "@" ^ s.oproto.pclass.pname
 
 let interp ctx f args =
 	let func = get_function ctx in
@@ -841,7 +849,7 @@ let interp ctx f args =
 		| OInt (r,i) -> set r (VInt ctx.code.ints.(i))
 		| OFloat (r,i) -> set r (VFloat (Array.unsafe_get ctx.code.floats i))
 		| OString (r,s) -> set r (VBytes (cached_string ctx s))
-		| OBytes (r,s) -> set r (VBytes (ctx.code.strings.(s) ^ "\x00"))
+		| OBytes (r,s) -> set r (VBytes (Bytes.to_string ctx.code.bytes.(s)))
 		| OBool (r,b) -> set r (VBool b)
 		| ONull r -> set r VNull
 		| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
@@ -897,7 +905,7 @@ let interp ctx f args =
 			set r (alloc_obj ctx (rtype r))
 		| OField (r,o,fid) ->
 			set r (match get o with
-				| VObj v -> v.ofields.(fid)
+				| VObj v | VStruct v -> v.ofields.(fid)
 				| VVirtual v as obj ->
 					(match v.vindexes.(fid) with
 					| VFNone -> dyn_get_field ctx obj (let n,_,_ = v.vtype.vfields.(fid) in n) (rtype r)
@@ -908,7 +916,7 @@ let interp ctx f args =
 			let rv = get r in
 			let o = get o in
 			(match o with
-			| VObj v ->
+			| VObj v | VStruct v ->
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
 			| VVirtual v ->
@@ -921,10 +929,10 @@ let interp ctx f args =
 			| VNull -> null_access()
 			| _ -> assert false)
 		| OGetThis (r, fid) ->
-			set r (match get 0 with VObj v -> v.ofields.(fid) | _ -> assert false)
+			set r (match get 0 with VObj v | VStruct v -> v.ofields.(fid) | _ -> assert false)
 		| OSetThis (fid, r) ->
 			(match get 0 with
-			| VObj v as o ->
+			| (VObj v | VStruct v) as o ->
 				let rv = get r in
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
@@ -1072,7 +1080,9 @@ let interp ctx f args =
 					| HDynObj -> 16
 					| HAbstract _ -> 17
 					| HEnum _ -> 18
-					| HNull _ -> 19)))
+					| HNull _ -> 19
+					| HMethod _ -> 20
+					| HStruct _ -> 21)))
 				| _ -> assert false);
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))
@@ -2105,6 +2115,7 @@ let create checked =
 			globals = [||];
 			natives = [||];
 			strings = [||];
+			bytes = [||];
 			ints = [||];
 			debugfiles = [||];
 			floats = [||];
@@ -2249,11 +2260,16 @@ let check code macros =
 		let is_dyn r =
 			if not (is_dynamic (rtype r)) then error (reg_inf r ^ " should be castable to dynamic")
 		in
+		let get_field r p fid =
+			try snd (resolve_field p fid) with Not_found -> error (reg_inf r ^ " does not have field " ^ string_of_int fid)
+		in
 		let tfield o fid proto =
 			if fid < 0 then error (reg_inf o ^ " does not have " ^ (if proto then "proto " else "") ^ "field " ^ string_of_int fid);
 			match rtype o with
 			| HObj p ->
-				if proto then ftypes.(p.pvirtuals.(fid)) else (try snd (resolve_field p fid) with Not_found -> error (reg_inf o ^ " does not have field " ^ string_of_int fid))
+				if proto then ftypes.(p.pvirtuals.(fid)) else get_field o p fid
+			| HStruct p when not proto ->
+				get_field o p fid
 			| HVirtual v when not proto ->
 				let _,_, t = v.vfields.(fid) in
 				t
@@ -2275,9 +2291,12 @@ let check code macros =
 				if i < 0 || i >= Array.length code.floats then error "float outside range";
 			| OBool (r,_) ->
 				reg r HBool
-			| OString (r,i) | OBytes (r,i) ->
+			| OString (r,i) ->
 				reg r HBytes;
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
+			| OBytes (r,i) ->
+				reg r HBytes;
+				if i < 0 || i >= Array.length code.bytes then error "bytes outside range";
 			| ONull r ->
 				let t = rtype r in
 				if not (is_nullable t) then error (tstr t ^ " is not nullable")
@@ -2319,16 +2338,24 @@ let check code macros =
 				(match rl with
 				| [] -> assert false
 				| obj :: rl2 ->
-					let t, rl = (match rtype obj with
-						| HVirtual v ->
-							let _, _, t = v.vfields.(m) in
-							t, rl2
-						| _ ->
-							tfield obj m true, rl
-					) in
-					match t with
-					| HFun (targs, tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)
-					| t -> check t (HFun (List.map rtype rl, rtype r)))
+					let check_args targs tret rl =
+						if List.length targs <> List.length rl then false else begin
+							List.iter2 reg rl targs;
+							check tret (rtype r);
+							true;
+						end
+					in
+					match rtype obj with
+					| HVirtual v ->
+						let _, _, t = v.vfields.(m) in
+						(match t with
+						| HMethod (args,ret) when check_args args ret rl2 -> ()
+						| _ -> check t (HMethod (List.map rtype rl, rtype r)))
+					| _ ->
+						let t = tfield obj m true in
+						match t with
+						| HFun (args, ret) when check_args args ret rl -> ()
+						| _ -> check t (HFun (List.map rtype rl, rtype r)))
 			| OCallClosure (r,f,rl) ->
 				(match rtype f with
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)
@@ -2352,6 +2379,7 @@ let check code macros =
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
 				| (HObj _ | HVirtual _), (HObj _ | HVirtual _) -> ()
+				| (HDyn | HFun _), (HDyn | HFun _) -> ()
 				| ta, tb when safe_cast tb ta -> ()
 				| _ -> reg a (rtype b));
 				can_jump delta
@@ -2371,7 +2399,7 @@ let check code macros =
 				()
 			| ONew r ->
 				(match rtype r with
-				| HDynObj | HVirtual _ -> ()
+				| HDynObj | HVirtual _ | HStruct _ -> ()
 				| _ -> is_obj r)
 			| OField (r,o,fid) ->
 				check (tfield o fid false) (rtype r)
@@ -2545,6 +2573,7 @@ type svalue =
 	| SInt of int32
 	| SFloat of float
 	| SString of string
+	| SBytes of int
 	| SBool of bool
 	| SNull
 	| SType of ttype
@@ -2600,6 +2629,7 @@ let rec svalue_string v =
 	| SInt i -> Int32.to_string i
 	| SFloat f -> string_of_float f
 	| SString s -> "\"" ^ s ^ "\""
+	| SBytes i -> "bytes$" ^ string_of_int i
 	| SBool b -> if b then "true" else "false"
 	| SNull -> "null"
 	| SRef _ -> "ref"
@@ -2625,7 +2655,7 @@ let rec svalue_string v =
 	| SDelayed (str,_) -> str
 
 let svalue_iter f = function
-	| SUndef | SArg _ | SInt _ | SFloat _ | SString _ | SBool _ | SNull | SType _ | SResult _
+	| SUndef | SArg _ | SInt _ | SFloat _ | SBytes _ | SString _ | SBool _ | SNull | SType _ | SResult _
 	| SFun (_,None) | SGlobal _ | SRef _ | SRefResult _ | SUnreach | SExc | SDelayed _ ->
 		()
 	| SOp (_,a,b) | SMem (a,b,_) -> f a; f b
@@ -2806,7 +2836,8 @@ let make_spec (code:code) (f:fundecl) =
 			| OInt (d,i) -> args.(d) <- SInt code.ints.(i)
 			| OFloat (d,f) -> args.(d) <- SFloat code.floats.(f)
 			| OBool (d,b) -> args.(d) <- SBool b
-			| OBytes (d,s) | OString (d,s) -> args.(d) <- SString code.strings.(s)
+			| OString (d,s) -> args.(d) <- SString code.strings.(s)
+			| OBytes (d,s) -> args.(d) <- SBytes s
 			| ONull d -> args.(d) <- SNull
 			| OAdd (d,a,b) -> args.(d) <- SOp ("+",args.(a),args.(b))
 			| OSub (d,a,b) -> args.(d) <- SOp ("-",args.(a),args.(b))

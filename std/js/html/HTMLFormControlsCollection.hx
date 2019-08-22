@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormControlsCollection>
 **/
 @:native("HTMLFormControlsCollection")
-extern class HTMLFormControlsCollection extends HTMLCollection
-{
+extern class HTMLFormControlsCollection extends HTMLCollection {
 	
 	/**
 		Returns the `RadioNodeList` or the `Element` in the collection whose `name` or `id` match the specified name, or `null` if no nodes match. Note that this version of `namedItem()` hide the one inherited from `HTMLCollection`. Like that one, in JavaScript, using the array bracket syntax with a `String`, like `collection["value"]` is equivalent to `collection.namedItem("value")`.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCDTMFToneChangeEvent>
 **/
 @:native("RTCDTMFToneChangeEvent")
-extern class DTMFToneChangeEvent extends js.html.Event
-{
+extern class DTMFToneChangeEvent extends js.html.Event {
 	
 	/**
 		A `DOMString` specifying the tone which has begun playing, or an empty string (`""`) if the previous tone has finished playing.

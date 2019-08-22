@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -1089,7 +1089,7 @@ module Printer = struct
 		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> assert false
 
 	let print_string s =
-		Printf.sprintf "\"%s\"" (Ast.s_escape s)
+		Printf.sprintf "\"%s\"" (StringHelper.s_escape s)
 
 	let print_constant = function
 		| TThis -> "self"
@@ -1104,7 +1104,7 @@ module Printer = struct
 	let print_base_type tp =
 		try
 			begin match Meta.get Meta.Native tp.mt_meta with
-				| _,[EConst(String s),_],_ -> s
+				| _,[EConst(String(s,_)),_],_ -> s
 				| _ -> raise Not_found
 			end
 		with Not_found ->
@@ -1145,7 +1145,7 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_expr pctx ct)
+							" = None"
 		) args in
 		String.concat "," sl
 
@@ -1648,7 +1648,7 @@ module Printer = struct
 					if Meta.has Meta.Native cf.cf_meta then begin
 						let _, args, mp = Meta.get Meta.Native cf.cf_meta in
 						match args with
-						| [( EConst(String s),_)] -> PMap.add f s acc
+						| [( EConst(String(s,_)),_)] -> PMap.add f s acc
 						| _ -> acc
 					end else acc
 				in
@@ -1738,7 +1738,7 @@ module Printer = struct
 			print_exprs pctx sep el
 
 	and print_exprs_named pctx sep fl =
-		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (StringHelper.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
 	and print_params_named pctx sep fl =
 		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
@@ -1880,7 +1880,7 @@ module Generator = struct
 	let gen_py_metas ctx metas indent =
 		List.iter (fun (n,el,_) ->
 			match el with
-				| [EConst(String s),_] ->
+				| [EConst(String(s,_)),_] ->
 					print ctx "%s@%s\n" indent s
 				| _ ->
 					assert false
@@ -2127,6 +2127,10 @@ module Generator = struct
 					use_pass := false;
 					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
+				if has_feature ctx "python._hx_is_interface" then begin
+					let value = if c.cl_interface then "True" else "False" in
+					print ctx "\n    _hx_is_interface = \"%s\"" value
+				end;
 
 				let print_field names field quote =
 					if has_feature ctx ("python." ^ field) then try
@@ -2247,10 +2251,14 @@ module Generator = struct
 		List.iter (fun ef ->
 			match follow ef.ef_type with
 			| TFun(args, _) ->
+				let arg_name hx_name =
+					let name = handle_keywords hx_name in
+					if name = p_name then p_name ^ "_" ^ name
+					else name
+				in
 				let print_args args =
 					let had_optional = ref false in
 					let sl = List.map (fun (n,o,_) ->
-						let name = handle_keywords n in
 						let arg_value = if !had_optional then
 							"= None"
 						else if o then begin
@@ -2259,17 +2267,21 @@ module Generator = struct
 						end else
 							""
 						in
-						Printf.sprintf "%s%s" name arg_value
+						Printf.sprintf "%s%s" (arg_name n) arg_value
 					) args in
 					String.concat "," sl
 				in
 				let f = handle_keywords ef.ef_name in
 				let param_str = print_args args in
-				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
+				let args_str =
+					match args with
+					| [(n,_,_)] -> (arg_name n) ^ ","
+					| args -> String.concat "," (List.map (fun (n,_,_) -> arg_name n) args)
+				in
 				newline ctx;
 				newline ctx;
 				print ctx "    @staticmethod\n    def %s(%s):\n" f param_str;
-				print ctx "        return %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
+				print ctx "        return %s(\"%s\", %i, (%s))" p ef.ef_name ef.ef_index args_str;
 			| _ -> assert false
 		) param_constructors;
 
@@ -2277,7 +2289,7 @@ module Generator = struct
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
 			let f = handle_keywords ef.ef_name in
 			newline ctx;
-			print ctx "%s.%s = %s(\"%s\", %i, list())" p f p ef.ef_name ef.ef_index
+			print ctx "%s.%s = %s(\"%s\", %i, ())" p f p ef.ef_name ef.ef_index
 		) const_constructors;
 
 		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
@@ -2337,7 +2349,7 @@ module Generator = struct
 					","
 				in
 				let k_enc = Codegen.escape_res_name k false in
-				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
+				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in
 				output_string f v;
@@ -2357,18 +2369,18 @@ module Generator = struct
 				in
 
 				let import_type,ignore_error = match args with
-					| [(EConst(String(module_name)), _)]
-					| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
+					| [(EConst(String(module_name,_)), _)]
+					| [(EConst(String(module_name,_)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
 						IModule module_name, false
 
-					| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+					| [(EConst(String(module_name,_)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IModule module_name,true
 
-					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)]
-					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
+					| [(EConst(String(module_name,_)), _); (EConst(String(object_name,_)), _)]
+					| [(EConst(String(module_name,_)), _); (EConst(String(object_name,_)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
 						IObject (module_name,object_name), false
 
-					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+					| [(EConst(String(module_name,_)), _); (EConst(String(object_name,_)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IObject (module_name,object_name), true
 					| _ ->
 						abort "Unsupported @:pythonImport format" mp
@@ -2423,10 +2435,25 @@ module Generator = struct
 			newline ctx;
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
+				spr ctx "    _hx_disable_getattr = False\n";
 				spr ctx "    def __init__(self, fields):\n";
 				spr ctx "        self.__dict__ = fields\n";
 				spr ctx "    def __repr__(self):\n";
-				spr ctx "        return repr(self.__dict__)"
+				spr ctx "        return repr(self.__dict__)\n";
+				spr ctx "    def __getattr__(self, name):\n";
+				spr ctx "        if (self._hx_disable_getattr):\n";
+				spr ctx "            raise AttributeError('field does not exist')\n";
+				spr ctx "        else:\n";
+				spr ctx "            return None\n";
+				spr ctx "    def _hx_hasattr(self,field):\n";
+				spr ctx "        self._hx_disable_getattr = True\n";
+				spr ctx "        try:\n";
+				spr ctx "            getattr(self, field)\n";
+				spr ctx "            self._hx_disable_getattr = False\n";
+				spr ctx "            return True\n";
+				spr ctx "        except AttributeError:\n";
+				spr ctx "            self._hx_disable_getattr = False\n";
+				spr ctx "            return False\n"
 			end else
 				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;
@@ -2463,13 +2490,11 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
-				spr ctx "if __name__ == '__main__':";
-				newline ctx;
 				match e.eexpr with
 				| TBlock el ->
-					List.iter (fun e -> gen_expr ctx e "" "    "; newline ctx) el;
+					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
 				| _ ->
-					gen_expr ctx e "" "    "; newline ctx
+					gen_expr ctx e "" ""; newline ctx
 
 	(* Entry point *)
 
@@ -2478,7 +2503,10 @@ module Generator = struct
 		let ctx = mk_context com in
 		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
-			spr ctx "from functools import partial as _hx_partial";
+			spr ctx "from functools import partial as _hx_partial\n";
+		spr ctx "import sys\n";
+		spr ctx "if sys.stdout.encoding != 'utf-8':\n    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)\n";
+		spr ctx "if sys.stderr.encoding != 'utf-8':\n    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1)\n\n";
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;

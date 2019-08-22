@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextPathElement>
 **/
 @:native("SVGTextPathElement")
-extern class TextPathElement extends TextContentElement
-{
+extern class TextPathElement extends TextContentElement {
 	static inline var TEXTPATH_METHODTYPE_UNKNOWN : Int = 0;
 	static inline var TEXTPATH_METHODTYPE_ALIGN : Int = 1;
 	static inline var TEXTPATH_METHODTYPE_STRETCH : Int = 2;

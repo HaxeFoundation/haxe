@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,8 @@ package haxe;
 /**
 	This class provides advanced methods on enums. It is ideally used with
 	`using EnumTools` and then acts as an
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the
-  `enum` types.
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `enum` types.
 
 	If the first argument to any of the methods is null, the result is
 	unspecified.
@@ -113,14 +113,13 @@ extern class EnumTools {
 /**
 	This class provides advanced methods on enum values. It is ideally used with
 	`using EnumValueTools` and then acts as an
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the
-  `EnumValue` types.
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `EnumValue` types.
 
 	If the first argument to any of the methods is null, the result is
 	unspecified.
 **/
 extern class EnumValueTools {
-
 	/**
 		Recursively compares two enum instances `a` and `b` by value.
 

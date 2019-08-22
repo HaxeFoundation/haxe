@@ -1,6 +1,6 @@
 package flash.display3D;
 
-@:fakeEnum(String) @:require(flash16) extern enum Context3DFillMode {
-	SOLID;
-	WIREFRAME;
+@:native("flash.display3D.Context3DFillMode") @:require(flash16) extern enum abstract Context3DFillMode(String) {
+	var SOLID;
+	var WIREFRAME;
 }

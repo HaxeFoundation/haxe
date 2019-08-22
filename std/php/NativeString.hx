@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,13 +19,56 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 /**
 	Native PHP string.
 **/
 @:coreType @:runtimeValue abstract NativeString from String to String {
-
 	@:arrayAccess function get(key:Int):String;
+
 	@:arrayAccess function set(key:Int, val:String):String;
+
+	public inline function iterator() {
+		return new NativeStringIterator(this);
+	}
+
+	public inline function keyValueIterator() {
+		return new NativeStringKeyValueIterator(this);
+	}
+}
+
+class NativeStringIterator {
+	var s:NativeString;
+	var i:Int = 0;
+
+	public inline function new(s:NativeString) {
+		this.s = s;
+	}
+
+	public inline function hasNext():Bool {
+		return i < Global.strlen(s);
+	}
+
+	public inline function next():String {
+		return s[i++];
+	}
+}
+
+class NativeStringKeyValueIterator {
+	var s:NativeString;
+	var i:Int = 0;
+
+	public inline function new(s:NativeString) {
+		this.s = s;
+	}
+
+	public inline function hasNext():Bool {
+		return i < Global.strlen(s);
+	}
+
+	public inline function next():{key:Int, value:String} {
+		return {key: i, value: s[i++]};
+	}
 }

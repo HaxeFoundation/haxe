@@ -86,9 +86,24 @@ class HelperMacros {
 	}
 
 	static public macro function pipeMarkupLiteral(e:Expr) {
+		function loop(e:Expr) {
+			return switch (e) {
+				case macro @:markup $v{(s:String)}:
+					formatString(s, e.pos);
+				case macro $b{el}:
+					el = el.map(loop);
+					macro $a{el}.join("");
+				case _:
+					error("Markup literal expected", e.pos);
+			}
+		}
+		return loop(e);
+	}
+
+	static public macro function pipeMarkupLiteralUnprocessed(e:Expr) {
 		return switch (e) {
 			case macro @:markup $v{(s:String)}:
-				formatString(s, e.pos);
+				macro $v{s};
 			case _:
 				error("Markup literal expected", e.pos);
 		}

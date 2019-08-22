@@ -1,8 +1,8 @@
 package flash.events;
 
-@:fakeEnum(String) @:require(flash10_1) extern enum GesturePhase {
-	ALL;
-	BEGIN;
-	END;
-	UPDATE;
+@:native("flash.events.GesturePhase") @:require(flash10_1) extern enum abstract GesturePhase(String) {
+	var ALL;
+	var BEGIN;
+	var END;
+	var UPDATE;
 }

@@ -2,12 +2,12 @@ package cases;
 
 class Abstract extends DisplayTestCase {
 	/**
-	abstract A(Int) {
-		public function new({-3-}i{-4-}) {
-			this = {-1-}i;
-			trace("f{-2-}oo");
+		abstract A(Int) {
+			public function new({-3-}i{-4-}) {
+				this = {-1-}i;
+				trace("f{-2-}oo");
+			}
 		}
-	}
 	**/
 	function test() {
 		eq(range(3, 4), position(pos(1)));
@@ -15,21 +15,21 @@ class Abstract extends DisplayTestCase {
 	}
 
 	/**
-	abstract MyAbstract(String) {
-		public function new() this = "foo";
+		abstract MyAbstract(String) {
+			public function new() this = "foo";
 
-		public function instanceField():Void {
-			{-1-}
+			public function instanceField():Void {
+				{-1-}
+			}
+			static public function staticField():Void {
+				{-2-}
+			}
 		}
-		static public function staticField():Void {
-			{-2-}
+		class MyClass {
+			static function main() {
+				MyAbstract.{-3-}
+			}
 		}
-	}
-	class MyClass {
-		static function main() {
-			MyAbstract.{-3-}
-		}
-	}
 	**/
 	function test2() {
 		var top1 = toplevel(pos(1));

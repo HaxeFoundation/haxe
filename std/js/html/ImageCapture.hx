@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageCapture>
 **/
 @:native("ImageCapture")
-extern class ImageCapture extends EventTarget
-{
+extern class ImageCapture extends EventTarget {
 	var videoStreamTrack(default,null) : VideoStreamTrack;
 	var onphoto : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;

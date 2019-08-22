@@ -2,18 +2,18 @@ package cases;
 
 class Issue7224 extends DisplayTestCase {
 	/**
-	typedef Nope = Int;
+		typedef Nope = Int;
 
-	class Bar {
-		public function new() {}
-	}
-	typedef Foo = Bar;
-
-	class Main {
-		static function main() {
-			new {-1-}
+		class Bar {
+			public function new() {}
 		}
-	}
+		typedef Foo = Bar;
+
+		class Main {
+			static function main() {
+				new {-1-}
+			}
+		}
 	**/
 	function test() {
 		var items = toplevel(pos(1));

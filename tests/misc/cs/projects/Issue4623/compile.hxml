@@ -1,0 +1,4 @@
+-cs bin
+-main Main
+--next
+--macro Run.run()

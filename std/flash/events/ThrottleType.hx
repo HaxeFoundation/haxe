@@ -1,7 +1,7 @@
 package flash.events;
 
-@:fakeEnum(String) extern enum ThrottleType {
-	PAUSE;
-	RESUME;
-	THROTTLE;
+@:native("flash.events.ThrottleType") extern enum abstract ThrottleType(String) {
+	var PAUSE;
+	var RESUME;
+	var THROTTLE;
 }
