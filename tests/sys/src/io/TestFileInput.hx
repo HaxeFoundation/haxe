@@ -215,12 +215,12 @@ class TestFileInput extends utest.Test {
 	}
 
 	function testIssue7544() {
-		var target = sys.io.File.read(path, true);
+		var file = sys.io.File.read(path, true);
 		var buf = haxe.io.Bytes.alloc(contentBytes.length);
 
 		function next() {
 			try {
-				var read = target.readBytes(buf, 0, contentBytes.length);
+				var read = file.readBytes(buf, 0, contentBytes.length);
 				return Std.string(read);
 			} catch(e:haxe.io.Eof) {
 				return Std.string('eof');
