@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Text>
 **/
 @:native("Text")
-extern class Text extends CharacterData
-{
+extern class Text extends CharacterData {
 	
 	/**
 		Returns a `DOMString` containing the text of all `Text` nodes logically adjacent to this `Node`, concatenated in document order.
@@ -41,7 +40,7 @@ extern class Text extends CharacterData
 	var wholeText(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?data : String = "" ) : Void;
+	function new( data : String = "" ) : Void;
 	/** @throws DOMError */
 	function splitText( offset : Int ) : Text;
 	/** @throws DOMError */

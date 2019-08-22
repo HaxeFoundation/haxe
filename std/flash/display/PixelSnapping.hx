@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum PixelSnapping {
-	ALWAYS;
-	AUTO;
-	NEVER;
+@:native("flash.display.PixelSnapping") extern enum abstract PixelSnapping(String) {
+	var ALWAYS;
+	var AUTO;
+	var NEVER;
 }

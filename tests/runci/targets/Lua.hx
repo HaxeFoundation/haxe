@@ -3,14 +3,17 @@ package runci.targets;
 import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
+import haxe.io.*;
 using StringTools;
 
 class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre3-dev"]);
+				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
+				var pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
+				addToPATH(Path.join([pyUserBase, "bin"]));
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
@@ -33,10 +36,14 @@ class Lua {
 	}
 
 	static public function run(args:Array<String>) {
+
 		getLuaDependencies();
-		var envpath = Sys.getEnv("HOME") + '/lua_env';
-		addToPATH(envpath + '/bin');
+
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
+
+			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
+			addToPATH(envpath + '/bin');
+
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
@@ -50,17 +57,18 @@ class Lua {
 			runCommand("luarocks", ["config", "--lua-libdir"]);
 			runCommand("luarocks", ["config", "--lua-ver"]);
 			runCommand("luarocks", ["config", "--system-config"]);
-			runCommand("luarocks", ["config", "--user-config"], false, true); //can fail when there is no user config
 			runCommand("luarocks", ["config", "--rock-trees"]);
 
-			installLib("haxe-deps", "0.0.1-0");
+			// Note: don't use a user config
+			// runCommand("luarocks", ["config", "--user-config"], false, true);
+
+			installLib("haxe-deps", "0.0.1-1");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/unit.lua"]);
 
 			changeDirectory(sysDir);
-			haxelibInstall("utest");
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/lua/sys.lua"]);
 

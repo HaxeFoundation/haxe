@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGComponentTransferFunctionElement>
 **/
 @:native("SVGComponentTransferFunctionElement")
-extern class ComponentTransferFunctionElement extends Element
-{
+extern class ComponentTransferFunctionElement extends Element {
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_UNKNOWN : Int = 0;
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY : Int = 1;
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_TABLE : Int = 2;

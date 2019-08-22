@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client>
 **/
 @:native("Client")
-extern class Client
-{
+extern class Client {
 	
 	/**
 		The URL of the client as a string.
@@ -56,5 +55,5 @@ extern class Client
 		Sends a message to the client.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }

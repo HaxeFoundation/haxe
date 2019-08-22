@@ -9,14 +9,16 @@
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value
 - Check if the protocolVersion in displayJson.ml has to be updated
+- Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
 - Wait for the CI to build (check https://builds.haxe.org)
-- Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases
 - Get https://github.com/simn/hxgithub
-- Run it with something like this: `neko release.n -t personal_access_token -h 4.0.0-preview.2 -u -uw -ur -doc --dry`
+- Store your GitHub personal access token in .github-token
+- Run something like this: `neko release.n -h 4.0.0-rc.1 -u -uw -ur -d haxe_2019-02-01_development_1fdd3d5.zip --dry`
+- Tell yourself that you're gonna fix `-doc` generation next time
 - Write the announcement to `./haxe-version/RELEASE.md`
-- If everything was working, run the command again without `--dry`
+- If everything was working, run the command again without `--dry` (and probably without the `-d`)
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
 
 # Announcing the release
 
-- Post announcement post to haxelang
+- Find someone to announce the release on our various communication channels

@@ -1,0 +1,10 @@
+-cp src
+-D analyzer-optimize
+cases.TestStrict
+cases.TestLoose
+cases.TestSafeFieldInUnsafeClass
+cases.TestAbstract
+
+--macro nullSafety('cases.TestStrict', Strict)
+--macro nullSafety('cases.TestLoose', Loose)
+--macro Validator.register()

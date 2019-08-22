@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -26,38 +26,47 @@ open ClassFieldOrigin
 open DisplayTypes
 open DisplayEmitter
 open Genjson
+open Globals
+
+let exclude : string list ref = ref []
 
 let explore_class_paths com timer class_paths recusive f_pack f_module =
 	let rec loop dir pack =
-		try
-			let entries = Sys.readdir dir in
-			Array.iter (fun file ->
-				match file with
-					| "." | ".." ->
-						()
-					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-						begin try
-							begin match PMap.find file com.package_rules with
-								| Forbidden | Remap _ -> ()
-								| _ -> raise Not_found
+		let dot_path = (String.concat "." (List.rev pack)) in
+		begin
+			if (List.mem dot_path !exclude) then
+				()
+			else try
+				let entries = Sys.readdir dir in
+				Array.iter (fun file ->
+					match file with
+						| "." | ".." ->
+							()
+						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+							begin try
+								begin match PMap.find file com.package_rules with
+									| Forbidden | Remap _ -> ()
+									| _ -> raise Not_found
+								end
+							with Not_found ->
+								f_pack (List.rev pack,file);
+								if recusive then loop (dir ^ file ^ "/") (file :: pack)
 							end
-						with Not_found ->
-							f_pack (List.rev pack,file);
-							if recusive then loop (dir ^ file ^ "/") (file :: pack)
-						end
-					| _ ->
-						let l = String.length file in
-						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-							try
-								let name = String.sub file 0 (l - 3) in
-								let path = (List.rev pack,name) in
-								f_module path;
-							with _ ->
-								()
-						end
-			) entries;
-		with Sys_error _ ->
-			()
+						| _ ->
+							let l = String.length file in
+							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+								try
+									let name = String.sub file 0 (l - 3) in
+									let path = (List.rev pack,name) in
+									let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
+									if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
+								with _ ->
+									()
+							end
+				) entries;
+			with Sys_error _ ->
+				()
+		end
 	in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
 	List.iter (fun dir -> loop dir []) class_paths;
@@ -65,15 +74,39 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 
 let read_class_paths com timer =
 	let sign = Define.get_signature com.defines in
-	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun path ->
-		let file,_,pack,_ = TypeloadParse.parse_module' com path Globals.null_pos in
-		match CompilationServer.get() with
-		| Some cs when pack <> fst path ->
-			let file = Path.unique_full_path file in
-			CompilationServer.remove_file cs (file,sign)
-		| _ ->
-			()
+	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
+		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
+		if not (DisplayPosition.display_position#is_in_file file) then begin
+			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
+			match CompilationServer.get() with
+			| Some cs when pack <> fst path ->
+				let file = Path.unique_full_path file in
+				CompilationServer.remove_file_for_real cs (file,sign)
+			| _ ->
+				()
+		end
 	)
+
+let init_or_update_server cs com timer_name =
+	let sign = Define.get_signature com.defines in
+	if not (CompilationServer.is_initialized cs sign) then begin
+		CompilationServer.set_initialized cs sign true;
+		read_class_paths com timer_name
+	end;
+	(* Iterate all removed files of the current context. If they aren't part of the context again,
+		re-parse them and remove them from c_removed_files. *)
+	let sign = Define.get_signature com.defines in
+	let removed_removed_files = DynArray.create () in
+	Hashtbl.iter (fun (file,sign') () ->
+		if sign = sign' then begin
+			DynArray.add removed_removed_files (file,sign');
+			try
+				ignore(find_file cs (file,sign));
+			with Not_found ->
+				try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+		end;
+	) cs.cache.c_removed_files;
+	DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files
 
 module CollectionContext = struct
 	open ImportStatus
@@ -127,6 +160,15 @@ let pack_similarity pack1 pack2 =
 	in
 	loop 0 pack1 pack2
 
+(* Returns `true` if `pack1` contains or is `pack2` *)
+let pack_contains pack1 pack2 =
+	let rec loop pack1 pack2 = match pack1,pack2 with
+		| [],_ -> true
+		| (s1 :: pack1),(s2 :: pack2) when s1 = s2 -> loop pack1 pack2
+		| _ -> false
+	in
+	loop pack1 pack2
+
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
@@ -147,7 +189,7 @@ let collect ctx tk with_type =
 			let mname = snd (t_infos mt).mt_module.m_path in
 			let path = if snd path = mname then path else (fst path @ [mname],snd path) in
 			if not (path_exists cctx path) then begin
-				merge_core_doc ctx mt;
+				Display.merge_core_doc ctx mt;
 				let is = get_import_status cctx true path in
 				if not (Meta.has Meta.NoCompletion (t_infos mt).mt_meta) then begin
 					add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
@@ -157,6 +199,11 @@ let collect ctx tk with_type =
 	in
 
 	let process_decls pack name decls =
+		let added_something = ref false in
+		let add item name =
+			added_something := true;
+			add item name
+		in
 		let run () = List.iter (fun (d,p) ->
 			begin try
 				let tname,is_private,meta = match d with
@@ -170,7 +217,7 @@ let collect ctx tk with_type =
 				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
 					add_path cctx path;
 					(* If we share a package, the module's main type shadows everything with the same name. *)
-					let shadowing_name = if pack_similarity curpack pack > 0 && tname = name then (Some name) else None in
+					let shadowing_name = if pack_contains pack curpack && tname = name then (Some name) else None in
 					(* Also, this means we can access it as if it was imported (assuming it's not shadowed by something else. *)
 					let is = get_import_status cctx (shadowing_name <> None) path in
 					add (make_ci_type (CompletionModuleType.of_type_decl pack name (d,p)) is None) shadowing_name
@@ -179,7 +226,8 @@ let collect ctx tk with_type =
 				()
 			end
 		) decls in
-		if is_pack_visible pack then run()
+		if is_pack_visible pack then run();
+		!added_something
 	in
 
 	(* Collection starts here *)
@@ -235,7 +283,7 @@ let collect ctx tk with_type =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
+			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) && ctx.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
@@ -313,8 +361,8 @@ let collect ctx tk with_type =
 
 		(* keywords *)
 		let kwds = [
-			Function; Var; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast;
+			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+			Try; New; Throw; Untyped; Cast; Inline;
 		] in
 		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
@@ -341,18 +389,15 @@ let collect ctx tk with_type =
 		(* offline: explore class paths *)
 		let class_paths = ctx.com.class_path in
 		let class_paths = List.filter (fun s -> s <> "") class_paths in
-		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun path ->
+		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun file path ->
 			if not (path_exists cctx path) then begin
-				let _,decls = TypeloadParse.parse_module ctx path Globals.null_pos in
-				process_decls (fst path) (snd path) decls
+				let _,decls = Display.parse_module ctx path Globals.null_pos in
+				ignore(process_decls (fst path) (snd path) decls)
 			end
 		)
 	| Some cs ->
 		(* online: iter context files *)
-		if not (CompilationServer.is_initialized cs) then begin
-			CompilationServer.set_initialized cs;
-			read_class_paths ctx.com ["display";"toplevel"];
-		end;
+		init_or_update_server cs ctx.com ["display";"toplevel"];
 		let files = CompilationServer.get_file_list cs ctx.com in
 		(* Sort files by reverse distance of their package to our current package. *)
 		let files = List.map (fun (file,cfile) ->
@@ -360,15 +405,29 @@ let collect ctx tk with_type =
 			(file,cfile),i
 		) files in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+		let check_package pack = match List.rev pack with
+			| [] -> ()
+			| s :: sl -> add_package (List.rev sl,s)
+		in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-			begin match List.rev cfile.c_package with
-				| [] -> ()
-				| s :: sl -> add_package (List.rev sl,s)
-			end;
-			Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
-			process_decls cfile.c_package module_name cfile.c_decls
-		) files
+			let dot_path = s_type_path (cfile.c_package,module_name) in
+			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+				()
+			else begin
+				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
+				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
+			end
+		) files;
+		List.iter (fun file ->
+			try
+				let lib = Hashtbl.find cs.cache.c_native_libs file in
+				Hashtbl.iter (fun path (pack,decls) ->
+					if process_decls pack (snd path) decls then check_package pack;
+				) lib.c_nl_files
+			with Not_found ->
+				()
+		) ctx.com.native_libs.all_libs
 	end;
 
 	(* packages *)
@@ -382,6 +441,15 @@ let collect ctx tk with_type =
 	let l = sort_fields l with_type tk in
 	t();
 	l
+
+let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
+	let fields = match !DisplayException.last_completion_pos with
+	| Some p' when pname.pmin = p'.pmin ->
+		Array.to_list (!DisplayException.last_completion_result)
+	| _ ->
+		collect ctx tk with_type
+	in
+	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in

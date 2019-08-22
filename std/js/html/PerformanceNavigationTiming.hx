@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming>
 **/
 @:native("PerformanceNavigationTiming")
-extern class PerformanceNavigationTiming extends PerformanceResourceTiming
-{
+extern class PerformanceNavigationTiming extends PerformanceResourceTiming {
 	
 	/**
 		A `DOMHighResTimeStamp` representing the time value equal to the time immediately before the user agent starts the unload event of the previous document.

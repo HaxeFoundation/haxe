@@ -6,6 +6,7 @@ class Issue4987 extends Test implements ISetter implements ISetter2 {
 
 	function test() {
 		property = 0;
+		noAssert();
 	}
 }
 

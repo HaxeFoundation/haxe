@@ -2,11 +2,11 @@ package cases;
 
 class Issue7320 extends DisplayTestCase {
 	/**
-	class Main {
-		static function main() {
-			var f{-1-}
+		class Main {
+			static function main() {
+				var f{-1-}
+			}
 		}
-	}
 	**/
 	@:func
 	function test1() {
@@ -14,11 +14,11 @@ class Issue7320 extends DisplayTestCase {
 	}
 
 	/**
-	class Main {
-		static function main() {
-			var f = {-1-}
+		class Main {
+			static function main() {
+				var f = {-1-}
+			}
 		}
-	}
 	**/
 	@:func
 	function test2() {
@@ -26,11 +26,11 @@ class Issue7320 extends DisplayTestCase {
 	}
 
 	/**
-	class Main {
-		static function main() {
-			var f, l{-1-}
+		class Main {
+			static function main() {
+				var f, l{-1-}
+			}
 		}
-	}
 	**/
 	@:func
 	function test3() {
@@ -38,11 +38,11 @@ class Issue7320 extends DisplayTestCase {
 	}
 
 	/**
-	class Main {
-		static function main() {
-			var f = "foo", l{-1-}
+		class Main {
+			static function main() {
+				var f = "foo", l{-1-}
+			}
 		}
-	}
 	**/
 	@:func
 	function test4() {
@@ -50,11 +50,11 @@ class Issue7320 extends DisplayTestCase {
 	}
 
 	/**
-	class Main {
-		static function main() {
-			var f, l{-1-} = "foo"
+		class Main {
+			static function main() {
+				var f, l{-1-} = "foo"
+			}
 		}
-	}
 	**/
 	@:func
 	function test5() {

@@ -1,8 +1,8 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum TabAlignment {
-	CENTER;
-	DECIMAL;
-	END;
-	START;
+@:native("flash.text.engine.TabAlignment") extern enum abstract TabAlignment(String) {
+	var CENTER;
+	var DECIMAL;
+	var END;
+	var START;
 }

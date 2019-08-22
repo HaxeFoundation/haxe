@@ -84,4 +84,6 @@ a.length == 2;
 a[0] in ["9", "7"];
 a[1] in ["9", "7"];
 o.remove(k2) == false;
+#else
+1 == 1;
 #end

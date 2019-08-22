@@ -14,5 +14,6 @@ class Issue6707 extends unit.Test {
 	function test() {
 		var t1:T1 = { y: "foo" };
 		var t2:T2 = { y: "foo" };
+		noAssert();
 	}
 }

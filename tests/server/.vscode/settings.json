@@ -1,0 +1,12 @@
+{
+	"haxe.diagnosticsPathFilter": "${workspaceRoot}/src",
+	"editor.formatOnSave": true,
+	"haxeTestExplorer.testCommand": [
+		"${haxe}",
+		"build.hxml",
+		"-lib",
+		"test-adapter",
+		"-cmd",
+		"node test.js"
+	]
+}

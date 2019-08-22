@@ -1,8 +1,7 @@
 package flash.system;
 
-extern class MessageChannelState {
-	function new() : Void;
-	static var CLOSED(default,never) : String;
-	static var CLOSING(default,never) : String;
-	static var OPEN(default,never) : String;
+@:native("flash.system.MessageChannelState") extern enum abstract MessageChannelState(String) {
+	var CLOSED;
+	var CLOSING;
+	var OPEN;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,10 @@
 
 	@see https://haxe.org/manual/types-void.html
 **/
-@:coreType abstract Void { }
+#if jvm
+@:runtimeValue
+#end
+@:coreType abstract Void {}
 
 /**
 	The standard `Float` type, this is a double-precision IEEE 64bit float.
@@ -40,7 +43,7 @@
 	@see https://haxe.org/manual/types-basic-types.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:coreType @:notNull @:runtimeValue abstract Float { }
+@:coreType @:notNull @:runtimeValue abstract Float {}
 
 /**
 	The standard `Int` type. Its precision depends on the platform.
@@ -55,7 +58,7 @@
 	@see https://haxe.org/manual/std-math-integer-math.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:coreType @:notNull @:runtimeValue abstract Int to Float { }
+@:coreType @:notNull @:runtimeValue abstract Int to Float {}
 
 #if (java || cs || hl || cpp)
 /**
@@ -65,16 +68,19 @@
 #end
 
 /**
-	`Null` can be useful in two cases. In order to document some methods
-	that accept or can return a `null` value, or for the Flash compiler and AS3
-	generator to distinguish between base values that can be `null` and others that
-	can't.
+	`Null<T>` is a wrapper that can be used to make the basic types `Int`,
+	`Float` and `Bool` nullable on static targets.
+
+	If null safety is enabled, only types wrapped in `Null<T>` are nullable.
+
+	Otherwise, it has no effect on non-basic-types, but it can be useful as a way to document
+	that `null` is an acceptable value for a method argument, return value or variable.
 
 	@see https://haxe.org/manual/types-nullability.html
 **/
 @:forward
 @:coreType
-abstract Null<T> from T to T { }
+abstract Null<T> from T to T {}
 
 /**
 	The standard Boolean type, which can either be `true` or `false`.
@@ -85,8 +91,7 @@ abstract Null<T> from T to T { }
 	@see https://haxe.org/manual/types-bool.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:coreType @:notNull @:runtimeValue abstract Bool {
-}
+@:coreType @:notNull @:runtimeValue abstract Bool {}
 
 /**
 	`Dynamic` is a special type which is compatible with all other types.
@@ -97,8 +102,7 @@ abstract Null<T> from T to T { }
 
 	@see https://haxe.org/manual/types-dynamic.html
 **/
-@:coreType @:runtimeValue abstract Dynamic<T> {
-}
+@:coreType @:runtimeValue abstract Dynamic<T> {}
 
 /**
 	An `Iterator` is a structure that permits iteration over elements of type `T`.
@@ -110,7 +114,6 @@ abstract Null<T> from T to T { }
 	@see https://haxe.org/manual/lf-iterators.html
 **/
 typedef Iterator<T> = {
-
 	/**
 		Returns `false` if the iteration is complete, `true` otherwise.
 
@@ -119,7 +122,7 @@ typedef Iterator<T> = {
 		in custom iterators any logic may be used to determine the completion
 		state.
 	**/
-	function hasNext() : Bool;
+	function hasNext():Bool;
 
 	/**
 		Returns the current item of the `Iterator` and advances to the next one.
@@ -130,8 +133,7 @@ typedef Iterator<T> = {
 		On the other hand, iterators should not require a call to `hasNext()`
 		before the first call to `next()` if an element is available.
 	**/
-	function next() : T;
-
+	function next():T;
 }
 
 /**
@@ -141,20 +143,20 @@ typedef Iterator<T> = {
 	@see https://haxe.org/manual/lf-iterators.html
 **/
 typedef Iterable<T> = {
-	function iterator() : Iterator<T>;
+	function iterator():Iterator<T>;
 }
 
 /**
 	A `KeyValueIterator` is an `Iterator` that has a key and a value.
 **/
-typedef KeyValueIterator<K,V> = Iterator<{key:K, value:V}>;
+typedef KeyValueIterator<K, V> = Iterator<{key:K, value:V}>;
 
 /**
-	A `KeyValueIterable` is a data structure which has an `iterator()` method
-	to iterate over key-value-pairs.
+	A `KeyValueIterable` is a data structure which has a `keyValueIterator()`
+	method to iterate over key-value-pairs.
 **/
-typedef KeyValueIterable<K,V> = {
-    function keyValueIterator():KeyValueIterator<K,V>;
+typedef KeyValueIterable<K, V> = {
+	function keyValueIterator():KeyValueIterator<K, V>;
 }
 
 /**
@@ -167,4 +169,4 @@ typedef KeyValueIterable<K,V> = {
 
 	@see https://haxe.org/manual/types-abstract-array-access.html
 **/
-extern interface ArrayAccess<T> { }
+extern interface ArrayAccess<T> {}

@@ -14,6 +14,7 @@ class Issue4457 extends Test
 	public function test()
 	{
 		new B<A>();
+		noAssert();
 	}
 
 }

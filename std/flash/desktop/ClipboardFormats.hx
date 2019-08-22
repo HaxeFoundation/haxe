@@ -1,15 +1,15 @@
 package flash.desktop;
 
-@:fakeEnum(String) @:require(flash10) extern enum ClipboardFormats {
-	AIR_PREFIX;
-	BITMAP_FORMAT;
-	FILE_LIST_FORMAT;
-	FILE_PROMISE_LIST_FORMAT;
-	FLASH_PREFIX;
-	HTML_FORMAT;
-	REFERENCE_PREFIX;
-	RICH_TEXT_FORMAT;
-	SERIALIZATION_PREFIX;
-	TEXT_FORMAT;
-	URL_FORMAT;
+@:native("flash.desktop.ClipboardFormats") @:require(flash10) extern enum abstract ClipboardFormats(String) {
+	var AIR_PREFIX;
+	var BITMAP_FORMAT;
+	var FILE_LIST_FORMAT;
+	var FILE_PROMISE_LIST_FORMAT;
+	var FLASH_PREFIX;
+	var HTML_FORMAT;
+	var REFERENCE_PREFIX;
+	var RICH_TEXT_FORMAT;
+	var SERIALIZATION_PREFIX;
+	var TEXT_FORMAT;
+	var URL_FORMAT;
 }

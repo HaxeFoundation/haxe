@@ -1,18 +1,24 @@
 package flash.utils;
 
 extern class ByteArray implements IDataOutput2 implements IDataInput2 implements ArrayAccess<Int> {
-	var bytesAvailable(default,never) : UInt;
-	var endian : Endian;
-	var length : UInt;
-	var objectEncoding : UInt;
-	var position : UInt;
-	@:require(flash11_4) var shareable : Bool;
+	@:flash.property var bytesAvailable(get,never) : UInt;
+	@:flash.property var endian(get,set) : Endian;
+	@:flash.property var length(get,set) : UInt;
+	@:flash.property var objectEncoding(get,set) : UInt;
+	@:flash.property var position(get,set) : UInt;
+	@:flash.property @:require(flash11_4) var shareable(get,set) : Bool;
 	function new() : Void;
 	@:require(flash11_4) function atomicCompareAndSwapIntAt(byteIndex : Int, expectedValue : Int, newValue : Int) : Int;
 	@:require(flash11_4) function atomicCompareAndSwapLength(expectedLength : Int, newLength : Int) : Int;
 	@:require(flash10) function clear() : Void;
 	function compress(?algorithm : CompressionAlgorithm) : Void;
 	@:require(flash10) function deflate() : Void;
+	private function get_bytesAvailable() : UInt;
+	private function get_endian() : Endian;
+	private function get_length() : UInt;
+	private function get_objectEncoding() : UInt;
+	private function get_position() : UInt;
+	private function get_shareable() : Bool;
 	@:require(flash10) function inflate() : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
@@ -28,6 +34,11 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	function readUnsignedByte() : UInt;
 	function readUnsignedInt() : UInt;
 	function readUnsignedShort() : UInt;
+	private function set_endian(value : Endian) : Endian;
+	private function set_length(value : UInt) : UInt;
+	private function set_objectEncoding(value : UInt) : UInt;
+	private function set_position(value : UInt) : UInt;
+	private function set_shareable(value : Bool) : Bool;
 	function toString() : String;
 	function uncompress(?algorithm : CompressionAlgorithm) : Void;
 	function writeBoolean(value : Bool) : Void;
@@ -42,5 +53,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	function writeUTF(value : String) : Void;
 	function writeUTFBytes(value : String) : Void;
 	function writeUnsignedInt(value : UInt) : Void;
-	static var defaultObjectEncoding : UInt;
+	@:flash.property static var defaultObjectEncoding(get,set) : UInt;
+	private static function get_defaultObjectEncoding() : UInt;
+	private static function set_defaultObjectEncoding(value : UInt) : UInt;
 }

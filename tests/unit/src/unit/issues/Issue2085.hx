@@ -17,6 +17,6 @@ private class Ar<T> {
 
 class Issue2085 extends Test {
 	function test() {
-
+		noAssert();
 	}
 }

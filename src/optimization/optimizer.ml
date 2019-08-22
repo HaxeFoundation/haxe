@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -118,6 +118,16 @@ let sanitize_expr com e =
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
 			| TCast (e,None) | TMeta (_,e) -> loop e left
+			| TConst (TInt i) when not left ->
+				(match op with
+					| OpAdd | OpSub -> (Int32.to_int i) < 0
+					| _ -> false
+				)
+			| TConst (TFloat flt) when not left ->
+				(match op with
+					| OpAdd | OpSub -> String.get flt 0 = '-'
+					| _ -> false
+				)
 			| _ -> false
 		in
 		let e1 = if loop e1 true then parent e1 else e1 in
@@ -126,6 +136,8 @@ let sanitize_expr com e =
 	| TUnop (op,mode,e1) ->
 		let rec loop ee =
 			match ee.eexpr with
+			| TConst (TInt i) when op = Neg && (Int32.to_int i) < 0 -> parent e1
+			| TConst (TFloat flt) when op = Neg && String.get flt 0 = '-' -> parent e1
 			| TBinop _ | TIf _ | TUnop _ -> parent e1
 			| TCast (e,None) | TMeta (_, e) -> loop e
 			| _ -> e1
@@ -255,7 +267,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| _ ->
 		e
 
-let inline_stack = ref []
+let inline_stack = new_rec_stack()
 
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
@@ -270,7 +282,7 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline ->
+			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
@@ -293,12 +305,18 @@ let rec reduce_loop ctx e =
 		reduce_expr ctx (reduce_control_flow ctx e))
 
 let reduce_expression ctx e =
-	if ctx.com.foptimize then reduce_loop ctx e else e
+	if ctx.com.foptimize then
+		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
+		   inlining (#7569). *)
+		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+	else
+		e
 
 let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
 	match e.eexpr with
 	| TConst _ -> Some e
+	| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpShl|OpShr|OpUShr|OpOr|OpAnd|OpXor) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
 		| Some ({eexpr = TConst (TString s1)}), Some ({eexpr = TConst (TString s2)}) when concat_strings ->
 			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
@@ -402,7 +420,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || cf.cf_extern in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let rec find_locals e = match e.eexpr with
 		| TVar(v,Some e1) ->
 			find_locals e1;
@@ -640,41 +658,62 @@ let optimize_completion_expr e args =
 			let el = List.fold_left (fun acc e ->
 				typing_side_effect := false;
 				let e = loop e in
-				if !typing_side_effect || DisplayPosition.encloses_display_position (pos e) then begin told := true; e :: acc end else acc
+				if !typing_side_effect || DisplayPosition.display_position#enclosed_in (pos e) then begin told := true; e :: acc end else acc
 			) [] el in
 			old();
 			typing_side_effect := !told;
 			(EBlock (List.rev el),p)
-		| EFunction (v,f) ->
-			(match v with
-			| None -> ()
-			| Some (name,_) ->
-				decl name None (Some e));
+		| EFunction (kind,f) ->
+			(match kind with
+			| FKNamed ((name,_),_) ->
+				decl name None (Some e)
+			| _ -> ());
 			let old = save() in
 			List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) f.f_args;
 			let e = map e in
 			old();
 			e
-		| EFor ((EBinop (OpIn,((EConst (Ident n),_) as id),it),p),efor) ->
-			let it = loop it in
-			let old = save() in
-			let etmp = (EConst (Ident "$tmp"),p) in
-			decl n None (Some (EBlock [
-				(EVars [("$tmp",null_pos),false,None,None],p);
-				(EFor ((EBinop (OpIn,id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
-				etmp
-			],p));
-			let efor = loop efor in
-			old();
-			(EFor ((EBinop (OpIn,id,it),p),efor),p)
+		| EFor (header,body) ->
+			let idents = ref []
+			and has_in = ref false in
+			let rec collect_idents e =
+				match e with
+					| EConst (Ident name), p ->
+						idents := (name,p) :: !idents;
+						e
+					| EBinop (OpIn, e, it), p ->
+						has_in := true;
+						(EBinop (OpIn, collect_idents e, loop it), p)
+					| _ ->
+						Ast.map_expr collect_idents e
+			in
+			let header = collect_idents header in
+			(match !idents,!has_in with
+				| [],_ | _,false -> map e
+				| idents,true ->
+					let old = save() in
+					List.iter
+						(fun (name, pos) ->
+							let etmp = (EConst (Ident "`tmp"),pos) in
+							decl name None (Some (EBlock [
+								(EVars [("`tmp",null_pos),false,None,None],p);
+								(EFor(header,(EBinop (OpAssign,etmp,(EConst (Ident name),p)),p)), p);
+								etmp
+							],p));
+						)
+						idents;
+					let body = loop body in
+					old();
+					(EFor(header,body),p)
+			)
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
-		| ESwitch (e1,cases,def) when DisplayPosition.encloses_display_position p ->
+		| ESwitch (e1,cases,def) when DisplayPosition.display_position#enclosed_in p ->
 			let e1 = loop e1 in
 			hunt_idents e1;
 			(* Prune all cases that aren't our display case *)
-			let cases = List.filter (fun (_,_,_,p) -> DisplayPosition.encloses_display_position p) cases in
+			let cases = List.filter (fun (_,_,_,p) -> DisplayPosition.display_position#enclosed_in p) cases in
 			(* Don't throw away the switch subject when we optimize in a case expression because we might need it *)
 			let cases = List.map (fun (el,eg,eo,p) ->
 				List.iter hunt_idents el;
@@ -715,10 +754,10 @@ let optimize_completion_expr e args =
 				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
-		| ECall(e1,el) when DisplayPosition.encloses_display_position p ->
+		| ECall(e1,el) when DisplayPosition.display_position#enclosed_in p ->
 			let e1 = loop e1 in
 			let el = List.map (fun e ->
-				if DisplayPosition.encloses_display_position (pos e) then
+				if DisplayPosition.display_position#enclosed_in (pos e) then
 					(try loop e with Return e -> e)
 				else
 					(EConst (Ident "null"),(pos e))
@@ -754,7 +793,7 @@ let optimize_completion_expr e args =
 								PMap.find id (!tmp_hlocals)
 							with Not_found ->
 								let e = subst_locals lc e in
-								let name = "$tmp_" ^ string_of_int id in
+								let name = "`tmp_" ^ string_of_int id in
 								tmp_locals := ((name,null_pos),false,None,Some e) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name

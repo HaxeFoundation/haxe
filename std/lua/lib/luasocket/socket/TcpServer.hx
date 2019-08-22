@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ package lua.lib.luasocket.socket;
 import lua.*;
 
 extern class TcpServer extends Socket {
-	public function accept() : Result<TcpClient>;
-	public function settimeout(value  : Int, ?mode : TimeoutMode) : Void;
-	public function setoption(option : String , value : TcpOption) : Void;
+	public function accept():Result<TcpClient>;
+	public function settimeout(value:Int, ?mode:TimeoutMode):Void;
+	public function setoption(option:String, value:TcpOption):Void;
 }

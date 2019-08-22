@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 import haxe.ds.List;
 
 enum ExtraField {
-	FUnknown( tag : Int, bytes : haxe.io.Bytes );
-	FInfoZipUnicodePath( name : String, crc : Int );
+	FUnknown(tag:Int, bytes:haxe.io.Bytes);
+	FInfoZipUnicodePath(name:String, crc:Int);
 	FUtf8;
 }
 
-typedef Entry =  {
-	var fileName : String;
-	var fileSize : Int;
-	var fileTime : Date;
-	var compressed : Bool;
-	var dataSize : Int;
-	var data : Null<haxe.io.Bytes>;
-	var crc32 : Null<Int>;
-	@:optional var extraFields : Null<List<ExtraField>>;
+typedef Entry = {
+	var fileName:String;
+	var fileSize:Int;
+	var fileTime:Date;
+	var compressed:Bool;
+	var dataSize:Int;
+	var data:Null<haxe.io.Bytes>;
+	var crc32:Null<Int>;
+	var ?extraFields:Null<List<ExtraField>>;
 }
-

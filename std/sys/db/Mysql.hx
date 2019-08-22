@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 class Mysql {
-
-	public static function connect( params : {
-		host : String,
-		?port : Int,
-		user : String,
-		pass : String,
-		?socket : String,
-		?database : String
-	} ) : sys.db.Connection {
+	public static function connect(params:{
+		host:String,
+		?port:Int,
+		user:String,
+		pass:String,
+		?socket:String,
+		?database:String
+	}):sys.db.Connection {
 		throw "Not implemented for this platform";
 		return null;
 	}
-
 }

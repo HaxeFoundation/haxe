@@ -6,5 +6,6 @@ class Issue4246 extends Test {
 	function test() {
 		and();
 		_and();
+		noAssert();
 	}
 }

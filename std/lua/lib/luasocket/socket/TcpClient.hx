@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,15 +21,14 @@
  */
 
 package lua.lib.luasocket.socket;
+
 import haxe.extern.EitherType;
 
 extern class TcpClient extends Socket {
-	public function getpeername() :  AddrInfo;
-	public function receive(pattern : EitherType<ReceivePattern,Int>, ?prefix : String) : Result<String>;
-	public function send(data : String, ?i : Int, ?j : Int) : Result<Int>;
-	public function shutdown(mode : ShutdownMode) : Result<Int>;
-	public function settimeout(value  : Float, ?mode : TimeoutMode) : Void;
-	public function setoption(option : TcpOption , value : EitherType<Bool, {on : Bool, timeout : Float}>) : Void;
+	public function getpeername():AddrInfo;
+	public function receive(pattern:EitherType<ReceivePattern, Int>, ?prefix:String):Result<String>;
+	public function send(data:String, ?i:Int, ?j:Int):Result<Int>;
+	public function shutdown(mode:ShutdownMode):Result<Int>;
+	public function settimeout(value:Float, ?mode:TimeoutMode):Void;
+	public function setoption(option:TcpOption, value:EitherType<Bool, {on:Bool, timeout:Float}>):Void;
 }
-
-

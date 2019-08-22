@@ -3,8 +3,8 @@ package unit.issues;
 using Reflect;
 
 class Issue6276 extends unit.Test {
+	#if (!java && !cs)
 	function test(){
-#if (!java && !cs)
 		var s = "bar";
 
 		var length = s.field("length");
@@ -39,6 +39,6 @@ class Issue6276 extends unit.Test {
 
 		var toString = s.field("toString");
 		eq(s.toString(), Reflect.callMethod(s, toString, []));
-#end
 	}
+	#end
 }

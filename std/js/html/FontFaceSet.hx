@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `FontFaceSet` interface of the CSS Font Loading API manages the loading of font-faces and querying of their download status.
 
@@ -32,31 +34,30 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet>
 **/
 @:native("FontFaceSet")
-extern class FontFaceSet extends EventTarget
-{
+extern class FontFaceSet extends EventTarget {
 	var size(default,null) : Int;
-	
+
 	/**
 		An `EventListener` called whenever an event of type `loading` is fired, indicating a font-face set has started loading.
 	**/
 	var onloading : haxe.Constraints.Function;
-	
+
 	/**
 		An `EventListener` called whenever an event of type `loadingdone` is fired, indicating that a font face set has finished loading.
 	**/
 	var onloadingdone : haxe.Constraints.Function;
-	
+
 	/**
 		An `EventListener` called whenever an event of type `loadingerror` is fired, indicating that an error occurred whilst loading a font-face set.
 	**/
 	var onloadingerror : haxe.Constraints.Function;
 	var ready(default,null) : Promise<Void>;
-	
+
 	/**
 		Indicates the font-face's loading status. It will be one of `'loading'` or `'loaded'`.
 	**/
 	var status(default,null) : FontFaceSetLoadStatus;
-	
+
 	/** @throws DOMError */
 	function add( font : FontFace ) : Void;
 	function has( font : FontFace ) : Bool;
@@ -66,7 +67,7 @@ extern class FontFaceSet extends EventTarget
 	function values() : FontFaceSetIterator;
 	/** @throws DOMError */
 	function forEach( cb : FontFace -> FontFace -> FontFaceSet -> Void, ?thisArg : Dynamic ) : Void;
-	function load( font : String, ?text : String = " " ) : Promise<Array<FontFace>>;
+	function load( font : String, text : String = " " ) : Promise<Array<FontFace>>;
 	/** @throws DOMError */
-	function check( font : String, ?text : String = " " ) : Bool;
+	function check( font : String, text : String = " " ) : Bool;
 }
