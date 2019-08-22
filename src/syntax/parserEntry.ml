@@ -344,7 +344,7 @@ let parse ctx code file =
 		| Sharp "if" ->
 			let _,e = parse_macro_cond sraw in
 			conds#cond_if e;
-			dbc#open_dead_block (pos tk);
+			dbc#open_dead_block (pos e);
 			let tk = skip_tokens p false in
 			skip_tokens_loop p test tk
 		| Sharp ("error" | "line") ->
