@@ -38,7 +38,7 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 		| _ -> t
 	in
 	let compare_type t1 t2 =
-	  	(if type_iseq t1 t2 then
+		(if type_iseq t1 t2 then
 			Same
 		else if amb_funs && type_iseq (ambiguate_funs t1) (ambiguate_funs t2) then
 			Impl_conflict
@@ -56,17 +56,16 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 
 	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
 		| TFun(a1,_), TFun(a2,_) ->
-			(try
-				if List.exists2 (fun (_,_,t1) (_,_,t2) ->
-					compare_arg t1 t2 = Different) a1 a2 then
-					Different
-				else if List.exists2 (fun (_,_,t1) (_,_,t2) ->
-					compare_arg t1 t2 = Impl_conflict) a1 a2 then
-					Impl_conflict
-				else
-					Same
-			with Invalid_argument _ ->
-				Different)
+			let rec loop args1 args2 =
+				match args1, args2 with
+				| [], [] -> Same
+				| [], _ | _, [] -> Different
+				| (_,_,t1) :: rest1, (_,_,t2) :: rest2 ->
+					match compare_arg t1 t2 with
+					| Same -> loop rest1 rest2
+					| result -> result
+			in
+			loop a1 a2
 		| _ -> assert false
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =

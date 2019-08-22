@@ -1349,26 +1349,29 @@ let init_field (ctx,cctx,fctx) f =
 
 let check_overload ctx f fs =
 	try
-		ignore (List.find (fun f2 ->
-			f != f2 &&
-			Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Same
-		) fs);
-		display_error ctx (
-			"Another overloaded field of same signature was already declared : " ^
-			f.cf_name
-		) f.cf_pos
-	with | Not_found ->
-	try
-		ignore (List.find (fun f2 ->
-			f != f2 &&
-			Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Impl_conflict
-		) fs);
-		display_error ctx (
-			"Another overloaded field of similar signature was already declared : " ^
-			f.cf_name ^
-			"\nThe signatures are different in Haxe, but not in the target language"
-		) f.cf_pos
-	with | Not_found -> ()
+		let f2 =
+			List.find (fun f2 ->
+				f != f2 &&
+				Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Same
+			) fs
+		in
+		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+		display_error ctx ("The second field is declared here") f2.cf_pos
+	with Not_found ->
+		try
+			let f2 =
+				List.find (fun f2 ->
+					f != f2 &&
+					Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Impl_conflict
+				) fs
+			in
+			display_error ctx (
+				"Another overloaded field of similar signature was already declared : " ^
+				f.cf_name ^
+				"\nThe signatures are different in Haxe, but not in the target language"
+			) f.cf_pos;
+			display_error ctx ("The second field is declared here") f2.cf_pos
+		with | Not_found -> ()
 
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
