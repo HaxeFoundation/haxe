@@ -24,6 +24,7 @@ open Ast
 open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
+open Type
 open Typecore
 open Error
 
@@ -177,6 +178,42 @@ module ConditionDisplay = struct
 		with Result (e,p) ->
 			let v = eval com.defines (e,p) in
 			DisplayException.raise_hover (match e with
+				| EConst(Ident("version")) ->
+					let t = TFun (
+						[("s",false,com.basic.tstring)],
+						TInst(mk_class null_module ([],"SemVer") null_pos null_pos,[])
+					) in
+					CompletionItem.make_ci_class_field {
+						field = {
+							cf_name = "version";
+							cf_type = t;
+							cf_pos = null_pos;
+							cf_name_pos = null_pos;
+							cf_doc = Some (
+"Allows comparing defines (such as the version of a Haxelib or Haxe) with SemVer semantics.
+Both the define and the string passed to `version()` must be valid semantic versions.
+
+Example:
+```haxe
+#if (haxe >= version(\"4.0.0-rc.3\"))\n
+```
+
+Note: this syntax does not parse with Haxe versions earlier than 4.0.0-rc.3,
+so it should be avoided if backwards-compatibility with earlier versions is needed.
+
+@see https://semver.org/");
+							cf_meta = [];
+							cf_kind = Method MethNormal;
+							cf_params = [];
+							cf_expr = None;
+							cf_expr_unoptimized = None;
+							cf_overloads = [];
+							cf_flags = set_flag 0 (int_of_class_field_flag CfPublic);
+						};
+						scope = CFSStatic;
+						origin = BuiltIn;
+						is_qualified = true;
+					} (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t)
 				| EConst(Ident(n)) ->
 					CompletionItem.make_ci_define n (match v with
 						| TNull -> None
