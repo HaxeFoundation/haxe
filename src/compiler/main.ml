@@ -1016,6 +1016,15 @@ try
 	end else begin
 		(* Actual compilation starts here *)
 		let tctx = create_typer_context ctx !native_libs in
+		let display_file_dot_path = match display_file_dot_path with
+			| DPKMacro path ->
+				ignore(load_display_module_in_macro tctx (Some path) true);
+				Some path
+			| DPKNormal path ->
+				Some path
+			| DPKNone ->
+				None
+		in
 		begin try
 			do_type tctx !config_macros !classes;
 		with TypeloadParse.DisplayInMacroBlock ->

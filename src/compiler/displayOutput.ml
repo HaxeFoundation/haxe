@@ -658,6 +658,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			pmax = pos;
 		}
 
+type display_path_kind =
+	| DPKNormal of path
+	| DPKMacro of path
+	| DPKNone
+
 let process_display_file com classes =
 	let get_module_path_from_file_path com spath =
 		let rec loop = function
@@ -681,7 +686,7 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			None
+			DPKNone
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
@@ -695,14 +700,14 @@ let process_display_file com classes =
 					| [name;"macro"] ->
 						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
 						   This can happen if we're completing in such a file. *)
-						(fst path,name)
+						DPKMacro (fst path,name)
 					| [name] ->
 						classes := path :: !classes;
-						path
+						DPKNormal path
 					| _ ->
 						assert false
 				in
-				Some path
+				path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
