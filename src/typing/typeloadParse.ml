@@ -172,10 +172,13 @@ module ConditionDisplay = struct
 		in
 		try
 			loop e;
-		with Result e ->
-			let v = eval com.defines e in
+		with Result (e,p) ->
+			let v = eval com.defines (e,p) in
 			let s,(t,ct) = convert_small_type com v in
-			DisplayException.raise_hover (CompletionItem.make_ci_literal s (t,ct)) None (pos e)
+			DisplayException.raise_hover (match e with
+				| EConst(Ident(n)) -> CompletionItem.make_ci_define n s (t,ct)
+				| _ -> CompletionItem.make_ci_literal s (t,ct)
+			) None p;
 end
 
 let parse_module_file com file p =

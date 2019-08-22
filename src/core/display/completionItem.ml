@@ -433,6 +433,7 @@ type t_kind =
 	| ITAnonymous of tanon
 	| ITExpression of texpr
 	| ITTypeParameter of tclass
+	| ITDefine of string * string
 
 type t = {
 	ci_kind : t_kind;
@@ -458,6 +459,7 @@ let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
 let make_ci_expr e t = make (ITExpression e) (Some t)
 let make_ci_type_param c t = make (ITTypeParameter c) (Some t)
+let make_ci_define n v t = make (ITDefine(n,v)) (Some t)
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -474,6 +476,7 @@ let get_index item = match item.ci_kind with
 	| ITAnonymous _ -> 11
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
+	| ITDefine _ -> 14
 
 let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITLocal v ->
@@ -523,7 +526,8 @@ let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITAnonymous _
 	| ITExpression _
 	| ITTimer _
-	| ITMetadata _ ->
+	| ITMetadata _
+	| ITDefine _ ->
 		500,""
 
 let legacy_sort item = match item.ci_kind with
@@ -549,6 +553,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITAnonymous _ -> 11,""
 	| ITExpression _ -> 12,""
 	| ITTypeParameter _ -> 13,""
+	| ITDefine _ -> 14,""
 
 let get_name item = match item.ci_kind with
 	| ITLocal v -> v.v_name
@@ -564,6 +569,7 @@ let get_name item = match item.ci_kind with
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
 	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_type item = item.ci_type
 
@@ -581,6 +587,7 @@ let get_filter_name item = match item.ci_kind with
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
 	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_documentation item = match item.ci_kind with
 	| ITClassField cf | ITEnumAbstractField(_,cf) -> cf.field.cf_doc
@@ -701,6 +708,11 @@ let to_json ctx index item =
 				]
 			| _ -> assert false
 			end
+		| ITDefine(n,v) -> "Define",jobject [
+			"name",jstring n;
+			"value",jstring v;
+			(* TODO: docs etc *)
+		]
 	in
 	let jindex = match index with
 		| None -> []
