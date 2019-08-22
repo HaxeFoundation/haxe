@@ -159,6 +159,11 @@ private class StringMapIterator<T> {
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = {};
+		rh = null;
+	}
+
 	static function __init__():Void {
 		untyped __js__("var __map_reserved = {};");
 	}
