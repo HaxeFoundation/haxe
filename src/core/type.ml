@@ -807,6 +807,29 @@ let rec follow t =
 		follow t
 	| _ -> t
 
+(** Assumes `follow` has already been applied *)
+let rec ambiguate_funs t =
+	match t with
+	| TFun _ -> TFun ([], t_dynamic)
+	| TMono r ->
+		(match !r with
+		| Some _ -> assert false
+		| _ -> t)
+	| TInst (a, pl) ->
+	    TInst (a, List.map ambiguate_funs pl)
+	| TEnum (a, pl) ->
+	    TEnum (a, List.map ambiguate_funs pl)
+	| TAbstract (a, pl) ->
+	    TAbstract (a, List.map ambiguate_funs pl)
+	| TType (a, pl) ->
+	    TType (a, List.map ambiguate_funs pl)
+	| TDynamic _ -> t
+	| TAnon a ->
+	    TAnon { a with a_fields =
+		    PMap.map (fun af -> { af with cf_type =
+				ambiguate_funs af.cf_type }) a.a_fields }
+	| TLazy _ -> assert false
+
 let rec is_nullable = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_nullable t)
