@@ -66,4 +66,5 @@ interface IMap<K, V> {
 	public function keyValueIterator():KeyValueIterator<K, V>;
 	public function copy():IMap<K, V>;
 	public function toString():String;
+	public function clear():Void;
 }

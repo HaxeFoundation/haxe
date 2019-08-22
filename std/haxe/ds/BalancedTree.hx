@@ -229,6 +229,10 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	public function toString() {
 		return root == null ? '{}' : '{${root.toString()}}';
 	}
+
+	public function clear():Void {
+		root = null;
+	}
 }
 
 /**
