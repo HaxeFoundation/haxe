@@ -809,7 +809,7 @@ module Debug = struct
 		) g.g_var_infos
 
 	let get_dump_path ctx c cf =
-		"dump" :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(dump_path ctx.com) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
