@@ -208,7 +208,7 @@ let parse_module_file com file p =
 						end;
 						begin match com.display.dms_kind with
 						| DMHover ->
-							DisplayException.raise_hover (CompletionItem.make_ci_literal "" (Type.mk_mono(),CTMono)) None p
+							raise (DisplayException.DisplayException(DisplayHover None))
 						| _ ->
 							()
 						end;
