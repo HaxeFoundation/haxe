@@ -691,7 +691,17 @@ let process_display_file com classes =
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
-				classes := path :: !classes;
+				let path = match ExtString.String.nsplit (snd path) "." with
+					| [name;"macro"] ->
+						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+						   This can happen if we're completing in such a file. *)
+						(fst path,name)
+					| [name] ->
+						classes := path :: !classes;
+						path
+					| _ ->
+						assert false
+				in
 				Some path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
