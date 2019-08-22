@@ -525,7 +525,7 @@ module TypePathHandler = struct
 				| _ -> Self (TClassDecl c)
 			in
 			let tpair t =
-				(t,DisplayEmitter.completion_type_of_type ctx t)
+				(t,CompletionType.from_type (DisplayEmitter.get_import_status ctx) t)
 			in
 			let make_field_doc c cf =
 				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
