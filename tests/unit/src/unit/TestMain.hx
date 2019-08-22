@@ -71,7 +71,7 @@ class TestMain {
 			new TestCasts(),
 			new TestSyntaxModule(),
 			new TestNull(),
-			#if (!azure || !(php && Windows))
+			#if (!no_http && (!azure || !(php && Windows)))
 			new TestHttp(),
 			#end
 			#if !no_pattern_matching
