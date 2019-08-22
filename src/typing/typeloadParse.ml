@@ -153,20 +153,14 @@ module ConditionDisplay = struct
 
 	exception Result of expr
 
-	let ct name = CTAbstract {
-		ct_pack = [];
-		ct_type_name = name;
-		ct_module_name = name;
-		ct_params = [];
-		ct_import_status = Imported;
-	}
+	let t_semver = TInst(mk_class null_module ([],"SemVer") null_pos null_pos,[])
 
 	let convert_small_type com = function
-		| TNull -> "null",(Type.mk_mono(),CTMono)
-		| TBool b -> string_of_bool b,(com.basic.tbool,ct "Bool")
-		| TFloat f -> string_of_float f,(com.basic.tfloat,ct "Float")
-		| TString s -> "\"" ^ StringHelper.s_escape s ^ "\"",(com.basic.tstring,ct "String")
-		| TVersion(r,p) -> Semver.to_string (r,p),(com.basic.tstring,ct "String")
+		| TNull -> "null",Type.mk_mono()
+		| TBool b -> string_of_bool b,com.basic.tbool
+		| TFloat f -> string_of_float f,com.basic.tfloat
+		| TString s -> "\"" ^ StringHelper.s_escape s ^ "\"",com.basic.tstring
+		| TVersion(r,p) -> Semver.to_string (r,p),t_semver
 
 	let check_condition com e =
 		let rec loop (e,p) =
@@ -177,12 +171,10 @@ module ConditionDisplay = struct
 			loop e;
 		with Result (e,p) ->
 			let v = eval com.defines (e,p) in
+			let tpair t = (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t) in
 			DisplayException.raise_hover (match e with
 				| EConst(Ident("version")) ->
-					let t = TFun (
-						[("s",false,com.basic.tstring)],
-						TInst(mk_class null_module ([],"SemVer") null_pos null_pos,[])
-					) in
+					let t = TFun ([("s",false,com.basic.tstring)],t_semver) in
 					CompletionItem.make_ci_class_field {
 						field = {
 							cf_name = "version";
@@ -213,16 +205,16 @@ so it should be avoided if backwards-compatibility with earlier versions is need
 						scope = CFSStatic;
 						origin = BuiltIn;
 						is_qualified = true;
-					} (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t)
+					} (tpair t)
 				| EConst(Ident(n)) ->
 					CompletionItem.make_ci_define n (match v with
 						| TNull -> None
 						| TString s -> Some (StringHelper.s_escape s)
 						| _ -> assert false
-					) (com.basic.tstring,ct "String")
+					) (tpair com.basic.tstring)
 				| _ ->
-					let s,(t,ct) = convert_small_type com v in
-					CompletionItem.make_ci_literal s (t,ct)
+					let s,t = convert_small_type com v in
+					CompletionItem.make_ci_literal s (tpair t)
 			) None p;
 end
 
