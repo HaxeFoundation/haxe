@@ -232,6 +232,7 @@ class TestFileInput extends utest.Test {
 		Assert.equals('24', next());
 		next(); // TODO: at this line, some target produce '0', some produce 'eof', do we need to unify?
 		Assert.equals('eof', next());
+		file.close();
 	}
 }
 
