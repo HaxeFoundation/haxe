@@ -433,7 +433,7 @@ type t_kind =
 	| ITAnonymous of tanon
 	| ITExpression of texpr
 	| ITTypeParameter of tclass
-	| ITDefine of string * string
+	| ITDefine of string * string option
 
 type t = {
 	ci_kind : t_kind;
@@ -710,7 +710,10 @@ let to_json ctx index item =
 			end
 		| ITDefine(n,v) -> "Define",jobject [
 			"name",jstring n;
-			"value",jstring v;
+			"value",(match v with
+				| None -> jnull
+				| Some v -> jstring v
+			);
 			(* TODO: docs etc *)
 		]
 	in
