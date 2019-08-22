@@ -154,12 +154,12 @@ end
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
-	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -421,12 +421,12 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
+				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
 		};
 		sys_args = args;
 		debug = false;
@@ -504,7 +504,6 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
 		};
 		defines = {
 			values = com.defines.values;

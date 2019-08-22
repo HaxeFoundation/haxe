@@ -189,6 +189,37 @@ module ConditionDisplay = struct
 			) None p;
 end
 
+module PdiHandler = struct
+	open Parser
+
+	let is_true defines e =
+		ParserEntry.is_true (ParserEntry.eval defines e)
+
+	let handle_pdi com file pdi =
+		let macro_defines = adapt_defines_to_macro_context com.defines in
+		List.iter (fun (p,e) ->
+			if DisplayPosition.display_position#enclosed_in p then begin
+				if is_true macro_defines e then
+					raise DisplayInMacroBlock;
+				begin match com.display.dms_kind with
+				| DMHover ->
+					raise (DisplayException.DisplayException(DisplayHover None))
+				| _ ->
+					()
+				end;
+			end;
+		) pdi.pd_dead_blocks;
+		begin match com.display.dms_kind with
+		| DMHover ->
+			List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
+		| _ ->
+			()
+		end;
+		let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+		let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) pdi.pd_dead_blocks in
+		if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.shared.shared_display_information.dead_blocks file dead_blocks
+end
+
 let parse_module_file com file p =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
@@ -204,30 +235,7 @@ let parse_module_file com file p =
 			| (msg,p) :: _ -> handle_parser_error msg p
 			| [] -> ()
 			end;
-			if com.display.dms_kind <> DMNone then begin
-				List.iter (fun (p,e) ->
-					if DisplayPosition.display_position#enclosed_in p then begin
-						if not (Define.defined com.defines Define.Macro) then begin
-							let defines = adapt_defines_to_macro_context com.defines in
-							if ParserEntry.is_true (ParserEntry.eval defines e) then
-								raise DisplayInMacroBlock
-						end;
-						begin match com.display.dms_kind with
-						| DMHover ->
-							raise (DisplayException.DisplayException(DisplayHover None))
-						| _ ->
-							()
-						end;
-					end;
-				) pdi.pd_dead_blocks;
-			end;
-			begin match com.display.dms_kind with
-			| DMHover ->
-				List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
-			| _ ->
-				()
-			end;
-			if pdi.pd_dead_blocks <> [] then Hashtbl.replace com.display_information.dead_blocks file pdi.pd_dead_blocks;
+			PdiHandler.handle_pdi com file pdi;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;

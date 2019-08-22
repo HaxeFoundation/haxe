@@ -202,7 +202,7 @@ module Printer = struct
 				] in
 				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
 			) ranges
-		) com.display_information.dead_blocks;
+		) com.shared.shared_display_information.dead_blocks;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [
