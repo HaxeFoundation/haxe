@@ -527,9 +527,8 @@ let create sctx write params =
 			current file in order to run diagnostics on it again. *)
 		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
 			let file = (DisplayPosition.display_position#get).pfile in
-			let fkey = (file,sign) in
 			(* force parsing again : if the completion point have been changed *)
-			CompilationServer.remove_file cs fkey;
+			CompilationServer.remove_files cs file;
 			sctx.removed_modules <- CompilationServer.filter_modules cs file;
 			add_delay sctx recache_removed_modules;
 		end;
