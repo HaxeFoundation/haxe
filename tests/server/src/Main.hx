@@ -192,6 +192,17 @@ class ServerTests extends HaxeServerTestCase {
 		}
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
 	}
+
+	function testXRedefinedFromX() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8368/Main.hx"));
+		vfs.putContent("MyMacro.hx", getTemplate("issues/Issue8368/MyMacro.hx"));
+		vfs.putContent("Type1.hx", getTemplate("issues/Issue8368/Type1.hx"));
+		vfs.putContent("Type2.hx", getTemplate("issues/Issue8368/Type2.hx"));
+		var args = ["-main", "Main", "--macro", "define('whatever')"];
+		runHaxe(args);
+		runHaxe(args);
+		assertSuccess();
+	}
 }
 
 class Main {

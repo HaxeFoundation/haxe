@@ -78,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -129,7 +129,7 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
 		| ITTypeParameter c ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path c.cl_path) ("") (snd c.cl_path));
-		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ | ITDefine _ ->
 			(* compat: don't add *)
 			()
 	) il;
@@ -525,7 +525,7 @@ module TypePathHandler = struct
 				| _ -> Self (TClassDecl c)
 			in
 			let tpair t =
-				(t,DisplayEmitter.completion_type_of_type ctx t)
+				(t,CompletionType.from_type (DisplayEmitter.get_import_status ctx) t)
 			in
 			let make_field_doc c cf =
 				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
@@ -658,6 +658,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			pmax = pos;
 		}
 
+type display_path_kind =
+	| DPKNormal of path
+	| DPKMacro of path
+	| DPKNone
+
 let process_display_file com classes =
 	let get_module_path_from_file_path com spath =
 		let rec loop = function
@@ -681,7 +686,7 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			None
+			DPKNone
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
@@ -691,8 +696,18 @@ let process_display_file com classes =
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
-				classes := path :: !classes;
-				Some path
+				let path = match ExtString.String.nsplit (snd path) "." with
+					| [name;"macro"] ->
+						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+						   This can happen if we're completing in such a file. *)
+						DPKMacro (fst path,name)
+					| [name] ->
+						classes := path :: !classes;
+						DPKNormal path
+					| _ ->
+						assert false
+				in
+				path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with

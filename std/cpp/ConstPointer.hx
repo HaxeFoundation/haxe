@@ -63,7 +63,9 @@ extern class ConstPointer<T> {
 
 	public function inc():ConstPointer<T>;
 	public function dec():ConstPointer<T>;
-	public function postIncVal():Reference<T>;
 	public function incBy(inT:Int):ConstPointer<T>;
+	public function decBy(inT:Int):ConstPointer<T>;
 	public function add(inT:Int):ConstPointer<T>;
+	public function sub(inT:Int):ConstPointer<T>;
+	public function postIncVal():Reference<T>;
 }

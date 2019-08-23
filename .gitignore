@@ -120,6 +120,7 @@ tmp.tmp
 dev-display.hxml
 
 .DS_Store
+.history
 tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/

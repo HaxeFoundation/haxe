@@ -24,8 +24,11 @@ open Ast
 open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
+open Type
 open Typecore
 open Error
+
+exception DisplayInMacroBlock
 
 let parse_file_from_lexbuf com file p lexbuf =
 	let t = Timer.timer ["parsing"] in
@@ -144,6 +147,130 @@ let resolve_module_file com m remap p =
 	let timer = Timer.timer ["typing";"resolve_module_file"] in
 	Std.finally timer (resolve_module_file com m remap) p *)
 
+module ConditionDisplay = struct
+	open ParserEntry
+	open CompletionItem.CompletionType
+	open DisplayPosition
+
+	exception Result of expr
+
+	let t_semver = TInst(mk_class null_module ([],"SemVer") null_pos null_pos,[])
+
+	let convert_small_type com = function
+		| TNull -> "null",Type.mk_mono()
+		| TBool b -> string_of_bool b,com.basic.tbool
+		| TFloat f -> string_of_float f,com.basic.tfloat
+		| TString s -> "\"" ^ StringHelper.s_escape s ^ "\"",com.basic.tstring
+		| TVersion(r,p) -> Semver.to_string (r,p),t_semver
+
+	let check_condition com e =
+		let check = (if com.display.dms_kind = DMHover then
+			encloses_position_gt
+		else
+			encloses_position
+		) display_position#get in
+		let rec loop (e,p) =
+			Ast.iter_expr loop (e,p);
+			if check p then raise (Result (e,p))
+		in
+		try
+			loop e;
+		with Result (e,p) ->
+			let v = eval com.defines (e,p) in
+			let tpair t = (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t) in
+			DisplayException.raise_hover (match e with
+				| EConst(Ident("version")) ->
+					let t = TFun ([("s",false,com.basic.tstring)],t_semver) in
+					CompletionItem.make_ci_class_field {
+						field = {
+							cf_name = "version";
+							cf_type = t;
+							cf_pos = null_pos;
+							cf_name_pos = null_pos;
+							cf_doc = Some (
+"Allows comparing defines (such as the version of a Haxelib or Haxe) with SemVer semantics.
+Both the define and the string passed to `version()` must be valid semantic versions.
+
+Example:
+```haxe
+#if (haxe >= version(\"4.0.0-rc.3\"))\n
+```
+
+Note: this syntax does not parse with Haxe versions earlier than 4.0.0-rc.3,
+so it should be avoided if backwards-compatibility with earlier versions is needed.
+
+@see https://semver.org/");
+							cf_meta = [];
+							cf_kind = Method MethNormal;
+							cf_params = [];
+							cf_expr = None;
+							cf_expr_unoptimized = None;
+							cf_overloads = [];
+							cf_flags = set_flag 0 (int_of_class_field_flag CfPublic);
+						};
+						scope = CFSStatic;
+						origin = BuiltIn;
+						is_qualified = true;
+					} (tpair t)
+				| EConst(Ident(n)) ->
+					CompletionItem.make_ci_define n (match v with
+						| TNull -> None
+						| TString s -> Some (StringHelper.s_escape s)
+						| _ -> assert false
+					) (tpair com.basic.tstring)
+				| _ ->
+					let s,t = convert_small_type com v in
+					CompletionItem.make_ci_literal s (tpair t)
+			) None p;
+end
+
+module PdiHandler = struct
+	open Parser
+	open DisplayPosition
+
+	let is_true defines e =
+		ParserEntry.is_true (ParserEntry.eval defines e)
+
+	let handle_pdi com file pdi =
+		let macro_defines = adapt_defines_to_macro_context com.defines in
+		let check = (if com.display.dms_kind = DMHover then
+			encloses_position_gt
+		else
+			encloses_position
+		) display_position#get in
+		List.iter (fun (p,e) ->
+			let has_macro_define = is_true macro_defines e in
+			if has_macro_define then com.display_information.display_module_has_macro_defines <- true;
+			if check p then begin
+				if has_macro_define then
+					raise DisplayInMacroBlock;
+				begin match com.display.dms_kind with
+				| DMHover ->
+					raise (DisplayException.DisplayException(DisplayHover None))
+				| _ ->
+					()
+				end;
+			end;
+		) pdi.pd_dead_blocks;
+		begin match com.display.dms_kind with
+		| DMHover ->
+			List.iter (ConditionDisplay.check_condition com) pdi.pd_conditions;
+		| _ ->
+			()
+		end;
+		let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+		let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) pdi.pd_dead_blocks in
+		let sdi = com.shared.shared_display_information in
+		begin try
+			let dead_blocks2 = Hashtbl.find sdi.dead_blocks file in
+			(* Intersect *)
+			let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
+			Hashtbl.replace sdi.dead_blocks file dead_blocks2
+		with Not_found ->
+			Hashtbl.add sdi.dead_blocks file dead_blocks
+		end;
+end
+
 let parse_module_file com file p =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
@@ -154,11 +281,12 @@ let parse_module_file com file p =
 	in
 	let pack,decls = match (!parse_hook) com file p with
 		| ParseSuccess data -> data
-		| ParseDisplayFile(data,errors) ->
-			begin match errors with
+		| ParseDisplayFile(data,pdi) ->
+			begin match pdi.pd_errors with
 			| (msg,p) :: _ -> handle_parser_error msg p
 			| [] -> ()
 			end;
+			PdiHandler.handle_pdi com file pdi;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;

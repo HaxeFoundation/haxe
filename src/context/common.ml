@@ -154,11 +154,13 @@ end
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
+	mutable display_module_has_macro_defines : bool;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -420,11 +422,13 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
+				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
 		debug = false;
@@ -502,6 +506,7 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		defines = {
 			values = com.defines.values;
@@ -819,3 +824,15 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let dump_path com =
+	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
+
+let adapt_defines_to_macro_context defines =
+	let values = ref defines.values in
+	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
+	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
+	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
+	values := PMap.add "macro" "1" !values;
+	{values = !values; defines_signature = None }

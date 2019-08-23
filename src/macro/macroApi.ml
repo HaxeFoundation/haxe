@@ -78,6 +78,7 @@ type enum_type =
 	| IDisplayKind
 	| IMessage
 	| IFunctionKind
+	| IStringLiteralKind
 
 (**
 	Our access to the interpreter from the macro api
@@ -174,6 +175,7 @@ let enum_name = function
 	| IDisplayKind -> "DisplayKind"
 	| IMessage -> "Message"
 	| IFunctionKind -> "FunctionKind"
+	| IStringLiteralKind -> "StringLiteralKind"
 
 let all_enums =
 	let last = IImportMode in
@@ -216,11 +218,18 @@ let null f = function
 
 let encode_enum ?(pos=None) k tag vl = encode_enum k pos tag vl
 
+let encode_string_literal_kind qs =
+	let tag = match qs with
+		| SDoubleQuotes -> 0
+		| SSingleQuotes -> 1
+	in
+	encode_enum IStringLiteralKind tag []
+
 let encode_const c =
 	let tag, pl = match c with
 	| Int s -> 0, [encode_string s]
 	| Float s -> 1, [encode_string s]
-	| String s -> 2, [encode_string s]
+	| String(s,qs) -> 2, [encode_string s;encode_string_literal_kind qs]
 	| Ident s -> 3, [encode_string s]
 	| Regexp (s,opt) -> 4, [encode_string s;encode_string opt]
 	in
@@ -527,11 +536,17 @@ let opt_list f v =
 let decode_opt_bool v =
 	if v = vnull then false else decode_bool v
 
+let decode_string_literal_kind v =
+	if v = vnull then SDoubleQuotes else match decode_enum v with
+	| 0,[] -> SDoubleQuotes
+	| 1,[] -> SSingleQuotes
+	| _ -> raise Invalid_expr
+
 let decode_const c =
 	match decode_enum c with
 	| 0, [s] -> Int (decode_string s)
 	| 1, [s] -> Float (decode_string s)
-	| 2, [s] -> String (decode_string s)
+	| 2, [s;qs] -> String (decode_string s,decode_string_literal_kind qs)
 	| 3, [s] -> Ident (decode_string s)
 	| 4, [s;opt] -> Regexp (decode_string s, decode_string opt)
 	| 5, [s] -> Ident (decode_string s) (** deprecated CType, keep until 3.0 release **)

@@ -17,7 +17,7 @@ open Fields
 open Calls
 open Error
 
-let convert_function_signature ctx values (args,ret) = match DisplayEmitter.completion_type_of_type ctx ~values (TFun(args,ret)) with
+let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
 	| _ -> assert false
 
@@ -30,7 +30,7 @@ let completion_item_of_expr ctx e =
 			false
 	in
 	let tpair ?(values=PMap.empty) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	let of_field e origin cf scope make_ci =
@@ -138,7 +138,9 @@ let get_expected_type ctx with_type =
 	in
 	match t with
 		| None -> None
-		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
+		| Some t ->
+			let from_type = CompletionType.from_type (get_import_status ctx) in
+			Some (from_type t,from_type (follow t))
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
@@ -229,7 +231,7 @@ let rec handle_signature_display ctx e_ast with_type =
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
 					type_expr ctx e WithType.value
 				| Error (Unknown_ident "$type",p) ->
-					display_dollar_type ctx p (fun t -> t,(DisplayEmitter.completion_type_of_type ctx t))
+					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
 			let e1 = match e1 with
 				| (EField (e,"bind"),p) ->
@@ -444,7 +446,7 @@ let handle_structure_display ctx e fields origin =
 	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
 	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
 	let tpair ?(values=PMap.empty) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	let make_field_item cf =
@@ -485,7 +487,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
 	let tpair t =
-		let ct = DisplayEmitter.completion_type_of_type ctx t in
+		let ct = CompletionType.from_type (get_import_status ctx) t in
 		(t,ct)
 	in
 	let e = match e_ast,with_type with

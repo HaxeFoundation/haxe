@@ -275,7 +275,7 @@ module Dump = struct
 			close_out ch)
 
 	let create_dumpfile_from_path com path =
-		let buf,close = create_dumpfile [] ("dump" :: (platform_name_macro com) :: fst path @ [snd path]) in
+		let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
 		buf,close
 
 	let dump_types com s_expr =
@@ -422,7 +422,8 @@ module Dump = struct
 			| None -> platform_name_macro com
 			| Some s -> s
 		in
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependencies"] in
+		let dump_dependencies_path = [dump_path com;target_name;".dependencies"] in
+		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
@@ -434,7 +435,8 @@ module Dump = struct
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependants"] in
+		let dump_dependants_path = [dump_path com;target_name;".dependants"] in
+		let buf,close = create_dumpfile [] dump_dependants_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		Hashtbl.iter (fun n ml ->
 			print "%s:\n" n;

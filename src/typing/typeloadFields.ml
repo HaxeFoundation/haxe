@@ -349,7 +349,7 @@ let build_enum_abstract ctx c a fields p =
 				| None ->
 					if not c.cl_extern then begin match mode with
 						| EAString ->
-							set_field (EConst (String (fst field.cff_name)),null_pos)
+							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
 							set_field (EConst (Int (string_of_int !i)),null_pos);
 							incr i;
@@ -645,7 +645,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 	in
 	if ctx.com.display.dms_full_typing then begin
 		if fctx.is_macro && not ctx.in_macro then
-			()
+			force_macro ()
 		else begin
 			cf.cf_type <- TLazy r;
 			(* is_lib ? *)
@@ -1347,16 +1347,38 @@ let init_field (ctx,cctx,fctx) f =
 	| FProp (get,set,t,eo) ->
 		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 
+let check_overload ctx f fs =
+	try
+		let f2 =
+			List.find (fun f2 ->
+				f != f2 &&
+				Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Same
+			) fs
+		in
+		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+		display_error ctx ("The second field is declared here") f2.cf_pos
+	with Not_found ->
+		try
+			let f2 =
+				List.find (fun f2 ->
+					f != f2 &&
+					Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Impl_conflict
+				) fs
+			in
+			display_error ctx (
+				"Another overloaded field of similar signature was already declared : " ^
+				f.cf_name ^
+				"\nThe signatures are different in Haxe, but not in the target language"
+			) f.cf_pos;
+			display_error ctx ("The second field is declared here") f2.cf_pos
+		with | Not_found -> ()
+
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
 	List.iter (fun f ->
 		if Meta.has Meta.Overload f.cf_meta then
-			List.iter (fun f2 ->
-				try
-					ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
-					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
-				with | Not_found -> ()
-		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+			check_overload ctx f (f :: f.cf_overloads)
+	) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
 let init_class ctx c p context_init herits fields =
 	let ctx,cctx = create_class_context ctx c context_init p in
@@ -1384,7 +1406,7 @@ let init_class ctx c p context_init herits fields =
 						| _ -> ""
 					in
 					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
-						Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+						Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
 			in
@@ -1394,7 +1416,7 @@ let init_class ctx c p context_init herits fields =
 	in
 	let rec check_if_feature = function
 		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String s) -> s | _ -> error "String expected" p) el
+		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> error "String expected" p) el
 		| _ :: l -> check_if_feature l
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
@@ -1509,13 +1531,10 @@ let init_class ctx c p context_init herits fields =
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
 	| Some ctor ->
-		delay ctx PTypeField (fun() ->
+		delay ctx PTypeField (fun () ->
+			(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
 			List.iter (fun f ->
-				try
-					(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-					ignore(List.find (fun f2 -> f != f2 && Overloads.same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
-					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-				with Not_found -> ()
+				check_overload ctx f (ctor :: ctor.cf_overloads)
 			) (ctor :: ctor.cf_overloads)
 		)
 	| _ -> ());

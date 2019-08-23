@@ -233,7 +233,7 @@ let collect ctx tk with_type =
 	(* Collection starts here *)
 
 	let tpair ?(values=PMap.empty) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		let ct = CompletionType.from_type (DisplayEmitter.get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	begin match tk with

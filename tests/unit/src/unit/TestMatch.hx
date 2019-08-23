@@ -147,7 +147,7 @@ class TestMatch extends Test {
 		eq("[]", switchArray(macro []));
 		eq("_", switchArray(macro 2));
 		eq("[EConst(CInt(22))]", switchArray(macro [22]));
-		eq("[EConst(CInt(22)),EConst(CString(foo))]", switchArray(macro [22,"foo"]));
+		eq("[EConst(CInt(22)),EConst(CString(foo,DoubleQuotes))]", switchArray(macro [22,"foo"]));
 		eq("_", switchArray(macro [22, "foo", "bar"]));
 
 		eq("0", switchArray2(["a", "b"]));
@@ -160,7 +160,7 @@ class TestMatch extends Test {
 		eq("6", switchArray2([]));
 		eq("7", switchArray2(["a", "a", "a", "b"]));
 
-		eq("EConst(CString(foobar)):12", switchCrazy(macro untyped ("foobar"[12])));
+		eq("EConst(CString(foobar,DoubleQuotes)):12", switchCrazy(macro untyped ("foobar"[12])));
 
 		eq("1", switchGuard(macro "foobar"));
 		eq("2", switchGuard(macro "barfoo"));
