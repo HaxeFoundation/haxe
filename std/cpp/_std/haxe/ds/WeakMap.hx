@@ -92,6 +92,10 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
 		return untyped __global__.__object_hash_clear(h);
+		#else
+		h = null;
+		#end
 	}
 }

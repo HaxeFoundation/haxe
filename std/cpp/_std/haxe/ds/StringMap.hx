@@ -99,7 +99,11 @@ package haxe.ds;
 	}
 
 	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
 		return untyped __global__.__string_hash_clear(h);
+		#else
+		h = null;
+		#end
 	}
 
 	#if (scriptable)
