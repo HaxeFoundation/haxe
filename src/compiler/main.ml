@@ -81,7 +81,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
