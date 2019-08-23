@@ -357,9 +357,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 			ImportHandling.add_import_position ctx.com p path;
 		| DMUsage _ ->
 			ImportHandling.add_import_position ctx.com p path;
-			if DisplayPosition.display_position#is_in_file p.pfile then handle_path_display ctx path p
+			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 		| _ ->
-			if DisplayPosition.display_position#is_in_file p.pfile then handle_path_display ctx path p
+			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 	in
 	match decl with
 	| EImport (path,mode) ->
@@ -938,7 +938,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->
 			()
 	end;

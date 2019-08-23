@@ -1147,9 +1147,10 @@ with
 		let fields =
 			try begin match c with
 				| None ->
-					DisplayOutput.TypePathHandler.complete_type_path com p
+					DisplayPath.TypePathHandler.complete_type_path com p
 				| Some (c,cur_package) ->
-					DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+					let ctx = Typer.create com in
+					DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 			end with Common.Abort(msg,p) ->
 				error ctx msg p;
 				None
