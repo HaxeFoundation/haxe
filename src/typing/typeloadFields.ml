@@ -645,7 +645,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 	in
 	if ctx.com.display.dms_full_typing then begin
 		if fctx.is_macro && not ctx.in_macro then
-			()
+			force_macro ()
 		else begin
 			cf.cf_type <- TLazy r;
 			(* is_lib ? *)
