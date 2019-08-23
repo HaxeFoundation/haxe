@@ -164,30 +164,24 @@ module ConditionDisplay = struct
 		| TVersion(r,p) -> Semver.to_string (r,p),t_semver
 
 	let check_condition com e =
-		let check = (if com.display.dms_kind = DMHover then
+		let check_position = (if com.display.dms_kind = DMHover then
 			encloses_position_gt
 		else
 			encloses_position
 		) display_position#get in
-		let rec loop (e,p) =
-			Ast.iter_expr loop (e,p);
-			if check p then raise (Result (e,p))
-		in
-		try
-			loop e;
-		with Result (e,p) ->
-			let v = eval com.defines (e,p) in
-			let tpair t = (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t) in
-			DisplayException.raise_hover (match e with
-				| EConst(Ident("version")) ->
+		let tpair t = (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t) in
+		let check_expr (e,p) =
+			match e with
+				| ECall ((EConst (Ident "version"),p),[(EConst (String(s,_)), _)])  ->
 					let t = TFun ([("s",false,com.basic.tstring)],t_semver) in
-					CompletionItem.make_ci_class_field {
-						field = {
-							cf_name = "version";
-							cf_type = t;
-							cf_pos = null_pos;
-							cf_name_pos = null_pos;
-							cf_doc = Some (
+					if check_position p then
+						DisplayException.raise_hover (CompletionItem.make_ci_class_field {
+							field = {
+								cf_name = "version";
+								cf_type = t;
+								cf_pos = null_pos;
+								cf_name_pos = null_pos;
+								cf_doc = Some (
 "Allows comparing defines (such as the version of a Haxelib or Haxe) with SemVer semantics.
 Both the define and the string passed to `version()` must be valid semantic versions.
 
@@ -200,28 +194,37 @@ Note: this syntax does not parse with Haxe versions earlier than 4.0.0-rc.3,
 so it should be avoided if backwards-compatibility with earlier versions is needed.
 
 @see https://semver.org/");
-							cf_meta = [];
-							cf_kind = Method MethNormal;
-							cf_params = [];
-							cf_expr = None;
-							cf_expr_unoptimized = None;
-							cf_overloads = [];
-							cf_flags = set_flag 0 (int_of_class_field_flag CfPublic);
-						};
-						scope = CFSStatic;
-						origin = BuiltIn;
-						is_qualified = true;
-					} (tpair t)
+								cf_meta = [];
+								cf_kind = Method MethNormal;
+								cf_params = [];
+								cf_expr = None;
+								cf_expr_unoptimized = None;
+								cf_overloads = [];
+								cf_flags = set_flag 0 (int_of_class_field_flag CfPublic);
+							};
+							scope = CFSStatic;
+							origin = BuiltIn;
+							is_qualified = true;
+						} (tpair t)) None p
 				| EConst(Ident(n)) ->
-					CompletionItem.make_ci_define n (match v with
+					let v = eval com.defines (e,p) in
+					DisplayException.raise_hover (CompletionItem.make_ci_define n (match v with
 						| TNull -> None
 						| TString s -> Some (StringHelper.s_escape s)
 						| _ -> assert false
-					) (tpair com.basic.tstring)
+					) (tpair com.basic.tstring)) None p
 				| _ ->
-					let s,t = convert_small_type com v in
-					CompletionItem.make_ci_literal s (tpair t)
-			) None p;
+					()
+		in
+		let rec loop (e,p) =
+			if check_position p then check_expr (e,p);
+			Ast.iter_expr loop (e,p);
+			if check_position p then
+				let v = eval com.defines (e,p) in
+				let s,t = convert_small_type com v in
+				DisplayException.raise_hover (CompletionItem.make_ci_literal s (tpair t)) None p
+		in
+		loop e;
 end
 
 module PdiHandler = struct
