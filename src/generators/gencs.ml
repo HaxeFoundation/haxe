@@ -1135,7 +1135,7 @@ let generate con =
 			let b = Buffer.create 0 in
 			(try
 				UTF8.validate s;
-				UTF8.iter (fun c -> escape (UChar.code c) b) s
+				UTF8.iter (fun c -> escape (UCharExt.code c) b) s
 			with
 				UTF8.Malformed_code ->
 					String.iter (fun c -> escape (Char.code c) b) s

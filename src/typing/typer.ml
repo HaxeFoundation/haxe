@@ -2450,7 +2450,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
 	| EField ((EConst (String(s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
-		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
+		mk (TConst (TInt (Int32.of_int (UCharExt.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when starts_with n '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->

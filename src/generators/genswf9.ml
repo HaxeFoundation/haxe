@@ -657,7 +657,7 @@ let to_utf8 str =
 	with
 		UTF8.Malformed_code ->
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 
 let gen_constant ctx c t p =

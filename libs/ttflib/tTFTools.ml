@@ -210,7 +210,7 @@ let parse_range_str str =
 	let range = ref false in
 	let lut = Hashtbl.create 0 in
 	UTF8.iter (fun code ->
-		let code = UChar.code code in
+		let code = UCharExt.code code in
 		if code = Char.code '-' && !last <> Char.code '\\' then
 			range := true
 		else if !range then begin

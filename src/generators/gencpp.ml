@@ -1095,7 +1095,7 @@ let strq ctx s =
             | c when c > 0xFFFF -> Buffer.add_string b (Printf.sprintf "\\U%08x" c)
             | c -> Buffer.add_char b (Char.chr c)
       in
-      UTF8.iter (fun c -> add (UChar.code c) ) s;
+      UTF8.iter (fun c -> add (UCharExt.code c) ) s;
       "HX_W(u\"" ^ (Buffer.contents b) ^ "\"," ^ (gen_wqstring_hash s) ^ ")"
    else
        gen_str "HX_" gen_qstring_hash s
