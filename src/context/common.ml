@@ -160,6 +160,7 @@ type shared_display_information = {
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
+	mutable display_module_has_macro_defines : bool;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -427,6 +428,7 @@ let create version s_version args =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
 		debug = false;
@@ -504,6 +506,7 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		defines = {
 			values = com.defines.values;

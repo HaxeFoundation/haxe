@@ -239,8 +239,10 @@ module PdiHandler = struct
 			encloses_position
 		) display_position#get in
 		List.iter (fun (p,e) ->
+			let has_macro_define = is_true macro_defines e in
+			if has_macro_define then com.display_information.display_module_has_macro_defines <- true;
 			if check p then begin
-				if is_true macro_defines e then
+				if has_macro_define then
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
 				| DMHover ->

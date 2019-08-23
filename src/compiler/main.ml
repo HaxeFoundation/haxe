@@ -579,7 +579,13 @@ let filter ctx tctx display_file_dot_path =
 	com.modules <- modules;
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-	if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
+	let should_load_in_macro = match ctx.com.display.dms_kind with
+		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
+		   type the module in macro context. (#8682). *)
+		| DMDiagnostics _ -> com.display_information.display_module_has_macro_defines
+		| _ -> true
+	in
+	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro  tctx display_file_dot_path false with
 		| None -> ()
 		| Some mctx ->
