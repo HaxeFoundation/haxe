@@ -90,4 +90,8 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	public function toString():String {
 		return untyped __global__.__object_hash_to_string(h);
 	}
+
+	public function clear():Void {
+		return untyped __global__.__object_hash_clear(h);
+	}
 }

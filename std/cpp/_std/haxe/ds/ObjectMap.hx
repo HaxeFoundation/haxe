@@ -98,6 +98,10 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		return untyped __global__.__object_hash_to_string(h);
 	}
 
+	public function clear():Void {
+		return untyped __global__.__object_hash_clear(h);
+	}
+
 	#if (scriptable)
 	private function setString(key:Dynamic, val:String):Void {
 		untyped __object_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);

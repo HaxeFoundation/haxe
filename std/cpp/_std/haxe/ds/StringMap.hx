@@ -98,6 +98,10 @@ package haxe.ds;
 		return untyped __global__.__string_hash_to_string(h);
 	}
 
+	public function clear():Void {
+		return untyped __global__.__string_hash_clear(h);
+	}
+
 	#if (scriptable)
 	private function setString(key:String, val:String):Void {
 		untyped __string_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);
