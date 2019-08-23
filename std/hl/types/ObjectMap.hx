@@ -61,6 +61,9 @@ abstract ObjectMap(ObjectMapData) {
 		return null;
 	}
 
+	@:hlNative("std", "hoclear")
+	public function clear():Void {}
+
 	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}

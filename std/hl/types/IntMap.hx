@@ -61,6 +61,9 @@ abstract IntMap(IntMapData) {
 		return null;
 	}
 
+	@:hlNative("std", "hiclear")
+	public function clear():Void {}
+
 	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}

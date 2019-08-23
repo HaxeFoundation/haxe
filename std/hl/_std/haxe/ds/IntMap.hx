@@ -80,4 +80,8 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		s.addChar('}'.code);
 		return s.toString();
 	}
+
+	public function clear():Void {
+		@:privateAccess h.clear();
+	}
 }
