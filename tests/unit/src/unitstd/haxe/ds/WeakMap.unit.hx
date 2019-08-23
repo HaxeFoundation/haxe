@@ -88,9 +88,9 @@ o.remove(k2) == false;
 // clear
 o.clear();
 o.get(k1) == null;
-o.exists(k1) == true;
+o.exists(k1) == false;
 o.exists(k2) == false;
-o.exists(k3) == true;
+o.exists(k3) == false;
 
 var a = [for (k in o.keys()) k];
 a == [];

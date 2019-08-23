@@ -113,7 +113,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		#if (hl_ver >= version("1.11.0"))
 		@:privateAccess h.clear();
 		#else
-		h = new hl.types.IntMap();
+		h = new hl.types.StringMap();
 		#end
 	}
 }
