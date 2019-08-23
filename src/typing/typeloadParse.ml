@@ -172,7 +172,7 @@ module ConditionDisplay = struct
 		let tpair t = (t,CompletionItem.CompletionType.from_type (fun _ -> Imported) t) in
 		let check_expr (e,p) =
 			match e with
-				| ECall ((EConst (Ident "version"),p),[(EConst (String(s,_)), _)])  ->
+				| ECall ((EConst (Ident "version"),p),_)  ->
 					let t = TFun ([("s",false,com.basic.tstring)],t_semver) in
 					if check_position p then
 						DisplayException.raise_hover (CompletionItem.make_ci_class_field {
