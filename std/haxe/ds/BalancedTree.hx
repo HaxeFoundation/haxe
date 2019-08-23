@@ -230,6 +230,9 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		return root == null ? '{}' : '{${root.toString()}}';
 	}
 
+	/**
+		Removes all keys from `this` BalancedTree.
+	**/
 	public function clear():Void {
 		root = null;
 	}
