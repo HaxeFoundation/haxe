@@ -772,12 +772,13 @@ try
 			Common.raw_define com l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
+			let flag = try fst (ExtString.String.split var "=") with _ -> var in
 			let raise_reserved description =
 				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
 			in
-			if List.mem var reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" var);
+			if List.mem flag reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" flag);
 			List.iter (fun ns ->
-				if ExtString.String.starts_with var (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" var ns)
+				if ExtString.String.starts_with flag (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" flag ns)
 			) reserved_flag_namespaces;
 			Common.raw_define com var;
 		),"<var[=value]>","define a conditional compilation flag");
