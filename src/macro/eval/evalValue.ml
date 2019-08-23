@@ -56,6 +56,7 @@ module StringHashtbl = struct
 	let iter f this = StringMap.iter f !this
 	let mem this key = StringMap.mem key.sstring !this
 	let remove this key = this := StringMap.remove key.sstring !this
+	let clear this = this := StringMap.empty
 end
 
 module IntHashtbl = struct
@@ -70,6 +71,7 @@ module IntHashtbl = struct
 	let iter f this = IntMap.iter f !this
 	let mem this key = IntMap.mem key !this
 	let remove this key = this := IntMap.remove key !this
+	let clear this = this := IntMap.empty
 end
 
 type vregex = {
