@@ -4,6 +4,10 @@ open Type
 open Common
 open CompletionItem
 open ClassFieldOrigin
+open DisplayException
+open DisplayEmitter
+open DisplayPosition
+open ImportHandling
 
 module TypePathHandler = struct
 	let unique l =
@@ -94,8 +98,8 @@ module TypePathHandler = struct
 			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
 			   does not raise another TypePath exception. However, we still want to have it treated like the
 			   display file, so we just set the position to 0 (#6558). *)
-			let old = DisplayPosition.display_position#get in
-			DisplayPosition.display_position#set {old with pmin = 0; pmax = 0};
+			let old = display_position#get in
+			display_position#set {old with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					ctx.g.do_load_module ctx (p,s_module) null_pos
@@ -107,7 +111,7 @@ module TypePathHandler = struct
 					else
 						raise e
 			in
-			let m = Std.finally (fun () -> DisplayPosition.display_position#set old) lookup sl_pack in
+			let m = Std.finally (fun () -> display_position#set old) lookup sl_pack in
 			let statics = ref None in
 			let enum_statics = ref None in
 			let public_types = List.filter (fun t ->
@@ -136,7 +140,7 @@ module TypePathHandler = struct
 				| _ -> Self (TClassDecl c)
 			in
 			let tpair t =
-				(t,CompletionType.from_type (DisplayEmitter.get_import_status ctx) t)
+				(t,CompletionType.from_type (get_import_status ctx) t)
 			in
 			let make_field_doc c cf =
 				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
@@ -159,11 +163,10 @@ end
 let resolve_position_by_path ctx path p =
 	let mt = ctx.g.do_load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
-	DisplayException.raise_positions [p]
+	raise_positions [p]
 
 
 let handle_path_display ctx path p =
-	let open ImportHandling in
 	let class_field c name =
 		ignore(c.cl_build());
 		let cf = PMap.find name c.cl_statics in
@@ -171,9 +174,9 @@ let handle_path_display ctx path p =
 			| KAbstractImpl a -> Self (TAbstractDecl a)
 			| _ -> Self (TClassDecl c)
 		in
-		DisplayEmitter.display_field ctx origin CFSStatic cf p
+		display_field ctx origin CFSStatic cf p
 	in
-	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
+	match ImportHandling.convert_import_to_something_usable display_position#get path,ctx.com.display.dms_kind with
 		| (IDKPackage [s],p),DMDefault ->
 			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) p
 		| (IDKPackage sl,p),DMDefault ->
@@ -189,12 +192,12 @@ let handle_path_display ctx path p =
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-			DisplayException.raise_positions [p]
+			raise_positions [p]
 		| (IDKModule(sl,s),_),DMHover ->
 			let m = ctx.g.do_load_module ctx (sl,s) p in
 			begin try
 				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
-				DisplayEmitter.display_module_type ctx mt p;
+				display_module_type ctx mt p;
 			with Not_found ->
 				()
 			end
@@ -203,7 +206,7 @@ let handle_path_display ctx path p =
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			begin try
 				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = st) m.m_types in
-				DisplayEmitter.display_module_type ctx mt p;
+				display_module_type ctx mt p;
 			with Not_found ->
 				()
 			end
