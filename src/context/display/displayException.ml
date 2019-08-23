@@ -95,23 +95,32 @@ let filter_somehow ctx items kind subj =
 		if DynArray.length ret < !max_completion_items then
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
 	) acc_types;
-	DynArray.to_list ret,DynArray.length ret = !max_completion_items
+	DynArray.to_list ret,DynArray.length ret
 
 let fields_to_json ctx fields kind subj =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
-	let ja,did_filter = if needs_filtering then
+	let ja,num_items = if needs_filtering then
 		filter_somehow ctx fields kind subj
 	else
-		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,false
+		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,Array.length !last_completion_result
  	in
+	let did_filter = num_items = !max_completion_items in
 	if did_filter then last_completion_pos := Some subj.s_start_pos;
+	let filter_string = (match subj.s_name with None -> "" | Some name -> name) in
+	let p = Parser.cut_pos_at_display subj.s_insert_pos in
+	(* print_endline (Printf.sprintf "FIELDS OUTPUT:\n\tfilter_string: %s\n\t    num items: %i\n\t     position: %s\n\t   before cut: %s"
+		filter_string
+		num_items
+		(Printer.s_pos p)
+		(Printer.s_pos subj.s_insert_pos)
+	); *)
 	let fl =
 		("items",jarray ja) ::
 		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		("filterString",(match subj.s_name with None -> jstring "" | Some name -> jstring name)) ::
-		("replaceRange",generate_pos_as_range (Parser.cut_pos_at_display subj.s_insert_pos)) ::
+		("filterString",jstring filter_string) ::
+		("replaceRange",generate_pos_as_range p) ::
 		[]
 	in
 	jobject fl
