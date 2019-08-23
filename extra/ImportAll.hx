@@ -34,9 +34,6 @@ class ImportAll {
 			pack = "";
 			haxe.macro.Compiler.define("doc_gen");
 		}
-		if (Context.defined("interp")) {
-			haxe.macro.Compiler.define("macro");
-		}
 		switch( pack ) {
 		case "php":
 			if( !Context.defined("php") ) return;

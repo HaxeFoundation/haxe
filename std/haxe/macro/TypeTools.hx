@@ -162,7 +162,7 @@ class TypeTools {
 			}
 		}
 
-	#if (macro || display)
+	#if (macro || display || doc_gen)
 	/**
 		Follows all typedefs of `t` to reach the actual type.
 

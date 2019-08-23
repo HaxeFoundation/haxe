@@ -52,7 +52,7 @@ class Compiler {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
-	#if (neko || (macro && hl) || (macro && eval))
+	#if (neko || (macro && hl) || (macro && eval) || doc_gen)
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
@@ -464,7 +464,7 @@ class Compiler {
 
 	#end
 
-	#if (js || lua || macro)
+	#if (js || lua || macro || doc_gen)
 	/**
 		Embed a JavaScript or Lua file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/

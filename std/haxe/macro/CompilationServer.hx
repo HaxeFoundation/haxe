@@ -76,7 +76,7 @@ enum abstract ContextOptions(Int) {
 	`--macro server.field(args)`.
 **/
 class CompilationServer {
-	#if (macro || display)
+	#if (macro || display || doc_gen)
 	/**
 		Sets the `ModuleCheckPolicy` of all files whose dot-path matches an
 		element of `pathFilters`.
