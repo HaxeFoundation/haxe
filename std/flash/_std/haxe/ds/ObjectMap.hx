@@ -91,7 +91,7 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 
 	public function clear():Void {
 		for (i in keys())
-			untyped __delete__(this, key);
+			untyped __delete__(this, i);
 	}
 }
 
