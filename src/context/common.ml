@@ -262,6 +262,25 @@ let define_value com k v =
 let raw_defined_value com k =
 	Define.raw_defined_value com.defines k
 
+let reserved_flags = [
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
+	]
+
+let reserved_flag_namespaces = ["target"]
+
+let user_raw_define com k =
+	let flag,_ = try ExtString.String.split k "=" with _ -> k,"1" in
+	let raise_reserved description =
+		raise (Arg.Bad (description ^ " and cannot be defined manually"))
+	in
+	if List.mem flag reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" flag);
+	List.iter (fun ns ->
+		if ExtString.String.starts_with flag (ns ^ ".") then
+			raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" flag ns)
+	) reserved_flag_namespaces;
+	raw_define com k
+
 let get_es_version com =
 	try int_of_string (defined_value com Define.JsEs) with _ -> 0
 

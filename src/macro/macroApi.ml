@@ -1563,7 +1563,7 @@ let macro_api ccom get_api =
 		);
 		"define", vfun2 (fun s v ->
 			let v = if v = vnull then "" else "=" ^ (decode_string v) in
-			Common.raw_define (ccom()) ((decode_string s) ^ v);
+			Common.user_raw_define (ccom()) ((decode_string s) ^ v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
