@@ -1,6 +1,6 @@
-(* 
+(*
  * UTF-8 - UTF-8 encoded Unicode string
- * Copyright 2002, 2003 (C) Yamagata Yoriyuki. 
+ * Copyright 2002, 2003 (C) Yamagata Yoriyuki.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,11 +18,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  *)
 
-open UChar
+open UCharExt
 
 type t = string
 type index = int
-  
+
 let look s i =
   let n' =
     let n = Char.code s.[i] in
@@ -42,7 +42,7 @@ let look s i =
       let n' = n' lsl 6 lor (0x7f land m) in
       let m = Char.code (String.unsafe_get s (i + 2)) in
       let n' = n' lsl 6 lor (0x7f land m) in
-      n' lsl 6 lor (0x7f land m0)     
+      n' lsl 6 lor (0x7f land m0)
     else if n <= 0xfb then
       let n' = n - 0xf8 in
       let m0 = Char.code s.[i + 4] in
@@ -52,7 +52,7 @@ let look s i =
       let n' = n' lsl 6 lor (0x7f land m) in
       let m = Char.code (String.unsafe_get s (i + 3)) in
       let n' = n' lsl 6 lor (0x7f land m) in
-      n' lsl 6 lor (0x7f land m0)     
+      n' lsl 6 lor (0x7f land m0)
     else if n <= 0xfd then
       let n' = n - 0xfc in
       let m0 = Char.code s.[i + 5] in
@@ -75,7 +75,7 @@ let rec search_head s i =
   if n < 0x80 || n >= 0xc2 then i else
   search_head s (i + 1)
 
-let next s i = 
+let next s i =
   let n = Char.code s.[i] in
   if n < 0x80 then i + 1 else
   if n < 0xc0 then search_head s (i + 1) else
@@ -121,7 +121,7 @@ let add_uchar buf u =
   let k = int_of_uchar u in
   if k < 0 || k >= 0x4000000 then begin
     Buffer.add_char buf (Char.chr (0xfc + (k lsr 30)));
-    Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 24) land masq))); 
+    Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 24) land masq)));
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 18) land masq)));
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 12) land masq)));
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 6) land masq)));
@@ -146,7 +146,7 @@ let add_uchar buf u =
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 12) land masq)));
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor ((k lsr 6) land masq)));
     Buffer.add_char buf (Char.unsafe_chr (0x80 lor (k land masq)));
-  end 
+  end
 
 let init len f =
   let buf = Buffer.create len in
@@ -193,26 +193,26 @@ let validate s =
     let n = Char.code (String.unsafe_get s i) in
     if n < 0x80 then main (i + 1) else
     if n < 0xc2 then raise Malformed_code else
-    if n <= 0xdf then 
-      if trail 1 (i + 1) (n - 0xc0) < 0x80 then raise Malformed_code else 
+    if n <= 0xdf then
+      if trail 1 (i + 1) (n - 0xc0) < 0x80 then raise Malformed_code else
       main (i + 2)
-    else if n <= 0xef then 
-      if trail 2 (i + 1) (n - 0xe0) < 0x800 then raise Malformed_code else 
+    else if n <= 0xef then
+      if trail 2 (i + 1) (n - 0xe0) < 0x800 then raise Malformed_code else
       main (i + 3)
-    else if n <= 0xf7 then 
+    else if n <= 0xf7 then
       if trail 3 (i + 1) (n - 0xf0) < 0x10000 then raise Malformed_code else
       main (i + 4)
-    else if n <= 0xfb then 
+    else if n <= 0xfb then
       if trail 4 (i + 1) (n - 0xf8) < 0x200000 then raise Malformed_code else
       main (i + 5)
-    else if n <= 0xfd then 
+    else if n <= 0xfd then
       let n = trail 5 (i + 1) (n - 0xfc) in
       if n lsr 16 < 0x400 then raise Malformed_code else
       main (i + 6)
     else raise Malformed_code in
   main 0
 
-module Buf = 
+module Buf =
   struct
     include Buffer
     type buf = t

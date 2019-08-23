@@ -2995,7 +2995,7 @@ module StdUtf8 = struct
 		| v -> unexpected_value v "string"
 
 	let addChar = vifun1 (fun vthis c ->
-		UTF8.Buf.add_char (this vthis) (UChar.uchar_of_int (decode_int c));
+		UTF8.Buf.add_char (this vthis) (UCharExt.uchar_of_int (decode_int c));
 		vnull
 	)
 
@@ -3012,7 +3012,7 @@ module StdUtf8 = struct
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
-			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			Bytes.unsafe_set buf !i (UCharExt.char_of uc);
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
@@ -3021,12 +3021,12 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UCharExt.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
 		let s = decode_string s in
-		UTF8.iter (fun uc -> ignore(call_value f [vint (UChar.int_of_uchar uc)])) s;
+		UTF8.iter (fun uc -> ignore(call_value f [vint (UCharExt.int_of_uchar uc)])) s;
 		vnull
 	)
 

@@ -27,7 +27,7 @@ open JvmSignature
 let utf8jvm (input : string) : bytes =
 	let channel = IO.output_bytes () in
 	UTF8.iter (fun c ->
-		let code = UChar.code c in
+		let code = UCharExt.code c in
 		match code with
 			| b when (b > 0 && b <= 0x7F) ->
 			IO.write_byte channel b
