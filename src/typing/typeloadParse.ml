@@ -150,6 +150,7 @@ let resolve_module_file com m remap p =
 module ConditionDisplay = struct
 	open ParserEntry
 	open CompletionItem.CompletionType
+	open DisplayPosition
 
 	exception Result of expr
 
@@ -163,9 +164,14 @@ module ConditionDisplay = struct
 		| TVersion(r,p) -> Semver.to_string (r,p),t_semver
 
 	let check_condition com e =
+		let check = (if com.display.dms_kind = DMHover then
+			encloses_position_gt
+		else
+			encloses_position
+		) display_position#get in
 		let rec loop (e,p) =
 			Ast.iter_expr loop (e,p);
-			if DisplayPosition.display_position#enclosed_in p then raise (Result (e,p))
+			if check p then raise (Result (e,p))
 		in
 		try
 			loop e;
@@ -220,14 +226,20 @@ end
 
 module PdiHandler = struct
 	open Parser
+	open DisplayPosition
 
 	let is_true defines e =
 		ParserEntry.is_true (ParserEntry.eval defines e)
 
 	let handle_pdi com file pdi =
 		let macro_defines = adapt_defines_to_macro_context com.defines in
+		let check = (if com.display.dms_kind = DMHover then
+			encloses_position_gt
+		else
+			encloses_position
+		) display_position#get in
 		List.iter (fun (p,e) ->
-			if DisplayPosition.display_position#enclosed_in p then begin
+			if check p then begin
 				if is_true macro_defines e then
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
