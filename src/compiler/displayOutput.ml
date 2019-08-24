@@ -202,6 +202,20 @@ module Memory = struct
 			PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
 		end
 
+	let module_sign key md =
+		if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
+
+	let collect_leaks m deps out =
+		let leaks = ref [] in
+		let leak s =
+			leaks := s :: !leaks
+		in
+		if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+		PMap.iter (fun _ md ->
+			if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ module_sign m.m_extra.m_sign md);
+		) out;
+		!leaks
+
 	let get_out out =
 		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
 
@@ -219,9 +233,12 @@ module Memory = struct
 				else
 					update_module_type_deps deps md;
 			) mdeps;
-			let chk = get_out !out in
-			let inf = Objsize.objsize m !deps chk in
-			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
+			let out = !out in
+			let deps = !deps in
+			let chk = get_out out in
+			let inf = Objsize.objsize m deps chk in
+			let leaks = if inf.reached then collect_leaks m deps out else [] in
+			(m,Objsize.size_with_headers inf, (inf.reached,deps,out,leaks)) :: acc
 		) cs.c_modules [] in
 		modules
 
@@ -241,7 +258,7 @@ module Memory = struct
 		Gc.compact();
 		let contexts = Hashtbl.create 0 in
 		let add_context sign =
-			let ctx = (sign,ref [],ref 0) in
+			let ctx = (sign,ref [],ref [],ref 0) in
 			Hashtbl.add contexts sign ctx;
 			ctx
 		in
@@ -252,8 +269,10 @@ module Memory = struct
 				add_context sign
 		in
 		let modules = collect_memory_stats cs.cache in
-		List.iter (fun (m,size,(reached,deps,_)) ->
-			let (_,l,mem) = get_context m.m_extra.m_sign in
+
+		List.iter (fun (m,size,(reached,deps,out,mleaks)) ->
+			let (_,l,leaks,mem) = get_context m.m_extra.m_sign in
+			if reached then leaks := (m,mleaks) :: !leaks;
 			let deps = ref deps in
 			update_module_type_deps deps m;
 			let deps = !deps in
@@ -304,7 +323,7 @@ module Memory = struct
 			l := (m,size,jarray ja) :: !l;
 			mem := !mem + size;
 		) modules;
-		let ja = Hashtbl.fold (fun key (sign,modules,size) l ->
+		let ja = Hashtbl.fold (fun key (sign,modules,leaks,size) l ->
 			let modules = List.sort (fun (_,size1,_) (_,size2,_)  -> compare size2 size1) !modules in
 			let modules = List.map (fun (m,size,jmt) ->
 				jobject [
@@ -313,6 +332,23 @@ module Memory = struct
 					"types",jmt;
 				]
 			) modules in
+			let modules = match !leaks with
+				| [] -> modules
+				| leaks ->
+					let jleaks = List.map (fun (m,leaks) ->
+						let jleaks = List.map (fun s -> jobject ["path",jstring s;"size",jint 0]) leaks in
+						jobject [
+							"path",jstring (s_type_path m.m_path);
+							"size",jint 0;
+							"fields",jarray jleaks;
+						]
+					) leaks in
+					jobject [
+						"path",jstring "?LEAKS";
+						"size",jint 0;
+						"types",jarray jleaks;
+					] :: modules
+			in
 			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
 			let jo = jobject [
 				"context",j;
@@ -350,15 +386,12 @@ module Memory = struct
 			print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
 			let modules = collect_memory_stats c in
 			let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-			List.iter (fun (m,size,(reached,deps,out)) ->
+			List.iter (fun (m,size,(reached,deps,out,leaks)) ->
 				let key = m.m_extra.m_sign in
 				if key <> !cur_key then begin
 					print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
 					cur_key := key;
 				end;
-				let sign md =
-					if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-				in
 				print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
 				(if reached then try
 					incr mcount;
@@ -372,16 +405,13 @@ module Memory = struct
 							raise Exit;
 						end;
 					in
-					if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-					PMap.iter (fun _ md ->
-						if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
-					) out;
+					List.iter leak leaks;
 				with Exit ->
 					());
 				if verbose then begin
 					print (Printf.sprintf "      %d total deps" (List.length deps));
 					PMap.iter (fun _ md ->
-						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
+						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
 					) m.m_extra.m_deps;
 				end;
 				flush stdout
