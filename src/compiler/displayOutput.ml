@@ -179,7 +179,7 @@ module Memory = struct
 	open CompilationServer
 
 	let update_module_type_deps deps md =
-		deps := Obj.repr md :: !deps;
+		let deps = ref (Obj.repr md :: deps) in
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c ->
@@ -192,7 +192,8 @@ module Memory = struct
 				List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
 			| TTypeDecl t -> deps := Obj.repr t :: !deps;
 			| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-		) md.m_types
+		) md.m_types;
+		!deps
 
 	let rec scan_module_deps m h =
 		if Hashtbl.mem h m.m_id then
@@ -226,15 +227,14 @@ module Memory = struct
 			scan_module_deps m mdeps;
 			let deps = ref [Obj.repr null_module] in
 			let out = ref all_modules in
-			Hashtbl.iter (fun _ md ->
+			let deps = Hashtbl.fold (fun _ md deps ->
 				out := PMap.remove md.m_id !out;
 				if m == md then
-					()
+					deps
 				else
 					update_module_type_deps deps md;
-			) mdeps;
+			) mdeps !deps in
 			let out = !out in
-			let deps = !deps in
 			let chk = get_out out in
 			let inf = Objsize.objsize m deps chk in
 			let leaks = if inf.reached then collect_leaks m deps out else [] in
@@ -273,14 +273,14 @@ module Memory = struct
 		List.iter (fun (m,size,(reached,deps,out,mleaks)) ->
 			let (_,l,leaks,mem) = get_context m.m_extra.m_sign in
 			if reached then leaks := (m,mleaks) :: !leaks;
-			let deps = ref deps in
-			update_module_type_deps deps m;
-			let deps = !deps in
+			let deps = update_module_type_deps deps m in
 			let types = List.map (fun md ->
 				let fields,inf = match md with
 					| TClassDecl c ->
+						let own_deps = ref deps in
 						let field acc cf =
 							let repr = Obj.repr cf in
+							own_deps := List.filter (fun repr' -> repr != repr') !own_deps;
 							let deps = List.filter (fun repr' -> repr' != repr) deps in
 							let size = Objsize.size_with_headers (Objsize.objsize cf deps []) in
 							(cf.cf_name,size) :: acc
@@ -295,7 +295,7 @@ module Memory = struct
 							]
 						) fields in
 						let repr = Obj.repr c in
-						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						let deps = List.filter (fun repr' -> repr' != repr) !own_deps in
 						fields,Objsize.objsize c deps []
 					| TEnumDecl en ->
 						let repr = Obj.repr en in
@@ -310,17 +310,25 @@ module Memory = struct
 						let deps = List.filter (fun repr' -> repr' != repr) deps in
 						[],Objsize.objsize a deps []
 				in
-				md,Objsize.size_with_headers inf,fields
-			) m.m_types in
-			let types = List.sort (fun (_,size1,_) (_,size2,_) -> compare size2 size1) types in
-			let ja = List.map (fun (md,size,fields) ->
-				jobject [
+				let size = Objsize.size_with_headers inf in
+				let jo = jobject [
 					"path",jstring (s_type_path (t_infos md).mt_path);
 					"size",jint size;
 					"fields",jarray fields;
-				]
-			) types in
-			l := (m,size,jarray ja) :: !l;
+				] in
+				jo,size
+			) m.m_types in
+			let types = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) types in
+			let types =
+				let inf = Objsize.objsize m.m_extra deps [] in
+				let size = Objsize.size_with_headers inf in
+				(jobject [
+					"path",jstring "m_extra";
+					"size",jint size;
+					"fields",jarray []
+				],size) :: types
+			in
+			l := (m,size,jarray (List.map fst types)) :: !l;
 			mem := !mem + size;
 		) modules;
 		let ja = Hashtbl.fold (fun key (sign,modules,leaks,size) l ->
