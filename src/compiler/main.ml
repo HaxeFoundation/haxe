@@ -486,7 +486,7 @@ let create_typer_context ctx native_libs =
 	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
 	(* Native lib pass 1: Register *)
-	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) native_libs in
+	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 	(* Native lib pass 2: Initialize *)
 	List.iter (fun f -> f()) fl;
 	Typer.create com
