@@ -90,6 +90,7 @@ let run com =
 			(match c.cl_init with None -> () | Some e -> run_on_expr com e);
 			List.iter (run_on_field com) c.cl_ordered_statics;
 			List.iter (run_on_field com) c.cl_ordered_fields;
+			curclass := null_class;
 		| _ ->
 			()
 	) com.types

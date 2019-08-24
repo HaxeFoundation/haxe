@@ -119,6 +119,7 @@ typedef HaxeMemoryResult = {
 		final nativeLibCache:Int;
 		final macroInterpreter:Int;
 		final completionResult:Int;
+		final ?additionalSizes:Array<{name:String, size:Int}>;
 	}
 }
 
