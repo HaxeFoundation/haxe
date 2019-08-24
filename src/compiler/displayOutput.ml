@@ -373,6 +373,8 @@ module Memory = struct
 				"parserCache",jint (mem_size cs.cache.c_files);
 				"moduleCache",jint (mem_size cs.cache.c_modules);
 				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
+				"macroInterpreter",jint (mem_size MacroContext.macro_interp_cache);
+				"completionResult",jint (mem_size (DisplayException.last_completion_result));
 			]
 		]
 

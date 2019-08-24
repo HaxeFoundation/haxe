@@ -117,6 +117,8 @@ typedef HaxeMemoryResult = {
 		final parserCache:Int;
 		final moduleCache:Int;
 		final nativeLibCache:Int;
+		final macroInterpreter:Int;
+		final completionResult:Int;
 	}
 }
 
