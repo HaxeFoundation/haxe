@@ -178,6 +178,14 @@ let print_positions pl =
 module Memory = struct
 	open CompilationServer
 
+	let clear_descendants md =
+		List.iter (function
+			| TClassDecl c ->
+				c.cl_descendants <- []
+			| _ ->
+				()
+		) md.m_types
+
 	let update_module_type_deps deps md =
 		let deps = ref (Obj.repr md :: deps) in
 		List.iter (fun t ->
@@ -234,6 +242,7 @@ module Memory = struct
 				else
 					update_module_type_deps deps md;
 			) mdeps !deps in
+			clear_descendants m;
 			let out = !out in
 			let chk = get_out out in
 			let inf = Objsize.objsize m deps chk in
