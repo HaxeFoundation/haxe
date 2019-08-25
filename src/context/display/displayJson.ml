@@ -79,6 +79,7 @@ type handler_context = {
 	display : display_handler;
 	send_result : Json.t -> unit;
 	send_error : 'a . Json.t list -> 'a;
+	send_notification : (string * (string * Json.t) list) -> unit;
 }
 
 let handler =
@@ -277,9 +278,14 @@ let parse_input com input report_times =
 		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
+	let send_notification (name,jl) =
+		send_json (JsonRpc.notification name (Some (jobject jl)))
+	in
+
 	com.json_out <- Some({
 		send_result = send_result;
 		send_error = send_error;
+		send_notification = send_notification;
 		jsonrpc = jsonrpc
 	});
 
@@ -296,6 +302,7 @@ let parse_input com input report_times =
 		display = display;
 		send_result = send_result;
 		send_error = send_error;
+		send_notification = send_notification;
 	} in
 
 	JsonRpc.handle_jsonrpc_error (fun () ->

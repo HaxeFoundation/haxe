@@ -171,6 +171,7 @@ type shared_context = {
 type json_api = {
 	send_result : Json.t -> unit;
 	send_error : Json.t list -> unit;
+	send_notification : (string * (string * Json.t) list) -> unit;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
@@ -836,3 +837,13 @@ let adapt_defines_to_macro_context defines =
 	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
 	values := PMap.add "macro" "1" !values;
 	{values = !values; defines_signature = None }
+
+let maybe_send_notification com f = match com.json_out with
+	| Some api ->
+		api.send_notification (f())
+	| None ->
+		()
+
+let get_notification_function com = match com.json_out with
+	| Some api -> (fun f -> api.send_notification (f()))
+	| None -> (fun _ -> ())
