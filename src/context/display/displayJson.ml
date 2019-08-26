@@ -10,7 +10,7 @@ open Genjson
 open Type
 
 (* Generate the JSON of our times. *)
-let json_of_times root =
+let json_of_times (root:Timer.timer_node) =
 	let rec loop node =
 		if node == root || node.time > 0.0009 then begin
 			let children = ExtList.List.filter_map loop node.children in

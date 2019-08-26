@@ -557,7 +557,7 @@ let init_new_compilation sctx =
 	stats.s_classes_built := 0;
 	stats.s_methods_typed := 0;
 	stats.s_macros_called := 0;
-	Hashtbl.clear Timer.htimers;
+	Timer.clear_times();
 	sctx.compilation_step <- sctx.compilation_step + 1;
 	sctx.compilation_mark <- sctx.mark_loop;
 	start_time := get_time()
