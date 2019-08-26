@@ -315,7 +315,7 @@ module Reader = struct
 	and finish_escaped_char buf lexbuf =
 		match%sedlex lexbuf with
 		| '"' | '\\' | '/' ->
-			Buffer.add_char buf (char_of_int (Sedlexing.lexeme_char lexbuf 0))
+			Buffer.add_char buf (Uchar.to_char (Sedlexing.lexeme_char lexbuf 0))
 		| 'b' ->
 			Buffer.add_char buf '\b'
 		| 'f' ->
@@ -329,7 +329,7 @@ module Reader = struct
 		| 'u', hex, hex, hex, hex ->
 			let a,b,c,d =
 				match Sedlexing.lexeme lexbuf with
-				| [|_; a; b; c; d|] -> a, b, c, d
+				| [|_; a; b; c; d|] -> Uchar.to_int a, Uchar.to_int b, Uchar.to_int c, Uchar.to_int d
 				| _ -> assert false
 			in
 			let x =
@@ -347,7 +347,7 @@ module Reader = struct
 		| "\\u", hex, hex, hex, hex ->
 			let a,b,c,d =
 				match Sedlexing.lexeme lexbuf with
-				| [|_;_ ; a; b; c; d|] -> a, b, c, d
+				| [|_;_ ; a; b; c; d|] -> Uchar.to_int a, Uchar.to_int b, Uchar.to_int c, Uchar.to_int d
 				| _ -> assert false
 			in
 			let y =

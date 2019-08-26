@@ -284,7 +284,7 @@ let expr ctx str =
 	output ctx str;
 	output ctx ";\n"
 
-let unamed_field fid = "$_f" ^ string_of_int fid
+let unamed_field fid = "f$" ^ string_of_int fid
 
 let obj_field fid name =
 	if name = "" then unamed_field fid else ident name
@@ -746,7 +746,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 				else
 					sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
-			| HDyn , _ | _, HDyn ->
+			| (HDyn | HFun _), _ | _, (HDyn | HFun _) ->
 				let inv = if op = CGt || op = CGte then "&& i != hl_invalid_comparison " else "" in
 				sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 %s) goto %s; }" (reg a) (reg b) (s_comp op) inv (label d)
 			| HObj oa, HObj _ ->
@@ -769,7 +769,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
@@ -797,7 +797,7 @@ let generate_function ctx f =
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
-			define "extern vbyte %s;" ctx.bytes_names.(idx);
+			define "extern vbyte %s[];" ctx.bytes_names.(idx);
 			sexpr "%s = %s" (reg r) ctx.bytes_names.(idx)
 		| OString (r,idx) ->
 			sexpr "%s = (vbyte*)%s" (reg r) (string ctx idx)
@@ -1129,19 +1129,19 @@ let make_types_idents htypes =
 	let rec desc_string d =
 		match d with
 		| DSimple (HNull t) ->
-			"$t_nul_" ^ tstr t
+			"t$nul_" ^ tstr t
 		| DSimple (HRef t) ->
-			"$t_ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
+			"t$ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
 		| DSimple t ->
-			"$t_" ^ tstr t
+			"t$_" ^ tstr t
 		| DFun _ ->
-			"$t_fun_" ^ make_sign d
+			"t$fun_" ^ make_sign d
 		| DNamed n ->
-			"$t_" ^ (String.concat "_" (ExtString.String.nsplit n "."))
+			"t$" ^ (String.concat "_" (ExtString.String.nsplit n "."))
 		| DVirtual _ ->
-			"$t_vrt_" ^ (make_sign d)
+			"t$vrt_" ^ (make_sign d)
 		| DContext _ ->
-			"$t_ctx_" ^ (make_sign d)
+			"t$ctx_" ^ (make_sign d)
 	in
 	PMap.mapi (fun t _ -> desc_string (make_desc t)) htypes
 
@@ -1163,7 +1163,7 @@ let make_global_names code gnames =
 	let gnames_used = Hashtbl.create 0 in
 	let gnames = Hashtbl.create 0 in
 	Array.iter (fun (str,g) ->
-		let id = (if Hashtbl.mem is_cstr g then "$s_" else "$g_") ^ (if String.length str > 32 then short_digest str else let i = valid_ident str in if i = "_" || (try Hashtbl.find hstrings i with Not_found -> false) then short_digest str else i) in
+		let id = (if Hashtbl.mem is_cstr g then "s$" else "g$") ^ (if String.length str > 32 then short_digest str else let i = valid_ident str in if i = "_" || (try Hashtbl.find hstrings i with Not_found -> false) then short_digest str else i) in
 		let rec loop id k =
 			let rid = if k = 0 then id else id ^ "_" ^ string_of_int k in
 			if Hashtbl.mem gnames_used rid then loop id (k+1) else rid
@@ -1280,7 +1280,7 @@ let make_modules ctx all_types =
 	if ep >= 0 then begin
 		let m = get_module "hl/init" in
 		add m ep;
-		ctx.ftable.(ep).fe_name <- "$init";
+		ctx.ftable.(ep).fe_name <- "fun$init";
 	end;
 	List.iter (fun m ->
 		let rec get_deps acc = function
@@ -1335,6 +1335,13 @@ let make_modules ctx all_types =
 let generate_module_types ctx m =
 	let def_name = "INC_" ^ String.concat "__" (ExtString.String.nsplit m.m_name "/") in
 	let line = line ctx and expr = expr ctx and sexpr fmt = Printf.ksprintf (expr ctx) fmt in
+	let type_name t =
+		match t with
+		| HObj o | HStruct o -> o.pname
+		| HEnum e -> e.ename
+		| _ -> ""
+	in
+	let types = List.sort (fun t1 t2 -> compare (type_name t1) (type_name t2)) m.m_types in
 	define ctx (sprintf "#ifndef %s" def_name);
 	define ctx (sprintf "#define %s" def_name);
 	List.iter (fun t ->
@@ -1344,7 +1351,7 @@ let generate_module_types ctx m =
 			ctx.defined_types <- PMap.add t () ctx.defined_types;
 			define ctx (sprintf "typedef struct _%s *%s;" name name);
 		| _ -> ()
-	) m.m_types;
+	) types;
 	line "";
 	List.iter (fun t ->
 		match t with
@@ -1388,7 +1395,7 @@ let generate_module_types ctx m =
 			) e.efields
 		| _ ->
 			()
-	) m.m_types;
+	) types;
 	line "#endif";
 	line ""
 
@@ -1695,7 +1702,16 @@ let write_c com file (code:code) gnames =
 			define ctx "#define HLC_BOOT";
 			define ctx "#include <hlc.h>";
 			if m.m_types <> [] then define ctx (sprintf "#include <%s.h>" m.m_name);
-			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) m.m_functions;
+			let file_pos f =
+				match f.fe_decl with
+				| Some f when Array.length f.debug > 0 ->
+					let fid, p = f.debug.(Array.length f.debug - 1) in
+					(code.strings.(fid), p)
+				| _ ->
+					("",0)
+			in
+			let funcs = List.sort (fun f1 f2 -> compare (file_pos f1) (file_pos f2)) m.m_functions in
+			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) funcs;
 		end;
 	) modules;
 

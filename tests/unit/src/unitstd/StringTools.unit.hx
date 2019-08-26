@@ -128,12 +128,12 @@ var str = "abc";
 StringTools.fastCodeAt(str, 0) == "a".code;
 StringTools.fastCodeAt(str, 1) == "b".code;
 StringTools.fastCodeAt(str, 2) == "c".code;
+StringTools.fastCodeAt(String.fromCharCode(128), 0) == 128;
+StringTools.fastCodeAt(String.fromCharCode(255), 0) == 255;
 StringTools.isEof(StringTools.fastCodeAt(str, 0)) == false;
 StringTools.isEof(StringTools.fastCodeAt(str, 1)) == false;
 StringTools.isEof(StringTools.fastCodeAt(str, 2)) == false;
 StringTools.isEof(StringTools.fastCodeAt(str, 3)) == true;
-StringTools.fastCodeAt(String.fromCharCode(128), 0) == 128;
-StringTools.fastCodeAt(String.fromCharCode(255), 0) == 255;
 StringTools.isEof(StringTools.fastCodeAt(str, 2)) == false;
 StringTools.isEof(StringTools.fastCodeAt(str, 3)) == true;
 StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
@@ -148,3 +148,20 @@ StringTools.isEof( -1) == true;
 #else
 StringTools.isEof(0) == true;
 #end
+
+// iterators via @:using
+var s = 'zя𠜎';
+#if !(target.unicode)
+var expectedCodes = [122, 209, 143, 240, 160, 156, 142];
+#elseif utf16
+var expectedCodes = [122, 1103, 55361, 57102];
+#else
+var expectedCodes = [122, 1103, 132878];
+#end
+var expectedKeys = [for(i in 0...expectedCodes.length) i];
+// iterator()
+aeq(expectedCodes, [for(c in StringTools.iterator(s)) c]);
+// keyValueIterator()
+var keyCodes = [for(i => c in StringTools.keyValueIterator(s)) [i, c]];
+aeq(expectedKeys, keyCodes.map(a -> a[0]));
+aeq(expectedCodes, keyCodes.map(a -> a[1]));

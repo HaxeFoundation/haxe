@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package neko;
 
 /**
 	A seeded pseudo-random generator.
-*/
+**/
 class Random {
-
-	var r : Dynamic;
+	var r:Dynamic;
 
 	/**
 		Create a new random with random seed.
@@ -38,26 +38,26 @@ class Random {
 	/**
 		Set the generator seed.
 	**/
-	public function setSeed( s : Int ) {
-		random_set_seed(r,s);
+	public function setSeed(s:Int) {
+		random_set_seed(r, s);
 	}
 
 	/**
 		Return a random integer modulo max.
 	**/
-	public function int( max : Int ) : Int {
-		return random_int(r,max);
+	public function int(max:Int):Int {
+		return random_int(r, max);
 	}
 
 	/**
 		Return a random float.
 	**/
-	public function float() : Float {
+	public function float():Float {
 		return random_float(r);
 	}
 
-	static var random_new = Lib.load("std","random_new",0);
-	static var random_set_seed = Lib.load("std","random_set_seed",2);
-	static var random_int = Lib.load("std","random_int",2);
-	static var random_float = Lib.load("std","random_float",1);
+	static var random_new = Lib.load("std", "random_new", 0);
+	static var random_set_seed = Lib.load("std", "random_set_seed", 2);
+	static var random_int = Lib.load("std", "random_int", 2);
+	static var random_float = Lib.load("std", "random_float", 1);
 }

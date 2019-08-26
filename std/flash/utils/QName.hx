@@ -1,7 +1,9 @@
 package flash.utils;
 
 extern final class QName {
-	var localName(default,never) : String;
-	var uri(default,never) : Dynamic;
+	@:flash.property var localName(get,never) : String;
+	@:flash.property var uri(get,never) : Dynamic;
 	function new(?namespace : Dynamic, ?name : Dynamic) : Void;
+	private function get_localName() : String;
+	private function get_uri() : Dynamic;
 }

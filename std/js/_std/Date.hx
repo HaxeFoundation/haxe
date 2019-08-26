@@ -20,30 +20,38 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi extern class Date {
+	@:pure function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void;
+	@:pure function getTime():Float;
+	@:pure function getHours():Int;
+	@:pure function getMinutes():Int;
+	@:pure function getSeconds():Int;
+	@:pure function getFullYear():Int;
+	@:pure function getMonth():Int;
+	@:pure function getDate():Int;
+	@:pure function getDay():Int;
 
-	@:pure function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
-	@:pure function getTime() : Float;
-	@:pure function getHours() : Int;
-	@:pure function getMinutes() : Int;
-	@:pure function getSeconds() : Int;
-	@:pure function getFullYear() : Int;
-	@:pure function getMonth() : Int;
-	@:pure function getDate() : Int;
-	@:pure function getDay() : Int;
+	@:pure function getUTCHours():Int;
+	@:pure function getUTCMinutes():Int;
+	@:pure function getUTCSeconds():Int;
+	@:pure function getUTCFullYear():Int;
+	@:pure function getUTCMonth():Int;
+	@:pure function getUTCDate():Int;
+	@:pure function getUTCDay():Int;
+	@:pure function getTimezoneOffset():Int;
 
-	@:pure inline function toString() : String {
+	@:pure inline function toString():String {
 		return @:privateAccess HxOverrides.dateStr(this);
 	}
 
-	@:pure static inline function now() : Date {
+	@:pure static inline function now():Date {
 		return js.Syntax.construct(Date);
 	}
 
-	@:pure static inline function fromTime( t : Float ) : Date {
+	@:pure static inline function fromTime(t:Float):Date {
 		return js.Syntax.construct(Date, t);
 	}
 
-	@:pure static inline function fromString( s : String ) : Date {
+	@:pure static inline function fromString(s:String):Date {
 		return @:privateAccess HxOverrides.strDate(s);
 	}
 }

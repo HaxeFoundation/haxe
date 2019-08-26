@@ -675,7 +675,7 @@ class local_safety (mode:safety_mode) =
 		*)
 		method function_declared (immediate_execution:bool) (fn:tfunc) =
 			let scope =
-				if immediate_execution then
+				if immediate_execution || mode = SMLoose then
 					new safety_scope mode STImmediateClosure self#get_current_scope#get_safe_locals self#get_current_scope#get_never_safe
 				else
 					new safety_scope mode STClosure (Hashtbl.create 100) (Hashtbl.create 100)
@@ -715,7 +715,7 @@ class local_safety (mode:safety_mode) =
 			if not (is_nullable_type expr.etype) then
 				true
 			else
-				let captured =
+				let captured () =
 					match expr.eexpr with
 						| TLocal local_var ->
 							let rec traverse scopes =
@@ -732,7 +732,7 @@ class local_safety (mode:safety_mode) =
 							traverse scopes
 						| _ -> false
 				in
-				(mode = SMLoose || not captured) && self#get_current_scope#is_safe expr
+				(mode = SMLoose || not (captured())) && self#get_current_scope#is_safe expr
 		(**
 			This method should be called upon passing `while`.
 			It collects locals which are checked against `null` and executes callbacks for expressions with proper statuses of locals.
@@ -947,22 +947,32 @@ class expr_checker mode immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
-			if self#is_nullable_expr expr && not (is_nullable_type to_type) then
-				false
-			else begin
-				let expr_type = unfold_null expr.etype in
-				try
-					new unificator#unify expr_type to_type;
-					true
-				with
-					| Safety_error err ->
-						self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
-						(* returning `true` because error is already logged in the line above *)
-						true
-					| e ->
-						fail ~msg:"Null safety unification failure" expr.epos __POS__
-				(* can_pass_type expr.etype to_type *)
-			end
+			match expr.eexpr, to_type with
+				| TObjectDecl fields, TAnon to_type ->
+					List.for_all
+						(fun ((name, _, _), field_expr) ->
+							try
+								let field_to_type = PMap.find name to_type.a_fields in
+								self#can_pass_expr field_expr field_to_type.cf_type p
+							with Not_found -> false)
+						fields
+				| _, _ ->
+					if self#is_nullable_expr expr && not (is_nullable_type to_type) then
+						false
+					else begin
+						let expr_type = unfold_null expr.etype in
+						try
+							new unificator#unify expr_type to_type;
+							true
+						with
+							| Safety_error err ->
+								self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
+								(* returning `true` because error is already logged in the line above *)
+								true
+							| e ->
+								fail ~msg:"Null safety unification failure" expr.epos __POS__
+						(* can_pass_type expr.etype to_type *)
+					end
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
 		*)
@@ -1122,7 +1132,7 @@ class expr_checker mode immediate_execution report =
 		method private check_function ?(immediate_execution=false) fn =
 			local_safety#function_declared immediate_execution fn;
 			return_types <- fn.tf_type :: return_types;
-			if immediate_execution then
+			if immediate_execution || mode = SMLoose then
 				begin
 					(* Start pretending to ignore errors *)
 					is_pretending <- true;
@@ -1272,7 +1282,12 @@ class expr_checker mode immediate_execution report =
 		method private check_call callee args p =
 			if self#is_nullable_expr callee then
 				self#error "Cannot call a nullable value." [callee.epos; p];
-			self#check_expr callee;
+			(match callee.eexpr with
+				| TFunction fn | TParenthesis { eexpr = TFunction fn } ->
+					self#check_function ~immediate_execution:true fn
+				| _ ->
+					self#check_expr callee
+			);
 			match follow callee.etype with
 				| TFun (types, _) ->
 					self#check_args callee args types

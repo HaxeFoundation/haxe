@@ -20,7 +20,7 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) ->
+		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" ->
 			Hashtbl.add pmin_map e.epos.pmin v;
 			let p = match eo with
 				| None -> e.epos
@@ -69,6 +69,7 @@ let check_other_things com e =
 			no_effect e.epos;
 		| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ | TIdent _ ->
 			()
+		| TField (_, fa) when PurityState.is_explicitly_impure fa -> ()
 		| TFunction tf ->
 			loop false tf.tf_expr
 		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
@@ -189,6 +190,19 @@ module Printer = struct
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) dctx.removable_code;
+		Hashtbl.iter (fun p s ->
+			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
+		) DeprecationCheck.warned_positions;
+		Hashtbl.iter (fun file ranges ->
+			List.iter (fun (p,e) ->
+				let jo = JObject [
+					"expr",JObject [
+						"string",JString (Ast.Printer.s_expr e)
+					]
+				] in
+				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
+			) ranges
+		) com.shared.shared_display_information.dead_blocks;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [

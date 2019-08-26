@@ -29,6 +29,11 @@ open Common
 open Error
 
 let type_function_arg ctx t e opt p =
+	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
+	(* delay ctx PTypeField (fun() ->
+		if ExtType.is_void (follow t) then
+			error "Arguments of type Void are not allowed" p
+	); *)
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
 		ctx.t.tnull t, e
@@ -123,14 +128,7 @@ let type_function ctx args ret fmode f do_display p =
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
-		try
-			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
-			let e = Optimizer.optimize_completion_expr e f.f_args in
-			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
-			type_expr ctx e NoValue
-		with
-		| Parser.TypePath (_,None,_,_) | Exit ->
-			type_expr ctx e NoValue
+		type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

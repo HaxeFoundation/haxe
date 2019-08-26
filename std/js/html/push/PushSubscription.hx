@@ -24,6 +24,8 @@
 
 package js.html.push;
 
+import js.lib.Promise;
+
 /**
 	The `PushSubscription` interface of the Push API provides a subcription's URL endpoint and allows unsubscription from a push service.
 
@@ -33,32 +35,32 @@ package js.html.push;
 **/
 @:native("PushSubscription")
 extern class PushSubscription {
-	
+
 	/**
 		A `USVString` containing the endpoint associated with the push subscription.
 	**/
 	var endpoint(default,null) : String;
-	
+
 	/**
 		An object containing the options used to create the subscription.
 	**/
 	var options(default,null) : PushSubscriptionOptions;
-	
+
 	/** @throws DOMError */
 	function new( initDict : PushSubscriptionInit ) : Void;
-	
+
 	/**
 		Returns an `ArrayBuffer` which contains the client's public key, which can then be sent to a server and used in encrypting push message data.
 		@throws DOMError
 	**/
 	function getKey( name : PushEncryptionKeyName ) : js.lib.ArrayBuffer;
-	
+
 	/**
 		Starts the asynchronous process of unsubscribing from the push service, returning a `Promise` that resolves to a `Boolean` when the current subscription is successfully unregistered.
 		@throws DOMError
 	**/
 	function unsubscribe() : Promise<Bool>;
-	
+
 	/**
 		Standard serializer — returns a JSON representation of the subscription properties.
 		@throws DOMError

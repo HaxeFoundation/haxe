@@ -674,6 +674,8 @@ module StdCrc32 = struct
 end
 
 module StdDate = struct
+	open Unix
+
 	let encode_date d = encode_instance key_Date ~kind:(IDate d)
 
 	let this vthis = match vthis with
@@ -688,29 +690,33 @@ module StdDate = struct
 		| 19 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\) \\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = int_of_string (Str.matched_group 4 s);
 				tm_min = int_of_string (Str.matched_group 5 s);
 				tm_sec = int_of_string (Str.matched_group 6 s);
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 10 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = 0;
 				tm_min = 0;
 				tm_sec = 0;
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 8 ->
 			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
@@ -723,15 +729,29 @@ module StdDate = struct
 			exc_string ("Invalid date format : " ^ s)
 	)
 
-	let getDate = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mday)
-	let getDay = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_wday)
-	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error Unix.localtime (this vthis)).tm_year) + 1900))
-	let getHours = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_hour)
-	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_min)
-	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mon)
-	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_sec)
+	let getDate = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mday)
+	let getDay = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_wday)
+	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error localtime (this vthis)).tm_year) + 1900))
+	let getHours = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_hour)
+	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_min)
+	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mon)
+	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_sec)
+	let getUTCDate = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mday)
+	let getUTCDay = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_wday)
+	let getUTCFullYear = vifun0 (fun vthis -> vint (((catch_unix_error gmtime (this vthis)).tm_year) + 1900))
+	let getUTCHours = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_hour)
+	let getUTCMinutes = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_min)
+	let getUTCMonth = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mon)
+	let getUTCSeconds = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_sec)
 	let getTime = vifun0 (fun vthis -> vfloat ((this vthis) *. 1000.))
-	let now = vfun0 (fun () -> encode_date (catch_unix_error Unix.time()))
+	let getTimezoneOffset = vifun0 (fun vthis ->
+		let tmLocal = catch_unix_error localtime (this vthis) in
+		let tmUTC = catch_unix_error gmtime (this vthis) in
+		let tsLocal = fst (catch_unix_error mktime tmLocal) in
+		let tsUTC = fst (catch_unix_error mktime tmUTC) in
+		vint (int_of_float ((tsUTC -. tsLocal) /. 60.))
+	)
+	let now = vfun0 (fun () -> encode_date (catch_unix_error time()))
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
@@ -1169,6 +1189,7 @@ module StdFileSystem = struct
 
 	let patch_path s =
 		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
+		else if s = "/" then "/"
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
@@ -1201,7 +1222,13 @@ module StdFileSystem = struct
 	)
 
 	let readDirectory = vfun1 (fun dir ->
-		let d = try Sys.readdir (decode_string dir) with Sys_error s -> exc_string s in
+		let dir = decode_string dir in
+		let d = try
+			if not (Sys.is_directory (patch_path dir)) then exc_string "No such directory";
+			Sys.readdir dir
+		with Sys_error s ->
+			exc_string s
+		in
 		encode_array (Array.to_list (Array.map (fun s -> create_unknown s) d))
 	)
 
@@ -1422,6 +1449,10 @@ module StdLock = struct
 	)
 end
 
+let lineEnd = match Sys.os_type with
+	| "Win32" | "Cygwin" -> "\r\n"
+	| _ -> "\n"
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -1430,7 +1461,7 @@ module StdLog = struct
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
 		let s = match infos with
-			| VNull -> Printf.sprintf "%s\n" s
+			| VNull -> (Printf.sprintf "%s" s) ^ lineEnd
 			| _ ->  let infos = decode_object infos in
 				let file_name = decode_string (object_field infos key_fileName) in
 				let line_number = decode_int (object_field infos key_lineNumber) in
@@ -1438,7 +1469,7 @@ module StdLog = struct
 					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
 					| _ -> [s]
 				in
-				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
 		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
@@ -1803,6 +1834,7 @@ module StdReflect = struct
 	)
 
 	let copy = vfun1 (fun o -> match vresolve o with
+		| VNull -> VNull
 		| VObject o -> VObject { o with ofields = Array.copy o.ofields }
 		| VInstance vi -> vinstance {
 			ifields = Array.copy vi.ifields;
@@ -1854,11 +1886,15 @@ module StdReflect = struct
 	)
 
 	let getProperty = vfun2 (fun o name ->
-		let name = decode_vstring name in
-		let name_get = hash (concat r_get_ name).sstring in
-		let vget = field o name_get in
-		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash name.sstring)
+		if o = VNull then
+			vnull
+		else begin
+			let name = decode_vstring name in
+			let name_get = hash (concat r_get_ name).sstring in
+			let vget = field o name_get in
+			if vget <> VNull then call_value_on o vget []
+			else dynamic_field o (hash name.sstring)
+		end
 	)
 
 	let hasField = vfun2 (fun o field ->
@@ -1970,7 +2006,7 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		catch_unix_error Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error (Unix.connect this) (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
@@ -2102,11 +2138,13 @@ module StdStd = struct
 		| _ -> vfalse
 	)
 
-	let instance = vfun2 (fun v t -> match t with
+	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
 			if is v proto.ppath then v else vnull
 		| _ -> vfalse
 	)
+
+	let instance = downcast
 
 	let string = vfun1 (fun v -> match v with
 		| VString _ -> v
@@ -2148,24 +2186,6 @@ module StdString = struct
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
 		else vint (char_at this i)
-	)
-
-	let iterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
-	)
-
-	let keyValueIterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_key_value_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -2558,7 +2578,7 @@ module StdSys = struct
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ "\n");
+		com.print (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -2566,11 +2586,11 @@ module StdSys = struct
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
 		match com.main_class with
-		| None -> assert false
+		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
 			| Some(Type.TInst (c, _)) -> create_unknown (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
-			| _ -> assert false
+			| _ -> vnull
 	)
 
 	let putEnv = vfun2 (fun s v ->
@@ -2975,7 +2995,7 @@ module StdUtf8 = struct
 		| v -> unexpected_value v "string"
 
 	let addChar = vifun1 (fun vthis c ->
-		UTF8.Buf.add_char (this vthis) (UChar.uchar_of_int (decode_int c));
+		UTF8.Buf.add_char (this vthis) (UCharExt.uchar_of_int (decode_int c));
 		vnull
 	)
 
@@ -2992,7 +3012,7 @@ module StdUtf8 = struct
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
-			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			Bytes.unsafe_set buf !i (UCharExt.char_of uc);
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
@@ -3001,12 +3021,12 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UCharExt.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
 		let s = decode_string s in
-		UTF8.iter (fun uc -> ignore(call_value f [vint (UChar.int_of_uchar uc)])) s;
+		UTF8.iter (fun uc -> ignore(call_value f [vint (UCharExt.int_of_uchar uc)])) s;
 		vnull
 	)
 
@@ -3133,7 +3153,7 @@ let init_constructors builtins =
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None
-					| VArray va -> Some (Array.map decode_string va.avalues)
+					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
@@ -3201,7 +3221,6 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
-	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3314,7 +3333,15 @@ let init_standard_library builtins =
 		"getMinutes",StdDate.getMinutes;
 		"getMonth",StdDate.getMonth;
 		"getSeconds",StdDate.getSeconds;
+		"getUTCDate",StdDate.getUTCDate;
+		"getUTCDay",StdDate.getUTCDay;
+		"getUTCFullYear",StdDate.getUTCFullYear;
+		"getUTCHours",StdDate.getUTCHours;
+		"getUTCMinutes",StdDate.getUTCMinutes;
+		"getUTCMonth",StdDate.getUTCMonth;
+		"getUTCSeconds",StdDate.getUTCSeconds;
 		"getTime",StdDate.getTime;
+		"getTimezoneOffset",StdDate.getTimezoneOffset;
 		"toString",StdDate.toString;
 	];
 	init_fields builtins (["sys";"thread"],"Deque") [] [
@@ -3501,6 +3528,7 @@ let init_standard_library builtins =
 		"shutdown",StdSocket.shutdown;
 	];
 	init_fields builtins ([],"Std") [
+		"downcast",StdStd.downcast;
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
@@ -3514,8 +3542,6 @@ let init_standard_library builtins =
 	] [
 		"charAt",StdString.charAt;
 		"charCodeAt",StdString.charCodeAt;
-		"iterator",StdString.iterator;
-		"keyValueIterator",StdString.keyValueIterator;
 		"indexOf",StdString.indexOf;
 		"lastIndexOf",StdString.lastIndexOf;
 		"split",StdString.split;

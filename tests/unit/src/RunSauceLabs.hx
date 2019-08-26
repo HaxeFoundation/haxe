@@ -138,6 +138,8 @@ class RunSauceLabs {
 		var tags = [];
 		if (Sys.getEnv("TRAVIS") != null)
 			tags.push("TravisCI");
+		if (Sys.getEnv("TF_BUILD") != null)
+			tags.push("AzurePipelines");
 
 		var maxDuration = 60 * 5; //5 min
 		var commandTimeout = 60;  //60s
@@ -155,6 +157,18 @@ class RunSauceLabs {
 			if (Sys.getEnv("TRAVIS") != null) {
 				caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
 				caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
+			}
+			switch (Sys.getEnv("SAUCE_TUNNEL_ID")) {
+				case null:
+					//pass
+				case id:
+					caps.setField("tunnel-identifier", id);
+			}
+			switch (Sys.getEnv("SAUCE_BUILD")) {
+				case null:
+					//pass
+				case build:
+					caps.setField("build", build);
 			}
 
 			trials--;

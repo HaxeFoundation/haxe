@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
- /**
+/**
 	IntIterator is used for implementing interval iterations.
 
 	It is usually not used explicitly, but through its special syntax:
@@ -34,16 +34,15 @@
 	@see https://haxe.org/manual/lf-iterators.html
 **/
 class IntIterator {
-
-	var min : Int;
-	var max : Int;
+	var min:Int;
+	var max:Int;
 
 	/**
 		Iterates from `min` (inclusive) to `max` (exclusive).
 
 		If `max <= min`, the iterator will not act as a countdown.
 	**/
-	public inline function new( min : Int, max : Int ) {
+	public inline function new(min:Int, max:Int) {
 		this.min = min;
 		this.max = max;
 	}
@@ -63,5 +62,4 @@ class IntIterator {
 	public inline function next() {
 		return min++;
 	}
-
 }

@@ -164,15 +164,15 @@ let to_utf8 str p =
 		UTF8.Malformed_code ->
 			(* ISO to utf8 *)
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 	in
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
-		let c = UChar.code c in
+		let c = UCharExt.code c in
 		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
-		if c > 0x10000 then incr ccount;
+		if c >= 0x10000 then incr ccount;
 	) u8;
 	u8, !ccount
 
@@ -352,6 +352,18 @@ let fake_tnull =
 		a_params = ["T",t_dynamic];
 	}
 
+let get_rec_cache ctx t none_callback not_found_callback =
+	try
+		match !(List.assq t ctx.rec_cache) with
+		| None -> none_callback()
+		| Some t -> t
+	with Not_found ->
+		let tref = ref None in
+		ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
+		let t = not_found_callback tref in
+		ctx.rec_cache <- List.tl ctx.rec_cache;
+		t
+
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
@@ -359,17 +371,11 @@ let rec to_type ?tref ctx t =
 		| None -> HDyn
 		| Some t -> to_type ?tref ctx t)
 	| TType (td,tl) ->
-		let t = (try
-			match !(List.assq t ctx.rec_cache) with
-			| None -> abort "Unsupported recursive type" td.t_pos
-			| Some t -> t
-		with Not_found ->
-			let tref = ref None in
-			ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
-			let t = to_type ~tref ctx (apply_params td.t_params tl td.t_type) in
-			ctx.rec_cache <- List.tl ctx.rec_cache;
-			t
-		) in
+		let t =
+			get_rec_cache ctx t
+				(fun() -> abort "Unsupported recursive type" td.t_pos)
+				(fun tref -> to_type ~tref ctx (apply_params td.t_params tl td.t_type))
+		in
 		(match td.t_path with
 		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t
 		| _ -> t)
@@ -413,7 +419,7 @@ let rec to_type ?tref ctx t =
 		HDyn
 	| TEnum (e,_) ->
 		enum_type ~tref ctx e
-	| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
+	| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String(name,_)),_) },_)]) ->
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
@@ -454,7 +460,9 @@ let rec to_type ?tref ctx t =
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
-			to_type ?tref ctx (Abstract.get_underlying_type a pl)
+			get_rec_cache ctx t
+				(fun() -> HDyn)
+				(fun tref -> to_type ~tref ctx (Abstract.get_underlying_type a pl))
 
 and resolve_class ctx c pl statics =
 	let not_supported() =
@@ -798,7 +806,7 @@ let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
 let hold ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let rec loop l =
@@ -811,7 +819,7 @@ let hold ctx r =
 	a.a_hold <- r :: a.a_hold
 
 let free ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let last = ref true in
@@ -958,7 +966,7 @@ let captured_index ctx v =
 let real_name v =
 	let rec loop = function
 		| [] -> v.v_name
-		| (Meta.RealPath,[EConst (String name),_],_) :: _ -> name
+		| (Meta.RealPath,[EConst (String(name,_)),_],_) :: _ -> name
 		| _ :: l -> loop l
 	in
 	match loop v.v_meta with
@@ -2037,7 +2045,8 @@ and eval_expr ctx e =
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
-	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt]) ->
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt])
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "downcast" })) },[v;vt]) ->
 		let r = eval_expr ctx v in
 		hold ctx r;
 		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in
@@ -2797,8 +2806,16 @@ and eval_expr ctx e =
 		);
 		r
 	| TEnumParameter (ec,f,index) ->
-		let r = alloc_tmp ctx (match to_type ctx ec.etype with HEnum e -> let _,_,args = e.efields.(f.ef_index) in args.(index) | _ -> assert false) in
-		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
+		let pt, is_single = (match to_type ctx ec.etype with
+			| HEnum e ->
+				let _,_,args = e.efields.(f.ef_index) in
+				args.(index), Array.length e.efields = 1
+			| _ -> assert false
+		) in
+		let er = eval_expr ctx ec in
+		if is_single then op ctx (ONullCheck er); (* #7560 *)
+		let r = alloc_tmp ctx pt in
+		op ctx (OEnumField (r,er,f.ef_index,index));
 		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TContinue ->
 		before_break_continue ctx;
@@ -3269,10 +3286,19 @@ let generate_static ctx c f =
 			));
 		in
 		let rec loop = function
-			| (Meta.HlNative,[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(String(lib,_)),_);(EConst(String(name,_)),_)] ,_ ) :: _ ->
 				add_native lib name
-			| (Meta.HlNative,[(EConst(String(lib)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
+			| (Meta.HlNative,[(EConst(Float(ver)),_)] ,_ ) :: _ ->
+				let cur_ver = (try Common.raw_defined_value ctx.com "hl-ver" with Not_found -> "") in
+				if cur_ver < ver then
+					let gen_content() =
+						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ " or higher") null_pos));
+					in
+					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+				else
+				add_native "std" f.cf_name
 			| (Meta.HlNative,[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
 			| (Meta.HlNative,_ ,p) :: _ ->
@@ -3959,8 +3985,8 @@ let add_types ctx types =
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with
-					| [(EConst (String lib),_)] -> lib, ""
-					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
+					| [(EConst (String(lib,_)),_)] -> lib, ""
+					| [(EConst (String(lib,_)),_);(EConst (String(p,_)),_)] -> lib, p
 					| _ -> abort "hlNative on class requires library name" p
 					) in
 					(* adds :hlNative for all empty methods *)
@@ -3970,7 +3996,7 @@ let add_types ctx types =
 							(match f.cf_expr with
 							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
 								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
-								f.cf_meta <- (Meta.HlNative, [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
+								f.cf_meta <- (Meta.HlNative, [(EConst (String(lib,SDoubleQuotes)),p);(EConst (String(name,SDoubleQuotes)),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
 					) c.cl_ordered_statics
@@ -4028,7 +4054,7 @@ let generate com =
 		check ctx;
 		Hlinterp.check code false;
 	end;
-	let t = Timer.timer ["write";"hl"] in
+	let t = Timer.timer ["generate";"hl";"write"] in
 
 	let escape_command s =
 		let b = Buffer.create 0 in

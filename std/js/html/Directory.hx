@@ -24,11 +24,13 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 @:native("Directory")
 extern class Directory {
 	var name(default,null) : String;
 	var path(default,null) : String;
-	
+
 	/** @throws DOMError */
 	function new( path : String ) : Void;
 	/** @throws DOMError */

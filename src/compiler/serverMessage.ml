@@ -134,7 +134,7 @@ let message s =
 let gc_stats time =
 	if config.print_stats then begin
 		let stat = Gc.quick_stat() in
-		let size = (float_of_int stat.Gc.heap_words) *. 4. in
+		let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
 		print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" time (size /. (1024. *. 1024.)));
 	end
 

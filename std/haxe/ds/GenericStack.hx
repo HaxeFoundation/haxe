@@ -19,43 +19,66 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 /**
 	A cell of `haxe.ds.GenericStack`.
-  
+
 	@see https://haxe.org/manual/std-GenericStack.html
 **/
 #if (flash || cpp)
 @:generic
 #end
 class GenericCell<T> {
-	public var elt : T;
-	public var next : GenericCell<T>;
-	public function new(elt,next) { this.elt = elt; this.next = next; }
+	public var elt:T;
+	public var next:GenericCell<T>;
+
+	public function new(elt, next) {
+		this.elt = elt;
+		this.next = next;
+	}
 }
 
 #if cpp
 @:generic
 #if cppia
 private class GenericStackIterator<T> {
-	public var current : GenericCell<T>;
-	public function hasNext():Bool { return current!=null; }
-	public function next():T { var result = current.elt; current = current.next; return result; }
+	public var current:GenericCell<T>;
 
-	public function new(head) { current = head; }
+	public function hasNext():Bool {
+		return current != null;
+	}
+
+	public function next():T {
+		var result = current.elt;
+		current = current.next;
+		return result;
+	}
+
+	public function new(head) {
+		current = head;
+	}
 }
 #else
 private class GenericStackIterator<T> extends cpp.FastIterator<T> {
-	public var current : GenericCell<T>;
-	override public function hasNext():Bool { return current!=null; }
-	override public function next():T { var result = current.elt; current = current.next; return result; }
+	public var current:GenericCell<T>;
 
-	public function new(head) { current = head; }
+	override public function hasNext():Bool {
+		return current != null;
+	}
+
+	override public function next():T {
+		var result = current.elt;
+		current = current.next;
+		return result;
+	}
+
+	public function new(head) {
+		current = head;
+	}
 }
 #end
-
-
 #end
 
 /**
@@ -76,20 +99,18 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 @:generic
 #end
 class GenericStack<T> {
-
-	public var head : GenericCell<T>;
+	public var head:GenericCell<T>;
 
 	/**
 		Creates a new empty GenericStack.
 	**/
-	public function new() {
-	}
+	public function new() {}
 
 	/**
 		Pushes element `item` onto the stack.
 	**/
-	public inline function add( item : T ) {
-		head = new GenericCell<T>(item,head);
+	public inline function add(item:T) {
+		head = new GenericCell<T>(item, head);
 	}
 
 	/**
@@ -97,8 +118,8 @@ class GenericStack<T> {
 
 		If the stack is empty, null is returned.
 	**/
-	public inline function first() : Null<T> {
-		return if( head == null ) null else head.elt;
+	public inline function first():Null<T> {
+		return if (head == null) null else head.elt;
 	}
 
 	/**
@@ -106,9 +127,9 @@ class GenericStack<T> {
 
 		If the stack is empty, null is returned.
 	**/
-	public inline function pop() : Null<T> {
+	public inline function pop():Null<T> {
 		var k = head;
-		if( k== null )
+		if (k == null)
 			return null;
 		else {
 			head = k.next;
@@ -119,7 +140,7 @@ class GenericStack<T> {
 	/**
 		Tells if the stack is empty.
 	**/
-	public inline function isEmpty() : Bool {
+	public inline function isEmpty():Bool {
 		return (head == null);
 	}
 
@@ -132,12 +153,12 @@ class GenericStack<T> {
 
 		If no matching element is found, false is returned.
 	**/
-	public function remove( v : T ) : Bool {
+	public function remove(v:T):Bool {
 		var prev:GenericCell<T> = null;
 		var l = head;
-		while( l != null ) {
-			if( l.elt == v ) {
-				if( prev == null )
+		while (l != null) {
+			if (l.elt == v) {
+				if (prev == null)
 					head = l.next;
 				else
 					prev.next = l.next;
@@ -150,33 +171,31 @@ class GenericStack<T> {
 	}
 
 	#if cpp
-
 	/**
 		Returns an iterator over the elements of `this` GenericStack.
 	**/
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return new GenericStackIterator<T>(head);
 	}
-
 	#else
 
 	/**
 		Returns an iterator over the elements of `this` GenericStack.
 	**/
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		var l = head;
 		return {
-			hasNext : function() {
+			hasNext: function() {
 				return l != null;
 			},
-			next : function() {
+			next: function() {
 				var k = l;
 				l = k.next;
 				return k.elt;
 			}
 		};
 	}
-   #end
+	#end
 
 	/**
 		Returns a String representation of `this` GenericStack.
@@ -184,11 +203,10 @@ class GenericStack<T> {
 	public function toString() {
 		var a = new Array();
 		var l = head;
-		while( l != null ) {
+		while (l != null) {
 			a.push(l.elt);
 			l = l.next;
 		}
-		return "{"+a.join(",")+"}";
+		return "{" + a.join(",") + "}";
 	}
-
 }

@@ -17,14 +17,17 @@ var unknown = null;
 
 // instance
 #if !js
-Std.instance("", String) == "";
+Std.downcast("", String) == "";
 #end
 var a = [];
-Std.instance(a, Array) == a;
+Std.downcast(a, Array) == a;
 var parent:unit.MyClass.MyParent = new MyClass.MyChild1();
-Std.instance(parent, unit.MyClass.MyChild1) != null;
-Std.instance(null, Array) == null;
-Std.instance(null, String) == null;
+Std.downcast(parent, unit.MyClass.MyChild1) != null;
+Std.downcast(null, Array) == null;
+Std.downcast(null, String) == null;
+
+var parent:unit.MyClass.IMyParent = new MyClass.MyChild1();
+Std.downcast(parent, unit.MyClass.IMyChild) != null;
 
 // string
 var cwts = new ClassWithToString();

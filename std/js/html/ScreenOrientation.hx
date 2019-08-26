@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `ScreenOrientation` interface of the the Screen Orientation API provides information about the current orientation of the document.
 
@@ -33,29 +35,29 @@ package js.html;
 **/
 @:native("ScreenOrientation")
 extern class ScreenOrientation extends EventTarget {
-	
+
 	/**
 		Returns the document's current orientation type, one of "portrait-primary", "portrait-secondary", "landscape-primary", or "landscape-secondary".
 	**/
 	var type(default,null) : OrientationType;
-	
+
 	/**
 		Returns the document's current orientation angle.
 	**/
 	var angle(default,null) : Int;
-	
+
 	/**
 		Fired whenever is the `EventHandler` called when the screen changes orientation.
 	**/
 	var onchange : haxe.Constraints.Function;
-	
-	
+
+
 	/**
 		Locks the orientation of the containing document to its default orientation and returns a `Promise`. 
 		@throws DOMError
 	**/
 	function lock( orientation : OrientationLockType ) : Promise<Void>;
-	
+
 	/**
 		Unlocks the orientation of the containing document from its default orientation.
 		@throws DOMError

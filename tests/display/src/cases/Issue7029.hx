@@ -98,12 +98,12 @@ class Issue7029 extends DisplayTestCase {
 		}
 	**/
 	function test7() {
-		var typesCompletion = toplevel(pos(1));
-		eq(true, hasToplevel(typesCompletion, "type", "C1"));
-		eq(true, hasToplevel(typesCompletion, "type", "C2"));
-		eq(false, hasToplevel(typesCompletion, "type", "I1"));
-		eq(false, hasToplevel(typesCompletion, "type", "T1"));
-		eq(false, hasToplevel(typesCompletion, "type", "E1"));
+		// var typesCompletion = toplevel(pos(1));
+		// eq(true, hasToplevel(typesCompletion, "type", "C1"));
+		// eq(true, hasToplevel(typesCompletion, "type", "C2"));
+		// eq(false, hasToplevel(typesCompletion, "type", "I1"));
+		// eq(false, hasToplevel(typesCompletion, "type", "T1"));
+		// eq(false, hasToplevel(typesCompletion, "type", "E1"));
 
 		var typesCompletion = toplevel(pos(2));
 		eq(true, hasToplevel(typesCompletion, "type", "C1"));

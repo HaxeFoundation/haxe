@@ -46,6 +46,19 @@ class display_position_container =
 		*)
 		method cut p =
 			{ p with pmax = last_pos.pmax }
+		(**
+			Temporarily reset display position, run `fn` and then restore display position.
+		*)
+		method run_outside : 'a . (unit->'a) -> 'a = fun fn ->
+			let display_pos = self#get in
+			self#reset;
+			Std.finally (fun () -> self#set display_pos) fn ()
+
+		(**
+			Creates a new position with the file of [p] and the min/max of the display position.
+		 *)
+		method with_pos p =
+			{p with pmin = last_pos.pmin; pmax = last_pos.pmax}
 	end
 
 let display_position = new display_position_container

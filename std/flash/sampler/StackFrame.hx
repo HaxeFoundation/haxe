@@ -1,9 +1,9 @@
 package flash.sampler;
 
 extern final class StackFrame {
-	var file(default,never) : String;
-	var line(default,never) : UInt;
-	var name(default,never) : String;
-	@:require(flash10_1) var scriptID(default,never) : Float;
+	final file : String;
+	final line : UInt;
+	final name : String;
+	@:require(flash10_1) final scriptID : Float;
 	function toString() : String;
 }

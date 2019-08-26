@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open Type
 open EvalValue
 open EvalHash
 open EvalString
@@ -71,7 +70,9 @@ type env_debug = {
 	(* The current line being executed. This in conjunction with `env_info.pfile` is used to find breakpoints. *)
 	mutable line : int;
 	(* The current expression being executed *)
-	mutable expr : texpr;
+	mutable debug_expr : string;
+	(* The current expression position being executed *)
+	mutable debug_pos : pos;
 }
 
 (* An environment in which code is executed. Environments are created whenever a function is called and when
@@ -95,6 +96,8 @@ type env = {
 	mutable env_extra_locals : value IntMap.t;
 	(* The parent of the current environment, if exists. *)
 	env_parent : env option;
+	(** Exeucution stack depth *)
+	env_stack_depth : int;
 	env_eval : eval;
 }
 
@@ -153,7 +156,7 @@ type builtins = {
 }
 
 type debug_scope_info = {
-	ds_expr : texpr;
+	ds_expr : string;
 	ds_return : value option;
 }
 
@@ -199,6 +202,34 @@ class eval_debug_context = object(self)
 	method get id =
 		try DynArray.get lut id with _ -> NoSuchReference
 
+end
+
+class static_prototypes = object(self)
+	val mutable prototypes : vprototype IntMap.t = IntMap.empty
+	val mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
+
+	method add proto =
+		prototypes <- IntMap.add proto.ppath proto prototypes
+
+	method remove path =
+		inits <- IntMap.remove path inits;
+		prototypes <- IntMap.remove path prototypes
+
+	method set_needs_reset =
+		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) inits
+
+	method add_init proto delays =
+		inits <- IntMap.add proto.ppath (ref false, proto, delays) inits
+
+	method get path =
+		(try
+			let (needs_reset, proto, delays) = IntMap.find path inits in
+			if !needs_reset then begin
+				needs_reset := false;
+				List.iter (fun f -> f proto) delays
+			end
+		with Not_found -> ());
+		IntMap.find path prototypes
 end
 
 type exception_mode =
@@ -249,15 +280,15 @@ and context = {
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
-	mutable static_prototypes : vprototype IntMap.t;
+	mutable static_prototypes : static_prototypes;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
-	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
+	max_stack_depth : int;
 }
 
 let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
@@ -355,13 +386,14 @@ let flush_core_context f =
 
 let no_timer = fun () -> ()
 let empty_array = [||]
-let no_expr = mk (TConst TNull) t_dynamic null_pos
+let no_expr = ""
 
 let no_debug = {
 	timer = no_timer;
 	scopes = [];
 	line = 0;
-	expr = no_expr;
+	debug_expr = no_expr;
+	debug_pos = null_pos;
 }
 
 let create_env_info static pfile kind capture_infos =
@@ -396,6 +428,10 @@ let push_environment ctx info num_locals num_captures =
 	else
 		Array.make num_captures vnull
 	in
+	let stack_depth = match eval.env with
+		| None -> 1;
+		| Some env -> env.env_stack_depth + 1
+	in
 	let env = {
 		env_info = info;
 		env_leave_pmin = 0;
@@ -406,6 +442,7 @@ let push_environment ctx info num_locals num_captures =
 		env_extra_locals = IntMap.empty;
 		env_parent = eval.env;
 		env_eval = eval;
+		env_stack_depth = stack_depth;
 	} in
 	eval.env <- Some env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
@@ -432,7 +469,7 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	IntMap.find path ctx.static_prototypes
+	ctx.static_prototypes#get path
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path

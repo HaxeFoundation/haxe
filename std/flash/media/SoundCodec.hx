@@ -1,8 +1,8 @@
 package flash.media;
 
-@:fakeEnum(String) extern enum SoundCodec {
-	NELLYMOSER;
-	PCMA;
-	PCMU;
-	SPEEX;
+@:native("flash.media.SoundCodec") extern enum abstract SoundCodec(String) {
+	var NELLYMOSER;
+	var PCMA;
+	var PCMU;
+	var SPEEX;
 }

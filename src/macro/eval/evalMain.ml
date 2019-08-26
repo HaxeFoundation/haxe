@@ -120,11 +120,10 @@ let create com api is_macro =
 		string_prototype = fake_proto key_String;
 		array_prototype = fake_proto key_Array;
 		vector_prototype = fake_proto key_eval_Vector;
-		static_prototypes = IntMap.empty;
+		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
-		static_inits = IntMap.empty;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
@@ -133,6 +132,7 @@ let create com api is_macro =
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
+		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 	} in
 	if debug.support_debugger && not !debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
@@ -374,7 +374,7 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits
+	ctx.static_prototypes#set_needs_reset
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
@@ -413,11 +413,15 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString s -> (EConst (String s.sstring),p)
+	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
-	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
+	| VObject o -> (EObjectDecl (ExtList.List.filter_map (fun (k,v) ->
 			let n = rev_hash k in
-			((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			(* Workaround for #8261: Ignore generated pos fields *)
+			begin match v with
+			| VInstance {ikind = IPos _} when n = "pos" -> None
+			| _ -> Some ((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			end
 		) (object_fields o)),p)
 	| VEnumValue e ->
 		let epath =
@@ -436,7 +440,6 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
-
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s

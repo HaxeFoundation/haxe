@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `CacheStorage` interface represents the storage for `Cache` objects.
 
@@ -35,28 +37,28 @@ package js.html;
 extern class CacheStorage {
 	/** @throws DOMError */
 	function new( namespace : CacheStorageNamespace, principal : Dynamic/*MISSING Principal*/ ) : Void;
-	
+
 	/**
 		Checks if a given `Request` is a key in any of the `Cache` objects that the `CacheStorage` object tracks, and returns a `Promise` that resolves to that match.
 	**/
 	@:overload( function( request : String, ?options : CacheQueryOptions) : Promise<Response> {} )
 	function match( request : Request, ?options : CacheQueryOptions ) : Promise<Response>;
-	
+
 	/**
 		Returns a `Promise` that resolves to `true` if a `Cache` object matching the `cacheName` exists.
 	**/
 	function has( cacheName : String ) : Promise<Bool>;
-	
+
 	/**
 		Returns a `Promise` that resolves to the `Cache` object matching the `cacheName` (a new cache is created if it doesn't already exist.)
 	**/
 	function open( cacheName : String ) : Promise<Cache>;
-	
+
 	/**
 		Finds the `Cache` object matching the `cacheName`, and if found, deletes the `Cache` object and returns a `Promise` that resolves to `true`. If no `Cache` object is found, it returns `false`.
 	**/
 	function delete( cacheName : String ) : Promise<Bool>;
-	
+
 	/**
 		Returns a `Promise` that will resolve with an array containing strings corresponding to all of the named `Cache` objects tracked by the `CacheStorage`. Use this method to iterate over a list of all the `Cache` objects.
 	**/

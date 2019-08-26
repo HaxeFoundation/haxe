@@ -5,6 +5,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Python {
+	static var miscPythonDir(get,never):String;
+	static inline function get_miscPythonDir() return miscDir + 'python/';
+
 	static public function getPythonDependencies():Array<String> {
 		switch (systemName) {
 			case "Linux":
@@ -63,12 +66,15 @@ class Python {
 		}
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-python.hxml"]);
+		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runCommand(py, ["bin/python/sys.py"]);
 		}
 
-		changeDirectory(miscDir + "pythonImport");
+		changeDirectory(miscPythonDir);
+		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(miscPythonDir + "pythonImport");
 		runCommand("haxe", ["compile.hxml"]);
 		for (py in pys) {
 			runCommand(py, ["test.py"]);

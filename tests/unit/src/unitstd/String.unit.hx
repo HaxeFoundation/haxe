@@ -152,9 +152,6 @@ s.substring(2, -1) == "xf";
 s.substring(0) == "xfooxfooxxbarxbarxx";
 s.substring(1) == "fooxfooxxbarxbarxx";
 s.substring(2) == "ooxfooxxbarxbarxx";
-s.substring(0, -1) == "";
-s.substring(1, -1) == "x";
-s.substring(2, -1) == "xf";
 s.substring(20, 0) == "xfooxfooxxbarxbarxx";
 s.substring(0, 100) == "xfooxfooxxbarxbarxx";
 s.substring(100, 120) == "";
@@ -170,30 +167,23 @@ String.fromCharCode(65) == "A";
 ("3" > "11") == true;
 (" 3" < "3") == true;
 
-// iterators
-var s = 'zя𠜎';
-#if (neko || (cpp && !cppia && !hxcpp_smart_strings))
-var expectedCodes = [122, 209, 143, 240, 160, 156, 142];
-#elseif utf16
-var expectedCodes = [122, 1103, 55361, 57102];
+// string comparison (see #8332)
+("a" < "b") == true;
+("a" <= "b") == true;
+("a" > "b") == false;
+("a" >= "b") == false;
+
+#if target.unicode
+("𠜎zя" > "abя") == true;
+("𠜎zя" >= "abя") == true;
+("𠜎zя" < "abя") == false;
+("𠜎zя" <= "abя") == false;
+
+#if target.utf16
+// since U+10002 in UTF16 is D800 DC02
+("\u{FF61}" < "\u{10002}") == false;
 #else
-var expectedCodes = [122, 1103, 132878];
+("\u{FF61}" < "\u{10002}") == true;
 #end
-var expectedKeys = [for(i in 0...expectedCodes.length) i];
-function testCodes(codes:Array<Int>, ?pos:haxe.PosInfos) {
-	aeq(expectedCodes, codes, pos);
-}
-function testKeyCodes(keyCodes:Array<Array<Int>>, ?pos:haxe.PosInfos) {
-	aeq(expectedKeys, keyCodes.map(a -> a[0]), pos);
-	aeq(expectedCodes, keyCodes.map(a -> a[1]), pos);
-}
-// iterator
-testCodes([for(c in s) c]);
-testCodes([for(c in (s:Iterable<Int>)) c]);
-var iterator:Iterator<Int> = (s:Dynamic).iterator();
-testCodes([for(c in iterator) c]);
-// keyValueIterator
-testKeyCodes([for(i => c in s) [i, c]]);
-testKeyCodes([for(i => c in (s:KeyValueIterable<Int,Int>)) [i, c]]);
-var iterator:KeyValueIterator<Int,Int> = (s:Dynamic).keyValueIterator();
-testKeyCodes([for(i => c in iterator) [i, c]]);
+
+#end

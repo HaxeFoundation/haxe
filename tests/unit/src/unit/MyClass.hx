@@ -5,6 +5,10 @@ using MyClass.UsingBase;
 using MyClass.UsingChild1;
 using MyClass.UsingChild2;
 
+
+interface IMyParent {}
+interface IMyChild extends IMyParent {}
+
 class MyClass {
 
 	#if as3 public #end var val : Int;
@@ -37,7 +41,7 @@ class MyParent {
 	function b() return 20;
 }
 
-class MyChild1 extends MyParent {
+class MyChild1 extends MyParent implements IMyChild {
 	public override function a() { return 12; }
 	override function b() return 21;
 	function c() return 19;

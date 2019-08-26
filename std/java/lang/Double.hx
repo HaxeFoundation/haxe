@@ -19,48 +19,48 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package java.lang;
+
+package java.lang;
 
 @:native("") // make sure the generator won't see this
 @:forwardStatics
-@:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass
-{
+@:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass {
 	@:to extern inline public function toFloat():Float
 		return this.doubleValue();
+
 	@:from extern inline public static function fromFloat(b:Float):Double
 		return DoubleClass.valueOf(b);
 }
 
-@:native("java.lang.Double") extern class DoubleClass extends Number implements Comparable<Double>
-{
-	@:overload function new(param1 : Float) : Void;
-	@:overload @:throws("java.lang.NumberFormatException") function new(param1 : String) : Void;
-	@:overload function compareTo(param1 : Double) : Int;
-	@:overload function compareTo(param1 : Dynamic) : Int;
-	@:overload function equals(param1 : Dynamic) : Bool;
-	@:overload function hashCode() : Int;
-	@:overload function isInfinite() : Bool;
-	@:overload function isNaN() : Bool;
-	@:overload function toString() : String;
-	static final MAX_EXPONENT : Int;
-	static final MAX_VALUE : Float;
-	static final MIN_EXPONENT : Int;
-	static final MIN_NORMAL : Float;
-	static final MIN_VALUE : Float;
-	static final NEGATIVE_INFINITY : Float;
-	static final NaN : Float;
-	static final POSITIVE_INFINITY : Float;
-	static final SIZE : Int;
-	static final TYPE : Class<Double>;
-	@:overload static function compare(param1 : Float, param2 : Float) : Int;
-	@:overload static function doubleToLongBits(param1 : Float) : haxe.Int64;
-	@:overload static function doubleToRawLongBits(param1 : Float) : haxe.Int64;
-	@:native("isInfinite") @:overload static function _isInfinite(param1 : Float) : Bool;
-	@:native("isNaN") @:overload static function _isNaN(param1 : Float) : Bool;
-	@:overload static function longBitsToDouble(param1 : haxe.Int64) : Float;
-	@:overload @:throws("java.lang.NumberFormatException") static function parseDouble(param1 : String) : Float;
-	@:overload static function toHexString(param1 : Float) : String;
-	@:native("toString") @:overload static function _toString(param1 : Float) : String;
-	@:overload static function valueOf(param1 : Float) : Double;
-	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Double;
+@:native("java.lang.Double") extern class DoubleClass extends Number implements Comparable<Double> {
+	@:overload function new(param1:Float):Void;
+	@:overload @:throws("java.lang.NumberFormatException") function new(param1:String):Void;
+	@:overload function compareTo(param1:Double):Int;
+	@:overload function compareTo(param1:Dynamic):Int;
+	@:overload function equals(param1:Dynamic):Bool;
+	@:overload function hashCode():Int;
+	@:overload function isInfinite():Bool;
+	@:overload function isNaN():Bool;
+	@:overload function toString():String;
+	static final MAX_EXPONENT:Int;
+	static final MAX_VALUE:Float;
+	static final MIN_EXPONENT:Int;
+	static final MIN_NORMAL:Float;
+	static final MIN_VALUE:Float;
+	static final NEGATIVE_INFINITY:Float;
+	static final NaN:Float;
+	static final POSITIVE_INFINITY:Float;
+	static final SIZE:Int;
+	static final TYPE:Class<Double>;
+	@:overload static function compare(param1:Float, param2:Float):Int;
+	@:overload static function doubleToLongBits(param1:Float):haxe.Int64;
+	@:overload static function doubleToRawLongBits(param1:Float):haxe.Int64;
+	@:native("isInfinite") @:overload static function _isInfinite(param1:Float):Bool;
+	@:native("isNaN") @:overload static function _isNaN(param1:Float):Bool;
+	@:overload static function longBitsToDouble(param1:haxe.Int64):Float;
+	@:overload @:throws("java.lang.NumberFormatException") static function parseDouble(param1:String):Float;
+	@:overload static function toHexString(param1:Float):String;
+	@:native("toString") @:overload static function _toString(param1:Float):String;
+	@:overload static function valueOf(param1:Float):Double;
+	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String):Double;
 }

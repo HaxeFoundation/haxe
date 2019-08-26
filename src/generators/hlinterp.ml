@@ -329,7 +329,7 @@ let hl_to_caml str =
 		loop 0
 	in
 	let b = UTF8.Buf.create (String.length str / 2) in
-	utf16_iter (fun c -> UTF8.Buf.add_char b (UChar.chr c)) (utf16_eof str);
+	utf16_iter (fun c -> UTF8.Buf.add_char b (UCharExt.chr c)) (utf16_eof str);
 	UTF8.Buf.contents b
 
 let null_access() =
@@ -2379,6 +2379,7 @@ let check code macros =
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
 				| (HObj _ | HVirtual _), (HObj _ | HVirtual _) -> ()
+				| (HDyn | HFun _), (HDyn | HFun _) -> ()
 				| ta, tb when safe_cast tb ta -> ()
 				| _ -> reg a (rtype b));
 				can_jump delta

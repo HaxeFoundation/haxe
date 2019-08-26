@@ -47,7 +47,7 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TThrow e1,TThrow e2 -> equal e1 e2
 	| TCast(e1,None),TCast(e2,None) -> equal e1 e2
 	| TCast(e1,Some mt1),TCast(e2,Some mt2) -> equal e1 e2 && mt1 == mt2
-	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.s_expr e1) = (Ast.s_expr e2)) el1 el2 && equal e1 e2
+	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.Printer.s_expr e1) = (Ast.Printer.s_expr e2)) el1 el2 && equal e1 e2
 	| (TBreak,TBreak) | (TContinue,TContinue) -> true
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
@@ -314,7 +314,7 @@ let type_constant basic c p =
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
-	| String s -> mk (TConst (TString s)) basic.tstring p
+	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
@@ -500,3 +500,36 @@ let dump_with_pos tabs e =
 	in
 	loop' tabs e;
 	Buffer.contents buf
+
+let collect_captured_vars e =
+	let known = Hashtbl.create 0 in
+	let unknown = ref [] in
+	let accesses_this = ref false in
+	let declare v = Hashtbl.add known v.v_id () in
+	let rec loop e = match e.eexpr with
+		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
+			Hashtbl.add known id ();
+			unknown := v :: !unknown
+		| TConst (TThis | TSuper) ->
+			accesses_this := true;
+		| TVar(v,eo) ->
+			Option.may loop eo;
+			declare v
+		| TFor(v,e1,e2) ->
+			declare v;
+			loop e1;
+			loop e2;
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			loop tf.tf_expr
+		| TTry(e1,catches) ->
+			loop e1;
+			List.iter (fun (v,e) ->
+				declare v;
+				loop e;
+			) catches
+		| _ ->
+			Type.iter loop e
+	in
+	loop e;
+	List.rev !unknown,!accesses_this

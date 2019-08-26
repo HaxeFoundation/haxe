@@ -106,7 +106,7 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 *)
 let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint None;
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
@@ -170,7 +170,7 @@ let load_type_def ctx p t =
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
-	raise_position [p]
+	raise_positions [p]
 
 let check_param_constraints ctx types t pl c p =
 	match follow t with
@@ -251,10 +251,10 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 					begin try
 						let msg = match Meta.get Meta.Deprecated td.t_meta with
-							| _,[EConst(String s),_],_ -> s
+							| _,[EConst(String(s,_)),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
 						in
-						ctx.com.warning msg p
+						DeprecationCheck.warn_deprecation ctx.com msg p
 					with Not_found ->
 						()
 					end;
@@ -285,7 +285,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
-						| EConst (String s) -> "S" ^ s
+						| EConst (String(s,_)) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
@@ -355,7 +355,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
-		raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;});
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) {pn with pmin = pn.pmax - String.length s;}
 
 (*
 	build an instance from a complex type
@@ -370,12 +370,12 @@ and load_complex_type' ctx allow_display (t,p) =
 		let tl = List.map (fun (t,pn) ->
 			try
 				load_complex_type ctx allow_display (t,pn)
-			with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+			with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
-				) l in
-				raise_fields l (CRStructExtension true) p
+				) r.fitems in
+				raise_fields l (CRStructExtension true) r.fsubject
 		) tl in
 		let tr = ref None in
 		let t = TMono tr in
@@ -412,12 +412,12 @@ and load_complex_type' ctx allow_display (t,p) =
 			let il = List.map (fun (t,pn) ->
 				try
 					load_instance ctx ~allow_display (t,pn) false
-				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
-					) l in
-					raise_fields l (CRStructExtension false) p
+					) r.fitems in
+					raise_fields l (CRStructExtension false) r.fsubject
 			) tl in
 			let tr = ref None in
 			let t = TMono tr in
@@ -560,8 +560,8 @@ and init_meta_overloads ctx co cf =
 	let cf_meta = List.filter filter_meta cf.cf_meta in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
-		| (Meta.Overload,[(EFunction (fname,f),p)],_)  ->
-			if fname <> None then error "Function name must not be part of @:overload" p;
+		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
+			(match kind with FKNamed _ -> error "Function name must not be part of @:overload" p | _ -> ());
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
 			let old = ctx.type_params in
 			(match cf.cf_params with
@@ -833,73 +833,6 @@ let string_list_of_expr_path (e,p) =
 	try string_list_of_expr_path_raise (e,p)
 	with Exit -> error "Invalid path" p
 
-let handle_path_display ctx path p =
-	let open ImportHandling in
-	let class_field c name =
-		ignore(c.cl_build());
-		let cf = PMap.find name c.cl_statics in
-		let origin = match c.cl_kind with
-			| KAbstractImpl a -> Self (TAbstractDecl a)
-			| _ -> Self (TClassDecl c)
-		in
-		DisplayEmitter.display_field ctx origin CFSStatic cf p
-	in
-	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
-		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx TKType WithType.no_value in
-			raise_fields fields CRImport (Some p)
-		| (IDKPackage sl,p),DMDefault ->
-			let sl = match List.rev sl with
-				| s :: sl -> List.rev sl
-				| [] -> assert false
-			in
-			raise (Parser.TypePath(sl,None,true,p))
-		| (IDKPackage _,_),_ ->
-			() (* ? *)
-		| (IDKModule(sl,s),_),(DMDefinition | DMTypeDefinition) ->
-			(* We assume that we want to go to the module file, not a specific type
-			   which might not even exist anyway. *)
-			let mt = ctx.g.do_load_module ctx (sl,s) p in
-			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-			DisplayException.raise_position [p]
-		| (IDKModule(sl,s),_),DMHover ->
-			let m = ctx.g.do_load_module ctx (sl,s) p in
-			begin try
-				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
-				DisplayEmitter.display_module_type ctx mt p;
-			with Not_found ->
-				()
-			end
-		| (IDKSubType(sl,sm,st),p),DMHover ->
-			(* TODO: remove code duplication once load_type_def change is in *)
-			let m = ctx.g.do_load_module ctx (sl,sm) p in
-			begin try
-				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = st) m.m_types in
-				DisplayEmitter.display_module_type ctx mt p;
-			with Not_found ->
-				()
-			end
-		| (IDKModule(sl,s),p),_ ->
-			raise (Parser.TypePath(sl,None,true,p))
-		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->
-			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
-		| (IDKSubType(sl,sm,st),p),_ ->
-			raise (Parser.TypePath(sl,Some(sm,false),true,p))
-		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),DMDefault ->
-			raise (Parser.TypePath(sl @ [sm],Some(st,false),true,p));
-		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),_ ->
-			let m = ctx.g.do_load_module ctx (sl,sm) p in
-			List.iter (fun t -> match t with
-				| TClassDecl c when snd c.cl_path = st ->
-					class_field c sf
-				| TAbstractDecl {a_impl = Some c; a_path = (_,st')} when st' = st ->
-					class_field c sf
-				| _ ->
-					()
-			) m.m_types;
-		| (IDK,_),_ ->
-			()
-
 let handle_using ctx path p =
 	let t = match List.rev path with
 		| (s1,_) :: (s2,_) :: sl ->
@@ -908,7 +841,7 @@ let handle_using ctx path p =
 		| (s1,_) :: sl ->
 			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in
 	let types = (match t.tsub with
 		| None ->

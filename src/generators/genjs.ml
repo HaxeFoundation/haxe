@@ -49,7 +49,7 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	has_resolveClass : bool;
-	has_instanceof : bool;
+	has_interface_check : bool;
 	es_version : int;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -72,7 +72,7 @@ let get_exposed ctx path meta =
 	try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
-			| [ EConst (String s), _ ] -> [s]
+			| [ EConst (String(s,_)), _ ] -> [s]
 			| [] -> [path]
 			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
@@ -82,9 +82,6 @@ let dot_path = s_type_path
 let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds = Hashtbl.create 0
-
-let setup_kwds lst =
-	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
 let es3kwds = [
 	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
@@ -103,6 +100,12 @@ let es5kwds = [
 	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
 	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
 ]
+
+let setup_kwds com =
+	Hashtbl.reset kwds;
+	let es_version = get_es_version com in
+	let lst = if es_version >= 5 then es5kwds else es3kwds in
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -134,10 +137,21 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
-let static_field c s =
-	match s with
-	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> ".$" ^ s
-	| s -> field s
+let static_field ctx c s =
+		match s with
+		| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta->
+			let with_dollar = ".$" ^ s in
+			if get_es_version ctx.com >= 6 then
+				try
+					let f = PMap.find s c.cl_statics in
+					match f.cf_kind with
+					| Method _ -> "." ^ s
+					| _ -> with_dollar
+				with Not_found ->
+					with_dollar
+			else
+				with_dollar
+		| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -329,7 +343,6 @@ let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
-			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
@@ -339,32 +352,12 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		(has_feature ctx "HxOverrides.iter" || has_feature ctx "String.iterator") && loop x.etype
+		has_feature ctx "HxOverrides.iter" && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
-
-let is_dynamic_key_value_iterator ctx e =
-	let check x =
-		let rec loop t = match follow t with
-			| TInst ({ cl_path = [],"String" },_)
-			| TInst ({ cl_kind = KTypeParameter _}, _)
-			| TAnon _
-			| TDynamic _
-			| TMono _ ->
-				true
-			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				loop (Abstract.get_underlying_type a tl)
-			| _ ->
-				false
-		in
-		has_feature ctx "String.keyValueIterator" && loop x.etype
-	in
-	match e.eexpr with
-	| TField (x,f) when field_name f = "keyValueIterator" -> check x
-	| _ -> false
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -467,11 +460,6 @@ let rec gen_call ctx e el in_value =
 	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$getIterator";
 		print ctx "$getIterator(";
-		gen_value ctx x;
-		print ctx ")";
-	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_key_value_iterator ctx e ->
-		add_feature ctx "use.$getKeyValueIterator";
-		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
@@ -577,7 +565,7 @@ and gen_expr ctx e =
 		let x = skip x in
 		gen_value ctx x;
 		let name = field_name f in
-		spr ctx (match f with FStatic(c,_) -> static_field c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic(c,_) -> static_field ctx c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -1041,13 +1029,13 @@ let gen_class_static_field ctx c f =
 	| None when not (is_physical_field f) ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field c f.cf_name);
+		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field ctx c f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx c.cl_path) ^ (static_field c f.cf_name) in
-			let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name) in
+			let path = (s_path ctx c.cl_path) ^ (static_field ctx c f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field ctx c f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
@@ -1090,6 +1078,13 @@ let generate_class___name__ ctx c =
 		newline ctx;
 	end
 
+let generate_class___isInterface__ ctx c =
+	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+		let p = s_path ctx c.cl_path in
+		print ctx "%s.__isInterface__ = true" p;
+		newline ctx;
+	end
+
 let generate_class_es3 ctx c =
 	let p = s_path ctx c.cl_path in
 	if ctx.js_flatten then
@@ -1116,8 +1111,9 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1236,7 +1232,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				(match get_exposed ctx ((dot_path c.cl_path) ^ (static_field c cf.cf_name)) cf.cf_meta with
+				(match get_exposed ctx ((dot_path c.cl_path) ^ (static_field ctx c cf.cf_name)) cf.cf_meta with
 				| [s] -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods;
 				| _ -> ());
 
@@ -1270,8 +1266,9 @@ let generate_class_es6 ctx c =
 	end;
 
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1297,7 +1294,7 @@ let generate_class_es6 ctx c =
 
 	(match c.cl_super with
 	| Some (csup,_) ->
-		if ctx.has_instanceof || has_feature ctx "Type.getSuperClass" then begin
+		if ctx.has_interface_check || has_feature ctx "Type.getSuperClass" then begin
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx
@@ -1449,7 +1446,7 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field c f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field ctx c f);
 	gen_value ctx e;
 	newline ctx
 
@@ -1463,9 +1460,9 @@ let generate_require ctx path meta =
 		generate_package_create ctx path;
 
 	(match args with
-	| [(EConst(String(module_name)),_)] ->
+	| [(EConst(String(module_name,_)),_)] ->
 		print ctx "%s = require(\"%s\")" p module_name
-	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
+	| [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
 		abort "Unsupported @:jsRequire format" mp);
@@ -1474,7 +1471,7 @@ let generate_require ctx path meta =
 
 let need_to_generate_interface ctx cl_iface =
 	ctx.has_resolveClass (* generate so we can resolve it for whatever reason *)
-	|| ctx.has_instanceof (* generate because we need __interfaces__ for run-time type checks *)
+	|| ctx.has_interface_check (* generate because we need __interfaces__ for run-time type checks *)
 	|| is_directly_used ctx.com cl_iface.cl_meta (* generate because it's just directly accessed in code *)
 
 let generate_type ctx = function
@@ -1532,7 +1529,7 @@ let alloc_ctx com es_version =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		has_resolveClass = Common.has_feature com "Type.resolveClass";
-		has_instanceof = Common.has_feature com "js.Boot.__instanceof";
+		has_interface_check = Common.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
 		statics = [];
 		inits = [];
@@ -1579,7 +1576,7 @@ let generate com =
 
 	let nodejs = Common.raw_defined com "nodejs" in
 
-	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
+	setup_kwds com;
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1587,7 +1584,7 @@ let generate com =
 				let path = dot_path c.cl_path in
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
-					get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
+					get_exposed ctx (path ^ static_field ctx c f.cf_name) f.cf_meta
 				) c.cl_ordered_statics in
 				List.concat (class_exposed :: static_exposed)
 			| _ -> []
@@ -1755,11 +1752,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else if (typeof o == 'string') return HxOverrides.strIter(o); else return o.iterator(); }";
-		newline ctx;
-	end;
-	if has_feature ctx "use.$getKeyValueIterator" then begin
-		print ctx "function $getKeyValueIterator(o) { if (typeof o == 'string') return HxOverrides.strKVIter(o); else return o.keyValueIterator(); }";
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

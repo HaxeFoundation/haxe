@@ -19,12 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 @:pythonImport("math")
 extern class Math {
-
-	public static function isnan (f:Float):Bool;
+	public static function isnan(f:Float):Bool;
 
 	public static var pi:Float;
 
@@ -37,5 +37,4 @@ extern class Math {
 	static function acos(v:Float):Float;
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
-
 }

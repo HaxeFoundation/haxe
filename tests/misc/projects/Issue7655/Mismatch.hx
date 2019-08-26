@@ -1,4 +1,4 @@
-import js.Promise;
+import js.lib.Promise;
 
 class Mismatch {
 	static function main() {

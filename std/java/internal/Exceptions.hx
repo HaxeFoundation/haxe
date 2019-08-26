@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.internal;
+
 import java.lang.Throwable;
 import java.lang.RuntimeException;
 import java.lang.Exception;
@@ -28,28 +30,23 @@ import java.lang.Exception;
 class Exceptions {
 	private static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
 
-	@:keep private static function setException(exc:Throwable)
-	{
+	@:keep private static function setException(exc:Throwable) {
 		exception.set(exc);
 	}
 
-	public static function currentException()
-	{
+	public static function currentException() {
 		return exception.get();
 	}
 }
 
 @:classCode("public static final long serialVersionUID = 5956463319488556322L;")
-@:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException
-{
+@:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException {
 	private var obj:Dynamic;
 
-	public function new(obj:Dynamic, msg:String, cause:Throwable)
-	{
+	public function new(obj:Dynamic, msg:String, cause:Throwable) {
 		super(msg, cause);
 
-		if (Std.is(obj, HaxeException))
-		{
+		if (Std.is(obj, HaxeException)) {
 			var _obj:HaxeException = cast obj;
 			obj = _obj.getObject();
 		}
@@ -57,40 +54,34 @@ class Exceptions {
 		this.obj = obj;
 	}
 
-	public function getObject():Dynamic
-	{
+	public function getObject():Dynamic {
 		return obj;
 	}
 
-#if !debug
-	@:overload override public function fillInStackTrace():Throwable
-	{
+	#if !debug
+	@:overload override public function fillInStackTrace():Throwable {
 		return this;
 	}
-#end
+	#end
 
-	@:overload override public function toString():String
-	{
+	@:overload override public function toString():String {
 		return "Haxe Exception: " + obj;
 	}
 
-	@:overload override public function getMessage():String
-	{
-		return switch (super.getMessage())
-		{
+	@:overload override public function getMessage():String {
+		return switch (super.getMessage()) {
 			case null: Std.string(obj);
 			case var message: message;
 		}
 	}
 
-	public static function wrap(obj:Dynamic):RuntimeException
-	{
+	public static function wrap(obj:Dynamic):RuntimeException {
 		var ret:RuntimeException = null;
- 		if (Std.is(obj, RuntimeException))
+		if (Std.is(obj, RuntimeException))
 			ret = obj;
 		else if (Std.is(obj, String))
 			ret = new HaxeException(obj, obj, null);
- 		else if (Std.is(obj, Throwable))
+		else if (Std.is(obj, Throwable))
 			ret = new HaxeException(obj, Std.string(obj), obj);
 		else
 			ret = new HaxeException(obj, Std.string(obj), null);

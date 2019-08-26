@@ -44,11 +44,11 @@ end
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
-let safe_decode v expected t p f =
+let safe_decode ctx v expected t p f =
 	try
 		f ()
 	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-		let path = ["dump";"decoding_error"] in
+		let path = [dump_path ctx.com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
@@ -197,13 +197,13 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.on_type_not_found = (fun f ->
-			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
+			ctx.com.load_extern_type <- ctx.com.load_extern_type @ ["onTypeNotFound",fun path p ->
 				let td = f (s_type_path path) in
 				if td = Interp.vnull then
 					None
 				else
 					let (pack,name),tdef,p = Interp.decode_type_def td in
-					Some (name,(pack,[tdef,p]))
+					Some (pack,[tdef,p])
 			];
 		);
 		MacroApi.parse_string = parse_expr_string;
@@ -306,7 +306,7 @@ let make_macro_api ctx p =
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
-			let m, tdef, pos = safe_decode v "TypeDefinition" ttype p f in
+			let m, tdef, pos = safe_decode ctx v "TypeDefinition" ttype p f in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
@@ -396,7 +396,6 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
-		MacroApi.typer_ctx = ctx;
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -482,15 +481,12 @@ let get_macro_context ctx p =
 		com2.main_class <- None;
 		(* Inherit most display settings, but require normal typing. *)
 		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
-		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		let name = platform_name !Globals.macro_platform in
 		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
-		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
-		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
-		com2.defines.Define.values <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines.Define.values PMap.empty;
-		Common.define com2 Define.Macro;
+		let defines = adapt_defines_to_macro_context com2.defines; in
+		com2.defines.values <- defines.values;
+		com2.defines.defines_signature <- None;
 		Common.init_platform com2 !Globals.macro_platform;
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;
@@ -639,11 +635,14 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e = (try
-				(match Texpr.type_constant_value ctx.com.basic e with
-				| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
-					Lexer.remove_fmt_string p;
-					todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
-				| _ -> ());
+				let e' = Texpr.type_constant_value ctx.com.basic e in
+				let rec loop e = match e with
+					| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
+						Lexer.remove_fmt_string p;
+						todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
+					| _ -> Type.iter loop e
+				in
+				loop e';
 				e
 			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
@@ -717,10 +716,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						Some (EBlock [],p)
 					)
 			in
-			safe_decode v expected mret p process
+			safe_decode ctx v expected mret p process
 	in
 	let e = if ctx.in_macro then
-		Some (EThrow((EConst(String "macro-in-macro")),p),p)
+		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
 	else
 		call()
 	in

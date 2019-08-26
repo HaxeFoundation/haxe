@@ -1,0 +1,1 @@
+Main.hx:3: characters 18-22 : Methods names are case-insensitive in PHP runtime. Cannot redeclare "main".

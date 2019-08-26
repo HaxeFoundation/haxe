@@ -1,0 +1,4 @@
+-main Main
+--interp
+-D FOO.BAR
+-D foo.bar

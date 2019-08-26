@@ -24,6 +24,8 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
 /**
 	The `RTCPeerConnection` interface represents a WebRTC connection between the local computer and a remote peer. It provides methods to connect to a remote peer, maintain and monitor the connection, and close the connection once it's no longer needed.
 
@@ -58,7 +60,7 @@ extern class PeerConnection extends js.html.EventTarget {
 	var oniceconnectionstatechange : haxe.Constraints.Function;
 	var onicegatheringstatechange : haxe.Constraints.Function;
 	var ondatachannel : haxe.Constraints.Function;
-	
+
 	/** @throws DOMError */
 	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
 	function setIdentityProvider( provider : String, ?options : IdentityProviderOptions ) : Void;

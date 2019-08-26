@@ -2,9 +2,9 @@ package flash.media;
 
 extern class StageVideoAvailabilityReason {
 	function new() : Void;
-	static var DRIVER_TOO_OLD(default,never) : String;
-	static var NO_ERROR(default,never) : String;
-	static var UNAVAILABLE(default,never) : String;
-	static var USER_DISABLED(default,never) : String;
-	static var WMODE_INCOMPATIBLE(default,never) : String;
+	static final DRIVER_TOO_OLD : String;
+	static final NO_ERROR : String;
+	static final UNAVAILABLE : String;
+	static final USER_DISABLED : String;
+	static final WMODE_INCOMPATIBLE : String;
 }

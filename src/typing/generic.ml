@@ -40,15 +40,16 @@ let make_generic ctx ps pt p =
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
 			let rec loop top t = match follow t with
 				| TInst(c,tl) -> (match c.cl_kind with
-					| KExpr e -> ident_safe (Ast.s_expr e)
+					| KExpr e -> ident_safe (Ast.Printer.s_expr e)
 					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl tl))
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
 				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false (follow f.cf_type))) :: acc) a.a_fields [])
+				| TFun(args, return_type) -> "func_" ^ (String.concat "_" (List.map (fun (_, _, t) -> loop false t) args)) ^ "_" ^ (loop false return_type)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
 				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TDynamic _ -> "Dynamic"
-				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
+				| t -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p))
 			and loop_tl tl = match tl with
 				| [] -> ""
 				| tl -> "_" ^ String.concat "_" (List.map (loop false) tl)
@@ -160,7 +161,10 @@ let rec build_generic ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false
+		let t = Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false in
+		match t with
+		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
+		| _ -> error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
@@ -299,7 +303,7 @@ let rec build_generic ctx c p tl =
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
-			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],null_pos) :: cg.cl_meta;
+			cg.cl_meta <- (Meta.Native,[EConst(String (n,SDoubleQuotes)),p],null_pos) :: cg.cl_meta;
 		end;
 		TInst (cg,[])
 	end

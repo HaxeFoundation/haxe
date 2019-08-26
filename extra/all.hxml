@@ -26,19 +26,21 @@
 
 -cpp all_cpp
 -xml cpp.xml
--D xmldoc
 -D HXCPP_MULTI_THREADED
 
 --next
 -java all_java
 -xml java.xml
--D xmldoc
+
+--next
+-java all_jvm
+-D jvm
+-xml jvm.xml
 
 --next
 -cs all_cs
 -D unsafe
 -xml cs.xml
--D xmldoc
 
 --next
 -python all_python

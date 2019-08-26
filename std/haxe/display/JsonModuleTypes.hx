@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.display;
 
 typedef JsonTodo = Dynamic;
@@ -32,29 +33,28 @@ typedef JsonPos = {
 typedef JsonDoc = Null<String>;
 
 enum abstract ImportStatus(Int) {
-    /**
-        This type is already available with it's unqualified name for one of these reasons:
-          - it's a toplevel type
-          - it's imported with an `import` in the current module
-          - it's imported in an `import.hx` file
-    **/
-    var Imported;
+	/**
+		This type is already available with it's unqualified name for one of these reasons:
+		  - it's a toplevel type
+		  - it's imported with an `import` in the current module
+		  - it's imported in an `import.hx` file
+	**/
+	var Imported;
 
-    /**
-        The type is currently not imported. It can be accessed either
-        with its fully qualified name or by inserting an import.
-    **/
-    var Unimported;
+	/**
+		The type is currently not imported. It can be accessed either
+		with its fully qualified name or by inserting an import.
+	**/
+	var Unimported;
 
-    /**
-        A type with the same name is already imported in the module.
-        The fully qualified name has to be used to access it.
-    **/
-    var Shadowed;
+	/**
+		A type with the same name is already imported in the module.
+		The fully qualified name has to be used to access it.
+	**/
+	var Shadowed;
 }
 
 /* Type instance */
-
 typedef JsonPackagePath = {
 	var pack:Array<String>;
 }
@@ -73,26 +73,26 @@ typedef JsonStaticFieldPath = JsonTypePath & {
 }
 
 typedef JsonTypePathWithParams = {
-	var path: JsonTypePath;
-	var params: JsonTypes;
+	var path:JsonTypePath;
+	var params:JsonTypes;
 }
 
 typedef JsonFunctionArgument = {
-	var name: String;
-	var opt: Bool;
-	var t: JsonType<Dynamic>;
-	var ?value: {
-		var string: String;
+	var name:String;
+	var opt:Bool;
+	var t:JsonType<Dynamic>;
+	var ?value:{
+		var string:String;
 	};
 }
 
 typedef JsonFunctionSignature = {
-	var args: Array<JsonFunctionArgument>;
-	var ret: JsonType<Dynamic>;
+	var args:Array<JsonFunctionArgument>;
+	var ret:JsonType<Dynamic>;
 }
 
 enum abstract JsonAnonStatusKind<T>(String) {
-	var AClosed ;
+	var AClosed;
 	var AOpened;
 	var AConst;
 	var AExtend:JsonAnonStatusKind<JsonTypes>;
@@ -102,13 +102,13 @@ enum abstract JsonAnonStatusKind<T>(String) {
 }
 
 typedef JsonAnonStatus<T> = {
-	var kind: JsonAnonStatusKind<T>;
-	var args: T;
+	var kind:JsonAnonStatusKind<T>;
+	var args:T;
 }
 
 typedef JsonAnon = {
-	var fields: JsonClassFields;
-	var status: JsonAnonStatus<Dynamic>;
+	var fields:JsonClassFields;
+	var status:JsonAnonStatus<Dynamic>;
 }
 
 enum abstract JsonTypeKind<T>(String) {
@@ -123,25 +123,23 @@ enum abstract JsonTypeKind<T>(String) {
 }
 
 typedef JsonType<T> = {
-	var kind: JsonTypeKind<T>;
-	var args: T;
+	var kind:JsonTypeKind<T>;
+	var args:T;
 }
 
 typedef JsonTypes = Array<JsonType<Dynamic>>;
 
 /* Type parameters */
-
 typedef JsonTypeParameter = {
-	var name: String;
-	var constraints: JsonTypes;
+	var name:String;
+	var constraints:JsonTypes;
 }
 
 typedef JsonTypeParameters = Array<JsonTypeParameter>;
 
 /* Expr */
-
 enum abstract JsonBinopKind<T>(String) {
-	var OpAdd ;
+	var OpAdd;
 	var OpMult;
 	var OpDiv;
 	var OpSub;
@@ -168,8 +166,8 @@ enum abstract JsonBinopKind<T>(String) {
 }
 
 typedef JsonBinop<T> = {
-	var kind: JsonBinopKind<T>;
-	var args: T;
+	var kind:JsonBinopKind<T>;
+	var args:T;
 }
 
 enum abstract JsonUnop(String) {
@@ -183,9 +181,9 @@ enum abstract JsonUnop(String) {
 typedef JsonExpr = JsonTodo;
 
 typedef JsonMetadataEntry = {
-	var name: String;
-	var args: Array<JsonExpr>;
-	var pos: JsonPos;
+	var name:String;
+	var args:Array<JsonExpr>;
+	var pos:JsonPos;
 }
 
 typedef JsonMetadata = Array<JsonMetadataEntry>;
@@ -201,90 +199,87 @@ enum abstract JsonTConstantKind<T>(String) {
 }
 
 typedef JsonTConstant<T> = {
-	var kind: JsonTConstantKind<T>;
-	var args: T;
+	var kind:JsonTConstantKind<T>;
+	var args:T;
 }
 
 typedef JsonTExpr = JsonTodo;
 
 /* Fields */
-
 enum abstract JsonVarAccessKind<T>(String) {
-	var AccNormal ;
+	var AccNormal;
 	var AccNo;
 	var AccNever;
 	var AccResolve;
 	var AccCall;
 	var AccInline;
-	var AccRequire:JsonVarAccessKind<{ require: String, message: Null<String> }>;
+	var AccRequire:JsonVarAccessKind<{require:String, message:Null<String>}>;
 	var AccCtor;
 }
 
 typedef JsonVarAccess<T> = {
-	var kind: JsonVarAccessKind<T>;
-	var args: T;
+	var kind:JsonVarAccessKind<T>;
+	var args:T;
 }
 
 enum abstract JsonMethodKind(String) {
-	var MethNormal ;
+	var MethNormal;
 	var MethInline;
 	var MethDynamic;
 	var MethMacro;
 }
 
 enum abstract JsonFieldKindKind<T>(String) {
-	var FVar:JsonFieldKindKind<{ read: JsonVarAccess<Dynamic>, write: JsonVarAccess<Dynamic> }> ;
+	var FVar:JsonFieldKindKind<{read:JsonVarAccess<Dynamic>, write:JsonVarAccess<Dynamic>}>;
 	var FMethod:JsonFieldKindKind<JsonMethodKind>;
 }
 
 typedef JsonFieldKind<T> = {
-	var kind: JsonFieldKindKind<T>;
-	var args: T;
+	var kind:JsonFieldKindKind<T>;
+	var args:T;
 }
 
 enum abstract JsonClassFieldScope(Int) {
-    var Static;
-    var Member;
-    var Constructor;
+	var Static;
+	var Member;
+	var Constructor;
 }
 
 typedef JsonClassField = {
-	var name: String;
-	var type: JsonType<Dynamic>;
-	var isPublic: Bool;
-	var isFinal: Bool;
-	var params: JsonTypeParameters;
-	var meta: JsonMetadata;
-	var kind: JsonFieldKind<Dynamic>;
-	var ?expr: {
-		var string: String;
+	var name:String;
+	var type:JsonType<Dynamic>;
+	var isPublic:Bool;
+	var isFinal:Bool;
+	var params:JsonTypeParameters;
+	var meta:JsonMetadata;
+	var kind:JsonFieldKind<Dynamic>;
+	var ?expr:{
+		var string:String;
 	};
-	var pos: JsonPos;
-	var doc: JsonDoc;
-	var overloads: JsonClassFields;
-	var scope: JsonClassFieldScope;
+	var pos:JsonPos;
+	var doc:JsonDoc;
+	var overloads:JsonClassFields;
+	var scope:JsonClassFieldScope;
 }
 
 typedef JsonClassFields = Array<JsonClassField>;
-
 typedef JsonClassFieldReference = String;
 
 typedef JsonEnumField = {
-	var name: String;
-	var type: JsonType<Dynamic>;
-	var pos: JsonPos;
-	var meta: JsonMetadata;
-	var index: Int;
-	var doc: JsonDoc;
-	var params: JsonTypeParameters;
+	var name:String;
+	var type:JsonType<Dynamic>;
+	var pos:JsonPos;
+	var meta:JsonMetadata;
+	var index:Int;
+	var doc:JsonDoc;
+	var params:JsonTypeParameters;
 }
 
 typedef JsonEnumFields = Array<JsonEnumField>;
 
 /* Class */
-
 enum abstract JsonClassKindKind<T>(String) {
-	var KNormal ;
+	var KNormal;
 	var KTypeParameter:JsonClassKindKind<JsonTypes>;
 	var KExtension:JsonClassKindKind<JsonTypePathWithParams>;
 	var KExpr:JsonClassKindKind<JsonExpr>;
@@ -297,66 +292,62 @@ enum abstract JsonClassKindKind<T>(String) {
 
 typedef JsonClassKind<T> = {
 	var kind:JsonClassKindKind<T>;
-	var args: T;
+	var args:T;
 }
 
 typedef JsonClass = {
-	var kind: JsonClassKind<Dynamic>;
-	var isInterface: Bool;
-	var isExtern: Bool;
-	var superClass: Null<JsonTypePathWithParams>;
-	var interfaces: Array<JsonTypePathWithParams>;
-	var fields: JsonClassFields;
-	var statics: JsonClassFields;
-	var constructor: Null<JsonClassField>;
-	var init: Null<JsonTExpr>;
-	var overrides: Array<JsonClassFieldReference>;
+	var kind:JsonClassKind<Dynamic>;
+	var isInterface:Bool;
+	var isExtern:Bool;
+	var superClass:Null<JsonTypePathWithParams>;
+	var interfaces:Array<JsonTypePathWithParams>;
+	var fields:JsonClassFields;
+	var statics:JsonClassFields;
+	var constructor:Null<JsonClassField>;
+	var init:Null<JsonTExpr>;
+	var overrides:Array<JsonClassFieldReference>;
 }
 
 /* Enum */
-
 typedef JsonEnum = {
-	var constructors: JsonEnumFields;
-	var isExtern: Bool;
+	var constructors:JsonEnumFields;
+	var isExtern:Bool;
 }
 
 /* Typedef */
-
 typedef JsonTypedef = {
-	var type: JsonType<Dynamic>;
+	var type:JsonType<Dynamic>;
 }
 
 /* Abstract */
-
 typedef JsonAbstractBinop = {
-	var op: JsonBinop<Dynamic>;
-	var field: JsonClassFieldReference;
+	var op:JsonBinop<Dynamic>;
+	var field:JsonClassFieldReference;
 }
 
 typedef JsonAbstractUnop = {
-	var op: JsonUnop;
-	var postFix: Bool;
-	var field: JsonClassFieldReference;
+	var op:JsonUnop;
+	var postFix:Bool;
+	var field:JsonClassFieldReference;
 }
 
 typedef JsonAbstractCast = {
 	var t:JsonType<Dynamic>;
-	var field: JsonClassFieldReference;
+	var field:JsonClassFieldReference;
 }
 
 typedef JsonAbstract = {
-	var type: JsonType<Dynamic>;
-	var impl: Null<JsonClass>;
-	var binops: Array<JsonAbstractBinop>;
-	var unops: Array<JsonAbstractUnop>;
-	var from: Array<JsonAbstractCast>;
-	var to: Array<JsonAbstractCast>;
-	var array: JsonClassFields;
-	var resolve: Null<JsonClassFieldReference>;
+	var type:JsonType<Dynamic>;
+	var impl:Null<JsonClass>;
+	var binops:Array<JsonAbstractBinop>;
+	var unops:Array<JsonAbstractUnop>;
+	var from:Array<JsonAbstractCast>;
+	var to:Array<JsonAbstractCast>;
+	var array:JsonClassFields;
+	var resolve:Null<JsonClassFieldReference>;
 }
 
 /* Module type */
-
 enum abstract JsonModuleTypeKind<T>(String) {
 	var Class:JsonModuleTypeKind<JsonClass> = "class";
 	var Enum:JsonModuleTypeKind<JsonEnum> = "enum";
@@ -365,16 +356,16 @@ enum abstract JsonModuleTypeKind<T>(String) {
 }
 
 typedef JsonModuleType<T> = {
-	var pack: Array<String>;
-	var name: String;
-	var moduleName: String;
-	var pos: JsonPos;
-	var isPrivate: Bool;
-	var params: JsonTypeParameters;
-	var meta: JsonMetadata;
-	var doc: JsonDoc;
-	var kind: JsonModuleTypeKind<T>;
-	var args: T;
+	var pack:Array<String>;
+	var name:String;
+	var moduleName:String;
+	var pos:JsonPos;
+	var isPrivate:Bool;
+	var params:JsonTypeParameters;
+	var meta:JsonMetadata;
+	var doc:JsonDoc;
+	var kind:JsonModuleTypeKind<T>;
+	var args:T;
 }
 
 typedef JsonModuleTypes = Array<JsonModuleType<Dynamic>>;
