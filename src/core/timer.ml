@@ -64,7 +64,7 @@ struct
 		mutable count : int;
 	}
 
-	let no_pause_yet = -1.
+	let no_pause = -1.
 	let is_paused t = t.pause >= 0.
 
 	let get_time = Extc.time
@@ -86,7 +86,7 @@ struct
 						let now = get_time() in
 						let new_start = now -. (previous.pause -. previous.start) in
 						previous.start <- if new_start > now then now else new_start;
-						previous.pause <- no_pause_yet
+						previous.pause <- no_pause
 					| _ -> ()
 				end;
 				open_timers := l;
@@ -96,12 +96,10 @@ struct
 
 	let timer id =
 		let now = get_time() in
-		let t = { id = id; start = now; pause = no_pause_yet; } in
+		let t = { id = id; start = now; pause = no_pause; } in
 		(match !open_timers with
-		| [] -> ()
-		| current :: rest ->
-			if not (is_paused current) then
-				current.pause <- now
+		| current :: rest when not (is_paused current) -> current.pause <- now
+		| _ -> ()
 		);
 		open_timers := t :: !open_timers;
 		t
