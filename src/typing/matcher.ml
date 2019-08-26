@@ -42,7 +42,9 @@ let type_field_access ctx ?(resume=false) e name =
 	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet) e.epos
 
 let unapply_type_parameters params monos =
-	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
+	List.iter2 (fun (_,t1) t2 ->
+		match t2,follow t2 with TMono m1,TMono m2 -> m1 := Some t1 | _ -> ()
+	) params monos
 
 let get_general_module_type ctx mt p =
 	let rec loop = function
@@ -320,8 +322,8 @@ module Pattern = struct
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
 						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
 						let map t = apply_params en.e_params tl (apply_params ef.ef_params monos t) in
-						(* We cannot use e1.etype here because it has applied type parameters (issue #1310). *)
-						let args = match follow (map ef.ef_type) with
+						unify ctx (map ef.ef_type) e1.etype e1.epos;
+						let args = match follow e1.etype with
 							| TFun(args,r) ->
 								unify_expected r;
 								args
@@ -343,8 +345,6 @@ module Pattern = struct
 								error "Too many arguments" p
 						in
 						let patterns = loop el args in
-						(* We want to change the original monomorphs back to type parameters, but we don't want to do that
-						   if they are bound to other monomorphs (issue #4578). *)
 						unapply_type_parameters ef.ef_params monos;
 						PatConstructor(con_enum en ef e1.epos,patterns)
 					| _ ->
