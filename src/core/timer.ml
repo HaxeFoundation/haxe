@@ -30,83 +30,20 @@ module Timer : sig
 	}
 
 	val get_time : unit -> float
-	val id : t -> string list
-	val total : t -> float
-	val close : t -> unit
-	val timer : string list -> unit -> unit
+	val close : float -> t -> unit
+	val timer : string list -> t
 	val close_times : unit -> unit
 	val report_times : (string -> unit) -> unit
-	(* iterate closed timers only *)
-	val iter_times : (t -> unit) -> unit
-	(* iterate closed timers only *)
-	val fold_times : (t -> 'a -> 'a) -> 'a -> 'a
+	(* Iterate closed timers only. Arguments: timer id and total duration *)
+	val iter_times : (string list -> float -> unit) -> unit
+	(* Iterate closed timers only. Arguments: timer id and total duration *)
+	val fold_times : (string list -> float -> 'a -> 'a) -> 'a -> 'a
 	val clear_times : unit -> unit
 	val build_times_tree : unit -> (int * int * timer_node)
 end =
 struct
-	type t = {
-		id : string list;
-		mutable start : float list;
-		mutable total : float;
-		mutable calls : int;
-	}
+	type t = (string list * float) (* id * start time *)
 
-	let id t = t.id
-	let total t = t.total
-
-	let get_time = Extc.time
-	let htimers = Hashtbl.create 0
-
-	let new_timer id =
-		let key = String.concat "." id in
-		try
-			let t = Hashtbl.find htimers key in
-			t.start <- get_time() :: t.start;
-			t.calls <- t.calls + 1;
-			t
-		with Not_found ->
-			let t = { id = id; start = [get_time()]; total = 0.; calls = 1; } in
-			Hashtbl.add htimers key t;
-			t
-
-	let curtime = ref []
-
-	let close t =
-		let start = (match t.start with
-			| [] -> assert false
-			| s :: l -> t.start <- l; s
-		) in
-		let now = get_time() in
-		let dt = now -. start in
-		t.total <- t.total +. dt;
-		let rec loop() =
-			match !curtime with
-			| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
-			| tt :: l -> curtime := l; if t != tt then loop()
-		in
-		loop();
-		(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
-		List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
-
-	let timer id =
-		let t = new_timer id in
-		curtime := t :: !curtime;
-		(function() -> close t)
-
-	let rec close_times() =
-		match !curtime with
-		| [] -> ()
-		| t :: _ -> close t; close_times()
-
-	let iter_times callback =
-		Hashtbl.iter (fun _ t -> callback t) htimers
-
-	let fold_times callback initial =
-		Hashtbl.fold (fun _ t acc -> callback t acc) htimers initial
-
-	let clear_times() = Hashtbl.clear htimers
-
-	(* Printing *)
 	type timer_node = {
 		name : string;
 		path : string;
@@ -117,7 +54,86 @@ struct
 		mutable children : timer_node list;
 	}
 
+	type result = {
+		id : string list;
+		mutable total : float;
+		mutable count : int;
+	}
+
+	let data t : (string list * float) = t
+
+	let get_time = Extc.time
+
+	let open_timers = ref []
+	let closed_timers = ref []
+	let results = Hashtbl.create 0
+
+	let new_timer id : t = id, get_time()
+
+	let close (end_time:float) (t:t) =
+		let id, start = t in
+		let dt = end_time -. start in
+		closed_timers := (id, if dt < 0. then 0. else dt) :: !closed_timers;
+		let rec loop() =
+			match !open_timers with
+			| [] -> failwith ("Timer " ^ (String.concat "." id) ^ " closed while not active")
+			| tt :: l -> open_timers := l; if t != tt then loop()
+		in
+		loop()
+(*
+		(* because of rounding errors while adding small times, we need to make sure that we don't have start > end_time *)
+		List.iter
+			(fun ct ->
+				ct.start <- List.map (fun t ->
+					let s = t +. dt in
+					if s > end_time then end_time else s
+				) ct.start
+			)
+			!open_timers *)
+
+	let timer id =
+		let t = new_timer id in
+		open_timers := t :: !open_timers;
+		t
+
+	let close_times() =
+		let end_time = get_time() in
+		List.iter (close end_time) !open_timers
+
+	let consume_closed_timers() =
+		match !closed_timers with
+		| [] -> ()
+		| timers ->
+			List.iter
+				(fun (id, duration) ->
+					let result =
+						try
+							Hashtbl.find results id
+						with Not_found ->
+							let result = { id = id; total = 0.; count = 0; } in
+							Hashtbl.add results id result;
+							result
+					in
+					result.total <- result.total +. duration;
+					result.count <- result.count + 1
+				)
+				timers;
+			closed_timers := []
+
+	let iter_times callback =
+		consume_closed_timers();
+		Hashtbl.iter (fun _ result -> callback result.id result.total) results
+
+	let fold_times callback initial =
+		consume_closed_timers();
+		Hashtbl.fold (fun _ result acc -> callback result.id result.total acc) results initial
+
+	let clear_times() = Hashtbl.clear results
+
+	(* Printing *)
+
 	let build_times_tree () =
+		consume_closed_timers();
 		let nodes = Hashtbl.create 0 in
 		let rec root = {
 			name = "";
@@ -135,7 +151,7 @@ struct
 					let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
 					let node = try
 						let node = Hashtbl.find nodes path in
-						node.num_calls <- node.num_calls + timer.calls;
+						node.num_calls <- node.num_calls + timer.count;
 						node.time <- node.time +. timer.total;
 						node
 					with Not_found ->
@@ -151,7 +167,7 @@ struct
 							parent = parent;
 							info = info;
 							time = timer.total;
-							num_calls = timer.calls;
+							num_calls = timer.count;
 							children = [];
 						} in
 						Hashtbl.add nodes path node;
@@ -169,7 +185,7 @@ struct
 			let node = loop root timer.id in
 			if not (List.memq node root.children) then
 				root.children <- node :: root.children
-		) htimers;
+		) results;
 		let max_name = ref 0 in
 		let max_calls = ref 0 in
 		let rec loop depth node =
@@ -211,13 +227,15 @@ end
 type timer_node = Timer.timer_node
 
 let get_time = Timer.get_time
-let id = Timer.id
-let total = Timer.total
 let timer = Timer.timer
-let close = Timer.close
+let close t = Timer.close (Timer.get_time()) t
 let close_times = Timer.close_times
 let report_times = Timer.report_times
 let iter_times = Timer.iter_times
 let fold_times = Timer.fold_times
 let clear_times = Timer.clear_times
 let build_times_tree = Timer.build_times_tree
+
+let timer_fn id =
+	let t = Timer.timer id in
+	(fun () -> close t)

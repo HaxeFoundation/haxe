@@ -164,14 +164,14 @@ let find_possible_references tctx cs =
 				()
 			end
 	) files;
-	t();
+	Timer.close t;
 	()
 
 let find_references tctx com with_definition =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	let t = Timer.timer ["display";"references";"collect"] in
 	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
-	t();
+	Timer.close t;
 	let rec loop acc relations = match relations with
 		| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
@@ -187,6 +187,6 @@ let find_references tctx com with_definition =
 		let c = compare p1.pfile p2.pfile in
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) usages in
-	t();
+	Timer.close t;
 	Display.ReferencePosition.set ("",null_pos,KVar);
 	DisplayException.raise_positions usages

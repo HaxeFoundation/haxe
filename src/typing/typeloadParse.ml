@@ -38,10 +38,10 @@ let parse_file_from_lexbuf com file p lexbuf =
 		ParserEntry.parse com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
-			t();
+			Timer.close t;
 			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
-			t();
+			Timer.close t;
 			raise e
 	in
 	begin match !Parser.display_mode,parse_result with
@@ -52,7 +52,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| _ ->
 			()
 	end;
-	t();
+	Timer.close t;
 	Common.log com ("Parsed " ^ file);
 	parse_result
 

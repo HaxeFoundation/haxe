@@ -466,7 +466,7 @@ let extract_data (_,tags) =
 			List.iter (fun i -> Array.iter loop_field i.hls_fields) (As3hlparse.parse as3)
 		| _ -> ()
 	) tags;
-	t();
+	Timer.close t;
 	h
 
 let remove_debug_infos as3 =
@@ -569,7 +569,7 @@ let parse_swf com file =
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;
-	t();
+	Timer.close t;
 	(h,tags)
 
 class swf_library com name file_path = object(self)

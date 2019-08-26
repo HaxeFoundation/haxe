@@ -29,11 +29,11 @@ let htmlescape s =
 
 let get_timer_fields start_time =
 	let tot = ref 0. in
-	Timer.iter_times (fun t -> tot := !tot +. (Timer.total t));
+	Timer.iter_times (fun id total -> tot := !tot +. total);
 	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time))] in
 	if !tot > 0. then
-		Timer.fold_times (fun t acc ->
-			((String.concat "." (Timer.id t)),(Printf.sprintf "%.3fs (%.0f%%)" (Timer.total t) ((Timer.total t) *. 100. /. !tot))) :: acc
+		Timer.fold_times (fun id total acc ->
+			((String.concat "." id),(Printf.sprintf "%.3fs (%.0f%%)" total (total *. 100. /. !tot))) :: acc
 		) fields
 	else
 		fields

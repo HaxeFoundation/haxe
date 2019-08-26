@@ -700,7 +700,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	let hasret = jit.has_nonfinal_return in
 	let eci = get_env_creation jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
 	let f = if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl in
-	t();
+	Timer.close t;
 	f
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
@@ -708,5 +708,5 @@ let jit_expr ctx e =
 	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = EvalJitContext.create ctx in
 	let f = jit_expr jit false (mk_block e) in
-	t();
+	Timer.close t;
 	jit,f

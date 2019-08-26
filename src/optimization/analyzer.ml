@@ -908,7 +908,7 @@ module Run = struct
 	let with_timer detailed s f =
 		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
 		let r = f() in
-		timer();
+		Timer.close timer;
 		r
 
 	let create_analyzer_context com config e =

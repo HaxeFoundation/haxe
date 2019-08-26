@@ -144,7 +144,7 @@ let create com api is_macro =
 		select ctx;
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
-	t();
+	Timer.close t;
 	ctx
 
 (* API for macroContext.ml *)

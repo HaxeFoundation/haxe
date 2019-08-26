@@ -140,7 +140,7 @@ let parse_file cs com file p =
 		let sign = Define.get_signature com.defines in
 		let ftime = file_time ffile in
 		let fkey = (ffile,sign) in
-		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+		let data = Std.finally (timer_fn ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = CompilationServer.find_file cs fkey in
 				if cfile.c_time <> ftime then raise Not_found;
@@ -227,7 +227,7 @@ let stat dir =
 
 (* Gets a list of changed directories for the current compilation. *)
 let get_changed_directories sctx (ctx : Typecore.typer) =
-	let t = Timer.timer ["server";"module cache";"changed dirs"] in
+	let t = timer ["server";"module cache";"changed dirs"] in
 	let cs = sctx.cs in
 	let com = ctx.Typecore.com in
 	let sign = Define.get_signature com.defines in
@@ -287,7 +287,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 		Hashtbl.add sctx.changed_directories sign dirs;
 		dirs
 	in
-	t();
+	close t;
 	dirs
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
@@ -453,29 +453,29 @@ let add_modules sctx ctx m p =
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
 let type_module sctx (ctx:Typecore.typer) mpath p =
-	let t = Timer.timer ["server";"module cache"] in
+	let t = timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
 		let m = CompilationServer.find_module cs (mpath,sign) in
-		let tcheck = Timer.timer ["server";"module cache";"check"] in
+		let tcheck = timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
 		| Some m' ->
 			ServerMessage.skipping_dep com "" (m,m');
-			tcheck();
+			close tcheck;
 			raise Not_found;
 		end;
-		tcheck();
+		close tcheck;
 		let tadd = Timer.timer ["server";"module cache";"add modules"] in
 		add_modules sctx ctx m p;
-		tadd();
-		t();
+		close tadd;
+		close t;
 		Some m
 	with Not_found ->
-		t();
+		close t;
 		None
 
 (* Sets up the per-compilation context. *)

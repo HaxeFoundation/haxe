@@ -843,7 +843,7 @@ let run com tctx main =
 	] in
 	let t = filter_timer detail_times ["expr 0"] in
 	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	Timer.close t;
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
@@ -870,7 +870,7 @@ let run com tctx main =
 	in
 	let t = filter_timer detail_times ["expr 1"] in
 	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	Timer.close t;
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -888,7 +888,7 @@ let run com tctx main =
 	in
 	let t = filter_timer detail_times ["type 1"] in
 	List.iter (fun f -> List.iter f new_types) filters;
-	t();
+	Timer.close t;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 	let reserved = collect_reserved_local_names com in
 	let filters = [
@@ -901,17 +901,17 @@ let run com tctx main =
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
 	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	Timer.close t;
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
-	t();
+	Timer.close t;
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
-	t();
+	Timer.close t;
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
-	t();
+	Timer.close t;
 	let t = filter_timer detail_times ["type 2"] in
 	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->
@@ -921,7 +921,7 @@ let run com tctx main =
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 		check_remove_metadata tctx t;
 	) com.types;
-	t();
+	Timer.close t;
 	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
 	let dce_mode = if Common.defined com Define.As3 then
@@ -936,7 +936,7 @@ let run com tctx main =
 		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
 	in
 	Dce.run com main dce_mode;
-	t();
+	Timer.close t;
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
 		check_private_path;
@@ -956,5 +956,5 @@ let run com tctx main =
 	in
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
-	t();
+	Timer.close t;
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)

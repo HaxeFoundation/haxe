@@ -286,13 +286,13 @@ let rec write_xml ch tabs x =
 let generate com file =
 	let t = Timer.timer ["generate";"xml"] in
 	let x = node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types)) in
-	t();
+	Timer.close t;
 	let t = Timer.timer ["write";"xml"] in
 	let ch = IO.output_channel (open_out_bin file) in
 	IO.printf ch "<!-- This file can be parsed by haxe.rtti.XmlParser -->\n";
 	write_xml ch "" x;
 	IO.close_out ch;
-	t()
+	Timer.close t
 
 let gen_type_string ctx t =
 	let x = gen_type_decl ctx false t in

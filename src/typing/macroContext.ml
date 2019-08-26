@@ -102,7 +102,7 @@ let typing_timer ctx need_type f =
 		flush_pass ctx PBuildClass "typing_timer";
 	end;
 	let exit() =
-		t();
+		Timer.close t;
 		ctx.com.error <- old;
 		ctx.pass <- oldp;
 		ctx.locals <- oldlocals;
@@ -179,21 +179,21 @@ let make_macro_api ctx p =
 			ctx.com.callbacks#add_after_typing (fun tl ->
 				let t = macro_timer ctx ["afterTyping"] in
 				f tl;
-				t()
+				Timer.close t
 			)
 		);
 		MacroApi.on_generate = (fun f b ->
 			(if b then ctx.com.callbacks#add_before_save else ctx.com.callbacks#add_after_save) (fun() ->
 				let t = macro_timer ctx ["onGenerate"] in
 				f (List.map type_of_module_type ctx.com.types);
-				t()
+				Timer.close t
 			)
 		);
 		MacroApi.after_generate = (fun f ->
 			ctx.com.callbacks#add_after_generation (fun() ->
 				let t = macro_timer ctx ["afterGenerate"] in
 				f();
-				t()
+				Timer.close t
 			)
 		);
 		MacroApi.on_type_not_found = (fun f ->
@@ -256,7 +256,7 @@ let make_macro_api ctx p =
 			ctx.com.js_gen <- Some (fun() ->
 				let t = macro_timer ctx ["jsGenerator"] in
 				gen js_ctx;
-				t()
+				Timer.close t
 			);
 		);
 		MacroApi.get_local_type = (fun() ->
@@ -441,8 +441,8 @@ and flush_macro_context mint ctx =
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
-	with Error (e,p) -> t(); raise (Fatal_error(error_msg e,p)));
-	t();
+	with Error (e,p) -> Timer.close t; raise (Fatal_error(error_msg e,p)));
+	Timer.close t;
 	Filters.next_compilation()
 
 let create_macro_interp ctx mctx =
@@ -544,7 +544,7 @@ let load_macro ctx display cpath f p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		t();
+		Timer.close t;
 		meth
 	in
 	add_dependency ctx.m.curmod mloaded;
@@ -553,7 +553,7 @@ let load_macro ctx display cpath f p =
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
 		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
-		t();
+		Timer.close t;
 		if ctx.com.verbose then Common.log ctx.com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 		r
 	in

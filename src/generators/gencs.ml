@@ -2289,7 +2289,7 @@ let generate con =
 											if unchecked then (begin_block w; write w "unchecked ");
 											let t = Timer.timer ["expression to string"] in
 											expr_s false w e;
-											t();
+											Timer.close t;
 											line_reset_directive w;
 											if unchecked then end_block w
 										| _ ->
@@ -2314,7 +2314,7 @@ let generate con =
 												let t = Timer.timer ["expression to string"] in
 												expr_s false w this_call;
 												write w " ";
-												t();
+												Timer.close t;
 												write w "{}"
 											| TBlock(bl) ->
 												let super_call, rest = get_super_call bl in
@@ -2325,7 +2325,7 @@ let generate con =
 														let t = Timer.timer ["expression to string"] in
 														expr_s false w sc;
 														write w " ";
-														t()
+														Timer.close t
 												);
 												write_method_expr { expr with eexpr = TBlock(rest) }
 											| _ -> assert false

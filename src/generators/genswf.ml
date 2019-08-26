@@ -672,7 +672,7 @@ let generate swf_header com =
 		Swf.write ch swf;
 		IO.close_out ch;
 	);
-	t()
+	Timer.close t
 
 ;;
 SwfParser.init Extc.input_zip Extc.output_zip;
