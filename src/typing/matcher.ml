@@ -42,9 +42,18 @@ let type_field_access ctx ?(resume=false) e name =
 	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet) e.epos
 
 let unapply_type_parameters params monos =
+	let unapplied = ref [] in
 	List.iter2 (fun (_,t1) t2 ->
-		match t2,follow t2 with TMono m1,TMono m2 -> m1 := Some t1 | _ -> ()
-	) params monos
+		match t2,follow t2 with
+		| TMono m1,TMono m2 ->
+			unapplied := (m1,!m1) :: !unapplied;
+			m1 := Some t1;
+		| _ -> ()
+	) params monos;
+	!unapplied
+
+let reapply_type_parameters unapplied =
+	List.iter (fun (m,o) -> m := o) unapplied
 
 let get_general_module_type ctx mt p =
 	let rec loop = function
@@ -147,6 +156,7 @@ module Pattern = struct
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
 		is_postfix_match : bool;
+		unapply_type_parameters : unit -> (Type.t option ref * Type.t option) list;
 	}
 
 	exception Bad_pattern of string
@@ -345,7 +355,7 @@ module Pattern = struct
 								error "Too many arguments" p
 						in
 						let patterns = loop el args in
-						unapply_type_parameters ef.ef_params monos;
+						ignore(unapply_type_parameters ef.ef_params monos);
 						PatConstructor(con_enum en ef e1.epos,patterns)
 					| _ ->
 						fail()
@@ -467,7 +477,11 @@ module Pattern = struct
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
 				let v = add_local false "_" null_pos in
+				(* Tricky stuff: Extractor expressions are like normal expressions, so we don't want to deal with GADT-applied types here.
+				   Let's unapply, then reapply after we're done with the extractor (#5952). *)
+				let unapplied = pctx.unapply_type_parameters () in
 				let e1 = type_expr ctx e1 WithType.value in
+				reapply_type_parameters unapplied;
 				v.v_name <- "tmp";
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
@@ -500,21 +514,11 @@ module Pattern = struct
 		in
 		let pat = loop e in
 		pat,p
-
-	let make ctx t e postfix_match =
-		let pctx = {
-			ctx = ctx;
-			current_locals = PMap.empty;
-			ctx_locals = ctx.locals;
-			or_locals = None;
-			in_reification = false;
-			is_postfix_match = postfix_match;
-		} in
-		make pctx true t e
 end
 
 module Case = struct
 	open Typecore
+	open Pattern
 
 	type t = {
 		case_guard : texpr option;
@@ -543,8 +547,17 @@ module Case = struct
 		) ctx.locals [] in
 		let old_ret = ctx.ret in
 		ctx.ret <- map ctx.ret;
-		let pat = Pattern.make ctx (map t) e postfix_match in
-		unapply_type_parameters ctx.type_params monos;
+		let pctx = {
+			ctx = ctx;
+			current_locals = PMap.empty;
+			ctx_locals = ctx.locals;
+			or_locals = None;
+			in_reification = false;
+			is_postfix_match = postfix_match;
+			unapply_type_parameters = (fun () -> unapply_type_parameters ctx.type_params monos);
+		} in
+		let pat = Pattern.make pctx true (map t) e in
+		ignore(unapply_type_parameters ctx.type_params monos);
 		let eg = match eg with
 			| None -> None
 			| Some e -> Some (type_expr ctx e WithType.value)
