@@ -42,7 +42,11 @@ module Timer : sig
 	val build_times_tree : unit -> (int * int * timer_node)
 end =
 struct
-	type t = (string list * float) (* id * start time *)
+	type t = {
+		id : string list;
+		mutable start : float;
+		mutable pause : float;
+	}
 
 	type timer_node = {
 		name : string;
@@ -60,7 +64,8 @@ struct
 		mutable count : int;
 	}
 
-	let data t : (string list * float) = t
+	let no_pause_yet = -1.
+	let is_paused t = t.pause >= 0.
 
 	let get_time = Extc.time
 
@@ -68,16 +73,24 @@ struct
 	let closed_timers = ref []
 	let results = Hashtbl.create 0
 
-	let new_timer id : t = id, get_time()
-
-	let close (end_time:float) (t:t) =
-		let id, start = t in
-		let dt = end_time -. start in
-		closed_timers := (id, if dt < 0. then 0. else dt) :: !closed_timers;
+	let close end_time t =
+		let dt = end_time -. t.start in
+		closed_timers := (t.id, if dt < 0. then 0. else dt) :: !closed_timers;
 		let rec loop() =
 			match !open_timers with
-			| [] -> failwith ("Timer " ^ (String.concat "." id) ^ " closed while not active")
-			| tt :: l -> open_timers := l; if t != tt then loop()
+			| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
+			| tt :: l ->
+				if t == tt then begin
+					match l with
+					| previous :: rest when is_paused previous ->
+						let now = get_time() in
+						let new_start = now -. (previous.pause -. previous.start) in
+						previous.start <- if new_start > now then now else new_start;
+						previous.pause <- no_pause_yet
+					| _ -> ()
+				end;
+				open_timers := l;
+				if t != tt then loop()
 		in
 		loop()
 (*
@@ -92,7 +105,14 @@ struct
 			!open_timers *)
 
 	let timer id =
-		let t = new_timer id in
+		let now = get_time() in
+		let t = { id = id; start = now; pause = no_pause_yet; } in
+		(match !open_timers with
+		| [] -> ()
+		| current :: rest ->
+			if not (is_paused current) then
+				current.pause <- now
+		);
 		open_timers := t :: !open_timers;
 		t
 
