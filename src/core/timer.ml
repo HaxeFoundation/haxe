@@ -93,16 +93,6 @@ struct
 				if t != tt then loop()
 		in
 		loop()
-(*
-		(* because of rounding errors while adding small times, we need to make sure that we don't have start > end_time *)
-		List.iter
-			(fun ct ->
-				ct.start <- List.map (fun t ->
-					let s = t +. dt in
-					if s > end_time then end_time else s
-				) ct.start
-			)
-			!open_timers *)
 
 	let timer id =
 		let now = get_time() in
@@ -250,11 +240,11 @@ let get_time = Timer.get_time
 let timer = Timer.timer
 let close t = Timer.close (Timer.get_time()) t
 let close_times = Timer.close_times
-let report_times = Timer.report_times
 let iter_times = Timer.iter_times
 let fold_times = Timer.fold_times
 let clear_times = Timer.clear_times
 let build_times_tree = Timer.build_times_tree
+let report_times = Timer.report_times
 
 let timer_fn id =
 	let t = Timer.timer id in
