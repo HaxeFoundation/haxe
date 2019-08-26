@@ -16,8 +16,7 @@ let measure_times = ref false
 let prompt = ref false
 let start_time = ref (Timer.get_time())
 
-let is_debug_run() =
-	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
+let is_debug_run = try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
 type context = {
 	com : Common.context;
@@ -614,7 +613,7 @@ let wait_loop process_params verbose accept =
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
 			(try write ("\x02\n" ^ estr); with _ -> ());
-			if is_debug_run() then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then begin
 				close();
 				exit (-1);

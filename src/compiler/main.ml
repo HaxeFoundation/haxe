@@ -1076,7 +1076,7 @@ with
 		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
-	| Failure msg when not (is_debug_run()) ->
+	| Failure msg when not is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		com.info msg null_pos
@@ -1185,7 +1185,7 @@ with
 		raise exc
 	| Out_of_memory as exc ->
 		raise exc
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
 ;;
