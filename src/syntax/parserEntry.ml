@@ -43,6 +43,14 @@ let s_small_type v =
 	| TString _ -> "string"
 	| TVersion _ -> "version"
 
+let s_value v =
+	match v with
+	| TNull -> "null"
+	| TBool b -> "boolean " ^ (string_of_bool b)
+	| TFloat f -> "float " ^ (string_of_float f)
+	| TString s -> "string \"" ^ s ^ "\""
+	| TVersion (r,p) -> "version " ^ (Semver.to_string (r,p))
+
 let parse_version s p =
 	try match parse_version s with release,pre -> TVersion (release,pre)
 	with Invalid_argument msg -> error (Custom msg) p
@@ -53,11 +61,10 @@ let cmp v1 v2 =
 	| TFloat a, TFloat b -> compare a b
 	| TString a, TString b -> compare a b
 	| TBool a, TBool b -> compare a b
-	| TString a, TFloat b -> compare (float_of_string a) b
-	| TFloat a, TString b -> compare a (float_of_string b)
 	| TVersion (release1,pre1), TVersion (release2,pre2) -> compare_version (release1,pre1) (release2,pre2)
-	| _, TVersion _
-	| TVersion _, _ -> raise (Invalid_argument ("Cannot compare " ^ (s_small_type v1) ^ " and " ^ (s_small_type v2)))
+	| TString _, TFloat _ | TFloat _, TString _
+	| _, TVersion _ | TVersion _, _ ->
+		raise (Invalid_argument ("Cannot compare " ^ (s_value v1) ^ " and " ^ (s_value v2)))
 	| _ -> raise Exit (* always false *)
 
 let rec eval ctx (e,p) =
@@ -97,9 +104,17 @@ let rec eval ctx (e,p) =
 	| _ ->
 		error (Custom "Invalid condition expression") p
 
+(**
+	Attempt to auto-cast operands to a common type
+*)
 and eval_binop_exprs ctx e1 e2 =
 	match eval ctx e1, eval ctx e2 with
-	| (TVersion _ as v1), (TVersion _ as v2) -> (v1, v2)
+	| (TString s1 as v1), (TFloat _ as v2) ->
+		(try TFloat (float_of_string s1), v2
+		with Failure _ -> v1, v2)
+	| (TFloat _ as v1), (TString s2 as v2) ->
+		(try v1, TFloat (float_of_string s2)
+		with Failure _ -> v1, v2)
 	| (TVersion _ as v1), TString s -> (v1, parse_version s (snd e2))
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
