@@ -80,7 +80,7 @@ let read_class_paths com timer =
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
 				let file = Path.unique_full_path file in
-				CompilationServer.remove_file_for_real (CommonCache.get_cache com) file
+				CompilationServer.remove_file_for_real (CommonCache.get_cache cs com) file
 			| _ ->
 				()
 		end
@@ -95,11 +95,11 @@ let init_or_update_server cs com timer_name =
 	(* Iterate all removed files of the current context. If they aren't part of the context again,
 		re-parse them and remove them from c_removed_files. *)
 	let removed_removed_files = DynArray.create () in
-	let cc = CommonCache.get_cache com in
+	let cc = CommonCache.get_cache cs com in
 	Hashtbl.iter (fun file () ->
 		DynArray.add removed_removed_files file;
 		try
-			ignore(find_file (CommonCache.get_cache com) file);
+			ignore(find_file cc file);
 		with Not_found ->
 			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
 	) cc.c_removed_files;
@@ -395,7 +395,7 @@ let collect ctx tk with_type =
 	| Some cs ->
 		(* online: iter context files *)
 		init_or_update_server cs ctx.com ["display";"toplevel"];
-		let cc = CommonCache.get_cache ctx.com in
+		let cc = CommonCache.get_cache cs ctx.com in
 		let files = cc.c_files in
 		(* Sort files by reverse distance of their package to our current package. *)
 		let files = Hashtbl.fold (fun file cfile acc ->

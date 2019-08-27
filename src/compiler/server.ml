@@ -131,7 +131,7 @@ let ssend sock str =
 let current_stdin = ref None
 
 let parse_file cs com file p =
-	let cc = CommonCache.get_cache com in
+	let cc = CommonCache.get_cache cs com in
 	let ffile = Path.unique_full_path file in
 	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
 	match is_display_file, !current_stdin with
@@ -293,7 +293,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache com in
+	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
 		let ffile = Path.unique_full_path file in
 		try
@@ -452,7 +452,7 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache com in
+	let cc = CommonCache.get_cache sctx.cs com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
 		let m = CompilationServer.find_module cc mpath in

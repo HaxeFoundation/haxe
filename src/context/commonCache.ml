@@ -61,10 +61,10 @@ let handle_native_lib com lib =
 
 (* context *)
 
-let get_cache com = match com.Common.cache with
+let get_cache cs com = match com.Common.cache with
 	| None ->
 		let sign = Define.get_signature com.defines in
-		CompilationServer.get_cache (CompilationServer.force ()) sign
+		CompilationServer.get_cache cs sign
 	| Some cache ->
 		cache
 

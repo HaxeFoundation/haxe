@@ -149,7 +149,7 @@ let find_possible_references kind name (pack,decls) =
 let find_possible_references tctx cs =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
-	let cc = CommonCache.get_cache tctx.com in
+	let cc = CommonCache.get_cache cs tctx.com in
 	let files = cc.c_files in
 	let t = Timer.timer ["display";"references";"candidates"] in
 	Hashtbl.iter (fun file cfile ->
