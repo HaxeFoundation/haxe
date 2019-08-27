@@ -1454,13 +1454,14 @@ module TexprConverter = struct
 								| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug) (List.sort Constructor.compare cons),e)
 							end
 						) cases in
+						let is_nullable_subject = is_explicit_null e_subject.etype in
 						let e_subject = match kind with
 							| SKValue -> e_subject
 							| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
 							| SKLength -> type_field_access ctx e_subject "length"
 						in
 						begin match cases,e_default,with_type with
-							| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) ->
+							| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
 								{e2 with etype = t_switch}
 							| [[e1],e2],Some _,_
 							| [[e1],e2],None,NoValue when ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
