@@ -724,7 +724,7 @@ and decode_display_kind v = match (decode_enum v) with
 	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
-and decode_function_kind kind = match decode_enum kind with
+and decode_function_kind kind = if kind = vnull then FKAnonymous else match decode_enum kind with
 	| 0, [] -> FKAnonymous
 	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_bool inline)
 	| 2, [] -> FKArrow
