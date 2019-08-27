@@ -499,13 +499,16 @@ let do_type tctx config_macros classes =
 		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
 	in
 	add_signature "before_init_macros";
+	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
+	com.stage <- CInitMacrosDone;
 	add_signature "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev classes);
 		Finalization.finalize tctx;
 	) ();
+	com.stage <- CTypingDone;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match !CompilationServer.instance,com.display.dms_kind with
@@ -572,6 +575,7 @@ let handle_display ctx tctx display_file_dot_path =
 
 let filter ctx tctx display_file_dot_path =
 	let com = ctx.com in
+	com.stage <- CFilteringStart;
 	let t = Timer.timer ["filters"] in
 	let main, types, modules = run_or_diagnose com Finalization.generate tctx in
 	com.main <- main;
@@ -1018,11 +1022,13 @@ try
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
+	com.stage <- CInitialized;
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
 		(* Actual compilation starts here *)
 		let tctx = create_typer_context ctx !native_libs in
+		com.stage <- CTyperCreated;
 		let display_file_dot_path = match display_file_dot_path with
 			| DPKMacro path ->
 				ignore(load_display_module_in_macro tctx (Some path) true);
@@ -1041,7 +1047,9 @@ try
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
 		check_auxiliary_output com !xml_out !json_out;
+		com.stage <- CGenerationStart;
 		if not !no_output then generate tctx ext !interp !swf_header;
+		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
