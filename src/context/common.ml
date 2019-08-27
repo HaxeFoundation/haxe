@@ -518,6 +518,7 @@ let log com str =
 let clone com =
 	let t = com.basic in
 	{ com with
+		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;

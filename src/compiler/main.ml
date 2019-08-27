@@ -502,6 +502,7 @@ let do_type tctx config_macros classes =
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
 	com.stage <- CInitMacrosDone;
+	com.cache <- (match CompilationServer.get() with None -> None | Some _ -> Some (CommonCache.get_cache com));
 	add_signature "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->
