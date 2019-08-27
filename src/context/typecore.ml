@@ -222,7 +222,31 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let check_identifier_name ctx name kind p =
+	if starts_with name '$' then
+		display_error ctx (kind ^ " names starting with a dollar are not allowed") p
+	else
+		let is_valid_identifier s =
+			match s with
+			| "new" | "this" -> true
+			| _ -> Lexer.is_valid_identifier s
+		in
+		if not (is_valid_identifier name) then display_error ctx ("`" ^ name ^ "` is not a valid " ^ kind ^ " name") p
+
+let check_local_variable_name ctx name origin p =
+	let s_var_origin origin =
+		match origin with
+		| TVOLocalVariable -> "variable"
+		| TVOArgument -> "function argument"
+		| TVOForVariable -> "for variable"
+		| TVOPatternVariable -> "pattern variable"
+		| TVOCatchVariable -> "catch variable"
+		| TVOLocalFunction -> "function"
+	in
+	check_identifier_name ctx name (s_var_origin origin) p
+
 let add_local_with_origin ctx origin n t p =
+	check_local_variable_name ctx n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"

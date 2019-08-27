@@ -1467,7 +1467,6 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
 			if final then v.v_final <- true;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
@@ -1894,7 +1893,6 @@ and type_try ctx e1 catches with_type p =
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let name,t2 = loop t in
-		if starts_with v '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
@@ -2042,7 +2040,6 @@ and type_local_function ctx kind f with_type p =
 	let v = (match v with
 		| None -> None
 		| Some v ->
-			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
