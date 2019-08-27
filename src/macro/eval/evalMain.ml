@@ -374,7 +374,7 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	ctx.static_prototypes#set_needs_reset
+	ctx.static_prototypes#reset
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)

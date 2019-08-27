@@ -206,7 +206,7 @@ end
 
 class static_prototypes = object(self)
 	val mutable prototypes : vprototype IntMap.t = IntMap.empty
-	val mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
+	val mutable inits : (vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
 
 	method add proto =
 		prototypes <- IntMap.add proto.ppath proto prototypes
@@ -215,20 +215,13 @@ class static_prototypes = object(self)
 		inits <- IntMap.remove path inits;
 		prototypes <- IntMap.remove path prototypes
 
-	method set_needs_reset =
-		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) inits
+	method reset =
+		IntMap.iter (fun _ (proto, delays) -> List.iter (fun f -> f proto) delays) inits
 
 	method add_init proto delays =
-		inits <- IntMap.add proto.ppath (ref false, proto, delays) inits
+		inits <- IntMap.add proto.ppath (proto, delays) inits
 
 	method get path =
-		(try
-			let (needs_reset, proto, delays) = IntMap.find path inits in
-			if !needs_reset then begin
-				needs_reset := false;
-				List.iter (fun f -> f proto) delays
-			end
-		with Not_found -> ());
 		IntMap.find path prototypes
 end
 
