@@ -231,6 +231,8 @@ module Pattern = struct
 					loop e1
 				| TField _ ->
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
+				| TTypeExpr mt ->
+					PatConstructor(con_type_expr mt e.epos,[])
 				| _ ->
 					raise Exit
 			in
@@ -244,14 +246,12 @@ module Pattern = struct
 			ctx.untyped <- true;
 			let e = try type_expr ctx e (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
 			ctx.untyped <- old;
-			match e.eexpr with
-				| TTypeExpr mt ->
-					unify_type_pattern ctx mt t e.epos;
-					PatConstructor(con_type_expr mt e.epos,[])
-				| _ ->
-					let pat = check_expr e in
-					unify ctx e.etype t p;
-					pat
+			let pat = check_expr e in
+			begin match pat with
+				| PatConstructor((ConTypeExpr mt,_),_) -> unify_type_pattern ctx mt t e.epos;
+				| _ -> unify ctx e.etype t p;
+			end;
+			pat
 		in
 		let handle_ident s p =
 			try
