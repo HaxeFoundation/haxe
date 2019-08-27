@@ -1459,10 +1459,11 @@ module TexprConverter = struct
 							| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
 							| SKLength -> type_field_access ctx e_subject "length"
 						in
-						begin match cases with
-							| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
+						begin match cases,e_default,with_type with
+							| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) ->
 								{e2 with etype = t_switch}
-							| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
+							| [[e1],e2],Some _,_
+							| [[e1],e2],None,NoValue when ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
 								let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 								begin match e2.eexpr with
 									| TIf(e_op2,e3,e_default2) when (match e_default,e_default2 with Some(e1),Some(e2) when e1 == e2 -> true | _ -> false) ->
@@ -1471,6 +1472,9 @@ module TexprConverter = struct
 									| _ ->
 										mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
 								end
+							| [([{eexpr = TConst (TBool true)}],e1);([{eexpr = TConst (TBool false)}],e2)],None,_
+							| [([{eexpr = TConst (TBool false)}],e2);([{eexpr = TConst (TBool true)}],e1)],None,_ ->
+								mk (TIf(e_subject,e1,Some e2)) t_switch dt.dt_pos
 							| _ ->
 								let e_subject = match finiteness with
 									| RunTimeFinite | CompileTimeFinite when e_default = None ->
