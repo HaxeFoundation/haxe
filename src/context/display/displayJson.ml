@@ -155,7 +155,7 @@ let handler =
 				DisplayToplevel.read_class_paths hctx.com ["init"];
 				let files = CompilationServer.get_files hctx.display#get_cs in
 				hctx.send_result (jobject [
-					"files", jint (Hashtbl.length files)
+					"files", jint (List.length files)
 				]);
 			)
 		);
@@ -165,16 +165,18 @@ let handler =
 		);
 		"server/modules", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let l = Hashtbl.fold (fun (_,sign') m acc ->
-				if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
-			) hctx.display#get_cs.cache.c_modules [] in
+			let cc = get_cache hctx.display#get_cs sign in
+			let l = Hashtbl.fold (fun _ m acc ->
+				if m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
+			) cc.c_modules [] in
 			hctx.send_result (jarray l)
 		);
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
+			let cc = get_cache hctx.display#get_cs sign in
 			let m = try
-				CompilationServer.find_module hctx.display#get_cs (path,sign)
+				CompilationServer.find_module cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
@@ -184,15 +186,15 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
 			let cs = hctx.display#get_cs in
-			List.iter (fun (sign,_) ->
-				Hashtbl.replace cs.cache.c_removed_files (file,sign) ()
-			) (CompilationServer.get_signs cs);
+			Hashtbl.iter (fun _ cc ->
+				Hashtbl.replace cc.c_removed_files file ()
+			) (CompilationServer.get_caches cs);
 			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let files = CompilationServer.get_files hctx.display#get_cs in
-			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
+			let cc = get_cache hctx.display#get_cs sign in
+			let files = Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc.c_files [] in
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (file,cfile) ->
 				jobject [

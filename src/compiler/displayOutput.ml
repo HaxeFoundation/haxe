@@ -229,7 +229,8 @@ module Memory = struct
 		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
 
 	let collect_memory_stats cs =
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
+		[]
+		(* let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
 			scan_module_deps m mdeps;
@@ -249,7 +250,7 @@ module Memory = struct
 			let leaks = if inf.reached then collect_leaks m deps out else [] in
 			(m,Objsize.size_with_headers inf, (inf.reached,deps,out,leaks)) :: acc
 		) cs.c_modules [] in
-		modules
+		modules *)
 
 	let fmt_size sz =
 		if sz < 1024 then
@@ -263,7 +264,8 @@ module Memory = struct
 		fmt_size (mem_size v)
 
 	let get_memory_json cs =
-		Gc.full_major();
+		jnull
+		(* Gc.full_major();
 		Gc.compact();
 		let contexts = Hashtbl.create 0 in
 		let add_context sign =
@@ -385,7 +387,7 @@ module Memory = struct
 				"macroInterpreter",jint (mem_size MacroContext.macro_interp_cache);
 				"completionResult",jint (mem_size (DisplayException.last_completion_result));
 			]
-		]
+		] *)
 
 	let display_memory com =
 		let verbose = com.verbose in
@@ -401,8 +403,8 @@ module Memory = struct
 		| Some {cache = c} ->
 			print ("Total cache size " ^ size c);
 			print ("  haxelib " ^ size c.c_haxelib);
-			print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-			print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+			(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
+			(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
 			let modules = collect_memory_stats c in
 			let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
 			List.iter (fun (m,size,(reached,deps,out,leaks)) ->

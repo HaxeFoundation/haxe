@@ -491,7 +491,7 @@ let get_macro_context ctx p =
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
-		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com2 "get_macro_context") (CompilationServer.get());
+		Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com2 "get_macro_context") (CompilationServer.get());
 		api, mctx
 
 let load_macro_module ctx cpath display p =

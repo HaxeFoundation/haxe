@@ -61,7 +61,7 @@ let sign_string com =
 		try
 			(CompilationServer.get_sign cs sign).cs_index
 		with Not_found ->
-			let i = CompilationServer.add_sign cs sign "message" com in
+			let i = CompilationServer.add_sign cs sign "message" com.platform com.class_path com.defines in
 			if config.print_new_context then print_endline (Printf.sprintf "Found context %i:\n%s" i (dump_context com));
 			i
 	in

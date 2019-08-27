@@ -496,7 +496,7 @@ let do_type tctx config_macros classes =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
 	let add_signature desc =
-		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
+		Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com desc) (CompilationServer.get ());
 	in
 	add_signature "before_init_macros";
 	com.stage <- CInitMacrosStart;
