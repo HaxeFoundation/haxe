@@ -194,10 +194,15 @@ module Printer = struct
 			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
 		) DeprecationCheck.warned_positions;
 		Hashtbl.iter (fun file ranges ->
-			List.iter (fun p ->
-				add DKInactiveBlock p DiagnosticsSeverity.Hint JNull
+			List.iter (fun (p,e) ->
+				let jo = JObject [
+					"expr",JObject [
+						"string",JString (Ast.Printer.s_expr e)
+					]
+				] in
+				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
 			) ranges
-		) com.display_information.dead_blocks;
+		) com.shared.shared_display_information.dead_blocks;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [

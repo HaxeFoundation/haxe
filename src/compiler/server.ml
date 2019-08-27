@@ -16,8 +16,7 @@ let measure_times = ref false
 let prompt = ref false
 let start_time = ref (Timer.get_time())
 
-let is_debug_run() =
-	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
+let is_debug_run = try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
 type context = {
 	com : Common.context;
@@ -527,9 +526,8 @@ let create sctx write params =
 			current file in order to run diagnostics on it again. *)
 		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
 			let file = (DisplayPosition.display_position#get).pfile in
-			let fkey = (file,sign) in
 			(* force parsing again : if the completion point have been changed *)
-			CompilationServer.remove_file cs fkey;
+			CompilationServer.remove_files cs file;
 			sctx.removed_modules <- CompilationServer.filter_modules cs file;
 			add_delay sctx recache_removed_modules;
 		end;
@@ -615,7 +613,7 @@ let wait_loop process_params verbose accept =
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
 			(try write ("\x02\n" ^ estr); with _ -> ());
-			if is_debug_run() then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then begin
 				close();
 				exit (-1);

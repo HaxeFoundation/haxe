@@ -154,12 +154,13 @@ end
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
-	mutable dead_blocks : (string,pos list) Hashtbl.t;
+	mutable display_module_has_macro_defines : bool;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -421,12 +422,13 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
+				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
+			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
 		debug = false;
@@ -504,7 +506,7 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
+			display_module_has_macro_defines = false;
 		};
 		defines = {
 			values = com.defines.values;
@@ -750,12 +752,12 @@ let to_utf8 str p =
 		UTF8.Malformed_code ->
 			(* ISO to utf8 *)
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 	in
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
-		let c = UChar.code c in
+		let c = UCharExt.code c in
 		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
@@ -779,7 +781,7 @@ let utf16_add buf c =
 
 let utf8_to_utf16 str zt =
 	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	(try UTF8.iter (fun c -> utf16_add b (UCharExt.code c)) str with Invalid_argument _ | UCharExt.Out_of_range -> ()); (* if malformed *)
 	if zt then utf16_add b 0;
 	Buffer.contents b
 
@@ -822,3 +824,15 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let dump_path com =
+	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
+
+let adapt_defines_to_macro_context defines =
+	let values = ref defines.values in
+	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
+	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
+	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
+	values := PMap.add "macro" "1" !values;
+	{values = !values; defines_signature = None }

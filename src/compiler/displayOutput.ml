@@ -78,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -129,7 +129,7 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
 		| ITTypeParameter c ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path c.cl_path) ("") (snd c.cl_path));
-		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ | ITDefine _ ->
 			(* compat: don't add *)
 			()
 	) il;
@@ -178,8 +178,16 @@ let print_positions pl =
 module Memory = struct
 	open CompilationServer
 
+	let clear_descendants md =
+		List.iter (function
+			| TClassDecl c ->
+				c.cl_descendants <- []
+			| _ ->
+				()
+		) md.m_types
+
 	let update_module_type_deps deps md =
-		deps := Obj.repr md :: !deps;
+		let deps = ref (Obj.repr md :: deps) in
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c ->
@@ -192,7 +200,8 @@ module Memory = struct
 				List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
 			| TTypeDecl t -> deps := Obj.repr t :: !deps;
 			| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-		) md.m_types
+		) md.m_types;
+		!deps
 
 	let rec scan_module_deps m h =
 		if Hashtbl.mem h m.m_id then
@@ -201,6 +210,20 @@ module Memory = struct
 			Hashtbl.add h m.m_id m;
 			PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
 		end
+
+	let module_sign key md =
+		if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
+
+	let collect_leaks m deps out =
+		let leaks = ref [] in
+		let leak s =
+			leaks := s :: !leaks
+		in
+		if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+		PMap.iter (fun _ md ->
+			if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ module_sign m.m_extra.m_sign md);
+		) out;
+		!leaks
 
 	let get_out out =
 		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
@@ -212,16 +235,19 @@ module Memory = struct
 			scan_module_deps m mdeps;
 			let deps = ref [Obj.repr null_module] in
 			let out = ref all_modules in
-			Hashtbl.iter (fun _ md ->
+			let deps = Hashtbl.fold (fun _ md deps ->
 				out := PMap.remove md.m_id !out;
 				if m == md then
-					()
+					deps
 				else
 					update_module_type_deps deps md;
-			) mdeps;
-			let chk = get_out !out in
-			let inf = Objsize.objsize m !deps chk in
-			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
+			) mdeps !deps in
+			clear_descendants m;
+			let out = !out in
+			let chk = get_out out in
+			let inf = Objsize.objsize m deps chk in
+			let leaks = if inf.reached then collect_leaks m deps out else [] in
+			(m,Objsize.size_with_headers inf, (inf.reached,deps,out,leaks)) :: acc
 		) cs.c_modules [] in
 		modules
 
@@ -241,7 +267,7 @@ module Memory = struct
 		Gc.compact();
 		let contexts = Hashtbl.create 0 in
 		let add_context sign =
-			let ctx = (sign,ref [],ref 0) in
+			let ctx = (sign,ref [],ref [],ref 0) in
 			Hashtbl.add contexts sign ctx;
 			ctx
 		in
@@ -252,16 +278,18 @@ module Memory = struct
 				add_context sign
 		in
 		let modules = collect_memory_stats cs.cache in
-		List.iter (fun (m,size,(reached,deps,_)) ->
-			let (_,l,mem) = get_context m.m_extra.m_sign in
-			let deps = ref deps in
-			update_module_type_deps deps m;
-			let deps = !deps in
+
+		List.iter (fun (m,size,(reached,deps,out,mleaks)) ->
+			let (_,l,leaks,mem) = get_context m.m_extra.m_sign in
+			if reached then leaks := (m,mleaks) :: !leaks;
+			let deps = update_module_type_deps deps m in
 			let types = List.map (fun md ->
 				let fields,inf = match md with
 					| TClassDecl c ->
+						let own_deps = ref deps in
 						let field acc cf =
 							let repr = Obj.repr cf in
+							own_deps := List.filter (fun repr' -> repr != repr') !own_deps;
 							let deps = List.filter (fun repr' -> repr' != repr) deps in
 							let size = Objsize.size_with_headers (Objsize.objsize cf deps []) in
 							(cf.cf_name,size) :: acc
@@ -276,7 +304,7 @@ module Memory = struct
 							]
 						) fields in
 						let repr = Obj.repr c in
-						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						let deps = List.filter (fun repr' -> repr' != repr) !own_deps in
 						fields,Objsize.objsize c deps []
 					| TEnumDecl en ->
 						let repr = Obj.repr en in
@@ -291,20 +319,28 @@ module Memory = struct
 						let deps = List.filter (fun repr' -> repr' != repr) deps in
 						[],Objsize.objsize a deps []
 				in
-				md,Objsize.size_with_headers inf,fields
-			) m.m_types in
-			let types = List.sort (fun (_,size1,_) (_,size2,_) -> compare size2 size1) types in
-			let ja = List.map (fun (md,size,fields) ->
-				jobject [
+				let size = Objsize.size_with_headers inf in
+				let jo = jobject [
 					"path",jstring (s_type_path (t_infos md).mt_path);
 					"size",jint size;
 					"fields",jarray fields;
-				]
-			) types in
-			l := (m,size,jarray ja) :: !l;
+				] in
+				jo,size
+			) m.m_types in
+			let types = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) types in
+			let types =
+				let inf = Objsize.objsize m.m_extra deps [] in
+				let size = Objsize.size_with_headers inf in
+				(jobject [
+					"path",jstring "m_extra";
+					"size",jint size;
+					"fields",jarray []
+				],size) :: types
+			in
+			l := (m,size,jarray (List.map fst types)) :: !l;
 			mem := !mem + size;
 		) modules;
-		let ja = Hashtbl.fold (fun key (sign,modules,size) l ->
+		let ja = Hashtbl.fold (fun key (sign,modules,leaks,size) l ->
 			let modules = List.sort (fun (_,size1,_) (_,size2,_)  -> compare size2 size1) !modules in
 			let modules = List.map (fun (m,size,jmt) ->
 				jobject [
@@ -313,6 +349,23 @@ module Memory = struct
 					"types",jmt;
 				]
 			) modules in
+			let modules = match !leaks with
+				| [] -> modules
+				| leaks ->
+					let jleaks = List.map (fun (m,leaks) ->
+						let jleaks = List.map (fun s -> jobject ["path",jstring s;"size",jint 0]) leaks in
+						jobject [
+							"path",jstring (s_type_path m.m_path);
+							"size",jint 0;
+							"fields",jarray jleaks;
+						]
+					) leaks in
+					jobject [
+						"path",jstring "?LEAKS";
+						"size",jint 0;
+						"types",jarray jleaks;
+					] :: modules
+			in
 			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
 			let jo = jobject [
 				"context",j;
@@ -329,6 +382,8 @@ module Memory = struct
 				"parserCache",jint (mem_size cs.cache.c_files);
 				"moduleCache",jint (mem_size cs.cache.c_modules);
 				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
+				"macroInterpreter",jint (mem_size MacroContext.macro_interp_cache);
+				"completionResult",jint (mem_size (DisplayException.last_completion_result));
 			]
 		]
 
@@ -350,15 +405,12 @@ module Memory = struct
 			print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
 			let modules = collect_memory_stats c in
 			let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-			List.iter (fun (m,size,(reached,deps,out)) ->
+			List.iter (fun (m,size,(reached,deps,out,leaks)) ->
 				let key = m.m_extra.m_sign in
 				if key <> !cur_key then begin
 					print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
 					cur_key := key;
 				end;
-				let sign md =
-					if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-				in
 				print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
 				(if reached then try
 					incr mcount;
@@ -372,16 +424,13 @@ module Memory = struct
 							raise Exit;
 						end;
 					in
-					if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-					PMap.iter (fun _ md ->
-						if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
-					) out;
+					List.iter leak leaks;
 				with Exit ->
 					());
 				if verbose then begin
 					print (Printf.sprintf "      %d total deps" (List.length deps));
 					PMap.iter (fun _ md ->
-						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
+						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
 					) m.m_extra.m_deps;
 				end;
 				flush stdout
@@ -391,158 +440,6 @@ module Memory = struct
 			) modules);
 			if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
 			print "Cache dump complete")
-end
-
-module TypePathHandler = struct
-	let unique l =
-		let rec _unique = function
-			| [] -> []
-			| x1 :: x2 :: l when x1 = x2 -> _unique (x2 :: l)
-			| x :: l -> x :: _unique l
-		in
-		_unique (List.sort compare l)
-
-	let rec read_type_path com p =
-		let classes = ref [] in
-		let packages = ref [] in
-		let p = (match p with
-			| x :: l ->
-				(try
-					match PMap.find x com.package_rules with
-					| Directory d -> d :: l
-					| Remap s -> s :: l
-					| _ -> p
-				with
-					Not_found -> p)
-			| _ -> p
-		) in
-		List.iter (fun path ->
-			let dir = path ^ String.concat "/" p in
-			let r = (try Sys.readdir dir with _ -> [||]) in
-			Array.iter (fun f ->
-				if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
-					if f.[0] >= 'a' && f.[0] <= 'z' then begin
-						if p = ["."] then
-							match read_type_path com [f] with
-							| [] , [] -> ()
-							| _ ->
-								try
-									match PMap.find f com.package_rules with
-									| Forbidden -> ()
-									| Remap f -> packages := f :: !packages
-									| Directory _ -> raise Not_found
-								with Not_found ->
-									packages := f :: !packages
-						else
-							packages := f :: !packages
-					end;
-				end else if file_extension f = "hx" && f <> "import.hx" then begin
-					let c = Filename.chop_extension f in
-					try
-						ignore(String.index c '.')
-					with Not_found ->
-						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
-				end;
-			) r;
-		) com.class_path;
-		let process_lib lib =
-			List.iter (fun (path,name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-				loop path p
-			) lib#list_modules;
-		in
-		List.iter process_lib com.native_libs.swf_libs;
-		List.iter process_lib com.native_libs.net_libs;
-		List.iter process_lib com.native_libs.java_libs;
-		unique !packages, unique !classes
-
-	(** raise field completion listing packages and modules in a given package *)
-	let complete_type_path com p =
-		let packs, modules = read_type_path com p in
-		if packs = [] && modules = [] then
-			(abort ("No modules found in " ^ String.concat "." p) null_pos)
-		else
-			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
-			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
-			Some (packs @ modules)
-
-	(** raise field completion listing module sub-types and static fields *)
-	let complete_type_path_inner com p c cur_package is_import =
-		try
-			let sl_pack,s_module = match List.rev p with
-				| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-				| _ -> p,c
-			in
-			let ctx = Typer.create com in
-			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
-			   does not raise another TypePath exception. However, we still want to have it treated like the
-			   display file, so we just set the position to 0 (#6558). *)
-			let old = DisplayPosition.display_position#get in
-			DisplayPosition.display_position#set {old with pmin = 0; pmax = 0};
-			let rec lookup p =
-				try
-					TypeloadModule.load_module ctx (p,s_module) null_pos
-				with e ->
-					if cur_package then
-						match List.rev p with
-						| [] -> raise e
-						| _ :: p -> lookup (List.rev p)
-					else
-						raise e
-			in
-			let m = Std.finally (fun () -> DisplayPosition.display_position#set old) lookup sl_pack in
-			let statics = ref None in
-			let enum_statics = ref None in
-			let public_types = List.filter (fun t ->
-				let tinfos = t_infos t in
-				let is_module_type = snd tinfos.mt_path = c in
-				if is_import && is_module_type then begin match t with
-					| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
-						ignore(c.cl_build());
-						statics := Some c
-					| TEnumDecl en ->
-						enum_statics := Some en
-					| _ -> ()
-				end;
-				not tinfos.mt_private
-			) m.m_types in
-			let types =
-				if c <> s_module then
-					[]
-				else
-					List.map (fun mt ->
-						make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None
-					) public_types
-			in
-			let class_origin c = match c.cl_kind with
-				| KAbstractImpl a -> Self (TAbstractDecl a)
-				| _ -> Self (TClassDecl c)
-			in
-			let tpair t =
-				(t,DisplayEmitter.completion_type_of_type ctx t)
-			in
-			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
-			in
-			let fields = match !statics with
-				| None -> types
-				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> has_class_field_flag cf CfPublic) c.cl_ordered_statics))
-			in
-			let fields = match !enum_statics with
-				| None -> fields
-				| Some en -> PMap.fold (fun ef acc ->
-					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (tpair ef.ef_type) :: acc
-				) en.e_constrs fields
-			in
-			Some fields
-		with _ ->
-			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 (* New JSON stuff *)
@@ -658,6 +555,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			pmax = pos;
 		}
 
+type display_path_kind =
+	| DPKNormal of path
+	| DPKMacro of path
+	| DPKNone
+
 let process_display_file com classes =
 	let get_module_path_from_file_path com spath =
 		let rec loop = function
@@ -681,7 +583,7 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			None
+			DPKNone
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
@@ -691,8 +593,18 @@ let process_display_file com classes =
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
-				classes := path :: !classes;
-				Some path
+				let path = match ExtString.String.nsplit (snd path) "." with
+					| [name;"macro"] ->
+						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+						   This can happen if we're completing in such a file. *)
+						DPKMacro (fst path,name)
+					| [name] ->
+						classes := path :: !classes;
+						DPKNormal path
+					| _ ->
+						assert false
+				in
+				path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with

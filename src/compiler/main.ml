@@ -81,7 +81,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
@@ -478,20 +478,23 @@ let run_or_diagnose com f arg =
 	| _ ->
 		f arg
 
-(** Creates the typer context and types [classes] into it. *)
-let do_type ctx native_libs config_macros classes =
+let create_typer_context ctx native_libs =
 	let com = ctx.com in
 	ctx.setup();
 	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 	Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
-	let t = Timer.timer ["typing"] in
 	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
 	(* Native lib pass 1: Register *)
-	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) native_libs in
+	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 	(* Native lib pass 2: Initialize *)
 	List.iter (fun f -> f()) fl;
-	let tctx = Typer.create com in
+	Typer.create com
+
+(** Creates the typer context and types [classes] into it. *)
+let do_type tctx config_macros classes =
+	let com = tctx.Typecore.com in
+	let t = Timer.timer ["typing"] in
 	let add_signature desc =
 		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
 	in
@@ -509,8 +512,7 @@ let do_type ctx native_libs config_macros classes =
 		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t();
-	tctx
+	t()
 
 let load_display_module_in_macro tctx display_file_dot_path clear = match display_file_dot_path with
 	| Some cpath ->
@@ -577,7 +579,13 @@ let filter ctx tctx display_file_dot_path =
 	com.modules <- modules;
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-	if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
+	let should_load_in_macro = match ctx.com.display.dms_kind with
+		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
+		   type the module in macro context. (#8682). *)
+		| DMDiagnostics _ -> com.display_information.display_module_has_macro_defines
+		| _ -> true
+	in
+	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro  tctx display_file_dot_path false with
 		| None -> ()
 		| Some mctx ->
@@ -764,12 +772,13 @@ try
 			Common.raw_define com l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
+			let flag = try fst (ExtString.String.split var "=") with _ -> var in
 			let raise_reserved description =
 				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
 			in
-			if List.mem var reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" var);
+			if List.mem flag reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" flag);
 			List.iter (fun ns ->
-				if ExtString.String.starts_with var (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" var ns)
+				if ExtString.String.starts_with flag (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" flag ns)
 			) reserved_flag_namespaces;
 			Common.raw_define com var;
 		),"<var[=value]>","define a conditional compilation flag");
@@ -1013,7 +1022,21 @@ try
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = do_type ctx !native_libs !config_macros !classes in
+		let tctx = create_typer_context ctx !native_libs in
+		let display_file_dot_path = match display_file_dot_path with
+			| DPKMacro path ->
+				ignore(load_display_module_in_macro tctx (Some path) true);
+				Some path
+			| DPKNormal path ->
+				Some path
+			| DPKNone ->
+				None
+		in
+		begin try
+			do_type tctx !config_macros !classes;
+		with TypeloadParse.DisplayInMacroBlock ->
+			ignore(load_display_module_in_macro tctx display_file_dot_path true);
+		end;
 		handle_display ctx tctx display_file_dot_path;
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
@@ -1053,7 +1076,7 @@ with
 		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos
-	| Failure msg when not (is_debug_run()) ->
+	| Failure msg when not is_debug_run ->
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		com.info msg null_pos
@@ -1125,9 +1148,10 @@ with
 		let fields =
 			try begin match c with
 				| None ->
-					DisplayOutput.TypePathHandler.complete_type_path com p
+					DisplayPath.TypePathHandler.complete_type_path com p
 				| Some (c,cur_package) ->
-					DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+					let ctx = Typer.create com in
+					DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 			end with Common.Abort(msg,p) ->
 				error ctx msg p;
 				None
@@ -1161,7 +1185,7 @@ with
 		raise exc
 	| Out_of_memory as exc ->
 		raise exc
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
 ;;

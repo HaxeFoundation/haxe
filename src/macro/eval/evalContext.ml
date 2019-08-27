@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open Type
 open EvalValue
 open EvalHash
 open EvalString
@@ -71,7 +70,9 @@ type env_debug = {
 	(* The current line being executed. This in conjunction with `env_info.pfile` is used to find breakpoints. *)
 	mutable line : int;
 	(* The current expression being executed *)
-	mutable expr : texpr;
+	mutable debug_expr : string;
+	(* The current expression position being executed *)
+	mutable debug_pos : pos;
 }
 
 (* An environment in which code is executed. Environments are created whenever a function is called and when
@@ -155,7 +156,7 @@ type builtins = {
 }
 
 type debug_scope_info = {
-	ds_expr : texpr;
+	ds_expr : string;
 	ds_return : value option;
 }
 
@@ -387,13 +388,14 @@ let flush_core_context f =
 
 let no_timer = fun () -> ()
 let empty_array = [||]
-let no_expr = mk (TConst TNull) t_dynamic null_pos
+let no_expr = ""
 
 let no_debug = {
 	timer = no_timer;
 	scopes = [];
 	line = 0;
-	expr = no_expr;
+	debug_expr = no_expr;
+	debug_pos = null_pos;
 }
 
 let create_env_info static pfile kind capture_infos =

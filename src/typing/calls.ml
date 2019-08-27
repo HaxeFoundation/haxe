@@ -475,7 +475,21 @@ let rec acc_get ctx g p =
 		| _ -> assert false)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
-		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
+		let cmode,apply_params = match fmode with
+			| FStatic(c,_) ->
+				let f = match c.cl_kind with
+					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
+						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
+						let monos = List.map (fun _ -> mk_mono()) a.a_params in
+						apply_params a.a_params monos;
+					| _ -> (fun t -> t)
+				in
+				fmode,f
+			| FInstance (c,tl,f) ->
+				(FClosure (Some (c,tl),f),(fun t -> t))
+			| _ ->
+				assert false
+		in
 		ignore(follow f.cf_type); (* force computing *)
 		begin match f.cf_kind,f.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
@@ -525,10 +539,11 @@ let rec acc_get ctx g p =
 				| _ -> e_def
 			end
 		| Var _,Some e ->
-			let rec loop e = Type.map_expr loop { e with epos = p } in
+			let rec loop e = Type.map_expr loop { e with epos = p; etype = apply_params e.etype } in
 			let e = loop e in
 			let e = Inline.inline_metadata e f.cf_meta in
-			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
+			let tf = apply_params f.cf_type in
+			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None when ctx.com.display.dms_display ->
 			 mk (TField (e,cmode)) t p

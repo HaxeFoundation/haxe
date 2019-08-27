@@ -211,8 +211,8 @@ final class Array<T> implements ArrayAccess<Int, T> {
 	@:noCompletion
 	function offsetSet(offset:Int, value:T):Void {
 		if (length <= offset) {
-			if (length < offset) {
-				arr = Global.array_pad(arr, offset + 1, null);
+			for(i in length...offset + 1) {
+				arr[i] = null;
 			}
 			length = offset + 1;
 		}

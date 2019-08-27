@@ -341,7 +341,7 @@ struct
 		(try
 			UTF8.validate s;
 			UTF8.iter (fun c ->
-				let c = (UChar.code c) in
+				let c = (UCharExt.code c) in
 				if c > 0xFFFF then
 					(h := Int32.add (Int32.mul thirtyone !h)
 						(Int32.of_int (high_surrogate c));
@@ -1352,7 +1352,7 @@ let generate con =
 		let b = Buffer.create 0 in
 		(try
 			UTF8.validate s;
-			UTF8.iter (fun c -> escape (UChar.code c) b) s
+			UTF8.iter (fun c -> escape (UCharExt.code c) b) s
 		with
 			UTF8.Malformed_code ->
 				String.iter (fun c -> escape (Char.code c) b) s

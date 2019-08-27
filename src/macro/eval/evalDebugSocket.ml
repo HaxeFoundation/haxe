@@ -199,7 +199,7 @@ let output_scopes ctx env =
 		scopes
 	else begin
 		let dbg = {
-			ds_expr = env.env_debug.expr;
+			ds_expr = env.env_debug.debug_expr;
 			ds_return = env.env_eval.last_return;
 		} in
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
@@ -217,13 +217,13 @@ let output_capture_vars infos env =
 
 let output_debug_scope dbg env =
 	let ja = [
-		var_to_json "expr" (VString (EvalString.create_ascii (Type.s_expr_pretty true "" false (s_type (print_context())) env.env_debug.expr))) None env;
+		var_to_json "expr" (VString (EvalString.create_ascii env.env_debug.debug_expr)) None env;
 		var_to_json "last return" (match dbg.ds_return with None -> vnull | Some v -> v) None env;
 	] in
 	JArray ja
 
 let output_scope_vars env scope =
-	let p = env.env_debug.expr.epos in
+	let p = env.env_debug.debug_pos in
 	let vars = Hashtbl.fold (fun local_slot vi acc ->
 		if declared_before vi p then begin
 			let slot = local_slot + scope.local_offset in
@@ -548,7 +548,7 @@ let handler =
 		"next",(fun hctx ->
 			let eval = select_thread hctx in
 			let env = expect_env hctx eval.env in
-			eval.debug_state <- DbgNext(env,env.env_debug.expr.epos);
+			eval.debug_state <- DbgNext(env,env.env_debug.debug_pos);
 			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
 		);
@@ -566,7 +566,7 @@ let handler =
 		"stackTrace",(fun hctx ->
 			let eval = select_thread hctx in
 			let env = expect_env hctx eval.env in
-			output_call_stack hctx.ctx eval env.env_debug.expr.epos
+			output_call_stack hctx.ctx eval env.env_debug.debug_pos
 		);
 		"getScopes",(fun hctx ->
 			let env = select_frame hctx in
@@ -660,7 +660,7 @@ let handler =
 			let name = hctx.jsonrpc#get_string_param "name" in
 			let value = hctx.jsonrpc#get_string_param "value" in
 			let get_value env = try
-				let e = parse_expr hctx.ctx value env.env_debug.expr.epos in
+				let e = parse_expr hctx.ctx value env.env_debug.debug_pos in
 				expr_to_value hctx.ctx env e
 			with Parse_expr_error e ->
 				hctx.send_error e
@@ -711,7 +711,7 @@ let handler =
 			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr ctx s env.env_debug.expr.epos in
+				let e = parse_expr ctx s env.env_debug.debug_pos in
 				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e) in
 				var_to_json "" v None env
 			with
