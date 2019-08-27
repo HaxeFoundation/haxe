@@ -612,31 +612,82 @@ module Decision_tree = struct
 		mutable dt_texpr : texpr option;
 	}
 
-	let s_case_expr tabs case = match case.case_expr with
-		| None -> ""
-		| Some e -> Type.s_expr_pretty false tabs false s_type e
+	let tab_string = "    "
 
-	let rec to_string tabs dt = match dt.dt_t with
-		| Leaf case ->
-			s_case_expr tabs case
-		| Switch(e,cases,dt) ->
-			let s_case (con,b,dt) =
-				Printf.sprintf "\n%2i\t%scase %s%s: %s" dt.dt_i tabs (Constructor.to_string con) (if b then "(unguarded) " else "") (to_string (tabs ^ "\t") dt)
-			in
-			let s_cases = String.concat "" (List.map s_case cases) in
-			let s_default = to_string (tabs ^ "\t") dt in
-			Printf.sprintf "switch (%s) {%s\n%2i%s\tdefault: %s\n%s}" (Type.s_expr_pretty false tabs false s_type e) s_cases dt.dt_i tabs s_default tabs
-		| Bind(bl,dt) ->
-			(String.concat "" (List.map (fun (v,_,e) -> if v.v_name = "_" then "" else Printf.sprintf "%s<%i> = %s; " v.v_name v.v_id (s_expr_pretty e)) bl)) ^
-			to_string tabs dt
-		| Guard(e,dt1,dt2) ->
-			Printf.sprintf "if (%s) {\n%2i\t%s%s\n%s} else {\n%2i\t%s%s\n%s}" (s_expr_pretty e) dt1.dt_i tabs (to_string (tabs ^ "\t") dt1) tabs dt2.dt_i tabs (to_string (tabs ^ "\t") dt2) tabs
-		| GuardNull(e,dt1,dt2) ->
-			Printf.sprintf "if (%s == null) {\n%2i\t%s%s\n%s} else {\n%2i\t%s%s\n%s}" (s_expr_pretty e) dt1.dt_i tabs (to_string (tabs ^ "\t") dt1) tabs dt2.dt_i tabs (to_string (tabs ^ "\t") dt2) tabs
-		| Fail ->
-			"<fail>"
-
-	let to_string tabs dt = Printf.sprintf "%2i %s" dt.dt_i (to_string tabs dt)
+	let to_string dt =
+		let buf = Buffer.create 0 in
+		let indices = Stack.create () in
+		let push_index i = Stack.push i indices in
+		let add_line tabs s =
+			if Buffer.length buf > 0 then Buffer.add_char buf '\n';
+			if not (Stack.is_empty indices) then begin
+				Buffer.add_string buf (Printf.sprintf "%2i" (Stack.pop indices));
+				Buffer.add_substring buf tabs 0 (String.length tabs - 2);
+			end else
+				Buffer.add_string buf tabs;
+			Buffer.add_string buf s
+		in
+		let add s =
+			Buffer.add_string buf s
+		in
+		let s_expr tabs e =
+			Type.s_expr_pretty false tabs false s_type e
+		in
+		let print_expr_noblock tabs e = match e.eexpr with
+			| TBlock el ->
+				List.iter (fun e ->
+					add_line tabs (s_expr tabs e) ;
+				) el
+			| _ ->
+				add_line tabs (s_expr tabs e)
+		in
+		let print_case_expr tabs case = match case.case_expr with
+			| None ->
+				()
+			| Some e ->
+				print_expr_noblock tabs e
+		in
+		let rec loop tabs dt =
+			push_index dt.dt_i;
+			match dt.dt_t with
+			| Leaf case ->
+				print_case_expr tabs case
+			| Switch(e,cases,dt) ->
+				add_line tabs (Printf.sprintf "switch (%s)" (s_expr tabs e));
+				List.iter (fun (con,unguarded,dt) ->
+					add_line (tabs ^ tab_string) "case ";
+					add (Constructor.to_string con);
+					add (if unguarded then "(unguarded)" else "guarded");
+					add ":";
+					loop (tabs ^ tab_string ^ tab_string) dt;
+				) cases;
+				add_line (tabs ^ tab_string) "default";
+				loop (tabs ^ tab_string ^ tab_string) dt;
+			| Bind(bl,dt) ->
+				List.iter (fun (v,_,e) ->
+					add_line tabs "var ";
+					add v.v_name;
+					add " = ";
+					add (s_expr tabs e);
+				) bl;
+				loop tabs dt
+			| Guard(e,dt1,dt2) ->
+				print_guard tabs e dt1 dt2 false
+			| GuardNull(e,dt1,dt2) ->
+				print_guard tabs e dt1 dt2 true
+			| Fail ->
+				add_line tabs "<fail>";
+		and print_guard tabs e dt1 dt2 is_null_guard =
+			add_line tabs "if (";
+			add (s_expr tabs e);
+			if is_null_guard then add " == null";
+			add ")";
+			loop (tabs ^ tab_string) dt1;
+			add_line tabs "else";
+			loop (tabs ^ tab_string) dt2;
+		in
+		loop tab_string dt;
+		Buffer.contents buf
 
 	let equal_dt dt1 dt2 = dt1.dt_i = dt2.dt_i
 
@@ -1609,7 +1660,7 @@ module Match = struct
 		let dt = Compile.compile ctx match_debug subjects cases p in
 		if match_debug then begin
 			print_endline "DECISION TREE BEGIN";
-			print_endline (Decision_tree.to_string "" dt);
+			print_endline (Decision_tree.to_string dt);
 			print_endline "DECISION TREE END";
 		end;
 		let e = try
