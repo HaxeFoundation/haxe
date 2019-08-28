@@ -25,6 +25,8 @@ type context_cache = {
 	c_files : (string,cached_file) Hashtbl.t;
 	c_modules : (path,module_def) Hashtbl.t;
 	c_removed_files : (string,unit) Hashtbl.t;
+	c_index : int;
+	mutable c_json : Json.t;
 }
 
 type cache = {
@@ -35,14 +37,8 @@ type cache = {
 	c_initialization_status : (string,bool) Hashtbl.t;
 }
 
-type context_sign = {
-	cs_json : Json.t;
-	cs_index : int;
-}
-
 type t = {
 	cache : cache;
-	mutable signs : (string * context_sign) list;
 }
 
 type context_options =
@@ -60,16 +56,17 @@ let create_cache () = {
 	c_initialization_status = Hashtbl.create 0;
 }
 
-let create_context_cache () = {
+let create_context_cache index = {
 	c_modules = Hashtbl.create 0;
 	c_files = Hashtbl.create 0;
 	c_removed_files = Hashtbl.create 0;
+	c_index = index;
+	c_json = JNull;
 }
 
 let create () =
 	let cs = {
 		cache = create_cache();
-		signs = [];
 	} in
 	instance := Some cs;
 	cs
@@ -96,16 +93,18 @@ let get_context_files cs signs =
 
 (* signatures *)
 
-let get_sign cs sign =
-	List.assoc sign cs.signs
+let get_cache cs sign =
+	try
+		Hashtbl.find cs.cache.c_contexts sign
+	with Not_found ->
+		let cache = create_context_cache (Hashtbl.length cs.cache.c_contexts) in
+		Hashtbl.add cs.cache.c_contexts sign cache;
+		cache
 
-let has_sign cs sign =
-	List.mem_assoc sign cs.signs
-
-let add_sign cs sign desc platform class_path defines =
-	let i = List.length cs.signs in
+let add_info cs sign desc platform class_path defines =
+	let cc = get_cache cs sign in
 	let jo = JObject [
-		"index",JInt i;
+		"index",JInt cc.c_index;
 		"desc",JString desc;
 		"platform",JString (platform_name platform);
 		"classPaths",JArray (List.map (fun s -> JString s) class_path);
@@ -115,19 +114,8 @@ let add_sign cs sign desc platform class_path defines =
 			"value",JString v;
 		] :: acc) defines.values []);
 	] in
-	cs.signs <- (sign,{cs_json = jo;cs_index = i}) :: cs.signs;
-	i
-
-let get_signs cs =
-	cs.signs
-
-let get_cache cs sign =
-	try
-		Hashtbl.find cs.cache.c_contexts sign
-	with Not_found ->
-		let cache = create_context_cache () in
-		Hashtbl.add cs.cache.c_contexts sign cache;
-		cache
+	cc.c_json <- jo;
+	cc.c_index
 
 let get_caches cs =
 	cs.cache.c_contexts

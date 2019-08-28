@@ -83,4 +83,4 @@ let rec cache_context cs com =
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
-	if not (has_sign cs sign) then ignore (add_sign cs sign desc com.platform com.class_path com.defines)
+	ignore(add_info cs sign desc com.platform com.class_path com.defines)

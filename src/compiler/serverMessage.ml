@@ -57,14 +57,7 @@ let config = {
 let sign_string com =
 	let sign = Define.get_signature com.defines in
 	let cs = CompilationServer.force () in
-	let	sign_id =
-		try
-			(CompilationServer.get_sign cs sign).cs_index
-		with Not_found ->
-			let i = CompilationServer.add_sign cs sign "message" com.platform com.class_path com.defines in
-			if config.print_new_context then print_endline (Printf.sprintf "Found context %i:\n%s" i (dump_context com));
-			i
-	in
+	let	sign_id = (CompilationServer.get_cache cs sign).c_index in
 	Printf.sprintf "%2i,%3s: " sign_id (short_platform_name com.platform)
 
 let added_directory com tabs dir =
