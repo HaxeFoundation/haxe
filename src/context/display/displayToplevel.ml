@@ -87,15 +87,14 @@ let read_class_paths com timer =
 	)
 
 let init_or_update_server cs com timer_name =
-	let sign = Define.get_signature com.defines in
-	if not (CompilationServer.is_initialized cs sign) then begin
-		CompilationServer.set_initialized cs sign true;
+	let cc = CommonCache.get_cache cs com in
+	if not cc.c_initialized then begin
+		cc.c_initialized <- true;
 		read_class_paths com timer_name
 	end;
 	(* Iterate all removed files of the current context. If they aren't part of the context again,
 		re-parse them and remove them from c_removed_files. *)
 	let removed_removed_files = DynArray.create () in
-	let cc = CommonCache.get_cache cs com in
 	Hashtbl.iter (fun file () ->
 		DynArray.add removed_removed_files file;
 		try

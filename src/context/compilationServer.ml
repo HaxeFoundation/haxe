@@ -27,6 +27,7 @@ type context_cache = {
 	c_removed_files : (string,unit) Hashtbl.t;
 	c_index : int;
 	mutable c_json : Json.t;
+	mutable c_initialized : bool;
 }
 
 type cache = {
@@ -34,7 +35,6 @@ type cache = {
 	c_haxelib : (string list, string list) Hashtbl.t;
 	c_directories : (string, cached_directory list) Hashtbl.t;
 	c_native_libs : (string,cached_native_lib) Hashtbl.t;
-	c_initialization_status : (string,bool) Hashtbl.t;
 }
 
 type t = {
@@ -53,7 +53,6 @@ let create_cache () = {
 	c_contexts = Hashtbl.create 0;
 	c_directories = Hashtbl.create 0;
 	c_native_libs = Hashtbl.create 0;
-	c_initialization_status = Hashtbl.create 0;
 }
 
 let create_context_cache index = {
@@ -62,6 +61,7 @@ let create_context_cache index = {
 	c_removed_files = Hashtbl.create 0;
 	c_index = index;
 	c_json = JNull;
+	c_initialized = false;
 }
 
 let create () =
@@ -78,12 +78,6 @@ let runs () =
 	!instance <> None
 
 let force () = match !instance with None -> assert false | Some i -> i
-
-let is_initialized cs sign =
-	try Hashtbl.find cs.cache.c_initialization_status sign with Not_found -> false
-
-let set_initialized cs sign value =
-	Hashtbl.replace cs.cache.c_initialization_status sign value
 
 let get_context_files cs signs =
 	Hashtbl.fold (fun sign cc acc ->
