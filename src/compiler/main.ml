@@ -496,12 +496,13 @@ let do_type tctx config_macros classes =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
 	let add_signature desc =
-		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
+		Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com desc) (CompilationServer.get ());
 	in
 	add_signature "before_init_macros";
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
 	com.stage <- CInitMacrosDone;
+	com.cache <- (match CompilationServer.get() with None -> None | Some cs -> Some (CommonCache.get_cache cs com));
 	add_signature "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->

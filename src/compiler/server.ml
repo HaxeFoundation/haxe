@@ -131,18 +131,17 @@ let ssend sock str =
 let current_stdin = ref None
 
 let parse_file cs com file p =
+	let cc = CommonCache.get_cache cs com in
 	let ffile = Path.unique_full_path file in
 	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
-		let sign = Define.get_signature com.defines in
 		let ftime = file_time ffile in
-		let fkey = (ffile,sign) in
 		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = CompilationServer.find_file cs fkey in
+				let cfile = CompilationServer.find_file cc ffile in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
 			with Not_found ->
@@ -158,7 +157,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							CompilationServer.cache_file cs fkey ftime data;
+							CompilationServer.cache_file cc ffile ftime data;
 							"cached",false
 						end
 				in
@@ -186,7 +185,7 @@ module ServerCompilationContext = struct
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
 		(* A list of modules which were (perhaps temporarily) removed from the cache *)
-		mutable removed_modules : ((path * string) * module_def) list;
+		mutable removed_modules : (context_cache * path * module_def) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
 	}
@@ -213,7 +212,7 @@ module ServerCompilationContext = struct
 		List.iter (fun f -> f()) fl
 
 	let is_removed_module sctx m =
-		List.exists (fun (_,m') -> m == m') sctx.removed_modules
+		List.exists (fun (_,_,m') -> m == m') sctx.removed_modules
 
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
@@ -294,13 +293,11 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
-	let cs = sctx.cs in
-	let sign = Define.get_signature com.defines in
+	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
 		let ffile = Path.unique_full_path file in
-		let fkey = (ffile,sign) in
 		try
-			let cfile = CompilationServer.find_file cs fkey in
+			let cfile = CompilationServer.find_file cc ffile in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
 			let new_data = TypeloadParse.parse_module ctx m.m_path p in
@@ -455,11 +452,10 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cs = sctx.cs in
-	let sign = Define.get_signature com.defines in
+	let cc = CommonCache.get_cache sctx.cs com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
-		let m = CompilationServer.find_module cs (mpath,sign) in
+		let m = CompilationServer.find_module cc mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
@@ -482,17 +478,17 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let create sctx write params =
 	let cs = sctx.cs in
 	let recache_removed_modules () =
-		List.iter (fun (k,m) ->
+		List.iter (fun (cc,k,m) ->
 			try
-				ignore(CompilationServer.find_module sctx.cs k);
+				ignore(CompilationServer.find_module cc k);
 			with Not_found ->
-				CompilationServer.cache_module sctx.cs k m
+				CompilationServer.cache_module cc k m
 		) sctx.removed_modules;
 		sctx.removed_modules <- []
 	in
 	let maybe_cache_context com =
 		if com.display.dms_full_typing then begin
-			CompilationServer.cache_context sctx.cs com;
+			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
 			sctx.removed_modules <- [];
 		end else
@@ -536,7 +532,7 @@ let create sctx write params =
 				ServerMessage.class_paths_changed ctx.com "";
 				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
 				CompilationServer.clear_directories cs sign;
-				CompilationServer.set_initialized cs sign false;
+				(CompilationServer.get_cache cs sign).c_initialized <- false;
 			end;
 		with Not_found ->
 			Hashtbl.add sctx.class_paths sign ctx.com.class_path;

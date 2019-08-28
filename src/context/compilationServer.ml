@@ -2,7 +2,7 @@ open Globals
 open Ast
 open Json
 open Type
-open Common
+open Define
 
 type cached_file = {
 	c_time : float;
@@ -21,24 +21,24 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-type cache = {
-	c_haxelib : (string list, string list) Hashtbl.t;
-	c_files : ((string * string), cached_file) Hashtbl.t;
-	c_modules : (path * string, module_def) Hashtbl.t;
-	c_directories : (string, cached_directory list) Hashtbl.t;
-	c_removed_files : (string * string,unit) Hashtbl.t;
-	c_native_libs : (string,cached_native_lib) Hashtbl.t;
-	c_initialization_status : (string,bool) Hashtbl.t;
+type context_cache = {
+	c_files : (string,cached_file) Hashtbl.t;
+	c_modules : (path,module_def) Hashtbl.t;
+	c_removed_files : (string,unit) Hashtbl.t;
+	c_index : int;
+	mutable c_json : Json.t;
+	mutable c_initialized : bool;
 }
 
-type context_sign = {
-	cs_json : Json.t;
-	cs_index : int;
+type cache = {
+	c_contexts : (string,context_cache) Hashtbl.t;
+	c_haxelib : (string list, string list) Hashtbl.t;
+	c_directories : (string, cached_directory list) Hashtbl.t;
+	c_native_libs : (string,cached_native_lib) Hashtbl.t;
 }
 
 type t = {
 	cache : cache;
-	mutable signs : (string * context_sign) list;
 }
 
 type context_options =
@@ -50,18 +50,23 @@ let instance : t option ref = ref None
 
 let create_cache () = {
 	c_haxelib = Hashtbl.create 0;
-	c_files = Hashtbl.create 0;
-	c_modules = Hashtbl.create 0;
+	c_contexts = Hashtbl.create 0;
 	c_directories = Hashtbl.create 0;
-	c_removed_files = Hashtbl.create 0;
 	c_native_libs = Hashtbl.create 0;
-	c_initialization_status = Hashtbl.create 0;
+}
+
+let create_context_cache index = {
+	c_modules = Hashtbl.create 0;
+	c_files = Hashtbl.create 0;
+	c_removed_files = Hashtbl.create 0;
+	c_index = index;
+	c_json = JNull;
+	c_initialized = false;
 }
 
 let create () =
 	let cs = {
 		cache = create_cache();
-		signs = [];
 	} in
 	instance := Some cs;
 	cs
@@ -74,105 +79,87 @@ let runs () =
 
 let force () = match !instance with None -> assert false | Some i -> i
 
-let is_initialized cs sign =
-	try Hashtbl.find cs.cache.c_initialization_status sign with Not_found -> false
-
-let set_initialized cs sign value =
-	Hashtbl.replace cs.cache.c_initialization_status sign value
-
 let get_context_files cs signs =
-	Hashtbl.fold (fun (file,sign) cfile acc ->
-		if (List.mem sign signs) then (file,cfile) :: acc
+	Hashtbl.fold (fun sign cc acc ->
+		if List.mem sign signs then Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc.c_files acc
 		else acc
-	) cs.cache.c_files []
+	) cs.cache.c_contexts []
 
 (* signatures *)
 
-let get_sign cs sign =
-	List.assoc sign cs.signs
+let get_cache cs sign =
+	try
+		Hashtbl.find cs.cache.c_contexts sign
+	with Not_found ->
+		let cache = create_context_cache (Hashtbl.length cs.cache.c_contexts) in
+		Hashtbl.add cs.cache.c_contexts sign cache;
+		cache
 
-let has_sign cs sign =
-	List.mem_assoc sign cs.signs
-
-let add_sign cs sign desc com =
-	let i = List.length cs.signs in
+let add_info cs sign desc platform class_path defines =
+	let cc = get_cache cs sign in
 	let jo = JObject [
-		"index",JInt i;
+		"index",JInt cc.c_index;
 		"desc",JString desc;
-		"platform",JString (platform_name com.platform);
-		"classPaths",JArray (List.map (fun s -> JString s) com.class_path);
+		"platform",JString (platform_name platform);
+		"classPaths",JArray (List.map (fun s -> JString s) class_path);
 		"signature",JString (Digest.to_hex sign);
 		"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 			"key",JString k;
 			"value",JString v;
-		] :: acc) com.defines.values []);
+		] :: acc) defines.values []);
 	] in
-	cs.signs <- (sign,{cs_json = jo;cs_index = i}) :: cs.signs;
-	i
+	cc.c_json <- jo;
+	cc.c_index
 
-let maybe_add_context_sign cs com desc =
-	let sign = Define.get_signature com.defines in
-	if not (has_sign cs sign) then ignore (add_sign cs sign desc com)
-
-let get_signs cs =
-	cs.signs
+let get_caches cs =
+	cs.cache.c_contexts
 
 (* modules *)
 
-let find_module cs key =
-	Hashtbl.find cs.cache.c_modules key
+let find_module cc path =
+	Hashtbl.find cc.c_modules path
 
-let cache_module cs key value =
-	Hashtbl.replace cs.cache.c_modules key value
+let cache_module cc path value =
+	Hashtbl.replace cc.c_modules path value
 
 let taint_modules cs file =
-	Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
+	Hashtbl.iter (fun _ cc ->
+		Hashtbl.iter (fun _ m ->
+			if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m
+		) cc.c_modules
+	) cs.cache.c_contexts
 
 let filter_modules cs file =
 	let removed = DynArray.create () in
 	(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
-	Hashtbl.iter (fun k m ->
-		if m.m_extra.m_file = file then	DynArray.add removed (k,m);
-	) cs.cache.c_modules;
-	DynArray.iter (fun (k,_) -> Hashtbl.remove cs.cache.c_modules k) removed;
+	Hashtbl.iter (fun _ cc ->
+		Hashtbl.iter (fun k m ->
+			if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
+		) cc.c_modules
+	) cs.cache.c_contexts;
+	DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc.c_modules k) removed;
 	DynArray.to_list removed
-
-let iter_modules cs com f =
-	let sign = Define.get_signature com.defines in
-	Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules
-
-let is_cached_module cs com path =
-	let sign = Define.get_signature com.defines in
-	Hashtbl.mem cs.cache.c_modules (path,sign)
 
 (* files *)
 
-let find_file cs key =
-	Hashtbl.find cs.cache.c_files key
+let find_file cc key =
+	Hashtbl.find cc.c_files key
 
-let cache_file cs key time data =
-	Hashtbl.replace cs.cache.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
+let cache_file cc key time data =
+	Hashtbl.replace cc.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
 
-let remove_file cs key =
-	if Hashtbl.mem cs.cache.c_files key then begin
-		Hashtbl.remove cs.cache.c_files key;
-		Hashtbl.replace cs.cache.c_removed_files key ()
+let remove_file cc key =
+	if Hashtbl.mem cc.c_files key then begin
+		Hashtbl.remove cc.c_files key;
+		Hashtbl.replace cc.c_removed_files key ()
 	end
 
 (* Like remove_file, but doesn't keep track of the file *)
-let remove_file_for_real cs key =
-	Hashtbl.remove cs.cache.c_files key
+let remove_file_for_real cc key =
+	Hashtbl.remove cc.c_files key
 
 let remove_files cs file =
-	List.iter (fun (sign,_) -> remove_file cs (file,sign)) cs.signs
-
-let iter_files cs com f =
-	let sign = Define.get_signature com.defines in
-	Hashtbl.iter (fun (file,sign') decls -> if sign = sign' then f file decls) cs.cache.c_files
-
-let get_file_list cs com =
-	let sign = Define.get_signature com.defines in
-	Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) cs.cache.c_files []
+	Hashtbl.iter (fun _ cc-> remove_file cc file) cs.cache.c_contexts
 
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->
@@ -183,7 +170,9 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 		name
 
 let get_files cs =
-	cs.cache.c_files
+	Hashtbl.fold (fun sign cc acc ->
+		Hashtbl.fold (fun file cfile acc -> (sign,file,cfile) :: acc) cc.c_files acc
+	) cs.cache.c_contexts []
 
 (* haxelibs *)
 
@@ -228,70 +217,3 @@ let add_directory cs key value =
 
 let clear_directories cs key =
 	Hashtbl.remove cs.cache.c_directories key
-
-(* native lib *)
-
-let add_native_lib cs key files timestamp =
-	Hashtbl.replace cs.cache.c_native_libs key { c_nl_files = files; c_nl_mtime = timestamp }
-
-let get_native_lib cs key =
-	try Some (Hashtbl.find cs.cache.c_native_libs key)
-	with Not_found -> None
-
-let handle_native_lib com lib =
-	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
-	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
-	match get() with
-	| Some cs when not (Define.raw_defined com.defines "haxe.noNativeLibsCache") ->
-		let init () =
-			let file = lib#get_file_path in
-			let key = file in
-			let ftime = file_time file in
-			begin match get_native_lib cs key with
-			| Some lib when ftime <= lib.c_nl_mtime ->
-				(* Cached lib is good, set up lookup into cached files. *)
-				lib.c_nl_files;
-			| _ ->
-				(* Cached lib is outdated or doesn't exist yet, read library. *)
-				lib#load;
-				(* Created lookup and eagerly read each known type. *)
-				let h = Hashtbl.create 0 in
-				List.iter (fun path ->
-					if not (Hashtbl.mem h path) then begin
-						let p = { pfile = file ^ " @ " ^ Globals.s_type_path path; pmin = 0; pmax = 0; } in
-						try begin match lib#build path p with
-						| Some r -> Hashtbl.add h path r
-						| None -> ()
-						end with _ ->
-							()
-					end
-				) lib#list_modules;
-				(* Save and set up lookup. *)
-				add_native_lib cs key h ftime;
-				h;
-			end;
-		in
-		(fun () ->
-			let lut = init() in
-			let build path p =
-				try Some (Hashtbl.find lut path)
-				with Not_found -> None
-			in
-			com.load_extern_type <- List.map (fun (name,f) ->
-				name,if name = lib#get_file_path then build else f
-			) com.load_extern_type
-		)
-	| _ ->
-		(* Offline mode, just read library as usual. *)
-		(fun () -> lib#load)
-
-(* context *)
-
-let rec cache_context cs com =
-	let cache_module m =
-		cache_module cs (m.m_path,m.m_extra.m_sign) m;
-	in
-	List.iter cache_module com.modules;
-	match com.get_macros() with
-	| None -> ()
-	| Some com -> cache_context cs com

@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open CompilationServer
 open Type
 open Globals
 open Define
@@ -194,6 +195,7 @@ type compiler_stage =
 
 type context = {
 	mutable stage : compiler_stage;
+	mutable cache : context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -435,6 +437,7 @@ let create version s_version args =
 		)
 	in
 	{
+		cache = None;
 		stage = CCreated;
 		version = version;
 		args = args;
@@ -515,6 +518,7 @@ let log com str =
 let clone com =
 	let t = com.basic in
 	{ com with
+		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;
