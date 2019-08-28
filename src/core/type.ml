@@ -332,7 +332,7 @@ and module_def = {
 
 and module_def_display = {
 	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
-	mutable m_type_hints : (pos * t) list;
+	mutable m_type_hints : (pos * pos) list;
 }
 
 and module_def_extra = {

@@ -614,7 +614,24 @@ let process_display_file com classes =
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
 			path
 
-let process_global_display_mode com tctx = match com.display.dms_kind with
+let promote_type_hints tctx =
+	let rec explore_type_hint (md,p,t) =
+		match t with
+		| TMono r -> (match !r with None -> () | Some t -> explore_type_hint (md,p,t))
+		| TLazy f -> explore_type_hint (md,p,lazy_type f)
+		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
+		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
+		| TType(({t_name_pos = pn;t_path = (_,name)}),_)
+		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
+			md.m_type_hints <- (p,pn) :: md.m_type_hints;
+		| TDynamic _ -> ()
+		| TFun _ | TAnon _ -> ()
+	in
+	List.iter explore_type_hint tctx.g.type_hints
+
+let process_global_display_mode com tctx =
+	promote_type_hints tctx;
+	match com.display.dms_kind with
 	| DMUsage with_definition ->
 		FindReferences.find_references tctx com with_definition
 	| DMDiagnostics global ->

@@ -83,6 +83,7 @@ type typer_globals = {
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
+	mutable type_hints : (module_def_display * pos * t) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;

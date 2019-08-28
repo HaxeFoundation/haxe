@@ -118,8 +118,7 @@ let rec display_type ctx t p =
 
 let check_display_type ctx t p =
 	let add_type_hint () =
-		let md = ctx.m.curmod.m_extra.m_display in
-		md.m_type_hints <- (p,t) :: md.m_type_hints;
+		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,p,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
 		if ctx.is_display_file && display_position#enclosed_in p then

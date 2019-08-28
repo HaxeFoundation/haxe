@@ -2606,6 +2606,7 @@ let rec create com =
 			std = null_module;
 			global_using = [];
 			complete = false;
+			type_hints = [];
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
