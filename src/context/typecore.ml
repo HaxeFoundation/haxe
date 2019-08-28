@@ -222,7 +222,40 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let check_identifier_name ctx name kind p =
+	if starts_with name '$' then
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed") p
+	else if not (Lexer.is_valid_identifier name) then
+		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+
+let check_field_name ctx name p =
+	match name with
+	| "new" -> () (* the only keyword allowed in field names *)
+	| _ -> check_identifier_name ctx name "field" p
+
+let check_type_name ctx name p =
+	if Ast.is_lower_ident name then
+		display_error ctx "Type name should start with an uppercase letter" p
+	else
+		check_identifier_name ctx name "type" p
+
+let check_local_variable_name ctx name origin p =
+	match name with
+	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
+	| _ ->
+		let s_var_origin origin =
+			match origin with
+			| TVOLocalVariable -> "variable"
+			| TVOArgument -> "function argument"
+			| TVOForVariable -> "for variable"
+			| TVOPatternVariable -> "pattern variable"
+			| TVOCatchVariable -> "catch variable"
+			| TVOLocalFunction -> "function"
+		in
+		check_identifier_name ctx name (s_var_origin origin) p
+
 let add_local_with_origin ctx origin n t p =
+	check_local_variable_name ctx n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
