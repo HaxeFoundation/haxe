@@ -733,6 +733,7 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
+		if String.get e (String.length e - 1) = ';' then error "Unexpected ;" p;
 		begin match ParserEntry.parse_expr_string ctx.com.defines e p error false with
 		| ParseSuccess data -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
