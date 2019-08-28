@@ -741,13 +741,7 @@ let load_core_class ctx c =
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
-			begin match CompilationServer.get() with
-			| Some cs ->
-				CommonCache.maybe_add_context_sign cs com2 "load_core_class";
-				com2.cache <- Some (CommonCache.get_cache cs com2)
-			| None ->
-				()
-			end;
+			CommonCache.lock_signature com2 "load_core_class";
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2

@@ -495,15 +495,11 @@ let create_typer_context ctx native_libs =
 let do_type tctx config_macros classes =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
-	let add_signature desc =
-		Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com desc) (CompilationServer.get ());
-	in
-	add_signature "before_init_macros";
+	Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com "before_init_macros") (CompilationServer.get ());
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
 	com.stage <- CInitMacrosDone;
-	com.cache <- (match CompilationServer.get() with None -> None | Some cs -> Some (CommonCache.get_cache cs com));
-	add_signature "after_init_macros";
+	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev classes);

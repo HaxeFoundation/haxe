@@ -75,3 +75,10 @@ let rec cache_context cs com =
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
 	ignore(cs#add_info sign desc com.platform com.class_path com.defines)
+
+let lock_signature com name = match CompilationServer.get() with
+	| Some cs ->
+		maybe_add_context_sign cs com name;
+		com.cache <- Some (get_cache cs com)
+	| None ->
+		()
