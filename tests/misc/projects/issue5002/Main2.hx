@@ -3,8 +3,9 @@ import haxe.macro.Expr;
 
 class Main2 {
 	static function main() {
-		invalidVariable();
-		invalidVariableKeyword();
+		invalidVariable("0_variable");
+		invalidVariable("var");
+		invalidVariable("new");
 		invalidCatchVariable();
 		invalidFunctionName();
 		invalidFunctionArgumentName();
@@ -13,16 +14,9 @@ class Main2 {
 		invalidForVariableKeyValue();
 	}
 
-	static macro function invalidVariable() {
+	static macro function invalidVariable(name:String) {
 		return {
-			expr: EVars([{name: "0_variable", type: null, expr: null}]),
-			pos: Context.currentPos()
-		};
-	}
-
-	static macro function invalidVariableKeyword() {
-		return {
-			expr: EVars([{name: "var", type: null, expr: null}]),
+			expr: EVars([{name: name, type: null, expr: null}]),
 			pos: Context.currentPos()
 		};
 	}

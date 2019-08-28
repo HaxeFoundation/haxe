@@ -228,10 +228,15 @@ let check_identifier_name ctx name kind p =
 	else
 		let is_valid =
 			match name with
-			| "new" | "this" -> true
+			| "this" -> true
 			| _ -> Lexer.is_valid_identifier name
 		in
 		if not is_valid then display_error ctx ("`" ^ name ^ "` is not a valid " ^ kind ^ " name") p
+
+let check_field_name ctx name p =
+	match name with
+	| "new" -> () (* the only keyword allowed in field names *)
+	| _ -> check_identifier_name ctx name "field" p
 
 let check_type_name ctx name p =
 	if Ast.is_lower_ident name then
