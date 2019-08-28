@@ -266,8 +266,9 @@ module Memory = struct
 	let get_memory_json (cs : CompilationServer.t) mreq =
 		begin match mreq with
 		| MCache ->
-			Gc.full_major();
 			Gc.compact();
+			let stat = Gc.quick_stat() in
+			let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
 			let cache_mem = cs#get_pointers in
 			let contexts = cs#get_contexts in
 			let j_contexts = List.map (fun cc -> jobject [
@@ -283,7 +284,10 @@ module Memory = struct
 					"directoryCache",jint (mem_size cache_mem.(2));
 					"nativeLibCache",jint (mem_size cache_mem.(3));
 					"additionalSizes",jarray [
-						jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))]
+						jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))];
+						jobject ["name",jstring "last completion result";"size",jint (mem_size (DisplayException.last_completion_result))];
+						jobject ["name",jstring "Lexer file cache";"size",jint (mem_size (Lexer.all_files))];
+						jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
 					];
 				]
 			]
