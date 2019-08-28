@@ -66,6 +66,10 @@ class context_cache (index : int) = object(self)
 
 	method get_json = json
 	method set_json j = json <- j
+
+(* Pointers for memory inspection. *)
+	method get_pointers : unit array =
+		[|Obj.magic files;Obj.magic modules|]
 end
 
 let create_directory path mtime = {
@@ -75,6 +79,7 @@ let create_directory path mtime = {
 
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
@@ -86,6 +91,7 @@ class cache = object(self)
 			Hashtbl.find contexts sign
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) in
+			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
 
@@ -105,7 +111,7 @@ class cache = object(self)
 		cc#set_json jo;
 		cc#get_index
 
-	method get_contexts = contexts
+	method get_contexts = context_list
 
 	(* files *)
 
@@ -124,6 +130,13 @@ class cache = object(self)
 		) contexts []
 
 	(* modules *)
+
+	method get_modules =
+		Hashtbl.fold (fun _ cc acc ->
+			Hashtbl.fold (fun _ m acc ->
+				m :: acc
+			) cc#get_modules acc
+		) contexts []
 
 	method taint_modules file =
 		Hashtbl.iter (fun _ cc ->
@@ -190,6 +203,10 @@ class cache = object(self)
 	method get_native_lib key =
 		try Some (Hashtbl.find native_libs key)
 		with Not_found -> None
+
+	(* Pointers for memory inspection. *)
+	method get_pointers : unit array =
+		[|Obj.magic contexts;Obj.magic haxelib;Obj.magic directories;Obj.magic native_libs|]
 
 end
 

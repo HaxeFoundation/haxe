@@ -161,7 +161,7 @@ let handler =
 			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = Hashtbl.fold (fun _ cc acc -> cc#get_json :: acc) hctx.display#get_cs#get_contexts [] in
+			let l = List.map (fun cc -> cc#get_json) hctx.display#get_cs#get_contexts in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
@@ -187,7 +187,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
 			let cs = hctx.display#get_cs in
-			Hashtbl.iter (fun _ cc ->
+			List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files file ()
 			) cs#get_contexts;
 			hctx.send_result (jstring file);
@@ -233,7 +233,18 @@ let handler =
 			hctx.send_result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
-			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs in
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs MCache in
+			hctx.send_result j
+		);
+		"server/memory/context",(fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs (MContext sign) in
+			hctx.send_result j
+		);
+		"server/memory/module",(fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
 			hctx.send_result j
 		);
 		(* TODO: wait till gama complains about the naming, then change it to something else *)

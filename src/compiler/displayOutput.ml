@@ -178,6 +178,11 @@ let print_positions pl =
 module Memory = struct
 	open CompilationServer
 
+	type memory_request =
+		| MCache
+		| MContext of string
+		| MModule of string * path
+
 	let clear_descendants md =
 		List.iter (function
 			| TClassDecl c ->
@@ -228,29 +233,24 @@ module Memory = struct
 	let get_out out =
 		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
 
-	let collect_memory_stats cs =
-		[]
-		(* let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
-		let modules = Hashtbl.fold (fun (path,key) m acc ->
-			let mdeps = Hashtbl.create 0 in
-			scan_module_deps m mdeps;
-			let deps = ref [Obj.repr null_module] in
-			let out = ref all_modules in
-			let deps = Hashtbl.fold (fun _ md deps ->
-				out := PMap.remove md.m_id !out;
-				if m == md then
-					deps
-				else
-					update_module_type_deps deps md;
-			) mdeps !deps in
-			clear_descendants m;
-			let out = !out in
-			let chk = get_out out in
-			let inf = Objsize.objsize m deps chk in
-			let leaks = if inf.reached then collect_leaks m deps out else [] in
-			(m,Objsize.size_with_headers inf, (inf.reached,deps,out,leaks)) :: acc
-		) cs.c_modules [] in
-		modules *)
+	let get_module_memory cs all_modules m =
+		let mdeps = Hashtbl.create 0 in
+		scan_module_deps m mdeps;
+		let deps = ref [Obj.repr null_module] in
+		let out = ref all_modules in
+		let deps = Hashtbl.fold (fun _ md deps ->
+			out := PMap.remove md.m_id !out;
+			if m == md then
+				deps
+			else
+				update_module_type_deps deps md;
+		) mdeps !deps in
+		clear_descendants m;
+		let out = !out in
+		let chk = get_out out in
+		let inf = Objsize.objsize m deps chk in
+		let leaks = if inf.reached then collect_leaks m deps out else [] in
+		(Objsize.size_with_headers inf,(inf.reached,deps,out,leaks))
 
 	let fmt_size sz =
 		if sz < 1024 then
@@ -263,28 +263,75 @@ module Memory = struct
 	let size v =
 		fmt_size (mem_size v)
 
-	let get_memory_json cs =
-		jnull
-		(* Gc.full_major();
-		Gc.compact();
-		let contexts = Hashtbl.create 0 in
-		let add_context sign =
-			let ctx = (sign,ref [],ref [],ref 0) in
-			Hashtbl.add contexts sign ctx;
-			ctx
-		in
-		let get_context sign =
-			try
-				Hashtbl.find contexts sign
-			with Not_found ->
-				add_context sign
-		in
-		let modules = collect_memory_stats cs.cache in
-
-		List.iter (fun (m,size,(reached,deps,out,mleaks)) ->
-			let (_,l,leaks,mem) = get_context m.m_extra.m_sign in
-			if reached then leaks := (m,mleaks) :: !leaks;
+	let get_memory_json (cs : CompilationServer.t) mreq =
+		begin match mreq with
+		| MCache ->
+			Gc.full_major();
+			Gc.compact();
+			let cache_mem = cs#get_pointers in
+			let contexts = cs#get_contexts in
+			let j_contexts = List.map (fun cc -> jobject [
+				"context",cc#get_json;
+				"size",jint (mem_size cc);
+			]) contexts in
+			jobject [
+				"contexts",jarray j_contexts;
+				"memory",jobject [
+					"totalCache",jint (mem_size cs);
+					"contextCache",jint (mem_size cache_mem.(0));
+					"haxelibCache",jint (mem_size cache_mem.(1));
+					"directoryCache",jint (mem_size cache_mem.(2));
+					"nativeLibCache",jint (mem_size cache_mem.(3));
+					"additionalSizes",jarray [
+						jobject ["name",jstring "macro interpreter";"size",jint (mem_size (MacroContext.macro_interp_cache))]
+					];
+				]
+			]
+		| MContext sign ->
+			let cc = cs#get_context sign in
+			let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty cs#get_modules in
+			let l = Hashtbl.fold (fun _ m acc ->
+				(m,(get_module_memory cs all_modules m)) :: acc
+			) cc#get_modules [] in
+			let l = List.sort (fun (_,(size1,_)) (_,(size2,_)) -> compare size2 size1) l in
+			let leaks = ref [] in
+			let l = List.map (fun (m,(size,(reached,_,_,mleaks))) ->
+				if reached then leaks := (m,mleaks) :: !leaks;
+				jobject [
+					"path",jstring (s_type_path m.m_path);
+					"size",jint size;
+				]
+			) l in
+			let leaks = match !leaks with
+				| [] -> jnull
+				| leaks ->
+					let jleaks = List.map (fun (m,leaks) ->
+						let jleaks = List.map (fun s -> jobject ["path",jstring s]) leaks in
+						jobject [
+							"path",jstring (s_type_path m.m_path);
+							"leaks",jarray jleaks;
+						]
+					) leaks in
+					jarray jleaks
+			in
+			let cache_mem = cc#get_pointers in
+			jobject [
+				"leaks",leaks;
+				"syntaxCache",jobject [
+					"size",jint (mem_size cache_mem.(0));
+				];
+				"moduleCache",jobject [
+					"size",jint (mem_size cache_mem.(1));
+					"list",jarray l;
+				];
+			]
+		| MModule(sign,path) ->
+			let cc = cs#get_context sign in
+			let m = cc#find_module path in
+			let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty cs#get_modules in
+			let _,(_,deps,out,_) = get_module_memory cs all_modules m in
 			let deps = update_module_type_deps deps m in
+			let out = get_out out in
 			let types = List.map (fun md ->
 				let fields,inf = match md with
 					| TClassDecl c ->
@@ -293,7 +340,7 @@ module Memory = struct
 							let repr = Obj.repr cf in
 							own_deps := List.filter (fun repr' -> repr != repr') !own_deps;
 							let deps = List.filter (fun repr' -> repr' != repr) deps in
-							let size = Objsize.size_with_headers (Objsize.objsize cf deps []) in
+							let size = Objsize.size_with_headers (Objsize.objsize cf deps out) in
 							(cf.cf_name,size) :: acc
 						in
 						let fields = List.fold_left field [] c.cl_ordered_fields in
@@ -301,93 +348,41 @@ module Memory = struct
 						let fields = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) fields in
 						let fields = List.map (fun (name,size) ->
 							jobject [
-								"path",jstring name;
+								"name",jstring name;
 								"size",jint size;
 							]
 						) fields in
 						let repr = Obj.repr c in
 						let deps = List.filter (fun repr' -> repr' != repr) !own_deps in
-						fields,Objsize.objsize c deps []
+						fields,Objsize.objsize c deps out
 					| TEnumDecl en ->
 						let repr = Obj.repr en in
 						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize en deps []
+						[],Objsize.objsize en deps out
 					| TTypeDecl td ->
 						let repr = Obj.repr td in
 						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize td deps []
+						[],Objsize.objsize td deps out
 					| TAbstractDecl a ->
 						let repr = Obj.repr a in
 						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize a deps []
+						[],Objsize.objsize a deps out
 				in
 				let size = Objsize.size_with_headers inf in
 				let jo = jobject [
-					"path",jstring (s_type_path (t_infos md).mt_path);
+					"name",jstring (s_type_path (t_infos md).mt_path);
 					"size",jint size;
 					"fields",jarray fields;
 				] in
-				jo,size
+				size,jo
 			) m.m_types in
-			let types = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) types in
-			let types =
-				let inf = Objsize.objsize m.m_extra deps [] in
-				let size = Objsize.size_with_headers inf in
-				(jobject [
-					"path",jstring "m_extra";
-					"size",jint size;
-					"fields",jarray []
-				],size) :: types
-			in
-			l := (m,size,jarray (List.map fst types)) :: !l;
-			mem := !mem + size;
-		) modules;
-		let ja = Hashtbl.fold (fun key (sign,modules,leaks,size) l ->
-			let modules = List.sort (fun (_,size1,_) (_,size2,_)  -> compare size2 size1) !modules in
-			let modules = List.map (fun (m,size,jmt) ->
-				jobject [
-					"path",jstring (s_type_path m.m_path);
-					"size",jint size;
-					"types",jmt;
-				]
-			) modules in
-			let modules = match !leaks with
-				| [] -> modules
-				| leaks ->
-					let jleaks = List.map (fun (m,leaks) ->
-						let jleaks = List.map (fun s -> jobject ["path",jstring s;"size",jint 0]) leaks in
-						jobject [
-							"path",jstring (s_type_path m.m_path);
-							"size",jint 0;
-							"fields",jarray jleaks;
-						]
-					) leaks in
-					jobject [
-						"path",jstring "?LEAKS";
-						"size",jint 0;
-						"types",jarray jleaks;
-					] :: modules
-			in
-			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
-			let jo = jobject [
-				"context",j;
-				"size",jint !size;
-				"modules",jarray modules;
-			] in
-			jo :: l
-		) contexts [] in
-		jobject [
-			"contexts",jarray ja;
-			"memory",jobject [
-				"totalCache",jint (mem_size cs.cache);
-				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
-				"parserCache",jint (mem_size cs.cache.c_files);
-				"moduleCache",jint (mem_size cs.cache.c_modules);
-				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
-				"macroInterpreter",jint (mem_size MacroContext.macro_interp_cache);
-				"completionResult",jint (mem_size (DisplayException.last_completion_result));
+			let types = List.sort (fun (size1,_) (size2,_) -> compare size2 size1) types in
+			let types = List.map snd types in
+			jobject [
+				"moduleExtra",jint (Objsize.size_with_headers (Objsize.objsize m.m_extra deps out));
+				"types",jarray types;
 			]
-		] *)
+		end
 
 	let display_memory com =
 		()
