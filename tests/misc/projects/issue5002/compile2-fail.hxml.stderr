@@ -5,7 +5,7 @@ Main2.hx:7: characters 3-25 : Called from macro here
 "new" is not a valid variable name
 Main2.hx:8: characters 3-25 : Called from macro here
 "foo \"\t\n" is not a valid variable name
-Main2.hx:9: characters 3-30 : Called from macro here
+Main2.hx:9: characters 3-32 : Called from macro here
 "0_catchVariable" is not a valid catch variable name
 Main2.hx:10: characters 3-25 : Called from macro here
 "0_function" is not a valid function name
