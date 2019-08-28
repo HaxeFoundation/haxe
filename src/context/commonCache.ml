@@ -69,9 +69,11 @@ let get_cache cs com = match com.Common.cache with
 		cache
 
 let rec cache_context cs com =
+	let cc = get_cache cs com in
+	let sign = Define.get_signature com.defines in
 	let cache_module m =
-		(* TODOOOOOOOOO: Looking up the cache for every module is terribad. *)
-		let cc = CompilationServer.get_cache cs m.m_extra.m_sign in
+		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
+		let cc = if m.m_extra.m_sign == sign then cc else CompilationServer.get_cache cs m.m_extra.m_sign in
 		cache_module cc m.m_path m;
 	in
 	List.iter cache_module com.modules;
