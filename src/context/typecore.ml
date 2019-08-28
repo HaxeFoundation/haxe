@@ -231,7 +231,7 @@ let check_identifier_name ctx name kind p =
 			| "this" -> true
 			| _ -> Lexer.is_valid_identifier name
 		in
-		if not is_valid then display_error ctx ("`" ^ name ^ "` is not a valid " ^ kind ^ " name") p
+		if not is_valid then display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
 
 let check_field_name ctx name p =
 	match name with

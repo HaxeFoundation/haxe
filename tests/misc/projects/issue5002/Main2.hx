@@ -6,6 +6,7 @@ class Main2 {
 		invalidVariable("0_variable");
 		invalidVariable("var");
 		invalidVariable("new");
+		invalidVariable("foo \"\t\n");
 		invalidCatchVariable();
 		invalidFunctionName();
 		invalidFunctionArgumentName();
