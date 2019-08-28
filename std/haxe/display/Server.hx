@@ -113,7 +113,7 @@ typedef HaxeMemoryResult = {
 		final context:HaxeServerContext;
 		final size:Int;
 	}>;
-	final memory: {
+	final memory:{
 		final totalCache:Int;
 		final contextCache:Int;
 		final haxelibCache:Int;
@@ -147,11 +147,11 @@ typedef HaxeModuleMemoryResult = {
 	final moduleExtra:Int;
 	final types:Array<{
 		final name:String;
-		final pos:Position;
+		final ?pos:Location;
 		final size:Int;
 		final fields:Array<{
 			final name:String;
-			final pos:Position;
+			final ?pos:Location;
 			final size:Int;
 		}>;
 	}>;
