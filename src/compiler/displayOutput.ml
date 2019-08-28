@@ -304,6 +304,7 @@ module Memory = struct
 				jobject [
 					"path",jstring (s_type_path m.m_path);
 					"size",jint size;
+					"hasTypes",jbool (match m.m_extra.m_kind with MCode | MMacro -> true | _ -> false);
 				]
 			) l in
 			let leaks = match !leaks with

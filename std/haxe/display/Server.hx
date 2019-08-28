@@ -129,6 +129,7 @@ typedef HaxeContextMemoryResult = {
 		final list:Array<{
 			final path:String;
 			final size:Int;
+			final hasTypes:Bool;
 		}>;
 	};
 	final syntaxCache:{
