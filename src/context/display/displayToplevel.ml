@@ -418,12 +418,12 @@ let collect ctx tk with_type =
 			end
 		) files;
 		List.iter (fun file ->
-			try
-				let lib = Hashtbl.find cs.cache.c_native_libs file in
+			match cs#get_native_lib file with
+			| Some lib ->
 				Hashtbl.iter (fun path (pack,decls) ->
 					if process_decls pack (snd path) decls then check_package pack;
 				) lib.c_nl_files
-			with Not_found ->
+			| None ->
 				()
 		) ctx.com.native_libs.all_libs
 	end;

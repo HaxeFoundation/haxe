@@ -126,10 +126,10 @@ let add_libs com libs =
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
 					if not com.display.dms_display then raise Not_found;
-					CompilationServer.find_haxelib cs libs
+					cs#find_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					CompilationServer.cache_haxelib cs libs lines;
+					cs#cache_haxelib libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in

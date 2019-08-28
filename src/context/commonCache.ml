@@ -3,15 +3,6 @@ open Common
 open CompilationServer
 open Type
 
-(* native lib *)
-
-let add_native_lib cs key files timestamp =
-	Hashtbl.replace cs.cache.c_native_libs key { c_nl_files = files; c_nl_mtime = timestamp }
-
-let get_native_lib cs key =
-	try Some (Hashtbl.find cs.cache.c_native_libs key)
-	with Not_found -> None
-
 let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
 	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
@@ -21,7 +12,7 @@ let handle_native_lib com lib =
 			let file = lib#get_file_path in
 			let key = file in
 			let ftime = file_time file in
-			begin match get_native_lib cs key with
+			begin match cs#get_native_lib key with
 			| Some lib when ftime <= lib.c_nl_mtime ->
 				(* Cached lib is good, set up lookup into cached files. *)
 				lib.c_nl_files;
@@ -41,7 +32,7 @@ let handle_native_lib com lib =
 					end
 				) lib#list_modules;
 				(* Save and set up lookup. *)
-				add_native_lib cs key h ftime;
+				cs#add_native_lib key h ftime;
 				h;
 			end;
 		in
@@ -64,7 +55,7 @@ let handle_native_lib com lib =
 let get_cache cs com = match com.Common.cache with
 	| None ->
 		let sign = Define.get_signature com.defines in
-		CompilationServer.get_cache cs sign
+		cs#get_context sign
 	| Some cache ->
 		cache
 
@@ -73,7 +64,7 @@ let rec cache_context cs com =
 	let sign = Define.get_signature com.defines in
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
-		let cc = if m.m_extra.m_sign == sign then cc else CompilationServer.get_cache cs m.m_extra.m_sign in
+		let cc = if m.m_extra.m_sign == sign then cc else cs#get_context m.m_extra.m_sign in
 		cc#cache_module m.m_path m;
 	in
 	List.iter cache_module com.modules;
@@ -83,4 +74,4 @@ let rec cache_context cs com =
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
-	ignore(add_info cs sign desc com.platform com.class_path com.defines)
+	ignore(cs#add_info sign desc com.platform com.class_path com.defines)

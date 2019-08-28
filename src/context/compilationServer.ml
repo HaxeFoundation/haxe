@@ -68,16 +68,132 @@ class context_cache (index : int) = object(self)
 	method set_json j = json <- j
 end
 
-type cache = {
-	c_contexts : (string,context_cache) Hashtbl.t;
-	c_haxelib : (string list, string list) Hashtbl.t;
-	c_directories : (string, cached_directory list) Hashtbl.t;
-	c_native_libs : (string,cached_native_lib) Hashtbl.t;
+let create_directory path mtime = {
+	c_path = path;
+	c_mtime = mtime;
 }
 
-type t = {
-	cache : cache;
-}
+class cache = object(self)
+	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
+	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
+	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
+
+	(* contexts *)
+
+	method get_context sign =
+		try
+			Hashtbl.find contexts sign
+		with Not_found ->
+			let cache = new context_cache (Hashtbl.length contexts) in
+			Hashtbl.add contexts sign cache;
+			cache
+
+	method add_info sign desc platform class_path defines =
+		let cc = self#get_context sign in
+		let jo = JObject [
+			"index",JInt cc#get_index;
+			"desc",JString desc;
+			"platform",JString (platform_name platform);
+			"classPaths",JArray (List.map (fun s -> JString s) class_path);
+			"signature",JString (Digest.to_hex sign);
+			"defines",JArray (PMap.foldi (fun k v acc -> JObject [
+				"key",JString k;
+				"value",JString v;
+			] :: acc) defines.values []);
+		] in
+		cc#set_json jo;
+		cc#get_index
+
+	method get_contexts = contexts
+
+	(* files *)
+
+	method remove_files file =
+		Hashtbl.iter (fun _ cc-> cc#remove_file file) contexts
+
+	method get_context_files signs =
+		Hashtbl.fold (fun sign cc acc ->
+			if List.mem sign signs then Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files acc
+			else acc
+		) contexts []
+
+	method get_files =
+		Hashtbl.fold (fun sign cc acc ->
+			Hashtbl.fold (fun file cfile acc -> (sign,file,cfile) :: acc) cc#get_files acc
+		) contexts []
+
+	(* modules *)
+
+	method taint_modules file =
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun _ m ->
+				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m
+			) cc#get_modules
+		) contexts
+
+	method filter_modules file =
+		let removed = DynArray.create () in
+		(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun k m ->
+				if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
+			) cc#get_modules
+		) contexts;
+		DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
+		DynArray.to_list removed
+
+	(* haxelibs *)
+
+	method find_haxelib key =
+		Hashtbl.find haxelib key
+
+	method cache_haxelib key value =
+		Hashtbl.replace haxelib key value
+
+	(* directories *)
+
+	method find_directories key =
+		Hashtbl.find directories key
+
+	method add_directories key value =
+		Hashtbl.replace directories key value
+
+	method remove_directory key value =
+		try
+			let current = self#find_directories key in
+			Hashtbl.replace directories key (List.filter (fun dir -> dir.c_path <> value) current);
+		with Not_found ->
+			()
+
+	method has_directory key value =
+		try
+			List.exists (fun dir -> dir.c_path = value) (self#find_directories key)
+		with Not_found ->
+			false
+
+	method add_directory key value =
+		try
+			let current = self#find_directories key in
+			self#add_directories key (value :: current)
+		with Not_found ->
+			self#add_directories key [value]
+
+	method clear_directories key =
+		Hashtbl.remove directories key
+
+	(* native lib *)
+
+	method add_native_lib key files timestamp =
+		Hashtbl.replace native_libs key { c_nl_files = files; c_nl_mtime = timestamp }
+
+	method get_native_lib key =
+		try Some (Hashtbl.find native_libs key)
+		with Not_found -> None
+
+end
+
+type t = cache
 
 type context_options =
 	| NormalContext
@@ -86,17 +202,8 @@ type context_options =
 
 let instance : t option ref = ref None
 
-let create_cache () = {
-	c_haxelib = Hashtbl.create 0;
-	c_contexts = Hashtbl.create 0;
-	c_directories = Hashtbl.create 0;
-	c_native_libs = Hashtbl.create 0;
-}
-
 let create () =
-	let cs = {
-		cache = create_cache();
-	} in
+	let cs = new cache in
 	instance := Some cs;
 	cs
 
@@ -108,64 +215,6 @@ let runs () =
 
 let force () = match !instance with None -> assert false | Some i -> i
 
-let remove_files cs file =
-	Hashtbl.iter (fun _ cc-> cc#remove_file file) cs.cache.c_contexts
-
-let get_context_files cs signs =
-	Hashtbl.fold (fun sign cc acc ->
-		if List.mem sign signs then Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files acc
-		else acc
-	) cs.cache.c_contexts []
-
-(* signatures *)
-
-let get_cache cs sign =
-	try
-		Hashtbl.find cs.cache.c_contexts sign
-	with Not_found ->
-		let cache = new context_cache (Hashtbl.length cs.cache.c_contexts) in
-		Hashtbl.add cs.cache.c_contexts sign cache;
-		cache
-
-let add_info cs sign desc platform class_path defines =
-	let cc = get_cache cs sign in
-	let jo = JObject [
-		"index",JInt cc#get_index;
-		"desc",JString desc;
-		"platform",JString (platform_name platform);
-		"classPaths",JArray (List.map (fun s -> JString s) class_path);
-		"signature",JString (Digest.to_hex sign);
-		"defines",JArray (PMap.foldi (fun k v acc -> JObject [
-			"key",JString k;
-			"value",JString v;
-		] :: acc) defines.values []);
-	] in
-	cc#set_json jo;
-	cc#get_index
-
-let get_caches cs =
-	cs.cache.c_contexts
-
-(* modules *)
-
-let taint_modules cs file =
-	Hashtbl.iter (fun _ cc ->
-		Hashtbl.iter (fun _ m ->
-			if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m
-		) cc#get_modules
-	) cs.cache.c_contexts
-
-let filter_modules cs file =
-	let removed = DynArray.create () in
-	(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
-	Hashtbl.iter (fun _ cc ->
-		Hashtbl.iter (fun k m ->
-			if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
-		) cc#get_modules
-	) cs.cache.c_contexts;
-	DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
-	DynArray.to_list removed
-
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->
 		let name = Path.module_name_of_file file in
@@ -173,52 +222,3 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 		name
 	| Some name ->
 		name
-
-let get_files cs =
-	Hashtbl.fold (fun sign cc acc ->
-		Hashtbl.fold (fun file cfile acc -> (sign,file,cfile) :: acc) cc#get_files acc
-	) cs.cache.c_contexts []
-
-(* haxelibs *)
-
-let find_haxelib cs key =
-	Hashtbl.find cs.cache.c_haxelib key
-
-let cache_haxelib cs key value =
-	Hashtbl.replace cs.cache.c_haxelib key value
-
-(* directories *)
-
-let create_directory path mtime = {
-	c_path = path;
-	c_mtime = mtime;
-}
-
-let find_directories cs key =
-	Hashtbl.find cs.cache.c_directories key
-
-let add_directories cs key value =
-	Hashtbl.replace cs.cache.c_directories key value
-
-let remove_directory cs key value =
-	try
-		let current = find_directories cs key in
-		Hashtbl.replace cs.cache.c_directories key (List.filter (fun dir -> dir.c_path <> value) current);
-	with Not_found ->
-		()
-
-let has_directory cs key value =
-	try
-		List.exists (fun dir -> dir.c_path = value) (find_directories cs key)
-	with Not_found ->
-		false
-
-let add_directory cs key value =
-	try
-		let current = find_directories cs key in
-		add_directories cs key (value :: current)
-	with Not_found ->
-		add_directories cs key [value]
-
-let clear_directories cs key =
-	Hashtbl.remove cs.cache.c_directories key

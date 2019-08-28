@@ -236,7 +236,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	with Not_found ->
 		let dirs = try
 			(* Next, get all directories from the cache and filter the ones that haven't changed. *)
-			let all_dirs = CompilationServer.find_directories cs sign in
+			let all_dirs = cs#find_directories sign in
 			let dirs = List.fold_left (fun acc dir ->
 				try
 					let time' = stat dir.c_path in
@@ -244,17 +244,17 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 						dir.c_mtime <- time';
 						let sub_dirs = Path.find_directories (platform_name com.platform) false [dir.c_path] in
 						List.iter (fun dir ->
-							if not (CompilationServer.has_directory cs sign dir) then begin
+							if not (cs#has_directory sign dir) then begin
 								let time = stat dir in
 								ServerMessage.added_directory com "" dir;
-								CompilationServer.add_directory cs sign (CompilationServer.create_directory dir time)
+								cs#add_directory sign (CompilationServer.create_directory dir time)
 							end;
 						) sub_dirs;
 						(CompilationServer.create_directory dir.c_path time') :: acc
 					end else
 						acc
 				with Unix.Unix_error _ ->
-					CompilationServer.remove_directory cs sign dir.c_path;
+					cs#remove_directory sign dir.c_path;
 					ServerMessage.removed_directory com "" dir.c_path;
 					acc
 			) [] all_dirs in
@@ -263,7 +263,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 		with Not_found ->
 			(* There were no directories in the cache, so this must be a new context. Let's add
 				an empty list to make sure no crazy recursion happens. *)
-			CompilationServer.add_directories cs sign [];
+			cs#add_directories sign [];
 			(* Register the delay that is going to populate the cache dirs. *)
 			sctx.delays <- (fun () ->
 				let dirs = ref [] in
@@ -277,7 +277,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 				List.iter add_dir com.class_path;
 				List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
 				ServerMessage.found_directories com "" !dirs;
-				CompilationServer.add_directories cs sign !dirs
+				cs#add_directories sign !dirs
 			) :: sctx.delays;
 			(* Returning [] should be fine here because it's a new context, so we won't do any
 				shadowing checks anyway. *)
@@ -523,16 +523,16 @@ let create sctx write params =
 		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
 			let file = (DisplayPosition.display_position#get).pfile in
 			(* force parsing again : if the completion point have been changed *)
-			CompilationServer.remove_files cs file;
-			sctx.removed_modules <- CompilationServer.filter_modules cs file;
+			cs#remove_files file;
+			sctx.removed_modules <- cs#filter_modules file;
 			add_delay sctx recache_removed_modules;
 		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
 				ServerMessage.class_paths_changed ctx.com "";
 				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
-				CompilationServer.clear_directories cs sign;
-				(CompilationServer.get_cache cs sign)#set_initialized false;
+				cs#clear_directories sign;
+				(cs#get_context sign)#set_initialized false;
 			end;
 		with Not_found ->
 			Hashtbl.add sctx.class_paths sign ctx.com.class_path;

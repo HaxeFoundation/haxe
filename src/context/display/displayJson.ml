@@ -44,7 +44,7 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
+class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t) = object(self)
 	val cs = cs;
 
 	method get_cs = cs
@@ -62,7 +62,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
 			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			CompilationServer.remove_files cs file;
+			cs#remove_files file;
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
@@ -151,22 +151,22 @@ let handler =
 		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
-				let cc = CompilationServer.get_cache hctx.display#get_cs (Define.get_signature hctx.com.defines) in
+				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
 				cc#set_initialized true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
-				let files = CompilationServer.get_files hctx.display#get_cs in
+				let files = hctx.display#get_cs#get_files in
 				hctx.send_result (jobject [
 					"files", jint (List.length files)
 				]);
 			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = Hashtbl.fold (fun _ cc acc -> cc#get_json :: acc) (CompilationServer.get_caches hctx.display#get_cs) [] in
+			let l = Hashtbl.fold (fun _ cc acc -> cc#get_json :: acc) hctx.display#get_cs#get_contexts [] in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let cc = get_cache hctx.display#get_cs sign in
+			let cc = hctx.display#get_cs#get_context sign in
 			let l = Hashtbl.fold (fun _ m acc ->
 				if m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
 			) cc#get_modules [] in
@@ -175,7 +175,7 @@ let handler =
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let cc = get_cache hctx.display#get_cs sign in
+			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
 				cc#find_module path
 			with Not_found ->
@@ -189,12 +189,12 @@ let handler =
 			let cs = hctx.display#get_cs in
 			Hashtbl.iter (fun _ cc ->
 				Hashtbl.replace cc#get_removed_files file ()
-			) (CompilationServer.get_caches cs);
+			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
-			let cc = get_cache hctx.display#get_cs sign in
+			let cc = hctx.display#get_cs#get_context sign in
 			let files = Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files [] in
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (file,cfile) ->
@@ -211,8 +211,8 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
 			let cs = hctx.display#get_cs in
-			CompilationServer.taint_modules cs file;
-			CompilationServer.remove_files cs file;
+			cs#taint_modules file;
+			cs#remove_files file;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

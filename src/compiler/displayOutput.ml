@@ -390,7 +390,8 @@ module Memory = struct
 		] *)
 
 	let display_memory com =
-		let verbose = com.verbose in
+		()
+		(* let verbose = com.verbose in
 		let print = print_endline in
 		Gc.full_major();
 		Gc.compact();
@@ -400,7 +401,7 @@ module Memory = struct
 		(match get() with
 		| None ->
 			print "No cache found";
-		| Some {cache = c} ->
+		| Some c ->
 			print ("Total cache size " ^ size c);
 			print ("  haxelib " ^ size c.c_haxelib);
 			(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
@@ -441,7 +442,7 @@ module Memory = struct
 				if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
 			) modules);
 			if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-			print "Cache dump complete")
+			print "Cache dump complete") *)
 end
 
 (* New JSON stuff *)
@@ -631,7 +632,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		let symbols = match CompilationServer.get() with
 			| None -> []
 			| Some cs ->
-				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
+				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
 					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
