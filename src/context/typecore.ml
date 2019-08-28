@@ -226,12 +226,18 @@ let check_identifier_name ctx name kind p =
 	if starts_with name '$' then
 		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed") p
 	else
-		let is_valid_identifier s =
-			match s with
+		let is_valid =
+			match name with
 			| "new" | "this" -> true
-			| _ -> Lexer.is_valid_identifier s
+			| _ -> Lexer.is_valid_identifier name
 		in
-		if not (is_valid_identifier name) then display_error ctx ("`" ^ name ^ "` is not a valid " ^ kind ^ " name") p
+		if not is_valid then display_error ctx ("`" ^ name ^ "` is not a valid " ^ kind ^ " name") p
+
+let check_type_name ctx name p =
+	if Ast.is_lower_ident name then
+		display_error ctx "Type name should start with an uppercase letter" p
+	else
+		check_identifier_name ctx name "type" p
 
 let check_local_variable_name ctx name origin p =
 	let s_var_origin origin =

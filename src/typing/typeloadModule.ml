@@ -196,12 +196,6 @@ let module_pass_1 ctx m tdecls loadp =
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
-		let check_type_name name =
-			if Ast.is_lower_ident name then
-				display_error ctx "Type name should start with an uppercase letter" p
-			else
-				Typecore.check_identifier_name ctx name "type" p
-		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
 			(match !pt with
@@ -209,7 +203,7 @@ let module_pass_1 ctx m tdecls loadp =
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
 			let name = fst d.d_name in
-			check_type_name name;
+			Typecore.check_type_name ctx name p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
@@ -230,7 +224,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			check_type_name name;
+			Typecore.check_type_name ctx name p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -254,7 +248,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			check_type_name name;
+			Typecore.check_type_name ctx name p;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
@@ -281,7 +275,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			check_type_name name;
+			Typecore.check_type_name ctx name p;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
