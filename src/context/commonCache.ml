@@ -74,7 +74,7 @@ let rec cache_context cs com =
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
 		let cc = if m.m_extra.m_sign == sign then cc else CompilationServer.get_cache cs m.m_extra.m_sign in
-		cache_module cc m.m_path m;
+		cc#cache_module m.m_path m;
 	in
 	List.iter cache_module com.modules;
 	match com.get_macros() with

@@ -21,14 +21,52 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-type context_cache = {
-	c_files : (string,cached_file) Hashtbl.t;
-	c_modules : (path,module_def) Hashtbl.t;
-	c_removed_files : (string,unit) Hashtbl.t;
-	c_index : int;
-	mutable c_json : Json.t;
-	mutable c_initialized : bool;
-}
+class context_cache (index : int) = object(self)
+	val files : (string,cached_file) Hashtbl.t = Hashtbl.create 0
+	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	val removed_files = Hashtbl.create 0
+	val mutable json = JNull
+	val mutable initialized = false
+
+	(* files *)
+
+	method find_file key =
+		Hashtbl.find files key
+
+	method cache_file key time data =
+		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
+
+	method remove_file key =
+		if Hashtbl.mem files key then begin
+			Hashtbl.remove files key;
+			Hashtbl.replace removed_files key ()
+		end
+
+	(* Like remove_file, but doesn't keep track of the file *)
+	method remove_file_for_real key =
+		Hashtbl.remove files key
+
+	(* modules *)
+
+	method find_module path =
+		Hashtbl.find modules path
+
+	method cache_module path value =
+		Hashtbl.replace modules path value
+
+	(* initialization *)
+
+	method is_initialized = initialized
+	method set_initialized value = initialized <- value
+
+	method get_index = index
+	method get_files = files
+	method get_modules = modules
+	method get_removed_files = removed_files
+
+	method get_json = json
+	method set_json j = json <- j
+end
 
 type cache = {
 	c_contexts : (string,context_cache) Hashtbl.t;
@@ -55,15 +93,6 @@ let create_cache () = {
 	c_native_libs = Hashtbl.create 0;
 }
 
-let create_context_cache index = {
-	c_modules = Hashtbl.create 0;
-	c_files = Hashtbl.create 0;
-	c_removed_files = Hashtbl.create 0;
-	c_index = index;
-	c_json = JNull;
-	c_initialized = false;
-}
-
 let create () =
 	let cs = {
 		cache = create_cache();
@@ -79,9 +108,12 @@ let runs () =
 
 let force () = match !instance with None -> assert false | Some i -> i
 
+let remove_files cs file =
+	Hashtbl.iter (fun _ cc-> cc#remove_file file) cs.cache.c_contexts
+
 let get_context_files cs signs =
 	Hashtbl.fold (fun sign cc acc ->
-		if List.mem sign signs then Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc.c_files acc
+		if List.mem sign signs then Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files acc
 		else acc
 	) cs.cache.c_contexts []
 
@@ -91,14 +123,14 @@ let get_cache cs sign =
 	try
 		Hashtbl.find cs.cache.c_contexts sign
 	with Not_found ->
-		let cache = create_context_cache (Hashtbl.length cs.cache.c_contexts) in
+		let cache = new context_cache (Hashtbl.length cs.cache.c_contexts) in
 		Hashtbl.add cs.cache.c_contexts sign cache;
 		cache
 
 let add_info cs sign desc platform class_path defines =
 	let cc = get_cache cs sign in
 	let jo = JObject [
-		"index",JInt cc.c_index;
+		"index",JInt cc#get_index;
 		"desc",JString desc;
 		"platform",JString (platform_name platform);
 		"classPaths",JArray (List.map (fun s -> JString s) class_path);
@@ -108,25 +140,19 @@ let add_info cs sign desc platform class_path defines =
 			"value",JString v;
 		] :: acc) defines.values []);
 	] in
-	cc.c_json <- jo;
-	cc.c_index
+	cc#set_json jo;
+	cc#get_index
 
 let get_caches cs =
 	cs.cache.c_contexts
 
 (* modules *)
 
-let find_module cc path =
-	Hashtbl.find cc.c_modules path
-
-let cache_module cc path value =
-	Hashtbl.replace cc.c_modules path value
-
 let taint_modules cs file =
 	Hashtbl.iter (fun _ cc ->
 		Hashtbl.iter (fun _ m ->
 			if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m
-		) cc.c_modules
+		) cc#get_modules
 	) cs.cache.c_contexts
 
 let filter_modules cs file =
@@ -135,31 +161,10 @@ let filter_modules cs file =
 	Hashtbl.iter (fun _ cc ->
 		Hashtbl.iter (fun k m ->
 			if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
-		) cc.c_modules
+		) cc#get_modules
 	) cs.cache.c_contexts;
-	DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc.c_modules k) removed;
+	DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
 	DynArray.to_list removed
-
-(* files *)
-
-let find_file cc key =
-	Hashtbl.find cc.c_files key
-
-let cache_file cc key time data =
-	Hashtbl.replace cc.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
-
-let remove_file cc key =
-	if Hashtbl.mem cc.c_files key then begin
-		Hashtbl.remove cc.c_files key;
-		Hashtbl.replace cc.c_removed_files key ()
-	end
-
-(* Like remove_file, but doesn't keep track of the file *)
-let remove_file_for_real cc key =
-	Hashtbl.remove cc.c_files key
-
-let remove_files cs file =
-	Hashtbl.iter (fun _ cc-> remove_file cc file) cs.cache.c_contexts
 
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->
@@ -171,7 +176,7 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 
 let get_files cs =
 	Hashtbl.fold (fun sign cc acc ->
-		Hashtbl.fold (fun file cfile acc -> (sign,file,cfile) :: acc) cc.c_files acc
+		Hashtbl.fold (fun file cfile acc -> (sign,file,cfile) :: acc) cc#get_files acc
 	) cs.cache.c_contexts []
 
 (* haxelibs *)

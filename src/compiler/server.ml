@@ -141,7 +141,7 @@ let parse_file cs com file p =
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = CompilationServer.find_file cc ffile in
+				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
 			with Not_found ->
@@ -157,7 +157,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							CompilationServer.cache_file cc ffile ftime data;
+							cc#cache_file ffile ftime data;
 							"cached",false
 						end
 				in
@@ -297,7 +297,7 @@ let check_module sctx ctx m p =
 	let content_changed m file =
 		let ffile = Path.unique_full_path file in
 		try
-			let cfile = CompilationServer.find_file cc ffile in
+			let cfile = cc#find_file ffile in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
 			let new_data = TypeloadParse.parse_module ctx m.m_path p in
@@ -455,7 +455,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 	let cc = CommonCache.get_cache sctx.cs com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
-		let m = CompilationServer.find_module cc mpath in
+		let m = cc#find_module mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
@@ -480,9 +480,9 @@ let create sctx write params =
 	let recache_removed_modules () =
 		List.iter (fun (cc,k,m) ->
 			try
-				ignore(CompilationServer.find_module cc k);
+				ignore(cc#find_module k);
 			with Not_found ->
-				CompilationServer.cache_module cc k m
+				cc#cache_module k m
 		) sctx.removed_modules;
 		sctx.removed_modules <- []
 	in
@@ -532,7 +532,7 @@ let create sctx write params =
 				ServerMessage.class_paths_changed ctx.com "";
 				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
 				CompilationServer.clear_directories cs sign;
-				(CompilationServer.get_cache cs sign).c_initialized <- false;
+				(CompilationServer.get_cache cs sign)#set_initialized false;
 			end;
 		with Not_found ->
 			Hashtbl.add sctx.class_paths sign ctx.com.class_path;

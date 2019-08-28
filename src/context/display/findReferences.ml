@@ -150,11 +150,12 @@ let find_possible_references tctx cs =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
 	let cc = CommonCache.get_cache cs tctx.com in
-	let files = cc.c_files in
+	let files = cc#get_files in
+	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
 	Hashtbl.iter (fun file cfile ->
 		let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-		if not (Hashtbl.mem cc.c_modules (cfile.c_package,module_name)) then try
+		if not (Hashtbl.mem modules (cfile.c_package,module_name)) then try
 			find_possible_references kind name (cfile.c_package,cfile.c_decls);
 		with Exit ->
 			begin try
