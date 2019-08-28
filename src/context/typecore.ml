@@ -224,7 +224,7 @@ let add_local ctx k n t p =
 
 let check_identifier_name ctx name kind p =
 	if starts_with name '$' then
-		display_error ctx (kind ^ " names starting with a dollar are not allowed") p
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed") p
 	else
 		let is_valid_identifier s =
 			match s with
