@@ -146,9 +146,11 @@ typedef HaxeModuleMemoryResult = {
 	final moduleExtra:Int;
 	final types:Array<{
 		final name:String;
+		final pos:Position;
 		final size:Int;
 		final fields:Array<{
 			final name:String;
+			final pos:Position;
 			final size:Int;
 		}>;
 	}>;

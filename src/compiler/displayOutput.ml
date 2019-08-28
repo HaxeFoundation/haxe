@@ -345,15 +345,16 @@ module Memory = struct
 							own_deps := List.filter (fun repr' -> repr != repr') !own_deps;
 							let deps = List.filter (fun repr' -> repr' != repr) deps in
 							let size = Objsize.size_with_headers (Objsize.objsize cf deps out) in
-							(cf.cf_name,size) :: acc
+							(cf,size) :: acc
 						in
 						let fields = List.fold_left field [] c.cl_ordered_fields in
 						let fields = List.fold_left field fields c.cl_ordered_statics in
 						let fields = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) fields in
-						let fields = List.map (fun (name,size) ->
+						let fields = List.map (fun (cf,size) ->
 							jobject [
-								"name",jstring name;
+								"name",jstring cf.cf_name;
 								"size",jint size;
+								"pos",generate_pos_as_location cf.cf_name_pos;
 							]
 						) fields in
 						let repr = Obj.repr c in
@@ -376,6 +377,7 @@ module Memory = struct
 				let jo = jobject [
 					"name",jstring (s_type_path (t_infos md).mt_path);
 					"size",jint size;
+					"pos",generate_pos_as_location (t_infos md).mt_name_pos;
 					"fields",jarray fields;
 				] in
 				size,jo
