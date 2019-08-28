@@ -190,7 +190,7 @@ module Pattern = struct
 		in
 		let add_local final name p =
 			let is_wildcard_local = name = "_" in
-			if not is_wildcard_local && pctx.is_postfix_match then error "Capture variables are not allowed in .match patterns" p;
+			if not is_wildcard_local && pctx.is_postfix_match then error "Pattern variables are not allowed in .match patterns" p;
 			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
 			match pctx.or_locals with
 			| Some map when not is_wildcard_local ->
@@ -276,7 +276,7 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx "Capture variables must be lower-case" p;
+						display_error ctx "Pattern variables must be lower-case" p;
 					end;
 					let sl = match follow t with
 						| TEnum(en,_) ->
