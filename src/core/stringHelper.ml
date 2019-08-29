@@ -19,7 +19,7 @@ let capitalize s =
 		Bytes.to_string bytes
 
 let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
+	if String.length x = 0 then false else x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
 
 let check_uppercase x =
 	if String.length x = 0 then
