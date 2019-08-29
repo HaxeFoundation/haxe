@@ -662,11 +662,13 @@ let rec process_params create pl =
 				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
-	(* put --display in front if it was last parameter *)
-	let pl = (match List.rev pl with
-		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+	(* put --display in each_params if it was last parameter *)
+	let pl = match List.rev pl with
+		| file :: "--display" :: pl when file <> "memory" ->
+			each_params := "--display" :: file :: !each_params;
+			List.rev pl
 		| _ -> pl
-	) in
+	in
 	loop [] pl
 
 and init ctx =
