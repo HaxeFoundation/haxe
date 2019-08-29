@@ -16,5 +16,3 @@ Macro.hx:8: characters 17-18 : "0_structure" is not a valid package name:
 Macro.hx:8: characters 17-18 : Package name must start with a lower case character
 Macro.hx:8: characters 17-18 : "0_abstract" is not a valid package name:
 Macro.hx:8: characters 17-18 : Package name must start with a lower case character
-Macro.hx:8: characters 17-18 : "0_abstract._Test" is not a valid package name:
-Macro.hx:8: characters 17-18 : Package name must start with a lower case character

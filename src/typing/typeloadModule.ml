@@ -187,6 +187,7 @@ end
 	Build module structure : should be atomic - no type loading is possible
 *)
 let module_pass_1 ctx m tdecls loadp =
+	Typecore.check_module_path ctx m.m_path loadp;
 	let com = ctx.com in
 	let decls = ref [] in
 	let make_path name priv =
@@ -196,6 +197,10 @@ let module_pass_1 ctx m tdecls loadp =
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
+		let check_type_name type_name =
+			let module_name = snd m.m_path in
+			if type_name <> module_name then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
 			(match !pt with
@@ -203,11 +208,10 @@ let module_pass_1 ctx m tdecls loadp =
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
 			let name = fst d.d_name in
-			Typecore.check_type_name ctx name p;
+			check_type_name name;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
-			Typecore.check_type_path ctx path p;
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -225,11 +229,10 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			Typecore.check_type_name ctx name p;
+			check_type_name name;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
-			Typecore.check_type_path ctx path p;
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -250,12 +253,11 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			Typecore.check_type_name ctx name p;
+			check_type_name name;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
-			Typecore.check_type_path ctx path p;
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -278,10 +280,9 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			Typecore.check_type_name ctx name p;
+			check_type_name name;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
-			Typecore.check_type_path ctx path p;
 			let a = {
 				a_path = path;
 				a_private = priv;
