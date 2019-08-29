@@ -2651,6 +2651,7 @@ let rec create com =
 		vthis = None;
 		in_call_args = false;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
+		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos

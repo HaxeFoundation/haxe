@@ -51,13 +51,14 @@ let collect_leaks m deps out =
 		leaks := s :: !leaks
 	in
 	if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+	if (Objsize.objsize m deps [Obj.repr Typecore.memory_marker]).Objsize.reached then leak "typecore";
 	PMap.iter (fun _ md ->
 		if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ module_sign m.m_extra.m_sign md);
 	) out;
 	!leaks
 
 let get_out out =
-	Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
+	Obj.repr Common.memory_marker :: Obj.repr Typecore.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
 
 let get_module_memory cs all_modules m =
 	let mdeps = Hashtbl.create 0 in

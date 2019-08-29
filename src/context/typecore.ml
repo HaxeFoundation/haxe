@@ -133,10 +133,13 @@ and typer = {
 	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
+	memory_marker : float array;
 }
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
+
+let memory_marker = [|Unix.time()|]
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
 let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
