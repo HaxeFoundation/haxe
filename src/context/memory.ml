@@ -219,8 +219,7 @@ let get_memory_json (cs : CompilationServer.t) mreq =
 	end
 
 let display_memory com =
-	()
-	(* let verbose = com.verbose in
+	let verbose = com.verbose in
 	let print = print_endline in
 	Gc.full_major();
 	Gc.compact();
@@ -232,10 +231,15 @@ let display_memory com =
 		print "No cache found";
 	| Some c ->
 		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.c_haxelib);
+		(* print ("  haxelib " ^ size c.c_haxelib); *)
 		(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
 		(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
-		let modules = collect_memory_stats c in
+		let module_list = c#get_modules in
+		let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
+		let modules = List.fold_left (fun acc m ->
+			let (size,r) = get_module_memory c all_modules m in
+			(m,size,r) :: acc
+		) [] module_list in
 		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
 		List.iter (fun (m,size,(reached,deps,out,leaks)) ->
 			let key = m.m_extra.m_sign in
@@ -271,4 +275,4 @@ let display_memory com =
 			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
 		) modules);
 		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete") *)
+		print "Cache dump complete")
