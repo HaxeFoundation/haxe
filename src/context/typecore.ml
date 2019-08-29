@@ -243,6 +243,14 @@ let check_type_name ctx name p =
 	else
 		check_identifier_name ctx name "type" p
 
+let check_type_path ctx path p =
+	let pack = fst path in
+	try
+		List.iter (fun part -> Path.check_package_name part) pack;
+	with Failure msg ->
+		display_error ctx ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error ctx msg p
+
 let check_local_variable_name ctx name origin p =
 	match name with
 	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
