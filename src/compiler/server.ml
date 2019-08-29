@@ -558,6 +558,12 @@ let init_new_compilation sctx =
 	sctx.compilation_mark <- sctx.mark_loop;
 	start_time := get_time()
 
+let cleanup () =
+	begin match !MacroContext.macro_interp_cache with
+	| Some interp -> EvalContext.GlobalState.cleanup interp
+	| None -> ()
+	end
+
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop process_params verbose accept =
@@ -618,6 +624,7 @@ let wait_loop process_params verbose accept =
 		(* Close connection and perform some cleanup *)
 		close();
 		current_stdin := None;
+		cleanup();
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		if sctx.was_compilation then incr run_count;
 		if !run_count mod 10 = 0 then begin

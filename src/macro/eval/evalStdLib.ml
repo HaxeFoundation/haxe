@@ -30,8 +30,6 @@ open EvalHash
 open EvalString
 open EvalThread
 
-let macro_lib = Hashtbl.create 0
-
 let catch_unix_error f arg =
 	try
 		f arg
@@ -646,7 +644,7 @@ module StdContext = struct
 
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
-		Hashtbl.find macro_lib f
+		Hashtbl.find GlobalState.macro_lib f
 	)
 
 	let plugin_data = ref None

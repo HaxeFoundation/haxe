@@ -284,9 +284,25 @@ and context = {
 	max_stack_depth : int;
 }
 
-let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
-let get_ctx () = (!get_ctx_ref)()
-let select ctx = get_ctx_ref := (fun() -> ctx)
+module GlobalState = struct
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+
+	let sid : int ref = ref (-1)
+
+	let debug : debug option ref = ref None
+	let debugger_initialized : bool ref = ref false
+
+	let stdlib : builtins option ref = ref None
+	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
+
+	let cleanup ctx =
+		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
+		   context can be collected. *)
+		ctx.curapi <- Obj.magic ""
+end
+
+let get_ctx () = (!GlobalState.get_ctx_ref)()
+let select ctx = GlobalState.get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
 	| DbgRunning -> "DbgRunning"
