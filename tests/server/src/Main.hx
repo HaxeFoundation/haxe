@@ -193,8 +193,8 @@ class ServerTests extends HaxeServerTestCase {
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
 	}
 
-//See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
-#if false
+	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
+	#if false
 	function testXRedefinedFromX() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8368/Main.hx"));
 		vfs.putContent("MyMacro.hx", getTemplate("issues/Issue8368/MyMacro.hx"));
@@ -205,7 +205,7 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
-#end
+	#end
 
 	function testMacroStaticsReset() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8631/Main.hx"));
@@ -222,6 +222,6 @@ class ServerTests extends HaxeServerTestCase {
 class Main {
 	static public function main() {
 		Vfs.removeDir("test/cases");
-		utest.UTest.run([new ServerTests(), new DisplayTests()]);
+		utest.UTest.run([new ServerTests(), new DisplayTests(), new ReplaceRanges()]);
 	}
 }
