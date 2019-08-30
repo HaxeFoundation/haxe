@@ -5,6 +5,7 @@ open Common
 open CompletionItem
 open ClassFieldOrigin
 open DisplayException
+open Display
 open DisplayEmitter
 open DisplayPosition
 open ImportHandling

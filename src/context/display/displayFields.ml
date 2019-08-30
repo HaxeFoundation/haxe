@@ -23,7 +23,7 @@ open Typecore
 open Type
 open CompletionItem
 open ClassFieldOrigin
-open DisplayEmitter
+open Display
 
 let get_submodule_fields ctx path =
 	let m = Hashtbl.find ctx.g.modules path in

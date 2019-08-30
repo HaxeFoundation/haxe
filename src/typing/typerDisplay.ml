@@ -9,6 +9,7 @@ open CompletionModuleType
 open ClassFieldOrigin
 open DisplayException
 open DisplayEmitter
+open Display
 open Common
 open Type
 open Typecore
