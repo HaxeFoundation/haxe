@@ -25,7 +25,7 @@ let check_uppercase x =
 	if String.length x = 0 then
 		failwith "empty part"
 	else if not (starts_uppercase_identifier x) then
-		failwith "Class name must start with uppercase letter"
+		failwith "Class name must start with an uppercase letter"
 
 let s_escape ?(hex=true) s =
 	let b = Buffer.create (String.length s) in
