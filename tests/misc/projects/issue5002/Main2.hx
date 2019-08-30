@@ -31,7 +31,7 @@ class Main2 {
 
 	static macro function invalidFunctionName() {
 		return {
-			expr: EFunction(FNamed("0_function", false), {
+			expr: EFunction(FNamed("0_function"), {
 				args: [],
 				ret: macro:Void,
 				expr: macro {}
@@ -42,7 +42,7 @@ class Main2 {
 
 	static macro function invalidFunctionArgumentName() {
 		return {
-			expr: EFunction(FNamed("foo", false), {
+			expr: EFunction(FNamed("foo"), {
 				args: [
 					{
 						name: "0_argument",

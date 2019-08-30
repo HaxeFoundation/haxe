@@ -726,7 +726,9 @@ and decode_display_kind v = match (decode_enum v) with
 
 and decode_function_kind kind = if kind = vnull then FKAnonymous else match decode_enum kind with
 	| 0, [] -> FKAnonymous
-	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_bool inline)
+	| 1, [name;inline] ->
+		let inline = if inline = vnull then false else decode_bool inline in
+		FKNamed ((decode_string name,Globals.null_pos), inline)
 	| 2, [] -> FKArrow
 	| _ -> raise Invalid_expr
 
