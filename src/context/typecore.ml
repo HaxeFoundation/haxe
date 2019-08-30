@@ -403,7 +403,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 				(* means it's a path of a superclass or implemented interface *)
 				not is_current_path &&
 				(* it's the last part of path in a meta && it denotes a package *)
-				l1 = [] && not (StringHelper.starts_uppercase a)
+				l1 = [] && not (StringHelper.starts_uppercase_identifier a)
 			then
 				false
 			else

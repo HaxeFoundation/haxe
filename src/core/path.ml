@@ -18,7 +18,7 @@ let get_path_parts f =
 	else
 		ExtString.String.nsplit f "."
 
-let invalid_char x =
+let check_invalid_char x =
 	for i = 1 to String.length x - 1 do
 		match x.[i] with
 		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
@@ -30,7 +30,7 @@ let check_package_name x =
 		failwith "Package name must not be empty"
 	else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
 		failwith "Package name must start with a lower case character";
-	invalid_char x
+	check_invalid_char x
 
 let parse_path f =
 	let cl = get_path_parts f in
@@ -42,7 +42,7 @@ let parse_path f =
 		| [] ->
 			error "Package name must not be empty"
 		| [x] ->
-			invalid_char x;
+			check_invalid_char x;
 			[],x
 		| x :: l ->
 			check_package_name x;
