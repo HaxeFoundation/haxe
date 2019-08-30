@@ -90,6 +90,14 @@ abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 	public inline function iterator() {
 		return this.values.iterator();
 	}
+
+	/**
+		See `Map.clear`
+	**/
+	public inline function clear():Void {
+		this.keys.clear();
+		this.values.clear();
+	}
 }
 
 private class HashMapData<K:{function hashCode():Int;}, V> {

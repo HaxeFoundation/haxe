@@ -87,4 +87,9 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		}
 		return s + "}";
 	}
+
+	public inline function clear():Void {
+		_keys = new NativeAssocArray();
+		_values = new NativeAssocArray();
+	}
 }

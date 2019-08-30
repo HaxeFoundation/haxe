@@ -237,11 +237,20 @@ let check_field_name ctx name p =
 	| "new" -> () (* the only keyword allowed in field names *)
 	| _ -> check_identifier_name ctx name "field" p
 
-let check_type_name ctx name p =
+let check_uppercase_identifier_name ctx name kind p =
 	if Ast.is_lower_ident name then
-		display_error ctx "Type name should start with an uppercase letter" p
+		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter") p
 	else
-		check_identifier_name ctx name "type" p
+		check_identifier_name ctx name kind p
+
+let check_module_path ctx path p =
+	check_uppercase_identifier_name ctx (snd path) "module" p;
+	let pack = fst path in
+	try
+		List.iter (fun part -> Path.check_package_name part) pack;
+	with Failure msg ->
+		display_error ctx ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error ctx msg p
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -394,7 +403,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 				(* means it's a path of a superclass or implemented interface *)
 				not is_current_path &&
 				(* it's the last part of path in a meta && it denotes a package *)
-				l1 = [] && not (StringHelper.starts_uppercase a)
+				l1 = [] && not (StringHelper.starts_uppercase_identifier a)
 			then
 				false
 			else

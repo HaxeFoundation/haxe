@@ -24,7 +24,6 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
-open DisplayEmitter
 open Genjson
 open Globals
 
@@ -230,7 +229,7 @@ let collect ctx tk with_type =
 	(* Collection starts here *)
 
 	let tpair ?(values=PMap.empty) t =
-		let ct = CompletionType.from_type (DisplayEmitter.get_import_status ctx) ~values t in
+		let ct = CompletionType.from_type (Display.get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	begin match tk with
@@ -436,7 +435,7 @@ let collect ctx tk with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = sort_fields l with_type tk in
+	let l = Display.sort_fields l with_type tk in
 	t();
 	l
 

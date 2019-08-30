@@ -669,7 +669,7 @@ let field_to_type_path ctx e =
 					if Char.uppercase fchar = fchar then
 						pack, f, None
 					else begin
-						display_error ctx "A class name must start with an uppercase character" (snd e);
+						display_error ctx "A class name must start with an uppercase letter" (snd e);
 						raise Exit
 					end
 				| [name] ->
