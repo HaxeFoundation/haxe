@@ -537,10 +537,10 @@ let collect_captured_vars e =
 (**
 	If `e` contains a sequence of unsafe casts, then look if that sequence
 	already has casts to `t` and return the bottom-most of such casts.
-	If the first non-cast expression has type `t`, then return that expression without any casts.
+	If `require_cast` is `false` and the first non-cast expression has type `t`, then return that expression without any casts.
 	In other cases return `e` as-is.
 *)
-let reduce_unsafe_casts e t =
+let reduce_unsafe_casts ?(require_cast=false) e t =
 	let t = follow t in
 	let same_type etype = fast_eq t (follow etype) in
 	let rec loop e result =
@@ -549,7 +549,7 @@ let reduce_unsafe_casts e t =
 			if same_type e.etype then loop subject e
 			else loop subject result
 		| _ ->
-			if same_type e.etype then e
+			if not require_cast && same_type e.etype then e
 			else result
 	in
 	loop e e

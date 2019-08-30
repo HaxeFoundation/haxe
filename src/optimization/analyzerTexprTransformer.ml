@@ -151,7 +151,12 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TParenthesis e1}
 		| TCast(e1,mto) ->
-			let e = Texpr.reduce_unsafe_casts e e.etype in
+			(* TODO: figure out what's wrong with gencpp and gencs+erase_generics *)
+			let require_cast =
+				ctx.com.platform = Cpp
+				|| (ctx.com.platform = Cs && defined ctx.com Define.EraseGenerics)
+			in
+			let e = Texpr.reduce_unsafe_casts ~require_cast e e.etype in
 			(match e.eexpr with
 			| TCast (e1,mto) ->
 				let bb,e1 = value bb e1 in
