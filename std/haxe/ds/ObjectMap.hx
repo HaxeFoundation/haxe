@@ -94,4 +94,9 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.toString`
 	**/
 	public function toString():String;
+
+	/**
+		See `Map.clear`
+	**/
+	public function clear():Void;
 }

@@ -377,6 +377,20 @@ import cs.NativeArray;
 		return s.toString();
 	}
 
+	public function clear():Void {
+		flags = null;
+		_keys = null;
+		vals = null;
+		nBuckets = 0;
+		size = 0;
+		nOccupied = 0;
+		upperBound = 0;
+		#if !no_map_cache
+		cachedKey = 0;
+		cachedIndex = -1;
+		#end
+	}
+
 	private static inline function assert(x:Bool):Void {
 		#if debug
 		if (!x)

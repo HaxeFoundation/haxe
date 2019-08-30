@@ -93,4 +93,8 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = {};
+	}
 }

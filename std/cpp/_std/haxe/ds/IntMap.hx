@@ -98,6 +98,14 @@ package haxe.ds;
 		return untyped __global__.__int_hash_to_string(h);
 	}
 
+	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
+		return untyped __global__.__int_hash_clear(h);
+		#else
+		h = null;
+		#end
+	}
+
 	#if (scriptable)
 	private function setString(key:Int, val:String):Void {
 		untyped __int_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);

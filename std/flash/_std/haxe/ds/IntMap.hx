@@ -103,6 +103,10 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = new flash.utils.Dictionary();
+	}
 }
 
 #if !as3
