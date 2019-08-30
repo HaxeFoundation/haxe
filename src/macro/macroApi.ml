@@ -1477,7 +1477,7 @@ let decode_type_def v =
 	) in
 	(* if our package ends with an uppercase letter, then it's the module name *)
 	let pack,name = (match List.rev pack with
-		| last :: l when not (is_lower_ident last) -> List.rev l, last
+		| last :: l when StringHelper.starts_uppercase_identifier last -> List.rev l, last
 		| _ -> pack, fst name
 	) in
 	(pack, name), tdef, pos
