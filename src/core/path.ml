@@ -29,7 +29,7 @@ let check_package_name x =
 	if String.length x = 0 then
 		failwith "Package name must not be empty"
 	else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
-		failwith "Package name must start with a lower case character";
+		failwith "Package name must start with a lowercase letter";
 	check_invalid_char x
 
 let parse_path f =
