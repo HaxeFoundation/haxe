@@ -20,8 +20,8 @@ let json_of_times root =
 				"info",jstring node.info;
 				"time",jfloat node.time;
 				"calls",jint node.num_calls;
-				"percentTotal",jfloat (node.time *. 100. /. root.time);
-				"percentParent",jfloat (if node == root then 0. else node.time *. 100. /. node.parent.time);
+				"percentTotal",jfloat (if root.time = 0. then 0. else (node.time *. 100. /. root.time));
+				"percentParent",jfloat (if node == root || node.parent.time = 0. then 0. else node.time *. 100. /. node.parent.time);
 			] in
 			let fl = match children with
 				| [] -> fl
