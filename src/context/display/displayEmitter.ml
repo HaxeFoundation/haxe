@@ -29,6 +29,8 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		let t = type_of_module_type mt in
 		let ct = CompletionType.from_type (get_import_status ctx) t in
 		raise_hover (make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some (t,ct))) None p
+	| DMDefault ->
+		DisplayToplevel.collect_and_raise ctx TKType WithType.value CRTypeHint ((s_type_path (t_infos mt).mt_path),p) p
 	| _ -> ()
 
 let rec display_type ctx t p =
