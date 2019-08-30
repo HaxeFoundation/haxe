@@ -151,8 +151,12 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TParenthesis e1}
 		| TCast(e1,mto) ->
+			let e = Texpr.reduce_unsafe_casts e e.etype in
 			let bb,e1 = value bb e1 in
-			bb,{e with eexpr = TCast(e1,mto)}
+			bb,(match e.eexpr with
+				| TCast _ -> {e with eexpr = TCast(e1,mto)}
+				| _ -> e1
+			)
 		| TNew(c,tl,el) ->
 			let bb,el = ordered_value_list bb el in
 			bb,{e with eexpr = TNew(c,tl,el)}
