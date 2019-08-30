@@ -940,8 +940,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern;
-	if not is_extern then Typecore.check_module_path ctx m.m_path p;
+	if is_extern then m.m_extra.m_kind <- MExtern else Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
 			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
