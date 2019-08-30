@@ -405,6 +405,14 @@ typedef Foo = {
 		complete("class Main { static function main() { var t:{-1-}Cl{-2-} }}", 2);
 		checkReplaceRange(markers, 1, 2, response);
 		equals("Cl", response.filterString);
+
+		complete("class Main { static function main() { var t:{-1-}String{-2-} }}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("String", response.filterString);
+
+		complete("class Main { static function main() { var t:{-1-}Str{-2-}ing }}", 2);
+		checkReplaceRange(markers, 1, 2, response);
+		equals("Str", response.filterString);
 	}
 
 	function testIssue8669_typeParameter() {
