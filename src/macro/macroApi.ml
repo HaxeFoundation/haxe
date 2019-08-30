@@ -1561,8 +1561,14 @@ let macro_api ccom get_api =
 			encode_string (try Common.find_file (ccom()) file with Not_found -> failwith ("File not found '" ^ file ^ "'"))
 		);
 		"define", vfun2 (fun s v ->
+			let s = decode_string s in
+			let com = ccom() in
+			if com.stage <> CInitMacrosStart then begin
+				let v = if v = vnull then "" else ", " ^ (decode_string v) in
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
+			end;
 			let v = if v = vnull then "" else "=" ^ (decode_string v) in
-			Common.raw_define (ccom()) ((decode_string s) ^ v);
+			Common.raw_define com (s ^ v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
@@ -1822,6 +1828,8 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
+			if com.stage <> CInitMacrosStart then
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
 			let cp = Path.add_trailing_slash cp in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
@@ -1836,6 +1844,8 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
+			if com.stage <> CInitMacrosStart then
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
 			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);

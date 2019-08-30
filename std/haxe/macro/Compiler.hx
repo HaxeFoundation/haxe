@@ -64,6 +64,8 @@ class Compiler {
 
 	/**
 		Set a conditional compiler flag.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function define(flag:String, ?value:String) {
 		#if (neko || eval)
@@ -127,6 +129,11 @@ class Compiler {
 		#end
 	}
 
+	/**
+		Add a class path where ".hx" source files or packages (sub-directories) can be found.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
+	**/
 	public static function addClassPath(path:String) {
 		#if (neko || eval)
 		load("add_class_path", 1)(path);
@@ -157,6 +164,8 @@ class Compiler {
 
 	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function addNativeLib(name:String) {
 		#if (neko || eval)
