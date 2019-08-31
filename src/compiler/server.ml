@@ -635,7 +635,6 @@ let wait_loop process_params verbose accept =
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
 	TypeloadParse.parse_hook := parse_file cs;
-	let run_count = ref 0 in
 	let ring = Ring.create 10 0. in
 	let heap_stats_start = ref (gc_heap_stats()) in
 	let update_heap () =
@@ -723,14 +722,6 @@ let wait_loop process_params verbose accept =
 		current_stdin := None;
 		cleanup();
 		update_heap();
-		(* prevent too much fragmentation by doing some compactions every X run *)
-		if sctx.was_compilation then incr run_count;
-		if !run_count mod 10 = 0 then begin
-			run_count := 1;
-			let t0 = get_time() in
-			Gc.compact();
-			ServerMessage.gc_stats (get_time() -. t0);
-		end else Gc.minor();
 	done
 
 (* The accept-function to wait for a stdio connection. *)
