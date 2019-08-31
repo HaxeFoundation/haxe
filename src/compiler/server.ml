@@ -618,9 +618,6 @@ let gc_heap_stats () =
 	let stats = Gc.quick_stat() in
 	stats.major_words,stats.heap_words
 
-let fmt_word f =
-	Memory.fmt_size (int_of_float f * (Sys.word_size / 8))
-
 let fmt_percent f =
 	int_of_float (f *. 100.)
 
@@ -643,9 +640,9 @@ let wait_loop process_params verbose accept =
 		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
 		let heap_size = float_of_int (snd heap_stats_now) in
 		Ring.push ring words_allocated;
-		(* print_endline (Printf.sprintf "words_allocated: %s" (fmt_word words_allocated)); *)
 		if Ring.is_filled ring then begin
 			Ring.reset_filled ring;
+			let t0 = get_time() in
 			let stats = Gc.stat() in
 			let live_words = float_of_int stats.live_words in
 			 (* Maximum working memory for the last X compilations. *)
@@ -656,7 +653,6 @@ let wait_loop process_params verbose accept =
 			let percent_needed = (1. -. live_words /. needed_max) in
 			(* Effective cache size percentage = what's live / heap size. *)
 			let percent_used = live_words /. heap_size in
-			(* print_endline (Printf.sprintf "live: %s, max: %s, needed_max: %s, needed: %i%%, used: %i%%" (fmt_word live_words) (fmt_word max) (fmt_word needed_max) (fmt_percent percent_needed) (fmt_percent percent_used)); *)
 			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
 			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
 			let old_gc = Gc.get() in
@@ -669,6 +665,7 @@ let wait_loop process_params verbose accept =
 				Gc.full_major();
 			end;
 			Gc.set old_gc;
+			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
 		end;
 		heap_stats_start := heap_stats_now;
 	in

@@ -87,6 +87,9 @@ let fmt_size sz =
 	else
 		Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
 
+let fmt_word f =
+	fmt_size (int_of_float f * (Sys.word_size / 8))
+
 let size v =
 	fmt_size (mem_size v)
 
