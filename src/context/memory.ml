@@ -93,7 +93,13 @@ let size v =
 let get_memory_json (cs : CompilationServer.t) mreq =
 	begin match mreq with
 	| MCache ->
+		let old_gc = Gc.get() in
+		Gc.set { old_gc with
+			Gc.max_overhead = 0;
+			Gc.space_overhead = 0
+		};
 		Gc.compact();
+		Gc.set old_gc;
 		let stat = Gc.quick_stat() in
 		let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
 		let cache_mem = cs#get_pointers in
