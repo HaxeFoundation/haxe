@@ -196,6 +196,10 @@ let module_pass_1 ctx m tdecls loadp =
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
+		let check_type_name type_name =
+			let module_name = snd m.m_path in
+			if type_name <> module_name then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
 			(match !pt with
@@ -203,7 +207,6 @@ let module_pass_1 ctx m tdecls loadp =
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
@@ -220,11 +223,11 @@ let module_pass_1 ctx m tdecls loadp =
 				| HFinal -> c.cl_final <- true
 				| _ -> ()
 			) d.d_flags;
+			if not c.cl_extern then check_type_name name;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -244,11 +247,12 @@ let module_pass_1 ctx m tdecls loadp =
 				e_names = [];
 				e_type = enum_module_type m path p;
 			} in
+			if not e.e_extern then check_type_name name;
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
+			check_type_name name;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
@@ -275,7 +279,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
+			check_type_name name;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
@@ -872,6 +876,7 @@ let type_types_into_module ctx m tdecls p =
 		opened = [];
 		in_call_args = false;
 		vthis = None;
+		memory_marker = Typecore.memory_marker;
 	} in
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
@@ -935,7 +940,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern;
+	if is_extern then m.m_extra.m_kind <- MExtern else Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
 			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p

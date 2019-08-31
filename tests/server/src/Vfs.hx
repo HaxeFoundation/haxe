@@ -39,6 +39,12 @@ class Vfs {
 		Fs.writeFileSync(path.toString(), content);
 	}
 
+	public function getContent(path:String) {
+		var path = getPhysicalPath(path);
+		FileSystem.createDirectory(path.dir);
+		return Fs.readFileSync(path.toString());
+	}
+
 	public function close() {
 		removeDir(physicalPath);
 	}

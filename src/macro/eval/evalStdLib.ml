@@ -30,8 +30,6 @@ open EvalHash
 open EvalString
 open EvalThread
 
-let macro_lib = Hashtbl.create 0
-
 let catch_unix_error f arg =
 	try
 		f arg
@@ -646,7 +644,7 @@ module StdContext = struct
 
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
-		Hashtbl.find macro_lib f
+		Hashtbl.find GlobalState.macro_lib f
 	)
 
 	let plugin_data = ref None
@@ -1547,6 +1545,11 @@ module StdIntMap = struct
 		let s = join rempty [rbropen;s;rbrclose] in
 		vstring s
 	)
+
+	let clear = vifun0 (fun vthis ->
+		IntHashtbl.clear (this vthis);
+		vnull
+	)
 end
 
 module StdStringMap = struct
@@ -1601,6 +1604,11 @@ module StdStringMap = struct
 		let s = join rempty [rbropen;s;rbrclose] in
 		vstring s
 	)
+
+	let clear = vifun0 (fun vthis ->
+		StringHashtbl.clear (this vthis);
+		vnull
+	)
 end
 
 module StdObjectMap = struct
@@ -1653,6 +1661,11 @@ module StdObjectMap = struct
 		let s = join rcomma l in
 		let s = join rempty [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		ValueHashtbl.reset (this vthis);
+		vnull
 	)
 end
 
@@ -3069,6 +3082,7 @@ let init_maps builtins =
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
+		"clear",StdIntMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3080,6 +3094,7 @@ let init_maps builtins =
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
+		"clear",StdObjectMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3091,6 +3106,7 @@ let init_maps builtins =
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
+		"clear",StdStringMap.clear;
 	]
 
 let init_constructors builtins =

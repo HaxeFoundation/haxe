@@ -108,6 +108,10 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = new flash.utils.Dictionary();
+	}
 }
 
 #if !as3

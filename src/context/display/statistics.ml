@@ -135,25 +135,13 @@ let collect_statistics ctx pfilter =
 		in
 		loop e
 	in
-	let rec explore_type_hint (p,t) =
-		match t with
-		| TMono r -> (match !r with None -> () | Some t -> explore_type_hint (p,t))
-		| TLazy f -> explore_type_hint (p,lazy_type f)
-		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
-		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
-		| TType(({t_name_pos = pn;t_path = (_,name)}),_)
-		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
-			add_relation pn (Referenced,p)
-		| TDynamic _ -> ()
-		| TFun _ | TAnon _ -> ()
-	in
 	let check_module m =
 		if not (Hashtbl.mem handled_modules m.m_path) then begin
 			Hashtbl.add handled_modules m.m_path true;
 			List.iter (fun (p1,p2) ->
 				add_relation p1 (Referenced,p2)
 			) m.m_extra.m_display.m_inline_calls;
-			List.iter explore_type_hint m.m_extra.m_display.m_type_hints
+			List.iter (fun (p,pn) -> add_relation pn (Referenced,p)) m.m_extra.m_display.m_type_hints
 		end
 	in
 	let f = function

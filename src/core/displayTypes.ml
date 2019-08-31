@@ -39,13 +39,15 @@ module SymbolInformation = struct
 		kind : SymbolKind.t;
 		pos : Globals.pos;
 		container_name : string option;
+		deprecated : bool;
 	}
 
-	let make name kind pos container_name = {
+	let make name kind pos container_name deprecated = {
 		name = name;
 		kind = kind;
 		pos = pos;
 		container_name = container_name;
+		deprecated = deprecated;
 	}
 end
 

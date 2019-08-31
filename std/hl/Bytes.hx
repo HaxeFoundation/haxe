@@ -174,8 +174,8 @@ package hl;
 		return null;
 	}
 
-	@:hlNative("std", "utf16_to_utf8")
-	public function utf16ToUtf8(bytePos:Int, outSize:Ref<Int>):Bytes {
+	@:hlNative("std","utf16_to_utf8")
+	public function utf16ToUtf8(len:Int, outSize:Ref<Int>) : Bytes {
 		return null;
 	}
 

@@ -491,7 +491,7 @@ let get_macro_context ctx p =
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
-		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com2 "get_macro_context") (CompilationServer.get());
+		CommonCache.lock_signature com2 "get_macro_context";
 		api, mctx
 
 let load_macro_module ctx cpath display p =
@@ -733,6 +733,7 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
+		if String.get e (String.length e - 1) = ';' then error "Unexpected ;" p;
 		begin match ParserEntry.parse_expr_string ctx.com.defines e p error false with
 		| ParseSuccess data -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)

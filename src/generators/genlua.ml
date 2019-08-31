@@ -33,7 +33,7 @@ type ctx = {
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
     mutable current : tclass;
-    mutable statics : (tclass * string * texpr) list;
+    mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
     mutable tabs : string;
     mutable in_value : tvar option;
@@ -1541,7 +1541,7 @@ let gen_class_static_field ctx c f =
             newline ctx;
             (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; newline ctx) | _ -> ());
         | _ ->
-            ctx.statics <- (c,f.cf_name,e) :: ctx.statics
+            ctx.statics <- (c,f,e) :: ctx.statics
 
 let gen_class_field ctx c f =
     let p = s_path ctx c.cl_path in
@@ -1769,9 +1769,13 @@ let generate_enum ctx e =
     end
 
 let generate_static ctx (c,f,e) =
-    print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
+    let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name)
+    and path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+    print ctx "%s = " path;
     gen_value ctx e;
     semicolon ctx;
+    newline ctx;
+    (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; semicolon ctx) | _ -> ());
     newline ctx
 
 let generate_enumMeta_fields ctx = function

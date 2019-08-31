@@ -53,7 +53,8 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			f_otherwise ()
 		end
 	| Some api ->
-		if ctx.has_error then begin
+		(* If there's a --next and we're in display mode, try that one. *)
+		if ctx.has_error && not (ctx.has_next && ctx.com.display.dms_display) then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
 					| CMInfo(msg,p) -> msg,p,3
@@ -131,18 +132,17 @@ let ssend sock str =
 let current_stdin = ref None
 
 let parse_file cs com file p =
+	let cc = CommonCache.get_cache cs com in
 	let ffile = Path.unique_full_path file in
 	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
-		let sign = Define.get_signature com.defines in
 		let ftime = file_time ffile in
-		let fkey = (ffile,sign) in
 		let data = Std.finally (timer_fn ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = CompilationServer.find_file cs fkey in
+				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
 			with Not_found ->
@@ -158,7 +158,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							CompilationServer.cache_file cs fkey ftime data;
+							cc#cache_file ffile ftime data;
 							"cached",false
 						end
 				in
@@ -186,7 +186,7 @@ module ServerCompilationContext = struct
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
 		(* A list of modules which were (perhaps temporarily) removed from the cache *)
-		mutable removed_modules : ((path * string) * module_def) list;
+		mutable removed_modules : (context_cache * path * module_def) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
 	}
@@ -213,7 +213,7 @@ module ServerCompilationContext = struct
 		List.iter (fun f -> f()) fl
 
 	let is_removed_module sctx m =
-		List.exists (fun (_,m') -> m == m') sctx.removed_modules
+		List.exists (fun (_,_,m') -> m == m') sctx.removed_modules
 
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
@@ -237,7 +237,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	with Not_found ->
 		let dirs = try
 			(* Next, get all directories from the cache and filter the ones that haven't changed. *)
-			let all_dirs = CompilationServer.find_directories cs sign in
+			let all_dirs = cs#find_directories sign in
 			let dirs = List.fold_left (fun acc dir ->
 				try
 					let time' = stat dir.c_path in
@@ -245,17 +245,17 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 						dir.c_mtime <- time';
 						let sub_dirs = Path.find_directories (platform_name com.platform) false [dir.c_path] in
 						List.iter (fun dir ->
-							if not (CompilationServer.has_directory cs sign dir) then begin
+							if not (cs#has_directory sign dir) then begin
 								let time = stat dir in
 								ServerMessage.added_directory com "" dir;
-								CompilationServer.add_directory cs sign (CompilationServer.create_directory dir time)
+								cs#add_directory sign (CompilationServer.create_directory dir time)
 							end;
 						) sub_dirs;
 						(CompilationServer.create_directory dir.c_path time') :: acc
 					end else
 						acc
 				with Unix.Unix_error _ ->
-					CompilationServer.remove_directory cs sign dir.c_path;
+					cs#remove_directory sign dir.c_path;
 					ServerMessage.removed_directory com "" dir.c_path;
 					acc
 			) [] all_dirs in
@@ -264,7 +264,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 		with Not_found ->
 			(* There were no directories in the cache, so this must be a new context. Let's add
 				an empty list to make sure no crazy recursion happens. *)
-			CompilationServer.add_directories cs sign [];
+			cs#add_directories sign [];
 			(* Register the delay that is going to populate the cache dirs. *)
 			sctx.delays <- (fun () ->
 				let dirs = ref [] in
@@ -278,7 +278,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 				List.iter add_dir com.class_path;
 				List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
 				ServerMessage.found_directories com "" !dirs;
-				CompilationServer.add_directories cs sign !dirs
+				cs#add_directories sign !dirs
 			) :: sctx.delays;
 			(* Returning [] should be fine here because it's a new context, so we won't do any
 				shadowing checks anyway. *)
@@ -294,13 +294,11 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
-	let cs = sctx.cs in
-	let sign = Define.get_signature com.defines in
+	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
 		let ffile = Path.unique_full_path file in
-		let fkey = (ffile,sign) in
 		try
-			let cfile = CompilationServer.find_file cs fkey in
+			let cfile = cc#find_file ffile in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
 			let new_data = TypeloadParse.parse_module ctx m.m_path p in
@@ -455,11 +453,10 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cs = sctx.cs in
-	let sign = Define.get_signature com.defines in
+	let cc = CommonCache.get_cache sctx.cs com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
-		let m = CompilationServer.find_module cs (mpath,sign) in
+		let m = cc#find_module mpath in
 		let tcheck = timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
@@ -482,17 +479,17 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let create sctx write params =
 	let cs = sctx.cs in
 	let recache_removed_modules () =
-		List.iter (fun (k,m) ->
+		List.iter (fun (cc,k,m) ->
 			try
-				ignore(CompilationServer.find_module sctx.cs k);
+				ignore(cc#find_module k);
 			with Not_found ->
-				CompilationServer.cache_module sctx.cs k m
+				cc#cache_module k m
 		) sctx.removed_modules;
 		sctx.removed_modules <- []
 	in
 	let maybe_cache_context com =
 		if com.display.dms_full_typing then begin
-			CompilationServer.cache_context sctx.cs com;
+			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
 			sctx.removed_modules <- [];
 		end else
@@ -527,16 +524,16 @@ let create sctx write params =
 		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
 			let file = (DisplayPosition.display_position#get).pfile in
 			(* force parsing again : if the completion point have been changed *)
-			CompilationServer.remove_files cs file;
-			sctx.removed_modules <- CompilationServer.filter_modules cs file;
+			cs#remove_files file;
+			sctx.removed_modules <- cs#filter_modules file;
 			add_delay sctx recache_removed_modules;
 		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
 				ServerMessage.class_paths_changed ctx.com "";
 				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
-				CompilationServer.clear_directories cs sign;
-				CompilationServer.set_initialized cs sign false;
+				cs#clear_directories sign;
+				(cs#get_context sign)#set_initialized false;
 			end;
 		with Not_found ->
 			Hashtbl.add sctx.class_paths sign ctx.com.class_path;
@@ -561,6 +558,12 @@ let init_new_compilation sctx =
 	sctx.compilation_step <- sctx.compilation_step + 1;
 	sctx.compilation_mark <- sctx.mark_loop;
 	start_time := get_time()
+
+let cleanup () =
+	begin match !MacroContext.macro_interp_cache with
+	| Some interp -> EvalContext.GlobalState.cleanup interp
+	| None -> ()
+	end
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
@@ -622,6 +625,7 @@ let wait_loop process_params verbose accept =
 		(* Close connection and perform some cleanup *)
 		close();
 		current_stdin := None;
+		cleanup();
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		if sctx.was_compilation then incr run_count;
 		if !run_count mod 10 = 0 then begin

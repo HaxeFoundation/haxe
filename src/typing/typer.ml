@@ -110,7 +110,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
-							if (List.exists (fast_eq_anon ~mono_equals_dynamic:true t) stack) then raise Exit;
+							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
@@ -1467,7 +1467,6 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
 			if final then v.v_final <- true;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
@@ -1623,7 +1622,7 @@ and type_object_decl ctx fl with_type p =
 			| TAnon a -> ODKWithStructure a
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
-					&& not (List.exists (fun t' -> fast_eq_anon ~mono_equals_dynamic:true t t') seen) ->
+					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms a pl
 				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				(match List.fold_left fold [] froms with
@@ -1894,7 +1893,6 @@ and type_try ctx e1 catches with_type p =
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let name,t2 = loop t in
-		if starts_with v '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
@@ -2042,7 +2040,6 @@ and type_local_function ctx kind f with_type p =
 	let v = (match v with
 		| None -> None
 		| Some v ->
-			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
@@ -2112,7 +2109,7 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq_anon ~mono_equals_dynamic:true t (follow t')) seen) ->
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let types =
 					List.fold_left
 						(fun acc t' -> match loop (t :: seen) t' with
@@ -2609,6 +2606,7 @@ let rec create com =
 			std = null_module;
 			global_using = [];
 			complete = false;
+			type_hints = [];
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
@@ -2653,6 +2651,7 @@ let rec create com =
 		vthis = None;
 		in_call_args = false;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
+		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos

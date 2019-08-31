@@ -332,7 +332,7 @@ and module_def = {
 
 and module_def_display = {
 	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
-	mutable m_type_hints : (pos * t) list;
+	mutable m_type_hints : (pos * pos) list;
 }
 
 and module_def_extra = {
@@ -1793,47 +1793,45 @@ let rec fast_eq_mono ml a b =
 	| _ , _ ->
 		false
 
-let rec fast_eq_anon ?(mono_equals_dynamic=false) a b =
-	if fast_eq_check (fast_eq_anon ~mono_equals_dynamic) a b then
-		true
-	else match a , b with
-	(*
-		`mono_equals_dynamic` is here because of https://github.com/HaxeFoundation/haxe/issues/8588#issuecomment-520138371
-		Generally unbound monomorphs should not be considered equal to anything,
-		because it's unknown, which types they would be bound to.
-	*)
-	| t, TMono { contents = None } when t == t_dynamic -> mono_equals_dynamic
-	| TMono { contents = None }, t when t == t_dynamic -> mono_equals_dynamic
-	| TMono { contents = Some t1 }, TMono { contents = Some t2 } ->
-		fast_eq_anon t1 t2
-	| TAnon a1, TAnon a2 ->
-		let fields_eq() =
-			let rec loop fields1 fields2 =
-				match fields1, fields2 with
-				| [], [] -> true
-				| _, [] | [], _ -> false
-				| f1 :: rest1, f2 :: rest2 ->
-					f1.cf_name = f2.cf_name
-					&& (try fast_eq_anon f1.cf_type f2.cf_type with Not_found -> false)
-					&& loop rest1 rest2
-			in
-			let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
-			and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
-			and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
-			loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
-		in
-		(match !(a2.a_status), !(a1.a_status) with
-		| Statics c, Statics c2 -> c == c2
-		| EnumStatics e, EnumStatics e2 -> e == e2
-		| AbstractStatics a, AbstractStatics a2 -> a == a2
-		| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 fast_eq_anon tl1 tl2
-		| Closed, Closed -> fields_eq()
-		| Opened, Opened -> fields_eq()
-		| Const, Const -> fields_eq()
-		| _ -> false
-		)
-	| _ , _ ->
-		false
+let rec shallow_eq a b =
+	a == b
+	|| begin
+		let a = follow a
+		and b = follow b in
+		fast_eq_check shallow_eq a b
+		|| match a , b with
+			| t, TMono { contents = None } when t == t_dynamic -> true
+			| TMono { contents = None }, t when t == t_dynamic -> true
+			| TMono { contents = None }, TMono { contents = None } -> true
+			| TAnon a1, TAnon a2 ->
+				let fields_eq() =
+					let rec loop fields1 fields2 =
+						match fields1, fields2 with
+						| [], [] -> true
+						| _, [] | [], _ -> false
+						| f1 :: rest1, f2 :: rest2 ->
+							f1.cf_name = f2.cf_name
+							&& (try shallow_eq f1.cf_type f2.cf_type with Not_found -> false)
+							&& loop rest1 rest2
+					in
+					let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
+					and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
+					and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
+					loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
+				in
+				(match !(a2.a_status), !(a1.a_status) with
+				| Statics c, Statics c2 -> c == c2
+				| EnumStatics e, EnumStatics e2 -> e == e2
+				| AbstractStatics a, AbstractStatics a2 -> a == a2
+				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
+				| Closed, Closed -> fields_eq()
+				| Opened, Opened -> fields_eq()
+				| Const, Const -> fields_eq()
+				| _ -> false
+				)
+			| _ , _ ->
+				false
+	end
 
 (* perform unification with subtyping.
    the first type is always the most down in the class hierarchy

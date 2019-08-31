@@ -393,7 +393,7 @@ enum FunctionKind {
 	/**
 		Named function
 	**/
-	FNamed(name:String, inlined:Bool);
+	FNamed(name:String, ?inlined:Bool);
 	/**
 		Arrow function
 	**/

@@ -126,10 +126,10 @@ let add_libs com libs =
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
 					if not com.display.dms_display then raise Not_found;
-					CompilationServer.find_haxelib cs libs
+					cs#find_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					CompilationServer.cache_haxelib cs libs lines;
+					cs#cache_haxelib libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in
@@ -495,17 +495,17 @@ let create_typer_context ctx native_libs =
 let do_type tctx config_macros classes =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
-	let add_signature desc =
-		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
-	in
-	add_signature "before_init_macros";
+	Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com "before_init_macros") (CompilationServer.get ());
+	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
-	add_signature "after_init_macros";
+	com.stage <- CInitMacrosDone;
+	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev classes);
 		Finalization.finalize tctx;
 	) ();
+	com.stage <- CTypingDone;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match !CompilationServer.instance,com.display.dms_kind with
@@ -572,6 +572,7 @@ let handle_display ctx tctx display_file_dot_path =
 
 let filter ctx tctx display_file_dot_path =
 	let com = ctx.com in
+	com.stage <- CFilteringStart;
 	let t = Timer.timer ["filters"] in
 	let main, types, modules = run_or_diagnose com Finalization.generate tctx in
 	com.main <- main;
@@ -661,11 +662,13 @@ let rec process_params create pl =
 				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
-	(* put --display in front if it was last parameter *)
-	let pl = (match List.rev pl with
-		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+	(* put --display in each_params if it was last parameter *)
+	let pl = match List.rev pl with
+		| file :: "--display" :: pl when file <> "memory" ->
+			each_params := "--display" :: file :: !each_params;
+			List.rev pl
 		| _ -> pl
-	) in
+	in
 	loop [] pl
 
 and init ctx =
@@ -933,7 +936,7 @@ try
 	let args_callback cl =
 		begin try
 			let path,name = Path.parse_path cl in
-			if StringHelper.starts_uppercase name then
+			if StringHelper.starts_uppercase_identifier name then
 				classes := (path,name) :: !classes
 			else begin
 				force_typing := true;
@@ -1018,11 +1021,13 @@ try
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	Timer.close t;
+	com.stage <- CInitialized;
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
 		(* Actual compilation starts here *)
 		let tctx = create_typer_context ctx !native_libs in
+		com.stage <- CTyperCreated;
 		let display_file_dot_path = match display_file_dot_path with
 			| DPKMacro path ->
 				ignore(load_display_module_in_macro tctx (Some path) true);
@@ -1041,7 +1046,9 @@ try
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
 		check_auxiliary_output com !xml_out !json_out;
+		com.stage <- CGenerationStart;
 		if not !no_output then generate tctx ext !interp !swf_header;
+		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);

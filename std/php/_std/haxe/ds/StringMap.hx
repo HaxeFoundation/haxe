@@ -80,4 +80,8 @@ import haxe.Constraints;
 
 		return '{' + Global.implode(', ', parts) + '}';
 	}
+
+	public inline function clear():Void {
+		data = new NativeAssocArray();
+	}
 }

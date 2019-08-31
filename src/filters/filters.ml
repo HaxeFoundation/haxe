@@ -889,7 +889,9 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 1"] in
 	List.iter (fun f -> List.iter f new_types) filters;
 	Timer.close t;
+	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+	com.stage <- CAnalyzerDone;
 	let reserved = collect_reserved_local_names com in
 	let filters = [
 		Optimizer.sanitize com;
@@ -906,9 +908,11 @@ let run com tctx main =
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	Timer.close t;
+	com.stage <- CSaveStart;
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
 	Timer.close t;
+	com.stage <- CSaveDone;
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	Timer.close t;
@@ -922,6 +926,7 @@ let run com tctx main =
 		check_remove_metadata tctx t;
 	) com.types;
 	Timer.close t;
+	com.stage <- CDceStart;
 	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
 	let dce_mode = if Common.defined com Define.As3 then
@@ -937,6 +942,7 @@ let run com tctx main =
 	in
 	Dce.run com main dce_mode;
 	Timer.close t;
+	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
 		check_private_path;
@@ -957,4 +963,5 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 	Timer.close t;
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
+	com.stage <- CFilteringDone

@@ -149,11 +149,13 @@ let find_possible_references kind name (pack,decls) =
 let find_possible_references tctx cs =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
-	let files = CompilationServer.get_file_list cs tctx.com in
+	let cc = CommonCache.get_cache cs tctx.com in
+	let files = cc#get_files in
+	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
-	List.iter (fun (file,cfile) ->
+	Hashtbl.iter (fun file cfile ->
 		let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-		if not (CompilationServer.is_cached_module cs tctx.com (cfile.c_package,module_name)) then try
+		if not (Hashtbl.mem modules (cfile.c_package,module_name)) then try
 			find_possible_references kind name (cfile.c_package,cfile.c_decls);
 		with Exit ->
 			begin try

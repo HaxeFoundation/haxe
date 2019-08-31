@@ -97,17 +97,21 @@ let keywords =
 		Operator;Overload];
 	h
 
-let is_valid_identifier s = try
-	for i = 0 to String.length s - 1 do
-		match String.unsafe_get s i with
-		| 'a'..'z' | 'A'..'Z' | '_' -> ()
-		| '0'..'9' when i > 0 -> ()
-		| _ -> raise Exit
-	done;
-	if Hashtbl.mem keywords s then raise Exit;
-	true
-with Exit ->
-	false
+let is_valid_identifier s =
+	if String.length s = 0 then
+		false
+	else
+		try
+			for i = 0 to String.length s - 1 do
+				match String.unsafe_get s i with
+				| 'a'..'z' | 'A'..'Z' | '_' -> ()
+				| '0'..'9' when i > 0 -> ()
+				| _ -> raise Exit
+			done;
+			if Hashtbl.mem keywords s then raise Exit;
+			true
+		with Exit ->
+			false
 
 let init file =
 	let f = make_file file in

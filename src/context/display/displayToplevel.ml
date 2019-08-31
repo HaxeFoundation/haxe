@@ -24,7 +24,6 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
-open DisplayEmitter
 open Genjson
 open Globals
 
@@ -73,7 +72,6 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 	Timer.close t
 
 let read_class_paths com timer =
-	let sign = Define.get_signature com.defines in
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file file) then begin
@@ -81,32 +79,30 @@ let read_class_paths com timer =
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
 				let file = Path.unique_full_path file in
-				CompilationServer.remove_file_for_real cs (file,sign)
+				(CommonCache.get_cache cs com)#remove_file_for_real file
 			| _ ->
 				()
 		end
 	)
 
 let init_or_update_server cs com timer_name =
-	let sign = Define.get_signature com.defines in
-	if not (CompilationServer.is_initialized cs sign) then begin
-		CompilationServer.set_initialized cs sign true;
+	let cc = CommonCache.get_cache cs com in
+	if not cc#is_initialized then begin
+		cc#set_initialized true;
 		read_class_paths com timer_name
 	end;
 	(* Iterate all removed files of the current context. If they aren't part of the context again,
 		re-parse them and remove them from c_removed_files. *)
-	let sign = Define.get_signature com.defines in
+	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun (file,sign') () ->
-		if sign = sign' then begin
-			DynArray.add removed_removed_files (file,sign');
-			try
-				ignore(find_file cs (file,sign));
-			with Not_found ->
-				try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
-		end;
-	) cs.cache.c_removed_files;
-	DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files
+	Hashtbl.iter (fun file () ->
+		DynArray.add removed_removed_files file;
+		try
+			ignore(cc#find_file file);
+		with Not_found ->
+			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+	) removed_files;
+	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
 module CollectionContext = struct
 	open ImportStatus
@@ -233,7 +229,7 @@ let collect ctx tk with_type =
 	(* Collection starts here *)
 
 	let tpair ?(values=PMap.empty) t =
-		let ct = CompletionType.from_type (DisplayEmitter.get_import_status ctx) ~values t in
+		let ct = CompletionType.from_type (Display.get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	begin match tk with
@@ -398,12 +394,13 @@ let collect ctx tk with_type =
 	| Some cs ->
 		(* online: iter context files *)
 		init_or_update_server cs ctx.com ["display";"toplevel"];
-		let files = CompilationServer.get_file_list cs ctx.com in
+		let cc = CommonCache.get_cache cs ctx.com in
+		let files = cc#get_files in
 		(* Sort files by reverse distance of their package to our current package. *)
-		let files = List.map (fun (file,cfile) ->
+		let files = Hashtbl.fold (fun file cfile acc ->
 			let i = pack_similarity curpack cfile.c_package in
-			(file,cfile),i
-		) files in
+			((file,cfile),i) :: acc
+		) files [] in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
 		let check_package pack = match List.rev pack with
 			| [] -> ()
@@ -420,12 +417,12 @@ let collect ctx tk with_type =
 			end
 		) files;
 		List.iter (fun file ->
-			try
-				let lib = Hashtbl.find cs.cache.c_native_libs file in
+			match cs#get_native_lib file with
+			| Some lib ->
 				Hashtbl.iter (fun path (pack,decls) ->
 					if process_decls pack (snd path) decls then check_package pack;
 				) lib.c_nl_files
-			with Not_found ->
+			| None ->
 				()
 		) ctx.com.native_libs.all_libs
 	end;
@@ -438,7 +435,7 @@ let collect ctx tk with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = sort_fields l with_type tk in
+	let l = Display.sort_fields l with_type tk in
 	Timer.close t;
 	l
 

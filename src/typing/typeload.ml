@@ -221,8 +221,8 @@ let is_redefined ctx cf1 fields p =
 	with Not_found ->
 		false
 
-let make_extension_type ctx tl p =
-	let mk_extension fields t = match follow t with
+let make_extension_type ctx tl =
+	let mk_extension fields (t,p) = match follow t with
 		| TAnon a ->
 			PMap.fold (fun cf fields ->
 				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
@@ -232,6 +232,7 @@ let make_extension_type ctx tl p =
 			error "Can only extend structures" p
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
+	let tl = List.map (fun (t,_) -> t) tl in
 	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
 	ta
 
@@ -369,7 +370,7 @@ and load_complex_type' ctx allow_display (t,p) =
 	| CTIntersection tl ->
 		let tl = List.map (fun (t,pn) ->
 			try
-				load_complex_type ctx allow_display (t,pn)
+				(load_complex_type ctx allow_display (t,pn),pn)
 			with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
@@ -381,7 +382,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		let t = TMono tr in
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
-			let ta = make_extension_type ctx tl p in
+			let ta = make_extension_type ctx tl in
 			tr := Some ta;
 			ta
 		) "constraint" in
@@ -389,7 +390,7 @@ and load_complex_type' ctx allow_display (t,p) =
 	| CTExtend (tl,l) ->
 		begin match load_complex_type ctx allow_display (CTAnonymous l,p) with
 		| TAnon a as ta ->
-			let mk_extension t =
+			let mk_extension (t,p) =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
 					error "Cannot structurally extend type parameters" p
@@ -400,7 +401,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
 				| _ -> error "Can only extend structures" p
 			in
-			let loop t = match follow t with
+			let loop (t,p) = match follow t with
 				| TAnon a2 ->
 					PMap.iter (fun f cf ->
 						if not (is_redefined ctx cf a.a_fields p) then
@@ -411,7 +412,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			in
 			let il = List.map (fun (t,pn) ->
 				try
-					load_instance ctx ~allow_display (t,pn) false
+					(load_instance ctx ~allow_display (t,pn) false,pn)
 				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
@@ -428,7 +429,7 @@ and load_complex_type' ctx allow_display (t,p) =
 						mk_extension i
 					| _ ->
 						List.iter loop il;
-						a.a_status := Extend il;
+						a.a_status := Extend (List.map (fun(t,_) -> t) il);
 						ta);
 				t
 			) "constraint" in
@@ -668,7 +669,7 @@ let field_to_type_path ctx e =
 					if Char.uppercase fchar = fchar then
 						pack, f, None
 					else begin
-						display_error ctx "A class name must start with an uppercase character" (snd e);
+						display_error ctx "A class name must start with an uppercase letter" (snd e);
 						raise Exit
 					end
 				| [name] ->
@@ -740,7 +741,7 @@ let load_core_class ctx c =
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
-			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com2 "load_core_class") (CompilationServer.get ());
+			CommonCache.lock_signature com2 "load_core_class";
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2

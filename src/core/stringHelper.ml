@@ -18,14 +18,14 @@ let capitalize s =
 			Bytes.set bytes 0 (Char.chr (code - 32));
 		Bytes.to_string bytes
 
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
+let starts_uppercase_identifier x =
+	if String.length x = 0 then false else x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
 
 let check_uppercase x =
 	if String.length x = 0 then
 		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
+	else if not (starts_uppercase_identifier x) then
+		failwith "Class name must start with an uppercase letter"
 
 let s_escape ?(hex=true) s =
 	let b = Buffer.create (String.length s) in

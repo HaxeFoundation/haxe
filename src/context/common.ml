@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open CompilationServer
 open Type
 open Globals
 open Define
@@ -174,7 +175,27 @@ type json_api = {
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
+type compiler_stage =
+	| CCreated          (* Context was just created *)
+	| CInitialized      (* Context was initialized (from CLI args and such). *)
+	| CTyperCreated     (* The typer context was just created. *)
+	| CInitMacrosStart  (* Init macros are about to run. *)
+	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
+	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
+	| CFilteringStart   (* Filtering just started (nothing changed yet). *)
+	| CAnalyzerStart    (* Some filters did run, the analyzer is about to run. *)
+	| CAnalyzerDone     (* The analyzer just finished. *)
+	| CSaveStart        (* The type state is about to be saved. *)
+	| CSaveDone         (* The type state has been saved - at this point we can destroy things. *)
+	| CDceStart         (* DCE is about to run - everything is still available. *)
+	| CDceDone          (* DCE just finished. *)
+	| CFilteringDone    (* Filtering just finished. *)
+	| CGenerationStart  (* Generation is about to begin. *)
+	| CGenerationDone   (* Generation just finished. *)
+
 type context = {
+	mutable stage : compiler_stage;
+	mutable cache : context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -416,6 +437,8 @@ let create version s_version args =
 		)
 	in
 	{
+		cache = None;
+		stage = CCreated;
 		version = version;
 		args = args;
 		shared = {
@@ -495,6 +518,7 @@ let log com str =
 let clone com =
 	let t = com.basic in
 	{ com with
+		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;

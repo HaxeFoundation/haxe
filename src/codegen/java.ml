@@ -1205,7 +1205,7 @@ let add_java_lib com name std extern =
 	if std then java_lib#add_flag FlagIsStd;
 	if extern then java_lib#add_flag FlagIsExtern;
 	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
-	CompilationServer.handle_native_lib com java_lib
+	CommonCache.handle_native_lib com java_lib
 
 let before_generate con =
 	let java_ver = try

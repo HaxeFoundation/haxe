@@ -52,7 +52,7 @@ type ctx = {
 	has_interface_check : bool;
 	es_version : int;
 	mutable current : tclass;
-	mutable statics : (tclass * string * texpr) list;
+	mutable statics : (tclass * tclass_field * texpr) list;
 	mutable inits : texpr list;
 	mutable tabs : string;
 	mutable in_value : tvar option;
@@ -1042,7 +1042,7 @@ let gen_class_static_field ctx c f =
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
-			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
+			ctx.statics <- (c,f,e) :: ctx.statics
 
 let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
@@ -1446,7 +1446,9 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field ctx c f);
+	let dot_path = (dot_path c.cl_path) ^ (static_field ctx c f.cf_name) in
+	(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
+	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field ctx c f.cf_name);
 	gen_value ctx e;
 	newline ctx
 

@@ -1322,7 +1322,7 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if starts_with name '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
+	if not c.cl_extern then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
@@ -1472,7 +1472,11 @@ let init_class ctx c p context_init herits fields =
 						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: mainf.cf_overloads
 					else
-						display_error ctx ("Duplicate class field declaration : " ^ s_type_path c.cl_path ^ "." ^ cf.cf_name) p
+						let type_kind,path = match c.cl_kind with
+							| KAbstractImpl a -> "abstract",a.a_path
+							| _ -> "class",c.cl_path
+						in
+						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) p
 				else
 				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
 			end

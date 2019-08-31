@@ -108,4 +108,12 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		s.addChar('}'.code);
 		return s.toString();
 	}
+
+	public function clear():Void {
+		#if (hl_ver >= version("1.11.0"))
+		@:privateAccess h.clear();
+		#else
+		h = new hl.types.BytesMap();
+		#end
+	}
 }

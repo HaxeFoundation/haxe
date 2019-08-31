@@ -83,6 +83,7 @@ type typer_globals = {
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
+	mutable type_hints : (module_def_display * pos * t) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -132,10 +133,13 @@ and typer = {
 	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
+	memory_marker : float array;
 }
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
+
+let memory_marker = [|Unix.time()|]
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
 let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
@@ -222,7 +226,49 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let check_identifier_name ctx name kind p =
+	if starts_with name '$' then
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed") p
+	else if not (Lexer.is_valid_identifier name) then
+		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+
+let check_field_name ctx name p =
+	match name with
+	| "new" -> () (* the only keyword allowed in field names *)
+	| _ -> check_identifier_name ctx name "field" p
+
+let check_uppercase_identifier_name ctx name kind p =
+	if Ast.is_lower_ident name then
+		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter") p
+	else
+		check_identifier_name ctx name kind p
+
+let check_module_path ctx path p =
+	check_uppercase_identifier_name ctx (snd path) "module" p;
+	let pack = fst path in
+	try
+		List.iter (fun part -> Path.check_package_name part) pack;
+	with Failure msg ->
+		display_error ctx ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error ctx msg p
+
+let check_local_variable_name ctx name origin p =
+	match name with
+	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
+	| _ ->
+		let s_var_origin origin =
+			match origin with
+			| TVOLocalVariable -> "variable"
+			| TVOArgument -> "function argument"
+			| TVOForVariable -> "for variable"
+			| TVOPatternVariable -> "pattern variable"
+			| TVOCatchVariable -> "catch variable"
+			| TVOLocalFunction -> "function"
+		in
+		check_identifier_name ctx name (s_var_origin origin) p
+
 let add_local_with_origin ctx origin n t p =
+	check_local_variable_name ctx n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
@@ -357,7 +403,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 				(* means it's a path of a superclass or implemented interface *)
 				not is_current_path &&
 				(* it's the last part of path in a meta && it denotes a package *)
-				l1 = [] && not (StringHelper.starts_uppercase a)
+				l1 = [] && not (StringHelper.starts_uppercase_identifier a)
 			then
 				false
 			else

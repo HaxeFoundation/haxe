@@ -79,4 +79,8 @@ import php.NativeIndexedArray;
 
 		return '{' + Global.implode(', ', parts) + '}';
 	}
+
+	public inline function clear():Void {
+		data = new NativeIndexedArray();
+	}
 }

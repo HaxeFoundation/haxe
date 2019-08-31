@@ -206,7 +206,7 @@ end
 
 class static_prototypes = object(self)
 	val mutable prototypes : vprototype IntMap.t = IntMap.empty
-	val mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
+	val mutable inits : (vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
 
 	method add proto =
 		prototypes <- IntMap.add proto.ppath proto prototypes
@@ -215,20 +215,13 @@ class static_prototypes = object(self)
 		inits <- IntMap.remove path inits;
 		prototypes <- IntMap.remove path prototypes
 
-	method set_needs_reset =
-		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) inits
+	method reset =
+		IntMap.iter (fun _ (proto, delays) -> List.iter (fun f -> f proto) delays) inits
 
 	method add_init proto delays =
-		inits <- IntMap.add proto.ppath (ref false, proto, delays) inits
+		inits <- IntMap.add proto.ppath (proto, delays) inits
 
 	method get path =
-		(try
-			let (needs_reset, proto, delays) = IntMap.find path inits in
-			if !needs_reset then begin
-				needs_reset := false;
-				List.iter (fun f -> f proto) delays
-			end
-		with Not_found -> ());
 		IntMap.find path prototypes
 end
 
@@ -291,9 +284,25 @@ and context = {
 	max_stack_depth : int;
 }
 
-let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
-let get_ctx () = (!get_ctx_ref)()
-let select ctx = get_ctx_ref := (fun() -> ctx)
+module GlobalState = struct
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+
+	let sid : int ref = ref (-1)
+
+	let debug : debug option ref = ref None
+	let debugger_initialized : bool ref = ref false
+
+	let stdlib : builtins option ref = ref None
+	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
+
+	let cleanup ctx =
+		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
+		   context can be collected. *)
+		ctx.curapi <- Obj.magic ""
+end
+
+let get_ctx () = (!GlobalState.get_ctx_ref)()
+let select ctx = GlobalState.get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
 	| DbgRunning -> "DbgRunning"

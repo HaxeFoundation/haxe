@@ -417,6 +417,26 @@ import java.lang.ref.ReferenceQueue;
 		return s.toString();
 	}
 
+	public function clear():Void {
+		hashes = null;
+		entries = null;
+		queue = new ReferenceQueue();
+		nBuckets = 0;
+		size = 0;
+		nOccupied = 0;
+		upperBound = 0;
+		#if !no_map_cache
+		cachedEntry = null;
+		cachedIndex = -1;
+		#end
+		#if DEBUG_HASHTBL
+		totalProbes = 0;
+		probeTimes = 0;
+		sameHash = 0;
+		maxProbe = 0;
+		#end
+	}
+
 	extern private static inline function roundUp(x:Int):Int {
 		--x;
 		x |= (x) >>> 1;

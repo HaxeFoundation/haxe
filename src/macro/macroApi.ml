@@ -724,9 +724,9 @@ and decode_display_kind v = match (decode_enum v) with
 	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
-and decode_function_kind kind = match decode_enum kind with
+and decode_function_kind kind = if kind = vnull then FKAnonymous else match decode_enum kind with
 	| 0, [] -> FKAnonymous
-	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_bool inline)
+	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_opt_bool inline)
 	| 2, [] -> FKArrow
 	| _ -> raise Invalid_expr
 
@@ -1477,7 +1477,7 @@ let decode_type_def v =
 	) in
 	(* if our package ends with an uppercase letter, then it's the module name *)
 	let pack,name = (match List.rev pack with
-		| last :: l when not (is_lower_ident last) -> List.rev l, last
+		| last :: l when StringHelper.starts_uppercase_identifier last -> List.rev l, last
 		| _ -> pack, fst name
 	) in
 	(pack, name), tdef, pos
@@ -1561,8 +1561,14 @@ let macro_api ccom get_api =
 			encode_string (try Common.find_file (ccom()) file with Not_found -> failwith ("File not found '" ^ file ^ "'"))
 		);
 		"define", vfun2 (fun s v ->
+			let s = decode_string s in
+			let com = ccom() in
+			if com.stage <> CInitMacrosStart then begin
+				let v = if v = vnull then "" else ", " ^ (decode_string v) in
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
+			end;
 			let v = if v = vnull then "" else "=" ^ (decode_string v) in
-			Common.raw_define (ccom()) ((decode_string s) ^ v);
+			Common.raw_define com (s ^ v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
@@ -1822,6 +1828,8 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
+			if com.stage <> CInitMacrosStart then
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
 			let cp = Path.add_trailing_slash cp in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
@@ -1836,6 +1844,8 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
+			if com.stage <> CInitMacrosStart then
+				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
 			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);
@@ -1918,8 +1928,8 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = Path.unique_full_path s in
-				CompilationServer.taint_modules cs s;
-				CompilationServer.remove_files cs s;
+				cs#taint_modules s;
+				cs#remove_files s;
 			) (decode_array a);
 			vnull
 		);

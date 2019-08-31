@@ -175,273 +175,6 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
-module Memory = struct
-	open CompilationServer
-
-	let clear_descendants md =
-		List.iter (function
-			| TClassDecl c ->
-				c.cl_descendants <- []
-			| _ ->
-				()
-		) md.m_types
-
-	let update_module_type_deps deps md =
-		let deps = ref (Obj.repr md :: deps) in
-		List.iter (fun t ->
-			match t with
-			| TClassDecl c ->
-				deps := Obj.repr c :: !deps;
-				c.cl_descendants <- []; (* prevent false positive *)
-				List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-				List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
-			| TEnumDecl e ->
-				deps := Obj.repr e :: !deps;
-				List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
-			| TTypeDecl t -> deps := Obj.repr t :: !deps;
-			| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-		) md.m_types;
-		!deps
-
-	let rec scan_module_deps m h =
-		if Hashtbl.mem h m.m_id then
-			()
-		else begin
-			Hashtbl.add h m.m_id m;
-			PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
-		end
-
-	let module_sign key md =
-		if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-
-	let collect_leaks m deps out =
-		let leaks = ref [] in
-		let leak s =
-			leaks := s :: !leaks
-		in
-		if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-		PMap.iter (fun _ md ->
-			if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ module_sign m.m_extra.m_sign md);
-		) out;
-		!leaks
-
-	let get_out out =
-		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
-
-	let collect_memory_stats cs =
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
-		let modules = Hashtbl.fold (fun (path,key) m acc ->
-			let mdeps = Hashtbl.create 0 in
-			scan_module_deps m mdeps;
-			let deps = ref [Obj.repr null_module] in
-			let out = ref all_modules in
-			let deps = Hashtbl.fold (fun _ md deps ->
-				out := PMap.remove md.m_id !out;
-				if m == md then
-					deps
-				else
-					update_module_type_deps deps md;
-			) mdeps !deps in
-			clear_descendants m;
-			let out = !out in
-			let chk = get_out out in
-			let inf = Objsize.objsize m deps chk in
-			let leaks = if inf.reached then collect_leaks m deps out else [] in
-			(m,Objsize.size_with_headers inf, (inf.reached,deps,out,leaks)) :: acc
-		) cs.c_modules [] in
-		modules
-
-	let fmt_size sz =
-		if sz < 1024 then
-			string_of_int sz ^ " B"
-		else if sz < 1024*1024 then
-			string_of_int (sz asr 10) ^ " KB"
-		else
-			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
-
-	let size v =
-		fmt_size (mem_size v)
-
-	let get_memory_json cs =
-		Gc.full_major();
-		Gc.compact();
-		let contexts = Hashtbl.create 0 in
-		let add_context sign =
-			let ctx = (sign,ref [],ref [],ref 0) in
-			Hashtbl.add contexts sign ctx;
-			ctx
-		in
-		let get_context sign =
-			try
-				Hashtbl.find contexts sign
-			with Not_found ->
-				add_context sign
-		in
-		let modules = collect_memory_stats cs.cache in
-
-		List.iter (fun (m,size,(reached,deps,out,mleaks)) ->
-			let (_,l,leaks,mem) = get_context m.m_extra.m_sign in
-			if reached then leaks := (m,mleaks) :: !leaks;
-			let deps = update_module_type_deps deps m in
-			let types = List.map (fun md ->
-				let fields,inf = match md with
-					| TClassDecl c ->
-						let own_deps = ref deps in
-						let field acc cf =
-							let repr = Obj.repr cf in
-							own_deps := List.filter (fun repr' -> repr != repr') !own_deps;
-							let deps = List.filter (fun repr' -> repr' != repr) deps in
-							let size = Objsize.size_with_headers (Objsize.objsize cf deps []) in
-							(cf.cf_name,size) :: acc
-						in
-						let fields = List.fold_left field [] c.cl_ordered_fields in
-						let fields = List.fold_left field fields c.cl_ordered_statics in
-						let fields = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) fields in
-						let fields = List.map (fun (name,size) ->
-							jobject [
-								"path",jstring name;
-								"size",jint size;
-							]
-						) fields in
-						let repr = Obj.repr c in
-						let deps = List.filter (fun repr' -> repr' != repr) !own_deps in
-						fields,Objsize.objsize c deps []
-					| TEnumDecl en ->
-						let repr = Obj.repr en in
-						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize en deps []
-					| TTypeDecl td ->
-						let repr = Obj.repr td in
-						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize td deps []
-					| TAbstractDecl a ->
-						let repr = Obj.repr a in
-						let deps = List.filter (fun repr' -> repr' != repr) deps in
-						[],Objsize.objsize a deps []
-				in
-				let size = Objsize.size_with_headers inf in
-				let jo = jobject [
-					"path",jstring (s_type_path (t_infos md).mt_path);
-					"size",jint size;
-					"fields",jarray fields;
-				] in
-				jo,size
-			) m.m_types in
-			let types = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) types in
-			let types =
-				let inf = Objsize.objsize m.m_extra deps [] in
-				let size = Objsize.size_with_headers inf in
-				(jobject [
-					"path",jstring "m_extra";
-					"size",jint size;
-					"fields",jarray []
-				],size) :: types
-			in
-			l := (m,size,jarray (List.map fst types)) :: !l;
-			mem := !mem + size;
-		) modules;
-		let ja = Hashtbl.fold (fun key (sign,modules,leaks,size) l ->
-			let modules = List.sort (fun (_,size1,_) (_,size2,_)  -> compare size2 size1) !modules in
-			let modules = List.map (fun (m,size,jmt) ->
-				jobject [
-					"path",jstring (s_type_path m.m_path);
-					"size",jint size;
-					"types",jmt;
-				]
-			) modules in
-			let modules = match !leaks with
-				| [] -> modules
-				| leaks ->
-					let jleaks = List.map (fun (m,leaks) ->
-						let jleaks = List.map (fun s -> jobject ["path",jstring s;"size",jint 0]) leaks in
-						jobject [
-							"path",jstring (s_type_path m.m_path);
-							"size",jint 0;
-							"fields",jarray jleaks;
-						]
-					) leaks in
-					jobject [
-						"path",jstring "?LEAKS";
-						"size",jint 0;
-						"types",jarray jleaks;
-					] :: modules
-			in
-			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
-			let jo = jobject [
-				"context",j;
-				"size",jint !size;
-				"modules",jarray modules;
-			] in
-			jo :: l
-		) contexts [] in
-		jobject [
-			"contexts",jarray ja;
-			"memory",jobject [
-				"totalCache",jint (mem_size cs.cache);
-				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
-				"parserCache",jint (mem_size cs.cache.c_files);
-				"moduleCache",jint (mem_size cs.cache.c_modules);
-				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
-				"macroInterpreter",jint (mem_size MacroContext.macro_interp_cache);
-				"completionResult",jint (mem_size (DisplayException.last_completion_result));
-			]
-		]
-
-	let display_memory com =
-		let verbose = com.verbose in
-		let print = print_endline in
-		Gc.full_major();
-		Gc.compact();
-		let mem = Gc.stat() in
-		print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
-		print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-		(match get() with
-		| None ->
-			print "No cache found";
-		| Some {cache = c} ->
-			print ("Total cache size " ^ size c);
-			print ("  haxelib " ^ size c.c_haxelib);
-			print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-			print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
-			let modules = collect_memory_stats c in
-			let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-			List.iter (fun (m,size,(reached,deps,out,leaks)) ->
-				let key = m.m_extra.m_sign in
-				if key <> !cur_key then begin
-					print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-					cur_key := key;
-				end;
-				print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
-				(if reached then try
-					incr mcount;
-					let lcount = ref 0 in
-					let leak l =
-						incr lcount;
-						incr tcount;
-						print (Printf.sprintf "      LEAK %s" l);
-						if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-							print (Printf.sprintf "      ...");
-							raise Exit;
-						end;
-					in
-					List.iter leak leaks;
-				with Exit ->
-					());
-				if verbose then begin
-					print (Printf.sprintf "      %d total deps" (List.length deps));
-					PMap.iter (fun _ md ->
-						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
-					) m.m_extra.m_deps;
-				end;
-				flush stdout
-			) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-				let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-				if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-			) modules);
-			if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-			print "Cache dump complete")
-end
-
 (* New JSON stuff *)
 
 open Json
@@ -616,7 +349,24 @@ let process_display_file com classes =
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
 			path
 
-let process_global_display_mode com tctx = match com.display.dms_kind with
+let promote_type_hints tctx =
+	let rec explore_type_hint (md,p,t) =
+		match t with
+		| TMono r -> (match !r with None -> () | Some t -> explore_type_hint (md,p,t))
+		| TLazy f -> explore_type_hint (md,p,lazy_type f)
+		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
+		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
+		| TType(({t_name_pos = pn;t_path = (_,name)}),_)
+		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
+			md.m_type_hints <- (p,pn) :: md.m_type_hints;
+		| TDynamic _ -> ()
+		| TFun _ | TAnon _ -> ()
+	in
+	List.iter explore_type_hint tctx.g.type_hints
+
+let process_global_display_mode com tctx =
+	promote_type_hints tctx;
+	match com.display.dms_kind with
 	| DMUsage with_definition ->
 		FindReferences.find_references tctx com with_definition
 	| DMDiagnostics global ->
@@ -629,7 +379,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		let symbols = match CompilationServer.get() with
 			| None -> []
 			| Some cs ->
-				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
+				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
 					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc

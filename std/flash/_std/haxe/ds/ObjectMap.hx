@@ -88,6 +88,11 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 		}
 		return s + "}";
 	}
+
+	public function clear():Void {
+		for (i in keys())
+			untyped __delete__(this, i);
+	}
 }
 
 #if !as3
