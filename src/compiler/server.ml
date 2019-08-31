@@ -140,7 +140,7 @@ let parse_file cs com file p =
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
-		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+		let data = Std.finally (Timer.timer_fn ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
@@ -287,7 +287,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 		Hashtbl.add sctx.changed_directories sign dirs;
 		dirs
 	in
-	t();
+	Timer.close t;
 	dirs
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
@@ -462,17 +462,17 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		| None -> ()
 		| Some m' ->
 			ServerMessage.skipping_dep com "" (m,m');
-			tcheck();
+			Timer.close tcheck;
 			raise Not_found;
 		end;
-		tcheck();
+		Timer.close tcheck;
 		let tadd = Timer.timer ["server";"module cache";"add modules"] in
 		add_modules sctx ctx m p;
-		tadd();
-		t();
+		Timer.close tadd;
+		Timer.close t;
 		Some m
 	with Not_found ->
-		t();
+		Timer.close t;
 		None
 
 (* Sets up the per-compilation context. *)
@@ -554,7 +554,7 @@ let init_new_compilation sctx =
 	stats.s_classes_built := 0;
 	stats.s_methods_typed := 0;
 	stats.s_macros_called := 0;
-	Hashtbl.clear Timer.htimers;
+	Timer.clear_times();
 	sctx.compilation_step <- sctx.compilation_step + 1;
 	sctx.compilation_mark <- sctx.mark_loop;
 	start_time := get_time()

@@ -3263,7 +3263,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	let f = if ctx.optimize && (gen_content = None || name <> ("","")) then begin
 		let t = Timer.timer ["generate";"hl";"opt"] in
 		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) hlf f in
-		t();
+		Timer.close t;
 		f
 	end else
 		hlf
@@ -4068,7 +4068,7 @@ let generate com =
 		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
 		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
-		t();
+		Timer.close t;
 	end else begin
 		let ch = IO.output_string() in
 		write_code ch code (not (Common.raw_defined com "hl-no-debug"));
@@ -4078,7 +4078,7 @@ let generate com =
 		close_out ch;
 	end;
 	Hlopt.clean_cache();
-	t();
+	Timer.close t;
 	if Common.raw_defined com "run" then begin
 		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
 	end;
@@ -4087,6 +4087,6 @@ let generate com =
 			let t = Timer.timer ["generate";"hl";"interp"] in
 			let ctx = Hlinterp.create true in
 			Hlinterp.add_code ctx code;
-			t();
+			Timer.close t;
 		with
 			Failure msg -> abort msg null_pos

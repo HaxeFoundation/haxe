@@ -702,9 +702,9 @@ let generate types file =
 	let t = Timer.timer ["generate";"json";"construct"] in
 	let ctx = create_context GMFull in
 	let json = jarray (List.map (generate_module_type ctx) types) in
-	t();
+	Timer.close t;
 	let t = Timer.timer ["generate";"json";"write"] in
 	let ch = open_out_bin file in
 	Json.write_json (output_string ch) json;
 	close_out ch;
-	t()
+	Timer.close t

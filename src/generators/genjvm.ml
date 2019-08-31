@@ -375,7 +375,7 @@ let write_class jar path jc =
 	let ch = IO.output_bytes() in
 	JvmWriter.write_jvm_class ch jc;
 	Zip.add_entry (Bytes.unsafe_to_string (IO.close_out ch)) jar path;
-	t()
+	Timer.close t
 
 let is_const_int_pattern (el,_) =
 	List.for_all (fun e -> match e.eexpr with
@@ -3025,7 +3025,7 @@ let generate com =
 			export_debug = com.debug;
 		}
 	} in
-	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
+	Std.finally (Timer.timer_fn ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd then None
 		else begin

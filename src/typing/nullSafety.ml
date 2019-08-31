@@ -1508,7 +1508,7 @@ let run (com:Common.context) (types:module_type list) =
 			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
 	in
 	List.iter traverse types;
-	timer();
+	Timer.close timer;
 	match com.callbacks#get_null_safety_report with
 		| [] ->
 			List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)

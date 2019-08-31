@@ -570,7 +570,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 				true
 			| _ -> false
 		) r.fitems in
-		timer();
+		Timer.close timer;
 		raise_fields l CRNew r.fsubject
 	in
 	let e = match e.eexpr with

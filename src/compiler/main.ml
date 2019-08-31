@@ -115,7 +115,7 @@ let add_libs com libs =
 			| [], [] -> "Failed to call haxelib (command not found ?)"
 			| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
 			| _ -> String.concat "\n" (lines@err));
-		t();
+		Timer.close t;
 		lines
 	in
 	match libs with
@@ -178,7 +178,7 @@ let run_command ctx cmd =
 	let sout = binary_string (Buffer.contents bout) in
 	if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
 	if sout <> "" then ctx.com.print (sout ^ "\n");
-	t();
+	Timer.close t;
 	result
 
 module Initialize = struct
@@ -302,7 +302,7 @@ let generate tctx ext interp swf_header =
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if interp then
-		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
+		Std.finally (Timer.timer_fn ["interp"]) MacroContext.interpret tctx
 	else if com.platform = Cross then
 		()
 	else begin
@@ -340,7 +340,7 @@ let generate tctx ext interp swf_header =
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
 		let t = Timer.timer ["generate";name] in
 		generate com;
-		t()
+		Timer.close t
 	end
 
 let get_std_class_paths () =
@@ -512,7 +512,7 @@ let do_type tctx config_macros classes =
 		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t()
+	Timer.close t
 
 let load_display_module_in_macro tctx display_file_dot_path clear = match display_file_dot_path with
 	| Some cpath ->
@@ -599,7 +599,7 @@ let filter ctx tctx display_file_dot_path =
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		DeprecationCheck.run com;
 	Filters.run com tctx main;
-	t()
+	Timer.close t
 
 let check_auxiliary_output com xml_out json_out =
 	begin match xml_out with
@@ -1020,7 +1020,7 @@ try
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
-	t();
+	Timer.close t;
 	com.stage <- CInitialized;
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
@@ -1214,5 +1214,5 @@ with DisplayOutput.Completion c ->
 	prerr_endline ("Error: " ^ msg);
 	exit 1
 );
-other();
+Timer.close other;
 if !measure_times then Timer.report_times prerr_endline

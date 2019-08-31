@@ -69,7 +69,7 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 	in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
 	List.iter (fun dir -> loop dir []) class_paths;
-	t()
+	Timer.close t
 
 let read_class_paths com timer =
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
@@ -436,7 +436,7 @@ let collect ctx tk with_type =
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
 	let l = Display.sort_fields l with_type tk in
-	t();
+	Timer.close t;
 	l
 
 let collect_and_raise ctx tk with_type cr (name,pname) pinsert =

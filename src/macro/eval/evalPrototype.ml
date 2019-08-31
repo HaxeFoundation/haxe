@@ -359,4 +359,4 @@ let add_types ctx types ready =
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
-	t()
+	Timer.close t

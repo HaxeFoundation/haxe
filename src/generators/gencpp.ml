@@ -8444,7 +8444,7 @@ let generate_source ctx =
       common_ctx.print (!cmd ^ "\n");
       if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
-      t()
+      Timer.close t
    end
    ;;
 
