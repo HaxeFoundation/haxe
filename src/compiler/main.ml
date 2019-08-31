@@ -619,6 +619,11 @@ let check_auxiliary_output com xml_out json_out =
 			Genjson.generate com.types file
 	end
 
+let parse_host_port hp =
+	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
+	host, port
+
 let rec process_params create pl =
 	let each_params = ref [] in
 	let rec loop acc = function
@@ -920,12 +925,16 @@ try
 				| "stdio" ->
 					Server.init_wait_stdio()
 				| _ ->
-					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-					let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
+					let host, port = parse_host_port hp in
 					init_wait_socket host port
 			in
 			wait_loop process_params com.verbose accept
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run)");
+		("Compilation Server",["--wait-connect"],[], Arg.String (fun hp ->
+			let host, port = parse_host_port hp in
+			let accept = Server.init_wait_connect host port in
+			wait_loop process_params com.verbose accept
+		),"[host:]port]","connect to the given port and wait for commands to run)");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			assert false
 		),"<[host:]port>","connect on the given port and run commands there)");
