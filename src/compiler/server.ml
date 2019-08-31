@@ -659,10 +659,12 @@ let wait_loop process_params verbose accept =
 			let percent_used = live_words /. heap_size in
 			(* print_endline (Printf.sprintf "live: %s, max: %s, needed_max: %s, needed: %i%%, used: %i%%" (fmt_word live_words) (fmt_word max) (fmt_word needed_max) (fmt_percent percent_needed) (fmt_percent percent_used)); *)
 			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
+			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
 			let old_gc = Gc.get() in
-			Gc.set { old_gc with Gc.space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.); };
+			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
 			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
-			begin if percent_used < 80. && percent_needed < 50. then
+			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
+			begin if do_compact then
 				Gc.compact()
 			else
 				Gc.full_major();
