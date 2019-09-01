@@ -756,7 +756,13 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			Type.map_expr (map false false) e
 	in
 	let e = map true false f.tf_expr in
-	let tl = List.map (fun e -> "",false,e.etype) params in
+	let rec arg_types params tf_args =
+		match params, tf_args with
+		| e :: rest_params, _ :: rest_args -> ("",false,e.etype) :: arg_types rest_params rest_args
+		| [], (_, Some e) :: rest_args -> ("",true,mk_mono()) :: arg_types params rest_args
+		| _ -> []
+	in
+	let tl = arg_types params f.tf_args in
 	let e = state#finalize config e tl tret p in
 	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
 		let se t = s_expr_pretty true t true (s_type (print_context())) in

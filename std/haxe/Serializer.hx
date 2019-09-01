@@ -51,8 +51,8 @@ class Serializer {
 		This may also reduce the size of serialization Strings at the expense of
 		performance.
 
-		This value can be changed for individual instances of Serializer by
-		setting their useCache field.
+		This value can be changed for individual instances of `Serializer` by
+		setting their `useCache` field.
 	**/
 	public static var USE_CACHE = false;
 
@@ -63,8 +63,8 @@ class Serializer {
 		suited for long-term storage: If constructors are removed or added from
 		the enum, the indices may no longer match.
 
-		This value can be changed for individual instances of Serializer by
-		setting their useEnumIndex field.
+		This value can be changed for individual instances of `Serializer` by
+		setting their `useEnumIndex` field.
 	**/
 	public static var USE_ENUM_INDEX = false;
 
@@ -79,14 +79,14 @@ class Serializer {
 	/**
 		The individual cache setting for `this` Serializer instance.
 
-		See USE_CACHE for a complete description.
+		See `USE_CACHE` for a complete description.
 	**/
 	public var useCache:Bool;
 
 	/**
 		The individual enum index setting for `this` Serializer instance.
 
-		See USE_ENUM_INDEX for a complete description.
+		See `USE_ENUM_INDEX` for a complete description.
 	**/
 	public var useEnumIndex:Bool;
 
@@ -97,8 +97,8 @@ class Serializer {
 		internal buffer of this String. Once complete, the contents can be
 		retrieved through a call to `this.toString`.
 
-		Each Serializer instance maintains its own cache if this.useCache` is
-		true.
+		Each `Serializer` instance maintains its own cache if `this.useCache` is
+		`true`.
 	**/
 	public function new() {
 		buf = new StringBuf();
@@ -570,7 +570,7 @@ class Serializer {
 
 	This is a convenience function for creating a new instance of
 	Serializer, serialize `v` into it and obtain the result through a call
-	to toString().
+	to `toString()`.
 **/
 	public static function run(v:Dynamic) {
 		var s = new Serializer();
