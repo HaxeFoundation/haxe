@@ -406,10 +406,17 @@ let collect ctx tk with_type =
 			| [] -> ()
 			| s :: sl -> add_package (List.rev sl,s)
 		in
+		let is_legacy_completion = is_legacy_completion ctx.com in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
-			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			(* In legacy mode we only show toplevel types. *)
+			if is_legacy_completion && cfile.c_package <> [] then begin
+				(* And only toplevel packages. *)
+				match cfile.c_package with
+				| [s] -> add_package ([],s)
+				| _ -> ()
+			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
 				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
