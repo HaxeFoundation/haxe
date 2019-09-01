@@ -172,6 +172,7 @@ let collect ctx tk with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
+	let is_legacy_completion = is_legacy_completion ctx.com in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
@@ -339,31 +340,33 @@ let collect ctx tk with_type =
 				()
 		) ctx.m.module_globals;
 
-		(* literals *)
-		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
-		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
-		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
-		begin match ctx.curfun with
-			| FunMember | FunConstructor | FunMemberClassLocal ->
-				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
-				add (make_ci_literal "this" (tpair t)) (Some "this");
-				begin match ctx.curclass.cl_super with
-					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
-					| None -> ()
-				end
-			| _ ->
-				()
-		end;
+			(* literals *)
+			add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
+			add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
+			add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
+			begin match ctx.curfun with
+				| FunMember | FunConstructor | FunMemberClassLocal ->
+					let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+					add (make_ci_literal "this" (tpair t)) (Some "this");
+					begin match ctx.curclass.cl_super with
+						| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
+						| None -> ()
+					end
+				| _ ->
+					()
+			end;
 
-		(* keywords *)
-		let kwds = [
-			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast; Inline;
-		] in
-		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+		if not is_legacy_completion then begin
+			(* keywords *)
+			let kwds = [
+				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+				Try; New; Throw; Untyped; Cast; Inline;
+			] in
+			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
-		(* builtins *)
-		add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+			(* builtins *)
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+		end
 	end;
 
 	(* type params *)
@@ -406,7 +409,6 @@ let collect ctx tk with_type =
 			| [] -> ()
 			| s :: sl -> add_package (List.rev sl,s)
 		in
-		let is_legacy_completion = is_legacy_completion ctx.com in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
