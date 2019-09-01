@@ -50,23 +50,23 @@ let rec close now t =
 		failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
 	| tt :: rest ->
 		if t == tt then begin
-			let start = List.hd t.start in
-			let pauses = List.hd t.pauses in
-			let dt = now -. start in
-			t.total <- t.total +. dt -. pauses;
-			t.start <- List.tl t.start;
-			t.pauses <- List.tl t.pauses;
-			curtime := rest;
-			match !curtime with
-			| [] -> ()
-			| current :: _ ->
-				let pauses = dt +. List.hd current.pauses in
-				current.pauses <- pauses :: List.tl current.pauses
-				(* current.total <- *)
+			match t.start, t.pauses with
+			| start :: rest_start, pauses :: rest_pauses ->
+				let dt = now -. start in
+				t.total <- t.total +. dt -. pauses;
+				t.start <- rest_start;
+				t.pauses <- rest_pauses;
+				curtime := rest;
+				(match !curtime with
+				| [] -> ()
+				| current :: _ ->
+					match current.pauses with
+					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
+					| _ -> assert false
+				)
+			| _ -> assert false
 		end else
 			close now tt
-	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
-	(* List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime *)
 
 let timer id =
 	let t = new_timer id in
