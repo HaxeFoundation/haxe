@@ -172,7 +172,11 @@ let collect ctx tk with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
-	let is_legacy_completion = is_legacy_completion ctx.com in
+	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
+	   `is_legacy_completion com` because the latter is always false for the old protocol, yet we have
+	   tests which assume advanced completion even in the old protocol. This means that we can only
+	   use "legacy mode" in the new protocol. *)
+	let is_legacy_completion = !ServerConfig.legacy_completion in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
