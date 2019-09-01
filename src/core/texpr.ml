@@ -533,3 +533,23 @@ let collect_captured_vars e =
 	in
 	loop e;
 	List.rev !unknown,!accesses_this
+
+(**
+	If `e` contains a sequence of unsafe casts, then look if that sequence
+	already has casts to `t` and return the bottom-most of such casts.
+	If `require_cast` is `false` and the first non-cast expression has type `t`, then return that expression without any casts.
+	In other cases return `e` as-is.
+*)
+let reduce_unsafe_casts ?(require_cast=false) e t =
+	let t = follow t in
+	let same_type etype = fast_eq t (follow etype) in
+	let rec loop e result =
+		match e.eexpr with
+		| TCast(subject,None) ->
+			if same_type e.etype then loop subject e
+			else loop subject result
+		| _ ->
+			if not require_cast && same_type e.etype then e
+			else result
+	in
+	loop e e

@@ -264,6 +264,15 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| TEnumParameter({eexpr = TParenthesis {eexpr = TCall({eexpr = TField(_,FEnum(_,ef1))},el)}},ef2,i)
 		when ef1 == ef2 && check_enum_construction_args el i ->
 		(try List.nth el i with Failure _ -> e)
+	| TCast(e1,None) ->
+		(* TODO: figure out what's wrong with these targets *)
+		let require_cast = match ctx.com.platform with
+			| Cpp | Flash -> true
+			| Java -> defined ctx.com Define.Jvm
+			| Cs -> defined ctx.com Define.EraseGenerics
+			| _ -> false
+		in
+		Texpr.reduce_unsafe_casts ~require_cast e e.etype
 	| _ ->
 		e
 

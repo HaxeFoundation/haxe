@@ -547,8 +547,23 @@ class TestJs {
 	static function testIssue7874() {
 		if (v && v) {}
 	}
+
+	@:js('')
+	static function testIssue8751() {
+		(2:Issue8751Int) * 3;
+	}
 }
 
 extern class Extern {
 	static public function test(e:haxe.extern.AsVar<String>):Void;
+}
+
+abstract Issue8751Int(Int) from Int {
+	@:op(A * B) static public inline function add(a:Issue8751Int, b:Issue8751Int):Issue8751Int {
+		return a.toInt() * b.toInt();
+	}
+
+	inline public function toInt():Int {
+		return this;
+	}
 }
