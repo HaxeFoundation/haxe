@@ -1163,20 +1163,22 @@ with
 				error ctx msg p;
 				None
 		in
-		begin match fields with
-		| None -> ()
-		| Some fields ->
-			begin match ctx.com.json_out with
-			| Some api ->
-				let ctx = DisplayJson.create_json_context api.jsonrpc false in
-				let path = match List.rev p with
-					| name :: pack -> List.rev pack,name
-					| [] -> [],""
-				in
-				let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-				api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
-			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
-			end
+		begin match ctx.com.json_out,fields with
+		| None,None ->
+			()
+		| None,Some fields ->
+			raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
+		| Some api,None when is_legacy_completion com ->
+			api.send_result JNull
+		| Some api,fields ->
+			let fields = Option.default [] fields in
+			let ctx = DisplayJson.create_json_context api.jsonrpc false in
+			let path = match List.rev p with
+				| name :: pack -> List.rev pack,name
+				| [] -> [],""
+			in
+			let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
+			api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 		end
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;

@@ -172,6 +172,7 @@ let collect ctx tk with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
+	let is_legacy_completion = is_legacy_completion ctx.com in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
@@ -355,15 +356,17 @@ let collect ctx tk with_type =
 				()
 		end;
 
-		(* keywords *)
-		let kwds = [
-			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast; Inline;
-		] in
-		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+		if not is_legacy_completion then begin
+			(* keywords *)
+			let kwds = [
+				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+				Try; New; Throw; Untyped; Cast; Inline;
+			] in
+			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
-		(* builtins *)
-		add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+			(* builtins *)
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+		end
 	end;
 
 	(* type params *)
@@ -409,7 +412,13 @@ let collect ctx tk with_type =
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
-			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			(* In legacy mode we only show toplevel types. *)
+			if is_legacy_completion && cfile.c_package <> [] then begin
+				(* And only toplevel packages. *)
+				match cfile.c_package with
+				| [s] -> add_package ([],s)
+				| _ -> ()
+			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
 				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
@@ -435,7 +444,11 @@ let collect ctx tk with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = Display.sort_fields l with_type tk in
+	let l = if is_legacy_completion then
+		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
+	else
+		Display.sort_fields l with_type tk
+	in
 	t();
 	l
 

@@ -1,3 +1,4 @@
+import haxe.display.Protocol;
 import haxe.PosInfos;
 import haxe.display.Server;
 import utest.Assert;
@@ -225,6 +226,22 @@ typedef Foo = {
 		var completion = parseCompletion();
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "MyClass";
+			case _: false;
+		});
+	}
+
+	function testIssue8732() {
+		var content = "class Main { static function main() { var ident = \"foo\"; {-1-}i{-2-}dent.{-3-} } }";
+		vfs.putContent("Main.hx", content);
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], Methods.Initialize, {maxCompletionItems: 50});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[3], wasAutoTriggered: true});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
+		var result = parseCompletion();
+		assertHasNoCompletion(result, item -> switch (item.kind) {
+			case ClassField: item.args.field.name == "charAt";
 			case _: false;
 		});
 	}

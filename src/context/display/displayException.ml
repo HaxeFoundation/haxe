@@ -114,6 +114,7 @@ let patch_completion_subject subj =
 let fields_to_json ctx fields kind subj =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
+	(* let p_before = subj.s_insert_pos in *)
 	let subj = patch_completion_subject subj in
 	let ja,num_items = if needs_filtering then
 		filter_somehow ctx fields kind subj
@@ -121,13 +122,14 @@ let fields_to_json ctx fields kind subj =
 		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,Array.length !last_completion_result
  	in
 	let did_filter = num_items = !max_completion_items in
-	if did_filter then last_completion_pos := Some subj.s_start_pos;
+	last_completion_pos := if did_filter then Some subj.s_start_pos else None;
 	let filter_string = (match subj.s_name with None -> "" | Some name -> name) in
-	(* print_endline (Printf.sprintf "FIELDS OUTPUT:\n\tfilter_string: %s\n\t    num items: %i\n\t     position: %s\n\t   before cut: %s"
+	(* print_endline (Printf.sprintf "FIELDS OUTPUT:\n\tfilter_string: %s\n\t    num items: %i\n\t        start: %s\n\t     position: %s\n\t   before cut: %s"
 		filter_string
 		num_items
-		(Printer.s_pos p)
+		(Printer.s_pos subj.s_start_pos)
 		(Printer.s_pos subj.s_insert_pos)
+		(Printer.s_pos p_before)
 	); *)
 	let fl =
 		("items",jarray ja) ::

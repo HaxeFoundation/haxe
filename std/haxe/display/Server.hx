@@ -72,6 +72,7 @@ typedef ConfigurePrintParams = {
 
 typedef ConfigureParams = {
 	final ?noModuleChecks:Bool;
+	final ?legacyCompletion:Bool;
 	final ?print:ConfigurePrintParams;
 }
 

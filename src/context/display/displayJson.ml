@@ -230,6 +230,12 @@ let handler =
 				l := jstring ("Module checks " ^ (if b then "disabled" else "enabled")) :: !l;
 				()
 			) ();
+			hctx.jsonrpc#get_opt_param (fun () ->
+				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
+				ServerConfig.legacy_completion := b;
+				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
+				()
+			) ();
 			hctx.send_result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
