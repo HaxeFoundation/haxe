@@ -340,21 +340,21 @@ let collect ctx tk with_type =
 				()
 		) ctx.m.module_globals;
 
-			(* literals *)
-			add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
-			add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
-			add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
-			begin match ctx.curfun with
-				| FunMember | FunConstructor | FunMemberClassLocal ->
-					let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
-					add (make_ci_literal "this" (tpair t)) (Some "this");
-					begin match ctx.curclass.cl_super with
-						| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
-						| None -> ()
-					end
-				| _ ->
-					()
-			end;
+		(* literals *)
+		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
+		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
+		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
+		begin match ctx.curfun with
+			| FunMember | FunConstructor | FunMemberClassLocal ->
+				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+				add (make_ci_literal "this" (tpair t)) (Some "this");
+				begin match ctx.curclass.cl_super with
+					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
+					| None -> ()
+				end
+			| _ ->
+				()
+		end;
 
 		if not is_legacy_completion then begin
 			(* keywords *)
@@ -444,7 +444,11 @@ let collect ctx tk with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = Display.sort_fields l with_type tk in
+	let l = if is_legacy_completion then
+		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
+	else
+		Display.sort_fields l with_type tk
+	in
 	t();
 	l
 
