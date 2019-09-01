@@ -81,7 +81,7 @@ abstract BigInt(_BigInt) from _BigInt to _BigInt {
 	}
 
 	/**
-		Wraps a BigInt value to a signed integer between `-2^(width-1)` and `2^(width-1-1)`.
+		Wraps a BigInt value to a signed integer between `-2^(width-1)` and `2^(width-1)-1`.
 	**/
 	public static inline function asIntN(width:Int, bigint:BigInt):BigInt {
 		return _BigInt.asIntN(width, bigint);
