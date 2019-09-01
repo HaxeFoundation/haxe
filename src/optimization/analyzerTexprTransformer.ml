@@ -151,20 +151,8 @@ let rec func ctx bb tf t p =
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TParenthesis e1}
 		| TCast(e1,mto) ->
-			(* TODO: figure out what's wrong with these targets *)
-			let require_cast = match ctx.com.platform with
-				| Cpp | Flash -> true
-				| Java -> defined ctx.com Define.Jvm
-				| Cs -> defined ctx.com Define.EraseGenerics
-				| _ -> false
-			in
-			let e = Texpr.reduce_unsafe_casts ~require_cast e e.etype in
-			(match e.eexpr with
-			| TCast (e1,mto) ->
-				let bb,e1 = value bb e1 in
-				bb,{e with eexpr = TCast(e1,mto)}
-			| _ -> value bb e
-			)
+			let bb,e1 = value bb e1 in
+			bb,{e with eexpr = TCast(e1,mto)}
 		| TNew(c,tl,el) ->
 			let bb,el = ordered_value_list bb el in
 			bb,{e with eexpr = TNew(c,tl,el)}
