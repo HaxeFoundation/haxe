@@ -12,7 +12,9 @@ type safety_report = {
 }
 
 let add_error report msg pos =
-	report.sr_errors <- { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; } :: report.sr_errors;
+	let error = { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; } in
+	if not (List.mem error report.sr_errors) then
+		report.sr_errors <- error :: report.sr_errors;
 
 type scope_type =
 	| STNormal
@@ -671,6 +673,11 @@ class local_safety (mode:safety_mode) =
 		method get_safe_locals_copy =
 			Hashtbl.copy (self#get_current_scope#get_safe_locals)
 		(**
+			Remove locals, which don't exist in `sample`, from safety.
+		*)
+		method filter_safety sample =
+			self#get_current_scope#filter_safety sample
+		(**
 			Should be called upon local function declaration.
 		*)
 		method function_declared (immediate_execution:bool) (fn:tfunc) =
@@ -774,7 +781,7 @@ class local_safety (mode:safety_mode) =
 			(** The first check to find out which vars will become unsafe in a loop *)
 			first_check();
 			(* If local var became safe in a loop, then we need to remove it from safety to make it unsafe outside of a loop again *)
-			self#get_current_scope#filter_safety original_safe_locals;
+			self#filter_safety original_safe_locals;
 			Option.may (fun action -> action()) intermediate_action;
 			(** The second check with unsafe vars removed from safety *)
 			second_check()
@@ -785,7 +792,7 @@ class local_safety (mode:safety_mode) =
 			let original_safe_locals = self#get_safe_locals_copy in
 			check_expr try_block;
 			(* Remove locals which became safe inside of a try block from safety *)
-			self#get_current_scope#filter_safety original_safe_locals;
+			self#filter_safety original_safe_locals;
 			let safe_after_try = self#get_safe_locals_copy
 			and safe_after_catches = self#get_safe_locals_copy in
 			List.iter
@@ -1134,11 +1141,13 @@ class expr_checker mode immediate_execution report =
 			return_types <- fn.tf_type :: return_types;
 			if immediate_execution || mode = SMLoose then
 				begin
+					let original_safe_locals = local_safety#get_safe_locals_copy in
 					(* Start pretending to ignore errors *)
 					is_pretending <- true;
 					self#check_expr fn.tf_expr;
 					(* Now we know, which vars will become unsafe in this closure. Stop pretending and perform real check *)
 					is_pretending <- false;
+					local_safety#filter_safety original_safe_locals;
 					self#check_expr fn.tf_expr
 				end
 			else
@@ -1280,6 +1289,11 @@ class expr_checker mode immediate_execution report =
 			Check calls: don't call a nullable value, dont' pass nulable values to not-nullable arguments
 		*)
 		method private check_call callee args p =
+			if p.pfile = "src/Main.hx" then begin
+				print_string "";
+				print_string "";
+				print_string "";
+			end;
 			if self#is_nullable_expr callee then
 				self#error "Cannot call a nullable value." [callee.epos; p];
 			(match callee.eexpr with
@@ -1334,6 +1348,14 @@ class class_checker cls immediate_execution report  =
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
+						(* if f.cf_name = "create" && f.cf_pos.pfile = "src/Main.hx" then begin
+							Option.may
+								(fun e ->
+									let s = s_expr_pretty false "\t" true str_type e in
+									print_endline s
+								)
+								f.cf_expr;
+						end; *)
 						Option.may ((self#get_checker mode)#check_root_expr) f.cf_expr;
 						self#check_accessors is_static f
 			in
