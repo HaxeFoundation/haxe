@@ -929,15 +929,15 @@ try
 					init_wait_socket host port
 			in
 			wait_loop process_params com.verbose accept
-		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run)");
+		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run");
 		("Compilation Server",["--wait-connect"],[], Arg.String (fun hp ->
 			let host, port = parse_host_port hp in
 			let accept = Server.init_wait_connect host port in
 			wait_loop process_params com.verbose accept
-		),"[host:]port]","connect to the given port and wait for commands to run)");
+		),"[host:]port]","connect to the given port and wait for commands to run");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			assert false
-		),"<[host:]port>","connect on the given port and run commands there)");
+		),"<[host:]port>","connect on the given port and run commands there");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			assert false
 		),"<dir>","set current working directory");
