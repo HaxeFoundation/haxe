@@ -920,7 +920,7 @@ try
 			force_typing := true;
 			config_macros := e :: !config_macros
 		),"<macro>","call the given macro before typing anything else");
-		("Compilation Server",["--wait"],[], Arg.String (fun hp ->
+		("Compilation Server",["--server-listen"],["--wait"], Arg.String (fun hp ->
 			let accept = match hp with
 				| "stdio" ->
 					Server.init_wait_stdio()
@@ -930,7 +930,7 @@ try
 			in
 			wait_loop process_params com.verbose accept
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run");
-		("Compilation Server",["--wait-connect"],[], Arg.String (fun hp ->
+		("Compilation Server",["--server-connect"],[], Arg.String (fun hp ->
 			let host, port = parse_host_port hp in
 			let accept = Server.init_wait_connect host port in
 			wait_loop process_params com.verbose accept
