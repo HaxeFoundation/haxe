@@ -30,16 +30,15 @@ let htimers = Hashtbl.create 0
 
 let new_timer id =
 	let now = get_time() in
-	let key = String.concat "." id in
 	try
-		let t = Hashtbl.find htimers key in
+		let t = Hashtbl.find htimers id in
 		t.start <- now :: t.start;
 		t.pauses <- 0. :: t.pauses;
 		t.calls <- t.calls + 1;
 		t
 	with Not_found ->
 		let t = { id = id; start = [now]; pauses = [0.]; total = 0.; calls = 1; } in
-		Hashtbl.add htimers key t;
+		Hashtbl.add htimers id t;
 		t
 
 let curtime = ref []
