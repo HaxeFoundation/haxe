@@ -860,3 +860,7 @@ let adapt_defines_to_macro_context defines =
 	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
 	values := PMap.add "macro" "1" !values;
 	{values = !values; defines_signature = None }
+
+let is_legacy_completion com = match com.json_out with
+	| None -> true
+	| Some api -> !ServerConfig.legacy_completion
