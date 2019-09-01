@@ -44,10 +44,10 @@ abstract FlatEnum(Dynamic) {}
 	This type unifies with any instance of classes that have a constructor
 	which
 
-	  * is public and
+	  * is `public` and
 	  * unifies with the type used for type parameter `T`.
 
-	If a type parameter A is assigned to a type parameter B which is constrained
+	If a type parameter `A` is assigned to a type parameter `B` which is constrained
 	to `Constructible<T>`, A must be explicitly constrained to
 	`Constructible<T>` as well.
 
@@ -57,14 +57,14 @@ abstract FlatEnum(Dynamic) {}
 abstract Constructible<T>(Dynamic) {}
 
 interface IMap<K, V> {
-	public function get(k:K):Null<V>;
-	public function set(k:K, v:V):Void;
-	public function exists(k:K):Bool;
-	public function remove(k:K):Bool;
-	public function keys():Iterator<K>;
-	public function iterator():Iterator<V>;
-	public function keyValueIterator():KeyValueIterator<K, V>;
-	public function copy():IMap<K, V>;
-	public function toString():String;
-	public function clear():Void;
+	function get(k:K):Null<V>;
+	function set(k:K, v:V):Void;
+	function exists(k:K):Bool;
+	function remove(k:K):Bool;
+	function keys():Iterator<K>;
+	function iterator():Iterator<V>;
+	function keyValueIterator():KeyValueIterator<K, V>;
+	function copy():IMap<K, V>;
+	function toString():String;
+	function clear():Void;
 }

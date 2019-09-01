@@ -24,28 +24,28 @@ package haxe;
 
 /**
 	Resource can be used to access resources that were added through the
-	-resource file@name command line parameter.
+	`--resource file@name` command line parameter.
 
-	Depending on their type they can be obtained as String through
-	getString(name), or as binary data through getBytes(name).
+	Depending on their type they can be obtained as `String` through
+	`getString(name)`, or as binary data through `getBytes(name)`.
 
-	A list of all available resource names can be obtained from listNames().
+	A list of all available resource names can be obtained from `listNames()`.
 **/
 class Resource {
 	static var content:Array<{name:String, data:String, str:String}>;
 
 	/**
 		Lists all available resource names. The resource name is the name part
-		of the -resource file@name command line parameter.
+		of the `--resource file@name` command line parameter.
 	**/
 	public static function listNames():Array<String> {
 		return [for (x in content) x.name];
 	}
 
 	/**
-		Retrieves the resource identified by `name` as a String.
+		Retrieves the resource identified by `name` as a `String`.
 
-		If `name` does not match any resource name, null is returned.
+		If `name` does not match any resource name, `null` is returned.
 	**/
 	public static function getString(name:String):String {
 		for (x in content)
@@ -66,7 +66,7 @@ class Resource {
 		Retrieves the resource identified by `name` as an instance of
 		haxe.io.Bytes.
 
-		If `name` does not match any resource name, null is returned.
+		If `name` does not match any resource name, `null` is returned.
 	**/
 	public static function getBytes(name:String):haxe.io.Bytes {
 		for (x in content)

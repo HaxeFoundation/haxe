@@ -28,7 +28,7 @@ package haxe;
 	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
 	  `enum` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumTools {
@@ -37,7 +37,9 @@ extern class EnumTools {
 
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
+		
 			pack1.pack2.(...).packN.EnumName
+
 		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
@@ -116,7 +118,7 @@ extern class EnumTools {
 	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
 	  `EnumValue` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumValueTools {

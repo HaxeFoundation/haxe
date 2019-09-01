@@ -72,9 +72,9 @@ abstract Ucs2(String) {
 	/**
 		Returns the character code at position `index` of `this` Ucs2.
 
-		If `index` is negative or exceeds `this.length`, null is returned.
+		If `index` is negative or exceeds `this.length`, `null` is returned.
 
-		To obtain the character code of a single character, "x".code can be used
+		To obtain the character code of a single character, `"x".code` can be used
 		instead to extern public inline the character code at compile time. Note that this
 		only works on Ucs2 literals of length 1.
 	**/

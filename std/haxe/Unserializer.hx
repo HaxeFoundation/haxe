@@ -116,7 +116,7 @@ class Unserializer {
 	/**
 		Sets the type resolver of `this` Unserializer instance to `r`.
 
-		If `r` is null, a special resolver is used which returns null for all
+		If `r` is `null`, a special resolver is used which returns `null` for all
 		input values.
 
 		See `DEFAULT_RESOLVER` for more information on type resolvers.
@@ -455,7 +455,7 @@ class Unserializer {
 		Unserializes `v` and returns the according value.
 
 		This is a convenience function for creating a new instance of
-		Unserializer with `v` as buffer and calling its unserialize() method
+		Unserializer with `v` as buffer and calling its `unserialize()` method
 		once.
 	**/
 	public static function run(v:String):Dynamic {
