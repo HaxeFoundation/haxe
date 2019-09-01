@@ -30,6 +30,10 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 	`BigInt` is a built-in object that provides a way to represent whole numbers larger than `2^53 - 1`,
 	which is the largest number JavaScript can reliably represent with the `Number` primitive.
 	`BigInt` can be used for arbitrarily large integers.
+
+	Documentation [BigInt](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt>
 **/
 abstract BigInt(_BigInt) from _BigInt to _BigInt {
 	public inline function new(value:EitherType<String, Int>) {
