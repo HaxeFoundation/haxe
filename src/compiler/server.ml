@@ -636,28 +636,40 @@ let wait_loop process_params verbose accept =
 		end else Gc.minor();
 	done
 
-(* The accept-function to wait for a stdio connection. *)
-let init_wait_stdio() =
-	set_binary_mode_in stdin true;
-	set_binary_mode_out stderr true;
+let mk_length_prefixed_communication chin chout =
+	let chin = IO.input_channel chin in
+	let chout = IO.output_channel chout in
 
-	let chin = IO.input_channel stdin in
-	let cherr = IO.output_channel stderr in
+	let bout = Buffer.create 0 in
 
-	let berr = Buffer.create 0 in
 	let read = fun () ->
 		let len = IO.read_i32 chin in
 		IO.really_nread_string chin len
 	in
-	let write = Buffer.add_string berr in
+
+	let write = Buffer.add_string bout in
+
 	let close = fun() ->
-		IO.write_i32 cherr (Buffer.length berr);
-		IO.nwrite_string cherr (Buffer.contents berr);
-		IO.flush cherr
+		IO.write_i32 chout (Buffer.length bout);
+		IO.nwrite_string chout (Buffer.contents bout);
+		IO.flush chout
 	in
-	fun() ->
-		Buffer.clear berr;
+
+	fun () ->
+		Buffer.clear bout;
 		read, write, close
+
+(* The accept-function to wait for a stdio connection. *)
+let init_wait_stdio() =
+	set_binary_mode_in stdin true;
+	set_binary_mode_out stderr true;
+	mk_length_prefixed_communication stdin stderr
+
+(* Connect to given host/port and return accept function for communication *)
+let init_wait_connect host port =
+	let host = Unix.inet_addr_of_string host in
+	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
+	mk_length_prefixed_communication chin chout
 
 (* The accept-function to wait for a socket connection. *)
 let init_wait_socket host port =
