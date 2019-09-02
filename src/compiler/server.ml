@@ -572,6 +572,36 @@ let gc_heap_stats () =
 let fmt_percent f =
 	int_of_float (f *. 100.)
 
+module Tasks = struct
+	class gc_task (max_working_memory : float) (heap_size : float) = object(self)
+		inherit server_task ["gc"] 100
+
+		method private execute =
+			let t0 = get_time() in
+			let stats = Gc.stat() in
+			let live_words = float_of_int stats.live_words in
+			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
+			let needed_max = live_words +. max_working_memory in
+			(* Additional heap percentage needed = what's live / max of what was live. *)
+			let percent_needed = (1. -. live_words /. needed_max) in
+			(* Effective cache size percentage = what's live / heap size. *)
+			let percent_used = live_words /. heap_size in
+			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
+			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
+			let old_gc = Gc.get() in
+			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
+			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
+			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
+			begin if do_compact then
+				Gc.compact()
+			else
+				Gc.full_major();
+			end;
+			Gc.set old_gc;
+			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+	end
+end
+
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop process_params verbose accept =
@@ -593,30 +623,9 @@ let wait_loop process_params verbose accept =
 		Ring.push ring words_allocated;
 		if Ring.is_filled ring then begin
 			Ring.reset_filled ring;
-			let t0 = get_time() in
-			let stats = Gc.stat() in
-			let live_words = float_of_int stats.live_words in
 			 (* Maximum working memory for the last X compilations. *)
 			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
-			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
-			let needed_max = live_words +. max in
-			(* Additional heap percentage needed = what's live / max of what was live. *)
-			let percent_needed = (1. -. live_words /. needed_max) in
-			(* Effective cache size percentage = what's live / heap size. *)
-			let percent_used = live_words /. heap_size in
-			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
-			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
-			let old_gc = Gc.get() in
-			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
-			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
-			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
-			begin if do_compact then
-				Gc.compact()
-			else
-				Gc.full_major();
-			end;
-			Gc.set old_gc;
-			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+			cs#add_task (new Tasks.gc_task max heap_size)
 		end;
 		heap_stats_start := heap_stats_now;
 	in
