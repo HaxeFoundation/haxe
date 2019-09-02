@@ -287,6 +287,15 @@ let rec is_dead_end e =
 		| _ -> false
 
 (**
+	Check if `expr` is a `trace` (not a call, but identifier itself)
+*)
+let is_trace expr =
+	match expr.eexpr with
+	| TIdent "`trace" -> true
+	| TField (_, FStatic ({ cl_path = (["haxe"], "Log") }, { cf_name = "trace" })) -> true
+	| _ -> false
+
+(**
 	If `t` represents `Null<SomeType>` this function returns `SomeType`.
 *)
 let rec unfold_null t =
@@ -1313,7 +1322,24 @@ class expr_checker mode immediate_execution report =
 			);
 			match follow callee.etype with
 				| TFun (types, _) ->
-					self#check_args callee args types
+					if is_trace callee then
+						let real_args =
+							match List.rev args with
+								| { eexpr = TObjectDecl fields } :: [first_arg] ->
+									(try
+										let arr =
+											snd (List.find (fun ((name, _, _), _) -> name = "customParams") fields)
+										in
+										match arr.eexpr with
+											| TArrayDecl rest_args -> first_arg :: rest_args
+											| _ -> args
+									with Not_found -> args
+									)
+								| _ -> args
+						in
+						List.iter self#check_expr real_args
+					else
+						self#check_args callee args types
 				| _ ->
 					List.iter self#check_expr args
 		(**

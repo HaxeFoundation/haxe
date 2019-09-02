@@ -889,6 +889,13 @@ class TestStrict {
 
 		var x:Int = method();
 	}
+
+	static function issue7900_trace() {
+		var x:Null<()->String> = null;
+		trace(x);
+		trace("hi", x);
+		trace("hi", shouldFail(x()));
+	}
 }
 
 private class FinalNullableFields {
