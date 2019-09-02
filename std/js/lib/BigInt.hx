@@ -90,19 +90,19 @@ abstract BigInt {
 	@:op(-A) static function neg(a:BigInt):BigInt;
 
 	@:op(++A) static inline function incPre(a:BigInt):BigInt {
-		return untyped __js__("(++{0})", a);
+		return untyped __js__("++{0}", a);
 	}
 
 	@:op(A++) static inline function incPost(a:BigInt):BigInt {
-		return untyped __js__("({0}++)", a);
+		return untyped __js__("{0}++", a);
 	}
 
 	@:op(--A) static inline function decPre(a:BigInt):BigInt {
-		return untyped __js__("(--{0})", a);
+		return untyped __js__("--{0}", a);
 	}
 
 	@:op(A--) static inline function decPost(a:BigInt):BigInt {
-		return untyped __js__("({0}--)", a);
+		return untyped __js__("{0}--", a);
 	}
 
 	@:op(A + B) static function add(a:BigInt, b:BigInt):BigInt;
