@@ -671,10 +671,8 @@ let wait_loop process_params verbose accept =
 	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
-		let read, write, close = accept() in
-		begin try
-			(* Read arguments *)
-			let s = read() in
+		let support_nonblock, read, write, close = accept() in
+		let process s =
 			let t0 = get_time() in
 			let hxml =
 				try
@@ -702,6 +700,18 @@ let wait_loop process_params verbose accept =
 			end;
 			run_delays sctx;
 			ServerMessage.stats stats (get_time() -. t0)
+		in
+		begin try
+			(* Read arguments *)
+			let rec loop block =
+				match read block with
+				| Some data ->
+					process data
+				| None ->
+					(* TODO: This is where we can do something because there's no pending request. *)
+					loop true
+			in
+			loop (not support_nonblock)
 		with Unix.Unix_error _ ->
 			ServerMessage.socket_message "Connection Aborted"
 		| e ->
@@ -721,16 +731,48 @@ let wait_loop process_params verbose accept =
 		update_heap();
 	done
 
-let mk_length_prefixed_communication chin chout =
+let mk_length_prefixed_communication allow_nonblock chin chout =
+	let sin = Unix.descr_of_in_channel chin in
 	let chin = IO.input_channel chin in
 	let chout = IO.output_channel chout in
 
 	let bout = Buffer.create 0 in
 
-	let read = fun () ->
-		let len = IO.read_i32 chin in
-		IO.really_nread_string chin len
+	let block () = Unix.clear_nonblock sin in
+	let unblock () = Unix.set_nonblock sin in
+
+	let read_nonblock _ =
+        let len = IO.read_i32 chin in
+        Some (IO.really_nread_string chin len)
 	in
+	let read = if allow_nonblock then fun do_block ->
+		if do_block then begin
+			block();
+			read_nonblock true;
+		end else begin
+			let c0 =
+				unblock();
+				try
+					Some (IO.read_byte chin)
+				with
+				| Sys_blocked_io
+				(* TODO: We're supposed to catch Sys_blocked_io only, but that doesn't work on my PC... *)
+				| Sys_error _ ->
+					None
+			in
+			begin match c0 with
+			| Some c0 ->
+				block(); (* We got something, make sure we block until we're done. *)
+				let c1 = IO.read_byte chin in
+				let c2 = IO.read_byte chin in
+				let c3 = IO.read_byte chin in
+				let len = c3 lsl 24 + c2 lsl 16 + c1 lsl 8 + c0 in
+				Some (IO.really_nread_string chin len)
+			| None ->
+				None
+			end
+		end
+	else read_nonblock in
 
 	let write = Buffer.add_string bout in
 
@@ -742,19 +784,19 @@ let mk_length_prefixed_communication chin chout =
 
 	fun () ->
 		Buffer.clear bout;
-		read, write, close
+		allow_nonblock, read, write, close
 
 (* The accept-function to wait for a stdio connection. *)
 let init_wait_stdio() =
 	set_binary_mode_in stdin true;
 	set_binary_mode_out stderr true;
-	mk_length_prefixed_communication stdin stderr
+	mk_length_prefixed_communication false stdin stderr
 
 (* Connect to given host/port and return accept function for communication *)
 let init_wait_connect host port =
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
-	mk_length_prefixed_communication chin chout
+	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
 let init_wait_socket host port =
@@ -792,10 +834,10 @@ let init_wait_socket host port =
 					read_loop (count + 1);
 				end
 		in
-		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
+		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
 		let write s = ssend sin (Bytes.unsafe_of_string s) in
 		let close() = Unix.close sin in
-		read, write, close
+		false, read, write, close
 	) in
 	accept
 
