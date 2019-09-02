@@ -86,10 +86,11 @@ let rec is_nullable_type = function
 (**
 	If `expr` is a TCast or TMeta, returns underlying expression (recursively bypassing nested casts).
 	Otherwise returns `expr` as is.
+	If `stay_safe` is true, then casts to non-nullable types won't be revealed and an expression will stay intact.
 *)
-let rec reveal_expr expr =
+let rec reveal_expr ?(stay_safe=true) expr =
 	match expr.eexpr with
-		| TCast (e, _) -> reveal_expr e
+		| TCast (e, _) when not stay_safe || is_nullable_type expr.etype -> reveal_expr e
 		| TMeta (_, e) -> reveal_expr e
 		| _ -> expr
 
@@ -97,7 +98,7 @@ let rec reveal_expr expr =
 	Try to get a human-readable representation of an `expr`
 *)
 let symbol_name expr =
-	match (reveal_expr expr).eexpr with
+	match (reveal_expr ~stay_safe:false expr).eexpr with
 		| TField (_, access) -> field_name access
 		| TIdent name -> name
 		| TLocal { v_name = name } -> name
@@ -136,7 +137,7 @@ type safety_subject =
 	| SNotSuitable
 
 let rec get_subject loose_safety expr =
-	match expr.eexpr with
+	match (reveal_expr expr).eexpr with
 		| TLocal v ->
 			SLocalVar v.v_id
 		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when loose_safety || (has_class_field_flag field CfFinal) ->
@@ -155,7 +156,7 @@ let rec get_subject loose_safety expr =
 		|_ -> SNotSuitable
 
 let rec is_suitable loose_safety expr =
-	match expr.eexpr with
+	match (reveal_expr expr).eexpr with
 		| TField ({ eexpr = TConst TThis }, FInstance _)
 		| TField ({ eexpr = TLocal _ }, (FInstance _ | FAnon _))
 		| TField ({ eexpr = TTypeExpr _ }, FStatic _)
@@ -335,6 +336,7 @@ let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) 
 	let nulls = ref []
 	and not_nulls = ref [] in
 	let add to_nulls expr =
+		let expr = reveal_expr expr in
 		if to_nulls then nulls := expr :: !nulls
 		else not_nulls := expr :: !not_nulls
 	in
@@ -821,15 +823,19 @@ class local_safety (mode:safety_mode) =
 			match expr.eexpr with
 				| TIf (condition, if_body, else_body) ->
 					condition_callback condition;
-					let (nulls, not_nulls) =
+					let (_, not_nulls) =
 						process_condition (mode <> SMStrict) condition is_nullable_expr (fun _ -> ())
 					in
+					(* Don't touch expressions, which already was safe before this `if` *)
+					let filter = List.filter (fun e -> not (self#is_safe e)) in
+					let not_nulls = filter not_nulls in
 					let not_condition =
 						{ eexpr = TUnop (Not, Prefix, condition); etype = condition.etype; epos = condition.epos }
 					in
-					let (else_nulls, else_not_nulls) =
+					let (_, else_not_nulls) =
 						process_condition (mode <> SMStrict) not_condition is_nullable_expr (fun _ -> ())
 					in
+					let else_not_nulls = filter else_not_nulls in
 					(** execute `if_body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback if_body;
@@ -932,6 +938,7 @@ class expr_checker mode immediate_execution report =
 			Haxe type system lies sometimes.
 		*)
 		method private is_nullable_expr e =
+			let e = reveal_expr e in
 			match e.eexpr with
 				| TConst TNull -> true
 				| TConst _ -> false
