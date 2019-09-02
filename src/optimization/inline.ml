@@ -357,6 +357,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			else begin
 				let vik = match e.eexpr with
 					| TLocal _ when i.i_abstract_this -> VIInline
+					| TConst TNull -> VIDoNotInline
 					| TLocal _ | TConst _ ->
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
