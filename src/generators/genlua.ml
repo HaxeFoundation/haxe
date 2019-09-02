@@ -406,6 +406,7 @@ and gen_call ctx e el =
          gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
+     | TField (_, FStatic ({ cl_path = (["_G"],"table")}, { cf_name = "create" })), el
      | TIdent "__lua_table__", el ->
          let count = ref 0 in
          spr ctx "({";

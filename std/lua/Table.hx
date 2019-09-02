@@ -29,10 +29,7 @@ package lua;
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
-	@:analyzer(no_fusion)
-	public inline static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B> {
-		return untyped __lua_table__(arr, hsh);
-	}
+	@:pure public static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
 	public inline static function fromArray<T>(arr:Array<T>):Table<Int, T> {
 		var ret = Table.create();
