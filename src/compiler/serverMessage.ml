@@ -124,11 +124,16 @@ let stats stats time =
 let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
-let gc_stats time =
+let gc_stats time stats_before did_compact space_overhead =
 	if config.print_stats then begin
-		let stat = Gc.quick_stat() in
-		let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
-		print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" time (size /. (1024. *. 1024.)));
+		let stats = Gc.quick_stat() in
+		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
+			(if did_compact then "compaction" else "collection")
+			time
+			space_overhead
+			(Memory.fmt_word (float_of_int stats_before.Gc.heap_words))
+			(Memory.fmt_word (float_of_int stats.heap_words))
+		)
 	end
 
 let socket_message s =

@@ -565,6 +565,62 @@ let cleanup () =
 	| None -> ()
 	end
 
+module Ring = struct
+	type 'a t = {
+		values : 'a array;
+		mutable index : int;
+		mutable num_filled : int;
+	}
+
+	let create len x = {
+		values = Array.make len x;
+		index = 0;
+		num_filled = 0;
+	}
+
+	let push r x =
+		r.values.(r.index) <- x;
+		r.num_filled <- r.num_filled + 1;
+		if r.index = Array.length r.values - 1 then begin
+			r.index <- 0;
+		end else
+			r.index <- r.index + 1
+
+	let iter r f =
+		let len = Array.length r.values in
+		for i = 0 to len - 1 do
+			let off = r.index + i in
+			let off = if off >= len then off - len else off in
+			f r.values.(off)
+		done
+
+	let fold r acc f =
+		let len = Array.length r.values in
+		let rec loop i acc =
+			if i = len then
+				acc
+			else begin
+				let off = r.index + i in
+				let off = if off >= len then off - len else off in
+				loop (i + 1) (f acc r.values.(off))
+			end
+		in
+		loop 0 acc
+
+	let is_filled r =
+		r.num_filled >= Array.length r.values
+
+	let reset_filled r =
+		r.num_filled <- 0
+end
+
+let gc_heap_stats () =
+	let stats = Gc.quick_stat() in
+	stats.major_words,stats.heap_words
+
+let fmt_percent f =
+	int_of_float (f *. 100.)
+
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop process_params verbose accept =
@@ -576,7 +632,43 @@ let wait_loop process_params verbose accept =
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
 	TypeloadParse.parse_hook := parse_file cs;
-	let run_count = ref 0 in
+	let ring = Ring.create 10 0. in
+	let heap_stats_start = ref (gc_heap_stats()) in
+	let update_heap () =
+		(* On every compilation: Track how many words were allocated for this compilation (working memory). *)
+		let heap_stats_now = gc_heap_stats() in
+		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
+		let heap_size = float_of_int (snd heap_stats_now) in
+		Ring.push ring words_allocated;
+		if Ring.is_filled ring then begin
+			Ring.reset_filled ring;
+			let t0 = get_time() in
+			let stats = Gc.stat() in
+			let live_words = float_of_int stats.live_words in
+			 (* Maximum working memory for the last X compilations. *)
+			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
+			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
+			let needed_max = live_words +. max in
+			(* Additional heap percentage needed = what's live / max of what was live. *)
+			let percent_needed = (1. -. live_words /. needed_max) in
+			(* Effective cache size percentage = what's live / heap size. *)
+			let percent_used = live_words /. heap_size in
+			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
+			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
+			let old_gc = Gc.get() in
+			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
+			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
+			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
+			begin if do_compact then
+				Gc.compact()
+			else
+				Gc.full_major();
+			end;
+			Gc.set old_gc;
+			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+		end;
+		heap_stats_start := heap_stats_now;
+	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
 		let read, write, close = accept() in
@@ -626,14 +718,7 @@ let wait_loop process_params verbose accept =
 		close();
 		current_stdin := None;
 		cleanup();
-		(* prevent too much fragmentation by doing some compactions every X run *)
-		if sctx.was_compilation then incr run_count;
-		if !run_count mod 10 = 0 then begin
-			run_count := 1;
-			let t0 = get_time() in
-			Gc.compact();
-			ServerMessage.gc_stats (get_time() -. t0);
-		end else Gc.minor();
+		update_heap();
 	done
 
 let mk_length_prefixed_communication chin chout =
