@@ -269,7 +269,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 		let require_cast = match ctx.com.platform with
 			| Cpp | Flash -> true
 			| Java -> defined ctx.com Define.Jvm
-			| Cs -> defined ctx.com Define.EraseGenerics
+			| Cs -> defined ctx.com Define.EraseGenerics || defined ctx.com Define.FastCast
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
