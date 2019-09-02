@@ -127,6 +127,10 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 				cur_block := lst;
 				{ e with eexpr = TBlock(List.rev ret) }
 			| TCast(v, _) ->
+				let v = match v.eexpr with
+					| TLocal l -> { v with etype = l.v_type }
+					| _ -> v
+				in
 				let null_et = is_null_t e.etype in
 				let null_vt = is_null_t v.etype in
 				(match null_vt, null_et with

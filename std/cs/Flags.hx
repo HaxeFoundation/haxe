@@ -38,7 +38,7 @@ abstract Flags<T:EnumValue>(T) from T to T {
 		the default enum value for an empty flags attribute is specified
 	**/
 	extern inline public function new(?initial:T)
-		this = initial;
+		this = initial == null ? cast null : initial;
 
 	/**
 		Accessible through the bitwise OR operator (`|`). Returns a new `Flags` type with the flags
