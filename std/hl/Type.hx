@@ -64,6 +64,10 @@ enum abstract TypeKind(Int) {
 		return untyped $ttype(v);
 	}
 
+	extern public static inline function void():Type {
+		return untyped $ttype((null:Void));
+	}
+
 	extern public inline function getTypeName():String {
 		var s = getNameBytes();
 		if (s == null)

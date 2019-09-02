@@ -94,7 +94,7 @@ class Type {
 	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>@:privateAccess {
 		var c:hl.BaseType.Class = cast c;
 		var t = c.__type__.getSuper();
-		return t == hl.Type.get((null : Void)) ? null : t.getGlobal();
+		return t == hl.Type.void() ? null : t.getGlobal();
 	}
 
 	public static function getClassName(c:Class<Dynamic>):String {
