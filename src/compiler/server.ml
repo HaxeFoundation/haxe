@@ -708,8 +708,14 @@ let wait_loop process_params verbose accept =
 				| Some data ->
 					process data
 				| None ->
-					(* TODO: This is where we can do something because there's no pending request. *)
-					loop true
+					if not cs#has_task then
+						(* If there is no pending task, turn into blocking mode. *)
+						loop true
+					else begin
+						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
+						cs#get_task#run;
+						loop false
+					end;
 			in
 			loop (not support_nonblock)
 		with Unix.Unix_error _ ->
@@ -729,6 +735,9 @@ let wait_loop process_params verbose accept =
 		current_stdin := None;
 		cleanup();
 		update_heap();
+		(* If our connection always blocks, we have to execute all pending tasks now. *)
+		if not support_nonblock then
+			while cs#has_task do cs#get_task#run done
 	done
 
 let mk_length_prefixed_communication allow_nonblock chin chout =

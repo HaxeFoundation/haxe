@@ -77,12 +77,83 @@ let create_directory path mtime = {
 	c_mtime = mtime;
 }
 
+class virtual server_task (id : string list) (priority : int) = object(self)
+	method private virtual execute : unit
+
+	method run : unit =
+		let t = Timer.timer ("server" :: "task" :: id) in
+		Std.finally t (fun () -> self#execute) ()
+
+	method get_priority = priority
+	method get_id = id
+end
+
+(* Taken from the OCaml manual... *)
+module PriorityQueue = struct
+	type priority = int
+
+	type 'a t =
+	| Empty
+	| Node of priority * 'a * 'a t * 'a t
+
+	let empty = Empty
+
+	let rec insert queue prio elt = match queue with
+		| Empty -> Node(prio, elt, Empty, Empty)
+		| Node(p, e, left, right) ->
+			if prio <= p then
+				Node(prio, elt, insert right p e, left)
+			else
+				Node(p, e, insert right prio elt, left)
+
+	exception Queue_is_empty
+
+	let rec remove_top = function
+		| Empty -> raise Queue_is_empty
+		| Node(prio, elt, left, Empty) -> left
+		| Node(prio, elt, Empty, right) -> right
+		| Node(prio, elt, (Node(lprio, lelt, _, _) as left), (Node(rprio, relt, _, _) as right)) ->
+			if lprio <= rprio then
+				Node(lprio, lelt, remove_top left, right)
+			else
+				Node(rprio, relt, left, remove_top right)
+
+	let extract = function
+		| Empty -> raise Queue_is_empty
+		| Node(prio, elt, _, _) as queue -> (prio, elt, remove_top queue)
+
+	let is_empty = function
+		| Empty -> true
+		| Node _ -> false
+
+	let fold queue f acc =
+		let rec loop queue acc = match queue with
+			| Empty -> acc
+			| Node(prio, elt, left, Empty) -> loop left (f acc prio elt)
+			| Node(prio, elt, Empty, right) -> loop right (f acc prio elt)
+			| Node(prio, elt, (Node(lprio,_,_,_) as left), (Node(rprio,relt,_,_) as right)) ->
+				let acc = f acc prio elt in
+				if lprio <= rprio then begin
+					let acc = loop left acc in
+					loop right acc
+				end else begin
+					let acc = loop right acc in
+					loop left acc
+				end
+		in
+		loop queue acc
+
+	let merge queue1 queue2 =
+		fold queue1 insert queue2
+end
+
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
+	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
 
 	(* contexts *)
 
@@ -203,6 +274,36 @@ class cache = object(self)
 	method get_native_lib key =
 		try Some (Hashtbl.find native_libs key)
 		with Not_found -> None
+
+	(* tasks *)
+
+	method add_task (task : server_task) : unit =
+		tasks <- PriorityQueue.insert tasks task#get_priority task
+
+	method has_task =
+		not (PriorityQueue.is_empty tasks)
+
+	method get_task =
+		let (_,task,queue) = PriorityQueue.extract tasks in
+		tasks <- queue;
+		task
+
+	method run_tasks recursive f =
+		let rec loop acc =
+			let current = tasks in
+			tasks <- Empty;
+			let f (ran_task,acc) prio task =
+				if f task then begin
+					task#run;
+					(true,acc)
+				end else
+					ran_task,PriorityQueue.insert acc prio task
+			in
+			let ran_task,folded = PriorityQueue.fold current f (false,acc) in
+			if recursive && ran_task then loop folded
+			else folded
+		in
+		tasks <- PriorityQueue.merge tasks (loop PriorityQueue.Empty);
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =
