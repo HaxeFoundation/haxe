@@ -807,6 +807,18 @@ let rec follow t =
 		follow t
 	| _ -> t
 
+let rec follow_without_null t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> follow t
+		| _ -> t)
+	| TLazy f ->
+		follow (lazy_type f)
+	| TType (t,tl) ->
+		follow (apply_params t.t_params tl t.t_type)
+	| _ -> t
+
 (** Assumes `follow` has already been applied *)
 let rec ambiguate_funs t =
 	match t with

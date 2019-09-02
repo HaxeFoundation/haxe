@@ -953,7 +953,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			* Otherwise, both operands are converted to type int.
 			*  *)
 		let t1, t2 = follow (run_follow gen e1.etype), follow (run_follow gen e2.etype) in
-		match t1, t2 with
+		let result = match t1, t2 with
 			| TAbstract(a1,[]), TAbstract(a2,[]) when a1 == a2 ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 			| TInst(i1,[]), TInst(i2,[]) when i1 == i2 ->
@@ -1000,6 +1000,16 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = basic.tint }
 			| _ ->
 				{ main_expr with eexpr = TBinop(op, e1, e2) }
+	in
+		(* maintain nullability *)
+		match follow_without_null main_expr.etype, follow_without_null result.etype with
+		| TAbstract ({ a_path = ([],"Null") },_), TAbstract ({ a_path = ([],"Null") },_) ->
+			result
+		| TAbstract ({ a_path = ([],"Null") } as null,_), _ ->
+			{ result with etype = TAbstract(null, [result.etype]) }
+		| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
+			{ result with etype = t }
+		| _ -> result
 	in
 	let binop_type = if Common.defined gen.gcon Define.FastCast then
 		binop_type
