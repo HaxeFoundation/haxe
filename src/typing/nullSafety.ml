@@ -1289,11 +1289,6 @@ class expr_checker mode immediate_execution report =
 			Check calls: don't call a nullable value, dont' pass nulable values to not-nullable arguments
 		*)
 		method private check_call callee args p =
-			if p.pfile = "src/Main.hx" then begin
-				print_string "";
-				print_string "";
-				print_string "";
-			end;
 			if self#is_nullable_expr callee then
 				self#error "Cannot call a nullable value." [callee.epos; p];
 			(match callee.eexpr with
@@ -1338,24 +1333,12 @@ class class_checker cls immediate_execution report  =
 			Entry point for checking a class
 		*)
 		method check =
-			(* if snd cls.cl_path = "AllVarsInitializedInConstructor_thisShouldBeUsable" then
-				Option.may (fun f -> Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr) cls.cl_constructor; *)
 			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field is_static f =
-				(* if f.cf_name = "wtf_foo" then
-					Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
-						(* if f.cf_name = "create" && f.cf_pos.pfile = "src/Main.hx" then begin
-							Option.may
-								(fun e ->
-									let s = s_expr_pretty false "\t" true str_type e in
-									print_endline s
-								)
-								f.cf_expr;
-						end; *)
 						Option.may ((self#get_checker mode)#check_root_expr) f.cf_expr;
 						self#check_accessors is_static f
 			in
