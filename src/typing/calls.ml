@@ -550,8 +550,15 @@ let rec acc_get ctx g p =
 		| Var _,None ->
 			error "Recursive inline is not supported" p
 		end
-	| AKMacro _ ->
-		assert false
+	| AKMacro(e,cf) ->
+		(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
+		if ctx.in_display then begin match e.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				mk (TField(e,FStatic(c,cf))) cf.cf_type e.epos
+			| _ ->
+				error "Invalid macro access" p
+		end else
+			error "Invalid macro access" p
 
 let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let check_assign () = if mode = MSet then invalid_assign p in
