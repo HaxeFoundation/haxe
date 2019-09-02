@@ -35,9 +35,10 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt>
 **/
-abstract BigInt(_BigInt) from _BigInt to _BigInt {
+@:coreType
+abstract BigInt {
 	public inline function new(value:EitherType<String, Int>) {
-		this = new _BigInt(value);
+		this = Syntax.code("BigInt({0})", value);
 	}
 
 	/**
@@ -47,15 +48,15 @@ abstract BigInt(_BigInt) from _BigInt to _BigInt {
 	public inline function toLocaleString(?locales:EitherType<String, Array<String>>, ?options:NumberFormatOptions):String {
 		return if (locales == null) {
 			if (options == null) {
-				this.toLocaleString();
+				Syntax.code("({0}).toLocaleString()", this);
 			} else {
-				this.toLocaleString(js.Lib.undefined, options);
+				Syntax.code("({0}).toLocaleString({1}, {2})", this, js.Lib.undefined, options);
 			}
 		} else {
 			if (options == null) {
-				this.toLocaleString(locales);
+				Syntax.code("({0}).toLocaleString({1})", this, locales);
 			} else {
-				this.toLocaleString(locales, options);
+				Syntax.code("({0}).toLocaleString({1}, {2})", this, locales, options);
 			}
 		}
 	}
@@ -66,158 +67,83 @@ abstract BigInt(_BigInt) from _BigInt to _BigInt {
 	**/
 	public inline function toString(?radix:Int):String {
 		return if (radix == null) {
-			this.toString();
+			return Syntax.code("({0}).toString()", this);
 		} else {
-			this.toString(radix);
+			return Syntax.code("({0}).toString({1})", this, radix);
 		}
-	}
-
-	/**
-		Returns the primitive value of the specified object.
-		Overrides the `Object.prototype.valueOf()` method.
-	**/
-	public inline function valueOf():BigInt {
-		return this.valueOf();
 	}
 
 	/**
 		Wraps a BigInt value to a signed integer between `-2^(width-1)` and `2^(width-1)-1`.
 	**/
 	public static inline function asIntN(width:Int, bigint:BigInt):BigInt {
-		return _BigInt.asIntN(width, bigint);
+		return Syntax.code("BigInt.asIntN({0}, {1})", width, bigint);
 	}
 
 	/**
 		Wraps a BigInt value to an unsigned integer between `0` and `2^width-1`.
 	**/
 	public static inline function asUintN(width:Int, bigint:BigInt):BigInt {
-		return _BigInt.asUintN(width, bigint);
+		return Syntax.code("BigInt.asUintN({0}, {1})", width, bigint);
 	}
 
-	@:op(-A) static inline function neg(a:BigInt):BigInt {
-		return (Syntax.code("(-{0})", a));
-	}
+	@:op(-A) static function neg(a:BigInt):BigInt;
 
 	@:op(++A) static inline function incPre(a:BigInt):BigInt {
-		return Syntax.code("(++{0})", a);
+		return untyped __js__("(++{0})", a);
 	}
 
 	@:op(A++) static inline function incPost(a:BigInt):BigInt {
-		return Syntax.code("({0}++)", a);
+		return untyped __js__("({0}++)", a);
 	}
 
 	@:op(--A) static inline function decPre(a:BigInt):BigInt {
-		return Syntax.code("(--{0})", a);
+		return untyped __js__("(--{0})", a);
 	}
 
 	@:op(A--) static inline function decPost(a:BigInt):BigInt {
-		return Syntax.code("({0}--)", a);
+		return untyped __js__("({0}--)", a);
 	}
 
-	@:op(A + B) static inline function add(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} + {1})", a, b);
-	}
+	@:op(A + B) static function add(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A - B) static inline function sub(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} - {1})", a, b);
-	}
+	@:op(A - B) static function sub(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A * B) static inline function mul(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} * {1})", a, b);
-	}
+	@:op(A * B) static function mul(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A / B) static inline function div(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} / {1})", a, b);
-	}
+	@:op(A / B) static function div(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A % B) static inline function mod(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} % {1})", a, b);
-	}
+	@:op(A % B) static function mod(a:BigInt, b:BigInt):BigInt;
 
-	@:op(~A) static inline function not(a:BigInt):BigInt {
-		return Syntax.code("~{0}", a);
-	}
+	@:op(~A) static function not(a:BigInt):BigInt;
 
-	@:op(A & B) static inline function and(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} & {1})", a, b);
-	}
+	@:op(A & B) static function and(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A | B) static inline function or(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} | {1})", a, b);
-	}
+	@:op(A | B) static function or(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A ^ B) static inline function xor(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} ^ {1})", a, b);
-	}
+	@:op(A ^ B) static function xor(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A << B) static inline function lshift(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} << {1})", a, b);
-	}
+	@:op(A << B) static function lshift(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A >> B) static inline function rshift(a:BigInt, b:BigInt):BigInt {
-		return Syntax.code("({0} >> {1})", a, b);
-	}
+	@:op(A >> B) static function rshift(a:BigInt, b:BigInt):BigInt;
 
-	@:op(A == B) @:commutative static inline function eq(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} == {1})", a, b);
-	}
+	@:op(A == B) @:commutative static function eq<T:Float>(a:BigInt, b:EitherType<BigInt, T>):Bool;
 
-	@:op(A != B) @:commutative static inline function neq(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} != {1})", a, b);
-	}
+	@:op(A != B) @:commutative static function neq<T:Float>(a:BigInt, b:EitherType<BigInt, T>):Bool;
 
-	@:op(A < B) static inline function ltPre(a:EitherType<Int, BigInt>, b:BigInt):Bool {
-		return Syntax.code("({0} < {1})", a, b);
-	}
+	@:op(A < B) static function lt<T:Float>(a:EitherType<BigInt, T>, b:BigInt):Bool;
 
-	@:op(A < B) static inline function ltPost(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} < {1})", a, b);
-	}
+	@:op(A < B) static function lt2<T:Float>(a:BigInt, b:EitherType<BigInt, T>):Bool;
 
-	@:op(A <= B) static inline function lePre(a:EitherType<Int, BigInt>, b:BigInt):Bool {
-		return Syntax.code("({0} <= {1})", a, b);
-	}
+	@:op(A <= B) static function le<T:Float>(a:EitherType<BigInt, T>, b:BigInt):Bool;
 
-	@:op(A <= B) static inline function lePost(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} <= {1})", a, b);
-	}
+	@:op(A <= B) static function le2<T:Float>(a:BigInt, b:EitherType<BigInt, T>):Bool;
 
-	@:op(A > B) static inline function gtPre(a:EitherType<Int, BigInt>, b:BigInt):Bool {
-		return Syntax.code("({0} > {1})", a, b);
-	}
+	@:op(A > B) static function gt<T:Float>(a:EitherType<Int, BigInt>, b:BigInt):Bool;
 
-	@:op(A > B) static inline function gtPost(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} > {1})", a, b);
-	}
+	@:op(A > B) static function gt2<T:Float>(a:BigInt, b:EitherType<Int, BigInt>):Bool;
 
-	@:op(A >= B) static inline function gePre(a:EitherType<Int, BigInt>, b:BigInt):Bool {
-		return Syntax.code("({0} >= {1})", a, b);
-	}
+	@:op(A >= B) static function ge<T:Float>(a:EitherType<Int, BigInt>, b:BigInt):Bool;
 
-	@:op(A >= B) static inline function gePost(a:BigInt, b:EitherType<Int, BigInt>):Bool {
-		return Syntax.code("({0} >= {1})", a, b);
-	}
-
-	@:op(A + B) static inline function joinPre(a:String, b:BigInt):String {
-		return Syntax.code("({0} + {1})", a, b);
-	}
-
-	@:op(A + B) static inline function joinPost(a:BigInt, b:String):String {
-		return Syntax.code("({0} + {1})", a, b);
-	}
-}
-
-@:native("BigInt")
-private extern class _BigInt {
-	@:selfCall @:pure function new(value:EitherType<String, Int>);
-
-	@:pure function toLocaleString(?locales:EitherType<String, Array<String>>, ?options:NumberFormatOptions):String;
-
-	@:pure function toString(?radix:Int):String;
-
-	@:pure function valueOf():_BigInt;
-
-	@:pure static function asIntN(width:Int, bigint:_BigInt):_BigInt;
-
-	@:pure static function asUintN(width:Int, bigint:_BigInt):_BigInt;
+	@:op(A >= B) static function ge2<T:Float>(a:BigInt, b:EitherType<Int, BigInt>):Bool;
 }
