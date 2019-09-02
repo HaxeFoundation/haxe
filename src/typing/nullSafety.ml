@@ -53,7 +53,12 @@ let fail ?msg hxpos mlpos =
 (**
 	Returns human-readable string representation of specified type
 *)
-let str_type t = s_type (print_context()) t
+let str_type = s_type (print_context())
+
+(**
+	Returns human-readable representation of specified expression
+*)
+let str_expr = s_expr_pretty false "\t" true str_type
 
 let is_string_type t =
 	match t with
@@ -1339,7 +1344,11 @@ class class_checker cls immediate_execution report  =
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
-						Option.may ((self#get_checker mode)#check_root_expr) f.cf_expr;
+						(match f.cf_expr with
+							| None -> ()
+							| Some expr ->
+								(self#get_checker mode)#check_root_expr expr
+						);
 						self#check_accessors is_static f
 			in
 			if is_safe_class then
