@@ -45,4 +45,8 @@ class HaxeIterator<T> {
 		return v;
 	}
 
+	public static inline function iterator<T>(jsIterator: js.lib.Iterator<T>) {
+		return new HaxeIterator(jsIterator);
+	}
+
 }
