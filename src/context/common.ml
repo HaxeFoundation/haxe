@@ -859,6 +859,7 @@ let adapt_defines_to_macro_context defines =
 	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
 	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
 	values := PMap.add "macro" "1" !values;
+	values := PMap.add (platform_name !Globals.macro_platform) "1" !values;
 	{values = !values; defines_signature = None }
 
 let is_legacy_completion com = match com.json_out with
