@@ -196,9 +196,9 @@ let module_pass_1 ctx m tdecls loadp =
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
-		let check_type_name type_name =
+		let check_type_name type_name meta =
 			let module_name = snd m.m_path in
-			if type_name <> module_name then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+			if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
 		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
@@ -223,7 +223,7 @@ let module_pass_1 ctx m tdecls loadp =
 				| HFinal -> c.cl_final <- true
 				| _ -> ()
 			) d.d_flags;
-			if not c.cl_extern then check_type_name name;
+			if not c.cl_extern then check_type_name name d.d_meta;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -247,12 +247,12 @@ let module_pass_1 ctx m tdecls loadp =
 				e_names = [];
 				e_type = enum_module_type m path p;
 			} in
-			if not e.e_extern then check_type_name name;
+			if not e.e_extern then check_type_name name d.d_meta;
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			check_type_name name;
+			check_type_name name d.d_meta;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
@@ -279,7 +279,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			check_type_name name;
+			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
@@ -935,12 +935,12 @@ let handle_import_hx ctx m decls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx mpath file ?(is_extern=false) tdecls p =
+let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern else Typecore.check_module_path ctx m.m_path p;
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
 			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p

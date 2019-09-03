@@ -307,9 +307,16 @@ let make_macro_api ctx p =
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode ctx v "TypeDefinition" ttype p f in
+			let has_native_meta = match tdef with
+				| EClass d -> Meta.has Meta.Native d.d_meta
+				| EEnum d -> Meta.has Meta.Native d.d_meta
+				| ETypedef d -> Meta.has Meta.Native d.d_meta
+				| EAbstract d -> Meta.has Meta.Native d.d_meta
+				| _ -> false
+			in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx ~dont_check_path:(has_native_meta) m mdep.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 			in
