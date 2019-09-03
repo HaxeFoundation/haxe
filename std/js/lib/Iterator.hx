@@ -23,7 +23,7 @@
 package js.lib;
 
 /**
-	abstract over JavaScript iterator objects that enables supports haxe for-in iteration
+	abstract over JavaScript iterator objects that enables haxe for-in iteration
 **/
 @:forward
 abstract Iterator<T>(IteratorStructure<T>) from IteratorStructure<T> to IteratorStructure<T> {
