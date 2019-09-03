@@ -244,7 +244,7 @@ let check_uppercase_identifier_name ctx name kind p =
 		check_identifier_name ctx name kind p
 
 let check_module_path ctx path p =
-	check_uppercase_identifier_name ctx (snd path) "module" p;
+	check_uppercase_identifier_name ctx (snd path) ("module " ^ s_type_path path) p;
 	let pack = fst path in
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
