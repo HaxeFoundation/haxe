@@ -23,7 +23,8 @@
 package js.lib;
 
 /**
-	HaxeIterator wraps a JavaScript iterator object in a class that haxe can iterate over
+	`HaxeIterator` wraps a JavaScript native iterator object to enable for-in iteration in haxe.
+	It can be used directly: `new HaxeIterator(jsIterator)` or via using: `using HaxeIterator`.
 **/
 class HaxeIterator<T> {
 
