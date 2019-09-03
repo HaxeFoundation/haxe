@@ -97,8 +97,8 @@ extern class Set<T> {
 	**/
 	function entries():js.lib.Iterator<MapEntry<T, T>>;
 
-	inline function iterator(): js.lib.Iterator.JSIterator<T> {
-		return this.values().iterator();
+	inline function iterator(): HaxeIterator<T> {
+		return new HaxeIterator(this.values());
 	}
 
 	inline function keyValueIterator(): SetKVIterator<T> {
@@ -113,12 +113,12 @@ extern class Set<T> {
 class SetKVIterator<T> {
 
 	final set: js.lib.Set<T>;
-	final values: js.lib.Iterator.JSIterator<T>;
+	final values: HaxeIterator<T>;
 	var index = 0;
 
 	public inline function new(set: js.lib.Set<T>) {
 		this.set = set;
-		this.values = set.values().iterator();
+		this.values = new HaxeIterator(set.values());
 	}
 
 	public inline function hasNext() : Bool {

@@ -22,11 +22,27 @@
 
 package js.lib;
 
-typedef Iterator<T> = {
-	function next():IteratorStep<T>;
-}
+/**
+	HaxeIterator wraps a JavaScript iterator object in a class that haxe can iterate over
+**/
+class HaxeIterator<T> {
 
-typedef IteratorStep<T> = {
-	done:Bool,
-	?value:T
+	final jsIterator: js.lib.Iterator<T>;
+	var lastStep: js.lib.Iterator.IteratorStep<T>;
+
+	public inline function new(jsIterator: js.lib.Iterator<T>) {
+		this.jsIterator = jsIterator;
+		lastStep = jsIterator.next();
+	}
+
+	public inline function hasNext(): Bool {
+		return !lastStep.done;
+	}
+
+	public inline function next(): T {
+		var v = lastStep.value;
+		lastStep = jsIterator.next();
+		return v;
+	}
+
 }
