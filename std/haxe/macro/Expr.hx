@@ -470,7 +470,7 @@ enum ExprDef {
 	/**
 		A function declaration.
 	**/
-	EFunction(kind:FunctionKind, f:Function);
+	EFunction(kind:Null<FunctionKind>, f:Function);
 
 	/**
 		A block of expressions `{exprs}`.
