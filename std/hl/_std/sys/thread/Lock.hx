@@ -22,6 +22,9 @@
 
 package sys.thread;
 
+
+#if (hl_ver >= version("1.11.0"))
+
 #if doc_gen
 @:coreApi
 extern class Lock {
@@ -47,4 +50,35 @@ abstract Lock(hl.Abstract<"hl_lock">) {
 		return null;
 	}
 }
+#end
+
+#else
+
+@:coreApi
+class Lock {
+	var deque:sys.thread.Deque<Bool>;
+
+	public function new():Void {
+		deque = new Deque<Null<Bool>>();
+	}
+
+	public function wait(?timeout:Float):Bool {
+		if (timeout == null) {
+			deque.pop(true);
+			return true;
+		}
+		var targetTime = haxe.Timer.stamp() + timeout;
+		do {
+			if (deque.pop(false) != null) {
+				return true;
+			}
+		} while (haxe.Timer.stamp() < targetTime);
+		return false;
+	}
+
+	public function release():Void {
+		deque.push(true);
+	}
+}
+
 #end
