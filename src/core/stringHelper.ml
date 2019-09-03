@@ -19,7 +19,16 @@ let capitalize s =
 		Bytes.to_string bytes
 
 let starts_uppercase_identifier x =
-	if String.length x = 0 then false else x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
+	if String.length x = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get x p with
+			| 'A'..'Z' -> true
+			| '_' -> p + 1 < String.length x && loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let check_uppercase x =
 	if String.length x = 0 then

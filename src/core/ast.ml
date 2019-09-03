@@ -324,13 +324,16 @@ type type_decl = type_def * pos
 type package = string list * type_decl list
 
 let is_lower_ident i =
-	let rec loop p =
-		match String.unsafe_get i p with
-		| 'a'..'z' -> true
-		| '_' -> if p + 1 < String.length i then loop (p + 1) else true
-		| _ -> false
-	in
-	loop 0
+	if String.length i = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get i p with
+			| 'a'..'z' -> true
+			| '_' -> p + 1 >= String.length i || loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let pos = snd
 

@@ -228,7 +228,7 @@ let add_local ctx k n t p =
 
 let check_identifier_name ctx name kind p =
 	if starts_with name '$' then
-		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed") p
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
 	else if not (Lexer.is_valid_identifier name) then
 		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
 
@@ -238,13 +238,15 @@ let check_field_name ctx name p =
 	| _ -> check_identifier_name ctx name "field" p
 
 let check_uppercase_identifier_name ctx name kind p =
-	if Ast.is_lower_ident name then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter") p
+	if String.length name = 0 then
+		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty") p
+	else if Ast.is_lower_ident name then
+		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
 	else
 		check_identifier_name ctx name kind p
 
 let check_module_path ctx path p =
-	check_uppercase_identifier_name ctx (snd path) ("module " ^ s_type_path path) p;
+	check_uppercase_identifier_name ctx (snd path) "module" p;
 	let pack = fst path in
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;

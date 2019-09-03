@@ -33,6 +33,10 @@ open Calls
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
+let is_lower_ident s p =
+	try Ast.is_lower_ident s
+	with Invalid_argument msg -> error msg p
+
 let check_assign ctx e =
 	match e.eexpr with
 	| TLocal {v_final = true} ->
@@ -1153,7 +1157,7 @@ and type_ident ctx i p mode =
 		type_ident_raise ctx i p mode
 	with Not_found -> try
 		(* lookup type *)
-		if is_lower_ident i then raise Not_found;
+		if is_lower_ident i p then raise Not_found;
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
@@ -1399,9 +1403,9 @@ and handle_efield ctx e p mode =
 	let rec loop acc (e,p) =
 		match e with
 		| EField (e,s) ->
-			loop ((s,not (is_lower_ident s),p) :: acc) e
+			loop ((s,not (is_lower_ident s p),p) :: acc) e
 		| EConst (Ident i) ->
-			type_path ((i,not (is_lower_ident i),p) :: acc)
+			type_path ((i,not (is_lower_ident i p),p) :: acc)
 		| _ ->
 			fields acc (type_access ctx e p)
 	in
