@@ -91,7 +91,7 @@ extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int> 
 		Returns a new Array Iterator object that contains the key/value pairs for each index in the array.
 		See also [Array.prototype.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries).
 	 */
-	@:pure function entries():Iterator<Int>;
+	@:pure function entries():Iterator<Uint16ArrayEntry>;
 
 	/**
 		Tests whether all elements in the array pass the test provided by a function.
@@ -261,4 +261,18 @@ extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int> 
 		See also [Array.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString).
 	 */
 	@:pure function toString():String;
+}
+
+/**
+	Key/value access helper for `js.lib.Uint16Array.entries()`.
+**/
+abstract Uint16ArrayEntry(Array<Int>) {
+	public var key(get, never):Int;
+	public var value(get, never):Int;
+
+	inline function get_key():Int
+		return this[0];
+
+	inline function get_value():Int
+		return this[1];
 }
