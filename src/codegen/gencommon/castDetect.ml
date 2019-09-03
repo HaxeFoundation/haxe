@@ -940,7 +940,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 		| _ -> false
 	in
 
-	let binop_type op main_expr e1 e2 =
+	let binop_type fast_cast op main_expr e1 e2 =
 		let name = platform_name gen.gcon.platform in
 		let basic = gen.gcon.basic in
 		(* If either operand is of type decimal, the other operand is converted to type decimal, or a compile-time error occurs if the other operand is of type float or double.
@@ -953,30 +953,31 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			* Otherwise, both operands are converted to type int.
 			*  *)
 		let t1, t2 = follow (run_follow gen e1.etype), follow (run_follow gen e2.etype) in
-		let result = match t1, t2 with
-			| TAbstract(a1,[]), TAbstract(a2,[]) when a1 == a2 ->
+		let result =
+			match t1, t2 with
+			| TAbstract(a1,[]), TAbstract(a2,[]) when fast_cast && a1 == a2 ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| TInst(i1,[]), TInst(i2,[]) when i1 == i2 ->
+			| TInst(i1,[]), TInst(i2,[]) when fast_cast && i1 == i2 ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| TInst({ cl_path = ([],"String") },[]), _ when op = OpAdd ->
+			| TInst({ cl_path = ([],"String") },[]), _ when fast_cast && op = OpAdd ->
 				{ main_expr with eexpr = TBinop(op, e1, mk_cast basic.tstring e2); etype = basic.tstring }
-			| _, TInst({ cl_path = ([],"String") },[]) when op = OpAdd ->
+			| _, TInst({ cl_path = ([],"String") },[]) when fast_cast && op = OpAdd ->
 				{ main_expr with eexpr = TBinop(op, mk_cast basic.tstring e1, e2); etype = basic.tstring }
-			| TAbstract({ a_path = ([], "Float") }, []), _ ->
+			| TAbstract({ a_path = ([], "Float") }, []), _ when fast_cast ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| _, TAbstract({ a_path = ([], "Float") }, []) ->
+			| _, TAbstract({ a_path = ([], "Float") }, []) when fast_cast ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
-			| TAbstract({ a_path = ([], "Single") }, []), _ ->
+			| TAbstract({ a_path = ([], "Single") }, []), _ when fast_cast ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| _, TAbstract({ a_path = ([], "Single") }, []) ->
+			| _, TAbstract({ a_path = ([], "Single") }, []) when fast_cast ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
-			| TAbstract({ a_path = ([pf], "UInt64") }, []), _ when pf = name ->
+			| TAbstract({ a_path = ([pf], "UInt64") }, []), _ when fast_cast && pf = name ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| _, TAbstract({ a_path = ([pf], "UInt64") }, []) when pf = name ->
+			| _, TAbstract({ a_path = ([pf], "UInt64") }, []) when fast_cast && pf = name ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
-			| TAbstract({ a_path = ([pf], "Int64") }, []), _ when pf = name ->
+			| TAbstract({ a_path = ([pf], "Int64") }, []), _ when fast_cast && pf = name ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
-			| _, TAbstract({ a_path = ([pf], "Int64") }, []) when pf = name ->
+			| _, TAbstract({ a_path = ([pf], "Int64") }, []) when fast_cast && pf = name ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 			| TAbstract({ a_path = ([], "UInt") }, []), tother when like_int tother ->
 				let ti64 = mt_to_t_dyn ( get_type gen ([name], "Int64") ) in
@@ -996,11 +997,11 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 			| _, TAbstract({ a_path = ([], "UInt") }, []) ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
-			| TAbstract(a1,[]), TAbstract(a2,[]) ->
+			| TAbstract(a1,[]), TAbstract(a2,[]) when fast_cast ->
 				{ main_expr with eexpr = TBinop(op, e1, e2); etype = basic.tint }
 			| _ ->
 				{ main_expr with eexpr = TBinop(op, e1, e2) }
-	in
+		in
 		(* maintain nullability *)
 		match follow_without_null main_expr.etype, follow_without_null result.etype with
 		| TAbstract ({ a_path = ([],"Null") },_), TAbstract ({ a_path = ([],"Null") },_) ->
@@ -1011,11 +1012,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			{ result with etype = t }
 		| _ -> result
 	in
-	let binop_type = if Common.defined gen.gcon Define.FastCast then
-		binop_type
-	else
-		fun op main_expr e1 e2 -> { main_expr with eexpr = TBinop(op, e1, e2) }
-	in
+	let binop_type = binop_type (Common.defined gen.gcon Define.FastCast) in
 
 	let rec run ?(just_type = false) e =
 		let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
