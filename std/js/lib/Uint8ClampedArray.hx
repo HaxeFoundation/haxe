@@ -22,6 +22,7 @@
 
 package js.lib;
 
+import js.lib.Map.MapEntry;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
 /**
@@ -92,7 +93,7 @@ extern class Uint8ClampedArray implements ArrayBufferView implements ArrayAccess
 		Returns a new Array Iterator object that contains the key/value pairs for each index in the array.
 		See also [Array.prototype.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries).
 	 */
-	@:pure function entries():Iterator<Uint8ClampedArrayEntry>;
+	@:pure function entries():Iterator<MapEntry<Int, Int>>;
 
 	/**
 		Tests whether all elements in the array pass the test provided by a function.
@@ -262,18 +263,4 @@ extern class Uint8ClampedArray implements ArrayBufferView implements ArrayAccess
 		See also [Array.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString).
 	 */
 	@:pure function toString():String;
-}
-
-/**
-	Key/value access helper for `js.lib.Uint8ClampedArrayEntry.entries()`.
-**/
-abstract Uint8ClampedArrayEntry(Array<Int>) {
-	public var key(get, never):Int;
-	public var value(get, never):Int;
-
-	inline function get_key():Int
-		return this[0];
-
-	inline function get_value():Int
-		return this[1];
 }

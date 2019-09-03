@@ -22,6 +22,7 @@
 
 package js.lib;
 
+import js.lib.Map.MapEntry;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
 /**
@@ -92,7 +93,7 @@ extern class Float32Array implements ArrayBufferView implements ArrayAccess<Floa
 		Returns a new Array Iterator object that contains the key/value pairs for each index in the array.
 		See also [Array.prototype.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries).
 	 */
-	@:pure function entries():Iterator<Float32ArrayEntry>;
+	@:pure function entries():Iterator<MapEntry<Int, Float>>;
 
 	/**
 		Tests whether all elements in the array pass the test provided by a function.
