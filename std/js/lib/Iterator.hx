@@ -22,7 +22,19 @@
 
 package js.lib;
 
-typedef Iterator<T> = {
+/**
+	abstract over JavaScript iterator objects that enables supports haxe for-in iteration
+**/
+@:forward
+abstract Iterator<T>(IteratorStructure<T>) from IteratorStructure<T> {
+
+	public inline function iterator(): JSIterator<T> {
+		return new JSIterator<T>(this);
+	}
+
+}
+
+typedef IteratorStructure<T> = {
 	function next():IteratorStep<T>;
 }
 
@@ -30,3 +42,28 @@ typedef IteratorStep<T> = {
 	done:Bool,
 	?value:T
 }
+
+/**
+	JSIterator wraps a JavaScript iterator object in a class that haxe can iterate over
+**/
+class JSIterator<T> {
+
+	final jsIterator: js.lib.IteratorStructure<T>;
+	var lastStep: js.lib.Iterator.IteratorStep<T>;
+
+	public inline function new(jsIterator: js.lib.IteratorStructure<T>) {
+		this.jsIterator = jsIterator;
+		lastStep = jsIterator.next();
+	}
+
+	public inline function hasNext(): Bool {
+		return !lastStep.done;
+	}
+
+	public inline function next(): T {
+		var v = lastStep.value;
+		lastStep = jsIterator.next();
+		return v;
+	}
+
+} 

@@ -23,7 +23,6 @@
 package js.lib;
 
 import js.lib.Map.MapEntry;
-import js.lib.Iterator;
 
 /**
 	The `js.Set` object lets you store unique values of any type, whether
@@ -81,13 +80,13 @@ extern class Set<T> {
 		Returns a new `js.lib.Iterator` object that contains the keys for each element
 		in the `js.Set` object in insertion order.
 	**/
-	function keys():Iterator<T>;
+	function keys():js.lib.Iterator<T>;
 
 	/**
 		Returns a new `js.lib.Iterator` object that contains the values for each
 		element in the `js.Set` object in insertion order.
 	**/
-	function values():Iterator<T>;
+	function values():js.lib.Iterator<T>;
 
 	/**
 		Returns a new `js.lib.Iterator` object that contains an array of
@@ -96,5 +95,41 @@ extern class Set<T> {
 		This is kept similar to the `js.Map` object, so that each entry has the
 		same value for its key and value here.
 	**/
-	function entries():Iterator<MapEntry<T, T>>;
+	function entries():js.lib.Iterator<MapEntry<T, T>>;
+
+	inline function iterator(): js.lib.Iterator.JSIterator<T> {
+		return this.values().iterator();
+	}
+
+	inline function keyValueIterator(): SetKVIterator<T> {
+		return new SetKVIterator(this);
+	}
+
 }
+
+/**
+	key => value iterator for js.lib.Set, tracking the entry index for the key to match the behavior of haxe.ds.List
+**/
+class SetKVIterator<T> {
+
+	final set: js.lib.Set<T>;
+	final values: js.lib.Iterator.JSIterator<T>;
+	var index = 0;
+
+	public inline function new(set: js.lib.Set<T>) {
+		this.set = set;
+		this.values = set.values().iterator();
+	}
+
+	public inline function hasNext() : Bool {
+		return values.hasNext();
+	}
+
+	public inline function next() : {key: Int, value: T} {
+		return {
+			key: index++,
+			value: values.next(),
+		};
+	}
+
+} 
