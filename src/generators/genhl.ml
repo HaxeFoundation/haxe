@@ -144,7 +144,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_Single" | "hl.types.ArrayBytes_hl_UI16" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -3946,7 +3946,7 @@ let create_context com is_macro dump =
 			aobj = get_class "ArrayObj";
 			aui16 = get_class "ArrayBytes_hl_UI16";
 			ai32 = get_class "ArrayBytes_Int";
-			af32 = get_class "ArrayBytes_Single";
+			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
 		};
 		base_class = get_class "Class";
