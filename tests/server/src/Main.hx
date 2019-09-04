@@ -227,9 +227,11 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
+		vfs.touchFile("Main.hx");
 		runHaxe(args);
 		assertErrorMessage("Cannot force inline-call to test because it is overridden");
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
+		vfs.touchFile("Main.hx");
 		runHaxe(args);
 		assertSuccess();
 	}

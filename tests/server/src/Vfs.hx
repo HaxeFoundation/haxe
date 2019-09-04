@@ -19,7 +19,7 @@ class Vfs {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
 		var file = Fs.openSync(path.dir + "/" + path.file + "." + path.ext, 'a');
-		var last = Date.fromString(Fs.fstatSync(file).mtime.format("%T"));
+		var last = Fs.fstatSync(file).mtime;
 		var notNow = last.delta(1000);
 		Fs.futimesSync(file, notNow, notNow);
 		Fs.closeSync(file);
