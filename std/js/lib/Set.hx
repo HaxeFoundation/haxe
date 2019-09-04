@@ -22,8 +22,6 @@
 
 package js.lib;
 
-import js.lib.Map.MapEntry;
-
 /**
 	The `js.Set` object lets you store unique values of any type, whether
 	primitive values or object references.
