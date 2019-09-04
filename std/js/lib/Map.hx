@@ -104,8 +104,8 @@ extern class Map<K, V> {
 		return new HaxeIterator(this.values());
 	}
 
-	inline function keyValueIterator(): MapKVIterator<K, V> {
-		return new MapKVIterator(this);
+	inline function keyValueIterator(): HaxeIterator<MapEntry<K,V>> {
+		return new HaxeIterator(this.entries());
 	}
 
 }
@@ -123,27 +123,3 @@ abstract MapEntry<K, V>(Array<Any>) {
 	inline function get_value():V
 		return this[1];
 }
-
-class MapKVIterator<K, V> {
-
-	final map: js.lib.Map<K, V>;
-	final entries: HaxeIterator<MapEntry<K, V>>;
-
-	public inline function new(map: js.lib.Map<K, V>) {
-		this.map = map;
-		this.entries = new HaxeIterator(map.entries());
-	}
-
-	public inline function hasNext() : Bool {
-		return entries.hasNext();
-	}
-
-	public inline function next() : {key: K, value: V} {
-		var entry = entries.next();
-		return {
-			key: entry.key,
-			value: entry.value,
-		};
-	}
-
-} 
