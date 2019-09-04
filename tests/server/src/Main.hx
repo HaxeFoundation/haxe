@@ -55,6 +55,7 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertHasPrint("1");
 		vfs.putContent("Macro.hx", getTemplate("Macro.hx").replace("1", "2"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Macro.hx")});
 		runHaxe(args);
 		assertHasPrint("2");
 		vfs.touchFile("MacroMain.hx");
