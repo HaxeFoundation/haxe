@@ -236,27 +236,27 @@ class ServerTests extends HaxeServerTestCase {
 	// 	assertSuccess();
 	// }
 
-	function testIssue8748() {
-		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
-		vfs.putContent("res/dep.dep", "");
-		var args = [
-			"-main",
-			"WithDependency",
-			"--interp",
-			"--macro",
-			"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"
-		];
-		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: true});
-		runHaxe(args);
-		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
-		assertReuse("Dependency");
-		vfs.touchFile("res/dep.dep");
-		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
-		// check messages manually because module file contains awkward absolute path
-		var r = ~/skipping Dependency\(.*dep.dep\)/;
-		Assert.isTrue(messages.exists(message -> r.match(message)));
-	}
+	// function testIssue8748() {
+	// 	vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+	// 	vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
+	// 	vfs.putContent("res/dep.dep", "");
+	// 	var args = [
+	// 		"-main",
+	// 		"WithDependency",
+	// 		"--interp",
+	// 		"--macro",
+	// 		"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"
+	// 	];
+	// 	runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: true});
+	// 	runHaxe(args);
+	// 	runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+	// 	assertReuse("Dependency");
+	// 	vfs.touchFile("res/dep.dep");
+	// 	runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+	// 	// check messages manually because module file contains awkward absolute path
+	// 	var r = ~/skipping Dependency\(.*dep.dep\)/;
+	// 	Assert.isTrue(messages.exists(message -> r.match(message)));
+	// }
 }
 
 class Main {
