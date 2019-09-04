@@ -1045,6 +1045,9 @@ try
 				Some path
 			| DPKNone ->
 				None
+			| DPKDirect file ->
+				DisplayOutput.load_display_file_standalone tctx file;
+				None
 		in
 		begin try
 			do_type tctx !config_macros !classes;
