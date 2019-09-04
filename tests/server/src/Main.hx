@@ -220,21 +220,21 @@ class ServerTests extends HaxeServerTestCase {
 		utest.Assert.equals('2', counter);
 	}
 
-	function testIssue8738() {
-		vfs.putContent("Base.hx", getTemplate("issues/Issue8738/Base.hx"));
-		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main1.hx"));
-		var args = ["-main", "Main", "--interp"];
-		runHaxe(args);
-		assertSuccess();
-		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
-		vfs.touchFile("Main.hx");
-		runHaxe(args);
-		assertErrorMessage("Cannot force inline-call to test because it is overridden");
-		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
-		vfs.touchFile("Main.hx");
-		runHaxe(args);
-		assertSuccess();
-	}
+	// function testIssue8738() {
+	// 	vfs.putContent("Base.hx", getTemplate("issues/Issue8738/Base.hx"));
+	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main1.hx"));
+	// 	var args = ["-main", "Main", "--interp"];
+	// 	runHaxe(args);
+	// 	assertSuccess();
+	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
+	// 	vfs.touchFile("Main.hx");
+	// 	runHaxe(args);
+	// 	assertErrorMessage("Cannot force inline-call to test because it is overridden");
+	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
+	// 	vfs.touchFile("Main.hx");
+	// 	runHaxe(args);
+	// 	assertSuccess();
+	// }
 
 	function testIssue8748() {
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
