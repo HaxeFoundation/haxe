@@ -226,28 +226,32 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let check_identifier_name ctx name kind p =
+let check_identifier_name ?error_appendix ctx name kind p =
 	if starts_with name '$' then
-		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
+		let appendix = match error_appendix with Some s -> ". " ^ s | _ -> "" in
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"" ^ appendix) p
 	else if not (Lexer.is_valid_identifier name) then
-		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+		let appendix = match error_appendix with Some s -> ". " ^ s | _ -> "" in
+		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name" ^ appendix) p
 
 let check_field_name ctx name p =
 	match name with
 	| "new" -> () (* the only keyword allowed in field names *)
 	| _ -> check_identifier_name ctx name "field" p
 
-let check_uppercase_identifier_name ctx name kind p =
+let check_uppercase_identifier_name ?error_appendix ctx name kind p =
 	if String.length name = 0 then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty") p
+		let appendix = match error_appendix with Some s -> ". " ^ s | _ -> "" in
+		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty" ^ appendix) p
 	else if Ast.is_lower_ident name then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
+		let appendix = match error_appendix with Some s -> ". " ^ s | _ -> "" in
+		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"" ^ appendix) p
 	else
-		check_identifier_name ctx name kind p
+		check_identifier_name ?error_appendix ctx name kind p
 
-let check_module_path ctx path p =
-	check_uppercase_identifier_name ctx (snd path) "module" p;
-	let pack = fst path in
+let check_module_path ctx (pack,name) p =
+	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
+	check_uppercase_identifier_name ~error_appendix:("Full module path: \"" ^ full_path ^ "\"") ctx name "module" p;
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
