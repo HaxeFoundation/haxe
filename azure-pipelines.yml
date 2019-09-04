@@ -230,6 +230,7 @@ stages:
               FILE_NAME=haxe_${COMMIT_DATE}_$(Build.SourceBranchName)_${COMMIT_HASH_SHORT}
               aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/haxe/linux64/${FILE_NAME}.tar.gz
               aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/${FILE_NAME}.tar.gz
+              aws s3 cp macBinaries/*_installer.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/${FILE_NAME}.tar.gz
               aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/${FILE_NAME}.zip
               aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/${FILE_NAME}.zip
               aws s3 cp win64Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
@@ -244,6 +245,7 @@ stages:
               set -ex
               aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/haxe/linux64/haxe_latest.tar.gz
               aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/haxe_latest.tar.gz
+              aws s3 cp macBinaries/*_installer.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac-installer/haxe_latest.tar.gz
               aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/haxe_latest.zip
               aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/haxe_latest.zip
               aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows/haxe_latest.zip
