@@ -3294,7 +3294,7 @@ let generate_static ctx c f =
 				let cur_ver = (try Common.raw_defined_value ctx.com "hl-ver" with Not_found -> "") in
 				if cur_ver < ver then
 					let gen_content() =
-						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ " or higher") null_pos));
+						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
 					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
 				else
