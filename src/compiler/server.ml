@@ -9,7 +9,7 @@ open Type
 open DisplayOutput
 open Json
 
-exception Dirty of module_def
+exception Dirty of path
 exception ServerError of string
 
 let measure_times = ref false
@@ -380,12 +380,12 @@ let check_module sctx ctx m p =
 		let check_dependencies () =
 			PMap.iter (fun _ m2 -> match check m2 with
 				| None -> ()
-				| Some m -> raise (Dirty m)
+				| Some path -> raise (Dirty path)
 			) m.m_extra.m_deps;
 		in
 		begin match m.m_extra.m_dirty with
-		| Some m ->
-			Some m
+		| Some path ->
+			Some path
 		| None ->
 			if m.m_extra.m_mark = mark then
 				None
@@ -400,11 +400,11 @@ let check_module sctx ctx m p =
 				None
 			with
 			| Not_found ->
-				m.m_extra.m_dirty <- Some m;
-				Some m
-			| Dirty m' ->
-				m.m_extra.m_dirty <- Some m';
-				Some m'
+				m.m_extra.m_dirty <- Some m.m_path;
+				Some m.m_path
+			| Dirty path ->
+				m.m_extra.m_dirty <- Some path;
+				Some path
 			end
 	in
 	check m
@@ -460,8 +460,8 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
-		| Some m' ->
-			ServerMessage.skipping_dep com "" (m,m');
+		| Some path ->
+			ServerMessage.skipping_dep com "" (m,path);
 			tcheck();
 			raise Not_found;
 		end;

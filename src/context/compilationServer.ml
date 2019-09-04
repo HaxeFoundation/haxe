@@ -141,7 +141,7 @@ class cache = object(self)
 	method taint_modules file =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m
+				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m.m_path
 			) cc#get_modules
 		) contexts
 

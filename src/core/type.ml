@@ -341,7 +341,7 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : module_def option;
+	mutable m_dirty : path option;
 	mutable m_added : int;
 	mutable m_mark : int;
 	mutable m_deps : (int,module_def) PMap.t;
@@ -1676,7 +1676,7 @@ module Printer = struct
 			"m_file",me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",s_opt (fun m -> s_type_path m.m_path) me.m_dirty;
+			"m_dirty",s_opt s_type_path me.m_dirty;
 			"m_added",string_of_int me.m_added;
 			"m_mark",string_of_int me.m_mark;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
