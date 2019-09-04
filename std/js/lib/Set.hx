@@ -101,8 +101,8 @@ extern class Set<T> {
 		return new HaxeIterator(this.values());
 	}
 
-	inline function keyValueIterator(): SetKvIterator<T> {
-		return new SetKvIterator(this);
+	inline function keyValueIterator(): SetKeyValueIterator<T> {
+		return new SetKeyValueIterator(this);
 	}
 
 }
@@ -110,7 +110,7 @@ extern class Set<T> {
 /**
 	key => value iterator for js.lib.Set, tracking the entry index for the key to match the behavior of haxe.ds.List
 **/
-class SetKvIterator<T> {
+class SetKeyValueIterator<T> {
 
 	final set: js.lib.Set<T>;
 	final values: HaxeIterator<T>;
