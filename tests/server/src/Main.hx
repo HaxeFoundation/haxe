@@ -1,8 +1,10 @@
-using StringTools;
-
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
+import utest.Assert;
+
+using StringTools;
+using Lambda;
 
 @:timeout(10000)
 class ServerTests extends HaxeServerTestCase {
@@ -226,10 +228,32 @@ class ServerTests extends HaxeServerTestCase {
 		assertSuccess();
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
 		runHaxe(args);
-		assertErrorMessage("Main.hx:8: characters 3-21 : Cannot force inline-call to test because it is overridden");
+		assertErrorMessage("Cannot force inline-call to test because it is overridden");
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
 		runHaxe(args);
 		assertSuccess();
+	}
+
+	function testIssue8748() {
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
+		vfs.putContent("res/dep.dep", "");
+		var args = [
+			"-main",
+			"WithDependency",
+			"--interp",
+			"--macro",
+			"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"
+		];
+		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: true});
+		runHaxe(args);
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+		assertReuse("Dependency");
+		vfs.touchFile("res/dep.dep");
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+		// check messages manually because module file contains awkward absolute path
+		var r = ~/skipping Dependency\(.*dep.dep\)/;
+		Assert.isTrue(messages.exists(message -> r.match(message)));
 	}
 }
 

@@ -394,7 +394,7 @@ let check_module sctx ctx m p =
 				m.m_extra.m_mark <- mark;
 				if old_mark <= start_mark then begin
 					if not (has_policy NoCheckShadowing) then check_module_path();
-					if not (has_policy NoCheckFileTimeModification) then check_file();
+					if not (has_policy NoCheckFileTimeModification) || file_extension m.m_extra.m_file <> "hx" then check_file();
 				end;
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None
