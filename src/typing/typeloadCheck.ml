@@ -194,7 +194,6 @@ let check_overriding ctx c f =
 			try
 				let t = apply_params csup.cl_params params t in
 				valid_redefinition ctx f f.cf_type f2 t;
-				add_class_field_flag f2 CfOverridden;
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;

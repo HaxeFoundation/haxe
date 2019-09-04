@@ -31,9 +31,18 @@ let make_call ctx e params t ?(force_inline=false) p =
 		if not force_inline then begin
 			if f.cf_kind <> Method MethInline then raise Exit;
 		end else begin
-			delay ctx PFinal (fun () ->
-				if has_class_field_flag f CfOverridden then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
-			);
+			match cl with
+			| None ->
+				()
+			| Some c ->
+				(* Delay this to filters because that's when cl_descendants is set. *)
+				ctx.com.callbacks#add_before_save (fun () ->
+					let rec has_override c =
+						List.exists (fun cf -> cf.cf_name = f.cf_name) c.cl_overrides
+						|| List.exists has_override c.cl_descendants
+					in
+					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
+				)
 		end;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->

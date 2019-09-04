@@ -217,6 +217,20 @@ class ServerTests extends HaxeServerTestCase {
 		var counter = vfs.getContent("counter.txt");
 		utest.Assert.equals('2', counter);
 	}
+
+	function testIssue8738() {
+		vfs.putContent("Base.hx", getTemplate("issues/Issue8738/Base.hx"));
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main1.hx"));
+		var args = ["-main", "Main", "--interp"];
+		runHaxe(args);
+		assertSuccess();
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
+		runHaxe(args);
+		assertErrorMessage("Main.hx:8: characters 3-21 : Cannot force inline-call to test because it is overridden");
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
+		runHaxe(args);
+		assertSuccess();
+	}
 }
 
 class Main {
