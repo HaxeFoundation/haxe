@@ -1198,6 +1198,9 @@ and type_ident ctx i p mode =
 						| _ ->
 							display_error ctx (error_msg err) p;
 							let t = mk_mono() in
+							(* Add a fake local for #8751. *)
+							if !ServerConfig.legacy_completion then
+								ignore(add_local ctx VGenerated i t p);
 							AKExpr (mk (TIdent i) t p)
 				end
 			end
