@@ -1,13 +1,13 @@
 package unit.issues;
 
 class Issue8764 extends unit.Test {
-#if (static && !jvm)
+#if static
 	function test() {
 		eq(0.0, foo());
 	}
 
-	static function foo(?e:Float):Null<Single> {
-		return (e:Float);
+	static function foo(?e:Int):Null<Float> {
+		return (e:Int);
 	}
 #end
 }
