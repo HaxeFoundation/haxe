@@ -565,61 +565,42 @@ let cleanup () =
 	| None -> ()
 	end
 
-module Ring = struct
-	type 'a t = {
-		values : 'a array;
-		mutable index : int;
-		mutable num_filled : int;
-	}
-
-	let create len x = {
-		values = Array.make len x;
-		index = 0;
-		num_filled = 0;
-	}
-
-	let push r x =
-		r.values.(r.index) <- x;
-		r.num_filled <- r.num_filled + 1;
-		if r.index = Array.length r.values - 1 then begin
-			r.index <- 0;
-		end else
-			r.index <- r.index + 1
-
-	let iter r f =
-		let len = Array.length r.values in
-		for i = 0 to len - 1 do
-			let off = r.index + i in
-			let off = if off >= len then off - len else off in
-			f r.values.(off)
-		done
-
-	let fold r acc f =
-		let len = Array.length r.values in
-		let rec loop i acc =
-			if i = len then
-				acc
-			else begin
-				let off = r.index + i in
-				let off = if off >= len then off - len else off in
-				loop (i + 1) (f acc r.values.(off))
-			end
-		in
-		loop 0 acc
-
-	let is_filled r =
-		r.num_filled >= Array.length r.values
-
-	let reset_filled r =
-		r.num_filled <- 0
-end
-
 let gc_heap_stats () =
 	let stats = Gc.quick_stat() in
 	stats.major_words,stats.heap_words
 
 let fmt_percent f =
 	int_of_float (f *. 100.)
+
+module Tasks = struct
+	class gc_task (max_working_memory : float) (heap_size : float) = object(self)
+		inherit server_task ["gc"] 100
+
+		method private execute =
+			let t0 = get_time() in
+			let stats = Gc.stat() in
+			let live_words = float_of_int stats.live_words in
+			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
+			let needed_max = live_words +. max_working_memory in
+			(* Additional heap percentage needed = what's live / max of what was live. *)
+			let percent_needed = (1. -. live_words /. needed_max) in
+			(* Effective cache size percentage = what's live / heap size. *)
+			let percent_used = live_words /. heap_size in
+			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
+			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
+			let old_gc = Gc.get() in
+			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
+			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
+			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
+			begin if do_compact then
+				Gc.compact()
+			else
+				Gc.full_major();
+			end;
+			Gc.set old_gc;
+			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+	end
+end
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
@@ -642,39 +623,16 @@ let wait_loop process_params verbose accept =
 		Ring.push ring words_allocated;
 		if Ring.is_filled ring then begin
 			Ring.reset_filled ring;
-			let t0 = get_time() in
-			let stats = Gc.stat() in
-			let live_words = float_of_int stats.live_words in
 			 (* Maximum working memory for the last X compilations. *)
 			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
-			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
-			let needed_max = live_words +. max in
-			(* Additional heap percentage needed = what's live / max of what was live. *)
-			let percent_needed = (1. -. live_words /. needed_max) in
-			(* Effective cache size percentage = what's live / heap size. *)
-			let percent_used = live_words /. heap_size in
-			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
-			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
-			let old_gc = Gc.get() in
-			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
-			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
-			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
-			begin if do_compact then
-				Gc.compact()
-			else
-				Gc.full_major();
-			end;
-			Gc.set old_gc;
-			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+			cs#add_task (new Tasks.gc_task max heap_size)
 		end;
 		heap_stats_start := heap_stats_now;
 	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
-		let read, write, close = accept() in
-		begin try
-			(* Read arguments *)
-			let s = read() in
+		let support_nonblock, read, write, close = accept() in
+		let process s =
 			let t0 = get_time() in
 			let hxml =
 				try
@@ -702,6 +660,24 @@ let wait_loop process_params verbose accept =
 			end;
 			run_delays sctx;
 			ServerMessage.stats stats (get_time() -. t0)
+		in
+		begin try
+			(* Read arguments *)
+			let rec loop block =
+				match read block with
+				| Some data ->
+					process data
+				| None ->
+					if not cs#has_task then
+						(* If there is no pending task, turn into blocking mode. *)
+						loop true
+					else begin
+						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
+						cs#get_task#run;
+						loop false
+					end;
+			in
+			loop (not support_nonblock)
 		with Unix.Unix_error _ ->
 			ServerMessage.socket_message "Connection Aborted"
 		| e ->
@@ -719,18 +695,53 @@ let wait_loop process_params verbose accept =
 		current_stdin := None;
 		cleanup();
 		update_heap();
+		(* If our connection always blocks, we have to execute all pending tasks now. *)
+		if not support_nonblock then
+			while cs#has_task do cs#get_task#run done
 	done
 
-let mk_length_prefixed_communication chin chout =
+let mk_length_prefixed_communication allow_nonblock chin chout =
+	let sin = Unix.descr_of_in_channel chin in
 	let chin = IO.input_channel chin in
 	let chout = IO.output_channel chout in
 
 	let bout = Buffer.create 0 in
 
-	let read = fun () ->
-		let len = IO.read_i32 chin in
-		IO.really_nread_string chin len
+	let block () = Unix.clear_nonblock sin in
+	let unblock () = Unix.set_nonblock sin in
+
+	let read_nonblock _ =
+        let len = IO.read_i32 chin in
+        Some (IO.really_nread_string chin len)
 	in
+	let read = if allow_nonblock then fun do_block ->
+		if do_block then begin
+			block();
+			read_nonblock true;
+		end else begin
+			let c0 =
+				unblock();
+				try
+					Some (IO.read_byte chin)
+				with
+				| Sys_blocked_io
+				(* TODO: We're supposed to catch Sys_blocked_io only, but that doesn't work on my PC... *)
+				| Sys_error _ ->
+					None
+			in
+			begin match c0 with
+			| Some c0 ->
+				block(); (* We got something, make sure we block until we're done. *)
+				let c1 = IO.read_byte chin in
+				let c2 = IO.read_byte chin in
+				let c3 = IO.read_byte chin in
+				let len = c3 lsl 24 + c2 lsl 16 + c1 lsl 8 + c0 in
+				Some (IO.really_nread_string chin len)
+			| None ->
+				None
+			end
+		end
+	else read_nonblock in
 
 	let write = Buffer.add_string bout in
 
@@ -742,19 +753,19 @@ let mk_length_prefixed_communication chin chout =
 
 	fun () ->
 		Buffer.clear bout;
-		read, write, close
+		allow_nonblock, read, write, close
 
 (* The accept-function to wait for a stdio connection. *)
 let init_wait_stdio() =
 	set_binary_mode_in stdin true;
 	set_binary_mode_out stderr true;
-	mk_length_prefixed_communication stdin stderr
+	mk_length_prefixed_communication false stdin stderr
 
 (* Connect to given host/port and return accept function for communication *)
 let init_wait_connect host port =
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
-	mk_length_prefixed_communication chin chout
+	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
 let init_wait_socket host port =
@@ -792,10 +803,10 @@ let init_wait_socket host port =
 					read_loop (count + 1);
 				end
 		in
-		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
+		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
 		let write s = ssend sin (Bytes.unsafe_of_string s) in
 		let close() = Unix.close sin in
-		read, write, close
+		false, read, write, close
 	) in
 	accept
 

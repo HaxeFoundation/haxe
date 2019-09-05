@@ -806,6 +806,19 @@ let rec follow t =
 		follow t
 	| _ -> t
 
+let follow_once t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| None -> t
+		| Some t -> t)
+	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+		t
+	| TType (t,tl) ->
+		apply_params t.t_params tl t.t_type
+	| TLazy f ->
+		lazy_type f
+
 let rec follow_without_null t =
 	match t with
 	| TMono r ->

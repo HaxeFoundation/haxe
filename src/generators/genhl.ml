@@ -144,7 +144,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_Single" | "hl.types.ArrayBytes_hl_UI16" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -3294,7 +3294,7 @@ let generate_static ctx c f =
 				let cur_ver = (try Common.raw_defined_value ctx.com "hl-ver" with Not_found -> "") in
 				if cur_ver < ver then
 					let gen_content() =
-						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ " or higher") null_pos));
+						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
 					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
 				else
@@ -3946,7 +3946,7 @@ let create_context com is_macro dump =
 			aobj = get_class "ArrayObj";
 			aui16 = get_class "ArrayBytes_hl_UI16";
 			ai32 = get_class "ArrayBytes_Int";
-			af32 = get_class "ArrayBytes_Single";
+			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
 		};
 		base_class = get_class "Class";

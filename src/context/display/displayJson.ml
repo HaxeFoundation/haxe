@@ -55,8 +55,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 		Common.define_value com Define.Display "1"
 
 	method set_display_file was_auto_triggered requires_offset =
-		let file = jsonrpc#get_string_param "file" in
-		let file = Path.unique_full_path file in
+		let file = jsonrpc#get_opt_param (fun () ->
+			let file = jsonrpc#get_string_param "file" in
+			Path.unique_full_path file
+		) DisplayOutput.file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in

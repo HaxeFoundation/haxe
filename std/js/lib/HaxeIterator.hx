@@ -23,15 +23,31 @@
 package js.lib;
 
 /**
-	Native JavaScript iterator structure. To enable haxe for-in iteration, use `js.lib.HaxeIterator`, for example `for (v in new js.lib.HaxeIterator(jsIterator))` or add `using js.lib.HaxeIterator;` to your module
-
-	See [Iteration Protocols](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols)
+	`HaxeIterator` wraps a JavaScript native iterator object to enable for-in iteration in haxe.
+	It can be used directly: `new HaxeIterator(jsIterator)` or via using: `using HaxeIterator`.
 **/
-typedef Iterator<T> = {
-	function next():IteratorStep<T>;
-}
+class HaxeIterator<T> {
 
-typedef IteratorStep<T> = {
-	done:Bool,
-	?value:T
+	final jsIterator: js.lib.Iterator<T>;
+	var lastStep: js.lib.Iterator.IteratorStep<T>;
+
+	public inline function new(jsIterator: js.lib.Iterator<T>) {
+		this.jsIterator = jsIterator;
+		lastStep = jsIterator.next();
+	}
+
+	public inline function hasNext(): Bool {
+		return !lastStep.done;
+	}
+
+	public inline function next(): T {
+		var v = lastStep.value;
+		lastStep = jsIterator.next();
+		return v;
+	}
+
+	public static inline function iterator<T>(jsIterator: js.lib.Iterator<T>) {
+		return new HaxeIterator(jsIterator);
+	}
+
 }

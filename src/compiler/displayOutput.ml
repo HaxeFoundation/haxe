@@ -288,9 +288,13 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			pmax = pos;
 		}
 
+let file_input_marker = Path.unique_full_path "? input"
+
 type display_path_kind =
 	| DPKNormal of path
 	| DPKMacro of path
+	| DPKDirect of string
+	| DPKInput of string
 	| DPKNone
 
 let process_display_file com classes =
@@ -317,6 +321,16 @@ let process_display_file com classes =
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
 			DPKNone
+		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
+			classes := [];
+			com.main_class <- None;
+			begin match !TypeloadParse.current_stdin with
+			| Some input ->
+				TypeloadParse.current_stdin := None;
+				DPKInput input
+			| None ->
+				DPKNone
+			end
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
@@ -343,11 +357,38 @@ let process_display_file com classes =
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
 				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
-				failwith "Display file was not found in class path"
+				DPKDirect real
 			in
 			Common.log com ("Display file : " ^ real);
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
 			path
+
+let load_display_file_standalone ctx file =
+	let com = ctx.com in
+	let pack,decls = TypeloadParse.parse_module_file com file null_pos in
+	let path = Path.FilePath.parse file in
+	let name = match path.file_name with
+		| None -> "?DISPLAY"
+		| Some name -> name
+	in
+	begin match path.directory with
+		| None -> ()
+		| Some dir ->
+			(* Chop off number of package parts from the dir and use that as class path. *)
+			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
+			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
+			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
+			com.class_path <- dir :: com.class_path
+	end;
+	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
+
+let load_display_content_standalone ctx input =
+	let com = ctx.com in
+	let file = file_input_marker in
+	let p = {pfile = file; pmin = 0; pmax = 0} in
+	let parsed = TypeloadParse.parse_file_from_string com file p input in
+	let pack,decls = TypeloadParse.handle_parser_result com file p parsed in
+	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 let promote_type_hints tctx =
 	let rec explore_type_hint (md,p,t) =

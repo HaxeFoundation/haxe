@@ -15,7 +15,6 @@ class DequeBrackets implements ITest {
 	@:timeout(2000)
 	public function test(async:utest.Async) {
 		Thread.create(() -> {
-			Sys.println("Running DequeBrackets");
 			var deque = new Deque();
 			var dequeMutex = new Mutex();
 			function add(open:String, close:String) {

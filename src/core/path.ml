@@ -234,8 +234,8 @@ module FilePath = struct
 		| "." | ".." ->
 			create (Some path) None None false
 		| _ ->
-			let c1 = String.rindex path '/' in
-			let c2 = String.rindex path '\\' in
+			let c1 = try String.rindex path '/' with Not_found -> -1 in
+			let c2 = try String.rindex path '\\' with Not_found -> -1 in
 			let split s at = String.sub s 0 at,String.sub s (at + 1) (String.length s - at - 1) in
 			let dir,path,backslash = if c1 < c2 then begin
 				let dir,path = split path c2 in

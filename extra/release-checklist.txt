@@ -10,7 +10,7 @@
 - Make sure `version` in globals.ml has the correct value
 - Check if the protocolVersion in displayJson.ml has to be updated
 - Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
-- Wait for the CI to build (check https://builds.haxe.org)
+- Wait for the CI to build (check https://build.haxe.org/builds/haxe/)
 - Get https://github.com/simn/hxgithub
 - Store your GitHub personal access token in .github-token
 - Run something like this: `neko release.n -h 4.0.0-rc.1 -u -uw -ur -d haxe_2019-02-01_development_1fdd3d5.zip --dry`

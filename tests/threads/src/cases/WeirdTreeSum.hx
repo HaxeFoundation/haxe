@@ -60,7 +60,6 @@ class WeirdTreeSum implements utest.ITest {
 	@:timeout(2000)
 	public function test(async:utest.Async) {
 		Thread.create(() -> {
-			Sys.println("Running WeirdTreeSum");
 			var fileContent = File.getContent("res/tree1.txt");
 			var buf = new StringBuf();
 			buf.add("(1)\n");

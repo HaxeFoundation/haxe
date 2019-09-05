@@ -77,12 +77,24 @@ let create_directory path mtime = {
 	c_mtime = mtime;
 }
 
+class virtual server_task (id : string list) (priority : int) = object(self)
+	method private virtual execute : unit
+
+	method run : unit =
+		let t = Timer.timer ("server" :: "task" :: id) in
+		Std.finally t (fun () -> self#execute) ()
+
+	method get_priority = priority
+	method get_id = id
+end
+
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
+	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
 
 	(* contexts *)
 
@@ -203,6 +215,36 @@ class cache = object(self)
 	method get_native_lib key =
 		try Some (Hashtbl.find native_libs key)
 		with Not_found -> None
+
+	(* tasks *)
+
+	method add_task (task : server_task) : unit =
+		tasks <- PriorityQueue.insert tasks task#get_priority task
+
+	method has_task =
+		not (PriorityQueue.is_empty tasks)
+
+	method get_task =
+		let (_,task,queue) = PriorityQueue.extract tasks in
+		tasks <- queue;
+		task
+
+	method run_tasks recursive f =
+		let rec loop acc =
+			let current = tasks in
+			tasks <- Empty;
+			let f (ran_task,acc) prio task =
+				if f task then begin
+					task#run;
+					(true,acc)
+				end else
+					ran_task,PriorityQueue.insert acc prio task
+			in
+			let ran_task,folded = PriorityQueue.fold current f (false,acc) in
+			if recursive && ran_task then loop folded
+			else folded
+		in
+		tasks <- PriorityQueue.merge tasks (loop PriorityQueue.Empty);
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =

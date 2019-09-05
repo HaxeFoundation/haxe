@@ -1799,19 +1799,6 @@ let macro_api ccom get_api =
 		);
 		"follow", vfun2 (fun v once ->
 			let t = decode_type v in
-			let follow_once t =
-				match t with
-				| TMono r ->
-					(match !r with
-					| None -> t
-					| Some t -> t)
-				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
-					t
-				| TType (t,tl) ->
-					apply_params t.t_params tl t.t_type
-				| TLazy f ->
-					lazy_type f
-			in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
 		);
 		"get_build_fields", vfun0 (fun() ->

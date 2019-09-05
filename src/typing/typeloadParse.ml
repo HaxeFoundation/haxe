@@ -21,6 +21,7 @@
 
 open Globals
 open Ast
+open Parser
 open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
@@ -274,7 +275,7 @@ module PdiHandler = struct
 		end;
 end
 
-let parse_module_file com file p =
+let handle_parser_result com file p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
@@ -282,7 +283,7 @@ let parse_module_file com file p =
 			| EPIgnore -> ()
 			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
 	in
-	let pack,decls = match (!parse_hook) com file p with
+	match result with
 		| ParseSuccess data -> data
 		| ParseDisplayFile(data,pdi) ->
 			begin match pdi.pd_errors with
@@ -294,8 +295,9 @@ let parse_module_file com file p =
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
 			data
-	in
-	pack,decls
+
+let parse_module_file com file p =
+	handle_parser_result com file p ((!parse_hook) com file p)
 
 let parse_module' com m p =
 	let remap = ref (fst m) in

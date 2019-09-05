@@ -29,46 +29,62 @@ open Globals
 
 let exclude : string list ref = ref []
 
-let explore_class_paths com timer class_paths recusive f_pack f_module =
-	let rec loop dir pack =
+class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
+	inherit server_task ["explore";dir] 50
+
+	method private execute : unit =
 		let dot_path = (String.concat "." (List.rev pack)) in
-		begin
-			if (List.mem dot_path !exclude) then
-				()
-			else try
-				let entries = Sys.readdir dir in
-				Array.iter (fun file ->
-					match file with
-						| "." | ".." ->
-							()
-						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-							begin try
-								begin match PMap.find file com.package_rules with
-									| Forbidden | Remap _ -> ()
-									| _ -> raise Not_found
+		if (List.mem dot_path !exclude) then
+			()
+		else try
+			let entries = Sys.readdir dir in
+			Array.iter (fun file ->
+				match file with
+					| "." | ".." ->
+						()
+					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+						begin try
+							begin match PMap.find file com.package_rules with
+								| Forbidden | Remap _ -> ()
+								| _ -> raise Not_found
+							end
+						with Not_found ->
+							f_pack (List.rev pack,file);
+							if recursive then begin
+								let task = new explore_class_path_task cs com recursive f_pack f_module (dir ^ file ^ "/") (file :: pack) in
+								begin match cs with
+									| None -> task#run
+									| Some cs' -> cs'#add_task task
 								end
-							with Not_found ->
-								f_pack (List.rev pack,file);
-								if recusive then loop (dir ^ file ^ "/") (file :: pack)
 							end
-						| _ ->
-							let l = String.length file in
-							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-								try
-									let name = String.sub file 0 (l - 3) in
-									let path = (List.rev pack,name) in
-									let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
-									if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
-								with _ ->
-									()
-							end
-				) entries;
-			with Sys_error _ ->
-				()
-		end
-	in
+						end
+					| _ ->
+						let l = String.length file in
+						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+							try
+								let name = String.sub file 0 (l - 3) in
+								let path = (List.rev pack,name) in
+								let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
+								if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
+							with _ ->
+								()
+						end
+			) entries;
+		with Sys_error _ ->
+			()
+
+end
+
+let explore_class_paths com timer class_paths recursive f_pack f_module =
+	let cs = CompilationServer.get() in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
-	List.iter (fun dir -> loop dir []) class_paths;
+	let tasks = List.map (fun dir ->
+		new explore_class_path_task cs com recursive f_pack f_module dir []
+	) class_paths in
+	begin match cs with
+	| None -> List.iter (fun task -> task#run) tasks
+	| Some cs -> List.iter (fun task -> cs#add_task task) tasks
+	end;
 	t()
 
 let read_class_paths com timer =
@@ -91,6 +107,11 @@ let init_or_update_server cs com timer_name =
 		cc#set_initialized true;
 		read_class_paths com timer_name
 	end;
+	(* Force executing all "explore" tasks here because we need their information. *)
+	cs#run_tasks true (fun task -> match task#get_id with
+		| "explore" :: _ -> true
+		| _ -> false
+	);
 	(* Iterate all removed files of the current context. If they aren't part of the context again,
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
