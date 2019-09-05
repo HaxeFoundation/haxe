@@ -797,10 +797,8 @@ let bind_var (ctx,cctx,fctx) cf e =
 					begin match c.cl_kind with
 						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
 							unify ctx t (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) p;
-							begin match e.eexpr with
-								| TCast(e1,None) -> unify ctx e1.etype a.a_this e1.epos
-								| _ -> assert false
-							end
+							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
+							unify ctx e1.etype a.a_this e1.epos
 						| _ ->
 							()
 					end;
