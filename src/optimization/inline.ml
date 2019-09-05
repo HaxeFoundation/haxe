@@ -545,6 +545,19 @@ class inline_state ctx ethis params cf f p = object(self)
 				| _ -> unify_func())
 			| _ -> unify_func());
 		end;
+		let rec drop_unused_vars e =
+			match e.eexpr with
+			| TVar (v, Some { eexpr = TConst _ }) ->
+				(try
+					let data = Hashtbl.find locals v.v_id in
+					if data.i_read = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					else Type.map_expr drop_unused_vars e
+				with Not_found ->
+					Type.map_expr drop_unused_vars e
+				)
+			| _ -> Type.map_expr drop_unused_vars e
+		in
+		let e = drop_unused_vars e in
 		let vars = Hashtbl.create 0 in
 		let rec map_var map_type v =
 			if not (Hashtbl.mem vars v.v_id) then begin
