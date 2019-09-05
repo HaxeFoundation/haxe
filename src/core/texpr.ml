@@ -541,15 +541,18 @@ let collect_captured_vars e =
 	In other cases return `e` as-is.
 *)
 let reduce_unsafe_casts ?(require_cast=false) e t =
-	let t = follow t in
-	let same_type etype = fast_eq t (follow etype) in
-	let rec loop e result =
+	let same_type t1 t2 =
+		fast_eq (follow_without_null t1) (follow_without_null t2)
+	in
+	let rec loop e =
 		match e.eexpr with
 		| TCast(subject,None) ->
-			if same_type e.etype then loop subject e
-			else loop subject result
-		| _ ->
-			if not require_cast && same_type e.etype then e
-			else result
+			let result = loop subject in
+			if same_type e.etype subject.etype then result
+			else { e with eexpr = TCast(result,None) }
+		| _ -> e
 	in
-	loop e e
+	match loop e with
+	| { eexpr = TCast _ } as result -> result
+	| result when require_cast -> { e with eexpr = TCast(result,None) }
+	| result -> result
