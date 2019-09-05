@@ -95,31 +95,16 @@ extern class Map<K, V> {
 	function values():js.lib.Iterator<V>;
 
 	/**
-		Returns a new `Iterator` object that contains an array of `MapEntry`
+		Returns a new `Iterator` object that contains an array of `KeyValue`
 		for each element in the `js.Map` object in insertion order.
 	**/
-	function entries():js.lib.Iterator<MapEntry<K, V>>;
+	function entries():js.lib.Iterator<KeyValue<K, V>>;
 
-	inline function iterator(): js.lib.HaxeIterator<V> {
+	inline function iterator():js.lib.HaxeIterator<V> {
 		return new HaxeIterator(this.values());
 	}
 
-	inline function keyValueIterator(): HaxeIterator<MapEntry<K,V>> {
+	inline function keyValueIterator():HaxeIterator<KeyValue<K, V>> {
 		return new HaxeIterator(this.entries());
 	}
-
-}
-
-/**
-	Key/value access helper for `js.Map.entries()` and `js.Set.entries()`.
-**/
-abstract MapEntry<K, V>(Array<Any>) {
-	public var key(get, never):K;
-	public var value(get, never):V;
-
-	inline function get_key():K
-		return this[0];
-
-	inline function get_value():V
-		return this[1];
 }
