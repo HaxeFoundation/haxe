@@ -874,7 +874,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~rex:this.r s in
+			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
@@ -932,7 +932,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~rex:this.r ~pos str in
+			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -945,7 +945,7 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
@@ -955,7 +955,7 @@ module StdEReg = struct
 		if String.length s = 0 then encode_array [encode_string ""]
 		else begin
 			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~max ~rex:this.r s in
+			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
 			let rec loop split cur acc l = match l with
 				| Text s :: l ->
 					loop split (cur ^ s) acc l
