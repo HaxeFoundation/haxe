@@ -22,7 +22,6 @@
 
 package js.lib;
 
-import js.lib.Map.MapEntry;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
 /**
@@ -91,7 +90,7 @@ extern class Uint8Array implements ArrayBufferView implements ArrayAccess<Int> {
 		Returns a new Array Iterator object that contains the key/value pairs for each index in the array.
 		See also [Array.prototype.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries).
 	 */
-	@:pure function entries():js.lib.Iterator<MapEntry<Int, Int>>;
+	@:pure function entries():js.lib.Iterator<KeyValue<Int, Int>>;
 
 	/**
 		Tests whether all elements in the array pass the test provided by a function.

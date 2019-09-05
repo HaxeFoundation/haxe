@@ -22,7 +22,6 @@
 
 package js.lib;
 
-import js.lib.Map.MapEntry;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
 /**
@@ -93,7 +92,7 @@ extern class Float32Array implements ArrayBufferView implements ArrayAccess<Floa
 		Returns a new Array Iterator object that contains the key/value pairs for each index in the array.
 		See also [Array.prototype.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries).
 	 */
-	@:pure function entries():js.lib.Iterator<MapEntry<Int, Float>>;
+	@:pure function entries():js.lib.Iterator<KeyValue<Int, Float>>;
 
 	/**
 		Tests whether all elements in the array pass the test provided by a function.
@@ -263,18 +262,4 @@ extern class Float32Array implements ArrayBufferView implements ArrayAccess<Floa
 		See also [Array.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString).
 	 */
 	@:pure function toString():String;
-}
-
-/**
-	Key/value access helper for `js.lib.Float32Array.entries()`.
-**/
-abstract Float32ArrayEntry(Array<Any>) {
-	public var key(get, never):Int;
-	public var value(get, never):Float;
-
-	inline function get_key():Int
-		return this[0];
-
-	inline function get_value():Float
-		return this[1];
 }
