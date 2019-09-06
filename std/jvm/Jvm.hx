@@ -127,7 +127,7 @@ class Jvm {
 				continue;
 			}
 			if (arg == (cast java.lang.Double.DoubleClass) && argType == cast java.lang.Integer.IntegerClass) {
-				callArgs[i] = nullIntToNullFloat(args[i]);
+				callArgs[i] = numberToDouble(args[i]);
 			} else {
 				return None;
 			}
@@ -145,23 +145,76 @@ class Jvm {
 
 	// casts
 
-	static public function dynamicToNullFloat<T>(d:T):Null<Float> {
-		if (instanceof(d, java.lang.Integer.IntegerClass)) {
-			return nullIntToNullFloat(cast d);
+	// TODO: add other dynamicToType methods
+
+	static public function dynamicToByte<T>(d:T):Null<java.lang.Byte> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToByte(cast d);
 		}
-		// TODO: need a better strategy to avoid infinite recursion here
 		return cast d;
 	}
 
-	static public function nullIntToNullFloat(i:Null<Int>):Null<Float> {
-		if (i == null) {
-			return null;
+	static public function dynamicToShort<T>(d:T):Null<java.lang.Short> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToShort(cast d);
 		}
-		return (cast i : java.lang.Number).intValue();
+		return cast d;
+	}
+
+	static public function dynamicToInteger<T>(d:T):Null<Int> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToInteger(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToLong<T>(d:T):Null<java.lang.Long> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToLong(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToFloat<T>(d:T):Null<java.lang.Float> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToFloat(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToDouble<T>(d:T):Null<Float> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToDouble(cast d);
+		}
+		return cast d;
+	}
+
+	static public function numberToByte(n:java.lang.Number):Null<java.lang.Byte> {
+		return n == null ? null : n.byteValue();
+	}
+
+	static public function numberToShort(n:java.lang.Number):Null<java.lang.Short> {
+		return n == null ? null : n.shortValue();
+	}
+
+	static public function numberToInteger(n:java.lang.Number):Null<Int> {
+		return n == null ? null : n.intValue();
+	}
+
+	static public function numberToLong(n:java.lang.Number):Null<java.lang.Long> {
+		return n == null ? null : n.longValue();
+	}
+
+	static public function numberToFloat(n:java.lang.Number):Null<java.lang.Float> {
+		return n == null ? null : n.floatValue();
+	}
+
+	static public function numberToDouble(n:java.lang.Number):Null<Float> {
+		return n == null ? null : n.doubleValue();
 	}
 
 	static public function toByte(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Byte).byteValue();
+		return d == null ? 0 : (d : java.lang.Number).byteValue();
 	}
 
 	static public function toChar(d:Dynamic) {
@@ -181,11 +234,11 @@ class Jvm {
 	}
 
 	static public function toLong(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Long).longValue();
+		return d == null ? 0 : (d : java.lang.Number).longValue();
 	}
 
 	static public function toShort(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Short).shortValue();
+		return d == null ? 0 : (d : java.lang.Number).shortValue();
 	}
 
 	static public function toBoolean(d:Dynamic) {
