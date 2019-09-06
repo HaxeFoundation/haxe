@@ -2103,11 +2103,15 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					|| is_php_class_const expr
 				then
 					self#write_expr expr
-				else begin
-					self#write "(";
-					self#write_expr expr;
-					self#write "??'null')"
-				end
+				else
+					match (reveal_expr expr).eexpr with
+					| TConst TNull -> self#write "'null'"
+					| TBinop _ | TUnop _ -> self#write_expr (parenthesis expr)
+					| TParenthesis { eexpr = (TBinop _ | TUnop _) } -> self#write_expr expr
+					| _ ->
+						self#write "(";
+						self#write_expr expr;
+						self#write "??'null')"
 			and write_binop ?writer ?right_writer str =
 				let write_left = match writer with None -> self#write_expr | Some writer -> writer in
 				let write_right = match right_writer with None -> write_left | Some writer -> writer
