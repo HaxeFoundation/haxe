@@ -31,7 +31,7 @@ class Check {
 														//success;
 														return;
 													case _:
-														Context.error('Invalid invalid type of "f(get())" in Arr.map: $t', exprs[0].pos);
+														Context.error('Invalid type of "f(get())" in Arr.map: $t', exprs[0].pos);
 												}
 											case _:
 												Context.error('Invalid expression of Arr.map block', exprs[0].pos);
