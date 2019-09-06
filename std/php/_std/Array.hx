@@ -120,8 +120,8 @@ final class Array<T> implements ArrayAccess<Int, T> {
 	}
 
 	public inline function push(x:T):Int {
-		arr[length] = x;
-		return ++length;
+		arr[length++] = x;
+		return length;
 	}
 
 	public function remove(x:T):Bool {

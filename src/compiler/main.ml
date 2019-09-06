@@ -895,7 +895,7 @@ try
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
 				did_something := true;
 				force_typing := true;
-				DisplayJson.parse_input com input measure_times
+				DisplayJson.parse_input com input Timer.measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -906,7 +906,7 @@ try
 			json_out := Some file
 		),"<file>","generate JSON types description");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> no_output := true),"","compiles but does not generate any file");
-		("Debug",["--times"],[], Arg.Unit (fun() -> measure_times := true),"","measure compilation times");
+		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
 		("Optimization",["--no-opt"],[], Arg.Unit (fun() ->
 			com.foptimize <- false;
@@ -1125,7 +1125,7 @@ with
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| DisplayException(DisplayFields Some r) ->
 		DisplayPosition.display_position#reset;
-		let fields = if !measure_times then begin
+		let fields = if !Timer.measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
 				CompletionItem.make_ci_timer ("@TIME " ^ name) value
@@ -1203,7 +1203,7 @@ with
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
-		if !measure_times then Timer.report_times prerr_endline;
+		if !Timer.measure_times then Timer.report_times prerr_endline;
 		exit i
 	| DisplayOutput.Completion _ as exc ->
 		raise exc
@@ -1232,4 +1232,4 @@ with DisplayOutput.Completion c ->
 	exit 1
 );
 other();
-if !measure_times then Timer.report_times prerr_endline
+if !Timer.measure_times then Timer.report_times prerr_endline
