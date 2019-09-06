@@ -570,7 +570,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			in
 			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
 		in
-		map_expr_type map_type e
+		let e = map_expr_type map_type e in
+		let rec drop_unused_vars e =
+			match e.eexpr with
+			| TVar (v, Some { eexpr = TConst _ }) ->
+				(try
+					let data = Hashtbl.find locals v.v_id in
+					if data.i_read = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					else Type.map_expr drop_unused_vars e
+				with Not_found ->
+					Type.map_expr drop_unused_vars e
+				)
+			| _ -> Type.map_expr drop_unused_vars e
+		in
+		drop_unused_vars e
 end
 
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
