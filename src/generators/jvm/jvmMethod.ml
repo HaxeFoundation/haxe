@@ -393,56 +393,169 @@ class builder jc name jsig = object(self)
 	(** Casts the top of the stack to [jsig]. If [allow_to_string] is true, Jvm.toString is called. **)
 	method cast ?(not_null=false) ?(allow_to_string=false) jsig =
 		let jsig' = code#get_stack#top in
+		let is_number_sig except = function
+			| TObject((["java";"lang"],("Byte" | "Short" | "Integer" | "Long" | "Float" | "Double" as name)),_) when name <> except ->
+				true
+			| _ ->
+				false
+		in
+		let rec unboxed_to_byte () = match code#get_stack#top with
+			| TByte | TBool -> ()
+			| TChar | TShort | TInt ->
+				code#i2b TByte
+			| TLong ->
+				code#l2i;
+				unboxed_to_byte ();
+			| TFloat ->
+				code#f2i;
+				unboxed_to_byte ();
+			| TDouble ->
+				code#d2i;
+				unboxed_to_byte ();
+			| jsig ->
+				failwith (s_signature_kind jsig);
+		in
+		let rec unboxed_to_short () = match code#get_stack#top with
+			| TShort -> ()
+			| TBool | TByte | TChar | TInt ->
+				code#i2s;
+			| TLong ->
+				code#l2i;
+				unboxed_to_short ();
+			| TFloat ->
+				code#f2i;
+				unboxed_to_short ();
+			| TDouble ->
+				code#d2i;
+				unboxed_to_short ();
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_int () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				ignore(code#get_stack#pop);
+				code#get_stack#push TInt;
+			| TLong ->
+				code#l2i;
+			| TFloat ->
+				code#f2i;
+			| TDouble ->
+				code#d2i;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_long () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2l;
+			| TLong ->
+				()
+			| TFloat ->
+				code#f2l;
+			| TDouble ->
+				code#d2l;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_float () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2f;
+			| TLong ->
+				code#l2f;
+			| TFloat ->
+				()
+			| TDouble ->
+				code#d2f;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_double () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2d;
+			| TLong ->
+				code#l2d;
+			| TFloat ->
+				code#f2d;
+			| TDouble ->
+				()
+			| _ ->
+				assert false
+		in
+		let get_conv = function
+			| "Byte" -> unboxed_to_byte
+			| "Short" -> unboxed_to_short
+			| "Integer" -> unboxed_to_int
+			| "Long" -> unboxed_to_long
+			| "Float" -> unboxed_to_float
+			| "Double" -> unboxed_to_double
+			| _ -> assert false
+		in
+		let number_to name =
+			let boxed_sig = TObject((["java";"lang"],name),[]) in
+			self#invokestatic (["haxe";"jvm"],"Jvm") ("numberTo" ^ name) (method_sig [number_sig] (Some boxed_sig))
+		in
+		let dynamic_to name =
+			let boxed_sig = TObject((["java";"lang"],name),[]) in
+			self#invokestatic (["haxe";"jvm"],"Jvm") ("dynamicTo" ^ name) (method_sig [object_sig] (Some boxed_sig))
+		in
+		let numeric_cast_boxed name jsig =
+			if is_unboxed jsig then begin
+				(get_conv name) ();
+				self#expect_reference_type
+			end else if is_number_sig name jsig then
+				number_to name
+			else if jsig = object_sig then
+				dynamic_to name
+			else
+				code#checkcast (["java";"lang"],name)
+		in
+		let numeric_cast_unboxed name jsig =
+			if is_unboxed jsig then
+				(get_conv name) ()
+			else begin
+				let unboxed_sig = get_unboxed_type (TObject((["java";"lang"],name),[])) in
+				self#expect_basic_type unboxed_sig;
+				(get_conv name) ()
+			end
+		in
 		begin match jsig,jsig' with
-		| TObject((["java";"lang"],"Double"),_),TInt ->
-			code#i2d;
-			self#expect_reference_type;
-		| TObject((["java";"lang"],"Double"),_),TObject((["java";"lang"],"Integer"),_) ->
-			self#invokestatic (["haxe";"jvm"],"Jvm") "nullIntToNullFloat" (method_sig [integer_sig] (Some double_sig))
-		| TObject((["java";"lang"],"Double"),_),TObject((["java";"lang"],"Object"),_) ->
-			self#invokestatic (["haxe";"jvm"],"Jvm") "dynamicToNullFloat" (method_sig [object_sig] (Some double_sig))
-		(* from double *)
-		| TFloat,TDouble ->
-			code#d2f
-		| TInt,TDouble ->
+		| TObject((["java";"lang"],"Byte"),_),jsig' ->
+			numeric_cast_boxed "Byte" jsig'
+		| TByte,jsig' ->
+			numeric_cast_unboxed "Byte" jsig'
+		| TObject((["java";"lang"],"Short"),_),jsig' ->
+			numeric_cast_boxed "Short" jsig'
+		| TShort,jsig' ->
+			numeric_cast_unboxed "Short" jsig'
+		| TObject((["java";"lang"],"Integer"),_),jsig' ->
+			numeric_cast_boxed "Integer" jsig'
+		| TInt,jsig' ->
+			numeric_cast_unboxed "Integer" jsig'
+		| TObject((["java";"lang"],"Long"),_),jsig' ->
+			numeric_cast_boxed "Long" jsig'
+		| TLong,jsig' ->
+			numeric_cast_unboxed "Long" jsig'
+		| TObject((["java";"lang"],"Float"),_),jsig' ->
+			numeric_cast_boxed "Float" jsig'
+		| TFloat,jsig' ->
+			numeric_cast_unboxed "Float" jsig'
+		| TObject((["java";"lang"],"Double"),_),jsig' ->
+			numeric_cast_boxed "Double" jsig'
+		| TDouble,jsig' ->
+			numeric_cast_unboxed "Double" jsig'
+		| TChar,TDouble ->
 			code#d2i;
-		| TLong,TDouble ->
-			code#d2l;
-		(* from float *)
-		| TDouble,TFloat ->
-			code#f2d
-		| TInt,TFloat ->
+			code#i2c;
+		| TChar,TFloat ->
 			code#f2i;
-		| TLong,TFloat ->
-			code#f2l;
-		(* from int *)
+			code#i2c;
+		| TChar,(TByte | TShort | TInt) ->
+			code#i2c;
+		| TChar,TLong ->
+			code#l2i;
+			code#i2c;
 		| TBool,TInt ->
 			ignore(code#get_stack#pop);
 			code#get_stack#push TBool;
-		| TByte,TInt ->
-			code#i2b TByte
-		| TChar,TInt ->
-			code#i2c
-		| TDouble,TInt ->
-			code#i2d;
-		| TFloat,TInt ->
-			code#i2f
-		| TLong,TInt ->
-			code#i2l;
-		| TShort,TInt ->
-			code#i2s
-		(* from long *)
-		| TDouble,TLong ->
-			code#l2d;
-		| TFloat,TLong ->
-			code#l2f
-		| TInt,TLong ->
-			code#l2i;
-		(* widening *)
-		| TInt,(TByte | TShort | TChar) ->
-			(* No cast, but rewrite stack top *)
-			ignore(code#get_stack#pop);
-			code#get_stack#push jsig;
 		| TObject(path1,_),TObject(path2,_) when path1 = path2 ->
 			()
 		| TObject((["java";"lang"],"String"),_),_ when allow_to_string ->

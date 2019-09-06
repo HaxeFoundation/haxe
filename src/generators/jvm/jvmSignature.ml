@@ -229,6 +229,9 @@ module NativeSignatures = struct
 
 	(* numeric *)
 
+	let number_path = ["java";"lang"],"Number"
+	let number_sig = TObject(number_path,[])
+
 	let byte_path = ["java";"lang"],"Byte"
 	let byte_sig = TObject(byte_path,[])
 
