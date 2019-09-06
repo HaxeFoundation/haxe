@@ -1,3 +1,5 @@
+import haxe.io.Path;
+import sys.io.File;
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
@@ -258,6 +260,17 @@ class ServerTests extends HaxeServerTestCase {
 		var r = ~/skipping Dependency\(.*dep.dep\)/;
 		Assert.isTrue(messages.exists(message -> r.match(message)));
 	}
+
+	// function testIssue8616() {
+	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
+	// 	vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
+	// 	var args = ["-main", "Main", "-js", "out.js"];
+	// 	runHaxe(args);
+	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+	// 	runHaxe(args);
+	// 	var content = File.getContent(Path.join([testDir, "out.js"]));
+	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
+	// }
 }
 
 class Main {
