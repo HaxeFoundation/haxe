@@ -112,8 +112,7 @@ let rec type_module_type ctx t tparams p =
 		in
 		type_module_type ctx mt None p
 	| TClassDecl c ->
-		let t_tmp = class_module_type c in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+		mk (TTypeExpr (TClassDecl c)) (class_module_type c) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
@@ -134,8 +133,7 @@ let rec type_module_type ctx t tparams p =
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
-		let t_tmp = abstract_module_type a [] in
-		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
+		mk (TTypeExpr (TAbstractDecl a)) (abstract_module_type a) p
 
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p

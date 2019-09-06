@@ -226,6 +226,7 @@ and tclass = {
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
+	mutable cl_type : t option;
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_final : bool;
@@ -304,6 +305,7 @@ and tabstract = {
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
 	(* do not insert any fields above *)
+	mutable a_type : t option;
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
@@ -472,6 +474,7 @@ let mk_class m path pos name_pos =
 		cl_final = false;
 		cl_interface = false;
 		cl_params = [];
+		cl_type = None;
 		cl_using = [];
 		cl_super = None;
 		cl_implements = [];
@@ -549,6 +552,7 @@ let null_abstract = {
 	a_doc = None;
 	a_meta = [];
 	a_params = [];
+	a_type = None;
 	a_using = [];
 	a_ops = [];
 	a_unops = [];
@@ -1161,9 +1165,9 @@ let rec s_type ctx t =
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
-			| Statics c -> Printf.sprintf "{ Statics %s }" (s_type_path c.cl_path)
-			| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
-			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
+			| Statics c -> Printf.sprintf "Class<%s>" (s_type_path c.cl_path)
+			| EnumStatics e -> Printf.sprintf "Enum<%s>" (s_type_path e.e_path)
+			| AbstractStatics a -> Printf.sprintf "Abstract<%s>" (s_type_path a.a_path)
 			| _ ->
 				let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 				"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
@@ -1634,7 +1638,6 @@ module Printer = struct
 			"d_doc",s_doc en.e_doc;
 			"e_meta",s_metadata en.e_meta;
 			"e_params",s_type_params en.e_params;
-			"e_type",s_tdef "\t" en.e_type;
 			"e_extern",string_of_bool en.e_extern;
 			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
 			"e_names",String.concat ", " en.e_names
@@ -3048,21 +3051,16 @@ module ExtType = struct
 	let has_value_semantics t = has_semantics t ValueSemantics
 end
 
-let class_module_type c = {
-	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-	t_module = c.cl_module;
-	t_doc = None;
-	t_pos = c.cl_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = c.cl_statics;
-		a_status = ref (Statics c);
-	};
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let class_module_type c = match c.cl_type with
+	| None ->
+		let t = TAnon {
+			a_fields = c.cl_statics;
+			a_status = ref (Statics c);
+		} in
+		c.cl_type <- Some t;
+		t
+	| Some t ->
+		t
 
 let enum_module_type m path p  = {
 	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
@@ -3077,21 +3075,16 @@ let enum_module_type m path p  = {
 	t_meta = [];
 }
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let abstract_module_type a = match a.a_type with
+	| None ->
+		let t = TAnon {
+			a_fields = PMap.empty;
+			a_status = ref (AbstractStatics a);
+		} in
+		a.a_type <- Some t;
+		t
+	| Some t ->
+		t
 
 module TClass = struct
 	let get_member_fields' self_too c0 tl =

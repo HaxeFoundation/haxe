@@ -290,6 +290,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
+				a_type = None;
 				a_using = [];
 				a_meta = d.d_meta;
 				a_from = [];
