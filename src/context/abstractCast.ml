@@ -17,8 +17,8 @@ let rec make_static_call ctx c cf a pl args t p =
 					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				let e = cast_or_unify ctx t e p in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
 			| _ -> assert false
