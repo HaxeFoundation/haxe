@@ -1,2 +1,1 @@
-Main.hx:4: characters 16-38 : { somethingNotV : Int } should be Ref<Int>
-Main.hx:9: lines 9-18 : Defined in this class
+Main.hx:13: characters 3-25 : Int should be Ref<Int>
