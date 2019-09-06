@@ -12,7 +12,6 @@ open Json
 exception Dirty of path
 exception ServerError of string
 
-let measure_times = ref false
 let prompt = ref false
 let start_time = ref (Timer.get_time())
 

@@ -25,6 +25,8 @@ type timer_infos = {
 	mutable calls : int;
 }
 
+let measure_times = ref false
+
 let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
@@ -68,9 +70,13 @@ let rec close now t =
 			close now tt
 
 let timer id =
-	let t = new_timer id in
-	curtime := t :: !curtime;
-	(function() -> close (get_time()) t)
+	if !measure_times then (
+		let t = new_timer id in
+		curtime := t :: !curtime;
+		(function() -> close (get_time()) t)
+	) else
+		(fun() -> ())
+
 
 let rec close_times() =
 	let now = get_time() in
