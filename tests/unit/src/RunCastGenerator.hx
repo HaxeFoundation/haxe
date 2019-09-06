@@ -4,6 +4,7 @@ import haxe.macro.Printer;
 
 class RunCastGenerator {
 	static function main() {
+		Sys.println("Starting cast generation...");
 		var td = macro class TestNumericCasts extends unit.Test {};
 		var intTypes = [macro:Int8, macro:Int16, macro:Int32, macro:Int64];
 		var floatTypes = [macro:Float32, macro:Float64];
@@ -36,23 +37,33 @@ class RunCastGenerator {
 				var infoFrom = getInfo(typeFrom);
 				var infoTo = getInfo(typeTo);
 				var name = infoFrom.name + "_" + infoTo.name;
-				var field = (macro class C {
+				var dynamicName = "Dynamic" + name;
+				var fields = (macro class C {
 					static function $name(v : $typeFrom):$typeTo return cast v;
-				}).fields[0];
-				td.fields.push(field);
-				tests.push(macro deq(0, $i{name}(0)));
-				tests.push(macro deq(1, $i{name}(1)));
-				if (infoFrom.floatable) {
-					tests.push(macro deq(0., $i{name}(0.)));
-					tests.push(macro deq(1., $i{name}(1.)));
-				}
-				if (infoFrom.nullable) {
-					if (infoTo.nullable) {
-						tests.push(macro deq(null, $i{name}(null)));
-					} else {
-						tests.push(macro deq(CastHelper.nullOr0, $i{name}(null)));
+					static function $dynamicName(v : $typeFrom):$typeTo {
+						var x:Dynamic = v;
+						return x;
+					}
+				}).fields;
+				td.fields.push(fields[0]);
+				td.fields.push(fields[1]);
+				function generateCalls(name:String) {
+					tests.push(macro deq(0, $i{name}(0)));
+					tests.push(macro deq(1, $i{name}(1)));
+					if (infoFrom.floatable) {
+						tests.push(macro deq(0., $i{name}(0.)));
+						tests.push(macro deq(1., $i{name}(1.)));
+					}
+					if (infoFrom.nullable) {
+						if (infoTo.nullable) {
+							tests.push(macro deq(null, $i{name}(null)));
+						} else {
+							tests.push(macro deq(CastHelper.nullOr0, $i{name}(null)));
+						}
 					}
 				}
+				generateCalls(name);
+				generateCalls(dynamicName);
 			}
 		}
 		td.fields = td.fields.concat((macro class C {
@@ -90,5 +101,6 @@ class RunCastGenerator {
 		line("}");
 		line(printer.printTypeDefinition(td));
 		File.saveContent("src/unit/TestNumericCasts.hx", buffer.toString());
+		Sys.println('Done with cast generation! " Generated ${td.fields.length} functions and ${tests.length} tests.');
 	}
 }

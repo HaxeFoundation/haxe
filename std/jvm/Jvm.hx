@@ -147,15 +147,45 @@ class Jvm {
 
 	// TODO: add other dynamicToType methods
 
+	static public function dynamicToByte<T>(d:T):Null<java.lang.Byte> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToByte(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToShort<T>(d:T):Null<java.lang.Short> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToShort(cast d);
+		}
+		return cast d;
+	}
+
 	static public function dynamicToInteger<T>(d:T):Null<Int> {
-		return cast d; // TODO: this should check some more things...
+		if (instanceof(d, java.lang.Number)) {
+			return numberToInteger(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToLong<T>(d:T):Null<java.lang.Long> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToLong(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToFloat<T>(d:T):Null<java.lang.Float> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToFloat(cast d);
+		}
+		return cast d;
 	}
 
 	static public function dynamicToDouble<T>(d:T):Null<Float> {
-		if (instanceof(d, java.lang.Integer.IntegerClass)) {
+		if (instanceof(d, java.lang.Number)) {
 			return numberToDouble(cast d);
 		}
-		// TODO: need a better strategy to avoid infinite recursion here
 		return cast d;
 	}
 
