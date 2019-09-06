@@ -341,6 +341,9 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
+			if Meta.has Meta.CoreType a.a_meta then
+				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()
 	) new_types;
