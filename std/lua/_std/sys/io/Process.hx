@@ -89,15 +89,22 @@ class Process {
 
 		var opt = {args: setArgs(cmd, args), stdio: stdio};
 
-		var p:lua.lib.luv.Process.LuvSpawn;
-		p = lua.lib.luv.Process.spawn(_shell, opt, function(code:Int, signal:Signal) {
+		var p = lua.lib.luv.Process.spawn(_shell, opt, function(code:Int, signal:Signal) {
 			_code = code;
+			if (!_handle.is_closing()){
+			    _handle.close();
+            }
+            _stdin.shutdown(()->_stdin.close());
+            _stderr.shutdown(()->_stderr.close());
+            _stdout.shutdown(()->_stdout.close());
+
 		});
+		_handle = p.handle;
 
 		if (p.handle == null)
 			throw p.pid;
+
 		_pid = p.pid;
-		_handle = p.handle;
 	}
 
 	public function getPid():Int {
@@ -105,10 +112,9 @@ class Process {
 	}
 
 	public function close():Void {
-		stdout.close();
-		stdin.close();
-		stderr.close();
-		_handle.close();
+		if (!_handle.is_closing()){
+            _handle.close();
+        }
 	}
 
 	public function exitCode(block:Bool = true):Null<Int> {
