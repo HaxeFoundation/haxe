@@ -1,5 +1,5 @@
 {
-	"haxe.displayConfigurations": [
+	"haxe.configurations": [
 		{"label": "Neko", "args": ["build.hxml", "-neko", "export/run.n", "-cmd", "neko export/run.n"]},
 		{"label": "JavaScript", "args": ["build.hxml", "-js","export/run.js", "-lib", "hxnodejs", "-cmd", "node export/run.js"]},
 		{"label": "Python", "args": ["build.hxml", "-python", "export/run.py", "-cmd", "python3 export/run.py"]},
