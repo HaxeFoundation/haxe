@@ -143,6 +143,13 @@ class cache = object(self)
 
 	(* modules *)
 
+	method iter_modules f =
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun _ m ->
+				f m
+			) cc#get_modules
+		) contexts
+
 	method get_modules =
 		Hashtbl.fold (fun _ cc acc ->
 			Hashtbl.fold (fun _ m acc ->
