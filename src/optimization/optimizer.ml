@@ -237,7 +237,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TSwitch (e1,cases,def) ->
 		let e = match Texpr.skip e1 with
-			| {eexpr = TConst ct} as e1 ->
+			| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
 				let rec loop cases = match cases with
 					| (el,e) :: cases ->
 						if List.exists (Texpr.equal e1) el then e
