@@ -26,7 +26,7 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 		| Some ctx -> not (distinguishes_funs_as_params ctx) in
 	let rec follow_skip_null t = match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> follow_skip_null t
 			| _ -> t)
 		| TLazy f ->
@@ -112,7 +112,7 @@ struct
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
 			simplify_t (apply_params t.t_params tl t.t_type)
-		| TMono r -> (match !r with
+		| TMono r -> (match r.tm_type with
 			| Some t -> simplify_t t
 			| None -> t_dynamic)
 		| TAnon _ -> t_dynamic

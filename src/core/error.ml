@@ -138,7 +138,7 @@ module BetterErrors = struct
 	let rec s_type ctx t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
 			| Some t -> s_type ctx t)
 		| TEnum (e,tl) ->

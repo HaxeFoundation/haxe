@@ -367,7 +367,7 @@ let get_rec_cache ctx t none_callback not_found_callback =
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> HDyn
 		| Some t -> to_type ?tref ctx t)
 	| TType (td,tl) ->

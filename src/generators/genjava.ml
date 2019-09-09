@@ -1254,7 +1254,7 @@ let generate con =
 				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
 				| TAbstract ({ a_path = [], "Dynamic" },[]) ->
 						path_s_import pos (["java";"lang"], "Object") []
-				| TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
+				| TMono r -> (match r.tm_type with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
 				| TInst ({ cl_path = [], "String" }, []) ->
 						path_s_import pos (["java";"lang"], "String") []
 				| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
@@ -1877,7 +1877,7 @@ let generate con =
 					gen_annotations w ~add_newline:false tdef.t_meta;
 					run (follow_once t)
 				| TMono r ->
-					(match !r with
+					(match r.tm_type with
 					| Some t -> run t
 					| _ -> () (* avoid infinite loop / should be the same in this context *))
 				| TLazy f ->

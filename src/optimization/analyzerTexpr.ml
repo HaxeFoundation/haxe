@@ -154,14 +154,14 @@ let type_change_ok com t1 t2 =
 		true
 	else begin
 		let rec map t = match t with
-			| TMono r -> (match !r with None -> t_dynamic | Some t -> map t)
+			| TMono r -> (match r.tm_type with None -> t_dynamic | Some t -> map t)
 			| _ -> Type.map map t
 		in
 		let t1 = map t1 in
 		let t2 = map t2 in
 		let rec is_nullable_or_whatever = function
 			| TMono r ->
-				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
+				(match r.tm_type with None -> false | Some t -> is_nullable_or_whatever t)
 			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->

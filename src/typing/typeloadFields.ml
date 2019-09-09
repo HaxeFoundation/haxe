@@ -460,7 +460,7 @@ let create_class_context ctx c context_init p =
 		tthis = (match abstract with
 			| Some a ->
 				(match a.a_this with
-				| TMono r when !r = None -> TAbstract (a,List.map snd c.cl_params)
+				| TMono r when r.tm_type = None -> TAbstract (a,List.map snd c.cl_params)
 				| t -> t)
 			| None -> TInst (c,List.map snd c.cl_params));
 		on_error = (fun ctx msg ep ->
@@ -628,7 +628,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
-		| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
+		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
 		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let force_macro () =

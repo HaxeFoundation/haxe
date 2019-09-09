@@ -1377,7 +1377,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __POS__
 				| TMono mono ->
-					(match !mono with
+					(match mono.tm_type with
 						| None -> "mixed"
 						| Some t -> self#use_t t
 					)

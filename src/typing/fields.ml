@@ -526,7 +526,7 @@ let rec type_field cfg ctx e i p mode =
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
 		ctx.opened <- x :: ctx.opened;
-		r := Some t;
+		Monomorph.bind r t;
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
 	| TAbstract (a,pl) ->
 		let static_abstract_access_through_instance = ref false in

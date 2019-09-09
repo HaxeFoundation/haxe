@@ -71,7 +71,7 @@ let is_string_type t =
 *)
 let rec is_nullable_type = function
 	| TMono r ->
-		(match !r with None -> false | Some t -> is_nullable_type t)
+		(match r.tm_type with None -> false | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -194,9 +194,9 @@ class unificator =
 						self#unify (lazy_type f) b
 					| _, TLazy f -> self#unify a (lazy_type f)
 					| TMono t, _ ->
-						(match !t with None -> () | Some t -> self#unify t b)
+						(match t.tm_type with None -> () | Some t -> self#unify t b)
 					| _, TMono t ->
-						(match !t with None -> () | Some t -> self#unify a t)
+						(match t.tm_type with None -> () | Some t -> self#unify a t)
 					| TType (t,tl), _ ->
 						self#unify_rec a b (fun() -> self#unify (apply_params t.t_params tl t.t_type) b)
 					| _, TType (t,tl) ->
@@ -300,7 +300,7 @@ let is_trace expr =
 *)
 let rec unfold_null t =
 	match t with
-		| TMono r -> (match !r with None -> t | Some t -> unfold_null t)
+		| TMono r -> (match r.tm_type with None -> t | Some t -> unfold_null t)
 		| TAbstract ({ a_path = ([],"Null") }, [t]) -> unfold_null t
 		| TLazy f -> unfold_null (lazy_type f)
 		| TType (t,tl) -> unfold_null (apply_params t.t_params tl t.t_type)
@@ -326,7 +326,7 @@ let rec can_pass_type src dst =
 	else
 		(* TODO *)
 		match dst with
-			| TMono r -> (match !r with None -> true | Some t -> can_pass_type src t)
+			| TMono r -> (match r.tm_type with None -> true | Some t -> can_pass_type src t)
 			| TEnum (_, params) -> true
 			| TInst _ -> true
 			| TType (t, tl) -> can_pass_type src (apply_params t.t_params tl t.t_type)
