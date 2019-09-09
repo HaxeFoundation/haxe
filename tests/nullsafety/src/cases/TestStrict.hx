@@ -896,6 +896,9 @@ class TestStrict {
 		trace("hi", x);
 		trace("hi", shouldFail(x()));
 	}
+
+	@:shouldFail @:nullSafety(InvalidArgument)
+	static function invalidMetaArgument_shouldFail() {}
 }
 
 private class FinalNullableFields {

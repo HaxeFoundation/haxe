@@ -430,16 +430,16 @@ let safety_mode (metadata:Ast.metadata) =
 		| Some mode -> mode
 		| None -> SMOff
 
-let rec validate_safety_meta error (metadata:Ast.metadata) =
+let rec validate_safety_meta report (metadata:Ast.metadata) =
 	match metadata with
 		| [] -> ()
 		| (Meta.NullSafety, args, pos) :: rest ->
 			(match args with
 				| ([] | [(EConst (Ident ("Off" | "Loose" | "Strict")), _)]) -> ()
-				| _ -> error "Invalid argument for @:nullSafety meta" pos
+				| _ -> add_error report "Invalid argument for @:nullSafety meta" pos
 			);
-			validate_safety_meta error rest
-		| _ :: rest -> validate_safety_meta error rest
+			validate_safety_meta report rest
+		| _ :: rest -> validate_safety_meta report rest
 
 (**
 	Check if specified `field` represents a `var` field which will exist at runtime.
@@ -1041,6 +1041,7 @@ class expr_checker mode immediate_execution report =
 				| TThrow expr -> self#check_throw expr e.epos
 				| TCast (expr, _) -> self#check_cast expr e.etype e.epos
 				| TMeta (m, _) when contains_unsafe_meta [m] -> ()
+				| TMeta ((Meta.NullSafety, _, _) as m, e) -> validate_safety_meta report [m]; self#check_expr e
 				| TMeta (_, e) -> self#check_expr e
 				| TEnumIndex idx -> self#check_enum_index idx e.epos
 				| TEnumParameter (e, _, _) -> self#check_expr e (** Checking enum value itself is not needed here because this expr always follows after TEnumIndex *)
@@ -1363,7 +1364,7 @@ class expr_checker mode immediate_execution report =
 				| _ -> ()
 	end
 
-class class_checker cls immediate_execution report  =
+class class_checker cls immediate_execution report =
 	let cls_meta = cls.cl_meta @ (match cls.cl_kind with KAbstractImpl a -> a.a_meta | _ -> []) in
 	object (self)
 			val is_safe_class = (safety_enabled cls_meta)
@@ -1373,9 +1374,11 @@ class class_checker cls immediate_execution report  =
 			Entry point for checking a class
 		*)
 		method check =
+			validate_safety_meta report cls_meta;
 			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field is_static f =
+				validate_safety_meta report f.cf_meta;
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
@@ -1448,6 +1451,7 @@ class class_checker cls immediate_execution report  =
 		*)
 		method check_var_fields =
 			let check_field is_static field =
+				validate_safety_meta report field.cf_meta;
 				if should_be_initialized field then
 					if not (is_nullable_type field.cf_type) && self#is_in_safety field then
 						match field.cf_expr with
