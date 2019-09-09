@@ -3174,7 +3174,7 @@ module StdUv = struct
 			| v -> unexpected_value v "UVFile"
 		let get_async = vifun0 (fun vthis ->
 			let this = this vthis in
-			encode_instance key_nusys_io_AsyncFile ~kind:(IUv (UvFile this))
+			encode_instance key_asys_io_AsyncFile ~kind:(IUv (UvFile this))
 		)
 		let chmod = vifun1 (fun vthis mode ->
 			let this = this vthis in
@@ -3385,7 +3385,7 @@ module StdUv = struct
 			let mode = decode_int mode in
 			(*let binary = decode_bool binary in*)
 			let handle = wrap_sync (Uv.fs_open_sync (loop ()) path flags mode) in
-			encode_instance key_nusys_io_File ~kind:(IUv (UvFile handle))
+			encode_instance key_asys_io_File ~kind:(IUv (UvFile handle))
 		)
 		let readdirTypes = vfun1 (fun path ->
 			let path = decode_string path in
@@ -3526,9 +3526,9 @@ module StdUv = struct
 			let this = this vthis in
 			let addr : Uv.uv_ip_address_port = wrap_sync (fn this) in
 			match addr with {address; port} ->
-				encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
-						| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
-						| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+				encode_enum_value key_asys_net_SocketAddress 0 [|(match address with
+						| Uv.UvIpv4 raw -> encode_enum_value key_asys_net_Address 0 [|VInt32 raw|] None
+						| Uv.UvIpv6 raw -> encode_enum_value key_asys_net_Address 1 [|encode_bytes raw|] None
 					); vint port|] None
 		)
 		let getSockName = getName Uv.tcp_getsockname
@@ -3607,8 +3607,8 @@ module StdUv = struct
 					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
 					| Uv.UvSuccess {data; address; port} ->
 						let address = (match address with
-								| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
-								| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+								| Uv.UvIpv4 raw -> encode_enum_value key_asys_net_Address 0 [|VInt32 raw|] None
+								| Uv.UvIpv6 raw -> encode_enum_value key_asys_net_Address 1 [|encode_bytes raw|] None
 							) in
 						let msg = encode_obj [key_data, encode_bytes data; key_address, address; key_port, vint port] in
 						ignore (call_value cb [vnull; msg])
@@ -3624,9 +3624,9 @@ module StdUv = struct
 			let this = this vthis in
 			let addr : Uv.uv_ip_address_port = wrap_sync (Uv.udp_getsockname this) in
 			match addr with {address; port} ->
-				encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
-						| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
-						| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+				encode_enum_value key_asys_net_SocketAddress 0 [|(match address with
+						| Uv.UvIpv4 raw -> encode_enum_value key_asys_net_Address 0 [|VInt32 raw|] None
+						| Uv.UvIpv6 raw -> encode_enum_value key_asys_net_Address 1 [|encode_bytes raw|] None
 					); vint port|] None
 		)
 		let setBroadcast = vifun1 (fun vthis flag ->
@@ -3706,8 +3706,8 @@ module StdUv = struct
 					| Uv.UvError err -> call_value cb [wrap_error err; vnull]
 					| Uv.UvSuccess entries ->
 						let entries = encode_array (List.map (fun e -> match e with
-							| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
-							| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None) entries) in
+							| Uv.UvIpv4 raw -> encode_enum_value key_asys_net_Address 0 [|VInt32 raw|] None
+							| Uv.UvIpv6 raw -> encode_enum_value key_asys_net_Address 1 [|encode_bytes raw|] None) entries) in
 						call_value cb [vnull; entries]
 					)
 				));
@@ -3845,7 +3845,7 @@ module StdUv = struct
 		let getName fn = vifun0 (fun vthis ->
 			let this = this vthis in
 			let path = wrap_sync (fn this) in
-			encode_enum_value key_nusys_net_SocketAddress 1 [|encode_string path|] None
+			encode_enum_value key_asys_net_SocketAddress 1 [|encode_string path|] None
 		)
 		let getSockName = getName Uv.pipe_getsockname
 		let getPeerName = getName Uv.pipe_getpeername
@@ -4539,7 +4539,7 @@ let init_standard_library builtins =
 		"stop",StdUv.stop;
 		"close",StdUv.close;
 	] [];
-	init_fields builtins (["nusys"],"FileSystem") [
+	init_fields builtins (["asys"],"FileSystem") [
 		"access",StdUv.FileSystem.access;
 		"chmod",StdUv.FileSystem.chmod;
 		"chown",StdUv.FileSystem.chown;
@@ -4558,12 +4558,12 @@ let init_standard_library builtins =
 		"unlink",StdUv.FileSystem.unlink;
 		"utimes_native",StdUv.FileSystem.utimes_native;
 	] [];
-	init_fields builtins (["nusys";"async"],"FileSystem") [
+	init_fields builtins (["asys"],"AsyncFileSystem") [
 		"access",StdUv.AsyncFileSystem.access;
 		"exists",StdUv.AsyncFileSystem.exists;
 		"readdirTypes",StdUv.AsyncFileSystem.readdirTypes;
 	] [];
-	init_fields builtins (["nusys";"io"],"File") [] [
+	init_fields builtins (["asys";"io"],"File") [] [
 		"get_async",StdUv.File.get_async;
 		"chmod",StdUv.File.chmod;
 		"chown",StdUv.File.chown;
@@ -4576,7 +4576,7 @@ let init_standard_library builtins =
 		"utimes_native",StdUv.File.utimes_native;
 		"writeBuffer",StdUv.File.writeBuffer;
 	];
-	init_fields builtins (["nusys";"io"],"AsyncFile") [] [
+	init_fields builtins (["asys";"io"],"AsyncFile") [] [
 		"chmod",StdUv.AsyncFile.chmod;
 		"chown",StdUv.AsyncFile.chown;
 		"close",StdUv.AsyncFile.close;
@@ -4642,7 +4642,7 @@ let init_standard_library builtins =
 		"ref",StdUv.UdpSocket.ref_;
 		"unref",StdUv.UdpSocket.unref;
 	];
-	init_fields builtins (["nusys";"net"],"Dns") [
+	init_fields builtins (["asys";"net"],"Dns") [
 		"lookup_native",StdUv.Dns.lookup_native;
 		"reverse",StdUv.Dns.reverse;
 	] [];
