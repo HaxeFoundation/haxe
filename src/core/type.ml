@@ -64,6 +64,7 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
+	mutable tm_constraints : (t * string) list;
 }
 
 and tlazy =
@@ -389,16 +390,87 @@ type flag_tclass_field =
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
+let unify_ref : (t -> t -> unit) ref = ref (fun _ _ -> ())
+
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+	| Has_no_runtime_field of t * string
+	| Has_extra_field of t * string
+	| Invalid_kind of string * field_kind * field_kind
+	| Invalid_visibility of string
+	| Not_matching_optional of string
+	| Cant_force_optional
+	| Invariant_parameter of int
+	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int (* index *) * int (* total *)
+	| Invalid_return_type
+	| Unify_custom of string
+
+exception Unify_error of unify_error list
+
+let check_constraint name f =
+	try
+		f()
+	with Unify_error l ->
+		raise (Unify_error ((Constraint_failure name) :: l))
+
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
+		tm_constraints = [];
 	}
 
-	let bind m t =
-		m.tm_type <- Some t
+	let unify_merge a b = match a,b with
+		| TAnon an1,TAnon an2 ->
+			let old1 = !(an1.a_status) in
+			let old2 = !(an2.a_status) in
+			an1.a_status := Opened;
+			an2.a_status := Opened;
+			Std.finally (fun () ->
+				an1.a_status := old1;
+				an1.a_status := old2;
+			) (!unify_ref a) b
+		| _ ->
+			!unify_ref a b
+
+	let add_constraint m path t =
+		assert(m.tm_type = None);
+		m.tm_constraints <- (t,path) :: m.tm_constraints
+
+	let rec bind m t =
+		begin match t with
+		| TMono m2 ->
+			begin match m2.tm_type with
+			| None ->
+				(* Inherit constraints. This avoids too-early unification. *)
+				List.iter (fun (t,path) -> add_constraint m2 path t) m.tm_constraints;
+				m.tm_type <- Some t
+			| Some t ->
+				bind m t
+			end;
+		| _ ->
+			List.iter (fun (t',path) ->
+				check_constraint path (fun () -> unify_merge t t')
+			) m.tm_constraints;
+			m.tm_type <- Some t
+		end
 
 	let unbind m =
 		m.tm_type <- None
+
+	let become_single_constraint m =
+		assert(m.tm_type = None);
+		match m.tm_constraints with
+		| [t,_] ->
+			m.tm_type <- Some t;
+			m.tm_constraints <- [];
+			Some t;
+		| _ ->
+			None
 end
 
 (* Flags *)
@@ -1127,7 +1199,11 @@ let rec s_type_kind t =
 	match t with
 	| TMono r ->
 		begin match r.tm_type with
-			| None -> "TMono (None)"
+			| None ->
+				begin match r.tm_constraints with
+				| [] -> "TMono (None)"
+				| tl -> Printf.sprintf "TMono (None : %s)" (String.concat ", " (List.map (fun (t,_) -> s_type_kind t) tl))
+				end
 			| Some t -> "TMono (Some (" ^ (s_type_kind t) ^ "))"
 		end
 	| TEnum(en,tl) -> Printf.sprintf "TEnum(%s, [%s])" (s_type_path en.e_path) (map tl)
@@ -1149,7 +1225,21 @@ let rec s_type ctx t =
 	match t with
 	| TMono r ->
 		(match r.tm_type with
-		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+		| None ->
+			begin try
+				let id = List.assq t (!ctx) in
+				Printf.sprintf "Unknown<%d>" id
+			with Not_found ->
+				let id = List.length !ctx in
+				ctx := (t,id) :: !ctx;
+				begin match r.tm_constraints with
+				| [] ->
+					Printf.sprintf "Unknown<%d>" id
+				| _ ->
+					let s_constraints = String.concat ", " (List.map (fun (t,_) -> s_type ctx t) r.tm_constraints) in
+					Printf.sprintf "(Unknown<%d> : %s)" id s_constraints
+				end
+			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
 		s_type_path e.e_path ^ s_type_params ctx tl
@@ -1877,26 +1967,6 @@ let rec shallow_eq a b =
    the first type is always the most down in the class hierarchy
    it's also the one that is pointed by the position.
    It's actually a typecheck of  A :> B where some mutations can happen *)
-
-type unify_error =
-	| Cannot_unify of t * t
-	| Invalid_field_type of string
-	| Has_no_field of t * string
-	| Has_no_runtime_field of t * string
-	| Has_extra_field of t * string
-	| Invalid_kind of string * field_kind * field_kind
-	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
-	| Invariant_parameter of int
-	| Constraint_failure of string
-	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int (* index *) * int (* total *)
-	| Invalid_return_type
-	| Unify_custom of string
-
-exception Unify_error of unify_error list
 
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
@@ -3156,3 +3226,34 @@ let s_class_path c =
 		| _ -> c.cl_path
 	in
 	s_type_path path
+
+let check_constraints map params tl =
+	List.iter2 (fun (_,t) tm ->
+		begin match follow t with
+		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) ->
+			if constr <> [] then begin match tm with
+			| TMono mono ->
+				List.iter (fun t ->
+					Monomorph.add_constraint mono (s_type_path path) (map t)
+				) constr
+			| _ ->
+				let tm = map tm in
+				check_constraint (s_type_path path) (fun () ->
+					List.iter (fun t ->
+						unify tm (map t)
+					) constr
+				)
+			end
+		| _ ->
+			assert false
+		end;
+	) params tl
+
+let spawn_constrained_monos map params =
+	let monos = List.map (fun _ -> mk_mono()) params in
+	let map t = map (apply_params params monos t) in
+	check_constraints map params monos;
+	monos
+
+;;
+unify_ref := unify

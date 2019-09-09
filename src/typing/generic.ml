@@ -49,7 +49,11 @@ let make_generic ctx ps pt p =
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl top tl)
 				| _ when not top ->
 					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
-				| TMono { tm_type = None } -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
+				| TMono ({ tm_type = None } as mono) ->
+					begin match Monomorph.become_single_constraint mono with
+					| Some t -> loop top t
+					| None -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
+					end
 				| TDynamic _ -> "Dynamic"
 				| t ->
 					follow_or t top (fun() -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p)))
