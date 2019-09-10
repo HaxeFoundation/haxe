@@ -58,21 +58,21 @@ let remove_constant_flag t callb =
 		raise e
 
 let enum_field_type ctx en ef p =
-	let tl_en = spawn_constrained_monos (fun t -> t) en.e_params in
+	let tl_en = spawn_constrained_monos ctx (fun t -> t) en.e_params in
 	let map = apply_params en.e_params tl_en in
-	let tl_ef = spawn_constrained_monos map ef.ef_params in
+	let tl_ef = spawn_constrained_monos ctx map ef.ef_params in
 	let map t = map (apply_params ef.ef_params tl_ef t) in
 	map ef.ef_type
 
-let field_type' map cf =
-	let monos = spawn_constrained_monos map cf.cf_params in
+let field_type' ctx map cf =
+	let monos = spawn_constrained_monos ctx map cf.cf_params in
 	apply_params cf.cf_params monos cf.cf_type
 
 let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
-		let monos = spawn_constrained_monos (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
+		let monos = spawn_constrained_monos ctx (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
 
 let fast_enum_field e ef p =
@@ -441,14 +441,14 @@ let rec type_field cfg ctx e i p mode =
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), field_type' (fun t -> t) f
+				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), field_type' ctx (fun t -> t) f
 				| _ ->
 					match f.cf_params with
 					| [] ->
 						FAnon f, Type.field_type f
 					| l ->
 						(* handle possible constraints *)
-						let monos = spawn_constrained_monos (fun t -> t) f.cf_params in
+						let monos = spawn_constrained_monos ctx (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
 						FAnon f, t
 			) in

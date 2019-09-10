@@ -235,7 +235,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let monos = spawn_constrained_monos (fun t -> t) types in
+			let monos = spawn_constrained_monos ctx (fun t -> t) types in
 			f (monos)
 		end else if path = ([],"Dynamic") then
 			match t.tparams with

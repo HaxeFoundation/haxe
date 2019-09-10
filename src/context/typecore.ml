@@ -506,6 +506,37 @@ let merge_core_doc ctx mt =
 		end
 	| _ -> ())
 
+let check_constraints map params tl =
+	List.iter2 (fun (_,t) tm ->
+		begin match follow t with
+		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path; cl_name_pos = p; },_) ->
+			if constr <> [] then begin match tm with
+			| TMono mono ->
+				List.iter (fun t ->
+					Monomorph.add_constraint mono (s_type_path path) p (map t)
+				) constr
+			| _ ->
+				let tm = map tm in
+				check_constraint (s_type_path path) (fun () ->
+					List.iter (fun t ->
+						Type.unify tm (map t)
+					) constr
+				)
+			end
+		| _ ->
+			assert false
+		end;
+	) params tl
+
+let spawn_constrained_monos ctx map params =
+	let monos = List.map (fun _ ->
+		let mono = Monomorph.create() in
+		TMono mono
+	) params in
+	let map t = map (apply_params params monos t) in
+	check_constraints map params monos;
+	monos
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 

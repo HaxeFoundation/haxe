@@ -64,7 +64,7 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
-	mutable tm_constraints : (t * string) list;
+	mutable tm_constraints : (t * string * pos) list;
 }
 
 and tlazy =
@@ -391,87 +391,8 @@ type flag_tclass_field =
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
 let unify_ref : (t -> t -> unit) ref = ref (fun _ _ -> ())
-
-type unify_error =
-	| Cannot_unify of t * t
-	| Invalid_field_type of string
-	| Has_no_field of t * string
-	| Has_no_runtime_field of t * string
-	| Has_extra_field of t * string
-	| Invalid_kind of string * field_kind * field_kind
-	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
-	| Invariant_parameter of int
-	| Constraint_failure of string
-	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int (* index *) * int (* total *)
-	| Invalid_return_type
-	| Unify_custom of string
-
-exception Unify_error of unify_error list
-
-let check_constraint name f =
-	try
-		f()
-	with Unify_error l ->
-		raise (Unify_error ((Constraint_failure name) :: l))
-
-module Monomorph = struct
-	let create () = {
-		tm_type = None;
-		tm_constraints = [];
-	}
-
-	let unify_merge a b = match a,b with
-		| TAnon an1,TAnon an2 ->
-			let old1 = !(an1.a_status) in
-			let old2 = !(an2.a_status) in
-			an1.a_status := Opened;
-			an2.a_status := Opened;
-			Std.finally (fun () ->
-				an1.a_status := old1;
-				an1.a_status := old2;
-			) (!unify_ref a) b
-		| _ ->
-			!unify_ref a b
-
-	let add_constraint m path t =
-		assert(m.tm_type = None);
-		m.tm_constraints <- (t,path) :: m.tm_constraints
-
-	let rec bind m t =
-		begin match t with
-		| TMono m2 ->
-			begin match m2.tm_type with
-			| None ->
-				(* Inherit constraints. This avoids too-early unification. *)
-				List.iter (fun (t,path) -> add_constraint m2 path t) m.tm_constraints;
-				m.tm_type <- Some t
-			| Some t ->
-				bind m t
-			end;
-		| _ ->
-			List.iter (fun (t',path) ->
-				check_constraint path (fun () -> unify_merge t t')
-			) m.tm_constraints;
-			m.tm_type <- Some t
-		end
-
-	let unbind m =
-		m.tm_type <- None
-
-	let become_single_constraint m =
-		assert(m.tm_type = None);
-		match m.tm_constraints with
-		| [t,_] ->
-			m.tm_type <- Some t;
-			m.tm_constraints <- [];
-			Some t;
-		| _ ->
-			None
-end
+let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
+let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> ())
 
 (* Flags *)
 
@@ -530,7 +451,7 @@ let mk_cast e t p = mk (TCast(e,None)) t p
 
 let null t p = mk (TConst TNull) t p
 
-let mk_mono() = TMono (Monomorph.create ())
+let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
@@ -828,7 +749,7 @@ let apply_params ?stack cparams params t =
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
-					(match pt with TMono r -> Monomorph.bind r t | _ -> assert false);
+					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> assert false);
 					t
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
@@ -1202,7 +1123,7 @@ let rec s_type_kind t =
 			| None ->
 				begin match r.tm_constraints with
 				| [] -> "TMono (None)"
-				| tl -> Printf.sprintf "TMono (None : %s)" (String.concat ", " (List.map (fun (t,_) -> s_type_kind t) tl))
+				| tl -> Printf.sprintf "TMono (None : %s)" (String.concat ", " (List.map (fun (t,_,_) -> s_type_kind t) tl))
 				end
 			| Some t -> "TMono (Some (" ^ (s_type_kind t) ^ "))"
 		end
@@ -1236,7 +1157,7 @@ let rec s_type ctx t =
 				| [] ->
 					Printf.sprintf "Unknown<%d>" id
 				| _ ->
-					let s_constraints = String.concat ", " (List.map (fun (t,_) -> s_type ctx t) r.tm_constraints) in
+					let s_constraints = String.concat ", " (List.map (fun (t,_,_) -> s_type ctx t) r.tm_constraints) in
 					Printf.sprintf "(Unknown<%d> : %s)" id s_constraints
 				end
 			end
@@ -1842,6 +1763,93 @@ module Printer = struct
 end
 
 (* ======= Unification ======= *)
+
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+	| Has_no_runtime_field of t * string
+	| Has_extra_field of t * string
+	| Invalid_kind of string * field_kind * field_kind
+	| Invalid_visibility of string
+	| Not_matching_optional of string
+	| Cant_force_optional
+	| Invariant_parameter of int
+	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int (* index *) * int (* total *)
+	| Invalid_return_type
+	| Unify_custom of string
+
+exception Unify_error of unify_error list
+
+let check_constraint name f =
+	try
+		f()
+	with Unify_error l ->
+		raise (Unify_error ((Constraint_failure name) :: l))
+
+module Monomorph = struct
+	let create () = {
+		tm_type = None;
+		tm_constraints = [];
+	}
+
+	let unify_merge a b = match a,b with
+		| TAnon an1,TAnon an2 ->
+			let old1 = !(an1.a_status) in
+			let old2 = !(an2.a_status) in
+			an1.a_status := Opened;
+			an2.a_status := Opened;
+			Std.finally (fun () ->
+				an1.a_status := old1;
+				an1.a_status := old2;
+			) (!unify_ref a) b
+		| _ ->
+			!unify_ref a b
+
+	let add_constraint m path p t =
+		assert(m.tm_type = None);
+		(* if p.pfile = "source/Main.hx" then print_endline (Printf.sprintf "add_constraint %s: %s" path (s_type_kind t)); *)
+		m.tm_constraints <- (t,path,p) :: m.tm_constraints
+
+	let do_bind m t =
+		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
+		m.tm_type <- Some t
+
+	let rec bind m t =
+		begin match t with
+		| TMono m2 ->
+			begin match m2.tm_type with
+			| None ->
+				(* Inherit constraints. This avoids too-early unification. *)
+				List.iter (fun (t,path,p) -> add_constraint m2 path p t) m.tm_constraints;
+				do_bind m t
+			| Some t ->
+				bind m t
+			end;
+		| _ ->
+			List.iter (fun (t',path,p) ->
+				(* if p.pfile = "source/Main.hx" then print_endline (Printf.sprintf "check constraint %s(%s): %s" path (s_type_kind t') (s_type_kind t)); *)
+				check_constraint path (fun () -> unify_merge t t')
+			) m.tm_constraints;
+			do_bind m t;
+		end
+
+	let unbind m =
+		m.tm_type <- None
+
+	let become_single_constraint m =
+		assert(m.tm_type = None);
+		match m.tm_constraints with
+		| [t,_,_] ->
+			m.tm_type <- Some t;
+			m.tm_constraints <- [];
+			Some t;
+		| _ ->
+			None
+end
 
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
@@ -3226,34 +3234,7 @@ let s_class_path c =
 		| _ -> c.cl_path
 	in
 	s_type_path path
-
-let check_constraints map params tl =
-	List.iter2 (fun (_,t) tm ->
-		begin match follow t with
-		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) ->
-			if constr <> [] then begin match tm with
-			| TMono mono ->
-				List.iter (fun t ->
-					Monomorph.add_constraint mono (s_type_path path) (map t)
-				) constr
-			| _ ->
-				let tm = map tm in
-				check_constraint (s_type_path path) (fun () ->
-					List.iter (fun t ->
-						unify tm (map t)
-					) constr
-				)
-			end
-		| _ ->
-			assert false
-		end;
-	) params tl
-
-let spawn_constrained_monos map params =
-	let monos = List.map (fun _ -> mk_mono()) params in
-	let map t = map (apply_params params monos t) in
-	check_constraints map params monos;
-	monos
-
 ;;
-unify_ref := unify
+unify_ref := unify;;
+monomorph_bind_ref := Monomorph.bind;;
+monomorph_create_ref := Monomorph.create;;

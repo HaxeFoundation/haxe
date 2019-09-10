@@ -343,7 +343,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
-	let monos = spawn_constrained_monos map cf.cf_params in
+	let monos = spawn_constrained_monos ctx map cf.cf_params in
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
