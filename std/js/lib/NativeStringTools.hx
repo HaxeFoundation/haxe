@@ -42,21 +42,14 @@ class NativeStringTools {
 		Returns a number indicating whether a reference string comes before or after or is
 		the same as the given string in sort order.
 	 */
-	public static inline function localeCompare(string:String, compareString:String, ?locales:EitherType<String, Array<String>>,
-			?options:CollatorOptions):Bool {
-		return if (locales == null) {
-			if (options == null) {
-				Syntax.code("{0}.localeCompare({1})", string, compareString);
-			} else {
-				Syntax.code("{0}.localeCompare({1}, {2}, {3})", string, compareString, undefined, options);
-			}
-		} else {
-			if (options == null) {
-				Syntax.code("{0}.localeCompare({1}, {2})", string, compareString, locales);
-			} else {
-				Syntax.code("{0}.localeCompare({1}, {2}, {3})", string, compareString, locales, options);
-			}
-		}
+	public static inline function localeCompare(string:String, compareString:String, ?locales:EitherType<String, Array<String>>, ?options:CollatorOptions):Bool {
+		return Syntax.code(
+			"{0}.localeCompare({1}, {2}, {3})",
+			string,
+			(compareString != null) ? compareString : undefined,
+			(locales != null) ? locales : undefined,
+			(options != null) ? options : undefined
+		);
 	}
 
 	/**
@@ -64,11 +57,11 @@ class NativeStringTools {
 		For most languages, this will return the same as toLowerCase().
 	 */
 	public static inline function toLocaleLowerCase(string:String, ?locales:EitherType<String, Array<String>>):String {
-		return if (locales == null) {
-			Syntax.code("{0}.toLocaleLowerCase()", string);
-		} else {
-			Syntax.code("{0}.toLocaleLowerCase({1})", string, locales);
-		}
+		return Syntax.code(
+			"{0}.toLocaleLowerCase({1})",
+			string,
+			(locales != null) ? locales : undefined
+		);
 	}
 
 	/**
@@ -76,11 +69,11 @@ class NativeStringTools {
 		For most languages, this will return the same as toUpperCase().
 	 */
 	public static inline function toLocaleUpperCase(string:String, ?locales:EitherType<String, Array<String>>):String {
-		return if (locales == null) {
-			Syntax.code("{0}.toLocaleUpperCase()", string);
-		} else {
-			Syntax.code("{0}.toLocaleUpperCase({1})", string, locales);
-		}
+		return Syntax.code(
+			"{0}.toLocaleUpperCase({1})",
+			string,
+			(locales != null) ? locales : undefined
+		);
 	}
 }
 
