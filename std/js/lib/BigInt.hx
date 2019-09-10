@@ -23,6 +23,7 @@
 package js.lib;
 
 import js.Syntax;
+import js.Lib.undefined;
 import haxe.extern.EitherType;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
@@ -46,19 +47,12 @@ abstract BigInt {
 		Overrides the `Object.prototype.toLocaleString()` method.
 	**/
 	public inline function toLocaleString(?locales:EitherType<String, Array<String>>, ?options:NumberFormatOptions):String {
-		return if (locales == null) {
-			if (options == null) {
-				Syntax.code("({0}).toLocaleString()", this);
-			} else {
-				Syntax.code("({0}).toLocaleString({1}, {2})", this, js.Lib.undefined, options);
-			}
-		} else {
-			if (options == null) {
-				Syntax.code("({0}).toLocaleString({1})", this, locales);
-			} else {
-				Syntax.code("({0}).toLocaleString({1}, {2})", this, locales, options);
-			}
-		}
+		return Syntax.code(
+			"({0}).toLocaleString({1}, {2})",
+			this,
+			(locales != null) ? locales : undefined,
+			(options != null) ? options : undefined
+		);
 	}
 
 	/**
@@ -66,11 +60,11 @@ abstract BigInt {
 		Overrides the `Object.prototype.toString()` method.
 	**/
 	public inline function toString(?radix:Int):String {
-		return if (radix == null) {
-			return Syntax.code("({0}).toString()", this);
-		} else {
-			return Syntax.code("({0}).toString({1})", this, radix);
-		}
+		return Syntax.code(
+			"({0}).toString({1})",
+			this,
+			(radix != null) ? radix : undefined
+		);
 	}
 
 	/**
