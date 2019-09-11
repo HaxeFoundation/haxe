@@ -520,8 +520,8 @@ class inline_state ctx ethis params cf f p = object(self)
 					add (mk (TVar (v,eo)) ctx.t.tvoid e.epos);
 				) vl;
 				List.iter (fun (l,e) -> match l.i_default_value with
-					| None -> ()
-					| Some e -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| Some e when l.i_read > 0 -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| _ -> ()
 				) _inlined_vars;
 				begin match e.eexpr with
 					| TBlock el -> List.iter add el
