@@ -810,12 +810,12 @@ let rec follow_without_null t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| Some t -> follow t
+		| Some t -> follow_without_null t
 		| _ -> t)
 	| TLazy f ->
-		follow (lazy_type f)
+		follow_without_null (lazy_type f)
 	| TType (t,tl) ->
-		follow (apply_params t.t_params tl t.t_type)
+		follow_without_null (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
 (** Assumes `follow` has already been applied *)
