@@ -1050,7 +1050,7 @@ module Run = struct
 				debug();
 				raise exc
 			in
-			let e = Optimizer.reduce_expression ctx e in
+			let e = reduce_control_flow ctx e in
 			begin match config.debug_kind with
 				| DebugNone -> ()
 				| DebugDot -> Debug.dot_debug actx c cf;
