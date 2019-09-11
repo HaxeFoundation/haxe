@@ -62,9 +62,13 @@ type t =
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 
+and tmono_constraint =
+	| CStructure of t * tanon
+	| CTypes of t list
+
 and tmono = {
 	mutable tm_type : t option;
-	mutable tm_constraints : (t * string * pos) list;
+	mutable tm_constraint : (tmono_constraint * string * pos) option;
 }
 
 and tlazy =
@@ -1121,9 +1125,15 @@ let rec s_type_kind t =
 	| TMono r ->
 		begin match r.tm_type with
 			| None ->
-				begin match r.tm_constraints with
-				| [] -> "TMono (None)"
-				| tl -> Printf.sprintf "TMono (None : %s)" (String.concat ", " (List.map (fun (t,_,_) -> s_type_kind t) tl))
+				begin match r.tm_constraint with
+				| None ->
+					Printf.sprintf "TMono (None)"
+				| Some (cstr,_,_) ->
+					let s_constraints = match cstr with
+						| CStructure(t,_) -> s_type_kind t
+						| CTypes tl -> String.concat ", " (List.map s_type_kind tl)
+					in
+					Printf.sprintf "(TMono (None : %s))"s_constraints
 				end
 			| Some t -> "TMono (Some (" ^ (s_type_kind t) ^ "))"
 		end
@@ -1142,6 +1152,8 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
+let is_simn = false
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
@@ -1153,12 +1165,15 @@ let rec s_type ctx t =
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-				begin match r.tm_constraints with
-				| [] ->
-					Printf.sprintf "Unknown<%d>" id
-				| _ ->
-					let s_constraints = String.concat ", " (List.map (fun (t,_,_) -> s_type ctx t) r.tm_constraints) in
+				begin match r.tm_constraint with
+				| Some (cstr,_,_) when is_simn ->
+					let s_constraints = match cstr with
+						| CStructure(t,_) -> s_type ctx t
+						| CTypes tl -> String.concat ", " (List.map (s_type ctx) tl)
+					in
 					Printf.sprintf "(Unknown<%d> : %s)" id s_constraints
+				| _ ->
+					Printf.sprintf "Unknown<%d>" id
 				end
 			end
 		| Some t -> s_type ctx t)
@@ -1784,6 +1799,8 @@ type unify_error =
 
 exception Unify_error of unify_error list
 
+let error l = raise (Unify_error l)
+
 let check_constraint name f =
 	try
 		f()
@@ -1793,7 +1810,7 @@ let check_constraint name f =
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
-		tm_constraints = [];
+		tm_constraint = None;
 	}
 
 	let unify_merge a b = match a,b with
@@ -1809,14 +1826,35 @@ module Monomorph = struct
 		| _ ->
 			!unify_ref a b
 
-	let add_constraint m path p t =
+	let set_constraint m path p constr =
 		assert(m.tm_type = None);
-		(* if p.pfile = "source/Main.hx" then print_endline (Printf.sprintf "add_constraint %s: %s" path (s_type_kind t)); *)
-		m.tm_constraints <- (t,path,p) :: m.tm_constraints
+		assert(m.tm_constraint = None);
+		m.tm_constraint <- Some (constr,path,p)
+
+	let constrain_to_object m path p tl = set_constraint m path p (CTypes tl)
+
+	let constrain_to_fields m path p fl =
+		let anon = { a_fields = fl; a_status = ref Opened } in
+		set_constraint m path p (CStructure(TAnon anon,anon))
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		m.tm_type <- Some t
+
+	let merge_constraints mono_to mono_from = match mono_from.tm_constraint with
+		| None ->
+			()
+		| Some cstr -> match mono_to.tm_constraint with
+			| None ->
+				mono_to.tm_constraint <- Some cstr
+			| Some cstr2 -> match cstr,cstr2 with
+				| (CStructure(t1,anon1),path,p),(CStructure(t2,_),_,_) ->
+					!unify_ref t1 t2;
+					mono_to.tm_constraint <- Some(CStructure(t1,anon1),path,p)
+				| (CTypes tl1,path,p),(CTypes tl2,_,_) ->
+					mono_to.tm_constraint <- Some(CTypes (tl1 @ tl2),path,p);
+				| _ ->
+					error [Unify_custom "Cannot merge constraints"]
 
 	let rec bind m t =
 		begin match t with
@@ -1824,31 +1862,27 @@ module Monomorph = struct
 			begin match m2.tm_type with
 			| None ->
 				(* Inherit constraints. This avoids too-early unification. *)
-				List.iter (fun (t,path,p) -> add_constraint m2 path p t) m.tm_constraints;
+				merge_constraints m2 m;
 				do_bind m t
 			| Some t ->
 				bind m t
 			end;
 		| _ ->
-			List.iter (fun (t',path,p) ->
-				(* if p.pfile = "source/Main.hx" then print_endline (Printf.sprintf "check constraint %s(%s): %s" path (s_type_kind t') (s_type_kind t)); *)
-				check_constraint path (fun () -> unify_merge t t')
-			) m.tm_constraints;
+			Option.may (fun (cstr,path,p) -> match cstr with
+				| CStructure(tanon,anon) ->
+					if not (PMap.is_empty anon.a_fields) then check_constraint path (fun () ->
+						unify_merge t tanon;
+					)
+				| CTypes tl ->
+					check_constraint path (fun () ->
+						List.iter (unify_merge t) tl
+					)
+			) m.tm_constraint;
 			do_bind m t;
 		end
 
 	let unbind m =
 		m.tm_type <- None
-
-	let become_single_constraint m =
-		assert(m.tm_type = None);
-		match m.tm_constraints with
-		| [t,_,_] ->
-			m.tm_type <- Some t;
-			m.tm_constraints <- [];
-			Some t;
-		| _ ->
-			None
 end
 
 let rec link e a b =
@@ -1982,7 +2016,6 @@ let invalid_kind n a b = Invalid_kind (n,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
-let error l = raise (Unify_error l)
 let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 let no_meta = []

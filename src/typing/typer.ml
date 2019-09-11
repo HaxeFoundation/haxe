@@ -2649,6 +2649,7 @@ let rec create com =
 		curfield = null_field;
 		tthis = mk_mono();
 		opened = [];
+		monomorphs = [];
 		vthis = None;
 		in_call_args = false;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);

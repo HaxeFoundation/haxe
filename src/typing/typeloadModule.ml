@@ -874,6 +874,7 @@ let type_types_into_module ctx m tdecls p =
 		in_display = false;
 		in_loop = false;
 		opened = [];
+		monomorphs = [];
 		in_call_args = false;
 		vthis = None;
 		memory_marker = Typecore.memory_marker;

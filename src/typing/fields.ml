@@ -166,6 +166,9 @@ let field_access ctx mode f fmode t e p =
 					normal()
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
+			| TMono {tm_constraint = Some ((CStructure _),_,_)} when mode = MSet ->
+					f.cf_kind <- Var { v with v_write = AccNormal };
+					normal();
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
 		| AccNormal | AccNo ->
@@ -474,20 +477,36 @@ let rec type_field cfg ctx e i p mode =
 				a.a_fields <- PMap.add i f a.a_fields;
 				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
-	| TMono r ->
-		let f = {
+	| TMono r as tmono ->
+		let spawn_field () =  {
 			(mk_field i (mk_mono()) p null_pos) with
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 		} in
-		let x = ref Opened in
-		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
-		ctx.opened <- x :: ctx.opened;
-		begin try
-			Monomorph.bind r t;
-		with Unify_error l ->
-			raise (Error (Unify l,p))
-		end;
-		field_access ctx mode f (FAnon f) (Type.field_type f) e p
+		let field_access f =
+			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+		in
+		begin match r.tm_constraint with
+			| None ->
+				let f = spawn_field () in
+				Monomorph.constrain_to_fields r "type_field" p (PMap.add i f PMap.empty);
+				(* Don't bother registering monomorphs if we're in untyped mode - we probably don't want to close them. *)
+				if not ctx.untyped then ctx.monomorphs <- (tmono,r) :: ctx.monomorphs;
+				field_access f
+			| Some (cstr,_,_) ->
+				begin match cstr with
+				| CStructure(_,an) ->
+					begin try
+						let f = PMap.find i an.a_fields in
+						field_access f
+					with Not_found ->
+						let f = spawn_field () in
+						an.a_fields <- PMap.add i f an.a_fields;
+						field_access f
+					end
+				| CTypes tl ->
+					no_field()
+				end
+		end
 	| TAbstract (a,pl) ->
 		let static_abstract_access_through_instance = ref false in
 		(try

@@ -45,12 +45,14 @@ let save_field_state ctx =
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
+	let old_monos = ctx.monomorphs in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
 		ctx.ret <- old_ret;
 		ctx.curfun <- old_fun;
 		ctx.opened <- old_opened;
+		ctx.monomorphs <- old_monos;
 	)
 
 let type_var_field ctx t e stat do_display p =
@@ -107,6 +109,7 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
+	ctx.monomorphs <- [];
 	let e = match f.f_expr with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then
@@ -220,6 +223,7 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	List.iter (fun (tmono,mono) -> ignore(instantiate_monomorph ctx tmono mono)) ctx.monomorphs;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 

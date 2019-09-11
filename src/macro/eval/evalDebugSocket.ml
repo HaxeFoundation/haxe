@@ -167,8 +167,6 @@ let output_threads ctx =
 	let threads = IntMap.fold fold ctx.evals [] in
 	JArray threads
 
-let is_simn = false
-
 let output_scopes ctx env =
 	let capture_infos = env.env_info.capture_infos in
 	let scopes = env.env_debug.scopes in

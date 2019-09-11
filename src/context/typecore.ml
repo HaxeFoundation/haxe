@@ -129,6 +129,7 @@ and typer = {
 	mutable ret : t;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
+	mutable monomorphs : (Type.t * tmono) list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
 	(* events *)
@@ -506,15 +507,34 @@ let merge_core_doc ctx mt =
 		end
 	| _ -> ())
 
+let rec instantiate_monomorph ctx tmono mono =
+	match mono.tm_type,mono.tm_constraint with
+	| Some t,_ ->
+		begin match follow t with
+		| TMono mono as tmono -> instantiate_monomorph ctx tmono mono
+		| _ -> Some t
+		end
+	| None,None ->
+		None
+	| None,Some (CStructure(t,anon),_,p) ->
+		anon.a_status := Closed;
+		unify ctx t tmono p;
+		mono.tm_constraint <- None;
+		Some t
+	| None,Some (CTypes [t],_,p) ->
+		unify ctx t tmono p;
+		mono.tm_constraint <- None;
+		Some t
+	| _ ->
+		None
+
 let check_constraints map params tl =
 	List.iter2 (fun (_,t) tm ->
 		begin match follow t with
 		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path; cl_name_pos = p; },_) ->
 			if constr <> [] then begin match tm with
 			| TMono mono ->
-				List.iter (fun t ->
-					Monomorph.add_constraint mono (s_type_path path) p (map t)
-				) constr
+				Monomorph.constrain_to_object mono (s_type_path path) p (List.map map constr)
 			| _ ->
 				let tm = map tm in
 				check_constraint (s_type_path path) (fun () ->
