@@ -1868,20 +1868,17 @@ module Monomorph = struct
 				bind m t
 			end;
 		| _ ->
-			let hack = ref false in
 			Option.may (fun (cstr,path,p) -> match cstr with
 				| CStructure(tanon,anon) ->
 					if not (PMap.is_empty anon.a_fields) then check_constraint path (fun () ->
 						unify_merge t tanon;
-						hack := true;
-						m.tm_type <- Some tanon; (* HACK *)
 					)
 				| CTypes tl ->
 					check_constraint path (fun () ->
 						List.iter (unify_merge t) tl
 					)
 			) m.tm_constraint;
-			if not !hack then do_bind m t; (* HACK *)
+			do_bind m t;
 		end
 
 	let unbind m =
