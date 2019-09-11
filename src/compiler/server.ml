@@ -53,8 +53,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			f_otherwise ()
 		end
 	| Some api ->
-		(* If there's a --next and we're in display mode, try that one. *)
-		if ctx.has_error && not (ctx.has_next && ctx.com.display.dms_display) then begin
+		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
 					| CMInfo(msg,p) -> msg,p,3
