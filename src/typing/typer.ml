@@ -1014,7 +1014,13 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| [] ->
 				raise Not_found
 		in
-		loop a.a_ops
+		if left then
+			loop a.a_ops
+		else
+			let not_impl_or_is_commutative (_, cf) =
+				not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Commutative cf.cf_meta
+			in
+			loop (List.filter not_impl_or_is_commutative a.a_ops)
 	in
 	try
 		begin match follow e1.etype with
