@@ -489,8 +489,8 @@ let rec type_field cfg ctx e i p mode =
 			| None ->
 				let f = spawn_field () in
 				Monomorph.constrain_to_fields r "type_field" p (PMap.add i f PMap.empty);
-				(* Don't bother registering monomorphs if we're in untyped mode - we probably don't want to close them. *)
-				if not ctx.untyped then ctx.monomorphs <- (tmono,r) :: ctx.monomorphs;
+				(* Don't bother registering monomorphs if we're in untyped mode - we probably don't want to close them. TODO: This is stupid. *)
+				if not (ctx.untyped && ctx.com.platform = Neko) then ctx.monomorphs <- (tmono,r) :: ctx.monomorphs;
 				field_access f
 			| Some (cstr,_,_) ->
 				begin match cstr with
