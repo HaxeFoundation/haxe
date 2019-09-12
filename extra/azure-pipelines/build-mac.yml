@@ -31,8 +31,6 @@ jobs:
         displayName: Install OCaml libraries
       - script: |
           set -ex
-          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
-          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" prebuild
           opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
           opam config exec -- make -s haxelib
           make -s package_bin package_installer_mac
