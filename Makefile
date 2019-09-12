@@ -143,11 +143,9 @@ build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/versi
 prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
 	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex.ppx -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
 
-haxe: build_src
-	$(MAKE) -f $(MAKEFILENAME) build_pass_1
-	$(MAKE) -f $(MAKEFILENAME) build_pass_2
-	$(MAKE) -f $(MAKEFILENAME) build_pass_3
-	$(MAKE) -f $(MAKEFILENAME) build_pass_4
+haxe:
+	dune build --workspace dune-workspace.dev src/haxe.exe
+	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
 
 build_pass_1:
 	printf MODULES= > Makefile.modules
