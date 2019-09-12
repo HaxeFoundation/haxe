@@ -132,34 +132,9 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-_build/src/core/defineList.ml: src-json/define.json prebuild
-	./$(PREBUILD_OUTPUT) define $< > $@
-
-_build/src/core/metaList.ml: src-json/meta.json prebuild
-	./$(PREBUILD_OUTPUT) meta $< > $@
-
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
-
-prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
-	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex.ppx -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
-
 haxe:
 	dune build --workspace dune-workspace.dev src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
-
-build_pass_1:
-	printf MODULES= > Makefile.modules
-	ls -1 $(HAXE_DIRECTORIES:%=_build/src/%/*.ml) | tr '\n' ' ' >> Makefile.modules
-
-build_pass_2:
-	printf MODULES= > Makefile.modules
-	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
-
-build_pass_3:
-	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
-
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -g -o $(HAXE_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
 kill_exe_win:
 ifdef SYSTEMROOT
