@@ -1,3 +1,15 @@
+2019-09-12: 4.0.0-rc.5
+
+	General improvements and optimizations:
+
+	eval: improved performance of regular expressions (#8693)
+
+	Bugfixes:
+
+	all: fixed regression, which caused compiler to crash on enum abstracts with explicit casting (#8765)
+	all: fixed regression of macro `@:from` methods on abstracts (#8779)
+	all: fixed switching on `this` (#8781)
+
 2019-09-04: 4.0.0-rc.4
 
 	Standard Library:
