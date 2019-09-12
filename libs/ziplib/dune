@@ -2,4 +2,6 @@
 
 (library
 	(name ziplib)
-	(libraries extc unix))
+	(libraries extc unix)
+	(c_library_flags (-lz))
+)

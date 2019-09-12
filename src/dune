@@ -17,5 +17,4 @@
 		sedlex.ppx xml-light extlib ptmap sha
 	)
 	(preprocess (pps sedlex.ppx))
-	(link_flags (:standard -cclib -lpcre -cclib -lz))
 )
