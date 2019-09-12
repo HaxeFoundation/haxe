@@ -2,4 +2,7 @@
 
 (executable
 	(name prebuild)
-	(libraries extlib json))
+	(public_name haxe_prebuild)
+	(package haxe_prebuild)
+	(libraries extlib json)
+)
