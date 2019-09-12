@@ -1,4 +1,6 @@
 (include_subdirs no)
 
 (library
-	(name pcre))
+	(name pcre)
+	(c_names pcre_stubs)
+)

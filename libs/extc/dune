@@ -3,8 +3,10 @@
 (library
 	(name extc)
 	(libraries extlib)
+	(c_names extc_stubs)
 	(modules extc))
 
 (library
 	(name extproc)
+	(c_names process_stubs)
 	(modules process))
