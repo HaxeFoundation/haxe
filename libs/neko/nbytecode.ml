@@ -13,8 +13,6 @@
  *  Lesser General Public License lor the LICENSE file for more details.
  *)
 
-open ExtLib
-
 type opcode =
 	(* getters *)
 	| AccNull

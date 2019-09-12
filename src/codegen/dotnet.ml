@@ -20,7 +20,6 @@ open ExtString
 open Common
 open Globals
 open Ast
-open Ilib
 open IlData
 open IlMeta
 open NativeLibraries

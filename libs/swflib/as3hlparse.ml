@@ -18,7 +18,6 @@
  *)
 open As3
 open As3hl
-open Extlib_leftovers
 
 type parse_ctx = {
 	as3 : as3_tag;

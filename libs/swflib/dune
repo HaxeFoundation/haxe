@@ -3,4 +3,6 @@
 (library
 	(name swflib)
 	(libraries extc extlib extlib_leftovers)
-	(modules_without_implementation as3 as3hl))
+	(modules_without_implementation as3 as3hl)
+	(wrapped false)
+)

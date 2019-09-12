@@ -21,7 +21,6 @@
  *)
 
 open TTFData
-open Swflib
 open Swf
 
 let num_bits x =

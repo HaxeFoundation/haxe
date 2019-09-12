@@ -18,7 +18,6 @@
  *)
 
 open PeData;;
-open ExtLib;;
 open IO;;
 open ExtString;;
 open ExtList;;

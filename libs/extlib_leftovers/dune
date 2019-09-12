@@ -2,4 +2,6 @@
 
 (library
 	(name extlib_leftovers)
-	(libraries extlib))
+	(libraries extlib)
+	(wrapped false)
+)

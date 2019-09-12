@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open Extlib_leftovers
 
 type keyword =
 	| Function

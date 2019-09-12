@@ -2,4 +2,6 @@
 
 (library
 	(name javalib)
-	(libraries extlib))
+	(libraries extlib)
+	(wrapped false)
+)

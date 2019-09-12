@@ -3,4 +3,6 @@
 (library
 	(name ilib)
 	(modules_without_implementation ilData ilMeta)
-	(libraries extlib))
+	(libraries extlib)
+	(wrapped false)
+)

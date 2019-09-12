@@ -21,7 +21,6 @@ open IO
 open IO.BigEndian
 open JvmGlobals
 open JvmSignature
-open Extlib_leftovers
 
 (* High-level constant pool *)
 

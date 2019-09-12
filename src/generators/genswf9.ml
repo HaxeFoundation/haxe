@@ -17,11 +17,9 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Extlib_leftovers
 open Globals
 open Ast
 open Type
-open Swflib
 open As3
 open As3hl
 open Common

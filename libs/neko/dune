@@ -2,4 +2,6 @@
 
 (library
 	(name neko)
-	(libraries extlib))
+	(libraries extlib)
+	(wrapped false)
+)
