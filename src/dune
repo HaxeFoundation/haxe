@@ -10,6 +10,8 @@
 
 (executable
 	(name haxe)
+	(public_name haxe)
+	(package haxe)
 	(libraries
 		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
 		json
