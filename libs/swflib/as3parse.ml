@@ -17,6 +17,7 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  *)
 open As3
+open Extlib_leftovers
 
 let parse_idents = true
 let parse_namespaces = true && parse_idents

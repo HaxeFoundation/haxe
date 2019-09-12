@@ -16,6 +16,8 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
+open Swflib
+open Ziplib
 open Swf
 open As3hl
 open Genswf9
@@ -224,6 +226,7 @@ let detect_format data p =
 	| _ ->
 		abort "Unknown file format" p
 
+open Ttflib
 open TTFData
 
 let build_swf9 com file swc =

@@ -42,6 +42,7 @@
 	semantic suffixes may be used freely (e.g. e1, e_if, e')
 *)
 
+open Extlib_leftovers
 open Printf
 open Common
 open DisplayTypes.DisplayMode

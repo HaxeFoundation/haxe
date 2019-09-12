@@ -188,7 +188,7 @@ and hl_function = {
 	hlf_nregs : int;
 	hlf_init_scope : int;
 	hlf_max_scope : int;
-	mutable hlf_code : hl_opcode MultiArray.t;
+	mutable hlf_code : hl_opcode Extlib_leftovers.MultiArray.t;
 	mutable hlf_trys : hl_try_catch array;
 	hlf_locals : (hl_name * hl_name option * hl_slot * bool) array; (* bool = const - mostly false *)
 }

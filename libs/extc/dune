@@ -1,0 +1,10 @@
+(include_subdirs no)
+
+(library
+	(name extc)
+	(libraries extlib)
+	(modules extc))
+
+(library
+	(name extproc)
+	(modules process))

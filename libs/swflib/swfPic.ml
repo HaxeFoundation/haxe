@@ -59,7 +59,7 @@ let load_picture file id =
 	let len = String.length file in
 	let p = (try String.rindex file '.' with Not_found -> len) in
 	let ext = String.sub file (p + 1) (len - (p + 1)) in
-	match String.uppercase ext with
+	match String.uppercase_ascii ext with
 	| "PNG" ->
 		let png , header, data = (try
 			let p = Png.parse ch in

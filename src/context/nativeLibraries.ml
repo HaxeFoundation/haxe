@@ -19,6 +19,9 @@
 
 open Globals
 open ExtString
+open Javalib
+open Ilib
+open Swflib
 
 type native_lib_flags =
 	| FlagIsStd

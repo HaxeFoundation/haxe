@@ -22,6 +22,8 @@ open NativeLibraries
 open Common
 open Globals
 open Ast
+open Javalib
+open Ziplib
 open JData
 
 (** Java lib *)

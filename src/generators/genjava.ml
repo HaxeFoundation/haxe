@@ -17,7 +17,9 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Extlib_leftovers
 open Globals
+open Javalib
 open JData
 open Unix
 open Ast

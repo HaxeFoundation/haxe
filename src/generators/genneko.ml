@@ -20,6 +20,7 @@
 open Ast
 open Globals
 open Type
+open Neko
 open Nast
 open Common
 

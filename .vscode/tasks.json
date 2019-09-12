@@ -4,10 +4,7 @@
 		{
 			"label": "make: haxe",
 			"type": "shell",
-			"command": "make ADD_REVISION=1 -s -j haxe",
-			"windows": {
-				"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe"
-			},
+			"command": "dune build --workspace dune-workspace.dev src/haxe.exe",
 			"problemMatcher": [],
 			"group": {
 				"kind": "build",

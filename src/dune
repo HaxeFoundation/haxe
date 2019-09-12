@@ -1,0 +1,21 @@
+(include_subdirs unqualified)
+
+(env
+	(dev
+		(flags (:standard -w -40 -w -3)))
+	(release
+		(flags (:standard -bin-annot -safe-string -thread -g -w -3 -w -40))
+	)
+)
+
+(executable
+	(name haxe)
+	(libraries
+		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
+		json
+		unix str threads dynlink
+		sedlex.ppx xml-light extlib ptmap sha
+	)
+	(preprocess (pps sedlex.ppx))
+	(link_flags (:standard -cclib -lpcre -cclib -lz))
+)

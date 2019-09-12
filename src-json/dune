@@ -1,0 +1,6 @@
+(include_subdirs no)
+
+(library
+	(name json)
+	(libraries sedlex.ppx)
+	(preprocess (pps sedlex.ppx)))

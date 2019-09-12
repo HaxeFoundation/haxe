@@ -1,0 +1,5 @@
+(include_subdirs no)
+
+(library
+	(name ttflib)
+	(libraries extlib extlib_leftovers swflib))

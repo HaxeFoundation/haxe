@@ -18,6 +18,7 @@
  *)
 open IO
 open As3
+open Extlib_leftovers
 
 let s = Printf.sprintf
 

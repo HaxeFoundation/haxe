@@ -21,6 +21,8 @@
  *)
 
 open TTFData
+open Extlib_leftovers
+open Swflib
 
 type glyf_transformation_matrix = {
 	mutable a : float;

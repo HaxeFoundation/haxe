@@ -1,0 +1,4 @@
+(rule
+	(targets version.ml)
+	(action (write-file version.ml "let version_extra = None"))
+)
