@@ -4,7 +4,7 @@
 	(dev
 		(flags (:standard -w -40 -w -3)))
 	(release
-		(flags (:standard -bin-annot -safe-string -thread -g -w -3 -w -40))
+		(flags (:standard -thread -g -w -3))
 	)
 )
 
@@ -18,5 +18,7 @@
 		unix str threads dynlink
 		sedlex.ppx xml-light extlib ptmap sha
 	)
-	(preprocess (pps sedlex.ppx))
+	(preprocess (per_module
+		((pps sedlex.ppx) json lexer)
+	))
 )
