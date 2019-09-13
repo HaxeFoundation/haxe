@@ -102,9 +102,15 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp5 ocamlfind --yes
+	opam install camlp5 ocamlfind dune --yes
+
+haxe_deps:
+	opam pin add haxe . --no-action
+	opam install haxe --deps-only --yes
 
 # Package
+
+package_env: opam_install haxe_deps
 
 package_src:
 	mkdir -p $(PACKAGE_OUT_DIR)
