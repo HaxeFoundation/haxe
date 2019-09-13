@@ -216,6 +216,6 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "%s" (gen_meta_info metas);
 		Printf.printf "\n\t| Last -> assert false\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
 	| _ :: "libparams" :: params ->
-		Printf.printf "(%s)" (String.concat " " params)
+		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
 	| args ->
 		print_endline (String.concat ", " args)
