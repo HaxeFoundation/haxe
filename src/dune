@@ -21,4 +21,5 @@
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
 	))
+	(link_flags (-cclib "-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic"))
 )
