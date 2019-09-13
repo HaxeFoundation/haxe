@@ -217,5 +217,12 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "\n\t| Last -> assert false\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
 	| _ :: "libparams" :: params ->
 		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
+	| [_ ;"version";add_revision;branch;sha] ->
+		begin match add_revision with
+		| "0" | "" ->
+			print_endline "let version_extra = None"
+		| _ ->
+			Printf.printf "let version_extra = Some (\"git build %s\",\"%s\")" branch sha
+		end
 	| args ->
 		print_endline (String.concat ", " args)

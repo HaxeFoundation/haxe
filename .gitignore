@@ -131,3 +131,4 @@ tests/threads/export/
 tests/server/test.js.map
 *.merlin
 lib.sexp
+src/compiler/version.ml
