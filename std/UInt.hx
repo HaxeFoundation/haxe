@@ -299,11 +299,7 @@ abstract UInt(Int) from Int to Int {
 
 	// TODO: radix is just defined to deal with doc_gen issues
 	private inline function toString(?radix:Int):String {
-		#if static
 		return Std.string(toFloat());
-		#else
-		return Std.string(this == null ? null : toFloat());
-		#end
 	}
 
 	private inline function toInt():Int {

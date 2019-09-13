@@ -1,0 +1,7 @@
+(include_subdirs no)
+
+(library
+	(name javalib)
+	(libraries extlib)
+	(wrapped false)
+)

@@ -32,8 +32,6 @@ jobs:
         displayName: Install OCaml libraries
       - script: |
           set -ex
-          opam config exec -- make -s STATICLINK=1 libs
-          opam config exec -- make -s STATICLINK=1 prebuild
           opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
           opam config exec -- make -s haxelib
           make -s package_bin

@@ -50,8 +50,8 @@ typedef Version = {
 	final major:Int;
 	final minor:Int;
 	final patch:Int;
-	final pre:String;
-	final build:String;
+	final ?pre:String;
+	final ?build:String;
 }
 
 typedef InitializeResult = Response<{
