@@ -16,7 +16,7 @@
 		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
 		json
 		unix str threads dynlink
-		sedlex.ppx xml-light extlib ptmap sha
+		xml-light extlib ptmap sha
 	)
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)

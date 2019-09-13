@@ -2,5 +2,5 @@
 
 (library
 	(name json)
-	(libraries sedlex.ppx)
-	(preprocess (pps sedlex.ppx)))
+	(preprocess (pps sedlex.ppx))
+)
