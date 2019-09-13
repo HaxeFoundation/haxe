@@ -5,4 +5,5 @@
 	(c_names c_objsize)
 	(c_flags (-I../../../../libs/objsize)) ; TODO: This is stupid
 	(wrapped false)
+	(modules objsize)
 )
