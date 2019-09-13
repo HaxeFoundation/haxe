@@ -1,10 +1,8 @@
 (include_subdirs unqualified)
 
 (env
-	(dev
-		(flags (:standard -w -40 -w -3)))
-	(release
-		(flags (:standard -thread -g -w -3))
+	(_
+		(flags (:standard -w -3 -thread))
 	)
 )
 
