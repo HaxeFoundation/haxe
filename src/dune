@@ -1,0 +1,23 @@
+(include_subdirs unqualified)
+
+(env
+	(_
+		(flags (:standard -w -3 -thread))
+	)
+)
+
+(executable
+	(name haxe)
+	(public_name haxe)
+	(package haxe)
+	(libraries
+		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
+		json
+		unix str threads dynlink
+		xml-light extlib ptmap sha
+	)
+	(preprocess (per_module
+		((pps sedlex.ppx) json lexer)
+	))
+	(link_flags (:include ../lib.sexp))
+)

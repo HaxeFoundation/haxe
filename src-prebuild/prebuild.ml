@@ -196,8 +196,8 @@ type meta_parameter =
 
 ;;
 
-match Sys.argv with
-	| [|_; "define"; define_path|] ->
+match Array.to_list (Sys.argv) with
+	| [_; "define"; define_path]->
 		let defines = parse_file_array define_path parse_define in
 		Printf.printf "%s" define_header;
 		Printf.printf "type strict_defined =\n";
@@ -206,7 +206,7 @@ match Sys.argv with
 		Printf.printf "let infos = function\n";
 		Printf.printf "%s" (gen_define_info defines);
 		Printf.printf "\n\t| Last -> assert false\n"
-	| [|_; "meta"; meta_path|] ->
+	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;
 		Printf.printf "type strict_meta =\n";
@@ -215,4 +215,14 @@ match Sys.argv with
 		Printf.printf "let get_info = function\n";
 		Printf.printf "%s" (gen_meta_info metas);
 		Printf.printf "\n\t| Last -> assert false\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
-	| _ -> ()
+	| _ :: "libparams" :: params ->
+		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
+	| [_ ;"version";add_revision;branch;sha] ->
+		begin match add_revision with
+		| "0" | "" ->
+			print_endline "let version_extra = None"
+		| _ ->
+			Printf.printf "let version_extra = Some (\"git build %s\",\"%s\")" branch sha
+		end
+	| args ->
+		print_endline (String.concat ", " args)

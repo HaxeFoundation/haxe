@@ -1,0 +1,8 @@
+(include_subdirs no)
+
+(library
+	(name ilib)
+	(modules_without_implementation ilData ilMeta)
+	(libraries extlib)
+	(wrapped false)
+)
