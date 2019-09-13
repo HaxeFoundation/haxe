@@ -6,6 +6,7 @@ import haxe.ds.IntMap;
 import haxe.ds.ObjectMap;
 import haxe.ds.StringMap;
 import haxe.ds.WeakMap;
+import haxe.Constraints.IMap;
 
 class MapGenericIterator {
 	static public inline function iterator<K, V>(m:Map<K, V>):Iterator<V> {
