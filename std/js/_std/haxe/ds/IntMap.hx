@@ -22,6 +22,28 @@
 
 package haxe.ds;
 
+private class IntMapIterator<T> {
+	var map:IntMap<T>;
+	var keys:Array<Int>;
+	var index:Int;
+	var count:Int;
+
+	public inline function new(map:IntMap<T>, keys:Array<Int>) {
+		this.map = map;
+		this.keys = keys;
+		this.index = 0;
+		this.count = keys.length;
+	}
+
+	public inline function hasNext() {
+		return index < count;
+	}
+
+	public inline function next() {
+		return map.get(keys[index++]);
+	}
+}
+
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private var h:Dynamic;
 
@@ -49,23 +71,21 @@ package haxe.ds;
 	}
 
 	public function keys():Iterator<Int> {
+		return arrayKeys().iterator();
+	}
+
+	inline function arrayKeys():Array<Int> {
 		var a = [];
 		untyped __js__("for( var key in {0} ) {1}", h, if (h.hasOwnProperty(key)) a.push(key | 0));
-		return a.iterator();
+		return a;
 	}
 
 	public function iterator():Iterator<T> {
-		return untyped {
-			ref: h,
-			it: keys(),
-			hasNext: function() {
-				return __this__.it.hasNext();
-			},
-			next: function() {
-				var i = __this__.it.next();
-				return __this__.ref[i];
-			}
-		};
+		return typedIterator();
+	}
+
+	inline function typedIterator():IntMapIterator<T> {
+		return new IntMapIterator(this, arrayKeys());
 	}
 
 	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {

@@ -46,6 +46,7 @@ import haxe.Constraints.IMap;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
+@:using(haxe.iterators.MapIterator)
 @:multiType(@:followWithAbstracts K)
 abstract Map<K, V>(IMap<K, V>) {
 	/**
@@ -117,7 +118,7 @@ abstract Map<K, V>(IMap<K, V>) {
 	public inline function keys():Iterator<K> {
 		return this.keys();
 	}
-
+#if doc_gen
 	/**
 		Returns an Iterator over the values of `this` Map.
 
@@ -126,7 +127,7 @@ abstract Map<K, V>(IMap<K, V>) {
 	public inline function iterator():Iterator<V> {
 		return this.iterator();
 	}
-
+#end
 	/**
 		Returns an Iterator over the keys and values of `this` Map.
 

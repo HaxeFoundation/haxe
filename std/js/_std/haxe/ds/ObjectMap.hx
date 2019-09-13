@@ -25,6 +25,28 @@ package haxe.ds;
 import js.Syntax;
 import js.Lib;
 
+private class ObjectMapIterator<K:{}, T> {
+	var map:ObjectMap<K, T>;
+	var keys:Array<K>;
+	var index:Int;
+	var count:Int;
+
+	public inline function new(map:ObjectMap<K, T>, keys:Array<K>) {
+		this.map = map;
+		this.keys = keys;
+		this.index = 0;
+		this.count = keys.length;
+	}
+
+	public inline function hasNext() {
+		return index < count;
+	}
+
+	public inline function next() {
+		return map.get(keys[index++]);
+	}
+}
+
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	static var count:Int;
@@ -74,6 +96,10 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public function keys():Iterator<K> {
+		return arrayKeys().iterator();
+	}
+
+	function arrayKeys():Array<K> {
 		var a = [];
 		untyped {
 			__js__("for( var key in this.h.__keys__ ) {");
@@ -81,21 +107,15 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 				a.push(h.__keys__[key]);
 			__js__("}");
 		}
-		return a.iterator();
+		return a;
 	}
 
 	public function iterator():Iterator<V> {
-		return untyped {
-			ref: h,
-			it: keys(),
-			hasNext: function() {
-				return __this__.it.hasNext();
-			},
-			next: function() {
-				var i = __this__.it.next();
-				return __this__.ref[getId(i)];
-			}
-		};
+		return typedIterator();
+	}
+
+	inline function typedIterator():ObjectMapIterator<K, V> {
+		return new ObjectMapIterator(this, arrayKeys());
 	}
 
 	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
