@@ -130,3 +130,4 @@ tests/unit/.unittest/
 tests/threads/export/
 tests/server/test.js.map
 *.merlin
+lib.sexp

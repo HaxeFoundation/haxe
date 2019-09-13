@@ -133,6 +133,8 @@ else
 endif
 
 haxe:
+	dune build --workspace dune-workspace.dev src-prebuild/prebuild.exe
+	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
 	dune build --workspace dune-workspace.dev src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
 

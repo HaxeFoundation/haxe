@@ -21,4 +21,5 @@
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
 	))
+	(link_flags (:include ../lib.sexp))
 )
