@@ -9,11 +9,11 @@ import haxe.ds.WeakMap;
 
 class MapGenericIterator {
 	static public inline function iterator<K, V>(m:Map<K, V>):Iterator<V> {
-		return (cast m).iterator();
+		return (cast m:IMap<K, V>).iterator();
 	}
 
 	static public inline function keys<K, V>(m:Map<K, V>):Iterator<K> {
-		return (cast m).keys();
+		return (cast m:IMap<K, V>).keys();
 	}
 }
 

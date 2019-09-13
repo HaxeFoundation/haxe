@@ -6,14 +6,15 @@ import haxe.ds.IntMap;
 import haxe.ds.ObjectMap;
 import haxe.ds.StringMap;
 import haxe.ds.WeakMap;
+import haxe.Constraints.IMap;
 
 class MapGenericIterator {
 	static public inline function iterator<K, V>(m:Map<K, V>):Iterator<V> {
-		return (cast m).iterator();
+		return (cast m:IMap<K, V>).iterator();
 	}
 
 	static public inline function keys<K, V>(m:Map<K, V>):Iterator<K> {
-		return (cast m).keys();
+		return (cast m:IMap<K, V>).keys();
 	}
 }
 
@@ -43,7 +44,7 @@ class MapIntIterator {
 	}
 
 	static public inline function keys<K:Int, V>(m:Map<K, V>):Iterator<K> {
-		return cast (m:IntMap<V>).keys();
+		return cast ((m:IntMap<V>).keys());
 	}
 }
 
@@ -63,7 +64,7 @@ class MapStringIterator {
 	}
 
 	static public inline function keys<K:String, V>(m:Map<K, V>):Iterator<K> {
-		return cast (m:StringMap<V>).keys();
+		return cast ((m:StringMap<V>).keys());
 	}
 }
 
