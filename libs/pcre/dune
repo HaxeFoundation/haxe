@@ -3,5 +3,6 @@
 (library
 	(name pcre)
 	(c_names pcre_stubs)
+	(c_library_flags (-lpcre))
 	(wrapped false)
 )

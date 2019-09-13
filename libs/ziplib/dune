@@ -3,5 +3,6 @@
 (library
 	(name ziplib)
 	(libraries extc unix)
+	(c_library_flags (-lz))
 	(wrapped false)
 )
