@@ -304,20 +304,20 @@
 	{
 		"name": "JsSourceMap",
 		"define": "js_source_map",
-		"doc": "Generate JavaScript source map even in non-debug mode.",
+		"doc": "Generate JavaScript source map even in non-debug mode. Deprecated in favor of `-D source_map`.",
 		"platforms": ["js"]
+	},
+	{
+		"name": "SourceMap",
+		"define": "source_map",
+		"doc": "Generate source map for compiled files.",
+		"platforms": ["php", "js"]
 	},
 	{
 		"name": "Jvm",
 		"define": "jvm",
 		"doc": "Generate jvm directly.",
 		"platforms": ["java"]
-	},
-	{
-		"name": "SourceMap",
-		"define": "source_map",
-		"doc": "Generate source map for compiled files.",
-		"platforms": ["php"]
 	},
 	{
 		"name": "KeepOldOutput",
