@@ -110,7 +110,7 @@ abstract Map<K, V>(IMap<K, V>) {
 	public inline function remove(key:K)
 		return this.remove(key);
 
-#if doc_gen
+#if (doc_gen || as3)
 	/**
 		Returns an Iterator over the keys of `this` Map.
 
