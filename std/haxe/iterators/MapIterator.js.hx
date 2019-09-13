@@ -7,6 +7,16 @@ import haxe.ds.ObjectMap;
 import haxe.ds.StringMap;
 import haxe.ds.WeakMap;
 
+class MapGenericIterator {
+	static public inline function iterator<K, V>(m:Map<K, V>):Iterator<V> {
+		return (cast m).iterator();
+	}
+
+	static public inline function keys<K, V>(m:Map<K, V>):Iterator<K> {
+		return (cast m).keys();
+	}
+}
+
 class MapEnumValueIterator {
 	static public inline function iterator<K:EnumValue, V>(m:EnumValueMap<K,V>) {
 		return m.iterator();
@@ -32,8 +42,8 @@ class MapIntIterator {
 		return @:privateAccess m.typedIterator();
 	}
 
-	static public inline function keys<V>(m:IntMap<V>) {
-		return new KeyIterator(@:privateAccess m.arrayKeys());
+	static public inline function keys<K:Int, V>(m:Map<K,V>) {
+		return new KeyIterator<K>(cast @:privateAccess (m:IntMap<V>).arrayKeys());
 	}
 }
 
@@ -52,8 +62,8 @@ class MapStringIterator {
 		return @:privateAccess m.typedIterator();
 	}
 
-	static public inline function keys<V>(m:StringMap<V>) {
-		return new KeyIterator(@:privateAccess m.arrayKeys());
+	static public inline function keys<K:String, V>(m:Map<K, V>) {
+		return new KeyIterator<K>(cast @:privateAccess (m:StringMap<V>).arrayKeys());
 	}
 }
 
