@@ -1,5 +1,9 @@
 open Globals
-open Type
+open TType
+open TUnification
+open TFunctions
+open TPrinting
+open TOther
 
 type call_error =
 	| Not_enough_arguments of (string * bool * t) list
@@ -85,8 +89,8 @@ module BetterErrors = struct
 
 	type access = {
 		acc_kind : access_kind;
-		mutable acc_expected : Type.t;
-		mutable acc_actual : Type.t;
+		mutable acc_expected : TType.t;
+		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
 		mutable acc_next : access option;
 	}

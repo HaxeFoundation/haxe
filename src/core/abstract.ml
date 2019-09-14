@@ -1,5 +1,8 @@
 open Meta
-open Type
+open TType
+open TFunctions
+open TPrinting
+open TUnification
 open Error
 
 let build_abstract a = match a.a_impl with
