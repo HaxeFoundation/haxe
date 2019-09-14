@@ -718,6 +718,13 @@
 		"links": ["https://haxe.org/manual/lf-externs.html"]
 	},
 	{
+		"name": "Native",
+		"metadata": ":native",
+		"doc": "Annotates that a function has implementation in native code through JNI.",
+		"platforms": ["java"],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "NativeChildren",
 		"metadata": ":nativeChildren",
 		"doc": "Annotates that all children from a type should be treated as if it were an extern definition - platform native.",
