@@ -301,7 +301,7 @@ let rec to_string dce t = match t with
 		else
 			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> to_string dce t
 		| _ -> ())
 	| TLazy f ->

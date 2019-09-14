@@ -225,7 +225,7 @@ let rec jsignature_of_type stack t =
 		end
 	| TDynamic _ -> object_sig
 	| TMono r ->
-		begin match !r with
+		begin match r.tm_type with
 		| Some t -> jsignature_of_type t
 		| None -> object_sig
 		end

@@ -53,7 +53,7 @@ let rec get_underlying_type ?(return_first=false) a pl =
 	let maybe_recurse t =
 		let rec loop t = match t with
 			| TMono r ->
-				(match !r with
+				(match r.tm_type with
 				| Some t -> loop t
 				| _ -> t)
 			| TLazy f ->

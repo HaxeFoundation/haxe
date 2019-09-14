@@ -72,7 +72,7 @@ let tpath t =
 let rec follow_param t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow_param t
 		| _ -> t)
 	| TAbstract ({ a_path = [],"Null" },[t]) ->
@@ -92,7 +92,7 @@ let gen_meta meta =
 
 let rec gen_type ?(values=None) t =
 	match t with
-	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
+	| TMono m -> (match m.tm_type with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> gen_type_decl "e" (TEnumDecl e) params
 	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params

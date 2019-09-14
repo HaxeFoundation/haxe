@@ -52,7 +52,7 @@ type module_check_policy =
 	| NoCheckShadowing
 
 type t =
-	| TMono of t option ref
+	| TMono of tmono
 	| TEnum of tenum * tparams
 	| TInst of tclass * tparams
 	| TType of tdef * tparams
@@ -61,6 +61,10 @@ type t =
 	| TDynamic of t
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
+
+and tmono = {
+	mutable tm_type : t option;
+}
 
 and tlazy =
 	| LAvailable of t
@@ -385,6 +389,9 @@ type flag_tclass_field =
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
+let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
+let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> ())
+
 (* Flags *)
 
 let has_flag flags flag =
@@ -442,7 +449,7 @@ let mk_cast e t p = mk (TCast(e,None)) t p
 
 let null t p = mk (TConst TNull) t p
 
-let mk_mono() = TMono (ref None)
+let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
@@ -599,7 +606,7 @@ let lazy_wait f = LWait f
 let map loop t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> t
 		| Some t -> loop t) (* erase*)
 	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
@@ -637,7 +644,7 @@ let duplicate t =
 	let monos = ref [] in
 	let rec loop t =
 		match t with
-		| TMono { contents = None } ->
+		| TMono { tm_type = None } ->
 			(try
 				List.assq t !monos
 			with Not_found ->
@@ -670,7 +677,7 @@ let apply_params ?stack cparams params t =
 		with Not_found ->
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> t
 			| Some t -> loop t)
 		| TEnum (e,tl) ->
@@ -735,12 +742,12 @@ let apply_params ?stack cparams params t =
 			| [] ->
 				t
 			| [TMono r] ->
-				(match !r with
+				(match r.tm_type with
 				| Some tt when t == tt ->
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
-					(match pt with TMono r -> r := Some t | _ -> assert false);
+					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> assert false);
 					t
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
@@ -795,7 +802,7 @@ let try_apply_params_rec cparams params t success =
 let rec follow t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
@@ -809,7 +816,7 @@ let rec follow t =
 let follow_once t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> t
 		| Some t -> t)
 	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
@@ -822,7 +829,7 @@ let follow_once t =
 let rec follow_without_null t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow_without_null t
 		| _ -> t)
 	| TLazy f ->
@@ -836,7 +843,7 @@ let rec ambiguate_funs t =
 	match t with
 	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some _ -> assert false
 		| _ -> t)
 	| TInst (a, pl) ->
@@ -856,7 +863,7 @@ let rec ambiguate_funs t =
 
 let rec is_nullable = function
 	| TMono r ->
-		(match !r with None -> false | Some t -> is_nullable t)
+		(match r.tm_type with None -> false | Some t -> is_nullable t)
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
@@ -883,7 +890,7 @@ let rec is_nullable = function
 
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
-		(match !r with None -> false | Some t -> is_null t)
+		(match r.tm_type with None -> false | Some t -> is_null t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		not (is_nullable (follow t))
 	| TLazy f ->
@@ -896,7 +903,7 @@ let rec is_null ?(no_lazy=false) = function
 (* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
 let rec is_explicit_null = function
 	| TMono r ->
-		(match !r with None -> false | Some t -> is_explicit_null t)
+		(match r.tm_type with None -> false | Some t -> is_explicit_null t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TLazy f ->
@@ -908,7 +915,7 @@ let rec is_explicit_null = function
 
 let rec has_mono t = match t with
 	| TMono r ->
-		(match !r with None -> true | Some t -> has_mono t)
+		(match r.tm_type with None -> true | Some t -> has_mono t)
 	| TInst(_,pl) | TEnum(_,pl) | TAbstract(_,pl) | TType(_,pl) ->
 		List.exists has_mono pl
 	| TDynamic _ ->
@@ -944,7 +951,7 @@ let rec module_type_of_type = function
 	| TAbstract(a,_) -> TAbstractDecl a
 	| TLazy f -> module_type_of_type (lazy_type f)
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> module_type_of_type t
 		| _ -> raise Exit)
 	| _ ->
@@ -1110,8 +1117,8 @@ let rec s_type_kind t =
 	let map tl = String.concat ", " (List.map s_type_kind tl) in
 	match t with
 	| TMono r ->
-		begin match !r with
-			| None -> "TMono (None)"
+		begin match r.tm_type with
+			| None -> Printf.sprintf "TMono (None)"
 			| Some t -> "TMono (Some (" ^ (s_type_kind t) ^ "))"
 		end
 	| TEnum(en,tl) -> Printf.sprintf "TEnum(%s, [%s])" (s_type_path en.e_path) (map tl)
@@ -1132,8 +1139,16 @@ let s_module_type_kind = function
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
-		(match !r with
-		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+		(match r.tm_type with
+		| None ->
+			begin try
+				let id = List.assq t (!ctx) in
+				Printf.sprintf "Unknown<%d>" id
+			with Not_found ->
+				let id = List.length !ctx in
+				ctx := (t,id) :: !ctx;
+				Printf.sprintf "Unknown<%d>" id
+			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
 		s_type_path e.e_path ^ s_type_params ctx tl
@@ -1180,7 +1195,7 @@ and s_fun ctx t void =
 	| TAbstract ({ a_path = ([],"Void") },[]) when void ->
 		"(" ^ s_type ctx t ^ ")"
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> s_type ctx t
 		| Some t -> s_fun ctx t void)
 	| TLazy f ->
@@ -1737,13 +1752,29 @@ end
 
 (* ======= Unification ======= *)
 
+module Monomorph = struct
+	let create () = {
+		tm_type = None;
+	}
+
+	let do_bind m t =
+		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
+		m.tm_type <- Some t
+
+	let rec bind m t =
+		m.tm_type <- Some t
+
+	let unbind m =
+		m.tm_type <- None
+end
+
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then
 			true
 		else match t with
-		| TMono t -> (match !t with None -> false | Some t -> loop t)
+		| TMono t -> (match t.tm_type with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
@@ -1767,7 +1798,7 @@ let rec link e a b =
 	else if b == t_dynamic then
 		true
 	else begin
-		e := Some b;
+		Monomorph.bind e b;
 		true
 	end
 
@@ -1785,8 +1816,8 @@ let would_produce_recursive_anon field_acceptor field_donor =
 	with Exit -> true
 
 let link_dynamic a b = match follow a,follow b with
-	| TMono r,TDynamic _ -> r := Some b
-	| TDynamic _,TMono r -> r := Some a
+	| TMono r,TDynamic _ -> Monomorph.bind r b
+	| TDynamic _,TMono r -> Monomorph.bind r a
 	| _ -> ()
 
 let fast_eq_check type_param_check a b =
@@ -1824,9 +1855,9 @@ let rec shallow_eq a b =
 		and b = follow b in
 		fast_eq_check shallow_eq a b
 		|| match a , b with
-			| t, TMono { contents = None } when t == t_dynamic -> true
-			| TMono { contents = None }, t when t == t_dynamic -> true
-			| TMono { contents = None }, TMono { contents = None } -> true
+			| t, TMono { tm_type = None } when t == t_dynamic -> true
+			| TMono { tm_type = None }, t when t == t_dynamic -> true
+			| TMono { tm_type = None }, TMono { tm_type = None } -> true
 			| TAnon a1, TAnon a2 ->
 				let fields_eq() =
 					let rec loop fields1 fields2 =
@@ -2001,11 +2032,11 @@ let rec type_eq param a b =
 	| TLazy f , _ -> type_eq param (lazy_type f) b
 	| _ , TLazy f -> type_eq param a (lazy_type f)
 	| TMono t , _ ->
-		(match !t with
+		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t a b) then error [cannot_unify a b]
 		| Some t -> type_eq param t b)
 	| _ , TMono t ->
-		(match !t with
+		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
@@ -2067,13 +2098,13 @@ let rec type_eq param a b =
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
-						if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
+						if not (link (Monomorph.create()) b f1.cf_type) then error [cannot_unify a b];
 						a2.a_fields <- PMap.add n f1 a2.a_fields
 			) a1.a_fields;
 			PMap.iter (fun n f2 ->
 				if not (PMap.mem n a1.a_fields) then begin
 					if is_closed a1 then error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
+					if not (link (Monomorph.create()) a f2.cf_type) then error [cannot_unify a b];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 				end;
 			) a2.a_fields;
@@ -2133,11 +2164,11 @@ let rec unify a b =
 	| TLazy f , _ -> unify (lazy_type f) b
 	| _ , TLazy f -> unify a (lazy_type f)
 	| TMono t , _ ->
-		(match !t with
+		(match t.tm_type with
 		| None -> if not (link t a b) then error [cannot_unify a b]
 		| Some t -> unify t b)
 	| _ , TMono t ->
-		(match !t with
+		(match t.tm_type with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
 	| TType (t,tl) , _ ->
@@ -2421,7 +2452,7 @@ and unify_anons a b a1 a2 =
 			Not_found ->
 				match !(a1.a_status) with
 				| Opened ->
-					if not (link (ref None) a f2.cf_type) then error [];
+					if not (link (Monomorph.create()) a f2.cf_type) then error [];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 				| Const when Meta.has Meta.Optional f2.cf_meta ->
 					()
@@ -2844,7 +2875,7 @@ module TExprToExpr = struct
 
 	let rec convert_type = function
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> raise Exit
 			| Some t -> convert_type t)
 		| TInst ({cl_private = true; cl_path=_,name},tl)
@@ -2985,7 +3016,7 @@ end
 
 module ExtType = struct
 	let is_mono = function
-		| TMono { contents = None } -> true
+		| TMono { tm_type = None } -> true
 		| _ -> false
 
 	let is_void = function
@@ -3035,7 +3066,7 @@ module ExtType = struct
 			| TAbstract(a,_) -> check a.a_meta
 			| TLazy f -> loop (lazy_type f)
 			| TMono r ->
-				(match !r with
+				(match r.tm_type with
 				| Some t -> loop t
 				| _ -> false)
 			| _ ->
@@ -3140,3 +3171,6 @@ let s_class_path c =
 		| _ -> c.cl_path
 	in
 	s_type_path path
+;;
+monomorph_bind_ref := Monomorph.bind;;
+monomorph_create_ref := Monomorph.create;;

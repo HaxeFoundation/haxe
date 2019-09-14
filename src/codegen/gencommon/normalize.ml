@@ -34,7 +34,7 @@ let rec filter_param stack t =
 	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
 		t_dynamic
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> t_dynamic
 		| Some t -> filter_param stack t)
 	| TInst(_,[]) | TEnum(_,[]) | TAbstract(_,[]) ->

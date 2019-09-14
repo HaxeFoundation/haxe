@@ -94,7 +94,7 @@ let update_cache_dependencies t =
 		| TAnon an ->
 			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> check_t m t
 			| _ -> ())
 		| TLazy f ->
@@ -247,7 +247,7 @@ let fix_abstract_inheritance com t =
 let rec is_volatile t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_volatile t
 		| _ -> false)
 	| TLazy f ->

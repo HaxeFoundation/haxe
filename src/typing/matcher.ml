@@ -46,14 +46,17 @@ let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 ->
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
-			unapplied := (m1,!m1) :: !unapplied;
-			m1 := Some t1;
+			unapplied := (m1,m1.tm_type) :: !unapplied;
+			Monomorph.bind m1 t1;
 		| _ -> ()
 	) params monos;
 	!unapplied
 
 let reapply_type_parameters unapplied =
-	List.iter (fun (m,o) -> m := o) unapplied
+	List.iter (fun (m,o) -> match o with
+		| None -> Monomorph.unbind m
+		| Some t -> Monomorph.bind m t
+	) unapplied
 
 let get_general_module_type ctx mt p =
 	let rec loop = function
@@ -156,7 +159,7 @@ module Pattern = struct
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
 		is_postfix_match : bool;
-		unapply_type_parameters : unit -> (Type.t option ref * Type.t option) list;
+		unapply_type_parameters : unit -> (tmono * Type.t option) list;
 	}
 
 	exception Bad_pattern of string

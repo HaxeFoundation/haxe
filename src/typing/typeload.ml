@@ -378,12 +378,12 @@ and load_complex_type' ctx allow_display (t,p) =
 				) r.fitems in
 				raise_fields l (CRStructExtension true) r.fsubject
 		) tl in
-		let tr = ref None in
+		let tr = Monomorph.create() in
 		let t = TMono tr in
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
 			let ta = make_extension_type ctx tl in
-			tr := Some ta;
+			Monomorph.bind tr ta;
 			ta
 		) "constraint" in
 		TLazy r
@@ -420,11 +420,11 @@ and load_complex_type' ctx allow_display (t,p) =
 					) r.fitems in
 					raise_fields l (CRStructExtension false) r.fsubject
 			) tl in
-			let tr = ref None in
+			let tr = Monomorph.create() in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
 				r := lazy_processing (fun() -> t);
-				tr := Some (match il with
+				Monomorph.bind tr (match il with
 					| [i] ->
 						mk_extension i
 					| _ ->
@@ -578,7 +578,7 @@ and init_meta_overloads ctx co cf =
 			ctx.type_params <- old;
 			false
 		| (Meta.Overload,[],_) when ctx.com.config.pf_overload ->
-			let topt (n,_,t) = match t with | TMono t when !t = None -> error ("Explicit type required for overload functions\nFor function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
+			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> error ("Explicit type required for overload functions\nFor function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
 			(match follow cf.cf_type with
 			| TFun (args,_) -> List.iter topt args
 			| _ -> () (* could be a variable *));

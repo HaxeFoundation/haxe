@@ -536,7 +536,7 @@ let handle_decoding_error f v t =
 			(* TODO: might need some more of these, not sure *)
 			assert false
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 				| None -> ()
 				| Some t -> loop tabs t v
 			end

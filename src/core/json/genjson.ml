@@ -188,7 +188,7 @@ let rec generate_ast_type_param ctx tp = jobject [
 let rec generate_type ctx t =
 	let rec loop t = match t with
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 			| None -> "TMono",None
 			| Some t -> loop t
 			end

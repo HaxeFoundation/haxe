@@ -429,7 +429,7 @@ module CompletionType = struct
 		}
 		and from_type values t = match t with
 			| TMono r ->
-				begin match !r with
+				begin match r.tm_type with
 					| None -> CTMono
 					| Some t -> from_type values t
 				end

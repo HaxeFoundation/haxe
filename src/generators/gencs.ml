@@ -112,7 +112,7 @@ let rec is_null t =
 		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
 		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> is_null t
 			| _ -> false)
 		| TLazy f ->
@@ -1081,7 +1081,7 @@ let generate con =
 					(if ret = "object" then "void" else ret) ^ "*"
 				(* end of basic types *)
 				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
-				| TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
+				| TMono r -> (match r.tm_type with | None -> "object" | Some t -> t_s (run_follow gen t))
 				| TInst ({ cl_path = [], "String" }, []) -> "string"
 				| TEnum (e, params) -> ("global::" ^ (module_s (TEnumDecl e)))
 				| TInst (cl, _ :: _) when Meta.has Meta.Enum cl.cl_meta ->
@@ -1909,7 +1909,7 @@ let generate con =
 						gen_attributes w tdef.t_meta;
 						run (follow_once t)
 					| TMono r ->
-						(match !r with
+						(match r.tm_type with
 						| Some t -> run t
 						| _ -> () (* avoid infinite loop / should be the same in this context *))
 					| TLazy f ->

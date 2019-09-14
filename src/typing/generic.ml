@@ -49,7 +49,7 @@ let make_generic ctx ps pt p =
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl top tl)
 				| _ when not top ->
 					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
-				| TMono { contents = None } -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
+				| TMono { tm_type = None } -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TDynamic _ -> "Dynamic"
 				| t ->
 					follow_or t top (fun() -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p)))
@@ -199,7 +199,7 @@ let rec build_generic ctx c p tl =
 			| TType (t,tl) -> add_dep t.t_module tl
 			| TAbstract (a,tl) -> add_dep a.a_module tl
 			| TMono r ->
-				(match !r with
+				(match r.tm_type with
 				| None -> ()
 				| Some t -> loop t)
 			| TLazy f ->

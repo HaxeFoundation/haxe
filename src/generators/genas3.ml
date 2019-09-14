@@ -279,7 +279,7 @@ let rec type_str ctx t p =
 	| TFun _ ->
 		"Function"
 	| TMono r ->
-		(match !r with None -> "*" | Some t -> type_str ctx t p)
+		(match r.tm_type with None -> "*" | Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
 		"*"
 	| TType (t,args) ->

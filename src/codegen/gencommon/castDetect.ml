@@ -189,13 +189,13 @@ let rec type_eq gen param a b =
 				with
 					Not_found ->
 						if is_closed a2 then Type.error [has_no_field b n];
-						if not (link (ref None) b f1.cf_type) then Type.error [cannot_unify a b];
+						if not (link (Monomorph.create()) b f1.cf_type) then Type.error [cannot_unify a b];
 						a2.a_fields <- PMap.add n f1 a2.a_fields
 			) a1.a_fields;
 			PMap.iter (fun n f2 ->
 				if not (PMap.mem n a1.a_fields) then begin
 					if is_closed a1 then Type.error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then Type.error [cannot_unify a b];
+					if not (link (Monomorph.create()) a f2.cf_type) then Type.error [cannot_unify a b];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 				end;
 			) a2.a_fields;

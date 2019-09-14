@@ -633,7 +633,7 @@ let rec is_objc_type t =
    | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
    | TType(td,_) -> (Meta.has Meta.Objc td.t_meta)
    | TAbstract (a,_) -> (Meta.has Meta.Objc a.a_meta)
-   | TMono r -> (match !r with | Some t -> is_objc_type t | _ -> false)
+   | TMono r -> (match r.tm_type with | Some t -> is_objc_type t | _ -> false)
    | TLazy f -> is_objc_type (lazy_type f)
    | _ -> false
 ;;
@@ -753,7 +753,7 @@ and type_string_suff suffix haxe_type remap =
    let type_string = type_string_remap remap in
    let join_class_path_remap = if remap then join_class_path_remap else join_class_path in
    (match haxe_type with
-   | TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t remap)
+   | TMono r -> (match r.tm_type with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t remap)
    | TAbstract ({ a_path = ([],"Void") },[]) -> "Void"
    | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
    | TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
@@ -1734,7 +1734,7 @@ let rec cpp_type_of stack ctx haxe_type =
    else begin
       let stack = haxe_type :: stack in
       (match haxe_type with
-      | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of stack ctx t)
+      | TMono r -> (match r.tm_type with None -> TCppDynamic | Some t -> cpp_type_of stack ctx t)
 
       | TEnum (enum,params) ->  TCppEnum(enum)
 
@@ -4732,7 +4732,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
       if not (List.exists (fun t2 -> Type.fast_eq in_type t2) !visited) then begin
          visited := in_type :: !visited;
          begin match follow in_type with
-         | TMono r -> (match !r with None -> () | Some t -> visit_type t)
+         | TMono r -> (match r.tm_type with None -> () | Some t -> visit_type t)
          | TEnum (enum,params) -> add_type enum.e_path
          (* If a class has a template parameter, then we treat it as dynamic - except
             for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
@@ -7216,7 +7216,7 @@ class script_writer ctx filename asciiOut =
    val mutable indents = []
    val mutable just_finished_block = false
    val mutable classCount = 0
-   val mutable return_type = TMono(ref None)
+   val mutable return_type = TMono(Monomorph.create())
    val buffer = Buffer.create 0
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0

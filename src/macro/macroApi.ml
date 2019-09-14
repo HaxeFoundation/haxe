@@ -1047,8 +1047,8 @@ and encode_abref ab =
 and encode_type t =
 	let rec loop = function
 		| TMono r ->
-			(match !r with
-			| None -> 0, [encode_ref r (fun r -> match !r with None -> vnull | Some t -> encode_type t) (fun() -> "<mono>")]
+			(match r.tm_type with
+			| None -> 0, [encode_ref r (fun r -> match r.tm_type with None -> vnull | Some t -> encode_type t) (fun() -> "<mono>")]
 			| Some t -> loop t)
 		| TEnum (e, pl) ->
 			1 , [encode_ref e encode_tenum (fun() -> s_type_path e.e_path); encode_tparams pl]
@@ -1083,7 +1083,7 @@ and encode_type t =
 and encode_lazy_type t =
 	let rec loop = function
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> loop t
 			| _ -> encode_type t)
 		| TLazy f ->
@@ -1783,7 +1783,7 @@ let macro_api ccom get_api =
 			let follow_once t =
 				match t with
 				| TMono r ->
-					(match !r with
+					(match r.tm_type with
 					| None -> t
 					| Some t -> t)
 				| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->

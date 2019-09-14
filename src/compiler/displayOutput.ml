@@ -393,7 +393,7 @@ let load_display_content_standalone ctx input =
 let promote_type_hints tctx =
 	let rec explore_type_hint (md,p,t) =
 		match t with
-		| TMono r -> (match !r with None -> () | Some t -> explore_type_hint (md,p,t))
+		| TMono r -> (match r.tm_type with None -> () | Some t -> explore_type_hint (md,p,t))
 		| TLazy f -> explore_type_hint (md,p,lazy_type f)
 		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
 		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)

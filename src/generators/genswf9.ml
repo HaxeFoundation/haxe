@@ -185,7 +185,7 @@ let type_path ctx path =
 let rec follow_basic t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow_basic t
 		| _ -> t)
 	| TLazy f ->

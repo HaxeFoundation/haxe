@@ -272,7 +272,7 @@ let module_pass_1 ctx m tdecls loadp =
 			(* failsafe in case the typedef is not initialized (see #3933) *)
 			delay ctx PBuildModule (fun () ->
 				match t.t_type with
-				| TMono r -> (match !r with None -> r := Some com.basic.tvoid | _ -> ())
+				| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 				| _ -> ()
 			);
 			decls := (TTypeDecl t, decl) :: !decls;
@@ -711,7 +711,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					if tt == t.t_type then error "Recursive typedef is not allowed" p;
 					match tt with
 					| TMono r ->
-						(match !r with
+						(match r.tm_type with
 						| None -> ()
 						| Some t -> check_rec t)
 					| TLazy f ->
@@ -732,8 +732,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		) in
 		(match t.t_type with
 		| TMono r ->
-			(match !r with
-			| None -> r := Some tt;
+			(match r.tm_type with
+			| None -> Monomorph.bind r tt;
 			| Some _ -> assert false);
 		| _ -> assert false);
 		if ctx.com.platform = Cs && t.t_meta <> [] then

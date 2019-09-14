@@ -69,7 +69,7 @@ let rec classify t =
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
-	| TMono r when !r = None -> KUnk
+	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
 
@@ -189,7 +189,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
 			| TLazy f -> loop (lazy_type f)
-			| TMono r -> (match !r with None -> () | Some t -> loop t)
+			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
 			| _ -> tl := t :: !tl)
 		in
 		loop t;
