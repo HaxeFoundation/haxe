@@ -718,7 +718,7 @@
 		"links": ["https://haxe.org/manual/lf-externs.html"]
 	},
 	{
-		"name": "Native",
+		"name": "NativeJni",
 		"metadata": ":native",
 		"doc": "Annotates that a function has implementation in native code through JNI.",
 		"platforms": ["java"],
