@@ -773,7 +773,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 				let athis = map ab.a_this in
 				(* we cannot allow implicit casts when the this type is not completely known yet *)
 				(* if has_mono athis then raise (Unify_error []); *)
-				with_variance (type_eq EqStrict) athis (map ta);
+				type_eq EqStrict athis (map ta);
 				(* immediate constraints checking is ok here because we know there are no monomorphs *)
 				List.iter2 (fun m (name,t) -> match follow t with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
@@ -783,55 +783,16 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 				unify_func (map t) b;
 			| _ -> assert false)
 
-and unify_with_variance f t1 t2 =
-	let allows_variance_to t tf = type_iseq tf t in
-	match follow t1,follow t2 with
-	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
-		List.iter2 f tl1 tl2
-	| TEnum(en1,tl1),TEnum(en2,tl2) when en1 == en2 ->
-		List.iter2 f tl1 tl2
-	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 && Meta.has Meta.CoreType a1.a_meta ->
-		List.iter2 f tl1 tl2
-	| TAbstract(a1,pl1),TAbstract(a2,pl2) ->
-		if (Meta.has Meta.CoreType a1.a_meta) && (Meta.has Meta.CoreType a2.a_meta) then begin
-			let ta1 = apply_params a1.a_params pl1 a1.a_this in
-			let ta2 = apply_params a2.a_params pl2 a2.a_this in
-			type_eq EqStrict ta1 ta2;
-		end;
-		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
-			error [cannot_unify t1 t2]
-	| TAbstract(a,pl),t ->
-		type_eq EqBothDynamic (apply_params a.a_params pl a.a_this) t;
-		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_to) then error [cannot_unify t1 t2]
-	| t,TAbstract(a,pl) ->
-		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
-		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
-	| (TAnon a1 as t1), (TAnon a2 as t2) ->
-		rec_stack unify_stack (t1,t2)
-			(fun (a,b) -> fast_eq a t1 && fast_eq b t2)
-			(fun() -> unify_anons t1 t2 a1 a2)
-			(fun l -> error l)
-	| _ ->
-		error [cannot_unify t1 t2]
-
 and unify_type_params a b tl1 tl2 =
 	let i = ref 0 in
 	List.iter2 (fun t1 t2 ->
 		incr i;
 		try
-			with_variance (type_eq EqRightDynamic) t1 t2
+			type_eq EqRightDynamic t1 t2
 		with Unify_error l ->
 			let err = cannot_unify a b in
 			error (err :: (Invariant_parameter !i) :: l)
 	) tl1 tl2
-
-and with_variance f t1 t2 =
-	try
-		f t1 t2
-	with Unify_error l -> try
-		unify_with_variance (with_variance f) t1 t2
-	with Unify_error _ ->
-		raise (Unify_error l)
 
 and unify_with_access f1 t1 f2 =
 	match f2.cf_kind with
@@ -842,7 +803,7 @@ and unify_with_access f1 t1 f2 =
 		if (has_class_field_flag f1 CfFinal) <> (has_class_field_flag f2 CfFinal) then raise (Unify_error [FinalInvariance]);
 		unify t1 f2.cf_type
 	(* read/write *)
-	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
+	| _ -> type_eq EqBothDynamic t1 f2.cf_type
 
 let does_unify a b =
 	try

@@ -194,7 +194,8 @@ class ExprTools {
 							name: arg.name,
 							opt: arg.opt,
 							type: arg.type,
-							value: opt(arg.value, f)
+							value: opt(arg.value, f),
+							meta: []
 						});
 					EFunction(kind, {
 						args: ret,
