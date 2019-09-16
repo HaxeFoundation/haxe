@@ -29,6 +29,7 @@ depends: [
   "ptmap"               {build}
   "sha"                 {build}
   "conf-libpcre"
+  "conf-libuv"
   "conf-zlib"
   "conf-neko"
 ]

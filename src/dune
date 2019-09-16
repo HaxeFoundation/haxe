@@ -11,7 +11,7 @@
 	(public_name haxe)
 	(package haxe)
 	(libraries
-		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
+		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib uv ziplib
 		json
 		unix str threads dynlink
 		xml-light extlib ptmap sha
