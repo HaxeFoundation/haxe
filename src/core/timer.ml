@@ -77,6 +77,10 @@ let timer id =
 	) else
 		(fun() -> ())
 
+let current_id() =
+	match !curtime with
+	| [] -> None
+	| t :: _ -> Some t.id
 
 let rec close_times() =
 	let now = get_time() in
