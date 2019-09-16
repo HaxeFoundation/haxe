@@ -3466,6 +3466,14 @@ module StdUv = struct
 				)));
 			vnull
 		)
+		let stat = vfun3 (fun path followSymLinks cb ->
+			let path = decode_string path in
+			let followSymLinks = default_bool followSymLinks true in
+			wrap_sync ((if followSymLinks then Uv.fs_stat else Uv.fs_lstat) (loop ()) path (wrap_cb cb (fun res ->
+					encode_instance key_eval_uv_Stat ~kind:(IUv (UvStat res))
+				)));
+			vnull
+		)
 	end
 
 	module Socket = struct
@@ -3677,8 +3685,11 @@ module StdUv = struct
 			let size = decode_int size in
 			vint (Uv.udp_set_send_buffer_size this size)
 		)
-		let ref_ = wrap_ref this
-		let unref = wrap_unref this
+		let asStream = vifun0 (fun vthis ->
+			let this = this vthis in
+			let stream = Uv.stream_of_handle this in
+			encode_instance key_eval_uv_Stream ~kind:(IUv (UvStream stream))
+		)
 	end
 
 	module Dns = struct
@@ -4562,6 +4573,7 @@ let init_standard_library builtins =
 		"access",StdUv.AsyncFileSystem.access;
 		"exists",StdUv.AsyncFileSystem.exists;
 		"readdirTypes",StdUv.AsyncFileSystem.readdirTypes;
+		"stat",StdUv.AsyncFileSystem.stat;
 	] [];
 	init_fields builtins (["asys";"io"],"File") [] [
 		"get_async",StdUv.File.get_async;
@@ -4639,8 +4651,7 @@ let init_standard_library builtins =
 		"getSendBufferSize",StdUv.UdpSocket.getSendBufferSize;
 		"setRecvBufferSize",StdUv.UdpSocket.setRecvBufferSize;
 		"setSendBufferSize",StdUv.UdpSocket.setSendBufferSize;
-		"ref",StdUv.UdpSocket.ref_;
-		"unref",StdUv.UdpSocket.unref;
+		"asStream",StdUv.UdpSocket.asStream;
 	];
 	init_fields builtins (["asys";"net"],"Dns") [
 		"lookup_native",StdUv.Dns.lookup_native;

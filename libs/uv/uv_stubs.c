@@ -37,6 +37,7 @@
 #define UV_UNWRAP(v, t) ((t *)Field(v, 0))
 
 #define Connect_val(v) UV_UNWRAP(v, uv_connect_t)
+#define Fs_val(v) UV_UNWRAP(v, uv_fs_t)
 #define FsEvent_val(v) UV_UNWRAP(v, uv_fs_event_t)
 #define GetAddrInfo_val(v) UV_UNWRAP(v, uv_getaddrinfo_t)
 #define Handle_val(v) UV_UNWRAP(v, uv_handle_t)
@@ -271,10 +272,10 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		CAMLparam2(loop, cb); \
 		locals; \
 		UV_ALLOC_CHECK(req, uv_fs_t); \
-		UV_REQ_DATA(UV_UNWRAP(req, uv_fs_t)) = (void *)cb; \
-		caml_register_global_root(UV_REQ_DATA_A(UV_UNWRAP(req, uv_fs_t))); \
+		UV_REQ_DATA(Fs_val(req)) = (void *)cb; \
+		caml_register_global_root(UV_REQ_DATA_A(Fs_val(req))); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), UV_UNWRAP(req, uv_fs_t), call, handler), free(UV_UNWRAP(req, uv_fs_t))); \
+		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), Fs_val(req), call, handler), free(Fs_val(req))); \
 		UV_SUCCESS_UNIT; \
 	} \
 	CAMLprim value w_ ## name ## _sync(value loop, sign) { \
@@ -283,12 +284,12 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), UV_UNWRAP(req, uv_fs_t), call, NULL), free(UV_UNWRAP(req, uv_fs_t))); \
-		UV_ERROR_CHECK_C(UV_UNWRAP(req, uv_fs_t)->result, { uv_fs_req_cleanup(UV_UNWRAP(req, uv_fs_t)); free(UV_UNWRAP(req, uv_fs_t)); }); \
+		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), Fs_val(req), call, NULL), free(Fs_val(req))); \
+		UV_ERROR_CHECK_C(Fs_val(req)->result, { uv_fs_req_cleanup(Fs_val(req)); free(Fs_val(req)); }); \
 		CAMLlocal1(ret); \
-		ret = handler ## _sync(UV_UNWRAP(req, uv_fs_t)); \
-		uv_fs_req_cleanup(UV_UNWRAP(req, uv_fs_t)); \
-		free(UV_UNWRAP(req, uv_fs_t)); \
+		ret = handler ## _sync(Fs_val(req)); \
+		uv_fs_req_cleanup(Fs_val(req)); \
+		free(Fs_val(req)); \
 		UV_SUCCESS(ret); \
 	}
 
@@ -845,7 +846,7 @@ CAMLprim value w_udp_bind_ipv4(value handle, value host, value port) {
 CAMLprim value w_udp_bind_ipv6(value handle, value host, value port, value ipv6only) {
 	CAMLparam3(handle, host, port);
 	UV_SOCKADDR_IPV6(addr, &Byte(host, 0), Int_val(port));
-	UV_ERROR_CHECK(uv_udp_bind(Udp_val(handle), (const struct sockaddr *)&addr, Bool_val(ipv6only) ? UV_TCP_IPV6ONLY : 0));
+	UV_ERROR_CHECK(uv_udp_bind(Udp_val(handle), (const struct sockaddr *)&addr, Bool_val(ipv6only) ? UV_UDP_IPV6ONLY : 0));
 	UV_SUCCESS_UNIT;
 }
 
@@ -885,6 +886,7 @@ CAMLprim value w_udp_recv_start(value handle, value cb) {
 CAMLprim value w_udp_recv_stop(value handle) {
 	CAMLparam1(handle);
 	UV_ERROR_CHECK(uv_udp_recv_stop(Udp_val(handle)));
+	UV_HANDLE_DATA_SUB(Udp_val(handle), udp).cb_read = Val_unit;
 	UV_SUCCESS_UNIT;
 }
 
@@ -1152,14 +1154,17 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 	};
 	UV_ERROR_CHECK_C(
 		uv_spawn(Loop_val(loop), Process_val(handle), &options),
-		{ unalloc_data(UV_HANDLE_DATA(Process_val(handle))); free(Process_val(handle)); }
+		{ free(args_u); free(env_u); free(stdio_u); unalloc_data(UV_HANDLE_DATA(Process_val(handle))); free(Process_val(handle)); }
 		);
+	free(args_u);
+	free(env_u);
 	free(stdio_u);
 	UV_SUCCESS(handle);
 }
 BC_WRAP10(w_spawn);
 
 CAMLprim value w_process_kill(value handle, value signum, value cb) {
+	// TODO: callback?
 	CAMLparam2(handle, signum);
 	UV_ERROR_CHECK(uv_process_kill(Process_val(handle), Int_val(signum)));
 	UV_SUCCESS_UNIT;
@@ -1235,7 +1240,7 @@ CAMLprim value w_pipe_accept_pending(value loop, value handle) {
 		}; break;
 		case UV_TCP: {
 			ret = caml_alloc(1, 1);
-			UV_ALLOC_CHECK(client, uv_pipe_t);
+			UV_ALLOC_CHECK(client, uv_tcp_t);
 			UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(client)), free(Tcp_val(client)));
 			UV_HANDLE_DATA(Tcp_val(client)) = alloc_data_tcp(Val_unit, Val_unit);
 			if (UV_HANDLE_DATA(Tcp_val(client)) == NULL)
