@@ -917,8 +917,8 @@ and gen_expr ?(local=true) ctx e = begin
     | TWhile (cond,e,Ast.NormalWhile) ->
         gen_loop ctx "while" cond e
     | TWhile (cond,e,Ast.DoWhile) ->
-        println ctx "while true do ";
         gen_block_element ctx e;
+        newline ctx;
         gen_loop ctx "while" cond e
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
