@@ -19,18 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
+ 
 package php;
 
 /**
-	@see https://www.php.net/manual/en/class.iteratoraggregate.php
+	@see https://www.php.net/manual/en/class.seekableiterator.php
 **/
-@:native('IteratorAggregate')
-extern interface IteratorAggregate<T> extends Traversable {
-	/**
-		This method is not public to not induce Haxe users to use it ;)
-		Use iterator() instead.
-	**/
-	private function getIterator():Traversable;
-
+@:native('SeekableIterator')
+extern interface SeekableIterator<K, V> extends NativeIterator<K, V> {
+	function seek(position:Int):Void;
 }

@@ -23,14 +23,10 @@
 package php;
 
 /**
-	@see https://www.php.net/manual/en/class.iteratoraggregate.php
+	@see https://www.php.net/manual/en/class.serializable.php
 **/
-@:native('IteratorAggregate')
-extern interface IteratorAggregate<T> extends Traversable {
-	/**
-		This method is not public to not induce Haxe users to use it ;)
-		Use iterator() instead.
-	**/
-	private function getIterator():Traversable;
-
+@:native('Serializable')
+extern interface Serializable {
+    function serialize():String;
+    function unserialize(serialized:String):Void;
 }
