@@ -34,7 +34,7 @@ let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
 
-let unify_error_msg ctx = function
+let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Invalid_field_type s ->
