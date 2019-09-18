@@ -27,8 +27,8 @@ package php;
 **/
 @:native('ArrayIterator')
 extern class ArrayIterator<K, V> implements php.ArrayAccess<K, V> implements SeekableIterator<K, V> implements Countable implements Serializable {
-	static final STD_PROP_LIST:Int;
-	static final ARRAY_AS_PROPS:Int;
+	@:phpClassConst static final STD_PROP_LIST:Int;
+	@:phpClassConst static final ARRAY_AS_PROPS:Int;
 
 	function new(?array:NativeArray, ?flags:Int);
 	function append(value:V):Void;
