@@ -35,8 +35,6 @@ let short_type ctx t =
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
 
 let unify_error_msg ctx err = match err with
-	| Cannot_unify (TType({ t_type = TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl _ }}}}, _),_) ->
-		"Cannot use abstract as value"
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Invalid_field_type s ->
