@@ -19,18 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
+ 
 package php;
 
 /**
-	Native PHP interface.
-	@see https://www.php.net/manual/en/class.iterator.php
+	@see https://www.php.net/manual/en/class.seekableiterator.php
 **/
-@:native('Iterator')
-extern interface NativeIterator<K, V> extends Traversable {
-	function current():V;
-	function key():K;
-	function next():Void;
-	function rewind():Void;
-	function valid():Bool;
+@:native('SeekableIterator')
+extern interface SeekableIterator<K, V> extends NativeIterator<K, V> {
+	function seek(position:Int):Void;
 }

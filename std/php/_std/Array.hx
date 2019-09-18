@@ -21,6 +21,7 @@
  */
 
 import php.*;
+import php.ArrayIterator as NativeArrayIterator;
 
 using php.Global;
 
@@ -277,9 +278,4 @@ private extern interface ArrayAccess<K, V> {
 	private function offsetGet(offset:K):V;
 	private function offsetSet(offset:K, value:V):Void;
 	private function offsetUnset(offset:K):Void;
-}
-
-@:native('ArrayIterator')
-private extern class NativeArrayIterator<T> implements Traversable {
-	function new(?array:NativeIndexedArray<T>, ?flags:Int);
 }
