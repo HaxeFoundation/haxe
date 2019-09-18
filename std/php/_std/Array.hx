@@ -25,7 +25,7 @@ import php.*;
 using php.Global;
 
 @:coreApi
-final class Array<T> implements ArrayAccess<Int, T> implements NativeIterator<Int, T> {
+final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> {
 	public var length(default, null):Int;
 
 	var arr:NativeIndexedArray<T>;
@@ -229,28 +229,8 @@ final class Array<T> implements ArrayAccess<Int, T> implements NativeIterator<In
 	}
 
 	@:noCompletion @:keep
-	function current():T {
-		return Global.current(arr);
-	}
-
-	@:noCompletion @:keep
-	function key():Int {
-		return Global.key(arr);
-	}
-
-	@:noCompletion @:keep
-	function next():Void {
-		Global.next(arr);
-	}
-
-	@:noCompletion @:keep
-	function rewind():Void {
-		Global.reset(arr);
-	}
-
-	@:noCompletion @:keep
-	function valid():Bool {
-		return Global.key(arr) != null;
+	private function getIterator():Traversable {
+		return new NativeArrayIterator(arr);
 	}
 
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
@@ -299,11 +279,7 @@ private extern interface ArrayAccess<K, V> {
 	private function offsetUnset(offset:K):Void;
 }
 
-@:native('Iterator')
-private extern interface NativeIterator<K, V> {
-	private function current():V;
-	private function key():K;
-	private function next():Void;
-	private function rewind():Void;
-	private function valid():Bool;
+@:native('ArrayIterator')
+private extern class NativeArrayIterator<T> implements Traversable {
+	function new(?array:NativeIndexedArray<T>, ?flags:Int);
 }
