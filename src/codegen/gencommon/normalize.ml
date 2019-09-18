@@ -29,7 +29,7 @@ open Gencommon
 		as it will help normalize the AST
 *)
 
-let rec filter_param stack t =
+let rec filter_param (stack:t list) t =
 	match t with
 	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
 		t_dynamic
@@ -39,10 +39,8 @@ let rec filter_param stack t =
 		| Some t -> filter_param stack t)
 	| TInst(_,[]) | TEnum(_,[]) | TAbstract(_,[]) ->
 		t
-	| TType(td,tl) when Meta.has Meta.Semantics td.t_meta || Meta.has Meta.Strict td.t_meta || List.memq t stack ->
-		TType(td,List.map (filter_param stack) tl)
 	| TType(td,tl) ->
-		filter_param (t :: stack) (apply_params td.t_params tl td.t_type)
+		TType(td,List.map (filter_param stack) tl)
 	| TInst(c,tl) ->
 		TInst(c,List.map (filter_param stack) tl)
 	| TEnum(e,tl) ->
@@ -51,7 +49,7 @@ let rec filter_param stack t =
 		TAbstract(a, List.map (filter_param stack) tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
 		TAbstract(a,[filter_param stack t])
-	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+	| TAbstract(a,tl) when (Meta.has Meta.MultiType a.a_meta) ->
 		filter_param stack (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) ->
 		TAbstract(a, List.map (filter_param stack) tl)
