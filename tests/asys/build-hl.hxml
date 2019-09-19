@@ -1,0 +1,10 @@
+build-common.hxml
+-p ../hl-impl
+--hl bin/test.hl
+
+--next
+-p ../common-impl
+-p ../hl-impl
+-p test-helpers/src
+--main IpcEcho
+--hl test-helpers/hl/ipcEcho.hl

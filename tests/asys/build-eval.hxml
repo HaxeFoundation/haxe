@@ -1,0 +1,4 @@
+build-common.hxml
+# TODO: tests hang without disabling DCE
+-dce no
+--interp

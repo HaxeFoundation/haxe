@@ -1,0 +1,3 @@
+build-common.hxml
+-p ../neko-impl
+--neko bin/test.n
