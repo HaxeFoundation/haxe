@@ -42,10 +42,10 @@ class TestBase {
 		args.unshift(name.charAt(0).toUpperCase() + name.substr(1));
 		args.unshift("--run");
 		args.unshift('test-helpers/eval/$name.hxml');
-		name = "/DevProjects/Repos/haxe/haxe";
+		name = "haxe";
 		#elseif hl
 		args.unshift('test-helpers/hl/$name.hl');
-		name = "/DevProjects/Repos/hashlink/hl";
+		name = "hl";
 		#else
 		throw "unsupported platform for helperStart";
 		#end
