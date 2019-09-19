@@ -43,15 +43,15 @@ class CallStack {
 	static function getStack(e:js.lib.Error):Array<StackItem> {
 		if (e == null)
 			return [];
-		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
-		var oldValue = (untyped Error).prepareStackTrace;
-		(untyped Error).prepareStackTrace = function(error, callsites:Array<Dynamic>) {
+		// https://v8.dev/docs/stack-trace-api
+		var oldValue = V8Error.prepareStackTrace;
+		V8Error.prepareStackTrace = function(error, callsites) {
 			var stack = [];
 			for (site in callsites) {
 				if (wrapCallSite != null)
 					site = wrapCallSite(site);
 				var method = null;
-				var fullName:String = site.getFunctionName();
+				var fullName = site.getFunctionName();
 				if (fullName != null) {
 					var idx = fullName.lastIndexOf(".");
 					if (idx >= 0) {
@@ -60,7 +60,7 @@ class CallStack {
 						method = Method(className, methodName);
 					}
 				}
-				var fileName:String = site.getFileName();
+				var fileName = site.getFileName();
 				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
 				if (wrapCallSite != null && fileAddr > 0)
 					fileName = fileName.substr(fileAddr + 6);
@@ -69,13 +69,13 @@ class CallStack {
 			return stack;
 		}
 		var a = makeStack(e.stack);
-		(untyped Error).prepareStackTrace = oldValue;
+		V8Error.prepareStackTrace = oldValue;
 		return a;
 	}
 
 	// support for source-map-support module
 	@:noCompletion
-	public static var wrapCallSite:Dynamic->Dynamic;
+	public static var wrapCallSite:V8CallSite->V8CallSite;
 	#end
 
 	#if eval
@@ -413,3 +413,18 @@ class CallStack {
 		#end
 	}
 }
+
+#if js
+// https://v8.dev/docs/stack-trace-api
+@:native("Error")
+private extern class V8Error {
+	static var prepareStackTrace:(error:js.lib.Error, structuredStackTrace:Array<V8CallSite>)->Any;
+}
+
+typedef V8CallSite = {
+	function getFunctionName():String;
+	function getFileName():String;
+	function getLineNumber():Int;
+	function getColumnNumber():Int;
+}
+#end

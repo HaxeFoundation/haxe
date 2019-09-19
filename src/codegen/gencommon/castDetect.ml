@@ -708,8 +708,19 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* unify applied original *)
 			with
 				| Unify_error el ->
-						(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
-						gen.gcon.warning ("This expression may be invalid") pos
+						(match el with
+						(*
+							Don't emit a warning for abstracts if underlying type is the same as the second type.
+							This situation is caused by `Normalize.filter_param` not "unpacking" abstracts.
+						*)
+						| [Cannot_unify (TAbstract(a,params), b)]
+						| [Cannot_unify (b, TAbstract(a,params))] ->
+							let a = apply_params a.a_params params a.a_this in
+							if not (shallow_eq a b) then
+								gen.gcon.warning ("This expression may be invalid") pos
+						| _ ->
+							gen.gcon.warning ("This expression may be invalid") pos
+						)
 				| Invalid_argument _ ->
 						gen.gcon.warning ("This expression may be invalid") pos
 			);
