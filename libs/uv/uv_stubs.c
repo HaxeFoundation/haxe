@@ -278,20 +278,20 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 **/
 
 #define FS_WRAP(name, sign, locals, precall, call, handler) \
-	CAMLprim value w_ ## name(value loop, sign, value cb) { \
+	CAMLprim value w_fs_ ## name(value loop, sign, value cb) { \
 		CAMLparam2(loop, cb); \
 		locals; \
 		UV_ALLOC_REQ(req, uv_fs_t, cb); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), Fs_val(req), call, handler), UV_FREE_REQ(Fs_val(req))); \
+		UV_ERROR_CHECK_C(uv_fs_ ## name(Loop_val(loop), Fs_val(req), call, handler), UV_FREE_REQ(Fs_val(req))); \
 		UV_SUCCESS_UNIT; \
 	} \
-	CAMLprim value w_ ## name ## _sync(value loop, sign) { \
+	CAMLprim value w_fs_ ## name ## _sync(value loop, sign) { \
 		CAMLparam1(loop); \
 		locals; \
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), Fs_val(req), call, NULL), free(Fs_val(req))); \
+		UV_ERROR_CHECK_C(uv_fs_ ## name(Loop_val(loop), Fs_val(req), call, NULL), free(Fs_val(req))); \
 		UV_ERROR_CHECK_C(Fs_val(req)->result, { uv_fs_req_cleanup(Fs_val(req)); free(Fs_val(req)); }); \
 		CAMLlocal1(ret); \
 		ret = handler ## _sync(Fs_val(req)); \
@@ -309,34 +309,34 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3, CAMLxparam3(arg1, arg2, arg3), , arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3), handler);
 #define FS_WRAP4(name, arg1conv, arg2conv, arg3conv, arg4conv, handler) \
 	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3 COMMA value arg4, CAMLxparam4(arg1, arg2, arg3, arg4), , arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3) COMMA arg4conv(arg4), handler); \
-	BC_WRAP6(w_ ## name);
+	BC_WRAP6(w_fs_ ## name);
 
-FS_WRAP1(fs_close, File_val, handle_fs_cb);
-FS_WRAP3(fs_open, String_val, Int_val, Int_val, handle_fs_cb_file);
-FS_WRAP1(fs_unlink, String_val, handle_fs_cb);
-FS_WRAP2(fs_mkdir, String_val, Int_val, handle_fs_cb);
-FS_WRAP1(fs_mkdtemp, String_val, handle_fs_cb_path);
-FS_WRAP1(fs_rmdir, String_val, handle_fs_cb);
-FS_WRAP2(fs_scandir, String_val, Int_val, handle_fs_cb_scandir);
-FS_WRAP1(fs_stat, String_val, handle_fs_cb_stat);
-FS_WRAP1(fs_fstat, File_val, handle_fs_cb_stat);
-FS_WRAP1(fs_lstat, String_val, handle_fs_cb_stat);
-FS_WRAP2(fs_rename, String_val, String_val, handle_fs_cb);
-FS_WRAP1(fs_fsync, File_val, handle_fs_cb);
-FS_WRAP1(fs_fdatasync, File_val, handle_fs_cb);
-FS_WRAP2(fs_ftruncate, File_val, Int64_val, handle_fs_cb);
-FS_WRAP4(fs_sendfile, File_val, File_val, Int_val, Int_val, handle_fs_cb);
-FS_WRAP2(fs_access, String_val, Int_val, handle_fs_cb);
-FS_WRAP2(fs_chmod, String_val, Int_val, handle_fs_cb);
-FS_WRAP2(fs_fchmod, File_val, Int_val, handle_fs_cb);
-FS_WRAP3(fs_utime, String_val, Double_val, Double_val, handle_fs_cb);
-FS_WRAP3(fs_futime, File_val, Double_val, Double_val, handle_fs_cb);
-FS_WRAP2(fs_link, String_val, String_val, handle_fs_cb);
-FS_WRAP3(fs_symlink, String_val, String_val, Int_val, handle_fs_cb);
-FS_WRAP1(fs_readlink, String_val, handle_fs_cb_bytes);
-FS_WRAP1(fs_realpath, String_val, handle_fs_cb_bytes);
-FS_WRAP3(fs_chown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
-FS_WRAP3(fs_fchown, File_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
+FS_WRAP1(close, File_val, handle_fs_cb);
+FS_WRAP3(open, String_val, Int_val, Int_val, handle_fs_cb_file);
+FS_WRAP1(unlink, String_val, handle_fs_cb);
+FS_WRAP2(mkdir, String_val, Int_val, handle_fs_cb);
+FS_WRAP1(mkdtemp, String_val, handle_fs_cb_path);
+FS_WRAP1(rmdir, String_val, handle_fs_cb);
+FS_WRAP2(scandir, String_val, Int_val, handle_fs_cb_scandir);
+FS_WRAP1(stat, String_val, handle_fs_cb_stat);
+FS_WRAP1(fstat, File_val, handle_fs_cb_stat);
+FS_WRAP1(lstat, String_val, handle_fs_cb_stat);
+FS_WRAP2(rename, String_val, String_val, handle_fs_cb);
+FS_WRAP1(fsync, File_val, handle_fs_cb);
+FS_WRAP1(fdatasync, File_val, handle_fs_cb);
+FS_WRAP2(ftruncate, File_val, Int64_val, handle_fs_cb);
+FS_WRAP4(sendfile, File_val, File_val, Int_val, Int_val, handle_fs_cb);
+FS_WRAP2(access, String_val, Int_val, handle_fs_cb);
+FS_WRAP2(chmod, String_val, Int_val, handle_fs_cb);
+FS_WRAP2(fchmod, File_val, Int_val, handle_fs_cb);
+FS_WRAP3(utime, String_val, Double_val, Double_val, handle_fs_cb);
+FS_WRAP3(futime, File_val, Double_val, Double_val, handle_fs_cb);
+FS_WRAP2(link, String_val, String_val, handle_fs_cb);
+FS_WRAP3(symlink, String_val, String_val, Int_val, handle_fs_cb);
+FS_WRAP1(readlink, String_val, handle_fs_cb_bytes);
+FS_WRAP1(realpath, String_val, handle_fs_cb_bytes);
+FS_WRAP3(chown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
+FS_WRAP3(fchown, File_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
 
 /**
 	`fs_read` and `fs_write` require a tiny bit of setup just before the libuv
@@ -347,7 +347,7 @@ FS_WRAP3(fs_fchown, File_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb
 	mirrored in the Haxe API, so only a single-buffer call is used.
 **/
 
-FS_WRAP(fs_read,
+FS_WRAP(read,
 	value file COMMA value buffer COMMA value offset COMMA value length COMMA value position,
 	CAMLxparam5(file, buffer, offset, length, position),
 	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));,
@@ -356,7 +356,7 @@ FS_WRAP(fs_read,
 BC_WRAP7(w_fs_read);
 BC_WRAP6(w_fs_read_sync);
 
-FS_WRAP(fs_write,
+FS_WRAP(write,
 	value file COMMA value buffer COMMA value offset COMMA value length COMMA value position,
 	CAMLxparam5(file, buffer, offset, length, position),
 	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));,
@@ -1226,7 +1226,7 @@ CAMLprim value w_pipe_accept_pending(value loop, value handle) {
 				UV_ERROR(0);
 			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Pipe_val(client)));
 			Store_field(ret, 0, client);
-		}; break;
+		} break;
 		case UV_TCP: {
 			ret = caml_alloc(1, 1);
 			UV_ALLOC_CHECK(client, uv_tcp_t);
@@ -1236,7 +1236,7 @@ CAMLprim value w_pipe_accept_pending(value loop, value handle) {
 				UV_ERROR(0);
 			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Tcp_val(client)));
 			Store_field(ret, 0, client);
-		}; break;
+		} break;
 		default:
 			UV_ERROR(0);
 			break;
