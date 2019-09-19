@@ -19,26 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+ 
+package php;
 
-import haxe.Error;
-import sys.io.FileOutput;
-import sys.io.FileInput;
-
-@:coreApi extern class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool;
-
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
-
-	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static function instance<T:{}, S:T>(value:T, c:Class<S>):S;
-
-	public static function string(s:Dynamic):String;
-
-	public static function int(x:Float):Int;
-
-	public static function parseInt(x:String):Null<Int>;
-
-	public static function parseFloat(x:String):Float;
-
-	public static function random(x:Int):Int;
+/**
+	@see https://www.php.net/manual/en/class.seekableiterator.php
+**/
+@:native('SeekableIterator')
+extern interface SeekableIterator<K, V> extends NativeIterator<K, V> {
+	function seek(position:Int):Void;
 }

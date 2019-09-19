@@ -86,4 +86,13 @@ class Sys {
 	extern static public function stdout():haxe.io.Output;
 
 	extern static public function stderr():haxe.io.Output;
+
+	static function __init__():Void {
+		// This nonsense causes the classes to be loaded. Otherwise they might not make
+		// it into the interpreter, and then stderr() et. al. don't work.
+		var _ = (null : sys.io.FileOutput);
+		var _ = (null : sys.io.FileInput);
+
+		var _ = (null : haxe.Error);
+	}
 }

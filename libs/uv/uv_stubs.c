@@ -1006,6 +1006,14 @@ static void handle_dns_gai_cb(uv_getaddrinfo_t *req, int status, struct addrinfo
 	CAMLreturn0;
 }
 
+#ifndef AI_ADDRCONFIG
+#define AI_ADDRCONFIG 0x0400
+#endif
+
+#ifndef AI_V4MAPPED
+#define AI_V4MAPPED 0x0800
+#endif
+
 CAMLprim value w_dns_getaddrinfo(value loop, value node, value flag_addrconfig, value flag_v4mapped, value hint_family, value cb) {
 	CAMLparam5(loop, node, flag_addrconfig, flag_v4mapped, hint_family);
 	CAMLxparam1(cb);

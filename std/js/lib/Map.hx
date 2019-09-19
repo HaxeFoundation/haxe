@@ -108,3 +108,5 @@ extern class Map<K, V> {
 		return new HaxeIterator(this.entries());
 	}
 }
+
+@:deprecated typedef MapEntry<K, V> = KeyValue<K, V>;
