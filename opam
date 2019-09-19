@@ -21,7 +21,6 @@ remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
   "ocaml"               {>= "4.02"}
   "ocamlfind"           {build}
-  "camlp5"              {build}
   "sedlex"              {build}
   "ppx_tools_versioned" {build & != "5.2.1"} #https://github.com/alainfrisch/sedlex/issues/64
   "xml-light"           {build}
