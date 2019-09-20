@@ -1,0 +1,13 @@
+steps:
+  - bash: |
+      set -ex
+      DOWNLOADDIR=$(Agent.TempDirectory)
+      curl -sSL -o "$(Agent.TempDirectory)/libuv-v1.31.0.tar.gz" --retry 3 https://github.com/libuv/libuv/archive/v1.31.0.tar.gz
+      tar -xf $(Agent.TempDirectory)/libuv-v1.31.0.tar.gz -C $(Agent.TempDirectory)
+      pushd $(Agent.TempDirectory)/libuv-v1.31.0
+      sh autogen.sh
+      ./configure
+      make
+      make install
+      popd
+    displayName: Install libuv v1.31.0
