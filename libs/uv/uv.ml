@@ -3,46 +3,17 @@
 (* Handle types *)
 
 type t_loop
-type t_handle
-type t_dir
 type t_stream
 type t_tcp
 type t_udp
 type t_pipe
-type t_tty
-type t_poll
 type t_timer
-type t_prepare
-type t_check
-type t_idle
-type t_async
 type t_process
 type t_fs_event
-type t_fs_poll
-type t_signal
-
-(* Request types *)
-
-type t_req
-type t_getaddrinfo
-type t_getnameinfo
-type t_shutdown
-type t_write
-type t_connect
-type t_udp_send
-type t_fs
-type t_work
 
 (* Other types *)
 
-type t_cpu_info
-type t_interface_address
-type t_dirent
-type t_passwd
-type t_utsname
 type t_file
-(* type t_stat *)
-type t_buf
 
 (* Non-abstract type definitions  *)
 
@@ -96,6 +67,7 @@ external fs_access : t_loop -> string -> int -> unit_cb -> unit uv_result = "w_f
 external fs_chmod : t_loop -> string -> int -> unit_cb -> unit uv_result = "w_fs_chmod"
 external fs_chown : t_loop -> string -> int -> int -> unit_cb -> unit uv_result = "w_fs_chown"
 external fs_close : t_loop -> t_file -> unit_cb -> unit uv_result = "w_fs_close"
+external fs_copyfile : t_loop -> string -> string -> int -> unit_cb -> unit uv_result = "w_fs_copyfile"
 external fs_fchmod : t_loop -> t_file -> int -> unit_cb -> unit uv_result = "w_fs_fchmod"
 external fs_fchown : t_loop -> t_file -> int -> int -> unit_cb -> unit uv_result = "w_fs_fchown"
 external fs_fdatasync : t_loop -> t_file -> unit_cb -> unit uv_result = "w_fs_fdatasync"
@@ -103,6 +75,7 @@ external fs_fstat : t_loop -> t_file -> fs_cb_stat -> unit uv_result = "w_fs_fst
 external fs_fsync : t_loop -> t_file -> unit_cb -> unit uv_result = "w_fs_fsync"
 external fs_ftruncate : t_loop -> t_file -> int64 -> unit_cb -> unit uv_result = "w_fs_ftruncate"
 external fs_futime : t_loop -> t_file -> float -> float -> unit_cb -> unit uv_result = "w_fs_futime"
+external fs_lchown : t_loop -> string -> int -> int -> unit_cb -> unit uv_result = "w_fs_lchown"
 external fs_link : t_loop -> string -> string -> unit_cb -> unit uv_result = "w_fs_link"
 external fs_lstat : t_loop -> string -> fs_cb_stat -> unit uv_result = "w_fs_lstat"
 external fs_mkdir : t_loop -> string -> int -> unit_cb -> unit uv_result = "w_fs_mkdir"
@@ -125,6 +98,7 @@ external fs_access_sync : t_loop -> string -> int -> unit uv_result = "w_fs_acce
 external fs_chmod_sync : t_loop -> string -> int -> unit uv_result = "w_fs_chmod_sync"
 external fs_chown_sync : t_loop -> string -> int -> int -> unit uv_result = "w_fs_chown_sync"
 external fs_close_sync : t_loop -> t_file -> unit uv_result = "w_fs_close_sync"
+external fs_copyfile_sync : t_loop -> string -> string -> int -> unit uv_result = "w_fs_copyfile_sync"
 external fs_fchmod_sync : t_loop -> t_file -> int -> unit uv_result = "w_fs_fchmod_sync"
 external fs_fchown_sync : t_loop -> t_file -> int -> int -> unit uv_result = "w_fs_fchown_sync"
 external fs_fdatasync_sync : t_loop -> t_file -> unit uv_result = "w_fs_fdatasync_sync"
@@ -132,6 +106,7 @@ external fs_fstat_sync : t_loop -> t_file -> t_stat uv_result = "w_fs_fstat_sync
 external fs_fsync_sync : t_loop -> t_file -> unit uv_result = "w_fs_fsync_sync"
 external fs_ftruncate_sync : t_loop -> t_file -> int64 -> unit uv_result = "w_fs_ftruncate_sync"
 external fs_futime_sync : t_loop -> t_file -> float -> float -> unit uv_result = "w_fs_futime_sync"
+external fs_lchown_sync : t_loop -> string -> int -> int -> unit uv_result = "w_fs_lchown_sync"
 external fs_link_sync : t_loop -> string -> string -> unit uv_result = "w_fs_link_sync"
 external fs_lstat_sync : t_loop -> string -> t_stat uv_result = "w_fs_lstat_sync"
 external fs_mkdir_sync : t_loop -> string -> int -> unit uv_result = "w_fs_mkdir_sync"

@@ -20,9 +20,7 @@ class FileSystem {
 
 	extern public static function chown(path:FilePath, uid:Int, gid:Int, ?followSymLinks:Bool = true):Void;
 
-	public static function copyFile(src:FilePath, dest:FilePath /* , ?flags:FileCopyFlags */):Void {
-		throw "not implemented";
-	}
+	extern public static function copyFile(src:FilePath, dest:FilePath, ?flags:FileCopyFlags):Void;
 
 	public static function createReadStream(path:FilePath, ?options:FileReadStreamCreationOptions):FileReadStream {
 		if (options == null)

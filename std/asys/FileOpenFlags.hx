@@ -28,7 +28,6 @@ class FileOpenFlagsImpl {
 	}
 }
 
-
 /**
 	Flags used when opening a file with `asys.FileSystem.open` or other file
 	functions. Specify whether the opened file:

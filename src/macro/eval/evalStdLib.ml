@@ -3347,11 +3347,18 @@ module StdUv = struct
 			let path = decode_string path in
 			let uid = decode_int uid in
 			let gid = decode_int gid in
-			let followSymLinks = decode_bool followSymLinks in
+			let followSymLinks = default_bool followSymLinks true in
 			(if followSymLinks then
 				wrap_sync (Uv.fs_chown_sync (loop ()) path uid gid)
 			else
-				exc_string "not implemented");
+				wrap_sync (Uv.fs_lchown_sync (loop ()) path uid gid));
+			vnull
+		)
+		let copyFile = vfun3 (fun path path2 flags ->
+			let path = decode_string path in
+			let path2 = decode_string path2 in
+			let flags = default_int flags 0 in
+			wrap_sync (Uv.fs_copyfile_sync (loop ()) path path2 flags);
 			vnull
 		)
 		let exists = vfun1 (fun path ->
@@ -4557,6 +4564,7 @@ let init_standard_library builtins =
 		"access",StdUv.FileSystem.access;
 		"chmod",StdUv.FileSystem.chmod;
 		"chown",StdUv.FileSystem.chown;
+		"copyFile",StdUv.FileSystem.copyFile;
 		"exists",StdUv.FileSystem.exists;
 		"link",StdUv.FileSystem.link;
 		"mkdir_native",StdUv.FileSystem.mkdir_native;

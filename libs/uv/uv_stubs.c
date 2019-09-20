@@ -325,6 +325,7 @@ FS_WRAP2(rename, String_val, String_val, handle_fs_cb);
 FS_WRAP1(fsync, File_val, handle_fs_cb);
 FS_WRAP1(fdatasync, File_val, handle_fs_cb);
 FS_WRAP2(ftruncate, File_val, Int64_val, handle_fs_cb);
+FS_WRAP3(copyfile, String_val, String_val, Int_val, handle_fs_cb);
 FS_WRAP4(sendfile, File_val, File_val, Int_val, Int_val, handle_fs_cb);
 FS_WRAP2(access, String_val, Int_val, handle_fs_cb);
 FS_WRAP2(chmod, String_val, Int_val, handle_fs_cb);
@@ -337,6 +338,7 @@ FS_WRAP1(readlink, String_val, handle_fs_cb_bytes);
 FS_WRAP1(realpath, String_val, handle_fs_cb_bytes);
 FS_WRAP3(chown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
 FS_WRAP3(fchown, File_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
+FS_WRAP3(lchown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
 
 /**
 	`fs_read` and `fs_write` require a tiny bit of setup just before the libuv
@@ -1278,44 +1280,31 @@ CAMLprim value w_pipe_write_handle(value handle, value data, value send_handle, 
 	UV_SUCCESS_UNIT;
 }
 
-value build_fields(int num_fields, const char* names[], int values[]) {
-	int i;
+// ------------- GLUE -----------------------------------------------
 
-	value v_ret = caml_alloc(num_fields, 0);
-
-	for (i = 0; i < num_fields; ++i) {
-		value v_tuple = caml_alloc_tuple(2);
-		value v_name = caml_copy_string(names[i]);
-		value v_value = Val_int(values[i]);
-
-		Store_field(v_tuple, 0, v_name);
-		Store_field(v_tuple, 1, v_value);
-		Store_field(v_ret, i, v_tuple);
+static value build_fields(int num_fields, const char* names[], int values[]) {
+	CAMLparam0();
+	CAMLlocal2(ret, tuple);
+	ret = caml_alloc(num_fields, 0);
+	for (int i = 0; i < num_fields; ++i) {
+		tuple = caml_alloc_tuple(2);
+		Store_field(tuple, 0, caml_copy_string(names[i]));
+		Store_field(tuple, 1, Val_int(values[i]));
+		Store_field(ret, i, tuple);
 	}
-
-	return v_ret;
+	CAMLreturn(ret);
 }
 
 CAMLprim value hx_get_file_open_flags(value unit) {
 	CAMLparam1(unit);
-
 	const char* names[] = {"Append", "Create", "Direct", "Directory", "Dsync", "Excl", "NoAtime", "NoCtty", "NoFollow", "NonBlock", "ReadOnly", "ReadWrite", "Sync", "Truncate", "WriteOnly"};
 	int values[] = {UV_FS_O_APPEND, UV_FS_O_CREAT, UV_FS_O_DIRECT, UV_FS_O_DIRECTORY, UV_FS_O_DSYNC, UV_FS_O_EXCL, UV_FS_O_NOATIME, UV_FS_O_NOCTTY, UV_FS_O_NOFOLLOW, UV_FS_O_NONBLOCK, UV_FS_O_RDONLY, UV_FS_O_RDWR, UV_FS_O_SYNC, UV_FS_O_TRUNC, UV_FS_O_WRONLY};
-
-	CAMLlocal1(v_ret);
-	v_ret = build_fields(15, names, values);
-
-	CAMLreturn(v_ret);
+	CAMLreturn(build_fields(sizeof(values) / sizeof(values[0]), names, values));
 }
 
 CAMLprim value hx_get_errno(value unit) {
 	CAMLparam1(unit);
-
 	const char* names[] = {"E2BIG", "EACCES", "EADDRINUSE", "EADDRNOTAVAIL", "EAFNOSUPPORT", "EAGAIN", "EAI_ADDRFAMILY", "EAI_AGAIN", "EAI_BADFLAGS", "EAI_BADHINTS", "EAI_CANCELED", "EAI_FAIL", "EAI_FAMILY", "EAI_MEMORY", "EAI_NODATA", "EAI_NONAME", "EAI_OVERFLOW", "EAI_PROTOCOL", "EAI_SERVICE", "EAI_SOCKTYPE", "EALREADY", "EBADF", "EBUSY", "ECANCELED", "ECHARSET", "ECONNABORTED", "ECONNREFUSED", "ECONNRESET", "EDESTADDRREQ", "EEXIST", "EFAULT", "EFBIG", "EHOSTUNREACH", "EINTR", "EINVAL", "EIO", "EISCONN", "EISDIR", "ELOOP", "EMFILE", "EMSGSIZE", "ENAMETOOLONG", "ENETDOWN", "ENETUNREACH", "ENFILE", "ENOBUFS", "ENODEV", "ENOENT", "ENOMEM", "ENONET", "ENOPROTOOPT", "ENOSPC", "ENOSYS", "ENOTCONN", "ENOTDIR", "ENOTEMPTY", "ENOTSOCK", "ENOTSUP", "EPERM", "EPIPE", "EPROTO", "EPROTONOSUPPORT", "EPROTOTYPE", "ERANGE", "EROFS", "ESHUTDOWN", "ESPIPE", "ESRCH", "ETIMEDOUT", "ETXTBSY", "EXDEV", "UNKNOWN", "EOF", "ENXIO", "EMLINK", "EHOSTDOWN", "EOTHER"};
 	int values[] = {UV_E2BIG, UV_EACCES, UV_EADDRINUSE, UV_EADDRNOTAVAIL, UV_EAFNOSUPPORT, UV_EAGAIN, UV_EAI_ADDRFAMILY, UV_EAI_AGAIN, UV_EAI_BADFLAGS, UV_EAI_BADHINTS, UV_EAI_CANCELED, UV_EAI_FAIL, UV_EAI_FAMILY, UV_EAI_MEMORY, UV_EAI_NODATA, UV_EAI_NONAME, UV_EAI_OVERFLOW, UV_EAI_PROTOCOL, UV_EAI_SERVICE, UV_EAI_SOCKTYPE, UV_EALREADY, UV_EBADF, UV_EBUSY, UV_ECANCELED, UV_ECHARSET, UV_ECONNABORTED, UV_ECONNREFUSED, UV_ECONNRESET, UV_EDESTADDRREQ, UV_EEXIST, UV_EFAULT, UV_EFBIG, UV_EHOSTUNREACH, UV_EINTR, UV_EINVAL, UV_EIO, UV_EISCONN, UV_EISDIR, UV_ELOOP, UV_EMFILE, UV_EMSGSIZE, UV_ENAMETOOLONG, UV_ENETDOWN, UV_ENETUNREACH, UV_ENFILE, UV_ENOBUFS, UV_ENODEV, UV_ENOENT, UV_ENOMEM, UV_ENONET, UV_ENOPROTOOPT, UV_ENOSPC, UV_ENOSYS, UV_ENOTCONN, UV_ENOTDIR, UV_ENOTEMPTY, UV_ENOTSOCK, UV_ENOTSUP, UV_EPERM, UV_EPIPE, UV_EPROTO, UV_EPROTONOSUPPORT, UV_EPROTOTYPE, UV_ERANGE, UV_EROFS, UV_ESHUTDOWN, UV_ESPIPE, UV_ESRCH, UV_ETIMEDOUT, UV_ETXTBSY, UV_EXDEV, UV_UNKNOWN, UV_EOF, UV_ENXIO, UV_EMLINK, UV_EHOSTDOWN, 0};
-
-	CAMLlocal1(v_ret);
-	v_ret = build_fields(77, names, values);
-
-	CAMLreturn(v_ret);
+	CAMLreturn(build_fields(sizeof(values) / sizeof(values[0]), names, values));
 }
