@@ -30,7 +30,8 @@ class ImportAll {
 	}
 
 	static function isAsysTarget() {
-		return Context.defined("eval"); // TODO: expand as more targets are integrated
+		// return Context.defined("eval"); // TODO: expand as more targets are integrated
+		return false;
 	}
 
 	public static function run( ?pack ) {
