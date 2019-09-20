@@ -8,6 +8,6 @@ steps:
       sh autogen.sh
       ./configure
       make
-      make install
+      sudo make install
       popd
     displayName: Install libuv v1.31.0
