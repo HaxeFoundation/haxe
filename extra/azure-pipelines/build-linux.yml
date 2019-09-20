@@ -50,7 +50,8 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           artifactName: 'linuxBinaries'
-          targetPath: out      - script: |
+          targetPath: out
+      - script: |
           set -ex
           make -s xmldoc
           cat >extra/doc/info.json <<EOL
