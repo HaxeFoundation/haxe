@@ -17,6 +17,14 @@ jobs:
           sudo add-apt-repository ppa:avsm/ppa -y # provides newer version of OCaml and OPAM
           sudo apt-get update -qqy
           sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev ninja-build
+          curl -sSL -o "$(Agent.TempDirectory)/libuv-1.31.0.tar.gz" --retry 3 https://github.com/libuv/libuv/archive/v1.31.0.tar.gz
+          tar -xf $(Agent.TempDirectory)/libuv-1.31.0.tar.gz -C $(Agent.TempDirectory)
+          pushd $(Agent.TempDirectory)/libuv-1.31.0
+          sh autogen.sh
+          ./configure
+          make
+          sudo make install
+          popd
         displayName: Install dependencies
       - template: install-neko-snapshot.yaml
         parameters:
@@ -43,17 +51,3 @@ jobs:
         inputs:
           artifactName: 'linuxBinaries'
           targetPath: out
-      - script: |
-          set -ex
-          make -s xmldoc
-          cat >extra/doc/info.json <<EOL
-            {
-              "commit": "$(Build.SourceVersion)",
-              "branch": "$(Build.SourceBranchName)"
-            }
-          EOL
-        displayName: Build xmldoc
-      - task: PublishPipelineArtifact@0
-        inputs:
-          artifactName: 'xmldoc'
-          targetPath: extra/doc

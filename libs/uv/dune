@@ -1,0 +1,7 @@
+(include_subdirs no)
+
+(library
+	(name uv)
+	(c_names uv_stubs)
+	(wrapped false)
+)

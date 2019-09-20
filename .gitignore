@@ -33,6 +33,7 @@
 /libs/xml-light/xml_lexer.ml
 /libs/xml-light/xml_parser.ml
 /libs/xml-light/xml_parser.mli
+/libs/uv/test
 /std/tools/haxedoc/haxedoc
 /std/tools/haxedoc/haxedoc.n
 /std/tools/haxelib/haxelib
@@ -132,3 +133,4 @@ tests/server/test.js.map
 *.merlin
 lib.sexp
 src/compiler/version.ml
+tests/asys/resources-rw/
