@@ -4543,6 +4543,9 @@ let init_standard_library builtins =
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
 	];
+	let uv_statics a = List.map (fun (s,i) -> s,vint i) (Array.to_list a) in
+	init_fields builtins (["asys"],"FileOpenFlagsImpl") (uv_statics (Uv.get_file_open_flags())) [];
+	init_fields builtins (["asys";"uv";"_UVErrorType"],"UVErrorType_Impl_") (uv_statics (Uv.get_errno())) [];
 	init_fields builtins (["eval";"uv"],"File") [] [];
 	init_fields builtins (["eval"],"Uv") [
 		"init",StdUv.init;

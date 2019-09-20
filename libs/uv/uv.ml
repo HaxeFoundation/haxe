@@ -271,3 +271,8 @@ external pipe_pending_count : t_pipe -> int = "w_pipe_pending_count"
 external pipe_accept_pending : t_loop -> t_pipe -> pipe_accepted uv_result = "w_pipe_accept_pending"
 external pipe_getsockname : t_pipe -> string uv_result = "w_pipe_getsockname"
 external pipe_getpeername : t_pipe -> string uv_result = "w_pipe_getpeername"
+
+(* ------------- HAXE ---------------------------------------------- *)
+
+external get_file_open_flags : unit -> (string * int) array = "hx_get_file_open_flags"
+external get_errno : unit -> (string * int) array = "hx_get_errno"
