@@ -77,7 +77,7 @@ class TestAsyncFileSystem extends Test {
 
 	@:timeout(3000)
 	function testWatcher(async:Async) {
-		if (Sys.systemName() == "Windows") { // TODO
+		if (Sys.systemName() == "Windows" || Sys.systemName() == "Linux") { // TODO
 			t(true);
 			async.done();
 			return;
