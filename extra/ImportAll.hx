@@ -29,11 +29,6 @@ class ImportAll {
 		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval"); // TODO: have to add cs here, SPOD gets in the way at the moment
 	}
 
-	static function isAsysTarget() {
-		// return Context.defined("eval"); // TODO: expand as more targets are integrated
-		return false;
-	}
-
 	public static function run( ?pack ) {
 		if( pack == null ) {
 			pack = "";
@@ -57,8 +52,6 @@ class ImportAll {
 			return;
 		case "sys":
 			if(!isSysTarget()) return;
-		case "asys":
-			if(!isAsysTarget()) return;
 		case "sys.thread":
 			if ( !Context.defined("target.threaded") ) return;
 		case "java":
