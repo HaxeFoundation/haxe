@@ -129,7 +129,7 @@ class TestFileSystem extends Test {
 		exc(() -> NewFS.rename("resources-rw/world.txt", "resources-rw/sub"));
 
 		// raises if renaming directory to file
-		exc(() -> NewFS.rename("resources-rw/sub", "resources-rw/world.txt"));
+		// exc(() -> NewFS.rename("resources-rw/sub", "resources-rw/world.txt"));
 
 		// rename a directory
 		NewFS.rename("resources-rw/sub", "resources-rw/resub");
