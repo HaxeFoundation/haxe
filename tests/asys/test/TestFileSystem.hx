@@ -18,15 +18,26 @@ class TestFileSystem extends Test {
 		OldFile.saveContent("resources-rw/access.txt", "");
 
 		NewFS.chmod("resources-rw/access.txt", None);
-		eq(NewFS.stat("resources-rw/access.txt").permissions, None);
-		noExc(() -> NewFS.access("resources-rw/access.txt"));
-		exc(() -> NewFS.access("resources-rw/access.txt", Read));
 
-		NewFS.chmod("resources-rw/access.txt", "r-------x");
-		eq(NewFS.stat("resources-rw/access.txt").permissions, "r-------x");
-		noExc(() -> NewFS.access("resources-rw/access.txt", Read));
-		exc(() -> NewFS.access("resources-rw/access.txt", Write));
-		exc(() -> NewFS.access("resources-rw/access.txt", Execute));
+		if (Sys.systemName() == "Windows") {
+			// Windows only allows distinguishing readonly
+			eq(NewFS.stat("resources-rw/access.txt").permissions, ReadOwner | ReadGroup | ReadOthers);
+			exc(() -> NewFS.access("resources-rw/access.txt", Write));
+
+			NewFS.chmod("resources-rw/access.txt", "r-------x");
+			eq(NewFS.stat("resources-rw/access.txt").permissions, ReadOwner | ReadGroup | ReadOthers);
+			exc(() -> NewFS.access("resources-rw/access.txt", Write));
+		} else {
+			eq(NewFS.stat("resources-rw/access.txt").permissions, None);
+			noExc(() -> NewFS.access("resources-rw/access.txt"));
+			exc(() -> NewFS.access("resources-rw/access.txt", Read));
+
+			NewFS.chmod("resources-rw/access.txt", "r-------x");
+			eq(NewFS.stat("resources-rw/access.txt").permissions, "r-------x");
+			noExc(() -> NewFS.access("resources-rw/access.txt", Read));
+			exc(() -> NewFS.access("resources-rw/access.txt", Write));
+			exc(() -> NewFS.access("resources-rw/access.txt", Execute));
+		}
 
 		// cleanup
 		NewFS.chmod("resources-rw/access.txt", "rw------x");
