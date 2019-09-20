@@ -3502,7 +3502,7 @@ module StdUv = struct
 			let ipv6only = decode_bool ipv6only in
 			wrap_sync (match host with
 				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
-					let ip = decode_int ip in
+					let ip = decode_i32 ip in
 					Uv.tcp_bind_ipv4 this ip port
 				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
 					let ip = decode_bytes ip in
@@ -3516,7 +3516,7 @@ module StdUv = struct
 			let port = decode_int port in
 			wrap_sync (match host with
 				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
-					let ip = decode_int ip in
+					let ip = decode_i32 ip in
 					Uv.tcp_connect_ipv4 this ip port (wrap_cb_unit cb)
 				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
 					let ip = decode_bytes ip in
@@ -3586,7 +3586,7 @@ module StdUv = struct
 				let port = decode_int port in
 				wrap_sync (match address with
 					| VEnumValue {eindex = 0; eargs = [|ip|]} ->
-						let ip = decode_int ip in
+						let ip = decode_i32 ip in
 						Uv.udp_send_ipv4 this msg offset length ip port (wrap_cb_unit cb)
 					| VEnumValue {eindex = 1; eargs = [|ip|]} ->
 						let ip = decode_bytes ip in
@@ -3606,7 +3606,7 @@ module StdUv = struct
 			let ipv6only = decode_bool ipv6only in
 			wrap_sync (match host with
 				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
-					let ip = decode_int ip in
+					let ip = decode_i32 ip in
 					Uv.udp_bind_ipv4 this ip port
 				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
 					let ip = decode_bytes ip in

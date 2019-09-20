@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <uv.h>
 
 #if (UV_VERSION_MAJOR <= 0)
@@ -678,7 +679,7 @@ CAMLprim value w_stream_of_handle(value handle) {
 	struct sockaddr_in var; \
 	var.sin_family = AF_INET; \
 	var.sin_port = htons((unsigned short)port); \
-	var.sin_addr.s_addr = htonl(host);
+	var.sin_addr.s_addr = htonl((unsigned int)host);
 #define UV_SOCKADDR_IPV6(var, host, port) \
 	struct sockaddr_in6 var; \
 	memset(&var, 0, sizeof(var)); \
@@ -723,7 +724,7 @@ CAMLprim value w_tcp_accept(value loop, value server) {
 
 CAMLprim value w_tcp_bind_ipv4(value handle, value host, value port) {
 	CAMLparam3(handle, host, port);
-	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_SOCKADDR_IPV4(addr, Int32_val(host), Int_val(port));
 	UV_ERROR_CHECK(uv_tcp_bind(Tcp_val(handle), (const struct sockaddr *)&addr, 0));
 	UV_SUCCESS_UNIT;
 }
@@ -737,7 +738,7 @@ CAMLprim value w_tcp_bind_ipv6(value handle, value host, value port, value ipv6o
 
 CAMLprim value w_tcp_connect_ipv4(value handle, value host, value port, value cb) {
 	CAMLparam4(handle, host, port, cb);
-	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_SOCKADDR_IPV4(addr, Int32_val(host), Int_val(port));
 	UV_ALLOC_REQ(req, uv_connect_t, cb);
 	UV_ERROR_CHECK_C(uv_tcp_connect(Connect_val(req), Tcp_val(handle), (const struct sockaddr *)&addr, (void (*)(uv_connect_t *, int))handle_stream_cb), UV_FREE_REQ(Connect_val(req)));
 	UV_SUCCESS_UNIT;
@@ -838,7 +839,7 @@ CAMLprim value w_udp_init(value loop) {
 
 CAMLprim value w_udp_bind_ipv4(value handle, value host, value port) {
 	CAMLparam3(handle, host, port);
-	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_SOCKADDR_IPV4(addr, Int32_val(host), Int_val(port));
 	UV_ERROR_CHECK(uv_udp_bind(Udp_val(handle), (const struct sockaddr *)&addr, 0));
 	UV_SUCCESS_UNIT;
 }
@@ -853,7 +854,7 @@ CAMLprim value w_udp_bind_ipv6(value handle, value host, value port, value ipv6o
 CAMLprim value w_udp_send_ipv4(value handle, value msg, value offset, value length, value host, value port, value cb) {
 	CAMLparam5(handle, msg, offset, length, host);
 	CAMLxparam2(port, cb);
-	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_SOCKADDR_IPV4(addr, Int32_val(host), Int_val(port));
 	UV_ALLOC_REQ(req, uv_udp_send_t, cb);
 	uv_buf_t buf = uv_buf_init(&Byte(msg, Int_val(offset)), Int_val(length));
 	UV_ERROR_CHECK_C(uv_udp_send(UdpSend_val(req), Udp_val(handle), &buf, 1, (const struct sockaddr *)&addr, (void (*)(uv_udp_send_t *, int))handle_stream_cb), UV_FREE_REQ(UdpSend_val(req)));
@@ -1008,6 +1009,7 @@ static void handle_dns_gai_cb(uv_getaddrinfo_t *req, int status, struct addrinfo
 	CAMLreturn0;
 }
 
+// TODO: this is needed for Windows support.
 #ifndef AI_ADDRCONFIG
 #define AI_ADDRCONFIG 0x0400
 #endif
