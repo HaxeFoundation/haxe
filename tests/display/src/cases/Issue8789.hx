@@ -7,13 +7,17 @@ class Issue8789 extends DisplayTestCase {
 				this = value;
 			}
 
+			inline function pvt() {}
+
 			public function test() {
-				new Int8{-1-}(10);
+				var i = new Int8{-1-}(10);
+				i.{-2-}
 			}
 		}
 	**/
 	function test() {
 		var r = toplevel(pos(1));
 		eq(true, hasToplevel(r, "type", "Int8"));
+		eq(true, hasField(fields(pos(2)), "pvt", "Void -> Void"));
 	}
 }
