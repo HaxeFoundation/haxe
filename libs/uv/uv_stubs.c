@@ -1164,8 +1164,7 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 }
 BC_WRAP10(w_spawn);
 
-CAMLprim value w_process_kill(value handle, value signum, value cb) {
-	// TODO: callback?
+CAMLprim value w_process_kill(value handle, value signum) {
 	CAMLparam2(handle, signum);
 	UV_ERROR_CHECK(uv_process_kill(Process_val(handle), Int_val(signum)));
 	UV_SUCCESS_UNIT;
