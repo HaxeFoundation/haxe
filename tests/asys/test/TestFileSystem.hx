@@ -29,6 +29,7 @@ class TestFileSystem extends Test {
 		exc(() -> NewFS.access("resources-rw/access.txt", Execute));
 
 		// cleanup
+		NewFS.chmod("resources-rw/access.txt", "rw------x");
 		OldFS.deleteFile("resources-rw/access.txt");
 	}
 
