@@ -22,6 +22,11 @@
 		"doc": "Defined when outputting flash9 as3 source code."
 	},
 	{
+		"name": "Asys",
+		"define": "asys",
+		"doc": "Defined for all platforms that support the libuv-based asys package."
+	},
+	{
 		"name": "CheckXmlProxy",
 		"define": "check_xml_proxy",
 		"doc": "Check the used fields of the XML proxy."
