@@ -541,16 +541,22 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 				| Yes -> true
 				| YesButPrivate ->
 					if (Meta.has Meta.PrivateAccess ctx.meta) then true
-					else begin
-						let path = (mt.pack,mt.name) in
-						let rec loop c =
-							if c.cl_path = path then true
-							else match c.cl_super with
-								| Some(c,_) -> loop c
-								| None -> false
-						in
-						loop ctx.curclass
-					end
+					else
+						begin
+							match ctx.curclass.cl_kind with
+							| KAbstractImpl { a_path = (pack, name) } -> pack = mt.pack && name = mt.name
+							| _ -> false
+						end
+						|| begin
+							let path = (mt.pack,mt.name) in
+							let rec loop c =
+								if c.cl_path = path then true
+								else match c.cl_super with
+									| Some(c,_) -> loop c
+									| None -> false
+							in
+							loop ctx.curclass
+						end
 				| No -> false
 				| Maybe ->
 					begin try
