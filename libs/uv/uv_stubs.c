@@ -604,7 +604,7 @@ static void handle_stream_cb_alloc(uv_handle_t *handle, size_t suggested_size, u
 	buf->len = suggested_size;
 }
 
-static void handle_stream_cb_read(uv_stream_t *stream, long int nread, const uv_buf_t *buf) {
+static void handle_stream_cb_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
 	cb = UV_HANDLE_DATA_SUB(stream, stream).cb_read;
@@ -791,7 +791,7 @@ CAMLprim value w_tcp_getpeername(value handle) {
 
 // ------------- UDP ------------------------------------------------
 
-static void handle_udp_cb_recv(uv_udp_t *handle, long int nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
+static void handle_udp_cb_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
 	cb = UV_HANDLE_DATA_SUB(handle, udp).cb_read;
