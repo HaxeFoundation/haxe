@@ -144,6 +144,7 @@ class FileSystem {
 					position += written;
 				}
 			}
+			file.close();
 		} catch (e:Dynamic) {
 			file.close();
 			throw e;
