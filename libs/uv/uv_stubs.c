@@ -10,8 +10,8 @@
 #include <string.h>
 #include <uv.h>
 
-#if (UV_VERSION_MAJOR <= 0)
-#	error "libuv1-dev required, uv version 0.x found"
+#if (UV_VERSION_HEX < (1 << 16 | 31 << 8))
+#	error "Compiling Haxe requires libuv version 1.31.0+"
 #endif
 
 // ------------- UTILITY MACROS -------------------------------------
