@@ -102,6 +102,12 @@ class EntryPoint {
 		return time;
 	}
 
+	@:keep public static function init() {
+		#if eval
+		eval.Uv.init();
+		#end
+	}
+
 	/**
 		Start the main loop. Depending on the platform, this can return immediately or will only return when the application exits.
 	**/
@@ -116,10 +122,10 @@ class EntryPoint {
 		#if nodejs
 		setTimeoutNextTick();
 		#else
-		if(js.Lib.typeof(js.Browser.window) != 'undefined') {
+		if (js.Lib.typeof(js.Browser.window) != 'undefined') {
 			var window:Dynamic = js.Browser.window;
 			var rqf:Dynamic = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
-			if(rqf != null) {
+			if (rqf != null) {
 				rqf(run);
 			} else {
 				setTimeoutNextTick();
@@ -130,6 +136,10 @@ class EntryPoint {
 		#end
 		#elseif flash
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
+		#elseif target.asys
+		#if eval
+		eval.Uv.run(RunDefault);
+		#end
 		#elseif sys
 		while (true) {
 			var nextTick = processEvents();
@@ -140,6 +150,12 @@ class EntryPoint {
 		}
 		#else
 		// no implementation available, let's exit immediately
+		#end
+	}
+
+	@:keep static public function close() {
+		#if eval
+		eval.Uv.close();
 		#end
 	}
 }

@@ -33,11 +33,16 @@ let get_main ctx types =
 		let main = (try
 			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
 			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
-			let ef = PMap.find "run" ec.cl_statics in
 			let p = null_pos in
 			let et = mk (TTypeExpr et) (TAnon { a_fields = PMap.empty; a_status = ref (Statics ec) }) p in
-			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-			mk (TBlock [main;call]) ctx.t.tvoid p
+			let mk_call name =
+				let ef = PMap.find name ec.cl_statics in
+				mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p
+			in
+			let init = mk_call "init" in
+			let run = mk_call "run" in
+			let close = mk_call "close" in
+			mk (TBlock [init;main;run;close]) ctx.t.tvoid p
 		with Not_found ->
 			main
 		) in

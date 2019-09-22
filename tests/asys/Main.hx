@@ -3,17 +3,8 @@ import utest.ui.Report;
 
 import sys.FileSystem;
 
-#if hl
-import hl.Uv;
-#elseif eval
-import eval.Uv;
-#elseif neko
-import neko.Uv;
-#end
-
 class Main {
 	public static function main():Void {
-		Uv.init();
 		if (FileSystem.exists("resources-rw")) {
 			function walk(path:String):Void {
 				for (f in FileSystem.readDirectory(path)) {
@@ -34,7 +25,5 @@ class Main {
 		runner.onTestStart.add(test -> trace("running", Type.getClassName(Type.getClass(test.fixture.target)), test.fixture.method));
 		Report.create(runner);
 		runner.run();
-		Uv.run(RunDefault);
-		Uv.close();
 	}
 }

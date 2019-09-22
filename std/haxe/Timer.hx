@@ -23,12 +23,7 @@
 package haxe;
 
 #if (target.asys)
-private typedef Native =
-	#if eval
-	eval.uv.Timer;
-	#else
-	#error "Missing asys implementation"
-	#end
+private typedef Native = #if eval eval.uv.Timer; #else #error "Missing asys implementation" #end
 #end
 
 /**
@@ -81,6 +76,7 @@ class Timer {
 		timer = new java.util.Timer();
 		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
 		#elseif (target.asys)
+		(null : haxe.EntryPoint); // TODO: Have to reference EntryPoint - cleaner way?
 		native = new Native(time_ms, () -> run());
 		#else
 		var dt = time_ms / 1000;
