@@ -125,10 +125,6 @@ class TestAsyncFileSystem extends Test {
 			file.truncate(5);
 			file.close();
 		});
-		continuations.push(() -> {
-			NewFS.unlink('$dir/foo/hello.txt');
-			NewFS.rmdir('$dir/foo');
-		});
 		NewFS.mkdir('$dir/foo');
 	}
 }
