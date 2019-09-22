@@ -367,7 +367,7 @@ class Socket extends Duplex {
 		native.unref();
 	}
 
-	var connectDefer:asys.Timer;
+	var connectDefer:haxe.Timer;
 	var native:NativeStream;
 	var nativeSocket:NativeSocket;
 	var nativePipe:NativePipe;
@@ -376,7 +376,7 @@ class Socket extends Duplex {
 	var connectStarted = false;
 	var serverSpawn:Bool = false;
 	var timeoutTime:Int = 0;
-	var timeoutTimer:asys.Timer;
+	var timeoutTimer:haxe.Timer;
 
 	function new() {
 		super();
@@ -443,7 +443,7 @@ class Socket extends Duplex {
 			timeoutTimer.stop();
 		timeoutTimer = null;
 		if (timeoutTime != 0) {
-			timeoutTimer = asys.Timer.delay(timeoutTrigger, timeoutTime);
+			timeoutTimer = haxe.Timer.delay(timeoutTrigger, timeoutTime);
 			timeoutTimer.unref();
 		}
 	}

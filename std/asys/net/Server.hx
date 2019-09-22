@@ -202,5 +202,5 @@ class Server {
 	var native:NativeStream;
 	var nativeSocket:NativeSocket;
 	var nativePipe:NativePipe;
-	var listenDefer:asys.Timer;
+	var listenDefer:haxe.Timer;
 }

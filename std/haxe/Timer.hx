@@ -22,6 +22,15 @@
 
 package haxe;
 
+#if (target.asys)
+private typedef Native =
+	#if eval
+	eval.uv.Timer;
+	#else
+	#error "Missing asys implementation"
+	#end
+#end
+
 /**
 	The `Timer` class allows you to create asynchronous timers on platforms that
 	support events.
@@ -42,6 +51,8 @@ class Timer {
 	#elseif java
 	private var timer:java.util.Timer;
 	private var task:java.util.TimerTask;
+	#elseif (target.asys)
+	private var native:Native;
 	#else
 	private var event:MainLoop.MainEvent;
 	#end
@@ -69,6 +80,8 @@ class Timer {
 		#elseif java
 		timer = new java.util.Timer();
 		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		#elseif (target.asys)
+		native = new Native(time_ms, () -> run());
 		#else
 		var dt = time_ms / 1000;
 		event = MainLoop.add(function() {
@@ -103,6 +116,8 @@ class Timer {
 			timer = null;
 		}
 		task = null;
+		#elseif (target.asys)
+		native.close((err) -> {});
 		#else
 		if (event != null) {
 			event.stop();
@@ -121,11 +136,23 @@ class Timer {
 		var timer = new haxe.Timer(1000); // 1000ms delay
 		timer.run = function() { ... }
 		```
-		
+
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
 	**/
 	public dynamic function run() {}
+
+	public function ref() {
+		#if (target.asys)
+		native.ref();
+		#end
+	}
+
+	public function unref() {
+		#if (target.asys)
+		native.unref();
+		#end
+	}
 
 	/**
 		Invokes `f` after `time_ms` milliseconds.

@@ -15,7 +15,7 @@ class SlowSource extends Readable {
 		if (data.length > 0) {
 			var nextChunk = data.shift();
 			var nextEof = data.length == 0;
-			asys.Timer.delay(() -> asyncRead([nextChunk], nextEof), 10);
+			haxe.Timer.delay(() -> asyncRead([nextChunk], nextEof), 10);
 		}
 		return None;
 	}
