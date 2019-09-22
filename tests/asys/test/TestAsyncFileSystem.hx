@@ -97,7 +97,6 @@ class TestAsyncFileSystem extends Test {
 		var watcher = NewFS.watch(dir, true);
 		watcher.closeSignal.on(_ -> {
 			async.done();
-			OldFS.deleteDirectory(dir);
 		});
 		watcher.errorSignal.on(e -> assert('unexpected error: ${e.message}'));
 
