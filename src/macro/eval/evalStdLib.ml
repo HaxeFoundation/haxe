@@ -3132,7 +3132,7 @@ module StdUv = struct
 							if event > 3 then
 								assert false;
 							(* event: 1 = Rename, 2 = Change, 3 = Rename + Change *)
-							encode_enum_value key_sys_FileWatcherEvent (event - 1) [|encode_string path|] None
+							encode_enum_value key_asys_FileWatcherEvent (event - 1) [|encode_string path|] None
 						))) in
 					encode_instance key_eval_uv_FileWatcher ~kind:(IUv (UvFsEvent handle))
 				| _ -> assert false
