@@ -81,7 +81,6 @@ class TestAsyncFile extends Test {
 		});
 
 		eq(asyncDone, 0);
-		TestBase.uvRun();
 	}
 
 	/**
@@ -128,6 +127,5 @@ class TestAsyncFile extends Test {
 		});
 
 		eq(asyncDone, 0);
-		TestBase.uvRun();
 	}
 }

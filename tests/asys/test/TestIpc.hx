@@ -49,8 +49,6 @@ class TestIpc extends Test {
 					});
 				});
 		});
-
-		TestBase.uvRun();
 	}
 
 	/*
@@ -72,8 +70,6 @@ class TestIpc extends Test {
 			});
 		});
 		proc.send({message: {a: [1, 2], b: "c", d: true}});
-
-		TestBase.uvRun();
 	}
 	*/
 }

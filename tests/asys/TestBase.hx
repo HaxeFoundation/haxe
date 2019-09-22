@@ -14,17 +14,11 @@ class TestBase {
 	static var helpers:Map<Process, {?exit:ProcessExit}> = [];
 
 	public static function uvSetup():Void {
-		Uv.init();
+
 	}
 
 	public static function uvTeardown():Void {
 		helperTeardown();
-		Uv.run(RunDefault);
-		Uv.close();
-	}
-
-	public static function uvRun(?mode:asys.uv.UVRunMode = asys.uv.UVRunMode.RunDefault):Bool {
-		return Uv.run(mode);
 	}
 
 	/**

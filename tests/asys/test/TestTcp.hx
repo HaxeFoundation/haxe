@@ -24,14 +24,13 @@ class TestTcp extends Test {
 					done();
 				});
 			}));
+			server.unref();
 			server.listeningSignal.on(() -> {
 				t(server.localAddress.match(Network(AddressTools.equals(_, "127.0.0.1".toIp()) => true, 3232)));
 				done();
 			});
 			server.errorSignal.on(err -> assert());
 		}, 2);
-
-		TestBase.uvRun(RunOnce);
 
 		sub(async, done -> {
 			var client:asys.net.Socket = null;
@@ -55,10 +54,9 @@ class TestTcp extends Test {
 					});
 				});
 		});
-
-		TestBase.uvRun();
 	}
 
+	@:timeout(1500)
 	function testSignals(async:Async) {
 		sub(async, done -> {
 			var client = asys.net.Socket.create();
@@ -81,8 +79,6 @@ class TestTcp extends Test {
 					}
 				});
 		}, 2);
-
-		TestBase.uvRun();
 	}
 	#end
 }

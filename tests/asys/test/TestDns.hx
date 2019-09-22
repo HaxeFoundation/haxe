@@ -10,8 +10,6 @@ class TestDns extends Test {
 			t(res[0].match(Ipv4(0x7F000001)));
 			done();
 		}));
-
-		TestBase.uvRun();
 	}
 
 	function testIpv4(async:Async) {
@@ -30,8 +28,6 @@ class TestDns extends Test {
 			t(res[0].match(Ipv4(0xFFFFFFFF)));
 			done();
 		}));
-
-		TestBase.uvRun();
 	}
 
 	function testIpv6(async:Async) {
@@ -50,7 +46,5 @@ class TestDns extends Test {
 			t(res[0].match(Ipv6(beq(_, Bytes.ofHex("4861786520697320617765736F6D6521")) => _)));
 			done();
 		}));
-
-		TestBase.uvRun();
 	}
 }

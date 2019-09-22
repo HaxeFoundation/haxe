@@ -10,6 +10,7 @@ class TestUdp extends Test {
 	function testEcho(async:Async) {
 		sub(async, done -> {
 			var server = asys.net.UdpSocket.create(Ipv4);
+			server.unref();
 			server.bind("127.0.0.1".toIp(), 3232);
 			server.messageSignal.on(msg -> {
 				beq(msg.data, TestConstants.helloBytes);
@@ -30,13 +31,12 @@ class TestUdp extends Test {
 				});
 			});
 		});
-
-		TestBase.uvRun();
 	}
 
 	function testEcho6(async:Async) {
 		sub(async, done -> {
 			var server = asys.net.UdpSocket.create(Ipv6);
+			server.unref();
 			server.bind(AddressTools.localhost(Ipv6), 3232);
 			server.messageSignal.on(msg -> {
 				beq(msg.data, TestConstants.helloBytes);
@@ -57,8 +57,6 @@ class TestUdp extends Test {
 				});
 			});
 		});
-
-		TestBase.uvRun();
 	}
 	#end
 }

@@ -16,8 +16,6 @@ class TestStreams extends Test {
 			aeq(calls, [1, 2, 3]);
 			async.done();
 		});
-
-		TestBase.uvRun();
 	}
 
 	function testReadHWM(async:Async) {
@@ -63,8 +61,6 @@ class TestStreams extends Test {
 				done();
 			});
 		});
-
-		TestBase.uvRun();
 	}
 
 	function testPassiveRead(async:Async) {
@@ -76,14 +72,11 @@ class TestStreams extends Test {
 		stream.pause();
 
 		Sys.sleep(.05);
-		TestBase.uvRun(RunOnce);
 
 		stream.dataSignal.on((chunk) -> calls.push(chunk.length));
 		stream.endSignal.once(() -> {
 			aeq(calls, [11, 1, 12, 2, 13, 3]);
 			async.done();
 		});
-
-		TestBase.uvRun();
 	}
 }
