@@ -1,5 +1,6 @@
 package test;
 
+import utest.Assert;
 import asys.FileWatcherEvent;
 import utest.Async;
 import asys.FileSystem as NewFS;
@@ -74,18 +75,22 @@ class TestAsyncFileSystem extends Test {
 		eq(asyncDone, 0);
 	}
 
+	@:timeout(500)
 	function testWatcher(async:Async) {
 		var dir = '$testDir/watch';
 		sys.FileSystem.createDirectory(dir);
-		var expectedEvents:Array<FileWatcherEvent -> Bool> = [
-			event -> event.match(Rename("foo")),
+		var expectedEvents:Array<FileWatcherEvent -> Void> = [
 			event -> switch(event) {
-				case Rename("foo/hello.txt" | "foo\\hello.txt"): true;
-				case _: false;
+				case Rename("foo"): Assert.pass();
+				case _: Assert.fail("Expected Rename(foo) but got " + event);
 			},
 			event -> switch(event) {
-				case Change("foo/hello.txt" | "foo\\hello.txt"): true;
-				case _: false;
+				case Rename("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
+				case _: Assert.fail("Expected Rename(foo/hello.txt) but got " + event);
+			},
+			event -> switch(event) {
+				case Change("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
+				case _: Assert.fail("Expected Change(foo/hello.txt) but got " + event);
 			}
 		];
 
@@ -101,7 +106,7 @@ class TestAsyncFileSystem extends Test {
 		watcher.changeSignal.on(event -> {
 			t(expectedEvents.length > 0);
 			var expected = expectedEvents.shift();
-			t(expected(event));
+			expected(event);
 			if (continuations.length > 0) {
 				continuations.shift()();
 			}

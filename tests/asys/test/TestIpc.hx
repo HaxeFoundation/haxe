@@ -1,5 +1,6 @@
 package test;
 
+import utest.Assert;
 import haxe.io.Bytes;
 import utest.Async;
 
@@ -37,7 +38,10 @@ class TestIpc extends Test {
 				})
 			}, (err) -> {
 					eq(err, null);
-					t(client.remoteAddress.match(Unix('$testDir/ipc-pipe')));
+					switch (client.remoteAddress) {
+						case Unix(path): eq('$testDir/ipc-pipe', path);
+						case _: Assert.fail();
+					}
 					client.errorSignal.on(err -> assert());
 					client.write(TestConstants.helloBytes);
 					client.dataSignal.on(chunk -> {
