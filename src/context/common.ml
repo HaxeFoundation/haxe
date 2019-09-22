@@ -424,6 +424,7 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
+			pf_asys = true;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
