@@ -15,33 +15,33 @@ class TestFileSystem extends Test {
 	**/
 	function testAccess():Void {
 		// create a file
-		OldFile.saveContent("resources-rw/access.txt", "");
+		OldFile.saveContent('$testDir/access.txt', "");
 
-		NewFS.chmod("resources-rw/access.txt", None);
+		NewFS.chmod('$testDir/access.txt', None);
 
 		if (Sys.systemName() == "Windows") {
 			// Windows only allows distinguishing readonly
-			eq(NewFS.stat("resources-rw/access.txt").permissions, ReadOwner | ReadGroup | ReadOthers);
-			exc(() -> NewFS.access("resources-rw/access.txt", Write));
+			eq(NewFS.stat('$testDir/access.txt').permissions, ReadOwner | ReadGroup | ReadOthers);
+			exc(() -> NewFS.access('$testDir/access.txt', Write));
 
-			NewFS.chmod("resources-rw/access.txt", "r-------x");
-			eq(NewFS.stat("resources-rw/access.txt").permissions, ReadOwner | ReadGroup | ReadOthers);
-			exc(() -> NewFS.access("resources-rw/access.txt", Write));
+			NewFS.chmod('$testDir/access.txt', "r-------x");
+			eq(NewFS.stat('$testDir/access.txt').permissions, ReadOwner | ReadGroup | ReadOthers);
+			exc(() -> NewFS.access('$testDir/access.txt', Write));
 		} else {
-			eq(NewFS.stat("resources-rw/access.txt").permissions, None);
-			noExc(() -> NewFS.access("resources-rw/access.txt"));
-			exc(() -> NewFS.access("resources-rw/access.txt", Read));
+			eq(NewFS.stat('$testDir/access.txt').permissions, None);
+			noExc(() -> NewFS.access('$testDir/access.txt'));
+			exc(() -> NewFS.access('$testDir/access.txt', Read));
 
-			NewFS.chmod("resources-rw/access.txt", "r-------x");
-			eq(NewFS.stat("resources-rw/access.txt").permissions, "r-------x");
-			noExc(() -> NewFS.access("resources-rw/access.txt", Read));
-			exc(() -> NewFS.access("resources-rw/access.txt", Write));
-			exc(() -> NewFS.access("resources-rw/access.txt", Execute));
+			NewFS.chmod('$testDir/access.txt', "r-------x");
+			eq(NewFS.stat('$testDir/access.txt').permissions, "r-------x");
+			noExc(() -> NewFS.access('$testDir/access.txt', Read));
+			exc(() -> NewFS.access('$testDir/access.txt', Write));
+			exc(() -> NewFS.access('$testDir/access.txt', Execute));
 		}
 
 		// cleanup
-		NewFS.chmod("resources-rw/access.txt", "rw------x");
-		OldFS.deleteFile("resources-rw/access.txt");
+		NewFS.chmod('$testDir/access.txt', "rw------x");
+		OldFS.deleteFile('$testDir/access.txt');
 	}
 
 	function testExists():Void {
@@ -52,53 +52,53 @@ class TestFileSystem extends Test {
 
 	function testMkdir():Void {
 		// initially these directories don't exist
-		f(OldFS.exists("resources-rw/mkdir"));
-		f(OldFS.exists("resources-rw/mkdir/nested/dir"));
+		f(OldFS.exists('$testDir/mkdir'));
+		f(OldFS.exists('$testDir/mkdir/nested/dir'));
 
 		// without `recursive`, this should not succeed
-		exc(() -> NewFS.mkdir("resources-rw/mkdir/nested/dir"));
+		exc(() -> NewFS.mkdir('$testDir/mkdir/nested/dir'));
 
 		// create a single directory
-		NewFS.mkdir("resources-rw/mkdir");
+		NewFS.mkdir('$testDir/mkdir');
 
 		// create a directory recursively
-		NewFS.mkdir("resources-rw/mkdir/nested/dir", true);
+		NewFS.mkdir('$testDir/mkdir/nested/dir', true);
 
-		t(OldFS.exists("resources-rw/mkdir"));
-		t(OldFS.exists("resources-rw/mkdir/nested/dir"));
-		f(OldFS.exists("resources-rw/mkdir/dir"));
+		t(OldFS.exists('$testDir/mkdir'));
+		t(OldFS.exists('$testDir/mkdir/nested/dir'));
+		f(OldFS.exists('$testDir/mkdir/dir'));
 
 		// raise if target already exists if not `recursive`
-		exc(() -> NewFS.mkdir("resources-rw/mkdir/nested/dir"));
+		exc(() -> NewFS.mkdir('$testDir/mkdir/nested/dir'));
 
 		// cleanup
-		OldFS.deleteDirectory("resources-rw/mkdir/nested/dir");
-		OldFS.deleteDirectory("resources-rw/mkdir/nested");
-		OldFS.deleteDirectory("resources-rw/mkdir");
+		OldFS.deleteDirectory('$testDir/mkdir/nested/dir');
+		OldFS.deleteDirectory('$testDir/mkdir/nested');
+		OldFS.deleteDirectory('$testDir/mkdir');
 	}
 
 	function testMkdtemp():Void {
 		// empty `resources-rw` to begin with
-		aeq(OldFS.readDirectory("resources-rw"), []);
+		aeq(OldFS.readDirectory(testDir), []);
 
 		// create some temporary directories
-		var dirs = [ for (i in 0...3) NewFS.mkdtemp("resources-rw/helloXXXXXX") ];
+		var dirs = [ for (i in 0...3) NewFS.mkdtemp('$testDir/helloXXXXXX') ];
 
-		for (f in OldFS.readDirectory("resources-rw")) {
+		for (f in OldFS.readDirectory(testDir)) {
 			t(f.startsWith("hello"));
-			t(OldFS.isDirectory('resources-rw/$f'));
-			OldFS.deleteDirectory('resources-rw/$f');
+			t(OldFS.isDirectory('$testDir/$f'));
+			OldFS.deleteDirectory('$testDir/$f');
 		}
 
 		// cleanup
-		for (f in OldFS.readDirectory("resources-rw")) {
-			OldFS.deleteDirectory('resources-rw/$f');
+		for (f in OldFS.readDirectory(testDir)) {
+			OldFS.deleteDirectory('$testDir/$f');
 		}
 	}
 
 	function testReaddir():Void {
-		aeq(NewFS.readdir("resources-rw"), []);
-		aeq(NewFS.readdirTypes("resources-rw"), []);
+		aeq(NewFS.readdir(testDir), []);
+		aeq(NewFS.readdirTypes(testDir), []);
 		aeq(NewFS.readdir("resources-ro"), ["binary.bin", "hello.txt"]);
 		var res = NewFS.readdirTypes("resources-ro");
 		eq(res.length, 2);
@@ -118,48 +118,48 @@ class TestFileSystem extends Test {
 
 	function testRename():Void {
 		// setup
-		OldFile.saveContent("resources-rw/hello.txt", TestConstants.helloString);
-		OldFile.saveContent("resources-rw/other.txt", "");
-		OldFS.createDirectory("resources-rw/sub");
-		OldFile.saveContent("resources-rw/sub/foo.txt", "");
+		OldFile.saveContent('$testDir/hello.txt', TestConstants.helloString);
+		OldFile.saveContent('$testDir/other.txt', "");
+		OldFS.createDirectory('$testDir/sub');
+		OldFile.saveContent('$testDir/sub/foo.txt', "");
 
-		t(OldFS.exists("resources-rw/hello.txt"));
-		f(OldFS.exists("resources-rw/world.txt"));
+		t(OldFS.exists('$testDir/hello.txt'));
+		f(OldFS.exists('$testDir/world.txt'));
 
 		// rename a file
-		NewFS.rename("resources-rw/hello.txt", "resources-rw/world.txt");
+		NewFS.rename('$testDir/hello.txt', '$testDir/world.txt');
 
-		f(OldFS.exists("resources-rw/hello.txt"));
-		t(OldFS.exists("resources-rw/world.txt"));
-		eq(OldFile.getContent("resources-rw/world.txt"), TestConstants.helloString);
+		f(OldFS.exists('$testDir/hello.txt'));
+		t(OldFS.exists('$testDir/world.txt'));
+		eq(OldFile.getContent('$testDir/world.txt'), TestConstants.helloString);
 
 		// raises if the old path is non-existent
-		exc(() -> NewFS.rename("resources-rw/non-existent", "resources-rw/foobar"));
+		exc(() -> NewFS.rename('$testDir/non-existent', '$testDir/foobar'));
 
 		// raises if renaming file to directory
-		exc(() -> NewFS.rename("resources-rw/world.txt", "resources-rw/sub"));
+		exc(() -> NewFS.rename('$testDir/world.txt', '$testDir/sub'));
 
 		// raises if renaming directory to file
-		// exc(() -> NewFS.rename("resources-rw/sub", "resources-rw/world.txt"));
+		// exc(() -> NewFS.rename('$testDir/sub', '$testDir/world.txt'));
 
 		// rename a directory
-		NewFS.rename("resources-rw/sub", "resources-rw/resub");
+		NewFS.rename('$testDir/sub', '$testDir/resub');
 
-		f(OldFS.exists("resources-rw/sub"));
-		t(OldFS.exists("resources-rw/resub"));
-		aeq(OldFS.readDirectory("resources-rw/resub"), ["foo.txt"]);
+		f(OldFS.exists('$testDir/sub'));
+		t(OldFS.exists('$testDir/resub'));
+		aeq(OldFS.readDirectory('$testDir/resub'), ["foo.txt"]);
 
 		// renaming to existing file overrides it
-		NewFS.rename("resources-rw/world.txt", "resources-rw/other.txt");
+		NewFS.rename('$testDir/world.txt', '$testDir/other.txt');
 
-		f(OldFS.exists("resources-rw/world.txt"));
-		t(OldFS.exists("resources-rw/other.txt"));
-		eq(OldFile.getContent("resources-rw/other.txt"), TestConstants.helloString);
+		f(OldFS.exists('$testDir/world.txt'));
+		t(OldFS.exists('$testDir/other.txt'));
+		eq(OldFile.getContent('$testDir/other.txt'), TestConstants.helloString);
 
 		// cleanup
-		OldFS.deleteFile("resources-rw/other.txt");
-		OldFS.deleteFile("resources-rw/resub/foo.txt");
-		OldFS.deleteDirectory("resources-rw/resub");
+		OldFS.deleteFile('$testDir/other.txt');
+		OldFS.deleteFile('$testDir/resub/foo.txt');
+		OldFS.deleteDirectory('$testDir/resub');
 	}
 
 	function testStat():Void {
@@ -196,11 +196,11 @@ class TestFileSystem extends Test {
 		f(NewFS.isDirectory("resources-ro/hello.txt"));
 		aeq(NewFS.readDirectory("resources-ro"), ["binary.bin", "hello.txt"]);
 
-		NewFS.createDirectory("resources-rw/foo");
-		t(OldFS.exists("resources-rw/foo"));
-		t(OldFS.isDirectory("resources-rw/foo"));
-		NewFS.deleteDirectory("resources-rw/foo");
-		f(OldFS.exists("resources-rw/foo"));
+		NewFS.createDirectory('$testDir/foo');
+		t(OldFS.exists('$testDir/foo'));
+		t(OldFS.isDirectory('$testDir/foo'));
+		NewFS.deleteDirectory('$testDir/foo');
+		f(OldFS.exists('$testDir/foo'));
 	}
 	*/
 }

@@ -1,3 +1,4 @@
+import sys.FileSystem;
 import utest.Assert;
 import utest.Async;
 import haxe.io.Bytes;
@@ -5,12 +6,18 @@ import haxe.io.Bytes;
 // copy of Test from Haxe unit test sources
 // + beq, noExc, sub
 class Test implements utest.ITest {
+	static var testCounter = 0;
+
 	public function new() {}
 
 	var asyncDone = 0;
 	var asyncExpect = 0;
 
+	var testDir:String;
+
 	function setup() {
+		testDir = "resources-rw/" + testCounter++;
+		FileSystem.createDirectory(testDir);
 		TestBase.uvSetup();
 		asyncDone = 0;
 		asyncExpect = 0;

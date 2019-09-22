@@ -51,29 +51,29 @@ class TestFile extends Test {
 		Tests write functions.
 	**/
 	function testWrite() {
-		var file = NewFS.open("resources-rw/hello.txt", "w");
+		var file = NewFS.open('$testDir/hello.txt', "w");
 		var buffer = Bytes.ofString("hello");
 		eq(file.writeBuffer(buffer, 0, 5, 0).bytesWritten, 5);
 		file.close();
 
-		beq(OldFile.getBytes("resources-rw/hello.txt"), buffer);
+		beq(OldFile.getBytes('$testDir/hello.txt'), buffer);
 
-		var file = NewFS.open("resources-rw/unicode.txt", "w");
+		var file = NewFS.open('$testDir/unicode.txt', "w");
 		var buffer = TestConstants.helloBytes;
 		eq(file.writeBuffer(buffer, 0, buffer.length, 0).bytesWritten, buffer.length);
 		file.close();
 
-		beq(OldFile.getBytes("resources-rw/unicode.txt"), buffer);
+		beq(OldFile.getBytes('$testDir/unicode.txt'), buffer);
 
-		var file = NewFS.open("resources-rw/unicode2.txt", "w");
+		var file = NewFS.open('$testDir/unicode2.txt', "w");
 		eq(file.writeString(TestConstants.helloString, 0).bytesWritten, TestConstants.helloBytes.length);
 		file.close();
 
-		beq(OldFile.getBytes("resources-rw/unicode2.txt"), TestConstants.helloBytes);
+		beq(OldFile.getBytes('$testDir/unicode2.txt'), TestConstants.helloBytes);
 
 		// cleanup
-		OldFS.deleteFile("resources-rw/hello.txt");
-		OldFS.deleteFile("resources-rw/unicode.txt");
-		OldFS.deleteFile("resources-rw/unicode2.txt");
+		OldFS.deleteFile('$testDir/hello.txt');
+		OldFS.deleteFile('$testDir/unicode.txt');
+		OldFS.deleteFile('$testDir/unicode2.txt');
 	}
 }

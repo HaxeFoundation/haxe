@@ -88,40 +88,40 @@ class TestAsyncFile extends Test {
 	**/
 	function testWrite(async:Async) {
 		sub(async, done -> {
-			var file = NewFS.open("resources-rw/hello.txt", "w");
+			var file = NewFS.open('$testDir/hello.txt', "w");
 			var buffer = Bytes.ofString("hello");
 			file.async.writeBuffer(buffer, 0, 5, 0, (err, res) -> {
 				eq(err, null);
 				eq(res.bytesWritten, 5);
 				file.close();
-				beq(OldFile.getBytes("resources-rw/hello.txt"), buffer);
-				OldFS.deleteFile("resources-rw/hello.txt");
+				beq(OldFile.getBytes('$testDir/hello.txt'), buffer);
+				OldFS.deleteFile('$testDir/hello.txt');
 				done();
 			});
 		});
 
 		sub(async, done -> {
-			var file = NewFS.open("resources-rw/unicode.txt", "w");
+			var file = NewFS.open('$testDir/unicode.txt', "w");
 			var buffer = TestConstants.helloBytes;
 			file.async.writeBuffer(buffer, 0, buffer.length, 0, (err, res) -> {
 				eq(err, null);
 				eq(res.bytesWritten, buffer.length);
 				file.close();
-				beq(OldFile.getBytes("resources-rw/unicode.txt"), buffer);
-				OldFS.deleteFile("resources-rw/unicode.txt");
+				beq(OldFile.getBytes('$testDir/unicode.txt'), buffer);
+				OldFS.deleteFile('$testDir/unicode.txt');
 				done();
 			});
 		});
 
 		sub(async, done -> {
-			var file = NewFS.open("resources-rw/unicode2.txt", "w");
+			var file = NewFS.open('$testDir/unicode2.txt', "w");
 			var buffer = TestConstants.helloBytes;
 			file.async.writeString(TestConstants.helloString, 0, (err, res) -> {
 				eq(err, null);
 				eq(res.bytesWritten, TestConstants.helloBytes.length);
 				file.close();
-				beq(OldFile.getBytes("resources-rw/unicode2.txt"), TestConstants.helloBytes);
-				OldFS.deleteFile("resources-rw/unicode2.txt");
+				beq(OldFile.getBytes('$testDir/unicode2.txt'), TestConstants.helloBytes);
+				OldFS.deleteFile('$testDir/unicode2.txt');
 				done();
 			});
 		});

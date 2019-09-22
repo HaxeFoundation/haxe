@@ -75,7 +75,7 @@ class TestAsyncFileSystem extends Test {
 	}
 
 	function testWatcher(async:Async) {
-		var dir = "resources-rw/watch";
+		var dir = '$testDir/watch';
 		sys.FileSystem.createDirectory(dir);
 		var expectedEvents:Array<FileWatcherEvent -> Bool> = [
 			event -> event.match(Rename("foo")),

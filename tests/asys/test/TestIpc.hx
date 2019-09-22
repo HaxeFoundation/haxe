@@ -15,7 +15,7 @@ class TestIpc extends Test {
 			var server:asys.net.Server = null;
 			server = asys.Net.createServer({
 				listen: Ipc({
-					path: "resources-rw/ipc-pipe"
+					path: '$testDir/ipc-pipe'
 				})
 			}, client -> client.dataSignal.on(chunk -> {
 				beq(chunk, TestConstants.helloBytes);
@@ -33,11 +33,11 @@ class TestIpc extends Test {
 			var client:asys.net.Socket = null;
 			client = asys.Net.createConnection({
 				connect: Ipc({
-					path: "resources-rw/ipc-pipe"
+					path: '$testDir/ipc-pipe'
 				})
 			}, (err) -> {
 					eq(err, null);
-					t(client.remoteAddress.match(Unix("resources-rw/ipc-pipe")));
+					t(client.remoteAddress.match(Unix('$testDir/ipc-pipe')));
 					client.errorSignal.on(err -> assert());
 					client.write(TestConstants.helloBytes);
 					client.dataSignal.on(chunk -> {
