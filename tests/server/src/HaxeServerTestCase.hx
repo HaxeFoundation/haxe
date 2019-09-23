@@ -1,9 +1,10 @@
+import utest.Async;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
 import haxe.display.Protocol;
 import haxe.Json;
-import haxeserver.process.HaxeServerProcessNode;
+import haxeserver.process.HaxeServerProcessAsys;
 import haxeserver.HaxeServerAsync;
 import utest.Assert;
 import utest.ITest;
@@ -24,14 +25,14 @@ class HaxeServerTestCase implements ITest {
 
 	public function new() {}
 
-	public function setup() {
+	public function setup(async:Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
+		server = new HaxeServerAsync(() -> new HaxeServerProcessAsys("haxe", ["-v", "--cwd", testDir], () -> async.done()));
 	}
 
-	public function teardown() {
-		server.stop();
+	public function teardown(async:Async) {
+		server.stop(() -> async.done());
 	}
 
 	function runHaxe(args:Array<String>, done:Void->Void) {
@@ -99,6 +100,9 @@ class HaxeServerTestCase implements ITest {
 		} catch (e:Dynamic) {
 			trace(e);
 			[];
+		}
+		if (storedTypes == null) {
+			return null;
 		}
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {

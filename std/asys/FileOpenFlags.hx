@@ -1,7 +1,7 @@
 package asys;
 
 class FileOpenFlagsImpl {
-	public static function fromString(flags:String):FileOpenFlags {
+	@:keep public static function fromString(flags:String):FileOpenFlags {
 		return (switch (flags) {
 			case "r": ReadOnly;
 			case "r+": ReadWrite;

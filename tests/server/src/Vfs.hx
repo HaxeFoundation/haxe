@@ -1,4 +1,5 @@
-import js.node.Fs;
+import haxe.io.Bytes;
+import asys.FileSystem as Fs;
 import sys.FileSystem;
 import haxe.io.Path;
 
@@ -15,34 +16,24 @@ class Vfs {
 		FileSystem.createDirectory(physicalPath);
 	}
 
-	public function touchFile(path:String) {
-		var path = getPhysicalPath(path);
-		FileSystem.createDirectory(path.dir);
-		var file = Fs.openSync(path.dir + "/" + path.file + "." + path.ext, 'a');
-		var last = Fs.fstatSync(file).mtime;
-		var notNow = last.delta(1000);
-		Fs.futimesSync(file, notNow, notNow);
-		Fs.closeSync(file);
-	}
-
 	public function overwriteContent(path:String, content:String) {
 		var path = getPhysicalPath(path).toString();
 		if (!FileSystem.exists(path)) {
 			throw 'Cannot overwrite content for $path: file does not exist';
 		}
-		Fs.writeFileSync(path, content);
+		Fs.writeFile(path, Bytes.ofString(content));
 	}
 
 	public function putContent(path:String, content:String) {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
-		Fs.writeFileSync(path.toString(), content);
+		Fs.writeFile(path.toString(), Bytes.ofString(content));
 	}
 
 	public function getContent(path:String) {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
-		return Fs.readFileSync(path.toString());
+		return Fs.readFile(path.toString()).toString();
 	}
 
 	public function close() {

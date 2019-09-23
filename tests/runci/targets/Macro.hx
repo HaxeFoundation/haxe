@@ -37,6 +37,11 @@ class Macro {
 			case _: // TODO
 		}
 
+		runci.targets.Java.getJavaDependencies(); // this is awkward
+		haxelibInstallGit("Simn", "haxeserver", "asys");
+		changeDirectory(serverDir);
+		runCommand("haxe", ["build.hxml"]);
+
 		// changeDirectory(threadsDir);
 		// runCommand("haxe", ["build.hxml", "--interp"]);
 	}

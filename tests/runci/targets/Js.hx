@@ -103,11 +103,5 @@ class Js {
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
-
-		runci.targets.Java.getJavaDependencies(); // this is awkward
-		haxelibInstallGit("Simn", "haxeserver");
-		changeDirectory(serverDir);
-		runCommand("haxe", ["build.hxml"]);
-		runCommand("node", ["test.js"]);
 	}
 }
