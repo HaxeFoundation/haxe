@@ -9,7 +9,7 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
 		changeDirectory(displayDir);
-		haxelibInstallGit("Simn", "haxeserver");
+		haxelibInstallGit("Simn", "haxeserver", "asys");
 		runCommand("haxe", ["build.hxml"]);
 
 		changeDirectory(sourcemapsDir);
@@ -38,7 +38,6 @@ class Macro {
 		}
 
 		runci.targets.Java.getJavaDependencies(); // this is awkward
-		haxelibInstallGit("Simn", "haxeserver", "asys");
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 
