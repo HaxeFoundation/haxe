@@ -27,9 +27,9 @@ extern class FileSystem {
 		values:
 
 		- `FileAccessMode.Ok` - file is visible to the calling process (it exists)
-		- `FileAccessMode.Execute` - file can be executed by the calling proces
-		- `FileAccessMode.Write` - file can be written to by the calling proces
-		- `FileAccessMode.Read` - file can be read from by the calling proces
+		- `FileAccessMode.Execute` - file can be executed by the calling process
+		- `FileAccessMode.Write` - file can be written to by the calling process
+		- `FileAccessMode.Read` - file can be read from by the calling process
 
 		Mode values can be combined with the bitwise or operator, e.g. calling
 		`access` with the `mode`:

@@ -45,14 +45,14 @@ class Process {
 			`writable` specify whether the pipe will be readable and writable from
 			the point of view of the spawned process. If `pipe` is given, it is used
 			directly, otherwise a new pipe is created.
-		- `Ipc` - create an IPC (inter-process comunication) pipe. Only one may be
+		- `Ipc` - create an IPC (inter-process communication) pipe. Only one may be
 			specified in `options.stdio`. This special pipe will not have an entry in
 			the `stdio` array of the resulting process; instead, messages can be sent
 			using the `send` method, and received over `messageSignal`. IPC pipes
 			allow sending and receiving structured Haxe data, as well as connected
 			sockets and pipes.
 
-		Pipes are made available in the `stdio` array afther the process is
+		Pipes are made available in the `stdio` array after the process is
 		spawned. Standard file descriptors have their own variables:
 
 		- `stdin` - set to point to a pipe in index 0, if it exists and is
