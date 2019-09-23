@@ -75,55 +75,55 @@ class TestAsyncFileSystem extends Test {
 		eq(asyncDone, 0);
 	}
 
-	@:timeout(500)
-	function testWatcher(async:Async) {
-		var dir = '$testDir/watch';
-		sys.FileSystem.createDirectory(dir);
-		var expectedEvents:Array<FileWatcherEvent -> Void> = [
-			event -> switch(event) {
-				case Rename("foo"): Assert.pass();
-				case _: Assert.fail("Expected Rename(foo) but got " + event);
-			},
-			event -> switch(event) {
-				case Rename("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
-				case _: Assert.fail("Expected Rename(foo/hello.txt) but got " + event);
-			},
-			event -> switch(event) {
-				case Change("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
-				case _: Assert.fail("Expected Change(foo/hello.txt) but got " + event);
-			}
-		];
+	// @:timeout(500)
+	// function testWatcher(async:Async) {
+	// 	var dir = '$testDir/watch';
+	// 	sys.FileSystem.createDirectory(dir);
+	// 	var expectedEvents:Array<FileWatcherEvent -> Void> = [
+	// 		event -> switch(event) {
+	// 			case Rename("foo"): Assert.pass();
+	// 			case _: Assert.fail("Expected Rename(foo) but got " + event);
+	// 		},
+	// 		event -> switch(event) {
+	// 			case Rename("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
+	// 			case _: Assert.fail("Expected Rename(foo/hello.txt) but got " + event);
+	// 		},
+	// 		event -> switch(event) {
+	// 			case Change("foo/hello.txt" | "foo\\hello.txt"): Assert.pass();
+	// 			case _: Assert.fail("Expected Change(foo/hello.txt) but got " + event);
+	// 		}
+	// 	];
 
-		var watcher = NewFS.watch(dir, true);
-		watcher.closeSignal.on(_ -> {
-			async.done();
-		});
-		watcher.errorSignal.on(e -> assert('unexpected error: ${e.message}'));
+	// 	var watcher = NewFS.watch(dir, true);
+	// 	watcher.closeSignal.on(_ -> {
+	// 		async.done();
+	// 	});
+	// 	watcher.errorSignal.on(e -> assert('unexpected error: ${e.message}'));
 
-		var continuations = [];
+	// 	var continuations = [];
 
-		watcher.changeSignal.on(event -> {
-			t(expectedEvents.length > 0);
-			var expected = expectedEvents.shift();
-			expected(event);
-			if (continuations.length > 0) {
-				continuations.shift()();
-			}
-			if (expectedEvents.length == 0) {
-				watcher.close();
-			}
-		});
+	// 	watcher.changeSignal.on(event -> {
+	// 		t(expectedEvents.length > 0);
+	// 		var expected = expectedEvents.shift();
+	// 		expected(event);
+	// 		if (continuations.length > 0) {
+	// 			continuations.shift()();
+	// 		}
+	// 		if (expectedEvents.length == 0) {
+	// 			watcher.close();
+	// 		}
+	// 	});
 
-		continuations.push(() -> {
-			var file = NewFS.open('$dir/foo/hello.txt', "w");
-			file.truncate(10);
-			file.close();
-		});
-		continuations.push(() -> {
-			var file = NewFS.open('$dir/foo/hello.txt', "w");
-			file.truncate(5);
-			file.close();
-		});
-		NewFS.mkdir('$dir/foo');
-	}
+	// 	continuations.push(() -> {
+	// 		var file = NewFS.open('$dir/foo/hello.txt', "w");
+	// 		file.truncate(10);
+	// 		file.close();
+	// 	});
+	// 	continuations.push(() -> {
+	// 		var file = NewFS.open('$dir/foo/hello.txt', "w");
+	// 		file.truncate(5);
+	// 		file.close();
+	// 	});
+	// 	NewFS.mkdir('$dir/foo');
+	// }
 }
