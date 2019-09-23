@@ -26,9 +26,6 @@ package lua.lib.luv;
 extern class Misc {
 	public static function chdir(path:String):Bool;
 
-	public static function os_homedir():String;
-	public static function os_tmpdir():String;
-	public static function os_get_passwd():String;
 	public static function cpu_info():Table<Int, CpuInfo>;
 
 	public static function cwd():String;
@@ -37,9 +34,6 @@ extern class Misc {
 	public static function get_total_memory():Int;
 	public static function get_free_memory():Int;
 	public static function getpid():Int;
-
-	public static function os_getenv(env:String):String;
-	public static function os_setenv(env:String, value:String):Void;
 
 	// TODO Windows only?
 	public static function getuid():Int;
