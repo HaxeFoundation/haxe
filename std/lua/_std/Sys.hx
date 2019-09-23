@@ -23,7 +23,7 @@
 import lua.Boot;
 import lua.Io;
 import lua.Lua;
-import lua.Os;
+import lua.lib.luv.Os;
 import lua.lib.luv.Misc;
 import sys.io.FileInput;
 import sys.io.FileOutput;
@@ -109,11 +109,11 @@ class Sys {
 		Misc.chdir(s);
 
 	public inline static function getEnv(s:String):String {
-		return Misc.os_getenv(s);
+		return Os.getenv(s);
 	}
 
 	public inline static function putEnv(s:String, v:String):Void {
-		Misc.os_setenv(s, v);
+		Os.setenv(s, v);
 	}
 
 	public inline static function setTimeLocale(loc:String):Bool {

@@ -11,8 +11,8 @@
 #include <string.h>
 #include <uv.h>
 
-#if (UV_VERSION_MAJOR <= 0)
-#	error "libuv1-dev required, uv version 0.x found"
+#if (UV_VERSION_HEX < (1 << 16 | 31 << 8))
+#    error "Compiling Haxe requires libuv version 1.31.0+"
 #endif
 
 // ------------- UTILITY MACROS -------------------------------------
@@ -27,6 +27,7 @@
 
 	Handle-specific macros are defined further, in the HANDLE DATA section.
 **/
+
 
 // access the data of a request
 #define UV_REQ_DATA(r) (((uv_req_t *)(r))->data)
@@ -559,7 +560,7 @@ static void handle_stream_cb_alloc(uv_handle_t *handle, size_t suggested_size, u
 	buf->len = suggested_size;
 }
 
-static void handle_stream_cb_read(uv_stream_t *stream, long int nread, const uv_buf_t *buf) {
+static void handle_stream_cb_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
 	cb = UV_HANDLE_DATA_SUB(stream, stream).cb_read;
@@ -744,7 +745,7 @@ CAMLprim value w_tcp_getpeername(value handle) {
 
 // ------------- UDP ------------------------------------------------
 
-static void handle_udp_cb_recv(uv_udp_t *handle, long int nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
+static void handle_udp_cb_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
 	cb = UV_HANDLE_DATA_SUB(handle, udp).cb_read;

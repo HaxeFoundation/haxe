@@ -26,7 +26,7 @@ import php.ArrayIterator as NativeArrayIterator;
 using php.Global;
 
 @:coreApi
-final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> {
+final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> implements JsonSerializable<NativeIndexedArray<T>> {
 	public var length(default, null):Int;
 
 	var arr:NativeIndexedArray<T>;
@@ -232,6 +232,11 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	@:noCompletion @:keep
 	private function getIterator():Traversable {
 		return new NativeArrayIterator(arr);
+	}
+
+	@:noCompletion @:keep
+	function jsonSerialize():NativeIndexedArray<T> {
+		return arr;
 	}
 
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
