@@ -4,7 +4,7 @@
 #include <caml/fail.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
-#include <caml/minor_gc.h>
+// #include <caml/minor_gc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
