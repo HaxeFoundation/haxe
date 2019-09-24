@@ -2,13 +2,6 @@ import haxe.io.Bytes;
 import asys.io.*;
 import asys.*;
 import utest.Assert;
-#if hl
-import hl.Uv;
-#elseif eval
-import eval.Uv;
-#elseif neko
-import neko.Uv;
-#end
 
 class TestBase {
 	static var helpers:Map<Process, {?exit:ProcessExit}> = [];
