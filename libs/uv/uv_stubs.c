@@ -58,6 +58,8 @@
 #define Handle_val(v) UV_UNWRAP(v, uv_handle_t)
 #define Loop_val(v) UV_UNWRAP(v, uv_loop_t)
 #define Pipe_val(v) UV_UNWRAP(v, uv_pipe_t)
+#define Mutex_val(v) UV_UNWRAP(v, uv_mutex_t)
+#define Key_val(v) UV_UNWRAP(v, uv_key_t)
 #define Process_val(v) UV_UNWRAP(v, uv_process_t)
 #define Shutdown_val(v) UV_UNWRAP(v, uv_shutdown_t)
 #define Stream_val(v) UV_UNWRAP(v, uv_stream_t)
@@ -1227,6 +1229,64 @@ CAMLprim value w_pipe_write_handle(value handle, value data, value send_handle, 
 	UV_ALLOC_REQ(req, uv_write_t, cb);
 	uv_buf_t buf = uv_buf_init(&Byte(data, 0), caml_string_length(data));
 	UV_ERROR_CHECK_C(uv_write2(Write_val(req), Stream_val(handle), &buf, 1, Stream_val(send_handle), (void (*)(uv_write_t *, int))handle_stream_cb), UV_FREE_REQ(Write_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+// ------------- MUTEXES -----------------------------------------------
+
+CAMLprim value w_mutex_init(value unit) {
+	CAMLparam1(unit);
+	UV_ALLOC_CHECK(handle, uv_mutex_t);
+	UV_ERROR_CHECK_C(uv_mutex_init(Mutex_val(handle)), free(Mutex_val(handle)));
+	if ((UV_HANDLE_DATA(Mutex_val(handle)) = alloc_data()) == NULL)
+		UV_ERROR(0);
+	UV_SUCCESS(handle);
+}
+
+CAMLprim value w_mutex_lock(value handle) {
+	CAMLparam1(handle);
+	uv_mutex_lock(Mutex_val(handle));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_mutex_trylock(value handle) {
+	CAMLparam1(handle);
+	UV_ERROR_CHECK(uv_mutex_trylock(Mutex_val(handle)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_mutex_unlock(value handle) {
+	CAMLparam1(handle);
+	uv_mutex_unlock(Mutex_val(handle));
+	UV_SUCCESS_UNIT;
+}
+
+// ------------- TLS -----------------------------------------------
+
+CAMLprim value w_key_create(value unit) {
+	CAMLparam1(unit);
+	UV_ALLOC_CHECK(handle, uv_key_t);
+	UV_ERROR_CHECK_C(uv_key_create(Key_val(handle)), free(Key_val(handle)));
+	if ((UV_HANDLE_DATA(Key_val(handle)) = alloc_data()) == NULL)
+		UV_ERROR(0);
+	UV_SUCCESS(handle);
+}
+
+CAMLprim value w_key_delete(value handle) {
+	CAMLparam1(handle);
+	uv_key_delete(Key_val(handle));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_key_get(value handle) {
+	CAMLparam1(handle);
+	void* r = uv_key_get(Key_val(handle));
+	UV_SUCCESS(r);
+}
+
+CAMLprim value w_key_set(value handle, value v) {
+	CAMLparam1(handle);
+	uv_key_set(Key_val(handle), &v);
 	UV_SUCCESS_UNIT;
 }
 
