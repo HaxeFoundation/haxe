@@ -872,6 +872,17 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
 				| (Meta.To,_,_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
+					(match cf.cf_kind, cf.cf_type with
+					| Var _, _ ->
+						error "@:to meta should be used on methods" p
+					| Method _, TFun(args, _) when not fctx.is_abstract_member && List.length args <> 1 ->
+						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+						error ("static @:to method should have one argument") p
+					| Method _, TFun(args, _) when fctx.is_abstract_member && List.length args <> 1 ->
+						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+						error "@:to method should have no arguments" p
+					| _ -> ()
+					);
 					(* TODO: this doesn't seem quite right... *)
 					if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],null_pos) :: cf.cf_meta;
 					let resolve_m args =
