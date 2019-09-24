@@ -4,6 +4,7 @@
 #include <caml/fail.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
+// #include <caml/minor_gc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@
 #include <uv.h>
 
 #if (UV_VERSION_HEX < (1 << 16 | 31 << 8))
-#	error "Compiling Haxe requires libuv version 1.31.0+"
+#    error "Compiling Haxe requires libuv version 1.31.0+"
 #endif
 
 // ------------- UTILITY MACROS -------------------------------------
@@ -27,6 +28,7 @@
 	Handle-specific macros are defined further, in the HANDLE DATA section.
 **/
 
+
 // access the data of a request
 #define UV_REQ_DATA(r) (((uv_req_t *)(r))->data)
 #define UV_REQ_DATA_A(r) ((value *)(&UV_REQ_DATA(r)))
@@ -35,6 +37,7 @@
 #define UV_ALLOC_REQ(name, type, cb) \
 	UV_ALLOC_CHECK(name, type); \
 	UV_REQ_DATA(UV_UNWRAP(name, type)) = (void *)cb; \
+	/*caml_oldify_one(cb, UV_REQ_DATA_A(UV_UNWRAP(name, type)));*/ \
 	caml_register_global_root(UV_REQ_DATA_A(UV_UNWRAP(name, type)));
 
 // free a request, remove its callback from GC roots
@@ -421,71 +424,24 @@ typedef struct {
 	} u;
 } uv_w_handle_t;
 
-static uv_w_handle_t *alloc_data_fs_event(value cb_fs_event) {
+static uv_w_handle_t *alloc_data(void) {
 	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
 	if (data != NULL) {
 		data->cb_close = Val_unit;
 		caml_register_global_root(&(data->cb_close));
-		data->u.fs_event.cb_fs_event = cb_fs_event;
-		caml_register_global_root(&(data->u.fs_event.cb_fs_event));
+		data->u.all.cb1 = Val_unit;
+		caml_register_global_root(&(data->u.all.cb1));
+		data->u.all.cb2 = Val_unit;
+		caml_register_global_root(&(data->u.all.cb2));
 	}
 	return data;
 }
 
-static uv_w_handle_t *alloc_data_tcp(value cb_read, value cb_connection) {
-	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
-	if (data != NULL) {
-		data->cb_close = Val_unit;
-		caml_register_global_root(&(data->cb_close));
-		data->u.tcp.cb_read = cb_read;
-		caml_register_global_root(&(data->u.tcp.cb_read));
-		data->u.tcp.cb_connection = cb_connection;
-		caml_register_global_root(&(data->u.tcp.cb_connection));
-	}
-	return data;
-}
-
-static uv_w_handle_t *alloc_data_udp(value cb_read) {
-	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
-	if (data != NULL) {
-		data->cb_close = Val_unit;
-		caml_register_global_root(&(data->cb_close));
-		data->u.udp.cb_read = cb_read;
-		caml_register_global_root(&(data->u.udp.cb_read));
-	}
-	return data;
-}
-
-static uv_w_handle_t *alloc_data_timer(value cb_timer) {
-	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
-	if (data != NULL) {
-		data->cb_close = Val_unit;
-		caml_register_global_root(&(data->cb_close));
-		data->u.timer.cb_timer = cb_timer;
-		caml_register_global_root(&(data->u.timer.cb_timer));
-	}
-	return data;
-}
-
-static uv_w_handle_t *alloc_data_process(value cb_exit) {
-	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
-	if (data != NULL) {
-		data->cb_close = Val_unit;
-		caml_register_global_root(&(data->cb_close));
-		data->u.process.cb_exit = cb_exit;
-		caml_register_global_root(&(data->u.process.cb_exit));
-	}
-	return data;
-}
-
-static uv_w_handle_t *alloc_data_pipe(void) {
-	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
-	if (data != NULL) {
-		data->cb_close = Val_unit;
-		caml_register_global_root(&(data->cb_close));
-	}
-	return data;
-}
+#define UV_SET_CB(cb_storage, cb) \
+	do { \
+		cb_storage = cb; \
+		/*caml_oldify_one(cb, &cb_storage);*/ \
+	} while (0)
 
 static void unalloc_data(uv_w_handle_t *data) {
 	caml_remove_global_root(&(data->cb_close));
@@ -508,7 +464,7 @@ static void handle_close_cb(uv_handle_t *handle) {
 
 CAMLprim value w_close(value handle, value cb) {
 	CAMLparam2(handle, cb);
-	((uv_w_handle_t *)UV_HANDLE_DATA(Handle_val(handle)))->cb_close = cb;
+	UV_SET_CB(((uv_w_handle_t *)UV_HANDLE_DATA(Handle_val(handle)))->cb_close, cb);
 	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
 }
@@ -549,9 +505,9 @@ CAMLprim value w_fs_event_start(value loop, value path, value recursive, value c
 	CAMLparam4(loop, path, recursive, cb);
 	UV_ALLOC_CHECK(handle, uv_fs_event_t);
 	UV_ERROR_CHECK_C(uv_fs_event_init(Loop_val(loop), FsEvent_val(handle)), free(FsEvent_val(handle)));
-	UV_HANDLE_DATA(FsEvent_val(handle)) = alloc_data_fs_event(cb);
-	if (UV_HANDLE_DATA(FsEvent_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(FsEvent_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
+	UV_SET_CB(UV_HANDLE_DATA_SUB(FsEvent_val(handle), fs_event).cb_fs_event, cb);
 	UV_ERROR_CHECK_C(
 		uv_fs_event_start(FsEvent_val(handle), handle_fs_event_cb, String_val(path), Bool_val(recursive) ? UV_FS_EVENT_RECURSIVE : 0),
 		{ unalloc_data(UV_HANDLE_DATA(FsEvent_val(handle))); free(FsEvent_val(handle)); }
@@ -565,7 +521,7 @@ CAMLprim value w_fs_event_stop(value handle, value cb) {
 		uv_fs_event_stop(FsEvent_val(handle)),
 		{ unalloc_data(UV_HANDLE_DATA(FsEvent_val(handle))); free(FsEvent_val(handle)); }
 		);
-	((uv_w_handle_t *)UV_HANDLE_DATA(FsEvent_val(handle)))->cb_close = cb;
+	UV_SET_CB(((uv_w_handle_t *)UV_HANDLE_DATA(FsEvent_val(handle)))->cb_close, cb);
 	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
 }
@@ -642,7 +598,7 @@ CAMLprim value w_shutdown(value stream, value cb) {
 
 CAMLprim value w_listen(value stream, value backlog, value cb) {
 	CAMLparam3(stream, backlog, cb);
-	UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_connection = cb;
+	UV_SET_CB(UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_connection, cb);
 	UV_ERROR_CHECK(uv_listen(Stream_val(stream), Int_val(backlog), handle_stream_cb_connection));
 	UV_SUCCESS_UNIT;
 }
@@ -657,7 +613,7 @@ CAMLprim value w_write(value stream, value data, value cb) {
 
 CAMLprim value w_read_start(value stream, value cb) {
 	CAMLparam2(stream, cb);
-	UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_read = cb;
+	UV_SET_CB(UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_read, cb);
 	UV_ERROR_CHECK(uv_read_start(Stream_val(stream), handle_stream_cb_alloc, handle_stream_cb_read));
 	UV_SUCCESS_UNIT;
 }
@@ -693,8 +649,7 @@ CAMLprim value w_tcp_init(value loop) {
 	CAMLparam1(loop);
 	UV_ALLOC_CHECK(handle, uv_tcp_t);
 	UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(handle)), free(Tcp_val(handle)));
-	UV_HANDLE_DATA(Tcp_val(handle)) = alloc_data_tcp(Val_unit, Val_unit);
-	if (UV_HANDLE_DATA(Tcp_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(Tcp_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
 	UV_SUCCESS(handle);
 }
@@ -715,8 +670,7 @@ CAMLprim value w_tcp_accept(value loop, value server) {
 	CAMLparam2(loop, server);
 	UV_ALLOC_CHECK(client, uv_tcp_t);
 	UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(client)), free(Tcp_val(client)));
-	UV_HANDLE_DATA(Tcp_val(client)) = alloc_data_tcp(Val_unit, Val_unit);
-	if (UV_HANDLE_DATA(Tcp_val(client)) == NULL)
+	if ((UV_HANDLE_DATA(Tcp_val(client)) = alloc_data()) == NULL)
 		UV_ERROR(0);
 	UV_ERROR_CHECK_C(uv_accept(Stream_val(server), Stream_val(client)), free(Tcp_val(client)));
 	UV_SUCCESS(client);
@@ -831,8 +785,7 @@ CAMLprim value w_udp_init(value loop) {
 	CAMLparam1(loop);
 	UV_ALLOC_CHECK(handle, uv_udp_t);
 	UV_ERROR_CHECK_C(uv_udp_init(Loop_val(loop), Udp_val(handle)), free(Udp_val(handle)));
-	UV_HANDLE_DATA(Udp_val(handle)) = alloc_data_udp(Val_unit);
-	if (UV_HANDLE_DATA(Udp_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(Udp_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
 	UV_SUCCESS(handle);
 }
@@ -875,7 +828,7 @@ BC_WRAP7(w_udp_send_ipv6);
 
 CAMLprim value w_udp_recv_start(value handle, value cb) {
 	CAMLparam2(handle, cb);
-	UV_HANDLE_DATA_SUB(Udp_val(handle), udp).cb_read = cb;
+	UV_SET_CB(UV_HANDLE_DATA_SUB(Udp_val(handle), udp).cb_read, cb);
 	UV_ERROR_CHECK(uv_udp_recv_start(Udp_val(handle), handle_stream_cb_alloc, handle_udp_cb_recv));
 	UV_SUCCESS_UNIT;
 }
@@ -1061,9 +1014,9 @@ CAMLprim value w_timer_start(value loop, value timeout, value cb) {
 	CAMLparam3(loop, timeout, cb);
 	UV_ALLOC_CHECK(handle, uv_timer_t);
 	UV_ERROR_CHECK_C(uv_timer_init(Loop_val(loop), Timer_val(handle)), free(Timer_val(handle)));
-	UV_HANDLE_DATA(Timer_val(handle)) = alloc_data_timer(cb);
-	if (UV_HANDLE_DATA(Timer_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(Timer_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
+	UV_SET_CB(UV_HANDLE_DATA_SUB(Timer_val(handle), timer).cb_timer, cb);
 	UV_ERROR_CHECK_C(
 		uv_timer_start(Timer_val(handle), handle_timer_cb, Int_val(timeout), Int_val(timeout)),
 		{ unalloc_data(UV_HANDLE_DATA(Timer_val(handle))); free(Timer_val(handle)); }
@@ -1077,7 +1030,7 @@ CAMLprim value w_timer_stop(value handle, value cb) {
 		uv_timer_stop(Timer_val(handle)),
 		{ unalloc_data(UV_HANDLE_DATA(Timer_val(handle))); free(Timer_val(handle)); }
 		);
-	((uv_w_handle_t *)UV_HANDLE_DATA(Timer_val(handle)))->cb_close = cb;
+	UV_SET_CB(((uv_w_handle_t *)UV_HANDLE_DATA(Timer_val(handle)))->cb_close, cb);
 	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
 }
@@ -1101,9 +1054,9 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 	CAMLparam5(loop, cb, file, args, env);
 	CAMLxparam5(cwd, flags, stdio, uid, gid);
 	UV_ALLOC_CHECK(handle, uv_process_t);
-	UV_HANDLE_DATA(Process_val(handle)) = alloc_data_process(cb);
-	if (UV_HANDLE_DATA(Process_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(Process_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
+	UV_SET_CB(UV_HANDLE_DATA_SUB(Process_val(handle), process).cb_exit, cb);
 	char **args_u = malloc(sizeof(char *) * (Wosize_val(args) + 1));
 	for (int i = 0; i < Wosize_val(args); i++)
 		args_u[i] = strdup(String_val(Field(args, i)));
@@ -1183,8 +1136,7 @@ CAMLprim value w_pipe_init(value loop, value ipc) {
 	CAMLparam2(loop, ipc);
 	UV_ALLOC_CHECK(handle, uv_pipe_t);
 	UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(handle), Bool_val(ipc)), free(Pipe_val(handle)));
-	UV_HANDLE_DATA(Pipe_val(handle)) = alloc_data_pipe();
-	if (UV_HANDLE_DATA(Pipe_val(handle)) == NULL)
+	if ((UV_HANDLE_DATA(Pipe_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
 	UV_SUCCESS(handle);
 }
@@ -1199,8 +1151,7 @@ CAMLprim value w_pipe_accept(value loop, value server) {
 	CAMLparam2(loop, server);
 	UV_ALLOC_CHECK(client, uv_pipe_t);
 	UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(client), 0), free(Pipe_val(client)));
-	UV_HANDLE_DATA(Pipe_val(client)) = alloc_data_pipe();
-	if (UV_HANDLE_DATA(Pipe_val(client)) == NULL)
+	if ((UV_HANDLE_DATA(Pipe_val(client)) = alloc_data()) == NULL)
 		UV_ERROR(0);
 	UV_ERROR_CHECK_C(uv_accept(Stream_val(server), Stream_val(client)), free(Pipe_val(client)));
 	UV_SUCCESS(client);
@@ -1232,8 +1183,7 @@ CAMLprim value w_pipe_accept_pending(value loop, value handle) {
 			ret = caml_alloc(1, 0);
 			UV_ALLOC_CHECK(client, uv_pipe_t);
 			UV_ERROR_CHECK_C(uv_pipe_init(Loop_val(loop), Pipe_val(client), 0), free(Pipe_val(client)));
-			UV_HANDLE_DATA(Pipe_val(client)) = alloc_data_pipe();
-			if (UV_HANDLE_DATA(Pipe_val(client)) == NULL)
+			if ((UV_HANDLE_DATA(Pipe_val(client)) = alloc_data()) == NULL)
 				UV_ERROR(0);
 			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Pipe_val(client)));
 			Store_field(ret, 0, client);
@@ -1242,8 +1192,7 @@ CAMLprim value w_pipe_accept_pending(value loop, value handle) {
 			ret = caml_alloc(1, 1);
 			UV_ALLOC_CHECK(client, uv_tcp_t);
 			UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(client)), free(Tcp_val(client)));
-			UV_HANDLE_DATA(Tcp_val(client)) = alloc_data_tcp(Val_unit, Val_unit);
-			if (UV_HANDLE_DATA(Tcp_val(client)) == NULL)
+			if ((UV_HANDLE_DATA(Tcp_val(client)) = alloc_data()) == NULL)
 				UV_ERROR(0);
 			UV_ERROR_CHECK_C(uv_accept(Stream_val(handle), Stream_val(client)), free(Tcp_val(client)));
 			Store_field(ret, 0, client);
