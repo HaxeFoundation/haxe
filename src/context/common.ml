@@ -84,6 +84,8 @@ type platform_config = {
 	pf_static : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
+	(** has access to the "asys" package *)
+	pf_asys : bool;
 	(** captured variables handling (see before) *)
 	pf_capture_policy : capture_policy;
 	(** when calling a method with optional args, do we replace the missing args with "null" constants *)
@@ -312,6 +314,7 @@ let default_config =
 	{
 		pf_static = true;
 		pf_sys = true;
+		pf_asys = false;
 		pf_capture_policy = CPNone;
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
@@ -588,6 +591,11 @@ let init_platform com pf =
 		define com Define.Sys
 	end else
 		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_asys then begin
+		raw_define_value com.defines "target.asys" "true";
+		define com Define.Asys
+	end else
+		com.package_rules <- PMap.add "asys" Forbidden com.package_rules;
 	if com.config.pf_uses_utf16 then begin
 		raw_define_value com.defines "target.utf16" "true";
 		define com Define.Utf16;
