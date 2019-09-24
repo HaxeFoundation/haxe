@@ -102,12 +102,6 @@ class EntryPoint {
 		return time;
 	}
 
-	@:keep public static function init() {
-		#if eval
-		eval.Uv.init();
-		#end
-	}
-
 	/**
 		Start the main loop. Depending on the platform, this can return immediately or will only return when the application exits.
 	**/
@@ -137,9 +131,7 @@ class EntryPoint {
 		#elseif flash
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
 		#elseif target.asys
-		#if eval
-		eval.Uv.run(RunDefault);
-		#end
+		asys.uv.Uv.run(RunDefault);
 		#elseif sys
 		while (true) {
 			var nextTick = processEvents();
@@ -154,8 +146,8 @@ class EntryPoint {
 	}
 
 	@:keep static public function close() {
-		#if eval
-		eval.Uv.close();
+		#if target.asys
+		asys.uv.Uv.close();
 		#end
 	}
 }

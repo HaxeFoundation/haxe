@@ -4554,7 +4554,7 @@ let init_standard_library builtins =
 	init_fields builtins (["asys"],"FileOpenFlagsImpl") (uv_statics (Uv.get_file_open_flags())) [];
 	init_fields builtins (["asys";"uv";"_UVErrorType"],"UVErrorType_Impl_") (uv_statics (Uv.get_errno())) [];
 	init_fields builtins (["eval";"uv"],"File") [] [];
-	init_fields builtins (["eval"],"Uv") [
+	init_fields builtins (["asys";"uv"],"Uv") [
 		"init",StdUv.init;
 		"run",StdUv.run;
 		"stop",StdUv.stop;

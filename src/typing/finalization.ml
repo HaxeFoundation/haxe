@@ -39,10 +39,9 @@ let get_main ctx types =
 				let ef = PMap.find name ec.cl_statics in
 				mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p
 			in
-			let init = mk_call "init" in
 			let run = mk_call "run" in
 			let close = mk_call "close" in
-			mk (TBlock [init;main;run;close]) ctx.t.tvoid p
+			mk (TBlock [main;run;close]) ctx.t.tvoid p
 		with Not_found ->
 			main
 		) in
