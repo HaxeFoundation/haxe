@@ -8,6 +8,16 @@ class InlineCtor {
 	}
 }
 
+class Set {
+	var amount:Int;
+	public inline function new(a:Int) amount = a;
+	public inline function count() return amount;
+}
+
+typedef Countable = {
+	function count():Int;
+}
+
 enum abstract MyEnum(String) to String {
 	var A = "a";
 }
@@ -86,6 +96,17 @@ class Test {
 	}
 
 	@:js('
+		var v_amount = 10;
+		var a = 10;
+	')
+	static function testInlineCtor_passedToInlineMethodAsAnonConstraint() {
+		var a = count(new Set(10));
+	}
+	static inline function count<T:Countable>(v:T) {
+		return v.count();
+	}
+
+	@:js('
 		var x_foo = 1;
 		var x_bar = 2;
 		var y = 1;
@@ -102,9 +123,9 @@ class Test {
 
 	@:js('var x = { "oh-my" : "god"};')
 	static function testStructureInlineInvalidField() {
-        var x = {
-            "oh-my": "god"
-        };
+		var x = {
+			"oh-my": "god"
+		};
 	}
 
 	@:js('
