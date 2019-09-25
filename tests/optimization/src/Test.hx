@@ -144,20 +144,6 @@ class Test {
 	}
 
 	@:js('
-		var _g_min = 0;
-		var _g_max = 10;
-		while(_g_min < 10) {
-			var i = _g_min++;
-		}
-	')
-	static function testInlineIteratorConstraint() {
-		iter(0...10);
-	}
-	static inline function iter<V,T:Iterator<V>>(v:T) {
-		for(i in v) {}
-	}
-
-	@:js('
 		var x_foo = 1;
 		var x_bar = 2;
 		var y = 1;
