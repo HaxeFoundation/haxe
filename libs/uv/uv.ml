@@ -247,7 +247,7 @@ external pipe_accept_pending : t_loop -> t_pipe -> pipe_accepted uv_result = "w_
 external pipe_getsockname : t_pipe -> string uv_result = "w_pipe_getsockname"
 external pipe_getpeername : t_pipe -> string uv_result = "w_pipe_getpeername"
 
-(* ------------- MUTEXES ---------------------------------------------- *)
+(* ------------- MUTEXES -------------------------------------------- *)
 
 type t_mutex
 
@@ -256,7 +256,7 @@ external mutex_lock : t_mutex -> unit = "w_mutex_lock"
 external mutex_trylock : t_mutex -> unit uv_result = "w_mutex_trylock"
 external mutex_unlock : t_mutex -> unit = "w_mutex_unlock"
 
-(* ------------- TLS ---------------------------------------------- *)
+(* ------------- TLS ------------------------------------------------ *)
 
 type t_key
 
@@ -265,7 +265,7 @@ external key_delete : t_key -> unit = "w_key_delete"
 external key_get : t_key -> 'a = "w_key_get"
 external key_set : t_key -> 'a -> unit = "w_key_set"
 
-(* ------------- HAXE ---------------------------------------------- *)
+(* ------------- HAXE ----------------------------------------------- *)
 
 external get_file_open_flags : unit -> (string * int) array = "hx_get_file_open_flags"
 external get_errno : unit -> (string * int) array = "hx_get_errno"

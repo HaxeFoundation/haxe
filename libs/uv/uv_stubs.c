@@ -1232,14 +1232,12 @@ CAMLprim value w_pipe_write_handle(value handle, value data, value send_handle, 
 	UV_SUCCESS_UNIT;
 }
 
-// ------------- MUTEXES -----------------------------------------------
+// ------------- MUTEXES --------------------------------------------
 
 CAMLprim value w_mutex_init(value unit) {
 	CAMLparam1(unit);
 	UV_ALLOC_CHECK(handle, uv_mutex_t);
 	UV_ERROR_CHECK_C(uv_mutex_init(Mutex_val(handle)), free(Mutex_val(handle)));
-	if ((UV_HANDLE_DATA(Mutex_val(handle)) = alloc_data()) == NULL)
-		UV_ERROR(0);
 	UV_SUCCESS(handle);
 }
 
@@ -1261,14 +1259,12 @@ CAMLprim value w_mutex_unlock(value handle) {
 	UV_SUCCESS_UNIT;
 }
 
-// ------------- TLS -----------------------------------------------
+// ------------- TLS ------------------------------------------------
 
 CAMLprim value w_key_create(value unit) {
 	CAMLparam1(unit);
 	UV_ALLOC_CHECK(handle, uv_key_t);
 	UV_ERROR_CHECK_C(uv_key_create(Key_val(handle)), free(Key_val(handle)));
-	if ((UV_HANDLE_DATA(Key_val(handle)) = alloc_data()) == NULL)
-		UV_ERROR(0);
 	UV_SUCCESS(handle);
 }
 
