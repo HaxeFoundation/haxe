@@ -837,7 +837,7 @@ let run com tctx main =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		(* ForRemap.apply tctx; *)
+		ForRemap.apply tctx;
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
 	] in
