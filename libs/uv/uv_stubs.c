@@ -139,12 +139,12 @@
 #define UV_SUCCESS_UNIT UV_SUCCESS(Val_unit);
 
 #define UV_ALLOC_CHECK_C(var, type, cleanup) \
+	CAMLlocal1(var); \
 	type *_native = UV_ALLOC(type); \
 	if (_native == NULL) { \
 		cleanup; \
 		UV_ERROR(0); \
 	} \
-	CAMLlocal1(var); \
 	var = caml_alloc(1, Abstract_tag); \
 	Store_field(var, 0, (value)_native);
 
@@ -207,12 +207,12 @@ CAMLprim value w_loop_alive(value loop) {
 	static void name(uv_fs_t *req) { \
 		CAMLparam0(); \
 		CAMLlocal2(cb, res); \
+		CAMLlocal1(value2); \
 		cb = (value)UV_REQ_DATA(req); \
 		res = caml_alloc(1, req->result < 0 ? 0 : 1); \
 		if (req->result < 0) \
 			Store_field(res, 0, req->result); \
 		else { \
-			CAMLlocal1(value2); \
 			do setup while (0); \
 			Store_field(res, 0, value2); \
 		} \
@@ -294,12 +294,12 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 	} \
 	CAMLprim value w_fs_ ## name ## _sync(value loop, sign) { \
 		CAMLparam1(loop); \
+		CAMLlocal1(ret); \
 		locals; \
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		precall \
 		UV_ERROR_CHECK_C(uv_fs_ ## name(Loop_val(loop), Fs_val(req), call, NULL), free(Fs_val(req))); \
 		UV_ERROR_CHECK_C(Fs_val(req)->result, { uv_fs_req_cleanup(Fs_val(req)); free(Fs_val(req)); }); \
-		CAMLlocal1(ret); \
 		ret = handler ## _sync(Fs_val(req)); \
 		uv_fs_req_cleanup(Fs_val(req)); \
 		free(Fs_val(req)); \
@@ -488,12 +488,12 @@ CAMLprim value w_unref(value handle) {
 static void handle_fs_event_cb(uv_fs_event_t *handle, const char *filename, int events, int status) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
+	CAMLlocal1(event);
 	cb = UV_HANDLE_DATA_SUB(handle, fs_event).cb_fs_event;
 	res = caml_alloc(1, status < 0 ? 0 : 1);
 	if (status < 0)
 		Store_field(res, 0, Val_int(status));
 	else {
-		CAMLlocal1(event);
 		event = caml_alloc(2, 0);
 		Store_field(event, 0, caml_copy_string(filename));
 		Store_field(event, 1, Val_int(events));
@@ -564,13 +564,12 @@ static void handle_stream_cb_alloc(uv_handle_t *handle, size_t suggested_size, u
 
 static void handle_stream_cb_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 	CAMLparam0();
-	CAMLlocal2(cb, res);
+	CAMLlocal3(cb, res, bytes);
 	cb = UV_HANDLE_DATA_SUB(stream, stream).cb_read;
 	res = caml_alloc(1, nread < 0 ? 0 : 1);
 	if (nread < 0)
 		Store_field(res, 0, Val_int(nread));
 	else {
-		CAMLlocal1(bytes);
 		/**
 			FIXME: libuv will not reuse the buffer `buf` after this (we `free` it).
 			Ideally we could allocate an OCaml `bytes` value and make it reference
@@ -750,12 +749,12 @@ CAMLprim value w_tcp_getpeername(value handle) {
 static void handle_udp_cb_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
+	CAMLlocal4(message, message_addr, message_addr_store, bytes);
 	cb = UV_HANDLE_DATA_SUB(handle, udp).cb_read;
 	res = caml_alloc(1, nread < 0 ? 0 : 1);
 	if (nread < 0)
 		Store_field(res, 0, Val_int(nread));
 	else {
-		CAMLlocal4(message, message_addr, message_addr_store, bytes);
 		message = caml_alloc(3, 0);
 		// FIXME: see comment in `handle_stream_cb_read`.
 		bytes = caml_alloc_string(nread);
@@ -926,12 +925,12 @@ CAMLprim value w_udp_set_send_buffer_size(value handle, value size) {
 static void handle_dns_gai_cb(uv_getaddrinfo_t *req, int status, struct addrinfo *gai_res) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
+	CAMLlocal5(infos, cur, info, node, infostore);
 	cb = (value)UV_REQ_DATA(req);
 	res = caml_alloc(1, status < 0 ? 0 : 1);
 	if (status < 0)
 		Store_field(res, 0, Val_int(status));
 	else {
-		CAMLlocal5(infos, cur, info, node, infostore);
 		infos = caml_alloc(2, 0);
 		cur = infos;
 		struct addrinfo *gai_cur = gai_res;
@@ -1055,6 +1054,7 @@ static void handle_process_cb(uv_process_t *handle, int64_t exit_status, int ter
 CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, value cwd, value flags, value stdio, value uid, value gid) {
 	CAMLparam5(loop, cb, file, args, env);
 	CAMLxparam5(cwd, flags, stdio, uid, gid);
+	CAMLlocal1(stdio_entry);
 	UV_ALLOC_CHECK(handle, uv_process_t);
 	if ((UV_HANDLE_DATA(Process_val(handle)) = alloc_data()) == NULL)
 		UV_ERROR(0);
@@ -1068,7 +1068,6 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 		env_u[i] = strdup(String_val(Field(env, i)));
 	env_u[Wosize_val(env)] = NULL;
 	uv_stdio_container_t *stdio_u = malloc(sizeof(uv_stdio_container_t) * Wosize_val(stdio));
-	CAMLlocal1(stdio_entry);
 	for (int i = 0; i < Wosize_val(stdio); i++) {
 		stdio_entry = Field(stdio, i);
 		if (Is_long(stdio_entry)) {
