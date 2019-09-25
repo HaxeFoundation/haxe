@@ -20,13 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
 open ExtList
 open Error
 
-type pos = Globals.pos
+
+type sourcemap = {
+	sources : (string) DynArray.t;
+	sources_hash : (string, int) Hashtbl.t;
+	mappings : Rbuffer.t;
+
+	mutable source_last_pos : sourcemap_pos;
+	mutable print_comma : bool;
+	mutable output_last_col : int;
+	mutable output_current_col : int;
+	mutable current_expr : sourcemap_pos option;
+}
+
+and sourcemap_pos = {
+	file : int;
+	line : int;
+	col : int;
+}
 
 type ctx = {
     com : Common.context;
