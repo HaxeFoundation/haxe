@@ -142,12 +142,12 @@ class HxOverrides {
 
 	@:ifFeature("binop_%")
 	static public function modf(a:Float, b:Float) {
-		return Syntax.code("float('nan') if (b == 0.0) else a % b if a >= 0 else -(-a % b)");
+		return Syntax.code("float('nan') if (b == 0.0) else a % b if a >= 0 and b >= 0 else -(-a % b)");
 	}
 
 	@:ifFeature("binop_%")
 	static public function mod(a:Int, b:Int) {
-		return Syntax.code("a % b if a >= 0 else -(-a % b)");
+		return Syntax.code("a % b if a >= 0 and b >= 0 else -(-a % b)");
 	}
 
 	@:ifFeature("dynamic_array_read")
