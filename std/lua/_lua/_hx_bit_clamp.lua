@@ -6,5 +6,5 @@ _hx_bit_clamp = function(v)
   end
   if v > 2251798999999999 then v = v*2 end;
   if (v ~= v or math.abs(v) == _G.math.huge) then return nil end
-  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))
+  return _hx_bit_raw.band(v, 2147483647 ) - math.abs(_hx_bit_raw.band(v, 2147483648))
 end
