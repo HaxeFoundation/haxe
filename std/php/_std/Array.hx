@@ -84,8 +84,8 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 		Global.array_splice(arr, pos, 0, Syntax.arrayDecl(x));
 	}
 
-	@:keep
-	public function iterator():Iterator<T> {
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():Iterator<T> {
 		return new ArrayIterator(this);
 	}
 
