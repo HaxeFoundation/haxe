@@ -1089,9 +1089,31 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
-	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
-		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
-		| _ -> m,el,p
+	cf.cf_meta <- List.map (fun meta -> match meta with
+		| Meta.AstSource as m,[],p -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
+		| Meta.InheritDoc,[],_ ->
+			let inherited = ref None in
+			let doc =
+				match cf.cf_doc with
+				| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
+				| None -> { doc_own = None; doc_inherited = []; }
+			in
+			cf.cf_doc <- Some doc;
+			doc.doc_inherited <-
+				(fun() ->
+					match !inherited, c.cl_super with
+					| Some s, _ -> !inherited
+					| None, None -> None
+					| None, Some (csup,_) ->
+						(try
+							let cfsup = PMap.find cf.cf_name csup.cl_fields in
+							inherited := gen_doc_text_opt cfsup.cf_doc
+						with Not_found -> ());
+						!inherited
+				)
+				:: doc.doc_inherited;
+			meta
+		| _ -> meta
 	) cf.cf_meta;
 	Option.may (fun cf_parent ->
 		if not (Meta.has Meta.Native cf.cf_meta) then

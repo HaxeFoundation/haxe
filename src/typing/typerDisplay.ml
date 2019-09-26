@@ -149,7 +149,7 @@ let raise_toplevel ctx dk with_type (subject,psubject) =
 
 let display_dollar_type ctx p make_type =
 	let mono = mk_mono() in
-	let doc = Some "Outputs type of argument as a warning and uses argument as value" in
+	let doc = doc_from_string "Outputs type of argument as a warning and uses argument as value" in
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with
 	| DMSignature ->
@@ -263,7 +263,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			begin match follow e1.etype with
 			| TInst({cl_path=([],"Array")},[t]) ->
 				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
-				raise_signatures [res,Some "The array index"] 0 0 SKCall
+				raise_signatures [res,doc_from_string "The array index"] 0 0 SKCall
 			| TAbstract(a,tl) ->
 				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
@@ -495,7 +495,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	| (EConst (Ident "$type"),p),_ ->
 		display_dollar_type ctx p tpair
 	| (EConst (Ident "trace"),_),_ ->
-		let doc = Some "Print given arguments" in
+		let doc = doc_from_string "Print given arguments" in
 		let arg = ["value",false,t_dynamic] in
 		let ret = ctx.com.basic.tvoid in
 		let p = pos e_ast in

@@ -182,7 +182,7 @@ module ConditionDisplay = struct
 								cf_type = t;
 								cf_pos = null_pos;
 								cf_name_pos = null_pos;
-								cf_doc = Some (
+								cf_doc = doc_from_string (
 "Allows comparing defines (such as the version of a Haxelib or Haxe) with SemVer semantics.
 Both the define and the string passed to `version()` must be valid semantic versions.
 
