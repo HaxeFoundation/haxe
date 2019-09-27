@@ -104,6 +104,8 @@ class ServerTests extends HaxeServerTestCase {
 		assertSuccess();
 	}
 
+
+	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -124,7 +126,9 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSkipping("HelloWorld");
 	}
+	#end
 
+	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
@@ -136,6 +140,7 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+	#end
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));

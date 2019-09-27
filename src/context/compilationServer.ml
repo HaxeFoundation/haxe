@@ -145,17 +145,6 @@ class cache = object(self)
 			) cc#get_modules
 		) contexts
 
-	method filter_modules file =
-		let removed = DynArray.create () in
-		(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
-		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun k m ->
-				if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
-			) cc#get_modules
-		) contexts;
-		DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
-		DynArray.to_list removed
-
 	(* haxelibs *)
 
 	method find_haxelib key =
