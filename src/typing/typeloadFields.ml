@@ -992,6 +992,77 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 		| _ ->
 			()
 
+let inherit_doc ctx c cf args p =
+	let inherited = ref None in
+	let doc =
+		match cf.cf_doc with
+		| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
+		| None -> { doc_own = None; doc_inherited = []; }
+	in
+	cf.cf_doc <- Some doc;
+	(match args with
+	| [] ->
+		delay_late ctx PConnectField (fun() ->
+			match c.cl_super with
+			| None -> ()
+			| Some (csup,_) ->
+				try
+					let cfsup = PMap.find cf.cf_name csup.cl_fields in
+					inherited := gen_doc_text_opt cfsup.cf_doc
+				with Not_found -> ()
+		)
+	| [path] ->
+		let pack, name, sub, field =
+			try
+				match string_list_of_expr_path_raise path with
+				| field :: name :: pack_rev ->
+					(match pack_rev with
+					| module_name :: pack_rev when StringHelper.starts_uppercase_identifier module_name ->
+						List.rev pack_rev, module_name, Some name, field
+					| _ ->
+						List.rev pack_rev, name, None, field
+					)
+				| _ -> raise Exit
+			with Exit | Invalid_argument _ ->
+				error "Invalid argument for @:inheritDoc" p
+		in
+		let t =
+			let tp = { tpackage = pack; tname = name; tsub = sub; tparams = []; } in
+			try Some (Typeload.load_instance ctx (tp,p) true)
+			with Error (Module_not_found _,p2) when p == p2 -> None
+		in
+		flush_pass ctx PBuildClass "inheritDoc";
+		(match t with
+		| None -> ()
+		| Some t ->
+			delay ctx PConnectField (fun() ->
+				try
+					let doc =
+						match follow t with
+						| TInst (c, _) ->
+							let cf =
+								try PMap.find field c.cl_fields
+								with Not_found -> PMap.find field c.cl_statics
+							in
+							cf.cf_doc
+						| TEnum (e, _) -> (PMap.find field e.e_constrs).ef_doc
+						| TAnon a -> (PMap.find field a.a_fields).cf_doc
+						| TAbstract ({ a_impl = Some c }, _) ->
+							let cf =
+								try PMap.find field c.cl_fields
+								with Not_found -> PMap.find field c.cl_statics
+							in
+							cf.cf_doc
+						| _ -> raise (Invalid_argument "Not implemented for this kind of types")
+					in
+					inherited := gen_doc_text_opt doc
+				with _ -> ()
+			)
+		)
+	| _ -> error "Too many arguments for @:inheritDoc" p
+	);
+	doc.doc_inherited <- (fun() -> !inherited) :: doc.doc_inherited
+
 let create_method (ctx,cctx,fctx) c f fd p =
 	let params = TypeloadFunction.type_function_params ctx fd (fst f.cff_name) p in
 	if Meta.has Meta.Generic f.cff_meta then begin
@@ -1091,27 +1162,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	cf.cf_meta <- List.map (fun meta -> match meta with
 		| Meta.AstSource as m,[],p -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
-		| Meta.InheritDoc,[],_ ->
-			let inherited = ref None in
-			let doc =
-				match cf.cf_doc with
-				| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
-				| None -> { doc_own = None; doc_inherited = []; }
-			in
-			cf.cf_doc <- Some doc;
-			doc.doc_inherited <-
-				(fun() ->
-					match !inherited, c.cl_super with
-					| Some s, _ -> !inherited
-					| None, None -> None
-					| None, Some (csup,_) ->
-						(try
-							let cfsup = PMap.find cf.cf_name csup.cl_fields in
-							inherited := gen_doc_text_opt cfsup.cf_doc
-						with Not_found -> ());
-						!inherited
-				)
-				:: doc.doc_inherited;
+		| Meta.InheritDoc,args,p ->
+			inherit_doc ctx c cf args p;
 			meta
 		| _ -> meta
 	) cf.cf_meta;

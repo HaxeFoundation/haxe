@@ -18,4 +18,12 @@ class Parent extends GrandParent {
 class Child extends Parent {
 	/** Child doc **/
 	@:inheritDoc override public function test() {}
+	/** Child doc **/
+	@:inheritDoc(misc.InheritDocTypes.Unrelated.unrelated)
+	override public function test2() {}
+}
+
+class Unrelated {
+	/** unrelated doc */
+	static public function unrelated() {}
 }
