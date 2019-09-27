@@ -355,7 +355,7 @@ let gen_doc_text d =
 		in
 		match d.doc_own with Some s -> s :: inherited | None -> inherited
 	in
-	String.concat "\n\n" docs
+	String.concat "\n" docs
 
 
 let gen_doc_text_opt = Option.map gen_doc_text

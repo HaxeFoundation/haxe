@@ -72,6 +72,13 @@ class DisplayTestCase implements utest.ITest {
 		}
 	}
 
+	function field(pos, name:String):Null<FieldElement> {
+		for(field in fields(pos)) {
+			if(field.name == name) return field;
+		}
+		return null;
+	}
+
 	function hasField(a:Array<FieldElement>, name:String, type:String, ?kind:String):Bool {
 		return a.exists(function(t) return t.type == type && t.name == name && (kind == null || t.kind == kind));
 	}

@@ -155,12 +155,13 @@ class DisplayTestContext {
 		}
 		var ret = [];
 		for (xml in xml.elementsNamed("i")) {
-			ret.push({kind: xml.get("k"), type: xml.get("t"), name: xml.firstChild().nodeValue});
+			var doc = [for(d in xml.elementsNamed("d")) d.firstChild().toString()].join('');
+			ret.push({kind: xml.get("k"), type: xml.get("t"), name: xml.firstChild().nodeValue, doc: doc});
 		}
 		return ret;
 	}
 
-	static function extractFields(result:String) {
+	static function extractFields(result:String):Null<Array<FieldElement>> {
 		var xml = Xml.parse(result);
 		xml = xml.firstElement();
 		if (xml.nodeName != "list") {
@@ -168,7 +169,8 @@ class DisplayTestContext {
 		}
 		var ret = [];
 		for (xml in xml.elementsNamed("i")) {
-			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue, kind: xml.get("k")});
+			var doc = [for(d in xml.elementsNamed("d")) d.firstChild().toString()].join('');
+			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue, kind: xml.get("k"), doc: doc});
 		}
 		return ret;
 	}
