@@ -183,8 +183,6 @@ module ServerCompilationContext = struct
 		mutable compilation_mark : int;
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
-		(* A list of modules which were (perhaps temporarily) removed from the cache *)
-		mutable removed_modules : (context_cache * path * module_def) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
 	}
@@ -198,7 +196,6 @@ module ServerCompilationContext = struct
 		compilation_mark = 0;
 		mark_loop = 0;
 		delays = [];
-		removed_modules = [];
 		was_compilation = false;
 	}
 
@@ -209,9 +206,6 @@ module ServerCompilationContext = struct
 		let fl = sctx.delays in
 		sctx.delays <- [];
 		List.iter (fun f -> f()) fl
-
-	let is_removed_module sctx m =
-		List.exists (fun (_,_,m') -> m == m') sctx.removed_modules
 
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
@@ -417,8 +411,6 @@ let add_modules sctx ctx m p =
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
-			| _ when is_removed_module sctx m ->
-				()
 			| _ ->
 				ServerMessage.reusing com tabs m;
 				m.m_extra.m_added <- sctx.compilation_step;
@@ -476,22 +468,11 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 (* Sets up the per-compilation context. *)
 let create sctx write params =
 	let cs = sctx.cs in
-	let recache_removed_modules () =
-		List.iter (fun (cc,k,m) ->
-			try
-				ignore(cc#find_module k);
-			with Not_found ->
-				cc#cache_module k m
-		) sctx.removed_modules;
-		sctx.removed_modules <- []
-	in
 	let maybe_cache_context com =
 		if com.display.dms_full_typing then begin
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
-			sctx.removed_modules <- [];
-		end else
-			recache_removed_modules ()
+		end
 	in
 	let ctx = create_context params in
 	ctx.flush <- (fun() ->
@@ -523,8 +504,7 @@ let create sctx write params =
 			let file = (DisplayPosition.display_position#get).pfile in
 			(* force parsing again : if the completion point have been changed *)
 			cs#remove_files file;
-			sctx.removed_modules <- cs#filter_modules file;
-			add_delay sctx recache_removed_modules;
+			cs#taint_modules file;
 		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
