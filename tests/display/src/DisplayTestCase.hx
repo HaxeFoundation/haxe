@@ -72,9 +72,16 @@ class DisplayTestCase implements utest.ITest {
 		}
 	}
 
-	function field(pos, name:String):Null<FieldElement> {
+	function getField(pos, name:String):Null<FieldElement> {
 		for(field in fields(pos)) {
 			if(field.name == name) return field;
+		}
+		return null;
+	}
+
+	function getToplevel(pos, name:String):Null<ToplevelElement> {
+		for(element in toplevel(pos)) {
+			if(element.name == name) return element;
 		}
 		return null;
 	}

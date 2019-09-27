@@ -807,11 +807,35 @@ let module_pass_2 ctx m decls tdecls p =
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->
 			c.cl_params <- type_type_params ctx c.cl_path (fun() -> c.cl_params) p d.d_params;
-			if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
-			if Meta.has Meta.GenericBuild c.cl_meta then begin
-				if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
-				c.cl_kind <- KGenericBuild d.d_data;
-			end;
+			List.iter
+				(fun meta ->
+					match meta with
+					| Meta.Generic, _, _ when c.cl_params <> [] ->
+						c.cl_kind <- KGeneric
+					| Meta.GenericBuild, _, _ ->
+						if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
+						c.cl_kind <- KGenericBuild d.d_data
+					| Meta.InheritDoc, [], _ ->
+						let inherited = ref None in
+						let doc =
+							match c.cl_doc with
+							| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
+							| None -> { doc_own = None; doc_inherited = []; }
+						in
+						c.cl_doc <- Some doc;
+						doc.doc_inherited <-
+							(fun() ->
+								match !inherited, c.cl_super with
+								| Some s, _ -> !inherited
+								| None, None -> None
+								| None, Some (csup,_) ->
+									inherited := gen_doc_text_opt csup.cl_doc;
+									!inherited
+							)
+							:: doc.doc_inherited;
+					| _ -> ()
+				)
+				c.cl_meta;
 			if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		| (TEnumDecl e, (EEnum d, p)) ->
 			e.e_params <- type_type_params ctx e.e_path (fun() -> e.e_params) p d.d_params;

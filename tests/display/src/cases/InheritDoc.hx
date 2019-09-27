@@ -13,7 +13,7 @@ class InheritDoc extends DisplayTestCase {
 		}
 	**/
 	function testSuperMethod() {
-		var test = field(pos(1), 'test');
+		var test = getField(pos(1), 'test');
 		eq(' Child doc \n GrandParent doc ', test.doc);
 	}
 }
