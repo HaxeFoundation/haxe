@@ -38,7 +38,7 @@ class Net {
 	**/
 	public static function createConnection(options:SocketCreationOptions, ?cb:Callback<NoData>):Socket {
 		var socket = Socket.create(options);
-		if (options.connect != null)
+		if (options != null && options.connect != null)
 			switch (options.connect) {
 				case Tcp(options):
 					socket.connectTcp(options, cb);
@@ -59,7 +59,7 @@ class Net {
 	**/
 	public static function createServer(?options:ServerCreationOptions, ?listener:Listener<Socket>):Server {
 		var server = new Server(options);
-		if (options.listen != null)
+		if (options != null && options.listen != null)
 			switch (options.listen) {
 				case Tcp(options):
 					server.listenTcp(options, listener);

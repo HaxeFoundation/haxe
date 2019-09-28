@@ -26,12 +26,12 @@ class ArraySignal<T> implements Signal<T> {
 		});
 	}
 
-	public function off(?listener:Listener<T>):Void {
-		if (listener != null) {
-			listeners.remove(listener);
-		} else {
-			listeners.resize(0);
-		}
+	public function off(listener:Listener<T>):Void {
+		listeners.remove(listener);
+	}
+
+	public function clear():Void {
+		listeners.resize(0);
 	}
 
 	public function emit(data:T):Void {

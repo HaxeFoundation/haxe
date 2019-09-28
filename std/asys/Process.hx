@@ -10,17 +10,85 @@ import asys.uv.UVProcessSpawnFlags;
 
 /**
 	Options for spawning a process. See `Process.spawn`.
+
+	Either `stdio` or some of `stdin`, `stdout`, and `stderr` can be used define
+	the file descriptors for the new process:
+
+	- `Ignore` - skip the current position. No stream or pipe will be open for
+		this index.
+	- `Inherit` - inherit the corresponding file descriptor from the current
+		process. Shares standard input, standard output, and standard error in
+		index 0, 1, and 2, respectively. In index 3 or higher, `Inherit` has the
+		same effect as `Ignore`.
+	- `Pipe(readable, writable, ?pipe)` - create or use a pipe. `readable` and
+		`writable` specify whether the pipe will be readable and writable from
+		the point of view of the spawned process. If `pipe` is given, it is used
+		directly, otherwise a new pipe is created.
+	- `Ipc` - create an IPC (inter-process communication) pipe. Only one may be
+		specified in `options.stdio`. This special pipe will not have an entry in
+		the `stdio` array of the resulting process; instead, messages can be sent
+		using the `send` method, and received over `messageSignal`. IPC pipes
+		allow sending and receiving structured Haxe data, as well as connected
+		sockets and pipes.
 **/
 typedef ProcessSpawnOptions = {
+	/**
+		Path to the working directory. Defaults to the current working directory if
+		not given.
+	**/
 	?cwd:FilePath,
+	/**
+		Environment variables. Defaults to the environment variables of the current
+		process if not given.
+	**/
 	?env:Map<String, String>,
+	/**
+		First entry in the `argv` array for the spawned process. Defaults to
+		`command` if not given.
+	**/
 	?argv0:String,
+	/**
+		Array of `ProcessIO` specifications, see `Process.spawn`. Must be `null` if
+		any of `stdin`, `stdout`, or `stderr` are specified.
+	**/
 	?stdio:Array<ProcessIO>,
+	/**
+		`ProcessIO` specification for file descriptor 0, the standard input. Must
+		be `null` if `stdio` is specified.
+	**/
+	?stdin:ProcessIO,
+	/**
+		`ProcessIO` specification for file descriptor 1, the standard output. Must
+		be `null` if `stdio` is specified.
+	**/
+	?stdout:ProcessIO,
+	/**
+		`ProcessIO` specification for file descriptor 2, the standard error. Must
+		be `null` if `stdio` is specified.
+	**/
+	?stderr:ProcessIO,
+	/**
+		When `true`, creates a detached process which can continue running after
+		the current process exits. Note that `unref` must be called on the spawned
+		process otherwise the event loop of the current process is kept alive.
+	**/
 	?detached:Bool,
+	/**
+		User identifier.
+	**/
 	?uid:Int,
+	/**
+		Group identifier.
+	**/
 	?gid:Int,
 	// ?shell:?,
+	/**
+		(Windows only.) Do not perform automatic quoting or escaping of arguments.
+	**/
 	?windowsVerbatimArguments:Bool,
+	/**
+		(Windows only.) Automatically hide the window of the spawned process.
+	**/
 	?windowsHide:Bool
 };
 
@@ -30,27 +98,8 @@ typedef ProcessSpawnOptions = {
 class Process {
 	/**
 		Execute the given `command` with `args` (none by default). `options` can be
-		specified to change the way the process is spawned.
-
-		`options.stdio` is an optional array of `ProcessIO` specifications which
-		can be used to define the file descriptors for the new process:
-
-		- `Ignore` - skip the current position. No stream or pipe will be open for
-			this index.
-		- `Inherit` - inherit the corresponding file descriptor from the current
-			process. Shares standard input, standard output, and standard error in
-			index 0, 1, and 2, respectively. In index 3 or higher, `Inherit` has the
-			same effect as `Ignore`.
-		- `Pipe(readable, writable, ?pipe)` - create or use a pipe. `readable` and
-			`writable` specify whether the pipe will be readable and writable from
-			the point of view of the spawned process. If `pipe` is given, it is used
-			directly, otherwise a new pipe is created.
-		- `Ipc` - create an IPC (inter-process communication) pipe. Only one may be
-			specified in `options.stdio`. This special pipe will not have an entry in
-			the `stdio` array of the resulting process; instead, messages can be sent
-			using the `send` method, and received over `messageSignal`. IPC pipes
-			allow sending and receiving structured Haxe data, as well as connected
-			sockets and pipes.
+		specified to change the way the process is spawned. See
+		`ProcessSpawnOptions` for a description of the options.
 
 		Pipes are made available in the `stdio` array after the process is
 		spawned. Standard file descriptors have their own variables:
@@ -65,24 +114,6 @@ class Process {
 		If `options.stdio` is not given,
 		`[Pipe(true, false), Pipe(false, true), Pipe(false, true)]` is used as a
 		default.
-
-		@param options.cwd Path to the working directory. Defaults to the current
-			working directory if not given.
-		@param options.env Environment variables. Defaults to the environment
-			variables of the current process if not given.
-		@param options.argv0 First entry in the `argv` array for the spawned
-			process. Defaults to `command` if not given.
-		@param options.stdio Array of `ProcessIO` specifications, see above.
-		@param options.detached When `true`, creates a detached process which can
-			continue running after the current process exits. Note that `unref` must
-			be called on the spawned process otherwise the event loop of the current
-			process is kept allive.
-		@param options.uid User identifier.
-		@param options.gid Group identifier.
-		@param options.windowsVerbatimArguments (Windows only.) Do not perform
-			automatic quoting or escaping of arguments.
-		@param options.windowsHide (Windows only.) Automatically hide the window of
-			the spawned process.
 	**/
 	extern public static function spawn(command:String, ?args:Array<String>, ?options:ProcessSpawnOptions):Process;
 
@@ -91,7 +122,11 @@ class Process {
 	**/
 	public final closeSignal:Signal<NoData> = new ArraySignal();
 
-	// public final disconnectSignal:Signal<NoData> = new ArraySignal(); // IPC
+	/**
+		Emitted when `this` process disconnects from the IPC channel, if one was
+		established.
+	**/
+	public final disconnectSignal:Signal<NoData> = new ArraySignal();
 
 	/**
 		Emitted when an error occurs during communication with `this` process.
@@ -109,8 +144,16 @@ class Process {
 	**/
 	public var messageSignal(default, null):Signal<IpcMessage>;
 
+	/**
+		`true` when IPC communication is available, indicating that messages may be
+		received with `messageSignal` and sent with `send`.
+	**/
 	public var connected(default, null):Bool = false;
-	public var killed:Bool;
+
+	/**
+		Set to `true` if the `kill` was used to send a signal to `this` process.
+	**/
+	public var killed(default, null):Bool = false;
 
 	extern private function get_pid():Int;
 
@@ -144,11 +187,10 @@ class Process {
 	**/
 	public var stdio:Array<Socket>;
 
-	var ipc:Socket;
-	var ipcOut:asys.io.IpcSerializer;
-	var ipcIn:asys.io.IpcUnserializer;
-
-	// public function disconnect():Void; // IPC
+	/**
+		Disconnect `this` process from the IPC channel.
+	**/
+	extern public function disconnect():Void;
 
 	/**
 		Send a signal to `this` process.
@@ -173,6 +215,10 @@ class Process {
 	extern public function ref():Void;
 
 	extern public function unref():Void;
+
+	var ipc:Socket;
+	var ipcOut:asys.io.IpcSerializer;
+	var ipcIn:asys.io.IpcUnserializer;
 
 	private function new() {}
 }

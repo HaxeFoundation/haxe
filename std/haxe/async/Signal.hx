@@ -29,7 +29,12 @@ interface Signal<T> {
 	/**
 		Removes the given listener from `this` signal.
 	**/
-	function off(?listener:Listener<T>):Void;
+	function off(listener:Listener<T>):Void;
+
+	/**
+		Removes all listeners from `this` signal.
+	**/
+	function clear():Void;
 
 	/**
 		Emits `data` to all current listeners of `this` signal.

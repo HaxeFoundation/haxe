@@ -9,8 +9,11 @@ enum abstract FileAccessMode(Int) {
 	var Write = 1 << 1;
 	var Read = 1 << 2;
 
+	inline function new(value:Int)
+		this = value;
+
 	inline function get_raw():Int return this;
 
 	@:op(A | B)
-	inline function join(other:FileAccessMode) return this | other.get_raw();
+	inline function join(other:FileAccessMode):FileAccessMode return new FileAccessMode(this | other.get_raw());
 }

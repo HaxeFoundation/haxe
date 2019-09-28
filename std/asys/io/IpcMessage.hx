@@ -13,7 +13,7 @@ typedef IpcMessage = {
 		The actual message. May be any data that is serializable with
 		`haxe.Serializer`.
 	**/
-	var message:Dynamic;
+	var message:Any;
 	/**
 		Sockets and pipes associated with the message. Must be connected.
 	**/

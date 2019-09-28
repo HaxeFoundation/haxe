@@ -2,7 +2,7 @@ package haxe.io;
 
 import haxe.Error;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.async.Signal;
 
 /**
 	A readable stream.

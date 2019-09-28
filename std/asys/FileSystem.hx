@@ -71,8 +71,6 @@ extern class FileSystem {
 		If `path` points to a symbolic link, this function will change the
 		permissions of the target file, not the symbolic link itself, unless
 		`followSymLinks` is set to `false`.
-
-		TODO: `followSymLinks == false` is not implemented and will throw.
 	**/
 	static function chown(path:FilePath, uid:Int, gid:Int, ?followSymLinks:Bool = true):Void;
 
@@ -131,7 +129,7 @@ extern class FileSystem {
 	/**
 		Opens the file located at `path`.
 	**/
-	static function open(path:FilePath, ?flags:FileOpenFlags /* a */, ?mode:FilePermissions /* 0666 */, ?binary:Bool = true):File;
+	static function open(path:FilePath, ?flags:FileOpenFlags /* a */, ?mode:FilePermissions /* 0666 */):File;
 
 	/**
 		Reads the contents of a directory specified by `path`. Returns an array of
@@ -169,6 +167,13 @@ extern class FileSystem {
 	static function rename(oldPath:FilePath, newPath:FilePath):Void;
 
 	/**
+		Resizes the file located at `path` to exactly `len` bytes. If the file was
+		larger than `len` bytes, the extra data is lost. If the file was smaller
+		than `len` bytes, the file is extended with null bytes.
+	**/
+	static function resize(path:FilePath, ?len:Int = 0):Void;
+
+	/**
 		Deletes the directory located at `path`. If the directory is not empty or
 		cannot be deleted, an error is thrown.
 	**/
@@ -189,13 +194,6 @@ extern class FileSystem {
 		The `type` argument is ignored on all platforms except `Windows`.
 	**/
 	static function symlink(target:FilePath, path:FilePath, ?type:SymlinkType = SymlinkType.SymlinkDir):Void;
-
-	/**
-		Truncates the file located at `path` to exactly `len` bytes. If the file was
-		larger than `len` bytes, the extra data is lost. If the file was smaller
-		than `len` bytes, the file is extended with null bytes.
-	**/
-	static function truncate(path:FilePath, ?len:Int = 0):Void;
 
 	/**
 		Deletes the file located at `path`.

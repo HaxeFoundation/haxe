@@ -20,6 +20,14 @@ class CurrentProcess {
 	static var ipcIn:IpcUnserializer;
 
 	/**
+		Environment variables, as available to the process when it was created.
+		This map can be modified, but the changes will only be visible within the
+		current process. Use `asys.System.setEnv` to make modifications which will
+		be available in other processes in the same shell.
+	**/
+	public static var environment(default, null):Map<String, String>;
+
+	/**
 		Initialise the IPC channel on the given file descriptor `fd`. This should
 		only be used when the current process was spawned with `Process.spawn` from
 		another Haxe process. `fd` should correspond to the index of the `Ipc`

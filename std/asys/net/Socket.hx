@@ -34,10 +34,13 @@ class Socket extends Duplex {
 	}
 
 	/**
-		Emitted when the socket connects to a remote endpoint.
+		Emitted when the handle is closed.
 	**/
 	public final closeSignal:Signal<NoData> = new ArraySignal();
 
+	/**
+		Emitted when the socket connects to a remote endpoint.
+	**/
 	public final connectSignal:Signal<NoData> = new ArraySignal();
 
 	// endSignal

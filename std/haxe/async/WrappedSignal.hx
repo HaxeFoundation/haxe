@@ -34,12 +34,13 @@ class WrappedSignal<T> implements Signal<T> {
 		changeSignal.emit(new NoData());
 	}
 
-	public function off(?listener:Listener<T>):Void {
-		if (listener != null) {
-			listeners.remove(listener);
-		} else {
-			listeners.resize(0);
-		}
+	public function off(listener:Listener<T>):Void {
+		listeners.remove(listener);
+		changeSignal.emit(new NoData());
+	}
+
+	public function clear():Void {
+		listeners.resize(0);
 		changeSignal.emit(new NoData());
 	}
 
