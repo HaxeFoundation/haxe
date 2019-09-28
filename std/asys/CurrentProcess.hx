@@ -39,7 +39,7 @@ class CurrentProcess {
 		ipc = Socket.create();
 		ipcOut = @:privateAccess new IpcSerializer(ipc);
 		ipcIn = @:privateAccess new IpcUnserializer(ipc);
-		ipc.connectFd(true, fd);
+		ipc.connectFd(fd, true);
 		ipc.errorSignal.on(err -> trace("IPC error", err));
 		ipcIn.messageSignal.on(message -> messageSignal.emit(message));
 	}

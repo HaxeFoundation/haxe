@@ -122,7 +122,7 @@ class Socket extends Duplex {
 
 		@param ipc Whether IPC features (sending sockets) should be enabled.
 	**/
-	extern public function connectFd(ipc:Bool, fd:Int):Void;
+	extern public function connectFd(fd:Int, ipc:Bool):Void;
 
 	/**
 		Closes `this` socket and all underlying resources.
