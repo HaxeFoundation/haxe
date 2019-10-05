@@ -63,6 +63,7 @@ stages:
               TEST: python
             lua:
               TEST: lua
+              APT_PACKAGES: ncurses-dev
         steps:
           - checkout: self
             fetchDepth: 20
