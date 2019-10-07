@@ -41,7 +41,7 @@ import Reflect;
 @:dox(hide)
 class Boot {
 	@:keep public static function init():Void {
-		#if !std_encoding_auto
+		#if std_encoding_utf8
 			cs.system.Console.InputEncoding = new cs.system.text.UTF8Encoding();
 			cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
 		#end

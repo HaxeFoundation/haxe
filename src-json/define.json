@@ -551,9 +551,9 @@
 		"doc": "Defined if the current target is static."
 	},
 	{
-		"name": "StdEncodingAuto",
-		"define": "std-encoding-auto",
-		"doc": "Use default encoding for stdin, stdout and stderr instead of forcing utf-8",
+		"name": "StdEncodingUtf8",
+		"define": "std-encoding-utf8",
+		"doc": "Force utf8 encoding for stdin, stdout and stderr",
 		"platforms": ["java", "cs", "python"]
 	},
 	{

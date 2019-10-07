@@ -2505,7 +2505,7 @@ module Generator = struct
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
 			spr ctx "from functools import partial as _hx_partial\n";
 		spr ctx "import sys\n";
-		if not (defined com Define.StdEncodingAuto) then begin
+		if defined com Define.StdEncodingUtf8 then begin
 			spr ctx "try:\n";
 			spr ctx "    if sys.stdout.encoding != 'utf-8':\n";
 			spr ctx "        sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)\n";
