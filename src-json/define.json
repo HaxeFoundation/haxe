@@ -551,6 +551,12 @@
 		"doc": "Defined if the current target is static."
 	},
 	{
+		"name": "StdEncodingUtf8",
+		"define": "std-encoding-utf8",
+		"doc": "Force utf8 encoding for stdin, stdout and stderr",
+		"platforms": ["java", "cs", "python"]
+	},
+	{
 		"name": "Swc",
 		"define": "swc",
 		"doc": "Output a SWC instead of a SWF.",
