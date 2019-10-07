@@ -104,9 +104,10 @@ let expand_env ?(h=None) path  =
 	) path
 
 let add_libs com libs =
+	let global_repo = List.exists (fun a -> a = "--haxelib-global") com.args in
 	let call_haxelib() =
 		let t = Timer.timer ["haxelib"] in
-		let cmd = "haxelib path " ^ String.concat " " libs in
+		let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
 		let err = Std.input_list perr in
@@ -939,6 +940,7 @@ try
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			assert false
 		),"<dir>","set current working directory");
+		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 	] in
 	let args_callback cl =
 		begin try
