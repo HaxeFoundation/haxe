@@ -158,7 +158,7 @@ import php.*;
 			result += f(this);
 			bytesOffset = matches[0][1];
 			if(matches[0][0] == '') {
-				result += Global.substr(s, bytesOffset, 1);
+				result += Global.mb_substr(Global.substr(s, bytesOffset), 0, 1);
 				bytesOffset++;
 			} else {
 				bytesOffset += Global.strlen(matches[0][0]);

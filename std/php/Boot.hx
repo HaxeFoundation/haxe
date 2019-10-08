@@ -616,7 +616,7 @@ class Boot {
 	}
 
 	/**
-		Get UTF-8 code of che first character in `s` without any checks
+		Get UTF-8 code of the first character in `s` without any checks
 	**/
 	static public inline function unsafeOrd(s:NativeString):Int {
 		var code = Global.ord(s[0]);
