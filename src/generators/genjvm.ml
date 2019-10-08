@@ -43,11 +43,13 @@ let rec pow a b = match b with
 
 let java_hash s =
 	let h = ref Int32.zero in
-	let l = String.length s in
+	let l = UTF8.length s in
 	let i31 = Int32.of_int 31 in
-	String.iteri (fun i char ->
-		let char = Int32.of_int (int_of_char char) in
-		h := Int32.add !h (Int32.mul char (pow i31 (l - (i + 1))))
+	let i = ref 0 in
+	UTF8.iter (fun char ->
+		let char = Int32.of_int (UCharExt.uint_code char) in
+		h := Int32.add !h (Int32.mul char (pow i31 (l - (!i + 1))));
+		incr i;
 	) s;
 	!h
 
