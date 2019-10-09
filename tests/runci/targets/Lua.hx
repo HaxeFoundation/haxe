@@ -39,6 +39,18 @@ class Lua {
 
 		getLuaDependencies();
 
+		var variants = [[], ["-D", "lua-vanilla"]];
+		var luaFiles = [];
+
+		changeDirectory(unitDir);
+		for (variantArgs in variants) {
+			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(variantArgs));
+			var postfix = if (variantArgs.length > 0) variantArgs.join("") else "NORMAL";
+			var targetFile = "bin/unit"+postfix+".lua";
+			FileSystem.rename("bin/unit.lua", targetFile);
+			luaFiles.push(targetFile);
+		}
+
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
 
 			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
@@ -65,8 +77,10 @@ class Lua {
 			installLib("haxe-deps", "0.0.1-1");
 
 			changeDirectory(unitDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
-			runCommand("lua", ["bin/unit.lua"]);
+			for (file in luaFiles) {
+				trace('file: ' + file);
+				runCommand("lua", [file]);
+			}
 
 			changeDirectory(sysDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
