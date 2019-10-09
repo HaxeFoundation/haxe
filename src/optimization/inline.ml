@@ -152,8 +152,8 @@ let api_inline ctx c field params p =
 			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
 				Some iof
 			else begin
-				let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
-				let null = mk (TConst TNull) (mk_mono()) p in
+				let enum = mk (TField (o, FDynamic "__enum__")) t_dynamic p in
+				let null = mk (TConst TNull) t_dynamic p in
 				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 			end
