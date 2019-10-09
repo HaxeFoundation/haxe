@@ -37,6 +37,7 @@ import php.*;
 		this.pattern = r;
 		options = Global.str_replace('g', '', opt);
 		global = options != opt;
+		options = Global.str_replace('u', '', options);
 		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + options;
 	}
 
