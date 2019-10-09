@@ -302,17 +302,7 @@ class Boot {
 		A 32 bit clamp function for numbers
 	**/
 	public inline static function clampInt32(x:Float) {
-#if lua_vanilla
-		if (x < Min_Int32 ) {
-			return Min_Int32;
-		} else if (x > Max_Int32) {
-			return Max_Int32;
-		} else {
-			return Math.floor(x);
-		}
-#else
-		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
-#end
+        return untyped _hx_bit_clamp(x);
 	}
 
 	/**

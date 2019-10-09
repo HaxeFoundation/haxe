@@ -2060,10 +2060,7 @@ let generate com =
     List.iter (transform_multireturn ctx) com.types;
     List.iter (generate_type ctx) com.types;
 
-    if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
-        print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
-    end;
+    print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
