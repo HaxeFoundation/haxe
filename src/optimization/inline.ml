@@ -149,10 +149,14 @@ let api_inline ctx c field params p =
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
 			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
-			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
-			let null = mk (TConst TNull) (mk_mono()) p in
-			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
-			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+				Some iof
+			else begin
+				let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
+				let null = mk (TConst TNull) (mk_mono()) p in
+				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			end
 		| TTypeExpr (TClassDecl cls) ->
 			if cls.cl_interface then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
