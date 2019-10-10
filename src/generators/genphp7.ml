@@ -3596,9 +3596,10 @@ class class_builder ctx (cls:tclass) =
 			let visibility = get_visibility field.cf_meta in
 			writer#write (visibility ^ " $" ^ (field_name field));
 			match field.cf_expr with
-				| None -> writer#write ";\n"
+				| None ->
+					writer#write ";\n"
 				| Some { eexpr = TConst (TInt value) } when value = Int32.min_int ->
-					writer#write (" = " ^ (Int32.to_string value) ^ ";\n")
+					writer#write ";\n"
 				| Some expr ->
 					match expr.eexpr with
 						| TConst _ ->
