@@ -2,6 +2,7 @@
 
 (library
 	(name ttflib)
-	(libraries extlib extlib_leftovers swflib)
+	(libraries extlib extlib_leftovers swflib unix)
+	(modules (:standard \ main))
 	(wrapped false)
 )

@@ -29,6 +29,19 @@ EXTENSION=
 LFLAGS=
 STATICLINK?=0
 
+SYSTEM_NAME=Unknown
+ifeq ($(OS),Windows_NT)
+	SYSTEM_NAME=Windows
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		SYSTEM_NAME=Linux
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		SYSTEM_NAME=Mac
+	endif
+endif
+
 # Configuration
 
 ADD_REVISION?=0
@@ -60,6 +73,11 @@ haxe:
 	_build/default/src-prebuild/prebuild.exe version $(ADD_REVISION) $(BRANCH) $(COMMIT_SHA) > src/compiler/version.ml
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
+
+plugin: haxe
+	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
+	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
 kill_exe_win:
 ifdef SYSTEMROOT
