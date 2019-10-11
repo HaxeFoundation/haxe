@@ -1,0 +1,9 @@
+(include_subdirs no)
+
+(library
+	(name myplugin)
+	(libraries
+		haxe
+	)
+	(wrapped false)
+)

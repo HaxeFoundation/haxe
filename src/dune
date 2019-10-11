@@ -6,10 +6,10 @@
 	)
 )
 
-(executable
+
+(library
 	(name haxe)
-	(public_name haxe)
-	(package haxe)
+	(modules (:standard \ Haxe))
 	(libraries
 		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
 		json
@@ -19,5 +19,14 @@
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
 	))
+	(wrapped false)
+)
+
+(executable
+	(name haxe)
+	(public_name haxe)
+	(package haxe)
+	(libraries haxe)
 	(link_flags (:include ../lib.sexp))
+	(modules Haxe)
 )
