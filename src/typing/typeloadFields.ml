@@ -159,6 +159,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
+			| Var { v_write = AccNever } -> args,el,tl
 			| Var _ ->
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
