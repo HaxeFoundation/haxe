@@ -84,6 +84,9 @@ class HuffTools {
 	}
 
 	public function make(lengths, pos, nlengths, maxbits) {
+		if (nlengths == 1) {
+			return NeedBit(Found(0), Found(0));
+		}
 		var counts = new Array();
 		var tmp = new Array();
 		if (maxbits > 32)
