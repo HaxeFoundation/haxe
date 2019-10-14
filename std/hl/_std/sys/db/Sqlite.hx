@@ -78,7 +78,7 @@ private class SqliteConnection implements Connection {
 	var c:SqliteConnectionHandle;
 
 	public function new(file:String) {
-		c = SqliteLib.connect(Sys.getPath(file));
+		c = SqliteLib.connect(file.bytes);
 	}
 
 	public function close():Void {
