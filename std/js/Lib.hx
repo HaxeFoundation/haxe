@@ -72,6 +72,17 @@ class Lib {
 	}
 
 	/**
+		Checks a value against JavaScript `undefined` value.
+
+		Note that this is only needed in very rare cases when working with external JavaScript code.
+
+		In Haxe, `null` is used to represent the absence of a value.
+	**/
+	public static inline function isUndefined<T>(value:T):Bool {
+		return untyped __js__("{0} === undefined", value);
+	}
+
+	/**
 		`nativeThis` is the JavaScript `this`, which is semantically different
 		from the Haxe `this`. Use `nativeThis` only when working with external
 		JavaScript code.
