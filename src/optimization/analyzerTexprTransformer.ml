@@ -342,6 +342,8 @@ let rec func ctx bb tf t p =
 		bb,ef
 	and block_element bb e = match e.eexpr with
 		(* variables *)
+        | TFor(v, e1, e2)->
+            bb
 		| TVar(v,None) ->
 			add_texpr bb e;
 			bb
@@ -616,7 +618,8 @@ let rec func ctx bb tf t p =
 			block_el bb el
 		| TObjectDecl fl ->
 			block_el bb (List.map snd fl)
-		| TFor _ | TWhile(_,_,DoWhile) ->
+		(* | TFor _ *)
+        | TWhile(_,_,DoWhile) ->
 			assert false
 	and block_el bb el =
 		match !b_try_stack with

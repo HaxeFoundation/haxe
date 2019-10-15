@@ -369,9 +369,9 @@ module TexprFilter = struct
 			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
 			let e = mk (TWhile(Texpr.Builder.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
-		| TFor(v,e1,e2) ->
-			let e = Texpr.for_remap com.basic v e1 e2 e.epos in
-			loop e
+		(* | TFor(v,e1,e2) -> *)
+		(* 	let e = Texpr.for_remap com.basic v e1 e2 e.epos in *)
+		(* 	loop e *)
 		| _ ->
 			Type.map_expr loop e
 		in

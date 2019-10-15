@@ -344,8 +344,9 @@ module IterationKind = struct
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->
-			begin try optimize_for_loop_iterator ctx v e1 e2 p
-			with Exit -> mk (TFor(v,e1,e2)) t_void p end
+            mk (TFor(v,e1,e2)) t_void p
+			(* begin try optimize_for_loop_iterator ctx v e1 e2 p *)
+			(* with Exit -> mk (TFor(v,e1,e2)) t_void p end *)
 		| IteratorGenericStack c ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
 			let cell = gen_local ctx tcell p in
