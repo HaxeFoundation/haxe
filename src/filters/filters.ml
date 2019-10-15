@@ -794,14 +794,14 @@ let filter_timer detailed s =
 module ForRemap = struct
 	let apply ctx e =
 		let rec loop e = match e.eexpr with
-		| TFor(v,e1,e2) ->
-			let e1 = loop e1 in
-			let e2 = loop e2 in
-			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in
-			let restore = save_locals ctx in
-			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
-			restore();
-			e
+		(* | TFor(v,e1,e2) -> *)
+		(* 	let e1 = loop e1 in *)
+		(* 	let e2 = loop e2 in *)
+		(* 	let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in *)
+		(* 	let restore = save_locals ctx in *)
+		(* 	let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in *)
+		(* 	restore(); *)
+		(* 	e *)
 		| _ ->
 			Type.map_expr loop e
 		in
