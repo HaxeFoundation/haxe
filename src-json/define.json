@@ -164,6 +164,11 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "FilterTimes",
+		"define": "filter_times",
+		"doc": "Record per-filter execution times upon --times."
+	},
+	{
 		"name": "FastCast",
 		"define": "fast_cast",
 		"doc": "Enables an experimental casts cleanup on C# and Java.",
