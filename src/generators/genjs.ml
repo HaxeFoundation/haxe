@@ -1776,7 +1776,7 @@ let generate com =
 	end;
 	if has_feature ctx "$global.$haxeUID" then begin
 		add_feature ctx "js.Lib.global";
-		print ctx "if(typeof $global.$haxeUID == \"undefined\") $global.$haxeUID = 0;\n";
+		print ctx "$global.$haxeUID |= 0;\n";
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
