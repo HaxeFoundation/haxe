@@ -623,7 +623,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
 			let bps = List.map (parse_breakpoint hctx) bps in
-			let hash = hash (Path.unique_full_path (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
+			let hash = hash (Path.UniqueFileKey.create_key (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
 			let h =
 				try
 					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in

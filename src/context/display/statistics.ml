@@ -37,9 +37,9 @@ let collect_statistics ctx pfilter =
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = Path.unique_full_path path in
-				Hashtbl.add paths path unique;
-				unique
+				let unique = Path.UniqueFileKey.create path in
+				Hashtbl.add paths path (Path.UniqueFileKey.get_key unique);
+				(Path.UniqueFileKey.get_path unique)
 		)
 	in
 	let check_pos = match pfilter with

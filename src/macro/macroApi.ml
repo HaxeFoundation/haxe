@@ -1914,7 +1914,7 @@ let macro_api ccom get_api =
 			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
 			List.iter (fun v ->
 				let s = decode_string v in
-				let s = Path.unique_full_path s in
+				let s = Path.UniqueFileKey.create s in
 				cs#taint_modules s;
 				cs#remove_files s;
 			) (decode_array a);

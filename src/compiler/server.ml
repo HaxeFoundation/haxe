@@ -131,8 +131,9 @@ let current_stdin = ref None
 
 let parse_file cs com file p =
 	let cc = CommonCache.get_cache cs com in
-	let ffile = Path.unique_full_path file in
-	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
+	let fkey = Path.UniqueFileKey.create file in
+	let ffile = Path.UniqueFileKey.get_path fkey in
+	let is_display_file = Path.get_real_path file = (DisplayPosition.display_position#get).pfile in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
@@ -140,7 +141,7 @@ let parse_file cs com file p =
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = cc#find_file ffile in
+				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
 			with Not_found ->
@@ -156,7 +157,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data;
+							cc#cache_file fkey ftime data;
 							"cached",false
 						end
 				in
@@ -288,7 +289,7 @@ let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
-		let ffile = Path.unique_full_path file in
+		let ffile = Path.UniqueFileKey.create file in
 		try
 			let cfile = cc#find_file ffile in
 			(* We must use the module path here because the file path is absolute and would cause
@@ -332,7 +333,7 @@ let check_module sctx ctx m p =
 						match load m.m_path p with
 						| None -> loop l
 						| Some _ ->
-							if Path.unique_full_path file <> m.m_extra.m_file then begin
+							if Path.get_real_path file <> m.m_extra.m_file then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 								raise Not_found;
 							end
@@ -501,7 +502,7 @@ let create sctx write params =
 		(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 			current file in order to run diagnostics on it again. *)
 		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
-			let file = (DisplayPosition.display_position#get).pfile in
+			let file = Path.UniqueFileKey.create (DisplayPosition.display_position#get).pfile in
 			(* force parsing again : if the completion point have been changed *)
 			cs#remove_files file;
 			cs#taint_modules file;

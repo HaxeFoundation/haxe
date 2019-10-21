@@ -347,15 +347,17 @@ let exc_protect ?(force=true) ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Path.unique_full_path file in
-	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
+	let fkey = Path.UniqueFileKey.create file in
+	let key = Path.UniqueFileKey.get_key fkey in
+	let file = Path.UniqueFileKey.get_path fkey in
+	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
 			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
 		} in
-		Hashtbl.add fake_modules file mdep;
+		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;

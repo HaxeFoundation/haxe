@@ -40,7 +40,7 @@ class display_position_container =
 			Check if `file` contains current display position
 		*)
 		method is_in_file file =
-			file <> "?" && Path.unique_full_path file = pos.pfile
+			file <> "?" && Path.get_real_path file = pos.pfile
 		(**
 			Cut `p` at the position of the latest `display_position#set pos` call.
 		*)

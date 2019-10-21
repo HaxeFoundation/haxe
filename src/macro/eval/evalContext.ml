@@ -410,7 +410,7 @@ let create_env_info static pfile kind capture_infos =
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
-		pfile_unique = hash (Path.unique_full_path pfile);
+		pfile_unique = hash (Path.UniqueFileKey.create_key pfile);
 		capture_infos = capture_infos;
 	} in
 	info

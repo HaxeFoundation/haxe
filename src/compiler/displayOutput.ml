@@ -141,7 +141,7 @@ let print_type t p doc =
 	if p = null_pos then
 		Buffer.add_string b "<type"
 	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" (Path.unique_full_path file) line in
+		let error_printer file line = Printf.sprintf "%s:%d:" (Path.get_real_path file) line in
 		let epos = Lexer.get_error_pos error_printer p in
 		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\"")
 	end;
@@ -283,12 +283,12 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
-			pfile = Path.unique_full_path file;
+			pfile = Path.get_real_path file;
 			pmin = pos;
 			pmax = pos;
 		}
 
-let file_input_marker = Path.unique_full_path "? input"
+let file_input_marker = Path.get_real_path "? input"
 
 type display_path_kind =
 	| DPKNormal of path

@@ -94,7 +94,7 @@ let read_class_paths com timer =
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file = Path.unique_full_path file in
+				let file = Path.UniqueFileKey.create file in
 				(CommonCache.get_cache cs com)#remove_file_for_real file
 			| _ ->
 				()
@@ -119,7 +119,7 @@ let init_or_update_server cs com timer_name =
 	Hashtbl.iter (fun file () ->
 		DynArray.add removed_removed_files file;
 		try
-			ignore(cc#find_file file);
+			ignore(cc#find_file (Path.UniqueFileKey.create file));
 		with Not_found ->
 			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
 	) removed_files;

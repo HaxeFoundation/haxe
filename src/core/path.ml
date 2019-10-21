@@ -95,14 +95,6 @@ let get_real_path =
 	else
 		get_full_path
 
-(** Returns absolute path guaranteed to be the same for different letter case.
-    Use where equality comparison is required, lowercases the path on Windows *)
-let unique_full_path =
-	if Globals.is_windows then
-		(fun f -> String.lowercase (get_full_path f))
-	else
-		get_full_path
-
 let add_trailing_slash p =
 	let l = String.length p in
 	if l = 0 then
@@ -257,4 +249,36 @@ module FilePath = struct
 					Some path,None
 			end in
 			create dir file ext backslash
+end
+
+module UniqueFileKey : sig
+	type t
+	val create : string -> t
+	val create_key : string -> string
+	val get_path : t -> string
+	val get_key : t -> string
+end =
+struct
+	type t = string
+
+	(**
+		Returns absolute path guaranteed to be the same for different letter case.
+		Use where equality comparison is required, lowercases the path on Windows
+	*)
+	let create =
+		if Globals.is_windows then
+			(fun f -> String.lowercase (get_full_path f))
+		else
+			get_full_path
+	let create_key = create
+
+
+	let get_path t =
+		if Globals.is_windows then
+			get_real_path t
+		else
+			t
+
+	let get_key t = t
+
 end

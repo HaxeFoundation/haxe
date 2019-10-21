@@ -57,14 +57,14 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 	method set_display_file was_auto_triggered requires_offset =
 		let file = jsonrpc#get_opt_param (fun () ->
 			let file = jsonrpc#get_string_param "file" in
-			Path.unique_full_path file
+			Path.get_real_path file
 		) DisplayOutput.file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
 			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			cs#remove_files file;
+			cs#remove_files (Path.UniqueFileKey.create file);
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
@@ -187,12 +187,12 @@ let handler =
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let file = Path.unique_full_path file in
+			let file = Path.UniqueFileKey.create file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files file ()
+				Hashtbl.replace cc#get_removed_files (Path.UniqueFileKey.get_key file) ()
 			) cs#get_contexts;
-			hctx.send_result (jstring file);
+			hctx.send_result (jstring (Path.UniqueFileKey.get_path file));
 		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -211,7 +211,7 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let file = Path.unique_full_path file in
+			let file = Path.UniqueFileKey.create file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules file;
 			cs#remove_files file;

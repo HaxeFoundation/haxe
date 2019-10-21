@@ -3,6 +3,7 @@ open Ast
 open Json
 open Type
 open Define
+open Path
 
 type cached_file = {
 	c_time : float;
@@ -30,21 +31,22 @@ class context_cache (index : int) = object(self)
 
 	(* files *)
 
-	method find_file key =
-		Hashtbl.find files key
+	method find_file (key:UniqueFileKey.t) =
+		Hashtbl.find files (UniqueFileKey.get_key key)
 
-	method cache_file key time data =
-		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
+	method cache_file (key:UniqueFileKey.t) time data =
+		Hashtbl.replace files (UniqueFileKey.get_key key) { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
 
-	method remove_file key =
+	method remove_file (key:UniqueFileKey.t) =
+		let key = UniqueFileKey.get_key key in
 		if Hashtbl.mem files key then begin
 			Hashtbl.remove files key;
 			Hashtbl.replace removed_files key ()
 		end
 
 	(* Like remove_file, but doesn't keep track of the file *)
-	method remove_file_for_real key =
-		Hashtbl.remove files key
+	method remove_file_for_real (key:UniqueFileKey.t) =
+		Hashtbl.remove files (UniqueFileKey.get_key key)
 
 	(* modules *)
 
@@ -157,7 +159,8 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
-	method taint_modules file =
+	method taint_modules (file:Path.UniqueFileKey.t) =
+		let file = Path.UniqueFileKey.get_path file in
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m.m_path
