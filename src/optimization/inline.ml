@@ -136,7 +136,12 @@ let api_inline ctx c field params p =
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
-		(match t.eexpr with
+		let rec skip_cast = function
+			| { eexpr = TCast (e, None) } -> skip_cast e
+			| e -> e
+		in
+
+		(match (skip_cast t).eexpr with
 		(* generate simple typeof checks for basic types *)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
