@@ -962,11 +962,8 @@ and gen_syntax ctx meth args pos =
 		in
 		begin
 			match args with
-			| [] ->
-				if code = "this" then
-					spr ctx (this ctx)
-				else
-					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+			| [] when code = "this" ->
+				spr ctx (this ctx)
 			| _ ->
 				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
 		end
