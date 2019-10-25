@@ -44,7 +44,7 @@ class MainEvent {
 		if (f == null)
 			return;
 		f = null;
-		nextRun = -1;
+		nextRun = Math.NEGATIVE_INFINITY;
 		if (prev == null)
 			@:privateAccess MainLoop.pending = next;
 		else
