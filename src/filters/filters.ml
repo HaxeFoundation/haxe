@@ -808,6 +808,63 @@ module ForRemap = struct
 		loop e
 end
 
+module Tre = struct
+	let rec collect_new_args_values ctx args declarations values n =
+		match args with
+		| [] -> declarations, values
+		| arg :: rest ->
+			let v = alloc_var VGenerated ("`tre" ^ (string_of_int n)) arg.etype arg.epos in
+			let decl = { eexpr = TVar (v, Some arg); etype = ctx.t.tvoid; epos = v.v_pos }
+			and value = { arg with eexpr = TLocal v } in
+			collect_new_args_values ctx rest (decl :: declarations) (value :: values) (n + 1)
+
+	let rec assign_args vars exprs =
+		match vars, exprs with
+		| [], [] -> []
+		| (v, _) :: rest_vars, e :: rest_exprs
+		| (v, Some e) :: rest_vars, rest_exprs ->
+			let arg = { e with eexpr = TLocal v } in
+			{ e with eexpr = TBinop (OpAssign, arg, e) } :: assign_args rest_vars rest_exprs
+		| _ -> assert false
+
+	let return_replacement ctx fn args p =
+		let temps_rev, args_rev = collect_new_args_values ctx args [] [] 0
+		and continue = mk TContinue ctx.t.tvoid Globals.null_pos in
+		{
+			eexpr = TBlock ((List.rev temps_rev) @ (assign_args fn.tf_args (List.rev args_rev)) @ [continue]);
+			etype = ctx.t.tvoid;
+			epos = p;
+		}
+
+	let run ctx e =
+		match e.eexpr with
+		| TFunction fn ->
+			let field = ctx.curfield in
+			let add_loop = ref false in
+			let rec transform e =
+				match e.eexpr with
+				(* instance methods *)
+				| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
+				(* static methods *)
+				| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, args) })
+				when f == field ->
+					add_loop := true;
+					return_replacement ctx fn args e.epos
+				| _ ->
+					map_expr transform e
+			in
+			let body = transform fn.tf_expr in
+			if !add_loop then
+				let cond = mk (TConst (TBool true)) ctx.t.tbool Globals.null_pos in
+				{ e with
+					eexpr = TFunction { fn with
+						tf_expr = { body with eexpr = TWhile (cond, body, Ast.NormalWhile) }
+					}
+				}
+			else e
+		| _ -> e
+end
+
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
@@ -848,6 +905,7 @@ let run com tctx main =
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		check_abstract_as_value;
+		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		CapturedVars.captured_vars com;
