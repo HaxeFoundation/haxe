@@ -71,7 +71,7 @@ package_choco:
 	rm -rf out/choco
 
 $(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
-	wget -nv https://nekovm.org/media/neko-2.2.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
 
 package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
