@@ -892,6 +892,14 @@ module Tre = struct
 			(* anonymous function *)
 			| TFunction _ ->
 				e
+			(* return a call to a member abstract function*)
+			| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, ({ eexpr = TLocal v } :: _ as args)) })
+			when f == field && not in_loop && has_meta Meta.Impl f.cf_meta ->
+				if has_meta Meta.This v.v_meta then begin
+					add_loop := true;
+					replacement_for_TReturn ctx fn args e.epos
+				end else
+					e
 			(* return a call to an instance method *)
 			| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
 			(* return a call to a static method *)
