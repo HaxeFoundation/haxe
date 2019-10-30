@@ -918,10 +918,14 @@ module Tre = struct
 			false
 		(* return a call to a named local function*)
 		| TReturn (Some { eexpr = TCall ({ eexpr = TLocal v }, _) }) -> v == fn_var && not in_loop
+		(* return a call to a member abstract function*)
+		| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, { eexpr = TLocal v } :: _) })
+		when has_meta Meta.Impl f.cf_meta ->
+			f == field && not in_loop && has_meta Meta.This v.v_meta
 		(* return a call to an instance method *)
-		| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
+		| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, _) })
 		(* return a call to a static method *)
-		| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, args) }) ->
+		| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, _) }) ->
 			f == field && not in_loop
 		| _ ->
 			check_expr (has_tail_recursion ctx field fn_var in_loop) e
