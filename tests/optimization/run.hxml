@@ -16,5 +16,6 @@
 --macro Macro.register('Test')
 --macro Macro.register('TestJs')
 --macro Macro.register('TestLocalDce')
+--macro Macro.register('TestTre')
 --macro Macro.register('issues')
 --dce std
