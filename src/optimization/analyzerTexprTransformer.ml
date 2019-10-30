@@ -475,7 +475,7 @@ let rec func ctx bb tf t p =
 			let bb_next = if bb_breaks = [] then begin
 				(* The loop appears to be infinite, let's assume that something within it throws.
 				   Otherwise DCE's mark-pass won't see its body and removes everything. *)
-				add_cfg_edge bb_loop_body_next bb_exit CFGMaybeThrow;
+				add_cfg_edge bb_loop_body bb_exit CFGMaybeThrow;
 				g.g_unreachable
 			end else
 				create_node BKNormal bb.bb_type bb.bb_pos
@@ -484,7 +484,7 @@ let rec func ctx bb tf t p =
 			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next));
 			close_node g bb_loop_pre;
 			add_texpr bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
-			add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
+			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
 			add_cfg_edge bb_loop_head bb_loop_body CFGGoto;
 			close_node g bb_loop_body_next;
 			close_node g bb_loop_head;
