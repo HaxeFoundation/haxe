@@ -843,6 +843,8 @@ module Tre = struct
 			let add_loop = ref false in
 			let rec transform e =
 				match e.eexpr with
+				| TFunction _ ->
+					e
 				(* instance methods *)
 				| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
 				(* static methods *)
