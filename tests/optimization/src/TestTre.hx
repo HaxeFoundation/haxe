@@ -44,7 +44,7 @@ class TestTre {
 			}
 		}
 	')
-	static function testInstanceMethod(a:Int, b:Int = 10, ?s:String):Int {
+	function testInstanceMethod(a:Int, b:Int = 10, ?s:String):Int {
 		if(Std.random(1) == 0) {
 			return testInstanceMethod(b + a, a, s + '?');
 		}
@@ -82,5 +82,25 @@ class TestTre {
 			return s == null ? a : b;
 		}
 		local(1, 2);
+	}
+
+	@:js('
+		var _g = 0;
+		var _g1 = Std.random(10);
+		while(_g < _g1) {
+			++_g;
+			if(Std.random(1) == 0) {
+				return TestTre.testTailRecursionInsideLoop();
+			}
+		}
+		return Std.random(10);
+	')
+	static function testTailRecursionInsideLoop():Int {
+		for(i in 0...Std.random(10)) {
+			if(Std.random(1) == 0) {
+				return testTailRecursionInsideLoop();
+			}
+		}
+		return Std.random(10);
 	}
 }

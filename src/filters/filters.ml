@@ -882,8 +882,10 @@ module Tre = struct
 	let transform_method ctx fn field_expr =
 		let field = ctx.curfield in
 		let add_loop = ref false in
-		let rec transform e =
+		let rec transform in_loop e =
 			match e.eexpr with
+			| TFor _ | TWhile _ ->
+				map_expr (transform true) e
 			(* named local function *)
 			| TBinop (OpAssign, { eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) }, { eexpr = TFunction fn }) ->
 				transform_named_local_function ctx e v fn
@@ -894,37 +896,39 @@ module Tre = struct
 			| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
 			(* return a call to a static method *)
 			| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, args) })
-			when f == field ->
+			when f == field && not in_loop ->
 				add_loop := true;
 				replacement_for_TReturn ctx fn args e.epos
 			| _ ->
-				map_expr transform e
+				map_expr (transform in_loop) e
 		in
-		let body = transform fn.tf_expr in
+		let body = transform false fn.tf_expr in
 		let body = if !add_loop then wrap_loop ctx body else body in
 		{ field_expr with eexpr = TFunction { fn with tf_expr = body } }
 
-	let rec has_tail_recursion ctx field fn_var e =
+	let rec has_tail_recursion ctx field fn_var in_loop e =
 		match e.eexpr with
+		| TFor _ | TWhile _ ->
+			check_expr (has_tail_recursion ctx field fn_var true) e
 		(* named local function *)
 		| TBinop (OpAssign, { eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) }, { eexpr = TFunction fn }) ->
-			has_tail_recursion ctx null_field v fn.tf_expr
+			has_tail_recursion ctx null_field v false fn.tf_expr
 		(* anonymous function *)
 		| TFunction _ ->
 			false
 		(* return a call to a named local function*)
-		| TReturn (Some { eexpr = TCall ({ eexpr = TLocal v }, _) }) -> v == fn_var
+		| TReturn (Some { eexpr = TCall ({ eexpr = TLocal v }, _) }) -> v == fn_var && not in_loop
 		(* return a call to an instance method *)
 		| TReturn (Some { eexpr = TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, args) })
 		(* return a call to a static method *)
 		| TReturn (Some { eexpr = TCall ({ eexpr = TField (_, FStatic (_, f)) }, args) }) ->
-			f == field
+			f == field && not in_loop
 		| _ ->
-			check_expr (has_tail_recursion ctx field fn_var) e
+			check_expr (has_tail_recursion ctx field fn_var in_loop) e
 
 	let run ctx e =
 		match e.eexpr with
-		| TFunction fn when has_tail_recursion ctx ctx.curfield null_var fn.tf_expr ->
+		| TFunction fn when has_tail_recursion ctx ctx.curfield null_var false fn.tf_expr ->
 			transform_method ctx fn e
 		| _ -> e
 end
