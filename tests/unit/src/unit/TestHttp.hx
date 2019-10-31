@@ -21,11 +21,12 @@ class TestHttp extends Test {
 		// }
 
 		#if (js && !nodejs)
-		if(js.Syntax.code('typeof XMLHttpRequest == "undefined"')) {
+		if(!js.Browser.supported) {
 			noAssert();
 			async.done();
 			return;
 		}
+		test();
 		#elseif (azure && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
 		noAssert();
 		async.done();
