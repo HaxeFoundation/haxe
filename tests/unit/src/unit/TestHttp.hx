@@ -13,7 +13,7 @@ class TestHttp extends Test {
 
 	function run(async:Async, test:()->Void) {
 		// { comment this out to run http tests locally
-		#if !azure
+		#if (!azure || (azure && js && !nodejs)) //also don't run on sauce labs
 		noAssert();
 		async.done();
 		return;
