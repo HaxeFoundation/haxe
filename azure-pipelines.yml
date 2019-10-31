@@ -105,11 +105,11 @@ stages:
             condition: and(succeeded(), variables['APT_PACKAGES'])
             displayName: Install apt packages
           - script: haxe RunCi.hxml
-            condition: and(succeeded(), not(and(variables['SAUCE'], variables['SAUCE_USERNAME'])))
+            condition: and(succeeded(), not(and(variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])))
             workingDirectory: $(Build.SourcesDirectory)/tests
             displayName: Test
           - script: haxe RunCi.hxml
-            condition: and(succeeded(), variables['SAUCE'], variables['SAUCE_USERNAME'])
+            condition: and(succeeded(), variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
               SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
