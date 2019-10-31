@@ -577,11 +577,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method expect_reference_type = jm#expect_reference_type
 
 	method cast t =
-		if follow t != t_dynamic then begin
-			let vt = self#vtype t in
-			jm#cast vt
-		end else
-			self#expect_reference_type
+		let vt = self#vtype t in
+		jm#cast vt
 
 	method cast_expect ret t = match ret with
 		| RValue (Some jsig) -> jm#cast jsig

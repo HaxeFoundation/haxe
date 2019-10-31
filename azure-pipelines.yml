@@ -5,6 +5,14 @@ variables:
   - name: AZURE_PIPELINES_BRANCH
     value: $(Build.SourceBranchName)
 
+trigger:
+  branches:
+    include:
+      - '*'
+  tags:
+    include:
+      - '*'
+
 stages:
   - stage: StageTest
     jobs:
@@ -97,11 +105,15 @@ stages:
             condition: and(succeeded(), variables['APT_PACKAGES'])
             displayName: Install apt packages
           - script: haxe RunCi.hxml
+            condition: and(succeeded(), not(and(variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])))
+            workingDirectory: $(Build.SourcesDirectory)/tests
+            displayName: Test
+          - script: haxe RunCi.hxml
+            condition: and(succeeded(), variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              ${{ if variables['SAUCE_ACCESS_KEY'] }}:
-                SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
-            displayName: Test
+              SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
+            displayName: Test (with SauceLabs)
 
       - job: TestMac
         dependsOn: BuildMac
