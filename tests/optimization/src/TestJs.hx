@@ -73,7 +73,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a_v_0_b = 1;a_v_0_b;")
+	@:js("var a_v_0_b = 1;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -552,6 +552,17 @@ class TestJs {
 	static function testIssue8751() {
 		(2:Issue8751Int) * 3;
 	}
+
+	@:js('var v = "hi";TestJs.use(typeof(v) == "string" ? v : null);')
+	static function testStdIsOptimizationSurvivesCast() {
+		var value = "hi";
+		use(as(value, String));
+	}
+
+	static inline function as<T>(v:Dynamic, c:Class<T>):Null<T> {
+		return if (Std.is(v, c)) v else null;
+	}
+
 }
 
 extern class Extern {

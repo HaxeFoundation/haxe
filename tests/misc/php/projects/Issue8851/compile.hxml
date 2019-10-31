@@ -1,0 +1,5 @@
+-cp src
+-main Main
+-dce full
+-php bin
+--cmd php bin/index.php

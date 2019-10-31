@@ -911,20 +911,18 @@ class class_wrapper (cls) =
 				match cls.cl_init with
 					| Some _ -> true
 					| None ->
-						let needs = ref false in
-						PMap.iter
-							(fun _ field ->
+						List.exists
+							(fun field ->
 								(* Skip `inline var` fields *)
-								if not (is_inline_var field) then begin
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static vars with non-constant expressions *)
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static dynamic functions *)
-									if not !needs then needs := is_dynamic_method field
-								end
+								not (is_inline_var field)
+								&& match field.cf_kind, field.cf_expr with
+									| Var _, Some { eexpr = TConst (TInt value) } -> value = Int32.min_int
+									| Var _, Some { eexpr = TConst _ } -> false
+									| Var _, Some _ -> true
+									| Method MethDynamic, _ -> true
+									| _ -> false
 							)
-							cls.cl_statics;
-						!needs
+							cls.cl_ordered_statics
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -3531,13 +3529,13 @@ class class_builder ctx (cls:tclass) =
 				);
 				writer#write ";\n"
 			in
-			PMap.iter
-				(fun _ field ->
+			List.iter
+				(fun field ->
 					match field.cf_kind with
 						| Method MethDynamic -> write_dynamic_method_initialization field
 						| _ -> ()
 				)
-				cls.cl_statics;
+				cls.cl_ordered_statics;
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
@@ -3548,8 +3546,8 @@ class class_builder ctx (cls:tclass) =
 					Do not generate fields for RTTI meta, because this generator uses another way to store it.
 					Also skip initialization for `inline var` fields as those are generated as PHP class constants.
 				*)
-				let is_auto_meta_var = field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
-				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) && (not (is_inline_var field)) then begin
+				let is_auto_meta_var() = field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
+				if (is_var_with_nonconstant_expr field) && (not (is_auto_meta_var())) && (not (is_inline_var field)) then begin
 					(match field.cf_expr with
 						| None -> ()
 						(* There can be not-inlined blocks when compiling with `-debug` *)
@@ -3569,6 +3567,11 @@ class class_builder ctx (cls:tclass) =
 					);
 					writer#write ";\n"
 				end
+				else match field.cf_expr with
+					| Some ({ eexpr = TConst (TInt value) } as expr) when value = Int32.min_int ->
+						write_assign expr;
+						writer#write ";\n"
+					| _ -> ()
 			in
 			List.iter write_var_initialization cls.cl_ordered_statics
 		(**
@@ -3597,7 +3600,10 @@ class class_builder ctx (cls:tclass) =
 			let visibility = get_visibility field.cf_meta in
 			writer#write (visibility ^ " $" ^ (field_name field));
 			match field.cf_expr with
-				| None -> writer#write ";\n"
+				| None ->
+					writer#write ";\n"
+				| Some { eexpr = TConst (TInt value) } when value = Int32.min_int ->
+					writer#write ";\n"
 				| Some expr ->
 					match expr.eexpr with
 						| TConst _ ->

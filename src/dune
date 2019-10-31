@@ -6,18 +6,26 @@
 	)
 )
 
-(executable
+(library
 	(name haxe)
-	(public_name haxe)
-	(package haxe)
 	(libraries
 		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
 		json
 		unix str threads dynlink
 		xml-light extlib ptmap sha
 	)
+	(modules (:standard \ haxe))
 	(preprocess (per_module
 		((pps sedlex.ppx) json lexer)
 	))
+	(wrapped false)
+)
+
+(executable
+	(name haxe)
+	(public_name haxe)
+	(package haxe)
+	(libraries haxe)
+	(modules haxe)
 	(link_flags (:include ../lib.sexp))
 )

@@ -383,8 +383,9 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
+	else if c == ctx.curclass then
+		true
 	else
-	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
 	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]

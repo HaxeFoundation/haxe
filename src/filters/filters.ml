@@ -809,7 +809,7 @@ module ForRemap = struct
 end
 
 let run com tctx main =
-	let detail_times = Common.raw_defined com "filter-times" in
+	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached t in
 		begin match t with
@@ -848,8 +848,8 @@ let run com tctx main =
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		check_abstract_as_value;
-		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
+		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =

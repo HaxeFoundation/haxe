@@ -21,11 +21,12 @@
  */
 
 import php.*;
+import php.ArrayIterator as NativeArrayIterator;
 
 using php.Global;
 
 @:coreApi
-final class Array<T> implements ArrayAccess<Int, T> {
+final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> implements JsonSerializable<NativeIndexedArray<T>> {
 	public var length(default, null):Int;
 
 	var arr:NativeIndexedArray<T>;
@@ -83,8 +84,8 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		Global.array_splice(arr, pos, 0, Syntax.arrayDecl(x));
 	}
 
-	@:keep
-	public function iterator():Iterator<T> {
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():Iterator<T> {
 		return new ArrayIterator(this);
 	}
 
@@ -226,6 +227,16 @@ final class Array<T> implements ArrayAccess<Int, T> {
 			Global.array_splice(arr, offset, 1);
 			--length;
 		}
+	}
+
+	@:noCompletion @:keep
+	private function getIterator():Traversable {
+		return new NativeArrayIterator(arr);
+	}
+
+	@:noCompletion @:keep
+	function jsonSerialize():NativeIndexedArray<T> {
+		return arr;
 	}
 
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {

@@ -1951,6 +1951,11 @@ let macro_api ccom get_api =
 			);
 			vnull
 		);
+		"timer", vfun1 (fun id ->
+			let full_id = (Option.default [] (Timer.current_id())) @ [decode_string id] in
+			let stop = Timer.timer full_id in
+			vfun0 (fun() -> stop(); vnull)
+		);
 	]
 
 

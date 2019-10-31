@@ -331,28 +331,34 @@ module ValueCompletion = struct
 		loop IntMap.empty proto
 
 	let prototype_static_fields proto =
-		IntMap.fold (fun name _ acc -> IntMap.add name (name,"field",None) acc) proto.pnames IntMap.empty
-
+		IntMap.fold (fun name offset acc ->
+			let v = proto.pfields.(offset) in
+			let kind = match v with
+				| VFunction _ -> "method"
+				| _ -> "field"
+			in
+			IntMap.add name (name,kind,None) acc
+		) proto.pnames IntMap.empty
 
 	let to_json l =
 		JArray (List.map (fun (n,k,column) ->
-			let fields = ["label",JString (rev_hash n);"kind",JString k] in
+			let fields = ["label",JString (rev_hash n);"type",JString k] in
 			let fields = match column with None -> fields | Some column -> ("start",JInt column) :: fields in
 			JObject fields
 		) l)
 
 	let collect_idents ctx env =
 		let acc = Hashtbl.create 0 in
-		let add key =
+		let add key kind =
 			if not (Hashtbl.mem acc key) then
-				Hashtbl.add acc key (key,"value",None)
+				Hashtbl.add acc key (key,kind,None)
 		in
 		(* 0. Extra locals *)
-		IntMap.iter (fun key _ -> add key) env.env_extra_locals;
+		IntMap.iter (fun key _ -> add key "variable") env.env_extra_locals;
 		(* 1. Variables *)
 		let rec loop scopes = match scopes with
 			| scope :: scopes ->
-				Hashtbl.iter (fun key _ -> add (hash key)) scope.local_ids;
+				Hashtbl.iter (fun key _ -> add (hash key) "variable") scope.local_ids;
 				loop scopes
 			| [] ->
 				()
@@ -360,7 +366,7 @@ module ValueCompletion = struct
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
 		Hashtbl.iter (fun slot vi ->
-			add (hash vi.vi_name)
+			add (hash vi.vi_name) "variable"
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
 		if not env.env_info.static then begin
@@ -368,7 +374,7 @@ module ValueCompletion = struct
 			begin match v with
 			| VInstance vi ->
 				let fields = prototype_instance_fields vi.iproto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				()
 			end
@@ -378,7 +384,7 @@ module ValueCompletion = struct
 			| EKMethod(i1,_) ->
 				let proto = get_static_prototype_raise ctx i1 in
 				let fields = prototype_static_fields proto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				raise Not_found
 		end;
@@ -386,7 +392,18 @@ module ValueCompletion = struct
 		begin match ctx.toplevel with
 		| VObject o ->
 			let fields = object_fields o in
-			List.iter (fun (n,_) -> add n) fields
+			List.iter (fun (n,v) ->
+				let kind = match v with
+					| VPrototype proto ->
+						begin match proto.pkind with
+						| PClass _ -> "class"
+						| PEnum _ -> "enum"
+						| _ -> "class" (* ? *)
+						end
+					| _ -> "module"
+				in
+				add n kind
+			) fields
 		| _ ->
 			()
 		end;
@@ -485,8 +502,13 @@ module ValueCompletion = struct
 		with _ ->
 			save();
 			raise Exit
-		end;
+		end
 
+	let get_completion ctx text column env =
+		if text = "" then
+			collect_idents ctx env
+		else
+			get_completion ctx text column env
 end
 
 type handler_context = {

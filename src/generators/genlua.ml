@@ -917,8 +917,8 @@ and gen_expr ?(local=true) ctx e = begin
     | TWhile (cond,e,Ast.NormalWhile) ->
         gen_loop ctx "while" cond e
     | TWhile (cond,e,Ast.DoWhile) ->
-        println ctx "while true do ";
         gen_block_element ctx e;
+        newline ctx;
         gen_loop ctx "while" cond e
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
@@ -2060,10 +2060,13 @@ let generate com =
     List.iter (transform_multireturn ctx) com.types;
     List.iter (generate_type ctx) com.types;
 
-    if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
+    (* If bit ops are manually imported include the haxe wrapper for them *)
+    if has_feature ctx "use._bitop" then begin
         print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
     end;
+
+    (* integer clamping is always required, and will use bit ops if available *)
+    print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";

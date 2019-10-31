@@ -27,12 +27,12 @@ import haxe.extern.Rest;
 
 @:native('ReflectionMethod')
 extern class ReflectionMethod extends ReflectionFunctionAbstract {
-	@:phpClassConst static var IS_STATIC:Int;
-	@:phpClassConst static var IS_PUBLIC:Int;
-	@:phpClassConst static var IS_PROTECTED:Int;
-	@:phpClassConst static var IS_PRIVATE:Int;
-	@:phpClassConst static var IS_ABSTRACT:Int;
-	@:phpClassConst static var IS_FINAL:Int;
+	@:phpClassConst static final IS_STATIC:Int;
+	@:phpClassConst static final IS_PUBLIC:Int;
+	@:phpClassConst static final IS_PROTECTED:Int;
+	@:phpClassConst static final IS_PRIVATE:Int;
+	@:phpClassConst static final IS_ABSTRACT:Int;
+	@:phpClassConst static final IS_FINAL:Int;
 
 	// public var class : String;
 	public static function export(className:String, name:String, ?returnValue:Bool):String;
