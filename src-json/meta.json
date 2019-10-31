@@ -1104,7 +1104,8 @@
 	{
 		"name": "TailRecursion",
 		"metadata": ":tailRecursion",
-		"doc": "Internally used for tail recursion elimination."
+		"doc": "Internally used for tail recursion elimination.",
+		"internal": true
 	},
 	{
 		"name": "TemplatedCall",
