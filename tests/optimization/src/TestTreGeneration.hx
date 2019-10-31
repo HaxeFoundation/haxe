@@ -1,4 +1,4 @@
-class TestTre {
+class TestTreGeneration {
 	@:js('
 		if(b == null) {
 			b = 10;
@@ -90,7 +90,7 @@ class TestTre {
 		while(_g < _g1) {
 			++_g;
 			if(Std.random(2) == 0) {
-				return TestTre.testTailRecursionInsideLoop();
+				return TestTreGeneration.testTailRecursionInsideLoop();
 			}
 		}
 		return Std.random(10);

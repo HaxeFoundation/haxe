@@ -1102,6 +1102,11 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "TailRecursion",
+		"metadata": ":tailRecursion",
+		"doc": "Internally used for tail recursion elimination."
+	},
+	{
 		"name": "TemplatedCall",
 		"metadata": ":templatedCall",
 		"doc": "Indicates that the first parameter of static call should be treated as a template argument.",
