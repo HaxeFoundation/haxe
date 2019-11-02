@@ -68,17 +68,17 @@ let rec get_underlying_type ?(return_first=false) a pl =
 					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: underlying_type_stack.rec_stack))) in
 					error ("Abstract chain detected: " ^ s) a.a_pos
 				end;
-				(*
-					Even if only the first underlying type was requested
-					keep traversing to detect mutually recursive abstracts
-				*)
-				let result = get_underlying_type a tl in
-				if return_first then t
-				else result
+				get_underlying_type a tl
 			| _ ->
 				t
 		in
-		rec_stack_loop underlying_type_stack (TAbstract(a,pl)) loop t
+		(*
+			Even if only the first underlying type was requested
+			keep traversing to detect mutually recursive abstracts
+		*)
+		let result = rec_stack_loop underlying_type_stack (TAbstract(a,pl)) loop t in
+		if return_first then t
+		else result
 	in
 	try
 		if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
