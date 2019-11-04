@@ -20,7 +20,7 @@
 !define VERLONG "%%VERLONG%%"
 
 ; Define Neko info
-!define NEKO_VERSION "2.2.0"
+!define NEKO_VERSION "2.3.0"
 
 ; Installer details
 VIAddVersionKey "CompanyName" "Haxe Foundation"
