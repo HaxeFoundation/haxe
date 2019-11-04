@@ -25,7 +25,7 @@
 ; Installer details
 VIAddVersionKey "CompanyName" "Haxe Foundation"
 VIAddVersionKey "ProductName" "Haxe Installer"
-VIAddVersionKey "LegalCopyright" "Haxe Foundation 2005-2018"
+VIAddVersionKey "LegalCopyright" "Haxe Foundation 2005-2019"
 VIAddVersionKey "FileDescription" "Haxe Installer"
 VIAddVersionKey "ProductVersion" "${VERSION}.0"
 VIAddVersionKey "FileVersion" "${VERSION}.0"
