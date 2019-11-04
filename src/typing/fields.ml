@@ -337,7 +337,7 @@ let rec using_field ctx mode e i p =
 		loop ctx.m.module_using
 	with Not_found -> try
 		(* type using from `@:using(Path)` *)
-		let mt = module_type_of_type e.etype in
+		let mt = module_type_of_type (follow e.etype) in
 		loop (t_infos mt).mt_using
 	with Not_found | Exit -> try
 		(* global using *)
