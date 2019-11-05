@@ -646,7 +646,8 @@ let rec process_params create pl =
 		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
-			loop acc l
+			(* Push the --cwd arg so the arg processor know we did something. *)
+			loop (dir :: "--cwd" :: acc) l
 		| "--connect" :: hp :: l ->
 			(match CompilationServer.get() with
 			| None ->
@@ -938,7 +939,8 @@ try
 			assert false
 		),"<[host:]port>","connect on the given port and run commands there");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
-			assert false
+			(* This is handled by process_params, but passed through so we know we did something. *)
+			did_something := true;
 		),"<dir>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 	] in
