@@ -203,8 +203,6 @@ let transform_abstract_field com this_t a_t a f =
 	let p = f.cff_pos in
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
-		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
@@ -1257,8 +1255,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						), p))
 			in
 			let t2, f2 = get_overload overloads in
-			(* accessors must be public on As3 (issue #1872) *)
-			if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],null_pos) :: f2.cf_meta;
 			(match f2.cf_kind with
 				| Method MethMacro ->
 					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;

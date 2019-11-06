@@ -517,7 +517,7 @@ end)
 (*
 	Propagates local variables to other local variables.
 
-	Respects scopes on targets where it matters (all except JS and As3).
+	Respects scopes on targets where it matters (all except JS).
 *)
 module CopyPropagation = DataFlow(struct
 	open BasicBlock
