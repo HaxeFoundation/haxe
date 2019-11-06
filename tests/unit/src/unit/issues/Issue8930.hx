@@ -14,6 +14,7 @@ class Issue8930 extends Test {
 		eq(11, v.x--);
 		eq(10, v.x);
 
+		#if !as3
 		var cnt = 0;
 		function sideEffect() {
 			cnt++;
@@ -22,6 +23,7 @@ class Issue8930 extends Test {
 		++sideEffect().x;
 		sideEffect().x++;
 		eq(2, cnt);
+		#end
 	}
 }
 
