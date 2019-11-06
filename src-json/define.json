@@ -17,11 +17,6 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "As3",
-		"define": "as3",
-		"doc": "Defined when outputting flash9 as3 source code."
-	},
-	{
 		"name": "CheckXmlProxy",
 		"define": "check_xml_proxy",
 		"doc": "Check the used fields of the XML proxy."

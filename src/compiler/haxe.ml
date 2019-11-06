@@ -82,7 +82,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
+	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
 let reserved_flag_namespaces = ["target"]
@@ -308,8 +308,6 @@ let generate tctx ext interp swf_header =
 		()
 	else begin
 		let generate,name = match com.platform with
-		| Flash when Common.defined com Define.As3 ->
-			Genas3.generate,"AS3"
 		| Flash ->
 			Genswf.generate swf_header,"swf"
 		| Neko ->
@@ -718,11 +716,6 @@ try
 		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
 		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
 		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
-		("Target",["--as3"],["-as3"],Arg.String (fun dir ->
-			Initialize.set_platform com Flash dir;
-			Common.define com Define.As3;
-			Common.define com Define.NoInline;
-		),"<directory>","generate AS3 code into target directory");
 		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
 		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;

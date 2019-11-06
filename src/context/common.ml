@@ -355,14 +355,6 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
 		}
-	| Flash when defined Define.As3 ->
-		{
-			default_config with
-			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
-			pf_add_final_return = true;
-			pf_can_skip_non_nullable_argument = false;
-		}
 	| Flash ->
 		{
 			default_config with

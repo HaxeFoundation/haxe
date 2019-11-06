@@ -545,7 +545,6 @@ let add_rtti ctx t =
 
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits reserved ctx t =
-	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -553,28 +552,7 @@ let add_field_inits reserved ctx t =
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
-			| Var _, Some _ ->
-				if is_as3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-			| Method MethDynamic, Some e when is_as3 ->
-				(* TODO : this would have a better place in genSWF9 I think - NC *)
-				(* we move the initialization of dynamic functions to the constructor and also solve the
-				   'this' problem along the way *)
-				let rec use_this v e = match e.eexpr with
-					| TConst TThis ->
-						need_this := true;
-						mk (TLocal v) v.v_type e.epos
-					| _ -> Type.map_expr (use_this v) e
-				in
-				let e = Type.map_expr (use_this v) e in
-				let cf2 = {cf with cf_expr = Some e} in
-				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
-				let fields = if List.memq cf c.cl_overrides then begin
-					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
-					fields
-				end else
-					cf2 :: fields
-				in
-				(cf2 :: inits, fields)
+			| Var _, Some _ -> (cf :: inits, cf :: fields)
 			| _ -> (inits, cf :: fields)
 		) ([],[]) c.cl_ordered_fields in
 		c.cl_ordered_fields <- (List.rev fields);
@@ -587,12 +565,7 @@ let add_field_inits reserved ctx t =
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
-					if is_as3 then begin
-						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
-						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
-					end else
-						eassign;
+					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
@@ -643,7 +616,6 @@ let add_meta_field ctx t = match t with
 			let cf = mk_field "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
-				| Flash when Common.defined ctx.com Define.As3 -> false
 				| Cs | Java -> false
 				| _ -> true
 			in
@@ -929,11 +901,7 @@ let run com tctx main =
 	com.stage <- CDceStart;
 	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
-	let dce_mode = if Common.defined com Define.As3 then
-		"no"
-	else
-		(try Common.defined_value com Define.Dce with _ -> "no")
-	in
+	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
 	let dce_mode = match dce_mode with
 		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
 		| "std" -> DceStd
