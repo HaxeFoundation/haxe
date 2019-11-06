@@ -104,26 +104,26 @@ class TestTreGeneration {
 		return Std.random(10);
 	}
 
-	// @:js('
-	// 	while(true) {
-	// 		if(Std.random(2) == 0) {
-	// 			--a;
-	// 			continue;
-	// 		}
-	// 		if(Std.random(2) == 0) {
-	// 			return;
-	// 		}
-	// 		++a;
-	// 	}
-	// ')
-	// static function testVoid(a:Int):Void {
-	// 	if(Std.random(2) == 0) {
-	// 		testVoid(a - 1);
-	// 		return;
-	// 	}
-	// 	if(Std.random(2) == 0) {
-	// 		return;
-	// 	}
-	// 	testVoid(a + 1);
-	// }
+	@:js('
+		while(true) {
+			if(Std.random(2) == 0) {
+				a -= 1;
+				continue;
+			}
+			if(a <= 0) {
+				return;
+			}
+			a += 1;
+		}
+	')
+	static function testVoid(a:Int):Void {
+		if(Std.random(2) == 0) {
+			testVoid(a - 1);
+			return;
+		}
+		if(a <= 0) {
+			return;
+		}
+		testVoid(a + 1);
+	}
 }
