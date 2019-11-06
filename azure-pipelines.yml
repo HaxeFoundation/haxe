@@ -63,7 +63,7 @@ stages:
             php:
               TEST: php
             flash:
-              TEST: flash9,as3
+              TEST: flash9
               APT_PACKAGES: libglib2.0 libfreetype6 xvfb
               DISPLAY: ':99.0'
               AUDIODEV: 'null'
@@ -140,7 +140,7 @@ stages:
             php:
               TEST: php
             flash:
-              TEST: flash9,as3
+              TEST: flash9
             python:
               TEST: python
             lua:
