@@ -6,30 +6,6 @@ open DisplayPosition
 open CompletionItem
 open ClassFieldOrigin
 
-let get_field_scope_and_origin c cf is_static is_constructor =
-	let scope,cf = match c.cl_kind with
-		| KAbstractImpl _ ->
-			if Meta.has Meta.Impl cf.cf_meta then
-				(if cf.cf_name = "_new" then
-					CFSConstructor, {cf with cf_name = "new"}
-				else
-					CFSMember, cf)
-			else
-				CFSStatic, cf;
-		| _ ->
-			(if is_static then
-				CFSStatic
-			else if is_constructor then
-				CFSConstructor
-			else
-				CFSMember), cf;
-	in
-	let origin = match c.cl_kind with
-		| KAbstractImpl a -> Self (TAbstractDecl a)
-		| _ -> Self (TClassDecl c)
-	in
-	cf,scope,origin
-
 let find_type_by_position cc p =
 	let m = cc#find_module_by_file (Path.unique_full_path p.pfile) in
 	List.find (fun mt ->
@@ -37,8 +13,25 @@ let find_type_by_position cc p =
 	) m.m_types
 
 let check_display_field ctx c is_static is_constructor cf =
-	let cf,scope,origin = get_field_scope_and_origin c cf is_static is_constructor in
-	DisplayEmitter.maybe_display_field ctx origin scope cf cf.cf_name_pos
+	let cf,scope,origin = TypeloadFields.get_field_scope_and_origin c cf is_static is_constructor in
+	DisplayEmitter.maybe_display_field ctx origin scope cf cf.cf_name_pos;
+	let rec loop e =
+		begin match e.eexpr with
+		| TField(e1,_) when e1.epos = e.epos ->
+			()
+		| _ ->
+			Type.iter loop e;
+		end;
+		if display_position#enclosed_in e.epos then begin
+			let e_ast = TExprToExpr.convert_expr e in
+			ignore(TyperDisplay.display_expr ctx e_ast e DKMarked WithType.value (* TODO *) e.epos)
+		end
+	in
+	match cf.cf_expr with
+	| None ->
+		()
+	| Some e ->
+		loop e
 
 let check_display_class ctx c =
 	let check_field is_static is_constructor cf =
