@@ -2,18 +2,6 @@ open Type
 open Typecore
 open Globals
 
-let null_var = {
-	v_id = -1;
-	v_name = "null_var";
-	v_type = t_dynamic;
-	v_kind = VGenerated;
-	v_capture = false;
-	v_final = false;
-	v_extra = None;
-	v_meta = [];
-	v_pos = null_pos;
-}
-
 let rec collect_new_args_values ctx args declarations values n =
 	match args with
 	| [] -> declarations, values
