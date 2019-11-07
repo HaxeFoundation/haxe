@@ -43,7 +43,8 @@ let check_display_field ctx c is_static is_constructor cf =
 let check_display_class ctx c =
 	let check_field is_static is_constructor cf =
 		if display_position#enclosed_in cf.cf_pos then
-			check_display_field ctx c is_static is_constructor cf (* TODO: abstract ctor? *)
+			check_display_field ctx c is_static is_constructor cf; (* TODO: abstract ctor? *)
+		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in
 	if display_position#enclosed_in c.cl_name_pos then
 		DisplayEmitter.display_module_type ctx (TClassDecl c) c.cl_name_pos;
@@ -62,7 +63,8 @@ let check_display_module ctx cc m =
 	List.iter (fun md -> match md with
 		| TClassDecl c ->
 			if display_position#enclosed_in c.cl_pos then
-				check_display_class ctx c
+				check_display_class ctx c;
+			DisplayEmitter.check_display_metadata ctx c.cl_meta
 		| _ ->
 			() (* TODO *)
 	) m.m_types
