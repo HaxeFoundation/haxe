@@ -695,27 +695,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
-		let scope, cf = match c.cl_kind with
-			| KAbstractImpl _ ->
-				if Meta.has Meta.Impl cf.cf_meta then
-					(if cf.cf_name = "_new" then
-						CFSConstructor, {cf with cf_name = "new"}
-					else
-						CFSMember, cf)
-				else
-					CFSStatic, cf;
-			| _ ->
-				(if fctx.is_static then
-					CFSStatic
-				else if fctx.field_kind = FKConstructor then
-					CFSConstructor
-				else
-					CFSMember), cf;
-		in
-		let origin = match c.cl_kind with
-			| KAbstractImpl a -> Self (TAbstractDecl a)
-			| _ -> Self (TClassDecl c)
-		in
+		let cf,scope,origin = DisplayTexpr.get_field_scope_and_origin c cf fctx.is_static (fctx.field_kind = FKConstructor) in
 		DisplayEmitter.maybe_display_field ctx origin scope cf cf.cf_name_pos;
 		DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 	end

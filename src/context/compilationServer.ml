@@ -24,6 +24,8 @@ type cached_native_lib = {
 class context_cache (index : int) = object(self)
 	val files : (string,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	val file_to_module : (string,module_def) Hashtbl.t = Hashtbl.create 0
+
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -39,20 +41,26 @@ class context_cache (index : int) = object(self)
 	method remove_file key =
 		if Hashtbl.mem files key then begin
 			Hashtbl.remove files key;
+			Hashtbl.remove file_to_module key;
 			Hashtbl.replace removed_files key ()
 		end
 
 	(* Like remove_file, but doesn't keep track of the file *)
 	method remove_file_for_real key =
-		Hashtbl.remove files key
+		Hashtbl.remove files key;
+		Hashtbl.remove file_to_module key;
 
 	(* modules *)
 
 	method find_module path =
 		Hashtbl.find modules path
 
+	method find_module_by_file file =
+		Hashtbl.find file_to_module file
+
 	method cache_module path value =
-		Hashtbl.replace modules path value
+		Hashtbl.replace modules path value;
+		Hashtbl.replace file_to_module value.m_extra.m_file value;
 
 	(* initialization *)
 
