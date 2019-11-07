@@ -32,14 +32,14 @@ let rec assign_args vars exprs =
 		{ e with eexpr = TBinop (OpAssign, arg, e) } :: assign_args rest_vars rest_exprs
 	| _ -> assert false
 
-let replacement_for_TReturn ctx fn args add_continue p =
+let replacement_for_TReturn ctx fn args p =
 	let temps_rev, args_rev = collect_new_args_values ctx args [] [] 0
-	and continue = if add_continue then [mk TContinue ctx.t.tvoid Globals.null_pos] else [] in
+	and continue = mk TContinue ctx.t.tvoid Globals.null_pos in
 	{
 		etype = ctx.t.tvoid;
 		epos = p;
 		eexpr = TMeta ((Meta.TailRecursion, [], null_pos), {
-			eexpr = TBlock ((List.rev temps_rev) @ (assign_args fn.tf_args (List.rev args_rev)) @ continue);
+			eexpr = TBlock ((List.rev temps_rev) @ (assign_args fn.tf_args (List.rev args_rev)) @ [continue]);
 			etype = ctx.t.tvoid;
 			epos = p;
 		});
@@ -122,10 +122,10 @@ let is_recursive_method_call field callee args =
 
 let rec transform_function ctx is_recursive_call fn =
 	let add_loop = ref false in
-	let rec transform_expr in_loop function_end force_continue e =
+	let rec transform_expr in_loop function_end e =
 		match e.eexpr with
 		| TWhile _ | TFor _ ->
-			map_expr (transform_expr true false false) e
+			map_expr (transform_expr true false) e
 		(* named local function *)
 		| TBinop (OpAssign, ({ eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) } as e_var), ({ eexpr = TFunction fn } as e_fn)) ->
 			let fn = transform_function ctx (is_recursive_named_local_call v) fn in
@@ -136,29 +136,40 @@ let rec transform_function ctx is_recursive_call fn =
 		(* return a recursive call to current function *)
 		| TReturn (Some { eexpr = TCall (callee, args) }) when not in_loop && is_recursive_call callee args ->
 			add_loop := true;
-			replacement_for_TReturn ctx fn args (not function_end || force_continue) e.epos
+			replacement_for_TReturn ctx fn args e.epos
 		| TReturn (Some e_return) ->
-			{ e with eexpr = TReturn (Some (transform_expr in_loop function_end true e_return)) }
+			{ e with eexpr = TReturn (Some (transform_expr in_loop function_end e_return)) }
 		| TBlock exprs ->
 			let rec loop exprs =
 				match exprs with
 				| [] -> []
 				| [{ eexpr = TCall (callee, args) } as e] when not in_loop && function_end && is_recursive_call callee args ->
 					add_loop := true;
-					[replacement_for_TReturn ctx fn args (not function_end || force_continue) e.epos]
+					[replacement_for_TReturn ctx fn args e.epos]
 				| { eexpr = TCall (callee, args) } :: [{ eexpr = TReturn None }] when not in_loop && is_recursive_call callee args ->
 					add_loop := true;
-					[replacement_for_TReturn ctx fn args (not function_end || force_continue) e.epos]
+					[replacement_for_TReturn ctx fn args e.epos]
 				| e :: rest ->
 					let function_end = function_end && rest = [] in
-					transform_expr in_loop function_end force_continue e :: loop rest
+					transform_expr in_loop function_end e :: loop rest
 			in
 			{ e with eexpr = TBlock (loop exprs) }
 		| _ ->
-			map_expr (transform_expr in_loop function_end force_continue) e
+			map_expr (transform_expr in_loop function_end) e
 	in
-	let body = transform_expr false true false fn.tf_expr in
-	let body = if !add_loop then wrap_loop ctx (fn_args_vars fn) body else body in
+	let body = transform_expr false true fn.tf_expr in
+	let body =
+		if !add_loop then
+			let body =
+				if ExtType.is_void (follow fn.tf_type) then
+					mk (TBlock [body; mk (TReturn None) ctx.t.tvoid null_pos]) ctx.t.tvoid null_pos
+				else
+					body
+			in
+			wrap_loop ctx (fn_args_vars fn) body
+		else
+			body
+	in
 	{ fn with tf_expr = body }
 
 let rec has_tail_recursion is_recursive_call in_loop function_end e =
@@ -193,7 +204,7 @@ let rec has_tail_recursion is_recursive_call in_loop function_end e =
 let run ctx e =
 	match e.eexpr with
 	| TFunction fn when has_tail_recursion (is_recursive_method_call ctx.curfield) false true fn.tf_expr ->
-		(* transform_method ctx fn e *)
+		(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
 		let fn = transform_function ctx (is_recursive_method_call ctx.curfield) fn in
 		{ e with eexpr = TFunction fn }
 	| _ -> e

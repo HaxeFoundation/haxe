@@ -110,10 +110,11 @@ class TestTreGeneration {
 				a -= 1;
 				continue;
 			}
-			if(a <= 0) {
-				return;
+			if(a < 10) {
+				a += 1;
+				continue;
 			}
-			a += 1;
+			return;
 		}
 	')
 	static function testVoid(a:Int):Void {
@@ -121,9 +122,8 @@ class TestTreGeneration {
 			testVoid(a - 1);
 			return;
 		}
-		if(a <= 0) {
-			return;
+		if(a < 10) {
+			testVoid(a + 1);
 		}
-		testVoid(a + 1);
 	}
 }
