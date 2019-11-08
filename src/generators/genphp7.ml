@@ -2883,6 +2883,12 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		*)
 		method get_source_file : string = wrapper#get_source_file
 		(**
+			Get amount of arguments of a parent method.
+			Returns (mandatory_args_count * total_args_count)
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option = None
+		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
@@ -3072,10 +3078,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		(**
 			Writes method to output buffer
 		*)
-		method private write_method name func =
+		method private write_method name func is_static =
 			match name with
 				| "__construct" -> self#write_constructor_declaration func
-				| _ -> self#write_method_declaration name func
+				| _ -> self#write_method_declaration name func is_static
 		(**
 			Writes constructor declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3091,15 +3097,42 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent_less;
 			writer#write_with_indentation "}"
 		(**
-			Writes method declaration (except visibility and `static` keywords) to output buffer
+			Writes method declaration (except visibility keywords) to output buffer
 		*)
-		method private write_method_declaration name func =
+		method private write_method_declaration name func is_static =
+			if is_static then writer#write "static ";
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			writer#write ("function " ^ by_ref ^ name ^ " (");
-			write_args writer#write writer#write_function_arg func.tf_args;
+			let args =
+				if is_static then
+					self#align_args_to_parent_static_method func.tf_args name
+				else
+					func.tf_args
+			in
+			write_args writer#write writer#write_function_arg args;
 			writer#write ") ";
 			if not (self#write_body_if_special_method name) then
 				writer#write_expr (inject_defaults ctx func)
+		(**
+		*)
+		method private align_args_to_parent_static_method args method_name =
+			match self#get_parent_method_args_count method_name true with
+				| None -> args
+				| Some (mandatory, total) ->
+					let default_value() = Some (mk (TConst TNull) t_dynamic null_pos) in
+					let next value = max 0 (value - 1) in
+					let rec loop args mandatory total =
+						match args with
+							| [] when total = 0 -> []
+							| [] ->
+								let arg_var = alloc_var VGenerated ("_" ^ (string_of_int total)) t_dynamic null_pos in
+								(arg_var, default_value()) :: loop args (next mandatory) (next total)
+							| (arg_var, None) :: rest when mandatory = 0 ->
+								(arg_var, default_value()) :: loop rest 0 (next total)
+							| arg :: rest ->
+								arg :: loop rest (next mandatory) (next total)
+					in
+					loop args mandatory total
 		(**
 			Writes a body for a special method if `field` represents one.
 			Returns `true` if `field` is such a method.
@@ -3312,6 +3345,31 @@ class class_builder ctx (cls:tclass) =
 					ctx.pgc_common.types;
 				not !hacked
 			end
+		(**
+			Get amount of arguments of a parent method.
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option =
+			match cls.cl_super with
+				| None -> None
+				| Some (cls, _) ->
+					let fields = if is_static then cls.cl_statics else cls.cl_fields in
+					try
+						match (PMap.find name fields).cf_type with
+							| TFun (args,_) ->
+								let rec count args mandatory total =
+									match args with
+										| [] ->
+											(mandatory, total)
+										| (_, true, _) :: rest ->
+											let left_count = List.length args in
+											(mandatory, total + left_count)
+										| (_, false, _) :: rest ->
+											count rest (mandatory + 1) (total + 1)
+								in
+								Some (count args 0 0)
+							| _ -> None
+					with Not_found -> None
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
@@ -3633,17 +3691,17 @@ class class_builder ctx (cls:tclass) =
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			writer#write_indentation;
 			if self#is_final_field field then writer#write "final ";
-			if is_static then writer#write "static ";
 			writer#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
+					if is_static then writer#write "static ";
 					writer#write ("function " ^ (field_name field) ^ " (");
 					write_args writer#write (writer#write_arg true) args;
 					writer#write ")";
 					writer#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
-					self#write_method name fn;
+					self#write_method name fn is_static;
 					writer#write "\n"
 				| _ -> fail field.cf_pos __POS__
 		(**
