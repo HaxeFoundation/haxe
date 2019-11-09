@@ -820,6 +820,7 @@ let run com tctx main =
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		check_abstract_as_value;
+		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		CapturedVars.captured_vars com;

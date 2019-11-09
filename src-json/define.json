@@ -11,6 +11,11 @@
 		"platforms": ["flash"]
 	},
 	{
+		"name": "AnalyzerOptimize",
+		"define": "analyzer_optimize",
+		"doc": "Perform advanced optimizations."
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate_source",
 		"doc": "Add additional comments to generated source code.",
