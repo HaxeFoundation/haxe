@@ -8,12 +8,15 @@ open CompletionItem
 open CompilationServer
 open ClassFieldOrigin
 
-let find_field_by_position cfile p =
+let find_field_by_position sc p =
+	List.find (fun cff ->
+		if pos cff.cff_name = p then true else false
+	) sc.d_data
+
+let find_class_by_position cfile p =
 	let rec loop dl = match dl with
-		| (EClass c,pc) :: _ when pc.pmin <= p.pmin && pc.pmax >= p.pmax ->
-			List.find (fun cff ->
-				if pos cff.cff_name = p then true else false
-			) c.d_data
+		| (EClass c,_) :: dl when pos c.d_name = p ->
+			c
 		| _ :: dl ->
 			loop dl
 		| [] ->
@@ -21,17 +24,24 @@ let find_field_by_position cfile p =
 	in
 	loop cfile.c_decls
 
-let check_display_field ctx cc cfile c cf =
-	let cff = find_field_by_position cfile cf.cf_name_pos in
+let check_display_field ctx sc c cf =
+	let cff = find_field_by_position sc cf.cf_name_pos in
 	let ctx,cctx = TypeloadFields.create_class_context ctx c (fun () -> ()) cf.cf_pos in
 	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	ignore(follow cf.cf_type)
 
 let check_display_class ctx cc cfile c =
+	let sc = find_class_by_position cfile c.cl_name_pos in
+	List.iter (function
+		| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
+			ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
+		| _ ->
+			()
+	) sc.d_flags;
 	let check_field cf =
 		if display_position#enclosed_in cf.cf_pos then
-			check_display_field ctx cc cfile c cf;
+			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in
 	if display_position#enclosed_in c.cl_name_pos then
@@ -66,8 +76,6 @@ let check_display_file ctx cs =
 			let m = cc#find_module path in
 			check_display_module ctx cc cfile m
 		with Not_found ->
-			Printexc.print_backtrace stdout;
-			print_endline "invalid";
 			(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 				current file in order to run diagnostics on it again. *)
 			if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
