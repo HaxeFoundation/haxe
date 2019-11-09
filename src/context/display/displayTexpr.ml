@@ -76,8 +76,6 @@ let check_display_file ctx cs =
 			let m = cc#find_module_by_file (DisplayPosition.display_position#get).pfile in
 			check_display_module ctx cc m
 		with Not_found ->
-			print_endline "fell through";
-			Printexc.print_backtrace stdout;
 			(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 				current file in order to run diagnostics on it again. *)
 			if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
