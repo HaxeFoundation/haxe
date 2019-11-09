@@ -451,16 +451,6 @@ let should_be_initialized field =
 		| _ -> false
 
 (**
-	Check if `field` is overridden in subclasses
-*)
-let is_overridden cls field =
-	let rec loop_inheritance c =
-		(PMap.mem field.cf_name c.cl_fields)
-		|| List.exists (fun d -> loop_inheritance d) c.cl_descendants;
-	in
-	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
-
-(**
 	Check if all items of the `needle` list exist in the same order in the beginning of the `haystack` list.
 *)
 let rec list_starts_with_list (haystack:string list) (needle:string list) =
@@ -504,7 +494,7 @@ class immediate_execution =
 							(* known to be pure *)
 							| { cl_path = ([], "Array") }, _ -> true
 							(* try to analyze function code *)
-							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) when (has_class_field_flag field CfFinal) || not (is_overridden cls field) ->
+							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) when (has_class_field_flag field CfFinal) || not (FiltersCommon.is_overridden cls field) ->
 								if arg_num < 0 || arg_num >= List.length fn.tf_args then
 									false
 								else begin

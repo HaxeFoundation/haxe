@@ -27,4 +27,27 @@ class TestTreBehavior extends TestBase {
 			case _: assertEquals(actual, [4, 2, 0]);
 		}
 	}
+
+	function testOverriddenMethod() {
+		var parent = new Parent();
+		var child = new Child();
+
+		assertEquals(2, parent.rec(2));
+		assertEquals(5, child.rec(2));
+	}
+}
+
+private class Parent {
+	public function new() {}
+
+	public function rec(n:Int, cnt:Int = 0):Int {
+		if(n <= 0) return cnt;
+		return rec(n - 1, cnt + 1);
+	}
+}
+
+private class Child extends Parent {
+	override public function rec(n:Int, cnt:Int = 0):Int {
+		return super.rec(n, cnt + 1);
+	}
 }

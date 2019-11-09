@@ -96,7 +96,7 @@ let is_recursive_named_local_call fn_var callee args =
 		v == fn_var
 	| _ -> false
 
-let is_recursive_method_call field callee args =
+let is_recursive_method_call cls field callee args =
 	match callee.eexpr, args with
 	(* member abstract function*)
 	| TField (_, FStatic (_, cf)), { eexpr = TLocal v } :: _ when has_meta Meta.Impl cf.cf_meta ->
@@ -105,7 +105,7 @@ let is_recursive_method_call field callee args =
 	| TField (_, FStatic (_, cf)), _
 	(* instance method *)
 	| TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)), _ ->
-		cf == field
+		cf == field && not (FiltersCommon.is_overridden cls field)
 	| _ -> false
 
 let rec transform_function ctx is_recursive_call fn =
@@ -190,9 +190,10 @@ let rec has_tail_recursion is_recursive_call in_loop function_end e =
 		check_expr (has_tail_recursion is_recursive_call in_loop function_end) e
 
 let run ctx e =
+	let is_recursive_call = is_recursive_method_call ctx.curclass ctx.curfield in
 	match e.eexpr with
-	| TFunction fn when has_tail_recursion (is_recursive_method_call ctx.curfield) false true fn.tf_expr ->
+	| TFunction fn when has_tail_recursion is_recursive_call false true fn.tf_expr ->
 		(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
-		let fn = transform_function ctx (is_recursive_method_call ctx.curfield) fn in
+		let fn = transform_function ctx is_recursive_call fn in
 		{ e with eexpr = TFunction fn }
 	| _ -> e
