@@ -58,22 +58,29 @@ let check_display_field ctx sc c cf =
 	ignore(follow cf.cf_type)
 
 let check_display_class ctx cc cfile c =
-	let sc = find_class_by_position cfile c.cl_name_pos in
-	ignore(Typeload.type_type_params ctx c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
-	List.iter (function
-		| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
-			ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
-		| _ ->
-			()
-	) sc.d_flags;
-	let check_field cf =
+	let check_field sc cf =
 		if display_position#enclosed_in cf.cf_pos then
 			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in
-	List.iter check_field c.cl_ordered_statics;
-	List.iter check_field c.cl_ordered_fields;
-	Option.may check_field c.cl_constructor
+	match c.cl_kind with
+	| KAbstractImpl a ->
+		let sa = find_abstract_by_position cfile c.cl_name_pos in
+		let check_field = check_field sa in
+		List.iter check_field c.cl_ordered_statics;
+	| _ ->
+		let sc = find_class_by_position cfile c.cl_name_pos in
+		ignore(Typeload.type_type_params ctx c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
+		List.iter (function
+			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
+				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
+			| _ ->
+				()
+		) sc.d_flags;
+		let check_field = check_field sc in
+		List.iter check_field c.cl_ordered_statics;
+		List.iter check_field c.cl_ordered_fields;
+		Option.may check_field c.cl_constructor
 
 let check_display_enum ctx cc cfile en =
 	let se = find_enum_by_position cfile en.e_name_pos in
