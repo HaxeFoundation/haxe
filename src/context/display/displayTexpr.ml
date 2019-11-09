@@ -32,6 +32,7 @@ let find_field_by_position cc p =
 
 let check_display_field ctx cc c is_static is_constructor cf =
 	let cff,imports = find_field_by_position cc cf.cf_name_pos in
+	let imports = TypeloadModule.handle_import_hx ctx c.cl_module imports cf.cf_pos in
 	let ctx = TypeloadModule.type_types_into_module ctx c.cl_module imports cf.cf_pos in
 	ctx.is_display_file <- true;
 	let ctx,cctx = TypeloadFields.create_class_context ctx c (fun () -> ()) cf.cf_pos in
