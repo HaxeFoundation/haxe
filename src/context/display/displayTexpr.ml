@@ -70,6 +70,11 @@ let check_display_file ctx cs =
 	match ctx.com.cache with
 	| Some cc ->
 		begin try
+			(* TODO: diagnostics currently relies on information collected during typing. *)
+			begin match ctx.com.display.dms_kind with
+				| DMDiagnostics _ -> raise Not_found
+				| _ -> ()
+			end;
 			let p = DisplayPosition.display_position#get in
 			let cfile = cc#find_file (Path.unique_full_path p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
