@@ -13,14 +13,40 @@ let find_field_by_position sc p =
 		if pos cff.cff_name = p then true else false
 	) sc.d_data
 
+let find_enum_field_by_position sc p =
+	List.find (fun eff ->
+		if pos eff.ec_name = p then true else false
+	) sc.d_data
+
 let find_class_by_position cfile p =
 	let rec loop dl = match dl with
-		| (EClass c,_) :: dl when pos c.d_name = p ->
-			c
-		| _ :: dl ->
-			loop dl
-		| [] ->
-			raise Not_found
+		| (EClass c,_) :: dl when pos c.d_name = p -> c
+		| _ :: dl -> loop dl
+		| [] -> raise Not_found
+	in
+	loop cfile.c_decls
+
+let find_enum_by_position cfile p =
+	let rec loop dl = match dl with
+		| (EEnum en,_) :: dl when pos en.d_name = p -> en
+		| _ :: dl -> loop dl
+		| [] -> raise Not_found
+	in
+	loop cfile.c_decls
+
+let find_typedef_by_position cfile p =
+	let rec loop dl = match dl with
+		| (ETypedef td,_) :: dl when pos td.d_name = p -> td
+		| _ :: dl -> loop dl
+		| [] -> raise Not_found
+	in
+	loop cfile.c_decls
+
+let find_abstract_by_position cfile p =
+	let rec loop dl = match dl with
+		| (EAbstract a,_) :: dl when pos a.d_name = p -> a
+		| _ :: dl -> loop dl
+		| [] -> raise Not_found
 	in
 	loop cfile.c_decls
 
@@ -33,6 +59,7 @@ let check_display_field ctx sc c cf =
 
 let check_display_class ctx cc cfile c =
 	let sc = find_class_by_position cfile c.cl_name_pos in
+	ignore(Typeload.type_type_params ctx c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
 	List.iter (function
 		| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
 			ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
@@ -44,11 +71,34 @@ let check_display_class ctx cc cfile c =
 			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in
-	if display_position#enclosed_in c.cl_name_pos then
-		DisplayEmitter.display_module_type ctx (TClassDecl c) c.cl_name_pos;
 	List.iter check_field c.cl_ordered_statics;
 	List.iter check_field c.cl_ordered_fields;
 	Option.may check_field c.cl_constructor
+
+let check_display_enum ctx cc cfile en =
+	let se = find_enum_by_position cfile en.e_name_pos in
+	ignore(Typeload.type_type_params ctx en.e_path (fun() -> en.e_params) null_pos se.d_params);
+	PMap.iter (fun _ ef ->
+		if display_position#enclosed_in ef.ef_pos then begin
+			let sef = find_enum_field_by_position se ef.ef_name_pos in
+			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,List.map snd en.e_params)) (ref false) (ref 0) sef)
+		end
+	) en.e_constrs
+
+let check_display_typedef ctx cc cfile td =
+	let st = find_typedef_by_position cfile td.t_name_pos in
+	ignore(Typeload.type_type_params ctx td.t_path (fun() -> td.t_params) null_pos st.d_params);
+	ignore(Typeload.load_complex_type ctx true st.d_data)
+
+let check_display_abstract ctx cc cfile a =
+	let sa = find_abstract_by_position cfile a.a_name_pos in
+	ignore(Typeload.type_type_params ctx a.a_path (fun() -> a.a_params) null_pos sa.d_params);
+	List.iter (function
+		| (AbOver(ct,p) | AbFrom(ct,p) | AbTo(ct,p)) when display_position#enclosed_in p ->
+			ignore(Typeload.load_complex_type ctx true (ct,p))
+		| _ ->
+			()
+	) sa.d_flags
 
 let check_display_module ctx cc cfile m =
 	let imports = List.filter (function
@@ -57,13 +107,21 @@ let check_display_module ctx cc cfile m =
 	) cfile.c_decls in
 	let imports = TypeloadModule.handle_import_hx ctx m imports null_pos in
 	let ctx = TypeloadModule.type_types_into_module ctx m imports null_pos in
-	List.iter (fun md -> match md with
+	List.iter (fun md ->
+		let infos = t_infos md in
+		if display_position#enclosed_in infos.mt_name_pos then
+			DisplayEmitter.display_module_type ctx md infos.mt_name_pos;
+		begin if display_position#enclosed_in infos.mt_pos then match md with
 		| TClassDecl c ->
-			if display_position#enclosed_in c.cl_pos then
-				check_display_class ctx cc cfile c;
-			DisplayEmitter.check_display_metadata ctx c.cl_meta
-		| _ ->
-			() (* TODO *)
+			check_display_class ctx cc cfile c
+		| TEnumDecl en ->
+			check_display_enum ctx cc cfile en
+		| TTypeDecl td ->
+			check_display_typedef ctx cc cfile td
+		| TAbstractDecl a ->
+			check_display_abstract ctx cc cfile a
+		end;
+		DisplayEmitter.check_display_metadata ctx infos.mt_meta
 	) m.m_types
 
 let check_display_file ctx cs =
