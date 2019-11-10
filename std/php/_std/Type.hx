@@ -296,7 +296,8 @@ enum ValueType {
 			return false;
 
 		try {
-			if (Syntax.strictNotEqual(Global.get_class(cast a), Global.get_class(cast b)))
+			var cls = Global.get_class(cast a);
+			if (!Syntax.code('({0} instanceof {1})', b, cls))
 				return false;
 			if (enumIndex(a) != enumIndex(b))
 				return false;
