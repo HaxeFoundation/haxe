@@ -296,8 +296,7 @@ enum ValueType {
 			return false;
 
 		try {
-			var cls = Global.get_class(cast a);
-			if (!Syntax.code('({0} instanceof {1})', b, cls))
+			if (!Syntax.instanceof(a, (Global.get_class(cast b):String)))
 				return false;
 			if (enumIndex(a) != enumIndex(b))
 				return false;
@@ -310,17 +309,8 @@ enum ValueType {
 					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
 					}
-					continue;
-				}
-				// functions
-				if (Reflect.isFunction(aParams[i])) {
-					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
-						return false;
-					}
-					continue;
-				}
 				// everything else
-				if (!inline Boot.equal(aParams[i], bParams[i])) {
+				} else if (!inline Boot.equal(aParams[i], bParams[i])) {
 					return false;
 				}
 			}
