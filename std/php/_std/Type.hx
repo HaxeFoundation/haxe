@@ -256,7 +256,7 @@ enum ValueType {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		if (e == null)
 			return null;
-		return @:privateAccess Array.wrap(untyped e.__hx__list());
+		return @:privateAccess Array.wrap(Syntax.call(e, '__hx__list'));
 	}
 
 	public static function typeof(v:Dynamic):ValueType {
@@ -290,19 +290,19 @@ enum ValueType {
 	}
 
 	public static function enumEq<T:EnumValue>(a:T, b:T):Bool {
-		if (a == b)
+		if (Syntax.strictEqual(a, b))
 			return true;
 		if (a == null || b == null)
 			return false;
 
 		try {
-			if (Global.get_class(cast a) != Global.get_class(cast b))
+			if (Syntax.strictNotEqual(Global.get_class(cast a), Global.get_class(cast b)))
 				return false;
 			if (enumIndex(a) != enumIndex(b))
 				return false;
 
-			var aParams:NativeIndexedArray<Dynamic> = untyped a.params;
-			var bParams:NativeIndexedArray<Dynamic> = untyped b.params;
+			var aParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(a).params;
+			var bParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(b).params;
 			for (i in 0...Global.count(aParams)) {
 				// enums
 				if (Boot.isEnumValue(aParams[i])) {
@@ -319,7 +319,7 @@ enum ValueType {
 					continue;
 				}
 				// everything else
-				if (aParams[i] != bParams[i]) {
+				if (!inline Boot.equal(aParams[i], bParams[i])) {
 					return false;
 				}
 			}
@@ -330,16 +330,16 @@ enum ValueType {
 		}
 	}
 
-	public static function enumConstructor(e:EnumValue):String {
-		return untyped e.tag;
+	public inline static function enumConstructor(e:EnumValue):String {
+		return Boot.castEnumValue(e).tag;
 	}
 
 	public inline static function enumParameters(e:EnumValue):Array<Dynamic> {
-		return @:privateAccess Array.wrap(untyped e.params);
+		return @:privateAccess Array.wrap(Boot.castEnumValue(e).params);
 	}
 
 	public inline static function enumIndex(e:EnumValue):Int {
-		return untyped e.index;
+		return Boot.castEnumValue(e).index;
 	}
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
