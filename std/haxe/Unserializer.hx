@@ -389,7 +389,8 @@ class Unserializer {
 				#if neko
 				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.substr(pos, len).__s, untyped BASE64.__s));
 				#elseif php
-				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(buf.substr(pos, len)));
+				var phpEncoded = php.Global.strtr(buf.substr(pos, len), '%:', '+/');
+				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(phpEncoded));
 				#else
 				var codes = CODES;
 				if (codes == null) {
