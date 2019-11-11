@@ -343,6 +343,7 @@ class Serializer {
 						buf.add(chars);
 						#elseif php
 						var chars = new String(php.Global.base64_encode(v.getData()));
+						chars = php.Global.strtr(chars, '+/', '%:');
 						buf.add("s");
 						buf.add(chars.length);
 						buf.add(":");
