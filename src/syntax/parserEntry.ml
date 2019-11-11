@@ -32,7 +32,7 @@ type small_type =
 	| TVersion of (version * version * version) * (version list option)
 
 let is_true = function
-	| TBool false | TNull | TFloat 0. | TString "" -> false
+	| TBool false | TNull | TFloat 0. -> false
 	| _ -> true
 
 let s_small_type v =
