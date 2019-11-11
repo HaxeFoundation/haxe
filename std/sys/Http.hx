@@ -107,7 +107,7 @@ class Http extends haxe.http.HttpBase {
 				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
 				#else
-				throw "Https is only supported with -lib hxssl";
+				throw "Https is not implemented for this target";
 				#end
 			} else {
 				sock = new Socket();
