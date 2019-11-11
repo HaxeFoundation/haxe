@@ -1,3 +1,18 @@
+2019-11-11: 4.0.2
+
+	General improvements and optimizations:
+
+	php : improved performance of `haxe.io.Bytes.get()` (#8938)
+	php : improved performance of serialization/unserialization of `haxe.io.Bytes` (#8943)
+	php : improved performance of enum-related methods in `Type` class of standard library
+
+	Bugfixes:
+
+	haxelib : Fixed too strict requirements to haxelib.json data for private libs
+	all : fixed `@:using` static extensions on `Null<SomeType>` (#8928)
+	php : fixed static methods with the same name in parent and child classes (#8944)
+
+
 2019-11-04: 4.0.1
 
 	Bugfixes:
