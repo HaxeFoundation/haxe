@@ -300,6 +300,13 @@ class Boot {
 	}
 
 	/**
+		Unsafe cast to HxEnum
+	**/
+	public static inline function castEnumValue(enm:EnumValue):HxEnum {
+		return cast enm;
+	}
+
+	/**
 		Returns `Class<T>` for `HxClosure`
 	**/
 	public static inline function closureHxClass():HxClass {
@@ -688,6 +695,7 @@ private class HxClass {
 @:keep
 @:dox(hide)
 @:allow(php.Boot.stringify)
+@:allow(Type)
 private class HxEnum {
 	final tag:String;
 	final index:Int;
@@ -713,6 +721,8 @@ private class HxEnum {
 	public function __toString():String {
 		return Boot.stringify(this);
 	}
+
+	extern public static function __hx__list():Array<String>;
 }
 
 /**
