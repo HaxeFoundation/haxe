@@ -110,10 +110,16 @@ let is_recursive_method_call cls field callee args =
 
 let rec transform_function ctx is_recursive_call fn =
 	let add_loop = ref false in
-	let rec transform_expr in_loop function_end e =
+	let rec transform_expr cancel_tre function_end e =
 		match e.eexpr with
+		(* cancel tre inside of loops bodies *)
 		| TWhile _ | TFor _ ->
 			map_expr (transform_expr true false) e
+		(* cancel tre inside of try blocks *)
+		| TTry (e_try, catches) ->
+			let e_try = transform_expr true function_end e_try in
+			let catches = List.map (fun (v, e) -> v, transform_expr cancel_tre function_end e) catches in
+			{ e with eexpr = TTry (e_try, catches) }
 		(* named local function *)
 		| TBinop (OpAssign, ({ eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) } as e_var), ({ eexpr = TFunction fn } as e_fn)) ->
 			let fn = transform_function ctx (is_recursive_named_local_call v) fn in
@@ -122,28 +128,28 @@ let rec transform_function ctx is_recursive_call fn =
 		| TFunction _ ->
 			e
 		(* return a recursive call to current function *)
-		| TReturn (Some { eexpr = TCall (callee, args) }) when not in_loop && is_recursive_call callee args ->
+		| TReturn (Some { eexpr = TCall (callee, args) }) when not cancel_tre && is_recursive_call callee args ->
 			add_loop := true;
 			replacement_for_TReturn ctx fn args e.epos
 		| TReturn (Some e_return) ->
-			{ e with eexpr = TReturn (Some (transform_expr in_loop function_end e_return)) }
+			{ e with eexpr = TReturn (Some (transform_expr cancel_tre function_end e_return)) }
 		| TBlock exprs ->
 			let rec loop exprs =
 				match exprs with
 				| [] -> []
-				| [{ eexpr = TCall (callee, args) } as e] when not in_loop && function_end && is_recursive_call callee args ->
+				| [{ eexpr = TCall (callee, args) } as e] when not cancel_tre && function_end && is_recursive_call callee args ->
 					add_loop := true;
 					[replacement_for_TReturn ctx fn args e.epos]
-				| { eexpr = TCall (callee, args) } :: [{ eexpr = TReturn None }] when not in_loop && is_recursive_call callee args ->
+				| { eexpr = TCall (callee, args) } :: [{ eexpr = TReturn None }] when not cancel_tre && is_recursive_call callee args ->
 					add_loop := true;
 					[replacement_for_TReturn ctx fn args e.epos]
 				| e :: rest ->
 					let function_end = function_end && rest = [] in
-					transform_expr in_loop function_end e :: loop rest
+					transform_expr cancel_tre function_end e :: loop rest
 			in
 			{ e with eexpr = TBlock (loop exprs) }
 		| _ ->
-			map_expr (transform_expr in_loop function_end) e
+			map_expr (transform_expr cancel_tre function_end) e
 	in
 	let body = transform_expr false true fn.tf_expr in
 	let body =
@@ -160,10 +166,15 @@ let rec transform_function ctx is_recursive_call fn =
 	in
 	{ fn with tf_expr = body }
 
-let rec has_tail_recursion is_recursive_call in_loop function_end e =
+let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 	match e.eexpr with
+	(* cancel tre inside of loops bodies *)
 	| TFor _ | TWhile _ ->
 		check_expr (has_tail_recursion is_recursive_call true false) e
+	(* cancel tre inside of try blocks *)
+	| TTry (e, catches) ->
+		has_tail_recursion is_recursive_call true function_end e
+		|| List.exists (fun (_, e) -> has_tail_recursion is_recursive_call cancel_tre function_end e) catches
 	(* named local function *)
 	| TBinop (OpAssign, { eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) }, { eexpr = TFunction fn }) ->
 		has_tail_recursion (is_recursive_named_local_call v) false true fn.tf_expr
@@ -171,29 +182,38 @@ let rec has_tail_recursion is_recursive_call in_loop function_end e =
 	| TFunction _ ->
 		false
 	| TReturn (Some { eexpr = TCall (callee, args)}) ->
-		not in_loop && is_recursive_call callee args
+		not cancel_tre && is_recursive_call callee args
 	| TBlock exprs ->
 		let rec loop exprs =
 			match exprs with
 			| [] -> false
-			| [{ eexpr = TCall (callee, args) }] when not in_loop && function_end ->
+			| [{ eexpr = TCall (callee, args) }] when not cancel_tre && function_end ->
 				is_recursive_call callee args
-			| { eexpr = TCall (callee, args) } :: [{ eexpr = TReturn None }] when not in_loop ->
+			| { eexpr = TCall (callee, args) } :: [{ eexpr = TReturn None }] when not cancel_tre ->
 				is_recursive_call callee args
 			| e :: rest ->
 				let function_end = function_end && rest = [] in
-				has_tail_recursion is_recursive_call in_loop function_end e
+				has_tail_recursion is_recursive_call cancel_tre function_end e
 				|| loop rest
 		in
 		loop exprs
 	| _ ->
-		check_expr (has_tail_recursion is_recursive_call in_loop function_end) e
+		check_expr (has_tail_recursion is_recursive_call cancel_tre function_end) e
 
 let run ctx e =
-	let is_recursive_call = is_recursive_method_call ctx.curclass ctx.curfield in
 	match e.eexpr with
-	| TFunction fn when has_tail_recursion is_recursive_call false true fn.tf_expr ->
-		(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
-		let fn = transform_function ctx is_recursive_call fn in
-		{ e with eexpr = TFunction fn }
+	| TFunction fn ->
+		let is_tre_eligible =
+			has_class_field_flag ctx.curfield CfFinal
+			|| PMap.exists ctx.curfield.cf_name ctx.curclass.cl_statics
+		in
+		let is_recursive_call callee args =
+			is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+		in
+		if has_tail_recursion is_recursive_call false true fn.tf_expr then
+			(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
+			let fn = transform_function ctx is_recursive_call fn in
+			{ e with eexpr = TFunction fn }
+		else
+			e
 	| _ -> e

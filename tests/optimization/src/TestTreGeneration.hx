@@ -126,4 +126,32 @@ class TestTreGeneration {
 			testVoid(a + 1);
 		}
 	}
+
+	@:js('
+		while(true) {
+			try {
+				if(n <= 0) {
+					throw new js__$Boot_HaxeError("exit");
+				}
+				return TestTreGeneration.testTryCancelsTre(n - 1);
+			} catch( e ) {
+				if(n == 0) {
+					n -= 1;
+					continue;
+				}
+			}
+			return 0;
+		}
+	')
+	static function testTryCancelsTre(n:Int):Int {
+		try {
+			if(n <= 0) throw 'exit';
+			return testTryCancelsTre(n - 1);
+		} catch(e:Dynamic) {
+			if(n == 0) {
+				return testTryCancelsTre(n - 1);
+			}
+		}
+		return 0;
+	}
 }
