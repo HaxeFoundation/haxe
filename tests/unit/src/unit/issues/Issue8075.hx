@@ -1,7 +1,6 @@
 package unit.issues;
 
 class Issue8075 extends unit.Test {
-#if !as3
 	function test() {
 		var expect = #if static 0 #else null #end;
 		var a = [];
@@ -10,5 +9,4 @@ class Issue8075 extends unit.Test {
 		a[2] = 2;
 		eq(expect, a[0]);
 	}
-#end
 }

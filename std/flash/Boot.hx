@@ -22,7 +22,6 @@
 
 package flash;
 
-#if !as3
 @:keep private class RealBoot extends Boot {
 	#if swc
 	public function new() {
@@ -42,7 +41,6 @@ package flash;
 	}
 	#end
 }
-#end
 
 @:dox(hide)
 @:keep
@@ -282,7 +280,7 @@ class Boot extends flash.display.MovieClip {
 						throw "Invalid date format : " + s;
 				}
 			};
-			d.prototype[#if (as3 || no_flash_override) "toStringHX" #else "toString" #end] = function() {
+			d.prototype[#if no_flash_override "toStringHX" #else "toString" #end] = function() {
 				var date:Date = __this__;
 				var m = date.getMonth() + 1;
 				var d = date.getDate();
@@ -332,7 +330,7 @@ class Boot extends flash.display.MovieClip {
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
 			aproto.setPropertyIsEnumerable("resize", false);
-			#if (as3 || no_flash_override)
+			#if no_flash_override
 			aproto.filterHX = function(f) {
 				var ret = [];
 				var i = 0;

@@ -247,9 +247,6 @@ class TreeNode<K, V> {
 	public var key:K;
 	public var value:V;
 
-	#if as3
-	public
-	#end
 	var _height:Int;
 
 	public function new(l, k, v, r, h = -1) {

@@ -101,7 +101,7 @@ class TestMain {
 			#end
 			new TestInterface(),
 			new TestNaN(),
-			#if ((dce == "full") && !interp && !as3)
+			#if ((dce == "full") && !interp)
 			new TestDCE(),
 			#end
 			new TestMapComprehension(),
