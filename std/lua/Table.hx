@@ -67,13 +67,16 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
         return cast obj;
     }
 
-    public inline static function toArray<T>(tbl : Table<Int,T>) : Array<T> {
-        var arr =  [];
-        PairTools.ipairsFold(tbl, (k,v,m) ->{
-            arr.push(v);
-            return arr;
-        }, arr);
-        return arr;
+	/**
+		Copies the table argument and converts it to an Object.
+	**/
+	public inline static function toObject<T>(t:Table<String, T>):Dynamic<T> {
+		return Boot.tableToObject(PairTools.copy(t));
+	}
+
+
+    public inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
+		return Boot.defArray(PairTools.copy(tbl), length);
     }
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
