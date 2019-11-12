@@ -108,7 +108,7 @@ for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];
 var fields = Type.getClassFields(C);
-var requiredFields = #if as3 ["staticVar"] #else ["staticFunc", "staticVar", "staticProp"] #end;
+var requiredFields = ["staticFunc", "staticVar", "staticProp"];
 for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];

@@ -124,7 +124,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function toStr(x:Int64):String
 		return x.toString();
 
-	#if as3 public #else private #end function toString():String {
+	function toString():String {
 		var i:Int64 = cast this;
 		if (i == 0)
 			return "0";
