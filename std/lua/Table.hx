@@ -25,7 +25,6 @@ package lua;
 /**
 	This library provides generic functions for table manipulation.
 **/
-// TODO: use an abstract here?
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
@@ -54,6 +53,22 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		}
 		return ret;
 	}
+
+    public inline static function toMap<A,B>(tbl : Table<A,B>) : Map<A,B> {
+        var res = new haxe.ds.ObjectMap();
+        foreach(tbl , (k:A,v:B) -> {
+            res.set(k,v);
+        });
+        return cast res;
+    }
+
+    public inline static function toArray<T>(tbl : Table<Int,T>) : Array<T> {
+        var res = [];
+        foreachi(tbl, (k:Int, v:T, i:Int) ->{
+            res.push(v);
+        });
+        return res;
+    }
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
 	public static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;

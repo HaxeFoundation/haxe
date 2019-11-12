@@ -76,22 +76,8 @@ class Sys {
 	}
 
 	public static function environment():Map<String, String> {
-		var map = new Map<String, String>();
-		var cmd = switch (Sys.systemName()) {
-			case "Windows": 'SET';
-			default: 'printenv';
-		}
-		var p = new sys.io.Process(cmd, []);
-		var code = p.exitCode(true);
-		var out = p.stdout.readAll().toString();
-		p.close();
-		var lines = out.split("\n");
-		var m = new Map<String, String>();
-		for (l in lines) {
-			var parts = l.split("=");
-			m.set(parts.shift(), parts.join("="));
-		}
-		return m;
+        var env = lua.lib.luv.Os.environ();
+        return lua.Table.toMap(env);
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath():String {
@@ -133,6 +119,8 @@ class Sys {
 	public inline static function stdout():haxe.io.Output
 		return new FileOutput(Io.stdout);
 
-	public static function time():Float
-		return lua.lib.luasocket.Socket.gettime();
+	public static function time():Float{
+        var stamp = lua.lib.luv.Misc.gettimeofday();
+        return stamp.seconds + (stamp.microseconds / 100000);
+    }
 }

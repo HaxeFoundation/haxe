@@ -22,7 +22,6 @@
 
 package lua;
 
-import haxe.Constraints.Function;
 import haxe.SysTools;
 
 @:dox(hide)
