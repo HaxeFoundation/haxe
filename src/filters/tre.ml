@@ -203,10 +203,7 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 let run ctx e =
 	match e.eexpr with
 	| TFunction fn ->
-		let is_tre_eligible =
-			has_class_field_flag ctx.curfield CfFinal
-			|| PMap.exists ctx.curfield.cf_name ctx.curclass.cl_statics
-		in
+		let is_tre_eligible = ctx.curfun = FunStatic || has_class_field_flag ctx.curfield CfFinal in
 		let is_recursive_call callee args =
 			is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
 		in
