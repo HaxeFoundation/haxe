@@ -118,6 +118,12 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
 
+let rec needs_temp_var e =
+	match e.eexpr with
+	| TLocal _ | TTypeExpr _ | TConst _ -> false
+	| TField (e, _) | TParenthesis e -> needs_temp_var e
+	| _ -> true
+
 let call_to_string ctx ?(resume=false) e =
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
@@ -129,12 +135,6 @@ let call_to_string ctx ?(resume=false) e =
 	if ctx.com.config.pf_static && not (is_nullable e.etype) then
 		gen_to_string e
 	else begin (* generate `if(e == null) 'null' else e.toString()` *)
-		let rec needs_temp_var e =
-			match e.eexpr with
-			| TLocal _ | TTypeExpr _ | TConst _ -> false
-			| TField (e, _) | TParenthesis e -> needs_temp_var e
-			| _ -> true
-		in
 		let string_null = mk (TConst (TString "null")) ctx.t.tstring e.epos in
 		if needs_temp_var e then
 			let tmp = alloc_var VGenerated "tmp" e.etype e.epos in
