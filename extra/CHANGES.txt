@@ -5,8 +5,6 @@
 	php : improved performance of `haxe.io.Bytes.get()` (#8938)
 	php : improved performance of serialization/unserialization of `haxe.io.Bytes` (#8943)
 	php : improved performance of enum-related methods in `Type` class of standard library
-	lua : lua.Lib.tableToArray moved to Table.toArray
-	lua : support for libuv/luv 1.32
 
 	Bugfixes:
 
