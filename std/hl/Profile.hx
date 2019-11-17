@@ -218,4 +218,14 @@ class Profile {
 	public static function getFieldName(hash:Int):Bytes {
 		return null;
 	}
+	
+	@:hlNative(1.11)
+	static function sys_profile_event( code : Int, data : hl.Bytes, dataLen : Int ) : Void {}
+	public static function event( code : Int, ?data : String ) @:privateAccess {
+		sys_profile_event(code,data == null ? null : data.bytes, data == null ? 0 : (data.length<<1));
+	}
+	public static function eventBytes( code : Int, data : haxe.io.Bytes ) @:privateAccess {
+		sys_profile_event(code,data == null ? null : data, data == null ? 0 : data.length);
+	}
+	
 }
