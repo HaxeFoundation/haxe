@@ -585,7 +585,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TVar (v, Some { eexpr = TConst _ }) ->
 				(try
 					let data = Hashtbl.find locals v.v_id in
-					if data.i_read = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					if data.i_read = 0 && data.i_called = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
 					else Type.map_expr drop_unused_vars e
 				with Not_found ->
 					Type.map_expr drop_unused_vars e
