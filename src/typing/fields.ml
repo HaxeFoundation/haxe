@@ -57,18 +57,29 @@ let remove_constant_flag t callb =
 		restore();
 		raise e
 
+let raise_constraint_failure ctx tname name t constr p =
+	try
+		Type.unify t constr
+	with Unify_error l ->
+		let raise_error() =
+			raise (Unify_error (Constraint_failure (tname ^ "." ^ name) :: l))
+		in
+		try
+			match follow t with
+			| TAbstract (a,_) ->
+				let tmp = mk (TConst TNull) t p in
+				ignore (AbstractCast.cast_or_unify_raise ctx constr tmp p)
+			| _ ->
+				raise_error()
+		with Unify_error _ | Error (Unify _, _) ->
+			raise_error()
+
 let check_constraints ctx tname tpl tl map delayed p =
 	List.iter2 (fun m (name,t) ->
 		match follow t with
 		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 			let f = (fun() ->
-				List.iter (fun ct ->
-					try
-						Type.unify (map m) (map ct)
-					with Unify_error l ->
-						let l = Constraint_failure (tname ^ "." ^ name) :: l in
-						raise (Unify_error l)
-				) constr
+				List.iter (fun ct -> raise_constraint_failure ctx tname name (map m) (map ct) p) constr
 			) in
 			if delayed then
 				delay ctx PCheckConstraint (fun () -> try f() with Unify_error l -> display_error ctx (error_msg (Unify l)) p)
@@ -101,21 +112,9 @@ let add_constraint_checks ctx ctypes pl f tl p =
 			delay ctx PCheckConstraint (fun() ->
 				List.iter (fun ct ->
 					try
-						(* if has_mono m then raise (Unify_error [Unify_custom "Could not resolve full type for constraint checks"; Unify_custom ("Type was " ^ (s_type (print_context()) m))]); *)
-						Type.unify m ct
+						raise_constraint_failure ctx f.cf_name name m ct p
 					with Unify_error l ->
-						let error() =
-							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p
-						in
-						try
-							match follow m with
-							| TAbstract (a,_) ->
-								let tmp = mk (TConst TNull) m p in
-								ignore (AbstractCast.cast_or_unify_raise ctx ct tmp p)
-							| _ ->
-								error()
-						with Unify_error _ ->
-							error()
+						display_error ctx (error_msg (Unify l)) p
 				) constr
 			);
 		| _ -> ()
