@@ -405,14 +405,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match ctx.com.display.dms_kind with
+	let check_path_display path p = match !Parser.display_mode with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b || DisplayPosition.display_position#is_in_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 		| DMStatistics ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 		| DMUsage _ ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 		| _ ->
 			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p

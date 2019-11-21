@@ -116,6 +116,7 @@ let module_extra file sign time kind policy =
 		m_display = {
 			m_inline_calls = [];
 			m_type_hints = [];
+			m_import_positions = PMap.empty;
 		};
 		m_dirty = None;
 		m_added = 0;

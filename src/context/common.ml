@@ -153,7 +153,6 @@ class compiler_callbacks = object(self)
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
@@ -435,7 +434,6 @@ let create version s_version args =
 		args = args;
 		shared = {
 			shared_display_information = {
-				import_positions = PMap.empty;
 				diagnostics_messages = [];
 				dead_blocks = Hashtbl.create 0;
 			}
