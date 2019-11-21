@@ -104,7 +104,18 @@ let add_constraint_checks ctx ctypes pl f tl p =
 						(* if has_mono m then raise (Unify_error [Unify_custom "Could not resolve full type for constraint checks"; Unify_custom ("Type was " ^ (s_type (print_context()) m))]); *)
 						Type.unify m ct
 					with Unify_error l ->
-						display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
+						let error() =
+							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p
+						in
+						try
+							match follow m with
+							| TAbstract (a,_) ->
+								let tmp = mk (TConst TNull) m p in
+								ignore (AbstractCast.cast_or_unify_raise ctx ct tmp p)
+							| _ ->
+								error()
+						with Unify_error _ ->
+							error()
 				) constr
 			);
 		| _ -> ()
