@@ -78,18 +78,9 @@ enum ValueType {
 				return "Float";
 			case "Boolean":
 				return "Bool";
-			#if as3
-			case "Object":
-				return "Dynamic";
-			#end
 			default:
 		}
 		var parts = str.split("::");
-		#if as3
-		if (parts[parts.length - 1] == "_Object") {
-			parts[parts.length - 1] = "Object";
-		}
-		#end
 		return parts.join(".");
 	}
 
@@ -111,10 +102,6 @@ enum ValueType {
 						return Int;
 					case "Float":
 						return Float;
-					#if as3
-					case "Dynamic":
-						return Dynamic;
-					#end
 				}
 				return null;
 			}

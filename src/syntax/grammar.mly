@@ -926,6 +926,7 @@ and parse_constraint_param s =
 		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
+				| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> Some t
 				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
 			| [< >] -> None

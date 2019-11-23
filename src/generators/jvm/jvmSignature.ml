@@ -227,6 +227,9 @@ module NativeSignatures = struct
 	let haxe_empty_constructor_path = (["haxe";"jvm"],"EmptyConstructor")
 	let haxe_empty_constructor_sig = TObject(haxe_empty_constructor_path,[])
 
+	let void_path = ["java";"lang"],"Void"
+	let void_sig = TObject(void_path,[])
+
 	(* numeric *)
 
 	let number_path = ["java";"lang"],"Number"

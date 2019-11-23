@@ -10,9 +10,6 @@ import cpp.link.StaticZlib;
 #end
 
 @:keepSub
-#if as3
-@:publicFields
-#end
 class Test implements utest.ITest {
 
 	public function new() {

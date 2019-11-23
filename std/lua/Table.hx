@@ -22,10 +22,13 @@
 
 package lua;
 
+import lua.PairTools;
+
+import haxe.ds.ObjectMap;
+
 /**
 	This library provides generic functions for table manipulation.
 **/
-// TODO: use an abstract here?
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
@@ -55,11 +58,34 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return ret;
 	}
 
+    public inline static function toMap<A,B>(tbl : Table<A,B>) : Map<A,B> {
+        var obj = new ObjectMap();
+        PairTools.pairsFold(tbl, (k,v,m) ->{
+            obj.set(k,v);
+            return obj;
+        }, obj);
+        return cast obj;
+    }
+
+	/**
+		Copies the table argument and converts it to an Object.
+	**/
+	public inline static function toObject<T>(t:Table<String, T>):Dynamic<T> {
+		return Boot.tableToObject(PairTools.copy(t));
+	}
+
+
+    public inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
+		return Boot.defArray(PairTools.copy(tbl), length);
+    }
+
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
 	public static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
 
+    #if (lua_ver == 5.1)
 	public static function foreach<A, B>(table:Table<A, B>, f:A->B->Void):Void;
 	public static function foreachi<A, B>(table:Table<A, B>, f:A->B->Int->Void):Void;
+    #end
 
 	public static function sort<A, B>(table:Table<A, B>, ?order:A->A->Bool):Void;
 

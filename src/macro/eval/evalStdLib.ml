@@ -952,7 +952,7 @@ module StdEReg = struct
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [encode_string ""]
+		if String.length s = 0 then encode_array [v_empty_string]
 		else begin
 			let max = if this.r_global then -1 else 2 in
 			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
@@ -1540,9 +1540,9 @@ module StdIntMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = IntHashtbl.fold (fun key vvalue acc ->
-			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -1599,9 +1599,9 @@ module StdStringMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
-			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -1657,9 +1657,9 @@ module StdObjectMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
-			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -2190,7 +2190,7 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_string ""
+		if i < 0 || i >= this.slength then v_empty_string
 		else vstring (from_char_code (char_at this i))
 	)
 
@@ -2288,7 +2288,7 @@ module StdString = struct
 		let cl_this = this.slength in
 		let c_pos = decode_int pos in
 		if c_pos >= cl_this then
-			encode_string ""
+			v_empty_string
 		else begin
 			let c_pos = if c_pos < 0 then begin
 				let c_pos = this.slength + c_pos in
@@ -2320,7 +2320,7 @@ module StdString = struct
 		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
 		let c_last = if c_last > cl_this then cl_this else c_last in
 		if c_first > cl_this || c_first = c_last then
-			encode_string ""
+			v_empty_string
 		else begin
 			begin
 				let b_offset1 = get_offset this c_first in
@@ -3236,7 +3236,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_string "");
+	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));

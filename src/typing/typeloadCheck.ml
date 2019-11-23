@@ -436,7 +436,7 @@ module Inheritance = struct
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
-						ImportHandling.mark_import_position ctx.com pi;
+						ImportHandling.mark_import_position ctx pi;
 						t
 					in
 					{ t with tpackage = fst (t_path lt) },p

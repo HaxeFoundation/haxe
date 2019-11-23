@@ -273,14 +273,12 @@ var values = [];
 for (a in arr) values.push(a.id);
 values == [1, 3, 5];
 
-#if !as3
 // check that map and filter work well on Dynamic as well
 var a : Dynamic = [0,1,2];
 var b : Dynamic = a.filter(function(x) return x & 1 == 0).map(function(x) return x * 10);
 b.length == 2;
 b[0] == 0;
 b[1] == 20;
-#end
 
 // resize
 var a : Array<Int> = [1,2,3];

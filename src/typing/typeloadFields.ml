@@ -159,6 +159,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
+			| Var { v_write = AccNever } -> args,el,tl
 			| Var _ ->
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
@@ -202,8 +203,6 @@ let transform_abstract_field com this_t a_t a f =
 	let p = f.cff_pos in
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
-		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
@@ -325,6 +324,11 @@ type enum_abstract_mode =
 	| EAInt of int ref
 	| EAOther
 
+type enum_constructor_visibility =
+	| VUnknown
+	| VPublic of placed_access
+	| VPrivate of placed_access
+
 let build_enum_abstract ctx c a fields p =
 	let mode =
 		if does_unify a.a_this ctx.t.tint then EAInt (ref 0)
@@ -334,7 +338,31 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
-			field.cff_access <- [AStatic,null_pos; if (List.mem_assoc APrivate field.cff_access) then (APrivate,null_pos) else (APublic,null_pos)];
+			let check_visibility_conflict visibility p1 =
+				match visibility with
+				| VUnknown ->
+					()
+				| VPublic(access,p2) | VPrivate(access,p2) ->
+					display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx "Conflicts with this" p2;
+			in
+			let rec loop visibility acc = match acc with
+				| (AExtern,p) :: acc ->
+					display_error ctx "extern modifier is not allowed on enum abstract fields" p;
+					loop visibility acc
+				| (APrivate,p) as access :: acc ->
+					check_visibility_conflict visibility p;
+					loop (VPrivate access) acc
+				| (APublic,p) as access :: acc ->
+					check_visibility_conflict visibility p;
+					loop (VPublic access) acc
+				| _ :: acc ->
+					loop visibility acc
+				| [] ->
+					visibility
+			in
+			let visibility = loop VUnknown field.cff_access in
+			field.cff_access <- [AStatic,null_pos; match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
 			field.cff_meta <- (Meta.Enum,[],null_pos) :: (Meta.Impl,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
@@ -1301,8 +1329,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						), p))
 			in
 			let t2, f2 = get_overload overloads in
-			(* accessors must be public on As3 (issue #1872) *)
-			if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],null_pos) :: f2.cf_meta;
 			(match f2.cf_kind with
 				| Method MethMacro ->
 					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;

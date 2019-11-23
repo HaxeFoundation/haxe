@@ -498,14 +498,6 @@ let create sctx write params =
 		ServerMessage.defines ctx.com "";
 		ServerMessage.signature ctx.com "" sign;
 		ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-		(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
-			current file in order to run diagnostics on it again. *)
-		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
-			let file = (DisplayPosition.display_position#get).pfile in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files file;
-			cs#taint_modules file;
-		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
 				ServerMessage.class_paths_changed ctx.com "";

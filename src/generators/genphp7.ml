@@ -911,20 +911,18 @@ class class_wrapper (cls) =
 				match cls.cl_init with
 					| Some _ -> true
 					| None ->
-						let needs = ref false in
-						PMap.iter
-							(fun _ field ->
+						List.exists
+							(fun field ->
 								(* Skip `inline var` fields *)
-								if not (is_inline_var field) then begin
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static vars with non-constant expressions *)
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static dynamic functions *)
-									if not !needs then needs := is_dynamic_method field
-								end
+								not (is_inline_var field)
+								&& match field.cf_kind, field.cf_expr with
+									| Var _, Some { eexpr = TConst (TInt value) } -> value = Int32.min_int
+									| Var _, Some { eexpr = TConst _ } -> false
+									| Var _, Some _ -> true
+									| Method MethDynamic, _ -> true
+									| _ -> false
 							)
-							cls.cl_statics;
-						!needs
+							cls.cl_ordered_statics
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -2889,6 +2887,12 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		*)
 		method get_source_file : string = wrapper#get_source_file
 		(**
+			Get amount of arguments of a parent method.
+			Returns (mandatory_args_count * total_args_count)
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option = None
+		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
@@ -3078,10 +3082,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		(**
 			Writes method to output buffer
 		*)
-		method private write_method name func =
+		method private write_method name func is_static =
 			match name with
 				| "__construct" -> self#write_constructor_declaration func
-				| _ -> self#write_method_declaration name func
+				| _ -> self#write_method_declaration name func is_static
 		(**
 			Writes constructor declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3097,15 +3101,42 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent_less;
 			writer#write_with_indentation "}"
 		(**
-			Writes method declaration (except visibility and `static` keywords) to output buffer
+			Writes method declaration (except visibility keywords) to output buffer
 		*)
-		method private write_method_declaration name func =
+		method private write_method_declaration name func is_static =
+			if is_static then writer#write "static ";
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			writer#write ("function " ^ by_ref ^ name ^ " (");
-			write_args writer#write writer#write_function_arg func.tf_args;
+			let args =
+				if is_static then
+					self#align_args_to_parent_static_method func.tf_args name
+				else
+					func.tf_args
+			in
+			write_args writer#write writer#write_function_arg args;
 			writer#write ") ";
 			if not (self#write_body_if_special_method name) then
 				writer#write_expr (inject_defaults ctx func)
+		(**
+		*)
+		method private align_args_to_parent_static_method args method_name =
+			match self#get_parent_method_args_count method_name true with
+				| None -> args
+				| Some (mandatory, total) ->
+					let default_value() = Some (mk (TConst TNull) t_dynamic null_pos) in
+					let next value = max 0 (value - 1) in
+					let rec loop args mandatory total =
+						match args with
+							| [] when total = 0 -> []
+							| [] ->
+								let arg_var = alloc_var VGenerated ("_" ^ (string_of_int total)) t_dynamic null_pos in
+								(arg_var, default_value()) :: loop args (next mandatory) (next total)
+							| (arg_var, None) :: rest when mandatory = 0 ->
+								(arg_var, default_value()) :: loop rest 0 (next total)
+							| arg :: rest ->
+								arg :: loop rest (next mandatory) (next total)
+					in
+					loop args mandatory total
 		(**
 			Writes a body for a special method if `field` represents one.
 			Returns `true` if `field` is such a method.
@@ -3319,6 +3350,31 @@ class class_builder ctx (cls:tclass) =
 				not !hacked
 			end
 		(**
+			Get amount of arguments of a parent method.
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option =
+			match cls.cl_super with
+				| None -> None
+				| Some (cls, _) ->
+					let fields = if is_static then cls.cl_statics else cls.cl_fields in
+					try
+						match (PMap.find name fields).cf_type with
+							| TFun (args,_) ->
+								let rec count args mandatory total =
+									match args with
+										| [] ->
+											(mandatory, total)
+										| (_, true, _) :: rest ->
+											let left_count = List.length args in
+											(mandatory, total + left_count)
+										| (_, false, _) :: rest ->
+											count rest (mandatory + 1) (total + 1)
+								in
+								Some (count args 0 0)
+							| _ -> None
+					with Not_found -> None
+		(**
 			Indicates if `field` should be declared as `final`
 		*)
 		method is_final_field (field:tclass_field) : bool =
@@ -3531,13 +3587,13 @@ class class_builder ctx (cls:tclass) =
 				);
 				writer#write ";\n"
 			in
-			PMap.iter
-				(fun _ field ->
+			List.iter
+				(fun field ->
 					match field.cf_kind with
 						| Method MethDynamic -> write_dynamic_method_initialization field
 						| _ -> ()
 				)
-				cls.cl_statics;
+				cls.cl_ordered_statics;
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
@@ -3548,8 +3604,8 @@ class class_builder ctx (cls:tclass) =
 					Do not generate fields for RTTI meta, because this generator uses another way to store it.
 					Also skip initialization for `inline var` fields as those are generated as PHP class constants.
 				*)
-				let is_auto_meta_var = field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
-				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) && (not (is_inline_var field)) then begin
+				let is_auto_meta_var() = field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
+				if (is_var_with_nonconstant_expr field) && (not (is_auto_meta_var())) && (not (is_inline_var field)) then begin
 					(match field.cf_expr with
 						| None -> ()
 						(* There can be not-inlined blocks when compiling with `-debug` *)
@@ -3569,6 +3625,11 @@ class class_builder ctx (cls:tclass) =
 					);
 					writer#write ";\n"
 				end
+				else match field.cf_expr with
+					| Some ({ eexpr = TConst (TInt value) } as expr) when value = Int32.min_int ->
+						write_assign expr;
+						writer#write ";\n"
+					| _ -> ()
 			in
 			List.iter write_var_initialization cls.cl_ordered_statics
 		(**
@@ -3597,7 +3658,10 @@ class class_builder ctx (cls:tclass) =
 			let visibility = get_visibility field.cf_meta in
 			writer#write (visibility ^ " $" ^ (field_name field));
 			match field.cf_expr with
-				| None -> writer#write ";\n"
+				| None ->
+					writer#write ";\n"
+				| Some { eexpr = TConst (TInt value) } when value = Int32.min_int ->
+					writer#write ";\n"
 				| Some expr ->
 					match expr.eexpr with
 						| TConst _ ->
@@ -3631,17 +3695,17 @@ class class_builder ctx (cls:tclass) =
 			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
 			writer#write_indentation;
 			if self#is_final_field field then writer#write "final ";
-			if is_static then writer#write "static ";
 			writer#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
+					if is_static then writer#write "static ";
 					writer#write ("function " ^ (field_name field) ^ " (");
 					write_args writer#write (writer#write_arg true) args;
 					writer#write ")";
 					writer#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
-					self#write_method name fn;
+					self#write_method name fn is_static;
 					writer#write "\n"
 				| _ -> fail field.cf_pos __POS__
 		(**

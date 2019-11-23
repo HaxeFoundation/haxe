@@ -464,16 +464,13 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			| None -> false)
 		with Not_found -> false
 	in
-	let b = loop c
+	loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
 		| KTypeParameter tl ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
-	|| (Meta.has Meta.PrivateAccess ctx.meta) in
-	(* TODO: find out what this does and move it to genas3 *)
-	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
-	b
+	|| (Meta.has Meta.PrivateAccess ctx.meta)
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with

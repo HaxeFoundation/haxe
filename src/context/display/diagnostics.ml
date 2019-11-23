@@ -9,6 +9,7 @@ open DisplayTypes.DisplayMode
 type diagnostics_context = {
 	com : Common.context;
 	mutable removable_code : (string * pos * pos) list;
+	mutable import_positions : (pos,bool ref) PMap.t;
 }
 
 open DisplayTypes
@@ -104,6 +105,7 @@ let prepare com global =
 	let dctx = {
 		removable_code = [];
 		com = com;
+		import_positions = PMap.empty;
 	} in
 	List.iter (function
 		| TClassDecl c when global || DisplayPosition.display_position#is_in_file c.cl_pos.pfile ->
@@ -113,6 +115,23 @@ let prepare com global =
 		| _ ->
 			()
 	) com.types;
+	let process_modules com =
+		List.iter (fun m ->
+			PMap.iter (fun p b ->
+				if not (PMap.mem p dctx.import_positions) then
+					dctx.import_positions <- PMap.add p b dctx.import_positions
+				else if !b then begin
+					let b' = PMap.find p dctx.import_positions in
+					b' := true
+				end
+			) m.m_extra.m_display.m_import_positions
+		) com.modules
+	in
+	process_modules com;
+	begin match com.get_macros() with
+	| None -> ()
+	| Some com -> process_modules com
+	end;
 	dctx
 
 let is_diagnostics_run p = match (!Parser.display_mode) with
@@ -181,9 +200,9 @@ module Printer = struct
 			) suggestions in
 			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
 		) com.display_information.unresolved_identifiers;
-		PMap.iter (fun p (r,_) ->
+		PMap.iter (fun p r ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
-		) com.shared.shared_display_information.import_positions;
+		) dctx.import_positions;
 		List.iter (fun (s,p,kind,sev) ->
 			add kind p sev (JString s)
 		) (List.rev com.shared.shared_display_information.diagnostics_messages);

@@ -1,3 +1,45 @@
+2019-11-11: 4.0.2
+
+	General improvements and optimizations:
+
+	php : improved performance of `haxe.io.Bytes.get()` (#8938)
+	php : improved performance of serialization/unserialization of `haxe.io.Bytes` (#8943)
+	php : improved performance of enum-related methods in `Type` class of standard library
+
+	Bugfixes:
+
+	haxelib : Fixed too strict requirements to haxelib.json data for private libs
+	all : fixed `@:using` static extensions on `Null<SomeType>` (#8928)
+	php : fixed static methods with the same name in parent and child classes (#8944)
+
+2019-11-04: 4.0.1
+
+	Bugfixes:
+
+	haxelib : fixed git dependencies in haxelib.json
+	neko : updated windows & osx installer to install Neko 2.3.0 (#8906)
+	jvm : fixed compilation failure caused by a specific usage of `Array<Dynamic>` (#8872)
+	all : fixed compiler crash on loops with `continue` in all branches of the body (#8912)
+	all : fixed erasing typedef in AST on field access to forwarded abstract fields (#8919)
+
+
+2019-10-26: 4.0.0
+
+	General improvements:
+
+	js : updated externs for `Float32Array` and `Float64Array` (#8864)
+	php : added array access to `php.NativeStructArray` (#8893)
+
+	Bugfixes:
+
+	cs : fixed "This expression may be invalid" false warning (#8589)
+	php : fixed iterator fields on maps being removed (#8851)
+	php : fixed `-2147483648` as init value for static vars (#5289)
+	python : fixed modulo by a negative number (#8845)
+	java : fixed backslash escaping on `EReg.replace` (#3430)
+	lua : fixed `EReg.map` for unicode (#8861)
+	hl : fixed sqlite connection on OSX/Linux (#8878)
+
 2019-09-12: 4.0.0-rc.5
 
 	General improvements and optimizations:

@@ -14,12 +14,12 @@ class Issue5306 extends DisplayTestCase {
 	**/
 	function test() {
 		var expected:Array<Diagnostic<Dynamic>> = [
-			{
-				kind: DKUnusedImport,
-				range: diagnosticsRange(pos(1), pos(2)),
-				severity: Warning,
-				args: []
-			},
+			// {
+			// 	kind: DKUnusedImport,
+			// 	range: diagnosticsRange(pos(1), pos(2)),
+			// 	severity: Warning,
+			// 	args: []
+			// },
 			{
 				kind: DKCompilerError,
 				range: diagnosticsRange(pos(3), pos(4)),

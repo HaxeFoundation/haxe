@@ -191,8 +191,6 @@ class CallStack {
 	public static function exceptionStack():Array<StackItem> {
 		#if neko
 		return makeStack(untyped __dollar__excstack());
-		#elseif as3
-		return new Array();
 		#elseif hl
 		return makeStack(_getExceptionStack());
 		#elseif flash

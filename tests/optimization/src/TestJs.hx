@@ -249,8 +249,8 @@ class TestJs {
 	}
 
 	@:js('
-		var map = new haxe_ds_StringMap();
-		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		var map_h = Object.create(null);
+		map_h["some"] = 2;
 		TestJs.use(2);
 	')
 	static function testIssue4731() {
@@ -552,6 +552,17 @@ class TestJs {
 	static function testIssue8751() {
 		(2:Issue8751Int) * 3;
 	}
+
+	@:js('var v = "hi";TestJs.use(typeof(v) == "string" ? v : null);')
+	static function testStdIsOptimizationSurvivesCast() {
+		var value = "hi";
+		use(as(value, String));
+	}
+
+	static inline function as<T>(v:Dynamic, c:Class<T>):Null<T> {
+		return if (Std.is(v, c)) v else null;
+	}
+
 }
 
 extern class Extern {

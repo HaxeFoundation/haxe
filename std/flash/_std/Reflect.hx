@@ -65,16 +65,6 @@
 		untyped {
 			if (o == null)
 				return new Array();
-			#if as3
-			var a:Array<String> = __keys__(o);
-			var i = 0;
-			while (i < a.length) {
-				if (!o.hasOwnProperty(a[i]))
-					a.splice(i, 1);
-				else
-					++i;
-			}
-			#else
 			var i = 0;
 			var a = [];
 			while (untyped __has_next__(o, i)) {
@@ -82,7 +72,6 @@
 				if (o.hasOwnProperty(prop))
 					a.push(prop);
 			}
-			#end
 			return a;
 		}
 
@@ -113,11 +102,7 @@
 		}
 
 	public static function isEnumValue(v:Dynamic):Bool {
-		#if as3
-		return try Type.getEnum(v) != null catch (e:Dynamic) false;
-		#else
 		return try v.__enum__ == true catch (e:Dynamic) false;
-		#end
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool
