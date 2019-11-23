@@ -9,6 +9,7 @@
 	all : fixed EnumValue handling in constant propagation with analyzer enabled (#8959)
 	all : fixed compiler crash upon Void items in array declarations (#8972)
 	java/cs : fixed `Reflect.callMethod(o, method, args)` for `args` not containing optional arguments (#8975)
+	cs : fixed Json.stringify for @:struct-annotated classes (#8979)
 	python : fixed invalid generation of some inlined code blocks (#8971)
 
 
