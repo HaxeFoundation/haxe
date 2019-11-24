@@ -85,8 +85,8 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	}
 
 	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
-	public inline function iterator():Iterator<T> {
-		return new ArrayIterator(this);
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	public function join(sep:String):String {
@@ -244,33 +244,6 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 		a.arr = arr;
 		a.length = Global.count(arr);
 		return a;
-	}
-}
-
-private class ArrayIterator<T> {
-	var idx:Int;
-	var arr:Array<T>;
-
-	public inline function new(arr:Array<T>) {
-		this.arr = arr;
-		idx = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return idx < arr.length;
-	}
-
-	public inline function next():T {
-		return arr[idx++];
-	}
-
-	@:keep
-	@:phpMagic
-	function __get(method:String) {
-		return switch (method) {
-			case 'hasNext', 'next': Boot.closure(this, method);
-			case _: null;
-		}
 	}
 }
 
