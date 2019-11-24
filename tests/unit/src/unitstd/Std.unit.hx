@@ -72,6 +72,7 @@ Std.parseInt("0XFF") == 255;
 Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
+Std.parseInt('  	-0x10') == -16;
 
 // parseFloat
 Std.parseFloat("0") == 0.;
