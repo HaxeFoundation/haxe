@@ -56,19 +56,21 @@ let parse_float s =
 	float_of_string (loop 0 0)
 
 let parse_int s =
-	let rec loop_hex i =
-		if i = String.length s then s else
-		match String.unsafe_get s i with
-		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
-		| _ -> String.sub s 0 i
+	let rec loop_hex sp i =
+		if i = String.length s then
+			String.sub s sp (i - sp)
+		else
+			match String.unsafe_get s i with
+			| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex sp (i + 1)
+			| _ -> String.sub s sp (i - sp)
 	in
 	let rec loop sp i =
 		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
 		| '0'..'9' -> loop sp (i + 1)
-		| ' ' when sp = i -> loop (sp + 1) (i + 1)
-		| '-' when i = 0 -> loop sp (i + 1)
-		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
+		| ' ' | '	' when sp = i -> loop (sp + 1) (i + 1)
+		| '-' when i = sp -> loop sp (i + 1)
+		| ('x' | 'X') when i > 0 && String.get s (i - 1) = '0' -> loop_hex sp (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
 	Int32.of_string (loop 0 0)
