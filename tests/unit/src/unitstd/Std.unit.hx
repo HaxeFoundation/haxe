@@ -72,7 +72,12 @@ Std.parseInt("0XFF") == 255;
 Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
+#if !neko //sorry, neko
+#if !hl //see https://github.com/HaxeFoundation/hashlink/issues/330
+#if !cpp //see https://github.com/HaxeFoundation/hxcpp/issues/869
 Std.parseInt('  	-0x10') == -16;
+#end
+#end
 
 // parseFloat
 Std.parseFloat("0") == 0.;
