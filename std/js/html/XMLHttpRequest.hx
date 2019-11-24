@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest>
 **/
 @:native("XMLHttpRequest")
-extern class XMLHttpRequest extends XMLHttpRequestEventTarget
-{
+extern class XMLHttpRequest extends XMLHttpRequestEventTarget {
 	static inline var UNSENT : Int = 0;
 	static inline var OPENED : Int = 1;
 	static inline var HEADERS_RECEIVED : Int = 2;
@@ -123,8 +122,8 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 		@throws DOMError
 	**/
 	@:overload( function( ?body : Blob) : Void {} )
-	@:overload( function( ?body : ArrayBufferView) : Void {} )
-	@:overload( function( ?body : ArrayBuffer) : Void {} )
+	@:overload( function( ?body : js.lib.ArrayBufferView) : Void {} )
+	@:overload( function( ?body : js.lib.ArrayBuffer) : Void {} )
 	@:overload( function( ?body : FormData) : Void {} )
 	@:overload( function( ?body : URLSearchParams) : Void {} )
 	@:overload( function( ?body : String) : Void {} )

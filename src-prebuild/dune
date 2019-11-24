@@ -1,0 +1,8 @@
+(include_subdirs no)
+
+(executable
+	(name prebuild)
+	(public_name haxe_prebuild)
+	(package haxe_prebuild)
+	(libraries extlib json)
+)

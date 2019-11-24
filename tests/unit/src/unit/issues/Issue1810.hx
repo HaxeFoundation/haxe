@@ -21,6 +21,6 @@ private class X {
 class Issue1810 extends Test {
 	function test() {
 		var a = new A([12]);
-		//eq(12, a.get().get().i);
+		eq(12, a.get().get().i);
 	}
 }

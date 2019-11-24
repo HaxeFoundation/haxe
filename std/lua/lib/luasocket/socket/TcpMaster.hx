@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,14 +21,13 @@
  */
 
 package lua.lib.luasocket.socket;
+
 import haxe.extern.EitherType;
 
 extern class TcpMaster extends Socket {
 	// transforms master to TcpServer
-	public function listen(backlog : Int) : Void;
+	public function listen(backlog:Int):Void;
 	// transforms master to TcpClient
-	public function connect(address : String, port :Int) : Void;
-	public function bind(address : String, port : Int) : Void;
+	public function connect(address:String, port:Int):Void;
+	public function bind(address:String, port:Int):Void;
 }
-
-

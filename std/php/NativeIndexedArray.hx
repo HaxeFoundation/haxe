@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 @:forward
@@ -51,6 +52,10 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:from
 	static inline function fromHaxeArray<T>(a:Array<T>):NativeIndexedArray<T>
 		return @:privateAccess a.arr;
+
+	public inline function toString():String {
+		return Boot.stringifyNativeIndexedArray(this);
+	}
 }
 
 private class NativeIndexedArrayIterator<T> {
@@ -87,6 +92,6 @@ private class NativeIndexedArrayKeyValueIterator<T> {
 	}
 
 	public inline function next():{key:Int, value:T} {
-		return {key:current, value:data[current++]};
+		return {key: current, value: data[current++]};
 	}
 }

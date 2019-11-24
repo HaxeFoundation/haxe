@@ -1,8 +1,8 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DWrapMode {
-	CLAMP;
-	CLAMP_U_REPEAT_V;
-	REPEAT;
-	REPEAT_U_CLAMP_V;
+@:native("flash.display3D.Context3DWrapMode") extern enum abstract Context3DWrapMode(String) {
+	var CLAMP;
+	var CLAMP_U_REPEAT_V;
+	var REPEAT;
+	var REPEAT_U_CLAMP_V;
 }

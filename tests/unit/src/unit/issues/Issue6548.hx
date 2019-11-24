@@ -11,5 +11,6 @@ class Issue6548 extends unit.Test {
 			case obj(_) => { pos: pos }:
 			case _:
 		}
+		noAssert();
 	}
 }

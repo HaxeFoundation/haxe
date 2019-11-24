@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open Common
+open Filename
 open CompilationServer
 open Timer
 open DisplayTypes.DisplayMode
@@ -77,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -128,7 +129,7 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
 		| ITTypeParameter c ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path c.cl_path) ("") (snd c.cl_path));
-		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ | ITDefine _ ->
 			(* compat: don't add *)
 			()
 	) il;
@@ -174,285 +175,6 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
-let display_memory com =
-	let verbose = com.verbose in
-	let print = print_endline in
-	let fmt_size sz =
-		if sz < 1024 then
-			string_of_int sz ^ " B"
-		else if sz < 1024*1024 then
-			string_of_int (sz asr 10) ^ " KB"
-		else
-			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
-	in
-	let size v =
-		fmt_size (mem_size v)
-	in
-	Gc.full_major();
-	Gc.compact();
-	let mem = Gc.stat() in
-	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
-	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match CompilationServer.get() with
-	| None ->
-		print "No cache found";
-	| Some {CompilationServer.cache = c} ->
-		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.CompilationServer.c_haxelib);
-		print ("  parsed ast " ^ size c.CompilationServer.c_files ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.CompilationServer.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_modules) ^ " modules stored)");
-		let rec scan_module_deps m h =
-			if Hashtbl.mem h m.m_id then
-				()
-			else begin
-				Hashtbl.add h m.m_id m;
-				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
-			end
-		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.CompilationServer.c_modules PMap.empty in
-		let modules = Hashtbl.fold (fun (path,key) m acc ->
-			let mdeps = Hashtbl.create 0 in
-			scan_module_deps m mdeps;
-			let deps = ref [Obj.repr null_module] in
-			let out = ref all_modules in
-			Hashtbl.iter (fun _ md ->
-				out := PMap.remove md.m_id !out;
-				if m == md then () else begin
-				deps := Obj.repr md :: !deps;
-				List.iter (fun t ->
-					match t with
-					| TClassDecl c ->
-						deps := Obj.repr c :: !deps;
-						c.cl_descendants <- []; (* prevent false positive *)
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
-					| TEnumDecl e ->
-						deps := Obj.repr e :: !deps;
-						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
-					| TTypeDecl t -> deps := Obj.repr t :: !deps;
-					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-				) md.m_types;
-				end
-			) mdeps;
-			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
-			let inf = Objsize.objsize m !deps chk in
-			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.CompilationServer.c_modules [] in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-		List.iter (fun (m,size,(reached,deps,out)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			let sign md =
-				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-			in
-			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
-				in
-				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
-				) out;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
-
-module TypePathHandler = struct
-	let unique l =
-		let rec _unique = function
-			| [] -> []
-			| x1 :: x2 :: l when x1 = x2 -> _unique (x2 :: l)
-			| x :: l -> x :: _unique l
-		in
-		_unique (List.sort compare l)
-
-	let rec read_type_path com p =
-		let classes = ref [] in
-		let packages = ref [] in
-		let p = (match p with
-			| x :: l ->
-				(try
-					match PMap.find x com.package_rules with
-					| Directory d -> d :: l
-					| Remap s -> s :: l
-					| _ -> p
-				with
-					Not_found -> p)
-			| _ -> p
-		) in
-		List.iter (fun path ->
-			let dir = path ^ String.concat "/" p in
-			let r = (try Sys.readdir dir with _ -> [||]) in
-			Array.iter (fun f ->
-				if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
-					if f.[0] >= 'a' && f.[0] <= 'z' then begin
-						if p = ["."] then
-							match read_type_path com [f] with
-							| [] , [] -> ()
-							| _ ->
-								try
-									match PMap.find f com.package_rules with
-									| Forbidden -> ()
-									| Remap f -> packages := f :: !packages
-									| Directory _ -> raise Not_found
-								with Not_found ->
-									packages := f :: !packages
-						else
-							packages := f :: !packages
-					end;
-				end else if file_extension f = "hx" then begin
-					let c = Filename.chop_extension f in
-					try
-						ignore(String.index c '.')
-					with Not_found ->
-						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
-				end;
-			) r;
-		) com.class_path;
-		List.iter (fun (_,_,extract) ->
-			Hashtbl.iter (fun (path,name) _ ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-				loop path p
-			) (extract());
-		) com.swf_libs;
-		List.iter (fun (path,std,close,all_files,lookup) ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-				loop path p
-			) (all_files())
-		) com.java_libs;
-		List.iter (fun (path,std,all_files,lookup) ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-			loop path p
-			) (all_files())
-		) com.net_libs;
-		unique !packages, unique !classes
-
-	(** raise field completion listing packages and modules in a given package *)
-	let complete_type_path com p =
-		let packs, modules = read_type_path com p in
-		if packs = [] && modules = [] then
-			(abort ("No classes found in " ^ String.concat "." p) null_pos)
-		else
-			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
-			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
-			Some (packs @ modules)
-
-	(** raise field completion listing module sub-types and static fields *)
-	let complete_type_path_inner com p c cur_package is_import =
-		try
-			let sl_pack,s_module = match List.rev p with
-				| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-				| _ -> p,c
-			in
-			let ctx = Typer.create com in
-			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
-			   does not raise another TypePath exception. However, we still want to have it treated like the
-			   display file, so we just set the position to 0 (#6558). *)
-			DisplayPosition.display_position := {!DisplayPosition.display_position with pmin = 0; pmax = 0};
-			let rec lookup p =
-				try
-					TypeloadModule.load_module ctx (p,s_module) null_pos
-				with e ->
-					if cur_package then
-						match List.rev p with
-						| [] -> raise e
-						| _ :: p -> lookup (List.rev p)
-					else
-						raise e
-			in
-			let m = lookup sl_pack in
-			let statics = ref None in
-			let enum_statics = ref None in
-			let public_types = List.filter (fun t ->
-				let tinfos = t_infos t in
-				let is_module_type = snd tinfos.mt_path = c in
-				if is_import && is_module_type then begin match t with
-					| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
-						ignore(c.cl_build());
-						statics := Some c
-					| TEnumDecl en ->
-						enum_statics := Some en
-					| _ -> ()
-				end;
-				not tinfos.mt_private
-			) m.m_types in
-			let types =
-				if c <> s_module then
-					[]
-				else
-					List.map (fun mt ->
-						make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None
-					) public_types
-			in
-			let class_origin c = match c.cl_kind with
-				| KAbstractImpl a -> Self (TAbstractDecl a)
-				| _ -> Self (TClassDecl c)
-			in
-			let tpair t =
-				(t,DisplayEmitter.completion_type_of_type ctx t)
-			in
-			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
-			in
-			let fields = match !statics with
-				| None -> types
-				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> cf.cf_public) c.cl_ordered_statics))
-			in
-			let fields = match !enum_statics with
-				| None -> fields
-				| Some en -> PMap.fold (fun ef acc ->
-					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (tpair ef.ef_type) :: acc
-				) en.e_constrs fields
-			in
-			Some fields
-		with _ ->
-			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
-end
-
 (* New JSON stuff *)
 
 open Json
@@ -490,7 +212,12 @@ exception Completion of string
 
 let unquote v =
 	let len = String.length v in
-	if len > 0 && v.[0] = '"' && v.[len - 1] = '"' then String.sub v 1 (len - 2) else v
+	if len > 0 then
+		match v.[0], v.[len - 1] with
+			| '"', '"'
+			| '\'', '\'' -> String.sub v 1 (len - 2)
+			| _ -> v
+	else v
 
 let handle_display_argument com file_pos pre_compilation did_something =
 	match file_pos with
@@ -500,7 +227,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		raise (Completion (print_keywords ()))
 	| "memory" ->
 		did_something := true;
-		(try display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
+		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		Common.define com Define.NoCOpt;
 		com.display <- DisplayMode.create (DMDiagnostics true);
@@ -555,11 +282,20 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		com.display <- DisplayMode.create mode;
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = Path.unique_full_path file;
 			pmin = pos;
 			pmax = pos;
 		}
+
+let file_input_marker = Path.unique_full_path "? input"
+
+type display_path_kind =
+	| DPKNormal of path
+	| DPKMacro of path
+	| DPKDirect of string
+	| DPKInput of string
+	| DPKNone
 
 let process_display_file com classes =
 	let get_module_path_from_file_path com spath =
@@ -584,47 +320,109 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			None
+			DPKNone
+		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
+			classes := [];
+			com.main_class <- None;
+			begin match !TypeloadParse.current_stdin with
+			| Some input ->
+				TypeloadParse.current_stdin := None;
+				DPKInput input
+			| None ->
+				DPKNone
+			end
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (!DisplayPosition.display_position).pfile in
+			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
-				classes := path :: !classes;
-				Some path
+				let path = match ExtString.String.nsplit (snd path) "." with
+					| [name;"macro"] ->
+						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
+						   This can happen if we're completing in such a file. *)
+						DPKMacro (fst path,name)
+					| [name] ->
+						classes := path :: !classes;
+						DPKNormal path
+					| _ ->
+						assert false
+				in
+				path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
 				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
-				failwith "Display file was not found in class path"
+				DPKDirect real
 			in
 			Common.log com ("Display file : " ^ real);
 			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
 			path
 
-let process_global_display_mode com tctx = match com.display.dms_kind with
+let load_display_file_standalone ctx file =
+	let com = ctx.com in
+	let pack,decls = TypeloadParse.parse_module_file com file null_pos in
+	let path = Path.FilePath.parse file in
+	let name = match path.file_name with
+		| None -> "?DISPLAY"
+		| Some name -> name
+	in
+	begin match path.directory with
+		| None -> ()
+		| Some dir ->
+			(* Chop off number of package parts from the dir and use that as class path. *)
+			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
+			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
+			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
+			com.class_path <- dir :: com.class_path
+	end;
+	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
+
+let load_display_content_standalone ctx input =
+	let com = ctx.com in
+	let file = file_input_marker in
+	let p = {pfile = file; pmin = 0; pmax = 0} in
+	let parsed = TypeloadParse.parse_file_from_string com file p input in
+	let pack,decls = TypeloadParse.handle_parser_result com file p parsed in
+	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
+
+let promote_type_hints tctx =
+	let rec explore_type_hint (md,p,t) =
+		match t with
+		| TMono r -> (match r.tm_type with None -> () | Some t -> explore_type_hint (md,p,t))
+		| TLazy f -> explore_type_hint (md,p,lazy_type f)
+		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
+		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
+		| TType(({t_name_pos = pn;t_path = (_,name)}),_)
+		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
+			md.m_type_hints <- (p,pn) :: md.m_type_hints;
+		| TDynamic _ -> ()
+		| TFun _ | TAnon _ -> ()
+	in
+	List.iter explore_type_hint tctx.g.type_hints
+
+let process_global_display_mode com tctx =
+	promote_type_hints tctx;
+	match com.display.dms_kind with
 	| DMUsage with_definition ->
 		FindReferences.find_references tctx com with_definition
 	| DMDiagnostics global ->
-		let dctx = Diagnostics.prepare com global in
-		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
-		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
+		Diagnostics.run com global
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx (SFFile !DisplayPosition.display_position.pfile) in
+		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let symbols = match CompilationServer.get() with
 			| None -> []
 			| Some cs ->
-				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
+				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
-					if (filter <> None || DisplayPosition.is_display_file file) then
+					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc
@@ -647,7 +445,7 @@ let find_doc t =
 	in
 	doc
 
-let handle_syntax_completion com kind p =
+let handle_syntax_completion com kind subj =
 	let open Parser in
 	let l,kind = match kind with
 		| SCClassRelation ->
@@ -657,7 +455,8 @@ let handle_syntax_completion com kind p =
 		| SCComment ->
 			[],CRTypeRelation
 		| SCTypeDecl mode ->
-			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
+			let in_import_hx = Filename.basename subj.s_insert_pos.pfile = "import.hx" in
+			let l = if in_import_hx then [] else [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
 				| TCBeforePackage -> Package :: Import :: Using :: l
 				| TCAfterImport -> Import :: Using :: l
@@ -689,6 +488,6 @@ let handle_syntax_completion com kind p =
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in
 			raise (Completion s)
-		| Some(f,_) ->
-			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l kind None)
+		| Some api ->
+			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
+			api.send_result(fields_to_json ctx l kind subj)

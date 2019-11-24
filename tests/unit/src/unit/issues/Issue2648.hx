@@ -13,6 +13,7 @@ class Issue2648 extends Test {
 	function test() {
 		TestParam.forName(1);
 		TestParam.forName("s");
+		noAssert();
 	}
 	#end
 }

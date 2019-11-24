@@ -1,7 +1,7 @@
 package flash.globalization;
 
-@:fakeEnum(String) extern enum DateTimeNameStyle {
-	FULL;
-	LONG_ABBREVIATION;
-	SHORT_ABBREVIATION;
+@:native("flash.globalization.DateTimeNameStyle") extern enum abstract DateTimeNameStyle(String) {
+	var FULL;
+	var LONG_ABBREVIATION;
+	var SHORT_ABBREVIATION;
 }

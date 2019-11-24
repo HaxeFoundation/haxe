@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
+
+import haxe.iterators.DynamicAccessIterator;
+import haxe.iterators.DynamicAccessKeyValueIterator;
 
 /**
 	DynamicAccess is an abstract type for working with anonymous structures
@@ -30,18 +34,18 @@ package haxe;
 	Basically, it wraps `Reflect` calls in a `Map`-like interface.
 **/
 abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
-
 	/**
 		Creates a new structure.
 	**/
-	public inline function new() this = {};
+	public inline function new()
+		this = {};
 
 	/**
 		Returns a value by specified `key`.
 
-		If the structure does not contain the given key, null is returned.
+		If the structure does not contain the given key, `null` is returned.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	@:arrayAccess
 	public inline function get(key:String):Null<T> {
@@ -59,7 +63,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		Returns the given value.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	@:arrayAccess
 	public inline function set(key:String, value:T):T {
@@ -74,26 +78,48 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	/**
 		Tells if the structure contains a specified `key`.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function exists(key:String):Bool return Reflect.hasField(this, key);
+	public inline function exists(key:String):Bool
+		return Reflect.hasField(this, key);
 
 	/**
 		Removes a specified `key` from the structure.
 
 		Returns true, if `key` was present in structure, or false otherwise.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function remove(key:String):Bool return Reflect.deleteField(this, key);
+	public inline function remove(key:String):Bool
+		return Reflect.deleteField(this, key);
 
 	/**
 		Returns an array of `keys` in a structure.
 	**/
-	public inline function keys():Array<String> return Reflect.fields(this);
-	
+	public inline function keys():Array<String>
+		return Reflect.fields(this);
+
 	/**
 		Returns a shallow copy of the structure
 	**/
-	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
+	public inline function copy():DynamicAccess<T>
+		return Reflect.copy(this);
+
+	/**
+		Returns an Iterator over the values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function iterator():DynamicAccessIterator<T> {
+		return new DynamicAccessIterator(this);
+	}
+
+	/**
+		Returns an Iterator over the keys and values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function keyValueIterator():DynamicAccessKeyValueIterator<T> {
+		return new DynamicAccessKeyValueIterator(this);
+	}
 }

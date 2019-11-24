@@ -2,7 +2,7 @@ package cases;
 
 class VsHaxeIssue198 extends DisplayTestCase {
 	/**
-	'foo.{-1-}${"foo.{-2-}".{-3-}}';
+		'foo.{-1-}${"foo.{-2-}".{-3-}}';
 	**/
 	@:funcCode function test() {
 		// TODO

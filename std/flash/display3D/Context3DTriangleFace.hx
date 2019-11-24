@@ -1,8 +1,8 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DTriangleFace {
-	BACK;
-	FRONT;
-	FRONT_AND_BACK;
-	NONE;
+@:native("flash.display3D.Context3DTriangleFace") extern enum abstract Context3DTriangleFace(String) {
+	var BACK;
+	var FRONT;
+	var FRONT_AND_BACK;
+	var NONE;
 }

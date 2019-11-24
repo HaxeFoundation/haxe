@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,19 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 interface Connection {
-
-	function request( s : String ) : ResultSet;
-	function close() : Void;
-	function escape( s : String ) : String;
-	function quote( s : String ) : String;
-	function addValue( s : StringBuf, v : Dynamic ) : Void;
-	function lastInsertId() : Int;
-	function dbName() : String;
-	function startTransaction() : Void;
-	function commit() : Void;
-	function rollback() : Void;
-
+	function request(s:String):ResultSet;
+	function close():Void;
+	function escape(s:String):String;
+	function quote(s:String):String;
+	function addValue(s:StringBuf, v:Dynamic):Void;
+	function lastInsertId():Int;
+	function dbName():String;
+	function startTransaction():Void;
+	function commit():Void;
+	function rollback():Void;
 }

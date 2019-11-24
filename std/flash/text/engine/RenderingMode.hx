@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum RenderingMode {
-	CFF;
-	NORMAL;
+@:native("flash.text.engine.RenderingMode") extern enum abstract RenderingMode(String) {
+	var CFF;
+	var NORMAL;
 }

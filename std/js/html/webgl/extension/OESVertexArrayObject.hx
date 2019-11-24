@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object>
 **/
 @:native("OES_vertex_array_object")
-extern class OESVertexArrayObject
-{
+extern class OESVertexArrayObject {
 	
 	/**
 		Returns a `WebGLVertexArrayObject` object when used in the `WebGLRenderingContext.getParameter()` method as the `pname` parameter.

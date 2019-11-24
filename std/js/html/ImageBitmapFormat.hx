@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ImageBitmapFormat(String)
-{
+enum abstract ImageBitmapFormat(String) {
 	var RGBA32 = "RGBA32";
 	var BGRA32 = "BGRA32";
 	var RGB24 = "RGB24";

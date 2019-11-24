@@ -8,13 +8,13 @@ class Issue3084 extends Test
 	{
 		for (i in 0...40)
 		{
-			var m = new java.vm.Mutex();
-			java.vm.Thread.create(function():Void {
+			var m = new sys.thread.Mutex();
+			sys.thread.Thread.create(function():Void {
 				m.acquire();
 				Sys.sleep(0.01);
 				m.release();
 			});
-			java.vm.Thread.create(function():Void {
+			sys.thread.Thread.create(function():Void {
 				m.acquire();
 				Sys.sleep(0.01);
 				m.release();
@@ -25,6 +25,7 @@ class Issue3084 extends Test
 			Sys.sleep(0.01);
 			m.release();
 		}
+		noAssert();
 	}
 #end
 }

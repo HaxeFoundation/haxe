@@ -2,13 +2,13 @@ package cases;
 
 class Issue5172 extends DisplayTestCase {
 	/**
-	class Main {
-		static function main() {
-			for ({-3-}i{-1-} in 0...10) {
-				{-4-}i{-2-};
+		class Main {
+			static function main() {
+				for ({-3-}i{-1-} in 0...10) {
+					{-4-}i{-2-};
+				}
 			}
 		}
-	}
 	**/
 	function test() {
 		eq("Int", type(pos(1)));

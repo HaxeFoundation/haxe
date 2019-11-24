@@ -17,5 +17,6 @@ class Issue3713 extends Test {
 	function test() {
 		var b = new B<Int>();
 		var c = b.f();
+		noAssert();
 	}
 }

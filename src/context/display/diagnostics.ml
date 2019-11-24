@@ -6,26 +6,12 @@ open Common
 open Display
 open DisplayTypes.DisplayMode
 
-module DiagnosticsKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerError
-		| DKRemovableCode
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerError -> 2
-		| DKRemovableCode -> 3
-end
-
 type diagnostics_context = {
 	com : Common.context;
 	mutable removable_code : (string * pos * pos) list;
+	mutable import_positions : (pos,bool ref) PMap.t;
 }
 
-open DiagnosticsKind
 open DisplayTypes
 
 let add_removable_code ctx s p prange =
@@ -35,7 +21,7 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar({v_kind = VUser _} as v,eo) ->
+		| TVar({v_kind = VUser _} as v,eo) when v.v_name <> "_" ->
 			Hashtbl.add pmin_map e.epos.pmin v;
 			let p = match eo with
 				| None -> e.epos
@@ -58,10 +44,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DiagnosticsSeverity.Warning;
+		add_diagnostics_message com "This code has no effect" p DKCompilerError DiagnosticsSeverity.Warning;
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DiagnosticsSeverity.Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerError DiagnosticsSeverity.Warning;
 	in
 	let rec compound s el p =
 		let old = !had_effect in
@@ -84,6 +70,7 @@ let check_other_things com e =
 			no_effect e.epos;
 		| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ | TIdent _ ->
 			()
+		| TField (_, fa) when PurityState.is_explicitly_impure fa -> ()
 		| TFunction tf ->
 			loop false tf.tf_expr
 		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
@@ -118,20 +105,38 @@ let prepare com global =
 	let dctx = {
 		removable_code = [];
 		com = com;
+		import_positions = PMap.empty;
 	} in
 	List.iter (function
-		| TClassDecl c when global || DisplayPosition.is_display_file c.cl_pos.pfile ->
+		| TClassDecl c when global || DisplayPosition.display_position#is_in_file c.cl_pos.pfile ->
 			List.iter (prepare_field dctx) c.cl_ordered_fields;
 			List.iter (prepare_field dctx) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx cf);
 		| _ ->
 			()
 	) com.types;
+	let process_modules com =
+		List.iter (fun m ->
+			PMap.iter (fun p b ->
+				if not (PMap.mem p dctx.import_positions) then
+					dctx.import_positions <- PMap.add p b dctx.import_positions
+				else if !b then begin
+					let b' = PMap.find p dctx.import_positions in
+					b' := true
+				end
+			) m.m_extra.m_display.m_import_positions
+		) com.modules
+	in
+	process_modules com;
+	begin match com.get_macros() with
+	| None -> ()
+	| Some com -> process_modules com
+	end;
 	dctx
 
 let is_diagnostics_run p = match (!Parser.display_mode) with
 	| DMDiagnostics true -> true
-	| DMDiagnostics false -> DisplayPosition.is_display_file p.pfile
+	| DMDiagnostics false -> DisplayPosition.display_position#is_in_file p.pfile
 	| _ -> false
 
 let secure_generated_code ctx e =
@@ -158,11 +163,10 @@ module Printer = struct
 	open CompletionItem
 	open CompletionModuleType
 
-	let print_diagnostics dctx ctx global =
-		let com = dctx.com in
+	let print_diagnostics dctx com global =
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
-			let file = Path.get_real_path p.pfile in
+			let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
 			let diag = try
 				Hashtbl.find diag file
 			with Not_found ->
@@ -174,7 +178,7 @@ module Printer = struct
 				Hashtbl.add diag p (dk,p,sev,args)
 		in
 		let add dk p sev args =
-			if global || DisplayPosition.is_display_file p.pfile then add dk p sev args
+			if global || p = null_pos || DisplayPosition.display_position#is_in_file p.pfile then add dk p sev args
 		in
 		List.iter (fun (s,p,suggestions) ->
 			let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -196,15 +200,28 @@ module Printer = struct
 			) suggestions in
 			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
 		) com.display_information.unresolved_identifiers;
-		PMap.iter (fun p (r,_) ->
+		PMap.iter (fun p r ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
-		) com.shared.shared_display_information.import_positions;
-		List.iter (fun (s,p,sev) ->
-			add DKCompilerError p sev (JString s)
-		) com.shared.shared_display_information.diagnostics_messages;
+		) dctx.import_positions;
+		List.iter (fun (s,p,kind,sev) ->
+			add kind p sev (JString s)
+		) (List.rev com.shared.shared_display_information.diagnostics_messages);
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) dctx.removable_code;
+		Hashtbl.iter (fun p s ->
+			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
+		) DeprecationCheck.warned_positions;
+		Hashtbl.iter (fun file ranges ->
+			List.iter (fun (p,e) ->
+				let jo = JObject [
+					"expr",JObject [
+						"string",JString (Ast.Printer.s_expr e)
+					]
+				] in
+				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
+			) ranges
+		) com.shared.shared_display_information.dead_blocks;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [
@@ -215,10 +232,17 @@ module Printer = struct
 				]) :: acc
 			) diag [] in
 			(JObject [
-				"file",JString file;
+				"file",if file = "?" then JNull else JString file;
 				"diagnostics",JArray jl
 			]) :: acc
 		) diag [] in
 		let js = JArray jl in
 		string_of_json js
 end
+
+let print com global =
+	let dctx = prepare com global in
+	Printer.print_diagnostics dctx com global
+
+let run com global =
+	DisplayException.raise_diagnostics (print com global)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 /**
@@ -37,4 +38,12 @@ abstract NativeStructArray<T:{}>(NativeArray) to NativeArray {
 	inline function __toObject():T {
 		return Boot.createAnon(this);
 	}
+
+	@:arrayAccess
+	inline function get<V>(key:String):V
+		return this[key];
+
+	@:arrayAccess
+	inline function set<V>(key:String, val:V):V
+		return this[key] = val;
 }

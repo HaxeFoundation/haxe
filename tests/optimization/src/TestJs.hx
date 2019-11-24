@@ -62,7 +62,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {(e instanceof js__$Boot_HaxeError);tmp = null;}tmp;")
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {((e) instanceof js__$Boot_HaxeError);tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
@@ -73,7 +73,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a_v_0_b = 1;a_v_0_b == 1;")
+	@:js("var a_v_0_b = 1;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -97,7 +97,7 @@ class TestJs {
 		var a = "";
 		var e = switch (a) {
 			case _.toLowerCase() => "e": 0;
-			default: throw new js.Error();
+			default: throw new js.lib.Error();
 		}
 	}
 
@@ -172,22 +172,22 @@ class TestJs {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {TestJs.use((e instanceof js__$Boot_HaxeError) ? e.val : e);}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {TestJs.use(((e) instanceof js__$Boot_HaxeError) ? e.val : e);}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
 		try throw false catch (e:Dynamic) use(e);
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) != "boolean") {throw e;}}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) != "boolean") {throw e;}}')
 	static function testHaxeErrorUnwrappingWhenTypeChecked() {
 		try throw false catch (e:Bool) {};
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {TestJs.use(e);} else {throw e;}}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {TestJs.use(e);} else {throw e;}}')
 	static function testGetOriginalException() {
 		try throw false catch (e:Bool) use(js.Lib.getOriginalException());
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {throw e;} else {throw e;}}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof(((e) instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {throw e;} else {throw e;}}')
 	static function testRethrow() {
 		try throw false catch (e:Bool) js.Lib.rethrow();
 	}
@@ -249,8 +249,8 @@ class TestJs {
 	}
 
 	@:js('
-		var map = new haxe_ds_StringMap();
-		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		var map_h = Object.create(null);
+		map_h["some"] = 2;
 		TestJs.use(2);
 	')
 	static function testIssue4731() {
@@ -494,13 +494,13 @@ class TestJs {
 
 	#if js_enums_as_arrays
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
 	#else
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g._hx_index == 6 && _g.c == String;
 		TestJs.use(v);
 	')
@@ -540,8 +540,41 @@ class TestJs {
 		var closure = Extern.test;
 		closure("baz");
 	}
+
+	static var v = false;
+
+	@:js('')
+	static function testIssue7874() {
+		if (v && v) {}
+	}
+
+	@:js('')
+	static function testIssue8751() {
+		(2:Issue8751Int) * 3;
+	}
+
+	@:js('var v = "hi";TestJs.use(typeof(v) == "string" ? v : null);')
+	static function testStdIsOptimizationSurvivesCast() {
+		var value = "hi";
+		use(as(value, String));
+	}
+
+	static inline function as<T>(v:Dynamic, c:Class<T>):Null<T> {
+		return if (Std.is(v, c)) v else null;
+	}
+
 }
 
 extern class Extern {
 	static public function test(e:haxe.extern.AsVar<String>):Void;
+}
+
+abstract Issue8751Int(Int) from Int {
+	@:op(A * B) static public inline function add(a:Issue8751Int, b:Issue8751Int):Issue8751Int {
+		return a.toInt() * b.toInt();
+	}
+
+	inline public function toInt():Int {
+		return this;
+	}
 }

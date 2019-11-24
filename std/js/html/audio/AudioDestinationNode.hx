@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode>
 **/
 @:native("AudioDestinationNode")
-extern class AudioDestinationNode extends AudioNode
-{
+extern class AudioDestinationNode extends AudioNode {
 	
 	/**
 		Is an `unsigned long` defining the maximum number of channels that the physical device can handle.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PannerNode>
 **/
 @:native("PannerNode")
-extern class PannerNode extends AudioNode
-{
+extern class PannerNode extends AudioNode {
 	
 	/**
 		An enumerated value determining which spatialisation algorithm to use to position the audio in 3D space.

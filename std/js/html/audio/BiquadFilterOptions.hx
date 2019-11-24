@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html.audio;
 
-typedef BiquadFilterOptions =
-{
-	> AudioNodeOptions,
-	@:optional var Q : Float;
-	@:optional var detune : Float;
-	@:optional var frequency : Float;
-	@:optional var gain : Float;
-	@:optional var type : BiquadFilterType;
+typedef BiquadFilterOptions = AudioNodeOptions & {
+	var ?Q : Float;
+	var ?detune : Float;
+	var ?frequency : Float;
+	var ?gain : Float;
+	var ?type : BiquadFilterType;
 }

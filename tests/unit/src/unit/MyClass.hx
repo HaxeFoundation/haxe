@@ -5,9 +5,13 @@ using MyClass.UsingBase;
 using MyClass.UsingChild1;
 using MyClass.UsingChild2;
 
+
+interface IMyParent {}
+interface IMyChild extends IMyParent {}
+
 class MyClass {
 
-	#if as3 public #end var val : Int;
+	var val : Int;
 
 	public var ref : MyClass;
 	public var intValue : Int;
@@ -37,16 +41,15 @@ class MyParent {
 	function b() return 20;
 }
 
-class MyChild1 extends MyParent {
+class MyChild1 extends MyParent implements IMyChild {
 	public override function a() { return 12; }
 	override function b() return 21;
 	function c() return 19;
 }
-#if !as3
+
 class MyChild2 extends MyParent {
 	public function test1(mc1:MyChild1) return mc1.b();
 }
-#end
 
 interface I1 { }
 class Base { public var s:String; public function new() { } }
@@ -286,11 +289,7 @@ class InlineCastB extends InlineCastA {
 	public function new() { }
 
 	public inline function test() : InlineCastB {
-		#if as3
-		return cast (self(), InlineCastB);
-		#else
 		return cast self();
-		#end
 	}
 
 	public function quote() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 
 package haxe.rtti;
+
 import haxe.rtti.CType;
 
 /**
@@ -29,14 +30,13 @@ import haxe.rtti.CType;
 	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Rtti {
-
 	/**
 		Returns the `haxe.rtti.CType.Classdef` corresponding to class `c`.
 
-		If `c` has no runtime type information, e.g. because no `@:rtti@` was
-		added, `null` is returned.
+		If `c` has no runtime type information, e.g. because no `@:rtti` was
+		added, an exception of type `String` is thrown.
 
-		If `c` is null, the result is unspecified.
+		If `c` is `null`, the result is unspecified.
 	**/
 	static public function getRtti<T>(c:Class<T>):Classdef {
 		var rtti = Reflect.field(c, "__rtti");
@@ -46,15 +46,17 @@ class Rtti {
 		var x = Xml.parse(rtti).firstElement();
 		var infos = new haxe.rtti.XmlParser().processElement(x);
 		switch (infos) {
-			case TClassdecl(c): return c;
-			case var t: throw 'Enum mismatch: expected TClassDecl but found $t';
+			case TClassdecl(c):
+				return c;
+			case var t:
+				throw 'Enum mismatch: expected TClassDecl but found $t';
 		}
 	}
 
 	/**
 		Tells if `c` has runtime type information.
 
-		If `c` is null, the result is unspecified.
+		If `c` is `null`, the result is unspecified.
 	**/
 	static public function hasRtti<T>(c:Class<T>):Bool {
 		return Lambda.has(Type.getClassFields(c), "__rtti");

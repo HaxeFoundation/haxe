@@ -31,13 +31,9 @@ class TestBasetypes extends Test {
 		unspec(function() String.fromCharCode(0));
 		unspec(function() String.fromCharCode(-1));
 		unspec(function() String.fromCharCode(256));
-#if php
-		eq( Std.string(null) + "x", "nullx" );
-		eq( "x" + Std.string(null), "xnull" );
-#else
+
 		eq( null + "x", "nullx" );
 		eq( "x" + null, "xnull" );
-#end
 
 		var abc = "abc".split("");
 		eq( abc.length, 3 );
@@ -122,7 +118,7 @@ class TestBasetypes extends Test {
 		try {
 			"" + x.iterator();
 		} catch (e:Dynamic)	{
-			Test.report("Could not convert Iterator to String");
+			assert("Could not convert Iterator to String");
 		}
 
 		var str = "he\nlo\"'";
@@ -186,7 +182,7 @@ class TestBasetypes extends Test {
 		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
 
 
-		#if (flash && !as3)
+		#if flash
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
 		eq( Math.ceil( -10000000000.7), 0xABF41C00);
 		eq( Math.round( -10000000000.7), 0xABF41BFF);
@@ -283,13 +279,12 @@ class TestBasetypes extends Test {
 	function testObjectKeyword() {
 		// new is a keyword in Haxe
 		var l = { "new": "test" };
-		var prefix = #if as3 "_" #else "" #end;
-		eq(Reflect.field(l, prefix + "new"), "test");
+		eq(Reflect.field(l, "new"), "test");
 		// const is a keyword on some platforms but not in Haxe
 		// check that with can still access it normally
 		var o = { const : 6 }
 		eq(o.const, 6);
-		eq(Reflect.field(o, prefix+"const"), 6);
+		eq(Reflect.field(o, "const"), 6);
 	}
 
 	function testFormat() {

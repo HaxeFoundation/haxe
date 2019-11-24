@@ -1,0 +1,44 @@
+-cp src
+--each
+
+# Closures
+
+-main Closures1
+-js bin/closures1.js
+
+--next
+-main Closures2
+-js bin/closures2.js
+
+--next
+-D js-classic
+-main Closures1
+-js bin/closures1-classic.js
+
+--next
+-D js-classic
+-main Closures2
+-js bin/closures2-classic.js
+
+#ObjectMap
+--next
+-main ObjectMap1
+-js bin/objectMap1.js
+
+--next
+-main ObjectMap2
+-js bin/objectMap2.js
+
+--next
+-D js-classic
+-main ObjectMap1
+-js bin/objectMap1-classic.js
+
+--next
+-D js-classic
+-main ObjectMap2
+-js bin/objectMap2-classic.js
+
+# Run tests
+--next
+-cmd node run.js

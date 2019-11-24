@@ -50,14 +50,14 @@ let build_macro_build ctx c pl cfl p =
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> error "genericBuild requires a single expression call parameter" p
 	in
-	let old = ctx.ret,ctx.g.get_build_infos in
-	ctx.g.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
+	let old = ctx.ret,ctx.get_build_infos in
+	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
 		| None -> mk_mono()
 		| Some _ -> ctx.ret
 	) in
 	ctx.ret <- fst old;
-	ctx.g.get_build_infos <- snd old;
+	ctx.get_build_infos <- snd old;
 	t
 
 (* -------------------------------------------------------------------------- *)
@@ -74,7 +74,11 @@ let build_instance ctx mtype p =
 				let tf = (f()) in
 				unify_raise ctx tf t p;
 				link_dynamic t tf;
-				if ctx.pass >= PBuildClass then flush_pass ctx PBuildClass "after_build_instance";
+				(match tf with
+					| TInst (c, _) -> ignore(c.cl_build())
+					| TAbstract (a, _) -> Abstract.build_abstract a
+					| _ -> ()
+				);
 				t
 			) s in
 			TLazy r

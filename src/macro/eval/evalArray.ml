@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -114,6 +114,7 @@ let pop a =
 		vnull
 	else begin
 		let v = get a (a.alength - 1) in
+		unsafe_set a (a.alength - 1) vnull;
 		a.alength <- a.alength - 1;
 		v
 	end

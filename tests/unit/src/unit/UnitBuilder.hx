@@ -29,11 +29,11 @@ using StringTools;
 
 class UnitBuilder {
 
-	static public macro function build(basePath:String, filter:String = ".unit.hx"):Array<Field> {
-		var ret = Context.getBuildFields();
+	static public macro function generateSpec(basePath:String, filter:String = ".unit.hx") {
+		var ret = [];
 		var numFiles = 0;
 
-		function readDir(path) {
+		function readDir(path, pack:Array<String>) {
 			var dir = sys.FileSystem.readDirectory(path);
 			path = path.endsWith("\\") || path.endsWith("/") ? path : path + "/";
 			for (file in dir) {
@@ -46,22 +46,47 @@ class UnitBuilder {
 						params: [],
 						expr: read(filePath)
 					}
-					ret.push( {
-						name: "test" + ~/\./g.map(file, function(_) return "_"),
+					var p = Context.makePosition( { min:0, max:0, file:filePath + file } );
+					var field = {
+						name: "test",
 						kind: FFun(func),
-						pos: Context.makePosition( { min:0, max:0, file:filePath + file } ),
+						pos: p,
 						access: [APublic],
 						doc: null,
 						meta: []
-					});
+					};
+					var pack = ["unit", "spec"].concat(pack);
+					var typeName = "Test" + file.substr(0, file.indexOf("."));
+					Context.defineModule(pack.join(".") + "." + typeName, [{
+						pack: pack,
+						name: typeName,
+						pos: p,
+						kind: TDClass({
+							pack: ["unit"],
+							name: "Test"
+						}),
+						fields: [field]
+					}], [{
+						path: [{pos: p, name: "unit"}, {pos: p, name: "spec"}, {pos: p, name: "TestSpecification"}],
+						mode: INormal
+					}, {
+						// TODO: import.hx doesn't work for this?
+						path: [{pos: p, name: "haxe"}, {pos: p, name: "macro"}, {pos: p, name: "Expr"}],
+						mode: INormal
+					}]);
+					var tp:TypePath = {
+						pack: pack,
+						name: typeName
+					}
+					ret.push(macro new $tp());
 				} else if (sys.FileSystem.isDirectory(filePath)) {
-					readDir(filePath);
+					readDir(filePath, pack.concat([file]));
 				}
 			}
 		}
-		readDir(basePath);
-		//trace("Added " +numFiles + " .unit.hx files");
-		return ret;
+		readDir(basePath, []);
+		// trace("Added " +numFiles + " .unit.hx files");
+		return macro $a{ret};
 	}
 
 	#if macro
@@ -102,7 +127,7 @@ class UnitBuilder {
 	static public function read(path:String) {
 		var p = Context.makePosition( { min:0, max:0, file:path } );
 		var file = sys.io.File.getContent(path);
-		var code = Context.parseInlineString("{" + file + "}", p);
+		var code = Context.parseInlineString("{" + file + "\n}", p);
 		function mkBlock(e:Expr) {
 			return switch(e.expr) {
 				case EBlock(b): b;

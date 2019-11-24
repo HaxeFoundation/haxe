@@ -1,6 +1,6 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum InterpolationMethod {
-	LINEAR_RGB;
-	RGB;
+@:native("flash.display.InterpolationMethod") extern enum abstract InterpolationMethod(String) {
+	var LINEAR_RGB;
+	var RGB;
 }

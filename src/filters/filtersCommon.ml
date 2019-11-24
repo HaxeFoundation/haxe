@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -38,6 +38,16 @@ let rec is_removable_class c =
 	| _ ->
 		false
 
+(**
+	Check if `field` is overridden in subclasses
+*)
+let is_overridden cls field =
+	let rec loop_inheritance c =
+		(PMap.mem field.cf_name c.cl_fields)
+		|| List.exists (fun d -> loop_inheritance d) c.cl_descendants;
+	in
+	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
+
 let run_expression_filters ctx filters t =
 	let run e =
 		List.fold_left (fun e f -> f e) e filters
@@ -50,9 +60,7 @@ let run_expression_filters ctx filters t =
 			ctx.curfield <- f;
 			(match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
-				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
-				f.cf_expr <- Some (run e);
-				AbstractCast.cast_stack := List.tl !AbstractCast.cast_stack;
+				f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
 			| _ -> ());
 			List.iter process_field f.cf_overloads
 		in

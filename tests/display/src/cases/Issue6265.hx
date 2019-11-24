@@ -2,11 +2,11 @@ package cases;
 
 class Issue6265 extends DisplayTestCase {
 	/**
-	class Main {
-		public static function main(x:Int):Void {
-			{-1-}trac{-2-}e{-3-}({-4-}'{-5-}${-6-}{{-7-}mai{-8-}n{-9-}({-10-}1{-11-}){-12-}}{-13-}') // lol
+		class Main {
+			public static function main(x:Int):Void {
+				{-1-}trac{-2-}e{-3-}({-4-}'{-5-}${-6-}{{-7-}mai{-8-}n{-9-}({-10-}1{-11-}){-12-}}{-13-}') // lol
+			}
 		}
-	}
 	**/
 	function test() {
 		eq("(value : Dynamic) -> Void", type(pos(1)));

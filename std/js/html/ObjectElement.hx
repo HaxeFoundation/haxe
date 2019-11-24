@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement>
 **/
 @:native("HTMLObjectElement")
-extern class ObjectElement extends Element
-{
+extern class ObjectElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `data` HTML attribute, specifying the address of a resource's data.

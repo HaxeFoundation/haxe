@@ -1,10 +1,10 @@
 package flash.ui;
 
-@:fakeEnum(String) extern enum GameInputControlType {
-	ACCELERATION;
-	BUTTON;
-	DIRECTION;
-	MOVEMENT;
-	ROTATION;
-	TRIGGER;
+@:native("flash.ui.GameInputControlType") extern enum abstract GameInputControlType(String) {
+	var ACCELERATION;
+	var BUTTON;
+	var DIRECTION;
+	var MOVEMENT;
+	var ROTATION;
+	var TRIGGER;
 }

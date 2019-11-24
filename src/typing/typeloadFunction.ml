@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -29,6 +29,11 @@ open Common
 open Error
 
 let type_function_arg ctx t e opt p =
+	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
+	(* delay ctx PTypeField (fun() ->
+		if ExtType.is_void (follow t) then
+			error "Arguments of type Void are not allowed" p
+	); *)
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
 		ctx.t.tnull t, e
@@ -75,7 +80,9 @@ let type_function_arg_value ctx t c do_display =
 			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
-				| TConst c -> Some c
+				| TConst _ -> Some e
+				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
+                | TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
@@ -84,13 +91,16 @@ let type_function_arg_value ctx t c do_display =
 			in
 			loop e
 
+let process_function_arg ctx n t c do_display p =
+	if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
+	type_function_arg_value ctx t c do_display
+
 let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-		if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
-		let c = type_function_arg_value ctx t c do_display in
-		let v,c = add_local_with_origin ctx TVOArgument n t pn , c in
+		let c = process_function_arg ctx n t c do_display pn in
+		let v = add_local_with_origin ctx TVOArgument n t pn in
 		v.v_meta <- v.v_meta @ m;
-		if do_display && DisplayPosition.encloses_display_position pn then
+		if do_display && DisplayPosition.display_position#enclosed_in pn then
 			DisplayEmitter.display_variable ctx v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
@@ -110,21 +120,16 @@ let type_function ctx args ret fmode f do_display p =
 				error "Function body required" p
 		| Some e -> e
 	in
-	let e = if not do_display then
+	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
+	let e = if not do_display then begin
+		if is_position_debug then print_endline ("syntax:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
-	else begin
+	end else begin
 		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
-		try
-			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
-			let e = Optimizer.optimize_completion_expr e f.f_args in
-			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
-			type_expr ctx e NoValue
-		with
-		| Parser.TypePath (_,None,_,_) | Exit ->
-			type_expr ctx e NoValue
+		type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
@@ -192,11 +197,31 @@ let type_function ctx args ret fmode f do_display p =
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
-			| TBlock l -> { e with eexpr = TBlock (ev::l) }
+			| TBlock l ->
+				if ctx.com.config.pf_this_before_super then
+					{ e with eexpr = TBlock (ev :: l) }
+				else begin
+					let rec has_v e = match e.eexpr with
+						| TLocal v' when v == v -> true
+						| _ -> check_expr has_v e
+					in
+					let rec loop el = match el with
+						| e :: el ->
+							if has_v e then
+								ev :: e :: el
+							else
+								e :: loop el
+						| [] ->
+							(* should not happen... *)
+							[]
+					in
+					{ e with eexpr = TBlock (loop l) }
+				end
 			| _ -> mk (TBlock [ev;e]) e.etype p)
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 
 let type_function ctx args ret fmode f do_display p =
@@ -227,11 +252,12 @@ let add_constructor ctx c force_constructor p =
 					let's optimize a bit the output by not always copying the default value
 					into the inherited constructor when it's not necessary for the platform
 				*)
+				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
-				| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
-				| Flash, Some (TString _) -> v, (Some TNull)
-				| Cpp, Some (TString _) -> v, def
-				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
+				| _, Some _ when not ctx.com.config.pf_static -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) -> v, null()
+				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
+				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def
 			in
 			let args = (match cfsup.cf_expr with
@@ -242,7 +268,11 @@ let add_constructor ctx c force_constructor p =
 					match follow cfsup.cf_type with
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
-							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) false with Not_found -> if o then Some TNull else None in
+							let def = try
+								type_function_arg_value ctx t (Some (PMap.find n values)) false
+							with Not_found ->
+								if o then Some (Texpr.Builder.make_null t null_pos) else None
+							in
 							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false

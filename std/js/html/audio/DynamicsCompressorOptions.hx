@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html.audio;
 
-typedef DynamicsCompressorOptions =
-{
-	> AudioNodeOptions,
-	@:optional var attack : Float;
-	@:optional var knee : Float;
-	@:optional var ratio : Float;
-	@:optional var release : Float;
-	@:optional var threshold : Float;
+typedef DynamicsCompressorOptions = AudioNodeOptions & {
+	var ?attack : Float;
+	var ?knee : Float;
+	var ?ratio : Float;
+	var ?release : Float;
+	var ?threshold : Float;
 }

@@ -1,9 +1,9 @@
 package flash.media;
 
-@:fakeEnum(String) @:require(flash10_2) extern enum MicrophoneEnhancedMode {
-	FULL_DUPLEX;
-	HALF_DUPLEX;
-	HEADSET;
-	OFF;
-	SPEAKER_MUTE;
+@:native("flash.media.MicrophoneEnhancedMode") @:require(flash10_2) extern enum abstract MicrophoneEnhancedMode(String) {
+	var FULL_DUPLEX;
+	var HALF_DUPLEX;
+	var HEADSET;
+	var OFF;
+	var SPEAKER_MUTE;
 }

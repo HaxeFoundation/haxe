@@ -14,5 +14,6 @@ class Issue6675 extends unit.Test {
 			return op(bop(a,b));
 		}
 		foo(Add,Int(0),Int(1));
+		noAssert();
 	}
 }

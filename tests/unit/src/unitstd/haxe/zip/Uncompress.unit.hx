@@ -27,4 +27,6 @@ r.done == true;
 r.read == 12;
 r.write == 4;
 c.toString() == "test";
+#else
+1 == 1;
 #end

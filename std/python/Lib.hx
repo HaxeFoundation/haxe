@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.internal.AnonObject;
@@ -33,6 +34,12 @@ typedef PySys = python.lib.Sys;
 	and vice-versa.
 **/
 class Lib {
+	static var lineEnd:String = Sys.systemName() == "Windows" ? "\r\n" : "\n";
+	static public var __name__(get, never):String;
+
+	static inline function get___name__():String
+		return python.Syntax.code('__name__');
+
 	/**
 		Print the specified value on the default output.
 	**/
@@ -40,8 +47,8 @@ class Lib {
 		printString(Std.string(v));
 	}
 
-	private static function printString (str:String):Void {
-		PySys.stdout.buffer.write( NativeStringTools.encode(str, "utf-8"));
+	private static function printString(str:String):Void {
+		PySys.stdout.buffer.write(NativeStringTools.encode(str, "utf-8"));
 		PySys.stdout.flush();
 	}
 
@@ -50,68 +57,62 @@ class Lib {
 	**/
 	public static inline function println(v:Dynamic):Void {
 		var str = Std.string(v);
-		printString('$str\n');
+		printString('$str$lineEnd');
 	}
 
 	/**
-	 	Returns an anonymous Object which holds the same data as the Dictionary `v`.
+		Returns an anonymous Object which holds the same data as the Dictionary `v`.
 	**/
-	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic {
+	public static function dictToAnon(v:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(v.copy());
 	}
 
-
 	/**
-	 	Returns a flat copy of the underlying Dictionary of `o`.
+		Returns a flat copy of the underlying Dictionary of `o`.
 	**/
 	@:access(python.Boot.isAnonObject)
-	public static function anonToDict (o:{}):Dict<String, Dynamic> {
-		return if (Boot.isAnonObject(o))
-		{
-			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>).copy();
-		}
-		else null;
-
+	public static function anonToDict(o:{}):Dict<String, Dynamic> {
+		return if (Boot.isAnonObject(o)) {
+			(Syntax.field(o, "__dict__") : Dict<String, Dynamic>).copy();
+		} else null;
 	}
 
 	/**
-	 	Returns the underlying Dictionary of the anonymous object `o`.
-	 	Modifications to this dictionary are reflected in the anonymous Object too.
+		Returns the underlying Dictionary of the anonymous object `o`.
+		Modifications to this dictionary are reflected in the anonymous Object too.
 	**/
 	@:access(python.Boot.isAnonObject)
-	public static function anonAsDict (o:{}):Dict<String, Dynamic> {
-		return if (Boot.isAnonObject(o))
-		{
-			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>);
-		}
-		else null;
+	public static function anonAsDict(o:{}):Dict<String, Dynamic> {
+		return if (Boot.isAnonObject(o)) {
+			(Syntax.field(o, "__dict__") : Dict<String, Dynamic>);
+		} else null;
 	}
 
 	/**
-	 	Returns the Dictionary `d` as an anonymous Object.
-	 	Modifications to the object are reflected in the Dictionary too.
+		Returns the Dictionary `d` as an anonymous Object.
+		Modifications to the object are reflected in the Dictionary too.
 	**/
-	public static inline function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
+	public static inline function dictAsAnon(d:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(d);
 	}
 
 	/**
 		Return Python native iterable from Haxe iterable.
 	**/
-	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {
+	public static function toPythonIterable<T>(it:Iterable<T>):python.NativeIterable<T> {
 		return {
-			__iter__ : function () {
+			__iter__: function() {
 				var it1 = it.iterator();
 				var self:NativeIterator<T> = null;
 				self = new NativeIterator({
-					__next__ : function ():T {
-					if (it1.hasNext()) {
-						return it1.next();
-					} else {
-						throw new python.Exceptions.StopIteration();
-					}
-				},
-				__iter__ : function () return self
+					__next__: function():T {
+						if (it1.hasNext()) {
+							return it1.next();
+						} else {
+							throw new python.Exceptions.StopIteration();
+						}
+					},
+					__iter__: function() return self
 				});
 				return self;
 			}
@@ -121,14 +122,14 @@ class Lib {
 	/**
 		Return Haxe iterable from Python native iterable.
 	**/
-	public static inline function toHaxeIterable <T>(it:NativeIterable<T>):HaxeIterable<T> {
+	public static inline function toHaxeIterable<T>(it:NativeIterable<T>):HaxeIterable<T> {
 		return new HaxeIterable(it);
 	}
 
 	/**
 		Return Haxe iterator instance from Python native iterable.
 	**/
-	public static inline function toHaxeIterator <T>(it:NativeIterator<T>):HaxeIterator<T> {
+	public static inline function toHaxeIterator<T>(it:NativeIterator<T>):HaxeIterator<T> {
 		return new HaxeIterator(it);
 	}
 }

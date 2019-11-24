@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 
 package lua.lib.luasocket.socket;
 
-@:multiReturn extern class AddrInfo{
-	var address : String;
-	var port : String;
+@:multiReturn extern class AddrInfo {
+	var address:String;
+	var port:String;
 }

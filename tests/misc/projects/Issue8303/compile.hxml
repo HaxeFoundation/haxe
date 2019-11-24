@@ -1,0 +1,3 @@
+-main MainCatch
+-D eval-call-stack-depth=5
+--interp

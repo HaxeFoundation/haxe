@@ -77,12 +77,7 @@ class TestReflect extends Test {
 	}
 
 	static inline function u2( s : String, s2 ) : String {
-		#if as3
-		return s + "." +s2;
-		#else
-		// this causes a null pointer exception on as3 for whatever reason
 		return u(s) + "." + u(s2);
-		#end
 	}
 
 	static var TNAMES = [
@@ -97,7 +92,6 @@ class TestReflect extends Test {
 		for( i in 1...TYPES.length ) {
 			var t : Dynamic = TYPES[i];
 			var name = TNAMES[i];
-			infos("type "+name);
 			f( t == null );
 			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
@@ -109,11 +103,9 @@ class TestReflect extends Test {
 				eq( Type.resolveClass(name), t );
 			}
 		}
-		infos(null);
 	}
 
 	public function testIs() {
-		is(null,null);
 		is(0,Int,Float);
 		is(1,Int,Float);
 		is(-1,Int,Float);
@@ -151,10 +143,8 @@ class TestReflect extends Test {
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
 		for( i in 0...TYPES.length ) {
 			var c : Dynamic = TYPES[i];
-			infos(Std.string(v)+" is "+TNAMES[i]);
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
-		infos(null);
 		t( (v is Dynamic), pos );
 	}
 
@@ -205,7 +195,6 @@ class TestReflect extends Test {
 
 	function typeof( v : Dynamic, rt : ValueType, ?pos : haxe.PosInfos ) {
 		var vt = Type.typeof(v);
-		infos("typeof("+Std.string(v)+") = "+vt);
 		t( Type.enumEq(vt,rt), pos );
 	}
 

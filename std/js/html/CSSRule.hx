@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRule>
 **/
 @:native("CSSRule")
-extern class CSSRule
-{
+extern class CSSRule {
 	static inline var STYLE_RULE : Int = 1;
 	static inline var CHARSET_RULE : Int = 2;
 	static inline var IMPORT_RULE : Int = 3;

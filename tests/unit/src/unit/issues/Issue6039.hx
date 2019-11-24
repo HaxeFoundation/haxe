@@ -5,15 +5,15 @@ import cs.system.Action_1;
 
 class Issue6039 extends Test
 {
+	#if cs
   public function test()
   {
-#if cs
     var myStr = null;
     var c:Callback = function(str) myStr = str;
     c.invokeIt('test');
     this.eq(myStr, 'test');
-#end
   }
+  #end
 }
 
 #if cs

@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) @:require(flash10_1) extern enum ColorCorrection {
-	DEFAULT;
-	OFF;
-	ON;
+@:native("flash.display.ColorCorrection") @:require(flash10_1) extern enum abstract ColorCorrection(String) {
+	var DEFAULT;
+	var OFF;
+	var ON;
 }

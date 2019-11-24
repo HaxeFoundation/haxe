@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 interface ResultSet {
+	var length(get, null):Int;
+	var nfields(get, null):Int;
 
-	var length(get,null) : Int;
-	var nfields(get,null) : Int;
-
-
-	function hasNext() : Bool;
-	function next() : Dynamic;
-	function results() : List<Dynamic>;
-	function getResult( n : Int ) : String;
-	function getIntResult( n : Int ) : Int;
-	function getFloatResult( n : Int ) : Float;
-	function getFieldsNames() : Null<Array<String>>;
-
+	function hasNext():Bool;
+	function next():Dynamic;
+	function results():List<Dynamic>;
+	function getResult(n:Int):String;
+	function getIntResult(n:Int):Int;
+	function getFloatResult(n:Int):Float;
+	function getFieldsNames():Null<Array<String>>;
 }

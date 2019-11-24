@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import php.*;
@@ -36,7 +37,6 @@ private class PhpVectorData<T> {
 private typedef VectorData<T> = PhpVectorData<T>;
 
 abstract Vector<T>(VectorData<T>) {
-
 	public var length(get, never):Int;
 
 	public inline function new(length:Int) {
@@ -84,7 +84,7 @@ abstract Vector<T>(VectorData<T>) {
 	public function toArray():Array<T> {
 		var result = [];
 		@:privateAccess result.length = length;
-		for(i in 0...length) {
+		for (i in 0...length) {
 			@:privateAccess result.arr.push(get(i));
 		}
 		return result;
@@ -109,11 +109,11 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	public function join<T>(sep:String):String {
-		if(this.length == 0) {
+		if (this.length == 0) {
 			return '';
 		}
 		var result = Std.string(get(0));
-		for(i in 1...this.length) {
+		for (i in 1...this.length) {
 			result = Syntax.concat(result, Syntax.concat(sep, Std.string(get(i))));
 		}
 		return result;

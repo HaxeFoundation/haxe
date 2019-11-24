@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot>
 **/
 @:native("ShadowRoot")
-extern class ShadowRoot extends DocumentFragment
-{
+extern class ShadowRoot extends DocumentFragment {
 	
 	/**
 		The mode of the `ShadowRoot` — either `open` or `closed`. This defines whether or not the shadow root's internal features are accessible from JavaScript.
@@ -52,6 +51,7 @@ extern class ShadowRoot extends DocumentFragment
 	var activeElement(default,null) : Element;
 	var styleSheets(default,null) : StyleSheetList;
 	var pointerLockElement(default,null) : Element;
+	var fullscreenElement(default,null) : Element;
 	
 	function getElementById( elementId : String ) : Element;
 	function getElementsByTagName( localName : String ) : HTMLCollection;

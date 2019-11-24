@@ -10,5 +10,6 @@ class Issue3133 extends Test {
 	function test() {
 		var t = new Child();
 		t.test("foo");
+		noAssert();
 	}
 }

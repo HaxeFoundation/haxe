@@ -10,5 +10,6 @@ class Issue4310 extends Test {
 	function test() {
 		var child1:BaseClass = new Child1();
 		cast(child1, BaseClass);
+		noAssert();
 	}
 }

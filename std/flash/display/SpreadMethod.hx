@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum SpreadMethod {
-	PAD;
-	REFLECT;
-	REPEAT;
+@:native("flash.display.SpreadMethod") extern enum abstract SpreadMethod(String) {
+	var PAD;
+	var REFLECT;
+	var REPEAT;
 }

@@ -9,6 +9,7 @@ class Issue5073 extends Test {
 			}
 		}
 		pretendToRun(dontRunMe);
+		noAssert();
 	}
 
 	static function pretendToRun(_) { }

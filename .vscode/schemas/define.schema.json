@@ -1,0 +1,68 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "array",
+	"items": {
+		"type": "object",
+		"additionalProperties": false,
+		"properties": {
+			"name": {
+				"type": "string",
+				"markdownDescription": "OCaml name of the define."
+			},
+			"define": {
+				"type": "string",
+				"markdownDescription": "Actual name of the define as it's used in `-D` on the CLI and in Haxe code."
+			},
+			"doc": {
+				"type": "string",
+				"markdownDescription": "Documentation for the define that is shown in `--help-defines`."
+			},
+			"platforms": {
+				"type": "array",
+				"markdownDescription": "Platforms on which this define has an effect.",
+				"minItems": 1,
+				"items": {
+					"enum": [
+						"js",
+						"lua",
+						"neko",
+						"flash",
+						"php",
+						"cpp",
+						"cs",
+						"java",
+						"python",
+						"hl",
+						"eval"
+					]
+				}
+			},
+			"params": {
+				"type": "array",
+				"markdownDescription": "Parameters this define takes.",
+				"minItems": 1,
+				"items": {
+					"type": "string"
+				}
+			},
+			"devcomment": {
+				"type": "string",
+				"markdownDescription": "Internal comment that is not exposed."
+			},
+			"links": {
+				"type": "array",
+				"markdownDescription": "Relevant URLs.",
+				"minItems": 1,
+				"items": {
+					"type": "string",
+					"format": "uri"
+				}
+			}
+		},
+		"required": [
+			"name",
+			"define",
+			"doc"
+		]
+	}
+}

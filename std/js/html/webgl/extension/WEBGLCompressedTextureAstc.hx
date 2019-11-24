@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_astc>
 **/
 @:native("WEBGL_compressed_texture_astc")
-extern class WEBGLCompressedTextureAstc
-{
+extern class WEBGLCompressedTextureAstc {
 	static inline var COMPRESSED_RGBA_ASTC_4x4_KHR : Int = 37808;
 	static inline var COMPRESSED_RGBA_ASTC_5x4_KHR : Int = 37809;
 	static inline var COMPRESSED_RGBA_ASTC_5x5_KHR : Int = 37810;

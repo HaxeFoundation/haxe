@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -95,14 +95,17 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 		begin match follow t1, follow t2 with
 		| TFun (args1,r1) , TFun (args2,r2) -> (
 			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
+			let i = ref 0 in
 			try
+				valid r1 r2;
 				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+					incr i;
 					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
 				) args1 args2;
-				valid r1 r2
 			with Unify_error l ->
-				raise (Unify_error (Cannot_unify (t1,t2) :: l)))
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
+				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
 			assert false
 		end
@@ -112,6 +115,9 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 	| _,(Var { v_read = AccNo | AccNever }) ->
 		(* read variance *)
 		valid t2 t1
+	| _,_ when has_class_field_flag f2 CfFinal ->
+		(* write variance *)
+		valid t1 t2
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
@@ -123,6 +129,35 @@ let copy_meta meta_src meta_target sl =
 		if List.mem m sl then meta := (m,e,p) :: !meta
 	) meta_src;
 	!meta
+
+(** retrieve string from @:native metadata or raise Not_found *)
+let get_native_name meta =
+	let rec get_native meta = match meta with
+		| [] -> raise Not_found
+		| (Meta.Native,[v],p as meta) :: _ ->
+			meta
+		| _ :: meta ->
+			get_native meta
+	in
+	let (_,e,mp) = get_native meta in
+	match e with
+	| [Ast.EConst (Ast.String(name,_)),p] ->
+		name,p
+	| [] ->
+		raise Not_found
+	| _ ->
+		error "String expected" mp
+
+let check_native_name_override ctx child base =
+	let error() =
+		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child.cf_pos;
+		display_error ctx ("Base field is defined here") base.cf_pos
+	in
+	try
+		let native_name = fst (get_native_name child.cf_meta) in
+		try if fst (get_native_name base.cf_meta) <> native_name then error()
+		with Not_found -> error()
+	with Not_found -> ()
 
 let check_overriding ctx c f =
 	match c.cl_super with
@@ -136,6 +171,7 @@ let check_overriding ctx c f =
 			(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
 				display_error ctx ("Missing @:overload declaration for field " ^ i) p);
 			let t, f2 = get_super_field csup i in
+			check_native_name_override ctx f f2;
 			(* allow to define fields that are not defined for this platform version in superclass *)
 			(match f2.cf_kind with
 			| Var { v_read = AccRequire _ } -> raise Not_found;
@@ -144,7 +180,7 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
 			else if not (List.memq f c.cl_overrides) then
 				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
-			else if not f.cf_public && f2.cf_public then
+			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
@@ -154,13 +190,13 @@ let check_overriding ctx c f =
 				() (* allow to redefine a method as inlined *)
 			| _ ->
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if f2.cf_final then display_error ctx ("Cannot override final method " ^ i) p;
+			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t
+				valid_redefinition ctx f f.cf_type f2 t;
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
+					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
 					display_error ctx ("Base field is defined here") f2.cf_pos;
 					display_error ctx (error_msg (Unify l)) p;
 		with
@@ -168,9 +204,14 @@ let check_overriding ctx c f =
 				if List.memq f c.cl_overrides then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
-					else
-						("Field " ^ i ^ " is declared 'override' but doesn't override any field")
-					in
+					else begin
+						let fields = TClass.get_all_super_fields c in
+						let fields = PMap.fold (fun (_,cf) acc -> match cf.cf_kind with
+							| Method MethNormal when not (has_class_field_flag cf CfFinal) -> cf.cf_name :: acc
+							| _ -> acc
+						) fields [] in
+						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+					end in
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
@@ -321,7 +362,7 @@ module Inheritance = struct
 					| MethDynamic -> 1
 					| MethMacro -> 2
 				in
-				if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
+				if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 					display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 				else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 					display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
@@ -395,7 +436,7 @@ module Inheritance = struct
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
-						ImportHandling.mark_import_position ctx.com pi;
+						ImportHandling.mark_import_position ctx pi;
 						t
 					in
 					{ t with tpackage = fst (t_path lt) },p
@@ -409,7 +450,7 @@ module Inheritance = struct
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
-		let check_herit t is_extends =
+		let check_herit t is_extends p =
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -455,13 +496,13 @@ module Inheritance = struct
 					error "Should implement by using an interface" p
 			end
 		in
-		let fl = ExtList.List.filter_map (fun (is_extends,t) ->
+		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx t false
-				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+					Typeload.load_instance ~allow_display:true ctx (ct,p) false
+				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
-					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
+					if not is_extends && c.cl_interface then raise_fields [] CRImplements r.fsubject;
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
@@ -469,10 +510,10 @@ module Inheritance = struct
 							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
-					) l in
-					raise_fields l (if is_extends then CRExtends else CRImplements) p
+					) r.fitems in
+					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
-				Some (check_herit t is_extends)
+				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
@@ -483,7 +524,7 @@ end
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
 	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when cf.cf_final && cf.cf_expr = None ->
+		| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None ->
 			Hashtbl.add final_vars cf.cf_name cf
 		| _ ->
 			()
