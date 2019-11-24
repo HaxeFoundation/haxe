@@ -79,7 +79,6 @@ import cs.internal.Exceptions;
 		if (x == null)
 			return null;
 
-		var ret = 0;
 		var base = 10;
 		var len = x.length;
 		var foundCount = 0;
