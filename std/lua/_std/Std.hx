@@ -53,9 +53,14 @@ import lua.NativeStringTools;
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^[ \t\r\n]*([%-+]*0[xX][%da-fA-F]*)");
 		if (hexMatch != null) {
-			return lua.Lua.tonumber(hexMatch.substr(2), 16);
+			var sign = switch StringTools.fastCodeAt(hexMatch, 0) {
+				case '-'.code: -1;
+				case '+'.code: 1;
+				case _: 0;
+			}
+			return (sign == -1 ? -1 : 1) * lua.Lua.tonumber(hexMatch.substr(sign == 0 ? 2 : 3), 16);
 		} else {
 			var intMatch = NativeStringTools.match(x, "^ *[%-+]?%d*");
 			if (intMatch != null) {
