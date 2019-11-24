@@ -81,7 +81,6 @@ import cs.internal.Exceptions;
 
 		var ret = 0;
 		var base = 10;
-		var i = -1;
 		var len = x.length;
 		var foundCount = 0;
 		var sign = 0;
