@@ -32,21 +32,24 @@ class ArrayIterator<T> {
 	/**
 		Create a new `ArrayIterator`.
 	**/
-	public inline function new(array:Array<T>) {
+	#if !hl inline #end
+	public function new(array:Array<T>) {
 		this.array = array;
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
-	public inline function hasNext() {
+	#if !hl inline #end
+	public function hasNext() {
 		return current < array.length;
 	}
 
 	/**
 		See `Iterator.next`
 	**/
-	public inline function next() {
+	#if !hl inline #end
+	public function next() {
 		return array[current++];
 	}
 }
