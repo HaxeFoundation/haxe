@@ -311,16 +311,7 @@ class Boot extends flash.display.MovieClip {
 				return true;
 			}
 			aproto.iterator = function() {
-				var cur = 0;
-				var arr:Array<Dynamic> = __this__;
-				return {
-					hasNext: function() {
-						return cur < arr.length;
-					},
-					next: function() {
-						return arr[cur++];
-					}
-				}
+				return new haxe.iterators.ArrayIterator(cast __this__);
 			};
 			aproto.keyValueIterator = function() {
 				return new haxe.iterators.ArrayKeyValueIterator(untyped __this__);
