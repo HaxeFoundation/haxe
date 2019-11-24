@@ -265,13 +265,9 @@ extern class Array<T> {
 	/**
 		Returns an iterator of the Array values.
 	**/
-	#if hl
-	function iterator():haxe.iterators.ArrayIterator<T>;
-	#else
 	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
 	}
-	#end
 
 	/**
 		Creates a new Array by applying function `f` to all elements of `this`.

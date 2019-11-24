@@ -25,9 +25,6 @@ package haxe.iterators;
 /**
 	This iterator is used only when `Array<T>` is passed to `Iterable<T>`
 **/
-#if hl
-typedef ArrayIterator<T> = Iterator<T>;
-#else
 class ArrayIterator<T> {
 	final array:Array<T>;
 	var current:Int = 0;
@@ -53,4 +50,3 @@ class ArrayIterator<T> {
 		return array[current++];
 	}
 }
-#end
