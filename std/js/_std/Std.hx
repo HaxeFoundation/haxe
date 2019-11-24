@@ -53,8 +53,9 @@ import js.Syntax;
 			for(i in 0...x.length) {
 				var c = StringTools.fastCodeAt(x, i);
 				if(c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
-					var v:Int = Syntax.code('parseInt({0}, ({0}[{1}]=="x" || {0}[{1}]=="X") ? 16 : 10)', x, i + 1);
-					return Math.isNaN(v) ? null : v;
+					var nc = StringTools.fastCodeAt(x, i + 1);
+					var v = js.Lib.parseInt(x, (nc == "x".code || nc == "X".code) ? 16 : 10);
+					return Math.isNaN(v) ? null : cast v;
 				}
 			}
 		}
