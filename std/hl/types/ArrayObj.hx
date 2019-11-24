@@ -24,7 +24,7 @@ package hl.types;
 
 import haxe.iterators.ArrayIterator;
 
-@:generic class ArrayObjIterator<T> extends ArrayIterator<T> {
+class ArrayObjIterator<T> extends ArrayIterator<T> {
 	var arr:ArrayObj<T>;
 
 	public inline function new(arr:ArrayObj<T>) {
