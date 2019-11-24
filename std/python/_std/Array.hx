@@ -133,10 +133,5 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.unsafeSet(this, idx, val);
 	}
 
-<<<<<<< HEAD
-	@:noCompletion private function __iter__ ():NativeIterator<T>;
-}
-=======
 	@:noCompletion private function __iter__():NativeIterator<T>;
 }
->>>>>>> development
