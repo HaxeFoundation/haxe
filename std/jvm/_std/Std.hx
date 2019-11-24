@@ -69,10 +69,14 @@ class Std {
 	public static function parseInt(x:String):Null<Int> {
 		try {
 			x = StringTools.trim(x);
-			if (x.length < 2) {
+			var signChars = switch (cast x : java.NativeString).codePointAt(0) {
+				case '-'.code | '+'.code: 1;
+				case _: 0;
+			}
+			if (x.length < 2 + signChars) {
 				return integerFormatter.parse(x).intValue();
 			}
-			switch ((cast x : java.NativeString).codePointAt(1)) {
+			switch ((cast x : java.NativeString).codePointAt(1 + signChars)) {
 				case 'x'.code | 'X'.code:
 					return java.lang.Integer.decode(x).intValue();
 				case _:
