@@ -71,11 +71,20 @@ enum ValueType {
 		if (c == null)
 			return null;
 		var str:String = untyped __global__["flash.utils.getQualifiedClassName"](c);
-		return switch (str) {
-			case "int": "Int";
-			case "Number": "Float";
-			case "Boolean": "Bool";
-			case _: StringTools.replace(str, "::", ".");
+		switch (str) {
+			case "int":
+				return "Int";
+			case "Number":
+				return "Float";
+			case "Boolean":
+				return "Bool";
+			case _:
+				var idx = str.lastIndexOf("::");
+				if (idx == -1) {
+					return str;
+				} else {
+					return str.substring(0, idx) + "." + str.substring(idx + 2);
+				}
 		}
 	}
 

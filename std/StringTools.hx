@@ -430,8 +430,6 @@ class StringTools {
 			return s.split(sub).join(by);
 		else
 			return untyped s.Replace(sub, by);
-		#elseif flash
-		return (cast s).replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end
