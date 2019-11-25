@@ -71,17 +71,12 @@ enum ValueType {
 		if (c == null)
 			return null;
 		var str:String = untyped __global__["flash.utils.getQualifiedClassName"](c);
-		switch (str) {
-			case "int":
-				return "Int";
-			case "Number":
-				return "Float";
-			case "Boolean":
-				return "Bool";
-			default:
+		return switch (str) {
+			case "int": "Int";
+			case "Number": "Float";
+			case "Boolean": "Bool";
+			case _: StringTools.replace(str, "::", ".");
 		}
-		var parts = str.split("::");
-		return parts.join(".");
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
