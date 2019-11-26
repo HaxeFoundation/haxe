@@ -10,15 +10,27 @@ enum abstract RegDataType<T>(String) to String {
 	var REG_SZ:RegDataType<String>;
 }
 
+class AccessDenied {
+	public var message:String;
+	public function new(msg:String) message = msg;
+	public function toString() return message;
+}
+
 class WinSetup {
 	static inline var HAXEPATH = 'HAXEPATH';
 	static inline var NEKO_INSTPATH = 'NEKO_INSTPATH';
 
-	static inline var REG_ENVIRONMENT = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment';
+	static inline var REG_HKLM_ENVIRONMENT = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment';
+	static inline var REG_HKCU_ENVIRONMENT = 'HKEY_CURRENT_USER\\Environment';
 
 	static function main() {
-		try run()
-		catch(e:Dynamic) {
+		try {
+			try {
+				run(REG_HKLM_ENVIRONMENT);
+			} catch(e:AccessDenied) {
+				run(REG_HKCU_ENVIRONMENT);
+			}
+		} catch(e:Dynamic) {
 			Sys.stderr().writeString(Std.string(e) + '\n');
 			#if debug
 				Sys.stderr().writeString(haxe.CallStack.toString(haxe.CallStack.exceptionStack()) + '\n');
@@ -36,24 +48,24 @@ class WinSetup {
 		return '%$name%';
 	}
 
-	static function run() {
+	static function run(regDir:String) {
 		var haxePath = Sys.getCwd().removeTrailingSlashes();
 		var addHaxe = '$haxePath\\haxe.exe'.exists();
 		if(addHaxe) {
-			setVar(HAXEPATH, REG_SZ, haxePath);
+			setRegValue(regDir, HAXEPATH, REG_SZ, haxePath);
 		}
 
 		var nekoPath = Path.join([Path.directory(haxePath), 'neko']).replace('/', '\\');
 		var addNeko = '$nekoPath\\neko.exe'.exists();
 		if(addNeko) {
-			setVar(NEKO_INSTPATH, REG_SZ, nekoPath);
+			setRegValue(regDir, NEKO_INSTPATH, REG_SZ, nekoPath);
 		}
 
 		if(!addHaxe && !addNeko) {
 			return;
 		}
 
-		var paths = readPath().split(';');
+		var paths = readPath(regDir).split(';');
 		addHaxe = paths.indexOf(HAXEPATH.envVar()) < 0 && addHaxe;
 		if(addHaxe) {
 			paths.push(HAXEPATH.envVar());
@@ -63,12 +75,12 @@ class WinSetup {
 			paths.push(NEKO_INSTPATH.envVar());
 		}
 		if(addHaxe || addNeko) {
-			setVar('path', REG_EXPAND_SZ, paths.join(';'));
+			setRegValue(regDir, 'path', REG_EXPAND_SZ, paths.join(';'));
 		}
 	}
 
-	static function readPath():String {
-		var p = new Process('reg', ['query', REG_ENVIRONMENT, '/v', 'path']);
+	static function readPath(regDir:String):String {
+		var p = new Process('reg', ['query', regDir, '/v', 'path']);
 		if(p.exitCode() != 0) {
 			var error = p.stderr.readAll().toString();
 			p.close();
@@ -103,12 +115,18 @@ class WinSetup {
 		throw 'Cannot parse a query to reg.exe for PATH value:\n$response';
 	}
 
-	static function setVar<T>(name:String, dataType:RegDataType<T>, value:T) {
-		var p = new Process('reg', ['add', REG_ENVIRONMENT, '/v', name, '/t', dataType, '/d', '$value', '/f']);
+	static function setRegValue<T>(regDir:String, name:String, dataType:RegDataType<T>, value:T) {
+		var p = new Process('reg', ['add', regDir, '/v', name, '/t', dataType, '/d', '$value', '/f']);
 		if(p.exitCode() != 0) {
 			var error = p.stderr.readAll().toString();
 			p.close();
-			throw 'Cannot set a value for $name via reg.exe:\n$error';
+			var msg = 'Cannot set a value for $name via reg.exe:\n$error';
+			if(~/access(.*)denied/i.match(error)) {
+				throw new AccessDenied(msg);
+			} else {
+				throw msg;
+			}
 		}
+		p.close();
 	}
 }
