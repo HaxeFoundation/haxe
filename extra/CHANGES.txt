@@ -13,6 +13,8 @@
 	cs : fixed Json.stringify for @:struct-annotated classes (#8979)
 	cs : fixed bitwise shifts for `cs.types.Int64` (#8978)
 	python : fixed invalid generation of some inlined code blocks (#8971)
+	windows : workaround windows installer being detected as a malware by some anti-virus software (#8951)
+	windows : fix PATH env var modification when running windows installer without admin privileges (#8870)
 
 
 2019-11-11: 4.0.2
