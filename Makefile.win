@@ -84,12 +84,8 @@ package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	# haxe
 	7z x -y $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.zip -o$(INSTALLER_TMP_DIR)/resources
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
-	# haxesetup.exe
-	cd extra && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) install hxcpp --quiet && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) run hxcpp build-haxesetup.xml
-	cp extra/haxesetup.exe $(INSTALLER_TMP_DIR)/resources/haxe
+	# WinSetup.hx
+	cp extra/WinSetup.hx $(INSTALLER_TMP_DIR)/resources/haxe
 	# extra
 	cp extra/*.nsi $(INSTALLER_TMP_DIR)
 	cp extra/*.nsh $(INSTALLER_TMP_DIR)

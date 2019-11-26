@@ -11,6 +11,7 @@
 !include "WordFunc.nsh"
 !include "winmessages.nsh"
 !include "EnvVarUpdate.nsh"
+!include "FileAssociation.nsh"
 
 ;--------------------------------
 
@@ -127,7 +128,9 @@ Section "Haxe ${VERSION}" Main
 
 	File /r /x .svn /x *.db /x Exceptions.log /x .local /x .multi /x *.pdb /x *.vshost.exe /x *.vshost.exe.config /x *.vshost.exe.manifest "resources\haxe\*.*"
 
-	ExecWait "$INSTDIR\haxe\haxesetup.exe -silent"
+	${registerExtension} "$INSTDIR\haxe\haxe.exe --prompt" ".hxml" "Haxe compiler arguments list"
+	ExecWait '"$INSTDIR\haxe\haxe.exe" --cwd "$INSTDIR\haxe" -x WinSetup.hx'
+	SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 
@@ -163,6 +166,7 @@ SectionEnd
 Section "un.Haxe" UninstMain
 
 	RMDir /r "$INSTDIR\haxe"
+	${unregisterExtension} ".hxml" "Haxe compiler arguments list"
 	${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "%HAXEPATH%"
 	DeleteRegValue ${env_hklm} HAXEPATH
 	SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
