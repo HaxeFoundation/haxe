@@ -33,7 +33,7 @@ class Lock {
 	var handle : LockHandle;
 
 	public function new() {
-		handle = create();
+		handle = lock_create();
 	}
 
 	public function wait( ?timeout : Float ) : Bool {
@@ -47,7 +47,7 @@ class Lock {
 	static function lock_wait( handle : LockHandle, ?timeout : Float ) : Bool {
 		return false;
 	}
-	
+
 	static function lock_release( handle : LockHandle ) : Void { }
 
 	static function lock_create( ) : LockHandle {
