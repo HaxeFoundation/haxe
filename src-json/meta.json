@@ -803,7 +803,7 @@
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
 		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
-		"params": ["Off | Loose | Strict"],
+		"params": ["Off | Loose | Strict | StrictThreaded"],
 		"targets": ["TClass", "TClassField", "TExpr"],
 		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
