@@ -671,7 +671,7 @@ let check_cs_events com t = match t with
 
 					(* add @:keep to event methods if the event is kept *)
 					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
-						m.cf_meta <- (Meta.Keep,[],f.cf_pos) :: m.cf_meta;
+						m.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: m.cf_meta;
 				in
 				process_event_method ("add_" ^ f.cf_name);
 				process_event_method ("remove_" ^ f.cf_name)
