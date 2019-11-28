@@ -8,6 +8,7 @@
 
 	all : fixed EnumValue handling in constant propagation with analyzer enabled (#8959)
 	all : fixed compiler crash upon Void items in array declarations (#8972)
+	hl : fixed `sys.thread.Lock` implementation for Hashlink 1.11+ (#8699)
 	js/eval/java/jvm/cs/python/lua : fixed `Std.parseInt()` for hexadecimals with leading whitespaces (#8978)
 	java/cs : fixed `Reflect.callMethod(o, method, args)` for `args` not containing optional arguments (#8975)
 	cs : fixed Json.stringify for @:struct-annotated classes (#8979)
