@@ -25,19 +25,12 @@ package sys.thread;
 
 #if (hl_ver >= version("1.11.0"))
 
-#if doc_gen
 @:coreApi
-extern class Lock {
-	public function new():Void;
-	public function wait( ?timeout : Float ) : Bool;
-	public function release():Void;
-}
-#else
-
-abstract Lock(hl.Abstract<"hl_lock">) {
+class Lock {
+	var handle : hl.Abstract<"hl_lock">;
 
 	public function new() {
-		this = create();
+		handle = create();
 	}
 
 	@:hlNative("std", "lock_wait") public function wait( ?timeout : Float ) : Bool {
@@ -46,11 +39,10 @@ abstract Lock(hl.Abstract<"hl_lock">) {
 
 	@:hlNative("std", "lock_release") public function release( ) : Void {}
 
-	@:hlNative("std", "lock_create") public static function create( ) {
+	@:hlNative("std", "lock_create") static function create( ) {
 		return null;
 	}
 }
-#end
 
 #else
 
