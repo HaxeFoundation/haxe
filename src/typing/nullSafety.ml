@@ -1321,7 +1321,7 @@ class expr_checker mode immediate_execution report =
 				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") [p; target.epos];
 			self#check_expr target
 		(**
-			Check constructor invocation: don't pass nulable values to not-nullable arguments
+			Check constructor invocation: don't pass nullable values to not-nullable arguments
 		*)
 		method private check_new e_new =
 			match e_new.eexpr with
