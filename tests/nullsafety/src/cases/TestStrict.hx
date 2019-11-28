@@ -876,6 +876,18 @@ class TestStrict {
 		}
 	}
 
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
+		}
+	}
+
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();

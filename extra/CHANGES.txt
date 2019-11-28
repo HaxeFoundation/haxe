@@ -17,7 +17,7 @@
 	std : fixed an exception from `haxe.zip.Huffman` on reading a zip (#8875)
 	windows : workaround windows installer being detected as a malware by some anti-virus software (#8951)
 	windows : fix PATH env var modification when running windows installer without admin privileges (#8870)
-
+	all : fixed null-safety checker for field access on a call to inlined function
 
 2019-11-11: 4.0.2
 

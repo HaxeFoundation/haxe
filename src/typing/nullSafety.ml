@@ -1281,9 +1281,9 @@ class expr_checker mode immediate_execution report =
 			Make sure nobody tries to access a field on a nullable value
 		*)
 		method private check_field target access p =
+			self#check_expr target;
 			if self#is_nullable_expr target then
 				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") [p; target.epos];
-			self#check_expr target
 		(**
 			Check constructor invocation: don't pass nulable values to not-nullable arguments
 		*)
