@@ -25,21 +25,32 @@ package sys.thread;
 
 #if (hl_ver >= version("1.11.0"))
 
+typedef LockHandle = hl.Abstract<"hl_lock">;
+
 @:coreApi
+@:hlNative("std")
 class Lock {
-	var handle : hl.Abstract<"hl_lock">;
+	var handle : LockHandle;
 
 	public function new() {
 		handle = create();
 	}
 
-	@:hlNative("std", "lock_wait") public function wait( ?timeout : Float ) : Bool {
-		return false;
+	public function wait( ?timeout : Float ) : Bool {
+		return lock_wait(handle, timeout);
 	}
 
-	@:hlNative("std", "lock_release") public function release( ) : Void {}
+	public function release( ) : Void {
+		lock_release(handle);
+	}
 
-	@:hlNative("std", "lock_create") static function create( ) {
+	static function lock_wait( handle : LockHandle, ?timeout : Float ) : Bool {
+		return false;
+	}
+	
+	static function lock_release( handle : LockHandle ) : Void { }
+
+	static function lock_create( ) : LockHandle {
 		return null;
 	}
 }
