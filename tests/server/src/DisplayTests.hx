@@ -245,4 +245,18 @@ typedef Foo = {
 			case _: false;
 		});
 	}
+
+	function testIssue8992() {
+		var mainHx = Marker.extractMarkers('class Main {
+	static func{-1-}tion main() {
+	}
+}');
+		vfs.putContent("Main.hx", mainHx.source);
+
+		runHaxe(["--no-output", "-main", "Main"]);
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: mainHx.markers[1]});
+
+		var result = parseHover().result;
+		Assert.isNull(result);
+	}
 }
