@@ -134,6 +134,25 @@ s.substr(0, -2) == "xfooxfooxxbarxbar";
 //s.substr(1, -2) == "fooxfooxxbarxbar";
 //s.substr(2, -2) == "ooxfooxxbarxbar";
 s.substr(0, -100) == "";
+var s = "01234567890";
+s.substr(4, -3) == "4567";
+s.substr(5, -5) == "5";
+s.substr(5, -6) == "";
+s.substr(5, -7) == "";
+s.substr(-4, 4) == "4567";
+s.substr(-4, -5) == "45";
+s.substr(-4, -6) == "4";
+s.substr(-4, -7) == "";
+s.substr(-9) == "1234567890";
+s.substr(-10) == "01234567890";
+s.substr(-11) == "01234567890";
+s.substr(-9, 3) == "123";
+s.substr(-10, 3) == "012";
+s.substr(-11, 3) == "012";
+s.substr(0, -9) == "01";
+s.substr(0, -8) == "0";
+s.substr(0, -10) == "";
+s.substr(0, -11) == "";
 
 // substring
 var s = "xfooxfooxxbarxbarxx";
