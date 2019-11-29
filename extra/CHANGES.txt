@@ -1,4 +1,4 @@
-2019-XX-XX: 4.0.X
+2019-11-29: 4.0.3
 
 	General improvements:
 
