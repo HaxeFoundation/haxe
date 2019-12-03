@@ -165,6 +165,14 @@ and vinstance_kind =
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
 	| IRef of Obj.t
+	(* SSL *)
+	(* | ISslConfig of Mbedtls.mbedtls_ssl_config *)
+	(* | ISslContext of Mbedtls.mbedtls_ssl_context *)
+
+	| IEmbedtlsConfig of Mbedtls.mbedtls_ssl_config
+	| IEmbedtlsCtrDrbg of Mbedtls.mbedtls_ctr_drbg_context
+	| IEmbedtlsEntropy of Mbedtls.mbedtls_entropy_context
+	| IEmbedtlsSsl of Mbedtls.mbedtls_ssl_context
 	| INormal
 
 and vinstance = {
