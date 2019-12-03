@@ -388,6 +388,9 @@ class Unserializer {
 					throw "Invalid bytes length";
 				#if neko
 				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.substr(pos, len).__s, untyped BASE64.__s));
+				#elseif php
+				var phpEncoded = php.Global.strtr(buf.substr(pos, len), '%:', '+/');
+				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(phpEncoded));
 				#else
 				var codes = CODES;
 				if (codes == null) {

@@ -9,13 +9,42 @@ open Error
 open Texpr.Builder
 
 let optimize_for_loop_iterator ctx v e1 e2 p =
-	let c,tl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
+	let c,tl =
+		let rec get_class_and_params e =
+			match follow e.etype with
+			| TInst (c,pl) -> c,pl
+			| _ ->
+				match e.eexpr with
+				| TCast (e,None) ->
+					get_class_and_params e
+				| TCall ({ eexpr = TField (_, FInstance (c,pl,cf)) }, _) ->
+					let t = apply_params c.cl_params pl cf.cf_type in
+					(match follow t with
+					| TFun (_, t) ->
+						(match follow t with
+						| TInst (c,pl) -> c,pl
+						| _ -> raise Exit
+						)
+					| _ -> raise Exit
+					)
+				| _ -> raise Exit
+		in
+		get_class_and_params e1
+	in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
 	if fhasnext.cf_kind <> Method MethInline then raise Exit;
-	let tmp = gen_local ctx e1.etype e1.epos in
-	let eit = mk (TLocal tmp) e1.etype p in
+	let it_type = TInst(c,tl) in
+	let tmp = gen_local ctx it_type e1.epos in
+	let eit = mk (TLocal tmp) it_type p in
 	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
-	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
+	let fa_next =
+		try
+			match raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "next" with
+			| _, _, fa -> FInstance (c, tl, fa)
+		with Not_found ->
+			quick_field_dynamic eit.etype "next"
+	in
+	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,fa_next)) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
 	let eblock = (match e2.eexpr with
 		| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
 		| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p

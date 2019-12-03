@@ -41,6 +41,7 @@ class HttpFlash extends haxe.http.HttpBase {
 	}
 
 	public override function request(?post:Bool) {
+		responseAsString = null;
 		responseBytes = null;
 		var loader = req = new flash.net.URLLoader();
 		loader.dataFormat = BINARY;

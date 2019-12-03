@@ -269,7 +269,7 @@ enum ValueType {
 		if (Std.is(v, HxEnum))
 			return ValueType.TEnum(cast t.BaseType); // enum constructors are subclasses of an enum type
 		if (t.IsValueType) {
-			var vc:cs.system.IConvertible = cast v;
+			var vc = Std.downcast(v, cs.system.IConvertible);
 			if (vc != null) {
 				switch (vc.GetTypeCode()) {
 					case cs.system.TypeCode.Boolean:

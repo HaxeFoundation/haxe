@@ -9,7 +9,7 @@ class Issue6942 extends unit.Test {
 		eq(2, 1 - IntEnum);
 
 		//these targets have actual UInt type at runtime
-		#if (flash || cs || as3)
+		#if (flash || cs)
 		eq(-4294967295, -UIntEnum);
 		eq(2, 1 - UIntEnum);
 		#else

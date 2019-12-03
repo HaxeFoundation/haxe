@@ -24,11 +24,11 @@ type platform =
 	| Hl
 	| Eval
 
-let version = 4000
+let version = 4100
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "rc.5"
+let version_pre = Some "rc.1"
 
 let macro_platform = ref Neko
 
@@ -70,6 +70,8 @@ let platform_list_help = function
 	| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
+
+let mk_zero_range_pos p = { p with pmax = p.pmin }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 

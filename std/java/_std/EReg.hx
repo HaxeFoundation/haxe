@@ -22,6 +22,8 @@
 
 import java.util.regex.*;
 
+using StringTools;
+
 @:coreApi class EReg {
 	private var pattern:String;
 	private var matcher:Matcher;
@@ -141,7 +143,7 @@ import java.util.regex.*;
 
 	public function replace(s:String, by:String):String {
 		matcher.reset(s);
-		by = by.split("$$").join("\\$");
+		by = by.replace("\\", "\\\\").replace("$$", "\\$");
 		return isGlobal ? matcher.replaceAll(by) : matcher.replaceFirst(by);
 	}
 

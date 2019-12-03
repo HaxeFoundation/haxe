@@ -33,8 +33,8 @@ let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true e.epos.pfile kind jit.capture_infos in
-		let env = push_environment ctx info jit.max_num_locals num_captures in
+		let info = create_env_info true e.epos.pfile kind jit.capture_infos jit.max_num_locals num_captures in
+		let env = push_environment ctx info in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 

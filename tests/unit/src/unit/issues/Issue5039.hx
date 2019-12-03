@@ -43,9 +43,7 @@ class Issue5039 extends Test {
 		f(setterCalled);
 
 		t(Std.is(@:bypassAccessor c, C));
-		#if !as3 // because as3 generates underlying field as protected, we cannot access it from outside :-/
 		eq(42, @:bypassAccessor (@:bypassAccessor c).prop);
 		eq(42, @:bypassAccessor @:bypassAccessor c.prop);
-		#end
 	}
 }

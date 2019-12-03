@@ -34,6 +34,10 @@ let create_with_length s length = {
 	soffsets = [];
 }
 
+let empty_string = create_ascii ""
+
+let v_empty_string = VString empty_string
+
 let create_unknown s =
 	vstring (create_with_length s (try UTF8.length s with _ -> String.length s))
 

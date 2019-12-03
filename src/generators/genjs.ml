@@ -352,7 +352,7 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		has_feature ctx "HxOverrides.iter" && loop x.etype
+		has_feature ctx "haxe.iterators.ArrayIterator.*" && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
@@ -962,11 +962,8 @@ and gen_syntax ctx meth args pos =
 		in
 		begin
 			match args with
-			| [] ->
-				if code = "this" then
-					spr ctx (this ctx)
-				else
-					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+			| [] when code = "this" ->
+				spr ctx (this ctx)
 			| _ ->
 				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
 		end
@@ -1750,11 +1747,13 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
-		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
+		let array_iterator = s_path ctx (["haxe"; "iterators"], "ArrayIterator") in
+		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return new %s(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }" array_iterator;
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
+		let array_iterator = s_path ctx (["haxe"; "iterators"], "ArrayIterator") in
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return new %s(o); else return o.iterator(); }" array_iterator;
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
@@ -1776,7 +1775,7 @@ let generate com =
 	end;
 	if has_feature ctx "$global.$haxeUID" then begin
 		add_feature ctx "js.Lib.global";
-		print ctx "if(typeof $global.$haxeUID == \"undefined\") $global.$haxeUID = 0;\n";
+		print ctx "$global.$haxeUID |= 0;\n";
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);

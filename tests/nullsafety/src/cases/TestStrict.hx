@@ -824,11 +824,33 @@ class TestStrict {
 		a = b;
 	}
 
-	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+	function nonFinalField_immediatelyAfterCheck_shouldPass(o:{field:Null<String>}) {
 		if(o.field != null) {
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterLocalAssignment_shouldPass(o:{field:Null<String>}, b:{field:Null<String>}) {
+		if(o.field != null) {
+			b = {field:null};
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterFieldAssignment_shouldFail(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+		if(o.field != null) {
+			b.o = {field:null};
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function nonFinalField_afterSomeCall_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			someCall();
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+	function someCall() {}
 
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
@@ -873,6 +895,18 @@ class TestStrict {
 	static function immediateFunction_keepsSafety(?s:String) {
 		if (s != null) {
 			(function() s.length)();
+		}
+	}
+
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
 		}
 	}
 

@@ -1122,6 +1122,48 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
+		| AKUsing (emethod,cl,cf,etarget,force_inline) when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+			let l = save_locals ctx in
+			let init_tmp,etarget,eget =
+				match needs_temp_var etarget, fst e with
+				| true, EField (_, field_name) ->
+					let tmp = gen_local ctx etarget.etype p in
+					let tmp_ident = (EConst (Ident tmp.v_name), p) in
+					(
+						mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
+						mk (TLocal tmp) tmp.v_type p,
+						(EField (tmp_ident,field_name), p)
+					)
+				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+			in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let one = (EConst (Int "1"),p) in
+			(match follow cf.cf_type with
+			| TFun (_, t) ->
+				(match flag with
+				| Prefix ->
+					let get = type_binop ctx op eget one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
+					mk (TBlock [init_tmp; call_setter]) t p
+				| Postfix ->
+					let get = type_expr ctx eget WithType.value in
+					let tmp_value = gen_local ctx t p in
+					let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					mk (TBlock [
+						init_tmp;
+						mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
+						make_call ctx emethod [etarget; plusone] t ~force_inline p;
+						mk (TLocal tmp_value) t p;
+					]) t p
+				)
+			| _ ->
+				l();
+				assert false
+			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->

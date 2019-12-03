@@ -344,6 +344,58 @@ let module_pass_1 ctx m tdecls loadp =
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
+let load_enum_field ctx e et is_flat index c =
+	let p = c.ec_pos in
+	let params = ref [] in
+	params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+	let params = !params in
+	let ctx = { ctx with type_params = params @ ctx.type_params } in
+	let rt = (match c.ec_type with
+		| None -> et
+		| Some (t,pt) ->
+			let t = load_complex_type ctx true (t,pt) in
+			(match follow t with
+			| TEnum (te,_) when te == e ->
+				()
+			| _ ->
+				error "Explicit enum type must be of the same enum type" pt);
+			t
+	) in
+	let t = (match c.ec_args with
+		| [] -> rt
+		| l ->
+			is_flat := false;
+			let pnames = ref PMap.empty in
+			TFun (List.map (fun (s,opt,(t,tp)) ->
+				(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
+				if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
+				pnames := PMap.add s () (!pnames);
+				s, opt, load_type_hint ~opt ctx p (Some (t,tp))
+			) l, rt)
+	) in
+	let f = {
+		ef_name = fst c.ec_name;
+		ef_type = t;
+		ef_pos = p;
+		ef_name_pos = snd c.ec_name;
+		ef_doc = c.ec_doc;
+		ef_index = !index;
+		ef_params = params;
+		ef_meta = c.ec_meta;
+	} in
+	let cf = {
+		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
+		cf_kind = (match follow f.ef_type with
+			| TFun _ -> Method MethNormal
+			| _ -> Var { v_read = AccNormal; v_write = AccNo }
+		);
+		cf_doc = f.ef_doc;
+		cf_params = f.ef_params;
+	} in
+	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
+		DisplayEmitter.display_enum_field ctx e f p;
+	f,cf
+
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
@@ -353,14 +405,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match ctx.com.display.dms_kind with
+	let check_path_display path p = match !Parser.display_mode with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b || DisplayPosition.display_position#is_in_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 		| DMStatistics ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 		| DMUsage _ ->
-			ImportHandling.add_import_position ctx.com p path;
+			ImportHandling.add_import_position ctx p path;
 			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 		| _ ->
 			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
@@ -617,56 +669,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
 		List.iter (fun c ->
-			let p = c.ec_pos in
-			let params = ref [] in
-			params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
-			let params = !params in
-			let ctx = { ctx with type_params = params @ ctx.type_params } in
-			let rt = (match c.ec_type with
-				| None -> et
-				| Some (t,pt) ->
-					let t = load_complex_type ctx true (t,pt) in
-					(match follow t with
-					| TEnum (te,_) when te == e ->
-						()
-					| _ ->
-						error "Explicit enum type must be of the same enum type" pt);
-					t
-			) in
-			let t = (match c.ec_args with
-				| [] -> rt
-				| l ->
-					is_flat := false;
-					let pnames = ref PMap.empty in
-					TFun (List.map (fun (s,opt,(t,tp)) ->
-						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
-						if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
-						pnames := PMap.add s () (!pnames);
-						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
-					) l, rt)
-			) in
 			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f = {
-				ef_name = fst c.ec_name;
-				ef_type = t;
-				ef_pos = p;
-				ef_name_pos = snd c.ec_name;
-				ef_doc = c.ec_doc;
-				ef_index = !index;
-				ef_params = params;
-				ef_meta = c.ec_meta;
-			} in
-			let cf = {
-				(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-				cf_kind = (match follow f.ef_type with
-					| TFun _ -> Method MethNormal
-					| _ -> Var { v_read = AccNormal; v_write = AccNo }
-				);
-				cf_doc = f.ef_doc;
-				cf_params = f.ef_params;
-			} in
- 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
- 				DisplayEmitter.display_enum_field ctx e f p;
+			let f,cf = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;

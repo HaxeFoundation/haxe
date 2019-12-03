@@ -583,6 +583,7 @@ module Printer = struct
 			"v_capture",string_of_bool v.v_capture;
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+			"v_pos",s_pos v.v_pos;
 		]
 
 	let s_module_kind = function

@@ -63,8 +63,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
-			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			cs#remove_files file;
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;

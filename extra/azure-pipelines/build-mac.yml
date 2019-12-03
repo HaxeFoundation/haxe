@@ -8,7 +8,8 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     variables:
       OPAMYES: 1
-      ADD_REVISION: 1
+      ${{ if not(startsWith(variables['Build.SourceBranch'], 'refs/tags/')) }}:
+        ADD_REVISION: 1
     steps:
       - checkout: self
         submodules: recursive

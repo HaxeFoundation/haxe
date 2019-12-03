@@ -23,24 +23,22 @@
 package hl.types;
 
 import hl.types.ArrayBase;
+import haxe.iterators.ArrayIterator;
 
-class ArrayDynIterator {
+class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	var a:ArrayBase;
-	var len:Int;
-	var pos:Int;
 
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
-		this.len = a.length;
-		this.pos = 0;
 	}
 
-	public function hasNext() {
-		return pos < len;
+	override public function hasNext() {
+		return current < a.length;
 	}
 
-	public function next() {
-		return a.getDyn(pos++);
+	override public function next() {
+		return a.getDyn(current++);
 	}
 }
 
@@ -169,7 +167,7 @@ class ArrayDyn extends ArrayAccess {
 		return alloc(ArrayObj.alloc(a), true);
 	}
 
-	public function iterator():Iterator<Dynamic> {
+	public function iterator():ArrayIterator<Dynamic> {
 		return new ArrayDynIterator(array);
 	}
 

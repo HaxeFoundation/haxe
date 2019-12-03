@@ -341,6 +341,13 @@ class Serializer {
 						buf.add(chars.length);
 						buf.add(":");
 						buf.add(chars);
+						#elseif php
+						var chars = new String(php.Global.base64_encode(v.getData()));
+						chars = php.Global.strtr(chars, '+/', '%:');
+						buf.add("s");
+						buf.add(chars.length);
+						buf.add(":");
+						buf.add(chars);
 						#else
 						buf.add("s");
 						buf.add(Math.ceil((v.length * 8) / 6));

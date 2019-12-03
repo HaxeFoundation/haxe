@@ -59,77 +59,53 @@ import java.internal.Exceptions;
 		return cast x;
 	}
 
-	@:functionCode('
-		if (x == null) return null;
-
-		int ret = 0;
-		int base = 10;
-		int i = 0;
-		int len = x.length();
-
-		if (x.startsWith("0") && len > 2)
-		{
-			char c = x.charAt(1);
-			if (c == \'x\' || c == \'X\')
-			{
-				i = 2;
-				base = 16;
-			}
-		}
-
-		boolean foundAny = i != 0;
-		boolean isNeg = false;
-		for (; i < len; i++)
-		{
-			char c = x.charAt(i);
-			if (!foundAny)
-			{
-				switch(c)
-				{
-					case \'-\':
-						isNeg = true;
-						continue;
-					case \'+\':
-					case \'\\n\':
-					case \'\\t\':
-					case \'\\r\':
-					case \' \':
-						if (isNeg) return null;
-						continue;
-				}
-			}
-
-			if (c >= \'0\' && c <= \'9\')
-			{
-				if (!foundAny && c == \'0\')
-				{
-					foundAny = true;
-					continue;
-				}
-				ret *= base; foundAny = true;
-
-				ret += ((int) (c - \'0\'));
-			} else if (base == 16) {
-				if (c >= \'a\' && c <= \'f\') {
-					ret *= base; foundAny = true;
-					ret += ((int) (c - \'a\')) + 10;
-				} else if (c >= \'A\' && c <= \'F\') {
-					ret *= base; foundAny = true;
-					ret += ((int) (c - \'A\')) + 10;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-
-		if (foundAny)
-			return isNeg ? -ret : ret;
-		else
-			return null;
-	')
 	public static function parseInt(x:String):Null<Int> {
+		if (x == null)
+			return null;
+
+		var base = 10;
+		var len = x.length;
+		var foundCount = 0;
+		var sign = 0;
+		var firstDigitIndex = 0;
+		var lastDigitIndex = -1;
+		var previous = 0;
+
+		for(i in 0...len) {
+			var c = StringTools.fastCodeAt(x, i);
+			switch c {
+				case _ if((c > 8 && c < 14) || c == 32):
+					if(foundCount > 0) {
+						return null;
+					}
+					continue;
+				case '-'.code if(foundCount == 0):
+					sign = -1;
+				case '+'.code if(foundCount == 0):
+					sign = 1;
+				case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
+				case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+					base = 16;
+				case _ if('0'.code <= c && c <= '9'.code):
+				case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+				case _:
+					break;
+			}
+			if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+				firstDigitIndex = i;
+			}
+			foundCount++;
+			lastDigitIndex = i;
+			previous = c;
+		}
+		if(firstDigitIndex <= lastDigitIndex) {
+			var digits = x.substring(firstDigitIndex + (base == 16 ? 2 : 0), lastDigitIndex + 1);
+			return try {
+				(sign == -1 ? -1 : 1) * java.lang.Integer.parseInt(digits, base);
+			} catch(e:java.lang.NumberFormatException) {
+				null;
+			}
+		}
 		return null;
 	}
 

@@ -122,7 +122,7 @@ let load_type_def ctx p t =
 		with Not_found ->
 			(* Check the local imports *)
 			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			ImportHandling.mark_import_position ctx.com pi;
+			ImportHandling.mark_import_position ctx pi;
 			t
 	with
 	| Not_found when no_pack ->
@@ -134,7 +134,7 @@ let load_type_def ctx p t =
 				| (pack,ppack) :: l ->
 					begin try
 						let mt = load_type ctx (pack,t.tname) tname p in
-						ImportHandling.mark_import_position ctx.com ppack;
+						ImportHandling.mark_import_position ctx ppack;
 						mt
 					with Not_found ->
 						loop l

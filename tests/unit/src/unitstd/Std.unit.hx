@@ -55,6 +55,7 @@ Std.int(0.2) == 0;
 
 // parseInt
 Std.parseInt("0") == 0;
+Std.parseInt("-1") == -1;
 Std.parseInt("   5") == 5;
 Std.parseInt("0001") == 1;
 Std.parseInt("0010") == 10;
@@ -72,6 +73,13 @@ Std.parseInt("0XFF") == 255;
 Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
+#if !neko //sorry, neko
+#if !hl //see https://github.com/HaxeFoundation/hashlink/issues/330
+#if !cpp //see https://github.com/HaxeFoundation/hxcpp/issues/869
+Std.parseInt('  	-0x10') == -16;
+#end
+#end
+#end
 
 // parseFloat
 Std.parseFloat("0") == 0.;

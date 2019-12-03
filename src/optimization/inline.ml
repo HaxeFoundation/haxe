@@ -136,7 +136,12 @@ let api_inline ctx c field params p =
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
-		(match t.eexpr with
+		let rec skip_cast = function
+			| { eexpr = TCast (e, None) } -> skip_cast e
+			| e -> e
+		in
+
+		(match (skip_cast t).eexpr with
 		(* generate simple typeof checks for basic types *)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
@@ -149,10 +154,14 @@ let api_inline ctx c field params p =
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
 			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
-			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
-			let null = mk (TConst TNull) (mk_mono()) p in
-			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
-			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+				Some iof
+			else begin
+				let enum = mk (TField (o, FDynamic "__enum__")) t_dynamic p in
+				let null = mk (TConst TNull) t_dynamic p in
+				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			end
 		| TTypeExpr (TClassDecl cls) ->
 			if cls.cl_interface then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
@@ -576,7 +585,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TVar (v, Some { eexpr = TConst _ }) ->
 				(try
 					let data = Hashtbl.find locals v.v_id in
-					if data.i_read = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					if data.i_read = 0 && data.i_called = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
 					else Type.map_expr drop_unused_vars e
 				with Not_found ->
 					Type.map_expr drop_unused_vars e
