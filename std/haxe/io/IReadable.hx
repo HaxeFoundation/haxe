@@ -26,7 +26,7 @@ interface IReadable {
 	/**
 		Emitted for any error that occurs during reading.
 	**/
-	final errorSignal:Signal<Error>;
+	final errorSignal:Signal<Error<Any>>;
 
 	/**
 		Emitted when `this` stream is paused.

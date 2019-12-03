@@ -1,6 +1,5 @@
 package asys;
 
-import haxe.Error;
 import haxe.io.Bytes;
 import haxe.io.FilePath;
 import asys.io.*;

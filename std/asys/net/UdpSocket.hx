@@ -1,6 +1,6 @@
 package asys.net;
 
-import haxe.Error;
+import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
 import haxe.io.Bytes;
@@ -49,7 +49,7 @@ class UdpSocket {
 	// final connectSignal:Signal<NoData>;
 	// final listeningSignal:Signal<NoData>;
 
-	public final errorSignal:Signal<Error> = new ArraySignal();
+	public final errorSignal:Signal<UVError> = new ArraySignal();
 
 	/**
 		Emitted when a message is received by `this` socket. See `UdpMessage`.

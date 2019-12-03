@@ -25,7 +25,7 @@ class Readable implements IReadable {
 	/**
 		See `IReadable.errorSignal`.
 	**/
-	public final errorSignal:Signal<Error> = new ArraySignal();
+	public final errorSignal:Signal<Error<Any>> = new ArraySignal();
 
 	/**
 		See `IReadable.pauseSignal`.

@@ -1,6 +1,5 @@
 package asys;
 
-import haxe.Error;
 import haxe.NoData;
 import haxe.async.Callback;
 import haxe.io.Bytes;

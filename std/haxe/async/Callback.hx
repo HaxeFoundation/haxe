@@ -3,11 +3,13 @@ package haxe.async;
 import haxe.Error;
 import haxe.NoData;
 
-typedef CallbackData<T> = (?error:Error, ?result:T) -> Void;
+//TODO: add Error type parameter to CallbackData type parameters?
+//this could be useful:
+typedef CallbackData<T> = (?error:Error<Any>, ?result:T) -> Void;
 
 /**
 	A callback. All callbacks in the standard library are functions which accept
-	two arguments: an error (`haxe.Error`) and a result (`T`). If error is 
+	two arguments: an error (`haxe.Error`) and a result (`T`). If error is
 	non-`null`, result must be `null`. The callback type is declared in 	`CallbackData`.
 
 	This abstract defines multiple `@:from` conversions to improve readability of
@@ -34,7 +36,7 @@ abstract Callback<T>(CallbackData<T>) from CallbackData<T> {
 		var cb:Callback<NoData> = (?err) -> trace("error!", err);
 		```
 	**/
-	@:from public static inline function fromOptionalErrorOnly(f:(?error:Error) -> Void):Callback<NoData> {
+	@:from public static inline function fromOptionalErrorOnly(f:(?error:Error<Any>) -> Void):Callback<NoData> {
 		return (?err:Error, ?result:NoData) -> f(err);
 	}
 
@@ -46,7 +48,7 @@ abstract Callback<T>(CallbackData<T>) from CallbackData<T> {
 		var cb:Callback<NoData> = (err) -> trace("error!", err);
 		```
 	**/
-	@:from public static inline function fromErrorOnly(f:(error:Error) -> Void):Callback<NoData> {
+	@:from public static inline function fromErrorOnly(f:(error:Error<Any>) -> Void):Callback<NoData> {
 		return (?err:Error, ?result:NoData) -> f(err);
 	}
 
@@ -59,7 +61,7 @@ abstract Callback<T>(CallbackData<T>) from CallbackData<T> {
 		Wraps a callback function declared without `?` (optional) arguments into a
 		callback.
 	**/
-	@:from public static inline function fromErrorResult<T>(f:(error:Error, result:T) -> Void):Callback<T> {
-		return (?err:Error, ?result:T) -> f(err, result);
+	@:from public static inline function fromErrorResult<T>(f:(error:Error<Any>, result:T) -> Void):Callback<T> {
+		return (?err:Error<Any>, ?result:T) -> f(err, result);
 	}
 }
