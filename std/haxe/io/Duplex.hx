@@ -18,7 +18,7 @@ import haxe.io.Readable.ReadResult;
 class Duplex implements IReadable implements IWritable {
 	public final dataSignal:Signal<Bytes>;
 	public final endSignal:Signal<NoData>;
-	public final errorSignal:Signal<Error<Any>>;
+	public final errorSignal:Signal<Error>;
 	public final pauseSignal:Signal<NoData>;
 	public final resumeSignal:Signal<NoData>;
 
