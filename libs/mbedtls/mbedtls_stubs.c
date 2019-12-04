@@ -50,7 +50,7 @@ CAMLprim value ml_mbedtls_ctr_drbg_init() {
 CAMLprim value ml_mbedtls_ctr_drbg_random(value p_rng, value output, value output_len) {
 	CAMLparam3(p_rng, output, output_len);
 	CAMLlocal1(r);
-	r = mbedtls_ctr_drbg_random(CTR(p_rng), Bytes_val(output), Int_val(output_len));
+	r = mbedtls_ctr_drbg_random(CTR(p_rng), String_val(output), Int_val(output_len));
 	CAMLreturn(Val_int(r));
 }
 
@@ -152,7 +152,7 @@ CAMLprim value ml_mbedtls_ssl_handshake(value ssl) {
 CAMLprim value ml_mbedtls_ssl_read(value ssl, value buf, value pos, value len) {
 	CAMLparam4(ssl, buf, pos, len);
 	CAMLlocal1(r);
-	r = mbedtls_ssl_read(SSL(ssl), Bytes_val(buf) + Int_val(pos), Int_val(len));
+	r = mbedtls_ssl_read(SSL(ssl), String_val(buf) + Int_val(pos), Int_val(len));
 	CAMLreturn(Val_int(r));
 }
 
@@ -160,7 +160,8 @@ int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
 	vctx = (value)ctx;
-	s = caml_alloc_initialized_string(len, buf);
+	s = caml_alloc_string(len);
+	memcpy(String_val(s), buf, len);
 	r = caml_callback2(Field(vctx, 1), Field(vctx, 0), s);
 	return Int_val(r);
 }
@@ -203,7 +204,7 @@ CAMLprim value ml_mbedtls_ssl_setup(value ssl, value conf) {
 CAMLprim value ml_mbedtls_ssl_write(value ssl, value buf, value pos, value len) {
 	CAMLparam4(ssl, buf, pos, len);
 	CAMLlocal1(r);
-	r = mbedtls_ssl_write(SSL(ssl), Bytes_val(buf) + Int_val(pos), Int_val(len));
+	r = mbedtls_ssl_write(SSL(ssl), String_val(buf) + Int_val(pos), Int_val(len));
 	CAMLreturn(Val_int(r));
 }
 

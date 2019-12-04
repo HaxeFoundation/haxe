@@ -83,8 +83,7 @@ private class SocketOutput extends haxe.io.Output {
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;
 
-	public static var DEFAULT_CA:Null<Certificate>;
-
+	// public static var DEFAULT_CA:Null<Certificate>;
 	private var conf:Config;
 	private var ssl:Ssl;
 
@@ -128,7 +127,7 @@ class Socket extends sys.net.Socket {
 			else if (r == -1)
 				throw haxe.io.Error.Blocked;
 			else
-				throw Lib.strerror(r);
+				throw Mbedtls.strerror(r);
 		}
 	}
 

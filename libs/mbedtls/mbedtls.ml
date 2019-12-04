@@ -29,6 +29,7 @@ external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_
 external mbedtls_ssl_config_rng : mbedtls_ssl_config -> 'a -> unit = "ml_mbedtls_ssl_conf_rng"
 
 external mbedtls_ssl_free : mbedtls_ssl_context -> unit = "ml_mbedtls_ssl_free"
+(* external mbedtls_ssl_get_peer_cert : mbedtls_ssl_context -> mbedtls_x509_crt = "ml_mbedtls_ssl_get_peer_cert" *)
 external mbedtls_ssl_init : unit -> mbedtls_ssl_context = "ml_mbedtls_ssl_init"
 external mbedtls_ssl_handshake : mbedtls_ssl_context -> mbedtls_result = "ml_mbedtls_ssl_handshake"
 external mbedtls_ssl_read : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_read"

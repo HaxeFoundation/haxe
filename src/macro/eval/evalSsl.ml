@@ -67,9 +67,9 @@ let init_constructors add =
 		)
 
 let init_fields init_fields builtins =
-	init_fields builtins (["sys";"ssl"],"Lib") [
+	init_fields builtins (["mbedtls"],"Mbedtls") [
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
-	] []; (* TODO: move *)
+	] [];
 	init_fields builtins (["mbedtls"],"Config") [] [
 		"authmode",vifun1 (fun this authmode ->
 			mbedtls_ssl_config_authmode (as_config this) (decode_int authmode);
