@@ -71,6 +71,10 @@ let init_fields init_fields builtins =
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
 	] []; (* TODO: move *)
 	init_fields builtins (["mbedtls"],"Config") [] [
+		"authmode",vifun1 (fun this authmode ->
+			mbedtls_ssl_config_authmode (as_config this) (decode_int authmode);
+			vnull;
+		);
 		"defaults",vifun3 (fun this endpoint transport preset ->
 			vint (mbedtls_ssl_config_defaults (as_config this) (decode_int endpoint) (decode_int transport) (decode_int preset));
 		);
@@ -125,6 +129,7 @@ let init_fields init_fields builtins =
 		);
 	];
 	let statics a = List.map (fun (s,i) -> s,vint i) (Array.to_list a) in
+	init_fields builtins (["mbedtls"],"SslAuthmode") (statics (hx_get_ssl_authmode_flags())) [];
 	init_fields builtins (["mbedtls"],"SslEndpoint") (statics (hx_get_ssl_endpoint_flags())) [];
 	init_fields builtins (["mbedtls"],"SslPreset") (statics (hx_get_ssl_preset_flags())) [];
 	init_fields builtins (["mbedtls"],"SslTransport") (statics (hx_get_ssl_transport_flags())) [];

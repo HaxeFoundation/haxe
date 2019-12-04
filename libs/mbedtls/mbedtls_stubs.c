@@ -82,11 +82,15 @@ CAMLprim value ml_mbedtls_entropy_init() {
 
 // Config
 
+CAMLprim value ml_mbedtls_ssl_conf_authmode(value conf, value authmode) {
+	CAMLparam2(conf, authmode);
+	mbedtls_ssl_conf_authmode(CFG(conf), Int_val(authmode));
+}
+
 CAMLprim value ml_mbedtls_ssl_config_defaults(value conf, value endpoint, value transport, value preset) {
 	CAMLparam4(conf, endpoint, transport, preset);
 	CAMLlocal1(r);
 	r = mbedtls_ssl_config_defaults(CFG(conf), Int_val(endpoint), Int_val(transport), Int_val(preset));
-	mbedtls_ssl_conf_authmode(CFG(conf), MBEDTLS_SSL_VERIFY_OPTIONAL);
 	CAMLreturn(r);
 }
 
@@ -211,6 +215,13 @@ static value build_fields(int num_fields, const char* names[], int values[]) {
 		Store_field(ret, i, tuple);
 	}
 	CAMLreturn(ret);
+}
+
+CAMLprim value hx_get_ssl_authmode_flags(value unit) {
+	CAMLparam1(unit);
+	const char* names[] = {"SSL_VERIFY_NONE", "SSL_VERIFY_OPTIONAL", "SSL_VERIFY_REQUIRED"};
+	int values[] = {MBEDTLS_SSL_VERIFY_NONE, MBEDTLS_SSL_VERIFY_OPTIONAL, MBEDTLS_SSL_VERIFY_REQUIRED};
+	CAMLreturn(build_fields(sizeof(values) / sizeof(values[0]), names, values));
 }
 
 CAMLprim value hx_get_ssl_endpoint_flags(value unit) {

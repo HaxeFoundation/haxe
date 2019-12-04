@@ -22,6 +22,7 @@ external mbedtls_entropy_func : mbedtls_entropy_context -> bytes -> int -> mbedt
 external mbedtls_entropy_init : unit -> mbedtls_entropy_context = "ml_mbedtls_entropy_init"
 
 (* external mbedtls_ssl_conf_ca_chain : mbedtls_ssl_config -> mbedtls_x509_crt -> mbedtls_x509_crt option -> unit = "ml_mbedtls_ssl_conf_ca_chain" *)
+external mbedtls_ssl_config_authmode : mbedtls_ssl_config -> int -> unit = "ml_mbedtls_ssl_conf_authmode"
 external mbedtls_ssl_config_defaults : mbedtls_ssl_config -> int -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_config_defaults"
 external mbedtls_ssl_config_free : mbedtls_ssl_config -> unit = "ml_mbedtls_ssl_config_free"
 external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_config_init"
@@ -43,6 +44,7 @@ external mbedtls_ssl_write : mbedtls_ssl_context -> bytes -> int -> int -> mbedt
 
 (* glue *)
 
+external hx_get_ssl_authmode_flags : unit -> (string * int) array = "hx_get_ssl_authmode_flags"
 external hx_get_ssl_endpoint_flags : unit -> (string * int) array = "hx_get_ssl_endpoint_flags"
 external hx_get_ssl_preset_flags : unit -> (string * int) array = "hx_get_ssl_preset_flags"
 external hx_get_ssl_transport_flags : unit -> (string * int) array = "hx_get_ssl_transport_flags"

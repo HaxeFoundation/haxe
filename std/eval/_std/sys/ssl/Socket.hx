@@ -205,6 +205,7 @@ class Socket extends sys.net.Socket {
 		ctr.seed(entropy);
 		conf.defaults(server ? SSL_IS_SERVER : SSL_IS_CLIENT, SSL_TRANSPORT_STREAM, SSL_PRESET_DEFAULT);
 		conf.rng(ctr);
+		conf.authmode(SSL_VERIFY_OPTIONAL);
 		// TODO: server
 		// if (ownCert != null && ownKey != null)
 		// 	conf.setCert(@:privateAccess ownCert.__x, @:privateAccess ownKey.__k);
