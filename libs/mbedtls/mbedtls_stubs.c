@@ -51,14 +51,14 @@ CAMLprim value ml_mbedtls_ctr_drbg_random(value p_rng, value output, value outpu
 	CAMLparam3(p_rng, output, output_len);
 	CAMLlocal1(r);
 	r = mbedtls_ctr_drbg_random(CTR(p_rng), Bytes_val(output), Int_val(output_len));
-	CAMLreturn(r);
+	CAMLreturn(Val_int(r));
 }
 
 CAMLprim value ml_mbedtls_ctr_drbg_seed(value ctx, value p_entropy, value custom) {
 	CAMLparam2(ctx, custom);
 	CAMLlocal1(r);
 	r = mbedtls_ctr_drbg_seed(CTR(ctx), mbedtls_entropy_func, VOID(p_entropy), NULL, 0);
-	CAMLreturn(r);
+	CAMLreturn(Val_int(r));
 }
 
 // Entropy
@@ -67,7 +67,7 @@ CAMLprim value ml_mbedtls_entropy_func(value data, value output, value len) {
 	CAMLparam3(data, output, len);
 	CAMLlocal1(r);
 	r = mbedtls_entropy_func(VOID(data), String_val(output), Int_val(len));
-	CAMLreturn(r);
+	CAMLreturn(Val_int(r));
 }
 
 CAMLprim value ml_mbedtls_entropy_init() {
@@ -82,21 +82,23 @@ CAMLprim value ml_mbedtls_entropy_init() {
 
 // Config
 
-CAMLprim value ml_mbedtls_ssl_conf_authmode(value conf, value authmode) {
+CAMLprim void ml_mbedtls_ssl_conf_authmode(value conf, value authmode) {
 	CAMLparam2(conf, authmode);
 	mbedtls_ssl_conf_authmode(CFG(conf), Int_val(authmode));
+	CAMLreturn0;
 }
 
 CAMLprim value ml_mbedtls_ssl_config_defaults(value conf, value endpoint, value transport, value preset) {
 	CAMLparam4(conf, endpoint, transport, preset);
 	CAMLlocal1(r);
 	r = mbedtls_ssl_config_defaults(CFG(conf), Int_val(endpoint), Int_val(transport), Int_val(preset));
-	CAMLreturn(r);
+	CAMLreturn(Val_int(r));
 }
 
 CAMLprim void ml_mbedtls_ssl_config_free(value conf) {
 	CAMLparam1(conf);
 	mbedtls_ssl_config_free(CFG(conf));
+	CAMLreturn0;
 }
 
 CAMLprim value ml_mbedtls_ssl_config_init() {
@@ -119,6 +121,7 @@ CAMLprim value ml_mbedtls_ssl_config_init() {
 CAMLprim void ml_mbedtls_ssl_conf_rng(value conf, value p_rng) {
 	CAMLparam2(conf, p_rng);
 	mbedtls_ssl_conf_rng(CFG(conf), mbedtls_ctr_drbg_random, VOID(p_rng));
+	CAMLreturn0;
 }
 
 // Ssl
@@ -126,6 +129,7 @@ CAMLprim void ml_mbedtls_ssl_conf_rng(value conf, value p_rng) {
 CAMLprim void ml_mbedtls_ssl_free(value ssl) {
 	CAMLparam1(ssl);
 	mbedtls_ssl_free(SSL(ssl));
+	CAMLreturn0;
 }
 
 CAMLprim value ml_mbedtls_ssl_init() {
@@ -179,6 +183,7 @@ CAMLprim void ml_mbedtls_ssl_set_bio(value ssl, value p_bio, value f_send, value
 	Store_field(ctx, 1, f_send);
 	Store_field(ctx, 2, f_recv);
 	mbedtls_ssl_set_bio(SSL(ssl), (void*)ctx, bio_write_cb, bio_read_cb, NULL);
+	CAMLreturn0;
 }
 
 CAMLprim value ml_mbedtls_ssl_set_hostname(value ssl, value hostname) {
