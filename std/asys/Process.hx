@@ -1,6 +1,6 @@
 package asys;
 
-import haxe.Error;
+import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
 import haxe.io.*;
@@ -96,7 +96,7 @@ class Process {
 	/**
 		Emitted when an error occurs during communication with `this` process.
 	**/
-	public final errorSignal:Signal<Error> = new ArraySignal();
+	public final errorSignal:Signal<UVError> = new ArraySignal();
 
 	/**
 		Emitted when `this` process exits, potentially due to a signal.

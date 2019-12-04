@@ -1,6 +1,6 @@
 package asys.net;
 
-import haxe.Error;
+import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
 
@@ -29,7 +29,7 @@ typedef ServerListenIpcOptions = {
 class Server {
 	public final closeSignal:Signal<NoData> = new ArraySignal<NoData>();
 	public final connectionSignal:Signal<Socket> = new ArraySignal<Socket>();
-	public final errorSignal:Signal<Error> = new ArraySignal<Error>();
+	public final errorSignal:Signal<UVError> = new ArraySignal<UVError>();
 	public final listeningSignal:Signal<NoData> = new ArraySignal<NoData>();
 
 	public var listening(default, null):Bool;

@@ -1,6 +1,6 @@
 package asys.net;
 
-import haxe.Error;
+import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
 import haxe.io.*;
@@ -196,7 +196,7 @@ class Socket extends Duplex {
 
 	// TODO: keep track of pending writes for finish event emission
 	// in `internalWrite` and `writeHandle`
-	function writeDone(err:Error, nd:NoData):Void {
+	function writeDone(err:UVError, nd:NoData):Void {
 		timeoutReset();
 		if (err != null)
 			errorSignal.emit(err);

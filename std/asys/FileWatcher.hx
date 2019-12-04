@@ -1,6 +1,6 @@
 package asys;
 
-import haxe.Error;
+import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
 import haxe.io.FilePath;
@@ -25,7 +25,7 @@ class FileWatcher {
 	/**
 		Emitted when an error occurs.
 	**/
-	public final errorSignal:Signal<Error> = new ArraySignal();
+	public final errorSignal:Signal<UVError> = new ArraySignal();
 
 	private var native:FileWatcherNative;
 

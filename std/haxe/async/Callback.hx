@@ -3,11 +3,13 @@ package haxe.async;
 import haxe.Error;
 import haxe.NoData;
 
+//TODO: add Error type parameter to CallbackData type parameters?
+//this could be useful:
 typedef CallbackData<T> = (?error:Error, ?result:T) -> Void;
 
 /**
 	A callback. All callbacks in the standard library are functions which accept
-	two arguments: an error (`haxe.Error`) and a result (`T`). If error is 
+	two arguments: an error (`haxe.Error`) and a result (`T`). If error is
 	non-`null`, result must be `null`. The callback type is declared in 	`CallbackData`.
 
 	This abstract defines multiple `@:from` conversions to improve readability of
