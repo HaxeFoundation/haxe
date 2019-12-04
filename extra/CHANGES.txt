@@ -1,3 +1,10 @@
+????-??-??: 4.1.0
+
+	General improvements:
+	
+	js : use abstract type name for generating its implementation class (#9006)
+	js : improve haxe.ds.StringMap implementation (#8909)
+
 2019-11-29: 4.0.3
 
 	General improvements:
