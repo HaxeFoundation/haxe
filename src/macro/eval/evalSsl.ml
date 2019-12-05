@@ -59,7 +59,7 @@ let init_constructors add =
 let init_fields init_fields builtins =
 	init_fields builtins (["sys";"ssl"],"Mbedtls") [
 		"loadDefaults",vfun1 (fun this ->
-			vbool (hx_cert_load_defaults (as_cert this));
+			vint (hx_cert_load_defaults (as_cert this));
 		);
 	] [];
 	init_fields builtins (["mbedtls"],"Certificate") [] [

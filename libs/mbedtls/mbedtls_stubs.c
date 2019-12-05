@@ -245,7 +245,7 @@ CAMLprim value ml_mbedtls_x509_crt_parse_path(value chain, value path) {
 CAMLprim value hx_cert_load_defaults(value certificate) {
 	CAMLparam0();
 	CAMLlocal1(r);
-	r = FALSE;
+	r = 1;
 
 	mbedtls_x509_crt *chain = CERT(certificate);
 
@@ -256,14 +256,13 @@ CAMLprim value hx_cert_load_defaults(value certificate) {
 	if (store = CertOpenSystemStore(0, "Root")) {
 		cert = NULL;
 		while (cert = CertEnumCertificatesInStore(store, cert)) {
-			mbedtls_x509_crt_parse_der(chain, (unsigned char *)cert->pbCertEncoded, cert->cbCertEncoded);
-			r = TRUE;
+			r = mbedtls_x509_crt_parse_der(chain, (unsigned char *)cert->pbCertEncoded, cert->cbCertEncoded);
 		}
 		CertCloseStore(store, 0);
 	}
 	#endif
 
-	CAMLreturn(Val_bool(r));
+	CAMLreturn(Val_int(r));
 }
 
 static value build_fields(int num_fields, const char* names[], int values[]) {

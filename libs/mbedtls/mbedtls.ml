@@ -49,7 +49,7 @@ external mbedtls_x509_crt_parse_path : mbedtls_x509_crt -> string -> mbedtls_res
 
 (* glue *)
 
-external hx_cert_load_defaults : mbedtls_x509_crt -> bool = "hx_cert_load_defaults"
+external hx_cert_load_defaults : mbedtls_x509_crt -> int = "hx_cert_load_defaults"
 external hx_get_ssl_authmode_flags : unit -> (string * int) array = "hx_get_ssl_authmode_flags"
 external hx_get_ssl_endpoint_flags : unit -> (string * int) array = "hx_get_ssl_endpoint_flags"
 external hx_get_ssl_preset_flags : unit -> (string * int) array = "hx_get_ssl_preset_flags"
