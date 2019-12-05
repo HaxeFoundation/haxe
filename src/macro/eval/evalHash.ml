@@ -130,9 +130,8 @@ let key_sys_net_Mutex = hash "sys.thread.Mutex"
 let key_sys_net_Lock = hash "sys.thread.Lock"
 let key_sys_net_Tls = hash "sys.thread.Tls"
 let key_sys_net_Deque = hash "sys.thread.Deque"
-let key_sys_ssl_Config = hash "sys.ssl.Config"
 
-
+let key_mbedtls_Certificate = hash "mbedtls.Certificate"
 let key_mbedtls_Config = hash "mbedtls.Config"
 let key_mbedtls_CtrDrbg = hash "mbedtls.CtrDrbg"
 let key_mbedtls_Entropy = hash "mbedtls.Entropy"

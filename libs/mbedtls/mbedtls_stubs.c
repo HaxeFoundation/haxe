@@ -2,6 +2,11 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
@@ -20,7 +25,8 @@
 #define SSL(v) (mbedtls_ssl_context*)Field(v, 0)
 #define CFG(v) (mbedtls_ssl_config*)Field(v, 0)
 #define CTR(v) (mbedtls_ctr_drbg_context*)Field(v, 0)
-#define VOID(v) (void*)Field(v, 0)
+#define CERT(v) (mbedtls_x509_crt*)Field(v, 0)
+#define PVOID(v) (void*)Field(v, 0)
 
 void debug(void* ctx, int debug_level, const char* file_name, int line, const char* message) {
 	printf("%s:%i: %s", file_name, line, message);
@@ -57,7 +63,7 @@ CAMLprim value ml_mbedtls_ctr_drbg_random(value p_rng, value output, value outpu
 CAMLprim value ml_mbedtls_ctr_drbg_seed(value ctx, value p_entropy, value custom) {
 	CAMLparam2(ctx, custom);
 	CAMLlocal1(r);
-	r = mbedtls_ctr_drbg_seed(CTR(ctx), mbedtls_entropy_func, VOID(p_entropy), NULL, 0);
+	r = mbedtls_ctr_drbg_seed(CTR(ctx), mbedtls_entropy_func, PVOID(p_entropy), NULL, 0);
 	CAMLreturn(Val_int(r));
 }
 
@@ -66,7 +72,7 @@ CAMLprim value ml_mbedtls_ctr_drbg_seed(value ctx, value p_entropy, value custom
 CAMLprim value ml_mbedtls_entropy_func(value data, value output, value len) {
 	CAMLparam3(data, output, len);
 	CAMLlocal1(r);
-	r = mbedtls_entropy_func(VOID(data), String_val(output), Int_val(len));
+	r = mbedtls_entropy_func(PVOID(data), String_val(output), Int_val(len));
 	CAMLreturn(Val_int(r));
 }
 
@@ -85,6 +91,12 @@ CAMLprim value ml_mbedtls_entropy_init() {
 CAMLprim void ml_mbedtls_ssl_conf_authmode(value conf, value authmode) {
 	CAMLparam2(conf, authmode);
 	mbedtls_ssl_conf_authmode(CFG(conf), Int_val(authmode));
+	CAMLreturn0;
+}
+
+CAMLprim void ml_mbedtls_ssl_conf_ca_chain(value conf, value ca_chain, value ca_crl) {
+	CAMLparam3(conf, ca_chain, ca_crl);
+	mbedtls_ssl_conf_ca_chain(CFG(conf), CERT(ca_chain), NULL /* TODO */);
 	CAMLreturn0;
 }
 
@@ -108,19 +120,12 @@ CAMLprim value ml_mbedtls_ssl_config_init() {
 	obj = caml_alloc(1, Abstract_tag);
 	Store_field(obj, 0, (value)conf);
 	mbedtls_ssl_config_init(conf);
-	// mbedtls_x509_crt cacert;
-	// mbedtls_x509_crt_init( &cacert );
-	// mbedtls_x509_crt_parse( &cacert, (const unsigned char *) mbedtls_test_cas_pem,
-    //                       mbedtls_test_cas_pem_len );
-	// mbedtls_ssl_conf_ca_chain( c, &cacert, NULL );
-	// mbedtls_debug_set_threshold(5);
-	// mbedtls_ssl_conf_dbg(c, debug, NULL);
 	CAMLreturn(obj);
 }
 
 CAMLprim void ml_mbedtls_ssl_conf_rng(value conf, value p_rng) {
 	CAMLparam2(conf, p_rng);
-	mbedtls_ssl_conf_rng(CFG(conf), mbedtls_ctr_drbg_random, VOID(p_rng));
+	mbedtls_ssl_conf_rng(CFG(conf), mbedtls_ctr_drbg_random, PVOID(p_rng));
 	CAMLreturn0;
 }
 
@@ -208,7 +213,58 @@ CAMLprim value ml_mbedtls_ssl_write(value ssl, value buf, value pos, value len) 
 	CAMLreturn(Val_int(r));
 }
 
+// Certificate
+
+CAMLprim value ml_mbedtls_x509_crt_init() {
+	CAMLparam0();
+	CAMLlocal1(obj);
+	mbedtls_x509_crt* cert = malloc(sizeof(mbedtls_x509_crt));
+	obj = caml_alloc(1, Abstract_tag);
+	Store_field(obj, 0, (value)cert);
+	mbedtls_x509_crt_init(cert);
+	CAMLreturn(obj);
+}
+
+CAMLprim value ml_mbedtls_x509_crt_parse_file(value chain, value path) {
+	CAMLparam2(chain, path);
+	CAMLlocal1(r);
+	r = mbedtls_x509_crt_parse_file(CERT(chain), String_val(path));
+	CAMLreturn(Val_int(r));
+}
+
+CAMLprim value ml_mbedtls_x509_crt_parse_path(value chain, value path) {
+	CAMLparam2(chain, path);
+	CAMLlocal1(r);
+	r = mbedtls_x509_crt_parse_path(CERT(chain), String_val(path));
+	CAMLreturn(Val_int(r));
+}
+
+
 // glue
+
+CAMLprim value hx_cert_load_defaults(value certificate) {
+	CAMLparam0();
+	CAMLlocal1(r);
+	r = FALSE;
+
+	mbedtls_x509_crt *chain = CERT(certificate);
+
+	#ifdef _WIN32
+	HCERTSTORE store;
+	PCCERT_CONTEXT cert;
+
+	if (store = CertOpenSystemStore(0, "Root")) {
+		cert = NULL;
+		while (cert = CertEnumCertificatesInStore(store, cert)) {
+			mbedtls_x509_crt_parse_der(chain, (unsigned char *)cert->pbCertEncoded, cert->cbCertEncoded);
+			r = TRUE;
+		}
+		CertCloseStore(store, 0);
+	}
+	#endif
+
+	CAMLreturn(Val_bool(r));
+}
 
 static value build_fields(int num_fields, const char* names[], int values[]) {
 	CAMLparam0();

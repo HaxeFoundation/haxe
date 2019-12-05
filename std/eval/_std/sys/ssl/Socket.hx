@@ -83,18 +83,16 @@ private class SocketOutput extends haxe.io.Output {
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;
 
-	// public static var DEFAULT_CA:Null<Certificate>;
+	public static var DEFAULT_CA:Null<Certificate>;
+
 	private var conf:Config;
 	private var ssl:Ssl;
 
-	// public var verifyCert:Null<Bool>;
-	// private var caCert:Null<Certificate>;
+	public var verifyCert:Null<Bool>;
+
+	private var caCert:Null<Certificate>;
 	private var hostname:String;
 
-	// private var ownCert:Null<Certificate>;
-	// private var ownKey:Null<Key>;
-	// private var altSNIContexts:Null<Array<{match:String->Bool, key:Key, cert:Certificate}>>;
-	// private var sniCallback:haxe.io.Bytes->Context.SNICbResult;
 	private var handshakeDone:Bool;
 	private var isBlocking:Bool = true;
 
@@ -102,6 +100,12 @@ class Socket extends sys.net.Socket {
 		this.socket = socket;
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
+		if (DEFAULT_VERIFY_CERT && DEFAULT_CA == null) {
+			DEFAULT_CA = new Certificate();
+			Mbedtls.loadDefaultCertificates(DEFAULT_CA);
+		}
+		verifyCert = DEFAULT_VERIFY_CERT;
+		caCert = DEFAULT_CA;
 	}
 
 	public override function connect(host:sys.net.Host, port:Int):Void {
@@ -127,7 +131,7 @@ class Socket extends sys.net.Socket {
 			else if (r == -1)
 				throw haxe.io.Error.Blocked;
 			else
-				throw Mbedtls.strerror(r);
+				throw mbedtls.Error.strerror(r);
 		}
 	}
 
@@ -136,26 +140,19 @@ class Socket extends sys.net.Socket {
 		isBlocking = b;
 	}
 
-	// public function setCA(cert:Certificate):Void {
-	// 	caCert = cert;
-	// }
+	public function setCA(cert:Certificate):Void {
+		caCert = cert;
+	}
 
 	public function setHostname(name:String):Void {
 		hostname = name;
 	}
-
-	// public function setCertificate(cert:Certificate, key:Key):Void {
-	// 	ownCert = cert;
-	// 	ownKey = key;
-	// }
 
 	public override function close():Void {
 		if (ssl != null)
 			ssl.free();
 		if (conf != null)
 			conf.free();
-		// if (altSNIContexts != null)
-		// 	sniCallback = null;
 		super.close();
 		var input:SocketInput = cast input;
 		var output:SocketOutput = cast output;
@@ -163,12 +160,6 @@ class Socket extends sys.net.Socket {
 		input.close();
 		output.close();
 	}
-
-	// public function addSNICertificate(cbServernameMatch:String->Bool, cert:Certificate, key:Key):Void {
-	// 	if (altSNIContexts == null)
-	// 		altSNIContexts = [];
-	// 	altSNIContexts.push({match: cbServernameMatch, cert: cert, key: key});
-	// }
 
 	public override function bind(host:sys.net.Host, port:Int):Void {
 		conf = buildConfig(true);
@@ -192,39 +183,15 @@ class Socket extends sys.net.Socket {
 		return s;
 	}
 
-	// public function peerCertificate():sys.ssl.Certificate {
-	// 	var x = ssl.getPeerCertificate();
-	// 	return x == null ? null : new sys.ssl.Certificate(x);
-	// }
-
 	private function buildConfig(server:Bool):Config {
 		var conf = new Config();
-		var ctr = new CtrDrbg();
-		var entropy = new Entropy();
-		ctr.seed(entropy);
 		conf.defaults(server ? SSL_IS_SERVER : SSL_IS_CLIENT, SSL_TRANSPORT_STREAM, SSL_PRESET_DEFAULT);
-		conf.rng(ctr);
-		conf.authmode(SSL_VERIFY_OPTIONAL);
-		// TODO: server
-		// if (ownCert != null && ownKey != null)
-		// 	conf.setCert(@:privateAccess ownCert.__x, @:privateAccess ownKey.__k);
+		conf.rng(Mbedtls.ctr);
 
-		// if (altSNIContexts != null) {
-		// 	sniCallback = function(servername:haxe.io.Bytes):Context.SNICbResult {
-		// 		var servername = servername.toString();
-		// 		for (c in altSNIContexts) {
-		// 			if (c.match(servername))
-		// 				return new Context.SNICbResult(c.cert, c.key);
-		// 		}
-		// 		if (ownKey != null && ownCert != null)
-		// 			return new Context.SNICbResult(ownCert, ownKey);
-		// 		return null;
-		// 	}
-		// 	conf.setServernameCallback(sniCallback);
-		// }
-
-		// if (caCert != null)
-		// 	conf.setCa(caCert == null ? null : @:privateAccess caCert.__x);
+		if (caCert != null) {
+			conf.caChain(caCert);
+		}
+		if (!verifyCert) {}
 		// conf.setVerify(if (verifyCert) 1 else if (verifyCert == null) 2 else 0);
 
 		return conf;

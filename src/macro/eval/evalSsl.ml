@@ -5,6 +5,10 @@ open EvalDecode
 open EvalExceptions
 open Mbedtls
 
+let as_cert vthis = match vthis with
+	| VInstance {ikind = IEmbedtlsCertificate i} -> i
+	| _ -> unexpected_value vthis "Certificate"
+
 let as_config vthis = match vthis with
 	| VInstance {ikind = IEmbedtlsConfig i} -> i
 	| _ -> unexpected_value vthis "Config"
@@ -26,25 +30,11 @@ let as_ssl vthis = match vthis with
 	| _ -> unexpected_value vthis "Ssl"
 
 let init_constructors add =
-	(* add key_sys_ssl_Config
-		(fun vl -> match vl with
-			| [server] ->
-				let cfg = Mbedtls.mbedtls_ssl_config_init () in
-				encode_instance key_sys_ssl_Context ~kind:(ISslConfig cfg)
-			| _ ->
-				assert false
+	add key_mbedtls_Certificate
+		(fun _ ->
+			let cert = mbedtls_x509_crt_init() in
+			encode_instance key_mbedtls_Certificate ~kind:(IEmbedtlsCertificate cert)
 		);
-	add key_sys_ssl_Context
-		(fun vl -> match vl with
-			| [config] ->
-				let config = as_config config in
-				let ctx = Mbedtls.mbedtls_ssl_init() in
-				ignore(Mbedtls.mbedtls_ssl_setup ctx config); (* TODO *)
-				encode_instance key_sys_ssl_Context ~kind:(ISslContext ctx)
-			| _ ->
-				assert false
-		); *)
-
 	add key_mbedtls_Config
 		(fun _ ->
 			let cfg = mbedtls_ssl_config_init() in
@@ -67,12 +57,26 @@ let init_constructors add =
 		)
 
 let init_fields init_fields builtins =
-	init_fields builtins (["mbedtls"],"Mbedtls") [
-		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
+	init_fields builtins (["sys";"ssl"],"Mbedtls") [
+		"loadDefaults",vfun1 (fun this ->
+			vbool (hx_cert_load_defaults (as_cert this));
+		);
 	] [];
+	init_fields builtins (["mbedtls"],"Certificate") [] [
+		"parse_file",vifun1 (fun this path ->
+			vint (mbedtls_x509_crt_parse_file (as_cert this) (decode_string path));
+		);
+		"parse_path",vifun1 (fun this path ->
+			vint (mbedtls_x509_crt_parse_path (as_cert this) (decode_string path));
+		);
+	];
 	init_fields builtins (["mbedtls"],"Config") [] [
 		"authmode",vifun1 (fun this authmode ->
 			mbedtls_ssl_config_authmode (as_config this) (decode_int authmode);
+			vnull;
+		);
+		"caChain",vifun2 (fun this ca_chain ca_crl ->
+			mbedtls_ssl_conf_ca_chain (as_config this) (as_cert ca_chain) None;
 			vnull;
 		);
 		"defaults",vifun3 (fun this endpoint transport preset ->
@@ -95,6 +99,9 @@ let init_fields init_fields builtins =
 			vint (mbedtls_ctr_drbg_seed (as_ctr_drbg this) (as_entropy entropy) (match custom with VString s -> Some s.sstring | _ -> None))
 		)
 	];
+	init_fields builtins (["mbedtls"],"Error") [
+		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
+	] [];
 	let socket_send socket bytes =
 		Unix.send socket bytes 0 (Bytes.length bytes) []
 	in
