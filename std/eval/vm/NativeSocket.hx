@@ -20,7 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.net;
+package eval.vm;
+
+import sys.net.Socket;
 
 extern class NativeSocket {
 	function new():Void;

@@ -2,7 +2,7 @@ package sys.ssl;
 
 import haxe.io.Bytes;
 import mbedtls.*;
-import sys.net.NativeSocket;
+import eval.vm.NativeSocket;
 
 private class SocketInput extends haxe.io.Input {
 	@:allow(sys.ssl.Socket) private var socket:Socket;

@@ -23,6 +23,7 @@
 package sys.net;
 
 import haxe.io.Error;
+import eval.vm.NativeSocket;
 
 private class SocketOutput extends haxe.io.Output {
 	var socket:NativeSocket;

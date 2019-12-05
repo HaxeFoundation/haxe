@@ -1,6 +1,6 @@
 package mbedtls;
 
-import sys.net.NativeSocket;
+import eval.vm.NativeSocket;
 import haxe.io.Bytes;
 
 extern class Ssl {
