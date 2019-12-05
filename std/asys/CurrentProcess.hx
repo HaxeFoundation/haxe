@@ -18,7 +18,7 @@ class CurrentProcess {
 	public static var messageSignal(get,never):Signal<IpcMessage>;
 	static final _messageSignal = new ArraySignal<IpcMessage>();
 	static inline function get_messageSignal():Signal<IpcMessage>
-		return _message_signal;
+		return _messageSignal;
 
 
 	static var ipc:Socket;
