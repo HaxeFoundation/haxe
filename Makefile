@@ -60,9 +60,9 @@ HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}'
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -lmbedtls -Wl,-Bdynamic '
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls
+	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
 endif
 
 all: haxe tools
