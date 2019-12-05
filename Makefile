@@ -62,7 +62,7 @@ HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[
 ifneq ($(STATICLINK),0)
 	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib
+	LIB_PARAMS?= -cclib -lpcre -cclib -lz
 endif
 
 all: haxe tools
