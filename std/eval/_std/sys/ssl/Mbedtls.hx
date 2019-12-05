@@ -12,7 +12,7 @@ class Mbedtls {
 	}
 
 	static public function loadDefaultCertificates(certificate:mbedtls.Certificate) {
-		if (loadDefaults(certificate) != 0) {
+		if (loadDefaults(certificate) == 0) {
 			return;
 		}
 		var defPaths = switch (Sys.systemName()) {
