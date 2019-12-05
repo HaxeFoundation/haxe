@@ -1,5 +1,7 @@
 package asys;
 
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 import asys.uv.UVError;
 import haxe.NoData;
 import haxe.async.*;
@@ -14,18 +16,27 @@ class FileWatcher {
 	/**
 		Emitted when a watched file is modified.
 	**/
-	public final changeSignal:Signal<FileWatcherEvent> = new ArraySignal();
+	public var changeSignal(get,never):Signal<FileWatcherEvent>;
+	final _changeSignal = new ArraySignal<FileWatcherEvent>();
+	inline function get_changeSignal():Signal<FileWatcherEvent>
+		return _changeSignal;
 
 	/**
 		Emitted when `this` watcher is fully closed. No further signals will be
 		emitted.
 	**/
-	public final closeSignal:Signal<NoData> = new ArraySignal();
+	public var closeSignal(get,never):Signal<NoData>;
+	final _closeSignal = new ArraySignal<NoData>();
+	inline function get_closeSignal():Signal<NoData>
+		return _closeSignal;
 
 	/**
 		Emitted when an error occurs.
 	**/
-	public final errorSignal:Signal<UVError> = new ArraySignal();
+	public var errorSignal(get,never):Signal<UVError>;
+	final _errorSignal= new ArraySignal<UVError>();
+	inline function get_errorSignal():Signal<UVError>
+		return _errorSignal;
 
 	private var native:FileWatcherNative;
 

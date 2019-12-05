@@ -2,7 +2,8 @@ package asys.net;
 
 import asys.uv.UVError;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 import haxe.io.Bytes;
 import asys.net.SocketOptions.UdpSocketOptions;
 
@@ -49,12 +50,18 @@ class UdpSocket {
 	// final connectSignal:Signal<NoData>;
 	// final listeningSignal:Signal<NoData>;
 
-	public final errorSignal:Signal<UVError> = new ArraySignal();
+	public var errorSignal(get,never):Signal<UVError>;
+	final _errorSignal = new ArraySignal();
+	inline function get_errorSignal():Signal<UVError>
+		return _errorSignal;
 
 	/**
 		Emitted when a message is received by `this` socket. See `UdpMessage`.
 	**/
-	public final messageSignal:Signal<UdpMessage> = new ArraySignal();
+	public var messageSignal(get,never):Signal<UdpMessage>;
+	final _messageSignal = new ArraySignal();
+	inline function get_messageSignal():Signal<UdpMessage>
+		return _messageSignal;
 
 	/**
 		Joins the given multicast group.

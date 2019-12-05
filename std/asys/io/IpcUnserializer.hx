@@ -1,7 +1,8 @@
 package asys.io;
 
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 import haxe.io.*;
 import asys.net.Socket;
 
@@ -12,8 +13,15 @@ import asys.net.Socket;
 class IpcUnserializer {
 	static var activeUnserializer:IpcUnserializer = null;
 
-	public final messageSignal:Signal<IpcMessage> = new ArraySignal();
-	public final errorSignal:Signal<Dynamic> = new ArraySignal();
+	public var messageSignal(get,never):Signal<IpcMessage>;
+	final _messageSignal = new ArraySignal<IpcMessage>();
+	inline function get_messageSignal():Signal<IpcMessage>
+		return _messageSignal;
+
+	public var errorSignal(get,never):Signal<Any>;
+	final _errorSignal = new ArraySignal<Any>();
+	inline function get_errorSignal():Signal<Any>
+		return _errorSignal;
 
 	final pipe:Socket;
 	// var chunkSockets:Array<Socket> = [];
@@ -69,7 +77,7 @@ class IpcUnserializer {
 							chunkSockets.push(pipe.readHandle());
 						activeUnserializer = this;
 						var message = haxe.Unserializer.run(serial);
-						messageSignal.emit({message: message, sockets: chunkSockets});
+						_messageSignal.emit({message: message, sockets: chunkSockets});
 						chunkSize = 0;
 						chunkSocketCount = 0;
 						// chunkSockets.resize(0);
@@ -78,7 +86,7 @@ class IpcUnserializer {
 				}
 			}
 		} catch (e:Dynamic) {
-			errorSignal.emit(e);
+			_errorSignal.emit(e);
 		}
 	}
 }

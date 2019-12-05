@@ -2,7 +2,7 @@ package haxe.io;
 
 import haxe.Error;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
 import haxe.ds.List;
 import haxe.io.Readable.ReadResult;
 
@@ -16,16 +16,42 @@ import haxe.io.Readable.ReadResult;
 @:access(haxe.io.Readable)
 @:access(haxe.io.Writable)
 class Duplex implements IReadable implements IWritable {
-	public final dataSignal:Signal<Bytes>;
-	public final endSignal:Signal<NoData>;
-	public final errorSignal:Signal<Error>;
-	public final pauseSignal:Signal<NoData>;
-	public final resumeSignal:Signal<NoData>;
+	public var dataSignal(get,never):Signal<Bytes>;
+	function get_dataSignal():Signal<Bytes>
+		return output.dataSignal;
 
-	public final drainSignal:Signal<NoData>;
-	public final finishSignal:Signal<NoData>;
-	public final pipeSignal:Signal<IReadable>;
-	public final unpipeSignal:Signal<IReadable>;
+	public var endSignal(get,never):Signal<NoData>;
+	function get_endSignal():Signal<NoData>
+		return output.endSignal;
+
+	public var errorSignal(get,never):Signal<Error>;
+	function get_errorSignal():Signal<Error>
+		return output.errorSignal;
+
+	public var pauseSignal(get,never):Signal<NoData>;
+	function get_pauseSignal():Signal<NoData>
+		return output.pauseSignal;
+
+	public var resumeSignal(get,never):Signal<NoData>;
+	function get_resumeSignal():Signal<NoData>
+		return output.resumeSignal;
+
+	public var drainSignal(get,never):Signal<NoData>;
+	function get_drainSignal():Signal<NoData>
+		return input.drainSignal;
+
+	public var finishSignal(get,never):Signal<NoData>;
+	function get_finishSignal():Signal<NoData>
+		return input.finishSignal;
+
+	public var pipeSignal(get,never):Signal<IReadable>;
+	function get_pipeSignal():Signal<IReadable>
+		return input.pipeSignal;
+
+	public var unpipeSignal(get,never):Signal<IReadable>;
+	function get_unpipeSignal():Signal<IReadable>
+		return input.unpipeSignal;
+
 
 	final input:Writable;
 	final output:Readable;
@@ -45,15 +71,6 @@ class Duplex implements IReadable implements IWritable {
 	function new() {
 		input = new DuplexWritable(this);
 		output = new DuplexReadable(this);
-		dataSignal = output.dataSignal;
-		endSignal = output.endSignal;
-		errorSignal = output.errorSignal;
-		pauseSignal = output.pauseSignal;
-		resumeSignal = output.resumeSignal;
-		drainSignal = input.drainSignal;
-		finishSignal = input.finishSignal;
-		pipeSignal = input.pipeSignal;
-		unpipeSignal = input.unpipeSignal;
 		inputBuffer = input.buffer;
 		outputBuffer = output.buffer;
 	}

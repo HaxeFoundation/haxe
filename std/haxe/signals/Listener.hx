@@ -1,6 +1,4 @@
-package haxe.async;
-
-import haxe.NoData;
+package haxe.signals;
 
 typedef ListenerData<T> = (data:T) -> Void;
 

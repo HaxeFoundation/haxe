@@ -2,6 +2,7 @@ package haxe.io;
 
 import haxe.Error;
 import haxe.NoData;
+import haxe.signals.*;
 import haxe.async.*;
 import haxe.ds.List;
 
@@ -15,27 +16,42 @@ class Readable implements IReadable {
 	/**
 		See `IReadable.dataSignal`.
 	**/
-	public final dataSignal:Signal<Bytes>;
+	public var dataSignal(get,never):Signal<Bytes>;
+	final _dataSignal = new WrappedSignal<Bytes>();
+	function get_dataSignal():Signal<Bytes>
+		return _dataSignal;
 
 	/**
 		See `IReadable.endSignal`.
 	**/
-	public final endSignal:Signal<NoData>;
+	public var endSignal(get,never):Signal<NoData>;
+	final _endSignal = new WrappedSignal<NoData>();
+	function get_endSignal():Signal<NoData>
+		return _endSignal;
 
 	/**
 		See `IReadable.errorSignal`.
 	**/
-	public final errorSignal:Signal<Error> = new ArraySignal();
+	public var errorSignal(get,never):Signal<Error>;
+	final _errorSignal = new ArraySignal();
+	function get_errorSignal():Signal<Error>
+		return _errorSignal;
 
 	/**
 		See `IReadable.pauseSignal`.
 	**/
-	public final pauseSignal:Signal<NoData> = new ArraySignal();
+	public var pauseSignal(get,never):Signal<NoData>;
+	final _pauseSignal = new ArraySignal();
+	function get_pauseSignal():Signal<NoData>
+		return _pauseSignal;
 
 	/**
 		See `IReadable.resumeSignal`.
 	**/
-	public final resumeSignal:Signal<NoData> = new ArraySignal();
+	public var resumeSignal(get,never):Signal<NoData>;
+	final _resumeSignal = new ArraySignal();
+	function get_resumeSignal():Signal<NoData>
+		return _resumeSignal;
 
 	/**
 		High water mark. `Readable` will call `internalRead` pre-emptively to fill
@@ -68,18 +84,14 @@ class Readable implements IReadable {
 	@:dox(show)
 	function new(?highWaterMark:Int = 8192) {
 		this.highWaterMark = highWaterMark;
-		var dataSignal = new WrappedSignal<Bytes>();
-		dataSignal.changeSignal.on(() -> {
-			if (dataSignal.listenerCount > 0)
+		_dataSignal.changeSignal.on(() -> {
+			if (_dataSignal.listenerCount > 0)
 				resume();
 		});
-		this.dataSignal = dataSignal;
-		var endSignal = new WrappedSignal<NoData>();
-		endSignal.changeSignal.on(() -> {
-			if (endSignal.listenerCount > 0)
+		_endSignal.changeSignal.on(() -> {
+			if (_endSignal.listenerCount > 0)
 				resume();
 		});
-		this.endSignal = endSignal;
 	}
 
 	inline function shouldFlow():Bool {
@@ -115,11 +127,11 @@ class Readable implements IReadable {
 		// emit data
 		while (buffer.length > 0 && flowing && shouldFlow()) {
 			reschedule = true;
-			dataSignal.emit(pop());
+			_dataSignal.emit(pop());
 		}
 
 		if (willEof) {
-			endSignal.emit(new NoData());
+			_endSignal.emit(new NoData());
 			flowing = false;
 			done = true;
 			return;
@@ -205,7 +217,7 @@ class Readable implements IReadable {
 		if (done)
 			return;
 		if (!flowing) {
-			resumeSignal.emit(new NoData());
+			_resumeSignal.emit(new NoData());
 			flowing = true;
 			scheduleProcess();
 		}
@@ -218,7 +230,7 @@ class Readable implements IReadable {
 		if (done)
 			return;
 		if (flowing) {
-			pauseSignal.emit(new NoData());
+			_pauseSignal.emit(new NoData());
 			flowing = false;
 		}
 	}

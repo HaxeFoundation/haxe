@@ -1,13 +1,13 @@
 package haxe.io;
 
 import haxe.NoData;
-import haxe.async.Signal;
+import haxe.signals.Signal;
 
 interface IWritable {
-	final drainSignal:Signal<NoData>;
-	final finishSignal:Signal<NoData>;
-	final pipeSignal:Signal<IReadable>;
-	final unpipeSignal:Signal<IReadable>;
+	var drainSignal(get,never):Signal<NoData>;
+	var finishSignal(get,never):Signal<NoData>;
+	var pipeSignal(get,never):Signal<IReadable>;
+	var unpipeSignal(get,never):Signal<IReadable>;
 	function write(chunk:Bytes):Bool;
 	function end():Void;
 	function cork():Void;

@@ -1,10 +1,10 @@
-package haxe.async;
+package haxe.signals;
 
 /**
 	Basic implementation of a `haxe.async.Signal`. Uses an array for storing
 	listeners for the signal.
 **/
-class ArraySignal<T> implements Signal<T> {
+class ArraySignal<T> implements SignalEmitter<T> {
 	final listeners:Array<Listener<T>> = [];
 
 	function get_listenerCount():Int {

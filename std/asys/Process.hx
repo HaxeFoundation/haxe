@@ -2,7 +2,7 @@ package asys;
 
 import asys.uv.UVError;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.*;
 import haxe.io.*;
 import asys.net.Socket;
 import asys.io.*;
@@ -89,25 +89,37 @@ class Process {
 	/**
 		Emitted when `this` process and all of its pipes are closed.
 	**/
-	public final closeSignal:Signal<NoData> = new ArraySignal();
+	public var closeSignal:Signal<NoData>;
+	final _closeSignal = new ArraySignal();
+	inline function get_closeSignal():Signal<NoData>
+		return _closeSignal;
 
 	// public final disconnectSignal:Signal<NoData> = new ArraySignal(); // IPC
 
 	/**
 		Emitted when an error occurs during communication with `this` process.
 	**/
-	public final errorSignal:Signal<UVError> = new ArraySignal();
+	public var errorSignal:Signal<UVError>;
+	final _errorSignal = new ArraySignal();
+	inline function get_errorSignal():Signal<UVError>
+		return _errorSignal;
 
 	/**
 		Emitted when `this` process exits, potentially due to a signal.
 	**/
-	public final exitSignal:Signal<ProcessExit> = new ArraySignal();
+	public var exitSignal:Signal<ProcessExit>;
+	final _exitSignal = new ArraySignal();
+	inline function get_exitSignal():Signal<Process>
+		return _exitSignal;
 
 	/**
 		Emitted when a message is received over IPC. The process must be created
 		with an `Ipc` entry in `options.stdio`; see `Process.spawn`.
 	**/
-	public var messageSignal(default, null):Signal<IpcMessage>;
+	public var messageSignal(get, never):Signal<IpcMessage>;
+	var _messageSignal:SignalEmitter<IpcMessage>;
+	inline function get_messageSignal():Signal<IpcMessage>
+		return _messageSignal;
 
 	public var connected(default, null):Bool = false;
 	public var killed:Bool;

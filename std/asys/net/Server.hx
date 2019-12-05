@@ -2,7 +2,8 @@ package asys.net;
 
 import asys.uv.UVError;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 
 typedef ServerOptions = {
 	?allowHalfOpen:Bool,
@@ -27,10 +28,26 @@ typedef ServerListenIpcOptions = {
 };
 
 class Server {
-	public final closeSignal:Signal<NoData> = new ArraySignal<NoData>();
-	public final connectionSignal:Signal<Socket> = new ArraySignal<Socket>();
-	public final errorSignal:Signal<UVError> = new ArraySignal<UVError>();
-	public final listeningSignal:Signal<NoData> = new ArraySignal<NoData>();
+	public var closeSignal(get,never):Signal<NoData>;
+	final _closeSignal = new ArraySignal<NoData>();
+	inline function get_closeSignal():Signal<NoData>
+		return _closeSignal;
+
+	public var connectionSignal(get,never):Signal<Socket>;
+	final _connectionSignal = new ArraySignal<Socket>();
+	inline function get_connectionSignal():Signal<Socket>
+		return _connectionSignal;
+
+	public var errorSignal(get,never):Signal<UVError>;
+	final _errorSignal = new ArraySignal<UVError>();
+	inline function get_errorSignal():Signal<UVError>
+		return _errorSignal;
+
+	public var listeningSignal(get,never):Signal<NoData>;
+	final _listeningSignal = new ArraySignal<NoData>();
+	inline function get_listeningSignal():Signal<NoData>
+		return _listeningSignal;
+
 
 	public var listening(default, null):Bool;
 	public var maxConnections:Int; // TODO

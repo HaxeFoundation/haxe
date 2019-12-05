@@ -1,4 +1,4 @@
-package haxe.async;
+package haxe.signals;
 
 import haxe.NoData;
 
@@ -8,9 +8,10 @@ import haxe.NoData;
 	whether there are any listeners to some of its signals, e.g. a `Readable`
 	stream will not emit data signals when there are no data handlers.
 **/
-class WrappedSignal<T> implements Signal<T> {
+class WrappedSignal<T> implements SignalEmitter<T> {
 	final listeners:Array<Listener<T>> = [];
-	public final changeSignal:Signal<NoData> = new ArraySignal<NoData>();
+	public var changeSignal(get,never):Signal<NoData>;
+	final _changeSignal = new ArraySignal<NoData>();
 
 	function get_listenerCount():Int {
 		return listeners.length;
@@ -22,16 +23,16 @@ class WrappedSignal<T> implements Signal<T> {
 
 	public function on(listener:Listener<T>):Void {
 		listeners.push(listener);
-		changeSignal.emit(new NoData());
+		_changeSignal.emit(new NoData());
 	}
 
 	public function once(listener:Listener<T>):Void {
 		listeners.push(function wrapped(data:T):Void {
 			listeners.remove(wrapped);
-			changeSignal.emit(new NoData());
+			_changeSignal.emit(new NoData());
 			listener(data);
 		});
-		changeSignal.emit(new NoData());
+		_changeSignal.emit(new NoData());
 	}
 
 	public function off(?listener:Listener<T>):Void {
@@ -40,12 +41,16 @@ class WrappedSignal<T> implements Signal<T> {
 		} else {
 			listeners.resize(0);
 		}
-		changeSignal.emit(new NoData());
+		_changeSignal.emit(new NoData());
 	}
 
 	public function emit(data:T):Void {
 		for (listener in listeners) {
 			listener(data);
 		}
+	}
+
+	inline function get_changeSignal():Signal<NoData> {
+		return _changeSignal;
 	}
 }

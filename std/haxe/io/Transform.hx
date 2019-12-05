@@ -2,21 +2,37 @@ package haxe.io;
 
 import haxe.Error;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.*;
 
 @:access(haxe.io.Readable)
 @:access(haxe.io.Writable)
 class Transform implements IReadable implements IWritable {
-	public final dataSignal:Signal<Bytes>;
-	public final endSignal:Signal<NoData>;
-	public final errorSignal:Signal<Error>;
-	public final pauseSignal:Signal<NoData>;
-	public final resumeSignal:Signal<NoData>;
+	public var dataSignal(get,never):Signal<Bytes>;
+	function get_dataSignal() return output.dataSignal;
 
-	public final drainSignal:Signal<NoData>;
-	public final finishSignal:Signal<NoData>;
-	public final pipeSignal:Signal<IReadable>;
-	public final unpipeSignal:Signal<IReadable>;
+	public var endSignal(get,never):Signal<NoData>;
+	function get_endSignal() return output.endSignal;
+
+	public var errorSignal(get,never):Signal<Error>;
+	function get_errorSignal() return output.errorSignal;
+
+	public var pauseSignal(get,never):Signal<NoData>;
+	function get_pauseSignal() return output.pauseSignal;
+
+	public var resumeSignal(get,never):Signal<NoData>;
+	function get_resumeSignal() return output.resumeSignal;
+
+	public var drainSignal(get,never):Signal<NoData>;
+	function get_drainSignal() return input.drainSignal;
+
+	public var finishSignal(get,never):Signal<NoData>;
+	function get_finishSignal() return input.finishSignal;
+
+	public var pipeSignal(get,never):Signal<IReadable>;
+	function get_pipeSignal() return input.pipeSignal;
+
+	public var unpipeSignal(get,never):Signal<IReadable>;
+	function get_unpipeSignal() return input.unpipeSignal;
 
 	final input:Writable;
 	final output:Readable;
@@ -26,15 +42,6 @@ class Transform implements IReadable implements IWritable {
 	function new() {
 		input = new TransformWritable(this);
 		output = @:privateAccess new Readable(0);
-		dataSignal = output.dataSignal;
-		endSignal = output.endSignal;
-		errorSignal = output.errorSignal;
-		pauseSignal = output.pauseSignal;
-		resumeSignal = output.resumeSignal;
-		drainSignal = input.drainSignal;
-		finishSignal = input.finishSignal;
-		pipeSignal = input.pipeSignal;
-		unpipeSignal = input.unpipeSignal;
 	}
 
 	function internalTransform(chunk:Bytes):Void {

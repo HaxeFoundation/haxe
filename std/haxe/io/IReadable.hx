@@ -2,7 +2,7 @@ package haxe.io;
 
 import haxe.Error;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
 
 /**
 	A readable stream.
@@ -15,28 +15,28 @@ interface IReadable {
 	/**
 		Emitted whenever a chunk of data is available.
 	**/
-	final dataSignal:Signal<Bytes>;
+	var dataSignal(get,never):Signal<Bytes>;
 
 	/**
 		Emitted when the stream is finished. No further signals will be emitted by
 		`this` instance after `endSignal` is emitted.
 	**/
-	final endSignal:Signal<NoData>;
+	var endSignal(get,never):Signal<NoData>;
 
 	/**
 		Emitted for any error that occurs during reading.
 	**/
-	final errorSignal:Signal<Error>;
+	var errorSignal(get,never):Signal<Error>;
 
 	/**
 		Emitted when `this` stream is paused.
 	**/
-	final pauseSignal:Signal<NoData>;
+	var pauseSignal(get,never):Signal<NoData>;
 
 	/**
 		Emitted when `this` stream is resumed.
 	**/
-	final resumeSignal:Signal<NoData>;
+	var resumeSignal(get,never):Signal<NoData>;
 
 	/**
 		Resumes flow of data. Note that this method is called automatically

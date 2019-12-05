@@ -2,6 +2,7 @@ package haxe.io;
 
 import haxe.NoData;
 import haxe.async.*;
+import haxe.signals.*;
 import haxe.ds.List;
 
 /**
@@ -11,10 +12,26 @@ import haxe.ds.List;
 	subclasses should override the `internalWrite` method.
 **/
 class Writable implements IWritable {
-	public final drainSignal:Signal<NoData> = new ArraySignal<NoData>();
-	public final finishSignal:Signal<NoData> = new ArraySignal<NoData>();
-	public final pipeSignal:Signal<IReadable> = new ArraySignal<IReadable>();
-	public final unpipeSignal:Signal<IReadable> = new ArraySignal<IReadable>();
+	public var drainSignal(get,never):Signal<NoData>;
+	final _drainSignal = new ArraySignal<NoData>();
+	function get_drainSignal():Signal<NoData>
+		return _drainSignal;
+
+	public var finishSignal(get,never):Signal<NoData>;
+	final _finishSignal = new ArraySignal<NoData>();
+	function get_finishSignal():Signal<NoData>
+		return _finishSignal;
+
+	public var pipeSignal(get,never):Signal<IReadable>;
+	final _pipeSignal = new ArraySignal<IReadable>();
+	function get_pipeSignal():Signal<IReadable>
+		return _pipeSignal;
+
+	public var unpipeSignal(get,never):Signal<IReadable>;
+	final _unpipeSignal = new ArraySignal<IReadable>();
+	function get_unpipeSignal():Signal<IReadable>
+		return _unpipeSignal;
+
 
 	public var highWaterMark = 8192;
 	public var bufferLength(default, null) = 0;
@@ -35,12 +52,12 @@ class Writable implements IWritable {
 			if (deferred == null)
 				deferred = Defer.nextTick(() -> {
 					deferred = null;
-					drainSignal.emit(new NoData());
+					_drainSignal.emit(new NoData());
 				});
 		}
 		if (willFinish && buffer.length == 0) {
 			willFinish = false;
-			Defer.nextTick(() -> finishSignal.emit(new NoData()));
+			Defer.nextTick(() -> _finishSignal.emit(new NoData()));
 		}
 		return chunk;
 	}
@@ -72,7 +89,7 @@ class Writable implements IWritable {
 		if (buffer.length > 0)
 			willFinish = true;
 		else
-			finishSignal.emit(new NoData());
+			_finishSignal.emit(new NoData());
 		done = true;
 	}
 

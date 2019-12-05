@@ -1,7 +1,7 @@
 package asys.io;
 
 import haxe.NoData;
-import haxe.async.Signal;
+import haxe.signals.Signal;
 
 typedef FileReadStreamOptions = {
 	?autoClose:Bool,
@@ -10,9 +10,10 @@ typedef FileReadStreamOptions = {
 	?highWaterMark:Int
 };
 
+//TODO: why does extern class extends non-extern one?
 extern class FileReadStream extends haxe.io.Readable {
-	final openSignal:Signal<File>;
-	final readySignal:Signal<NoData>;
+	var openSignal(get,never):Signal<File>;
+	var readySignal(get,never):Signal<NoData>;
 
 	var bytesRead:Int;
 	var path:String;

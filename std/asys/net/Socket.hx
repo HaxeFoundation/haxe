@@ -2,7 +2,8 @@ package asys.net;
 
 import asys.uv.UVError;
 import haxe.NoData;
-import haxe.async.*;
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 import haxe.io.*;
 import haxe.io.Readable.ReadResult;
 import asys.io.*;
@@ -36,9 +37,15 @@ class Socket extends Duplex {
 	/**
 		Emitted when the socket connects to a remote endpoint.
 	**/
-	public final closeSignal:Signal<NoData> = new ArraySignal();
+	public var closeSignal(get,never):Signal<NoData>;
+	final _closeSignal = new ArraySignal();
+	inline function get_closeSignal():Signal<NoData>
+		return _closeSignal;
 
-	public final connectSignal:Signal<NoData> = new ArraySignal();
+	public var connectSignal(get,never):Signal<NoData>;
+	final _connectSignal = new ArraySignal();
+	inline function get_connectSignal():Signal<NoData>
+		return _connectSignal;
 
 	// endSignal
 
@@ -46,12 +53,18 @@ class Socket extends Duplex {
 		(TCP only.) Emitted after the IP address of the hostname given in
 		`connectTcp` is resolved, but before the socket connects.
 	**/
-	public final lookupSignal:Signal<Address> = new ArraySignal();
+	public var lookupSignal(get,never):Signal<Address>;
+	final _lookupSignal = new ArraySignal();
+	inline function get_lookupSignal():Signal<Address>
+		return _lookupSignal;
 
 	/**
 		Emitted when a timeout occurs. See `setTimeout`.
 	**/
-	public final timeoutSignal:Signal<NoData> = new ArraySignal();
+	public var timeoutSignal(get,never):Signal<NoData>;
+	final _timeoutSignal = new ArraySignal();
+	inline function get_timeoutSignal():Signal<NoData>
+		return _timeoutSignal;
 
 	extern private function get_localAddress():Null<SocketAddress>;
 
@@ -199,13 +212,13 @@ class Socket extends Duplex {
 	function writeDone(err:UVError, nd:NoData):Void {
 		timeoutReset();
 		if (err != null)
-			errorSignal.emit(err);
+			_errorSignal.emit(err);
 		// TODO: destroy stream and socket
 	}
 
 	function timeoutTrigger():Void {
 		timeoutTimer = null;
-		timeoutSignal.emit(new NoData());
+		_timeoutSignal.emit(new NoData());
 	}
 
 	function timeoutReset():Void {

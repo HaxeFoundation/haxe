@@ -1,5 +1,7 @@
 package asys;
 
+import haxe.signals.Signal;
+import haxe.signals.ArraySignal;
 import haxe.async.*;
 import asys.net.Socket;
 import asys.io.*;
@@ -13,7 +15,11 @@ class CurrentProcess {
 		Emitted when a message is received over IPC. `initIpc` must be called first
 		to initialise the IPC channel.
 	**/
-	public static final messageSignal:Signal<IpcMessage> = new ArraySignal();
+	public static var messageSignal(get,never):Signal<IpcMessage>;
+	static final _messageSignal = new ArraySignal<IpcMessage>();
+	static inline function get_messageSignal():Signal<IpcMessage>
+		return _message_signal;
+
 
 	static var ipc:Socket;
 	static var ipcOut:IpcSerializer;
