@@ -185,7 +185,7 @@ class Socket extends sys.net.Socket {
 		conf.rng(Mbedtls.getDefaultCtrDrbg());
 
 		if (caCert != null) {
-			conf.caChain(caCert);
+			conf.ca_chain(caCert);
 		}
 		conf.authmode(if (verifyCert) SSL_VERIFY_REQUIRED else if (verifyCert == null) SSL_VERIFY_OPTIONAL else SSL_VERIFY_NONE);
 		return conf;

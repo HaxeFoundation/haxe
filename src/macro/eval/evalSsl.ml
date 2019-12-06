@@ -87,8 +87,8 @@ let init_fields init_fields builtins =
 			mbedtls_ssl_config_authmode (as_config this) (decode_int authmode);
 			vnull;
 		);
-		"caChain",vifun2 (fun this ca_chain ca_crl ->
-			mbedtls_ssl_conf_ca_chain (as_config this) (as_cert ca_chain) None;
+		"ca_chain",vifun1 (fun this ca_chain ->
+			mbedtls_ssl_conf_ca_chain (as_config this) (as_cert ca_chain);
 			vnull;
 		);
 		"defaults",vifun3 (fun this endpoint transport preset ->

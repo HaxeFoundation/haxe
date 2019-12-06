@@ -198,9 +198,9 @@ CAMLprim value ml_mbedtls_ssl_conf_authmode(value conf, value authmode) {
 	CAMLreturn(Val_unit);
 }
 
-CAMLprim value ml_mbedtls_ssl_conf_ca_chain(value conf, value ca_chain, value ca_crl) {
-	CAMLparam3(conf, ca_chain, ca_crl);
-	mbedtls_ssl_conf_ca_chain(Config_val(conf), X509Crt_val(ca_chain), NULL /* TODO */);
+CAMLprim value ml_mbedtls_ssl_conf_ca_chain(value conf, value ca_chain) {
+	CAMLparam2(conf, ca_chain);
+	mbedtls_ssl_conf_ca_chain(Config_val(conf), X509Crt_val(ca_chain), NULL);
 	CAMLreturn(Val_unit);
 }
 

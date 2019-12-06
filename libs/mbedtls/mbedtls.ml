@@ -3,7 +3,6 @@ type mbedtls_entropy_context
 type mbedtls_ssl_config
 type mbedtls_ssl_context
 type mbedtls_x509_crt
-type mbedtls_x509_crl
 
 type mbedtls_result = int
 
@@ -22,7 +21,7 @@ external mbedtls_ctr_drbg_seed :
 external mbedtls_entropy_func : mbedtls_entropy_context -> bytes -> int -> mbedtls_result = "ml_mbedtls_entropy_func"
 external mbedtls_entropy_init : unit -> mbedtls_entropy_context = "ml_mbedtls_entropy_init"
 
-external mbedtls_ssl_conf_ca_chain : mbedtls_ssl_config -> mbedtls_x509_crt -> mbedtls_x509_crl option -> unit = "ml_mbedtls_ssl_conf_ca_chain"
+external mbedtls_ssl_conf_ca_chain : mbedtls_ssl_config -> mbedtls_x509_crt -> unit = "ml_mbedtls_ssl_conf_ca_chain"
 external mbedtls_ssl_config_authmode : mbedtls_ssl_config -> int -> unit = "ml_mbedtls_ssl_conf_authmode"
 external mbedtls_ssl_config_defaults : mbedtls_ssl_config -> int -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_config_defaults"
 external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_config_init"
