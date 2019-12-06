@@ -57,9 +57,21 @@ let init_constructors add =
 		)
 
 let init_fields init_fields builtins =
+	let socket_send socket bytes =
+		Unix.send socket bytes 0 (Bytes.length bytes) []
+	in
+	let socket_receive socket bytes =
+		Unix.recv socket bytes 0 (Bytes.length bytes) []
+	in
 	init_fields builtins (["sys";"ssl"],"Mbedtls") [
 		"loadDefaults",vfun1 (fun this ->
 			vint (hx_cert_load_defaults (as_cert this));
+		);
+		"setSocket",vfun2 (fun this socket ->
+			let ctx = as_ssl this in
+			let socket = as_socket socket in
+			mbedtls_ssl_set_bio ctx socket socket_send socket_receive;
+			vnull
 		);
 	] [];
 	init_fields builtins (["mbedtls"],"Certificate") [] [
@@ -98,19 +110,7 @@ let init_fields init_fields builtins =
 	init_fields builtins (["mbedtls"],"Error") [
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
 	] [];
-	let socket_send socket bytes =
-		Unix.send socket bytes 0 (Bytes.length bytes) []
-	in
-	let socket_receive socket bytes =
-		Unix.recv socket bytes 0 (Bytes.length bytes) []
-	in
 	init_fields builtins (["mbedtls"],"Ssl") [] [
-		"setSocket",vifun1 (fun this socket ->
-			let ctx = as_ssl this in
-			let socket = as_socket socket in
-			mbedtls_ssl_set_bio ctx socket socket_send socket_receive;
-			vnull
-		); (* TODO: remove this *)
 		"handshake",vifun0 (fun this ->
 			vint (mbedtls_ssl_handshake (as_ssl this));
 		);

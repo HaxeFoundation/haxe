@@ -1,5 +1,7 @@
 package sys.ssl;
 
+import eval.vm.NativeSocket;
+import mbedtls.Ssl;
 import mbedtls.Entropy;
 import mbedtls.CtrDrbg;
 
@@ -56,6 +58,8 @@ class Mbedtls {
 			}
 		}
 	}
+
+	extern static public function setSocket(ssl:Ssl, socket:NativeSocket):Int;
 
 	extern static function loadDefaults(certificate:mbedtls.Certificate):Int;
 }

@@ -112,7 +112,7 @@ class Socket extends sys.net.Socket {
 		conf = buildConfig(false);
 		ssl = new Ssl();
 		ssl.setup(conf);
-		ssl.setSocket(socket);
+		Mbedtls.setSocket(ssl, socket);
 		handshakeDone = false;
 		if (hostname == null)
 			hostname = host.host;
@@ -167,7 +167,7 @@ class Socket extends sys.net.Socket {
 		var c = socket.accept();
 		var cssl = new Ssl();
 		cssl.setup(conf);
-		cssl.setSocket(c);
+		Mbedtls.setSocket(cssl, c);
 
 		var s = Type.createEmptyInstance(sys.ssl.Socket);
 		s.socket = c;
