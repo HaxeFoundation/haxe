@@ -69,16 +69,12 @@ CAMLprim value ml_mbedtls_ctr_drbg_init(void) {
 
 CAMLprim value ml_mbedtls_ctr_drbg_random(value p_rng, value output, value output_len) {
 	CAMLparam3(p_rng, output, output_len);
-	CAMLlocal1(r);
-	r = mbedtls_ctr_drbg_random(CtrDrbg_val(p_rng), String_val(output), Int_val(output_len));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ctr_drbg_random(CtrDrbg_val(p_rng), String_val(output), Int_val(output_len))));
 }
 
 CAMLprim value ml_mbedtls_ctr_drbg_seed(value ctx, value p_entropy, value custom) {
 	CAMLparam2(ctx, custom);
-	CAMLlocal1(r);
-	r = mbedtls_ctr_drbg_seed(CtrDrbg_val(ctx), mbedtls_entropy_func, PVoid_val(p_entropy), NULL, 0);
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ctr_drbg_seed(CtrDrbg_val(ctx), mbedtls_entropy_func, PVoid_val(p_entropy), NULL, 0)));
 }
 
 // Entropy
@@ -113,9 +109,7 @@ CAMLprim value ml_mbedtls_entropy_init(void) {
 
 CAMLprim value ml_mbedtls_entropy_func(value data, value output, value len) {
 	CAMLparam3(data, output, len);
-	CAMLlocal1(r);
-	r = mbedtls_entropy_func(PVoid_val(data), String_val(output), Int_val(len));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_entropy_func(PVoid_val(data), String_val(output), Int_val(len))));
 }
 
 // Certificate
@@ -150,16 +144,12 @@ CAMLprim value ml_mbedtls_x509_crt_init(void) {
 
 CAMLprim value ml_mbedtls_x509_crt_parse_file(value chain, value path) {
 	CAMLparam2(chain, path);
-	CAMLlocal1(r);
-	r = mbedtls_x509_crt_parse_file(X509Crt_val(chain), String_val(path));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_x509_crt_parse_file(X509Crt_val(chain), String_val(path))));
 }
 
 CAMLprim value ml_mbedtls_x509_crt_parse_path(value chain, value path) {
 	CAMLparam2(chain, path);
-	CAMLlocal1(r);
-	r = mbedtls_x509_crt_parse_path(X509Crt_val(chain), String_val(path));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_x509_crt_parse_path(X509Crt_val(chain), String_val(path))));
 }
 
 // Config
@@ -206,9 +196,7 @@ CAMLprim value ml_mbedtls_ssl_conf_ca_chain(value conf, value ca_chain) {
 
 CAMLprim value ml_mbedtls_ssl_config_defaults(value conf, value endpoint, value transport, value preset) {
 	CAMLparam4(conf, endpoint, transport, preset);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_config_defaults(Config_val(conf), Int_val(endpoint), Int_val(transport), Int_val(preset));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ssl_config_defaults(Config_val(conf), Int_val(endpoint), Int_val(transport), Int_val(preset))));
 }
 
 CAMLprim value ml_mbedtls_ssl_conf_rng(value conf, value p_rng) {
@@ -249,36 +237,32 @@ CAMLprim value ml_mbedtls_ssl_init(void) {
 
 CAMLprim value ml_mbedtls_ssl_handshake(value ssl) {
 	CAMLparam1(ssl);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_handshake(SslContext_val(ssl));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ssl_handshake(SslContext_val(ssl))));
 }
 
 CAMLprim value ml_mbedtls_ssl_read(value ssl, value buf, value pos, value len) {
 	CAMLparam4(ssl, buf, pos, len);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_read(SslContext_val(ssl), String_val(buf) + Int_val(pos), Int_val(len));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ssl_read(SslContext_val(ssl), String_val(buf) + Int_val(pos), Int_val(len))));
 }
 
-int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
+static int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
 	vctx = (value)ctx;
 	s = caml_alloc_string(len);
 	memcpy(String_val(s), buf, len);
 	r = caml_callback2(Field(vctx, 1), Field(vctx, 0), s);
-	return Int_val(r);
+	CAMLreturn(Int_val(r));
 }
 
-int bio_read_cb(void* ctx, unsigned char* buf, size_t len) {
+static int bio_read_cb(void* ctx, unsigned char* buf, size_t len) {
 	CAMLparam0();
 	CAMLlocal3(r, s, vctx);
 	vctx = (value)ctx;
 	s = caml_alloc_string(len);
 	r = caml_callback2(Field(vctx, 2), Field(vctx, 0), s);
 	memcpy(buf, String_val(s), len);
-	return Int_val(r);
+	CAMLreturn(Int_val(r));
 }
 
 CAMLprim value ml_mbedtls_ssl_set_bio(value ssl, value p_bio, value f_send, value f_recv) {
@@ -294,31 +278,24 @@ CAMLprim value ml_mbedtls_ssl_set_bio(value ssl, value p_bio, value f_send, valu
 
 CAMLprim value ml_mbedtls_ssl_set_hostname(value ssl, value hostname) {
 	CAMLparam2(ssl, hostname);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_set_hostname(SslContext_val(ssl), String_val(hostname));
-	CAMLreturn(r);
+	CAMLreturn(Val_int(mbedtls_ssl_set_hostname(SslContext_val(ssl), String_val(hostname))));
 }
 
 CAMLprim value ml_mbedtls_ssl_setup(value ssl, value conf) {
 	CAMLparam2(ssl, conf);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_setup(SslContext_val(ssl), Config_val(conf));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ssl_setup(SslContext_val(ssl), Config_val(conf))));
 }
 
 CAMLprim value ml_mbedtls_ssl_write(value ssl, value buf, value pos, value len) {
 	CAMLparam4(ssl, buf, pos, len);
-	CAMLlocal1(r);
-	r = mbedtls_ssl_write(SslContext_val(ssl), String_val(buf) + Int_val(pos), Int_val(len));
-	CAMLreturn(Val_int(r));
+	CAMLreturn(Val_int(mbedtls_ssl_write(SslContext_val(ssl), String_val(buf) + Int_val(pos), Int_val(len))));
 }
 
 // glue
 
 CAMLprim value hx_cert_load_defaults(value certificate) {
-	CAMLparam0();
-	CAMLlocal1(r);
-	r = 1;
+	CAMLparam1(certificate);
+	int r = 1;
 
 	mbedtls_x509_crt *chain = X509Crt_val(certificate);
 
