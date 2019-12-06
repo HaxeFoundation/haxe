@@ -82,10 +82,6 @@ let init_fields init_fields builtins =
 		"defaults",vifun3 (fun this endpoint transport preset ->
 			vint (mbedtls_ssl_config_defaults (as_config this) (decode_int endpoint) (decode_int transport) (decode_int preset));
 		);
-		"free",vifun0 (fun this ->
-			mbedtls_ssl_config_free (as_config this);
-			vnull
-		);
 		"rng",vifun1(fun this p_rng ->
 			mbedtls_ssl_config_rng (as_config this) (as_ctr_drbg p_rng);
 			vnull
@@ -115,10 +111,6 @@ let init_fields init_fields builtins =
 			mbedtls_ssl_set_bio ctx socket socket_send socket_receive;
 			vnull
 		); (* TODO: remove this *)
-		"free",vifun0 (fun this ->
-			mbedtls_ssl_free (as_ssl this);
-			vnull
-		);
 		"handshake",vifun0 (fun this ->
 			vint (mbedtls_ssl_handshake (as_ssl this));
 		);

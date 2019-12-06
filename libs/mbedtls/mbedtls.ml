@@ -25,11 +25,9 @@ external mbedtls_entropy_init : unit -> mbedtls_entropy_context = "ml_mbedtls_en
 external mbedtls_ssl_conf_ca_chain : mbedtls_ssl_config -> mbedtls_x509_crt -> mbedtls_x509_crl option -> unit = "ml_mbedtls_ssl_conf_ca_chain"
 external mbedtls_ssl_config_authmode : mbedtls_ssl_config -> int -> unit = "ml_mbedtls_ssl_conf_authmode"
 external mbedtls_ssl_config_defaults : mbedtls_ssl_config -> int -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_config_defaults"
-external mbedtls_ssl_config_free : mbedtls_ssl_config -> unit = "ml_mbedtls_ssl_config_free"
 external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_config_init"
 external mbedtls_ssl_config_rng : mbedtls_ssl_config -> 'a -> unit = "ml_mbedtls_ssl_conf_rng"
 
-external mbedtls_ssl_free : mbedtls_ssl_context -> unit = "ml_mbedtls_ssl_free"
 external mbedtls_ssl_init : unit -> mbedtls_ssl_context = "ml_mbedtls_ssl_init"
 external mbedtls_ssl_handshake : mbedtls_ssl_context -> mbedtls_result = "ml_mbedtls_ssl_handshake"
 external mbedtls_ssl_read : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_read"

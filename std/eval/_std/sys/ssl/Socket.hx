@@ -149,10 +149,6 @@ class Socket extends sys.net.Socket {
 	}
 
 	public override function close():Void {
-		if (ssl != null)
-			ssl.free();
-		if (conf != null)
-			conf.free();
 		super.close();
 		var input:SocketInput = cast input;
 		var output:SocketOutput = cast output;
