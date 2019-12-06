@@ -49,8 +49,8 @@ class Std {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
-	public static function is(v:Dynamic, t:Dynamic):Bool {
-		return inline isOfType(v, t);
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
 	public static function isOfType(v:Dynamic, t:Dynamic):Bool {

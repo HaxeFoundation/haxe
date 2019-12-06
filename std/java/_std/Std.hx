@@ -25,8 +25,8 @@ import java.Lib;
 import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool {
-		return inline isOfType(v, t);
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
 	public static function isOfType(v:Dynamic, t:Dynamic):Bool {

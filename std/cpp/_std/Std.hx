@@ -21,8 +21,8 @@
  */
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
-	@:keep public static function is(v:Dynamic, t:Dynamic):Bool {
-		return inline isOfType(v, t);
+	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
 	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
