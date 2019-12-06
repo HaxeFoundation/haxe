@@ -1325,7 +1325,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
-	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
+	if (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
