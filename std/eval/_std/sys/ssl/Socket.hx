@@ -182,7 +182,7 @@ class Socket extends sys.net.Socket {
 	private function buildConfig(server:Bool):Config {
 		var conf = new Config();
 		conf.defaults(server ? SSL_IS_SERVER : SSL_IS_CLIENT, SSL_TRANSPORT_STREAM, SSL_PRESET_DEFAULT);
-		conf.rng(Mbedtls.ctr);
+		conf.rng(Mbedtls.getDefaultCtrDrbg());
 
 		if (caCert != null) {
 			conf.caChain(caCert);

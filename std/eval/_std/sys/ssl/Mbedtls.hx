@@ -4,11 +4,22 @@ import mbedtls.Entropy;
 import mbedtls.CtrDrbg;
 
 class Mbedtls {
-	static public var entropy = new Entropy();
-	static public var ctr = {
-		var v = new CtrDrbg();
-		v.seed(entropy);
-		v;
+	static var entropy:Null<Entropy>;
+	static var ctr:Null<CtrDrbg>;
+
+	static public function getDefaultEntropy() {
+		if (entropy == null) {
+			entropy = new Entropy();
+		}
+		return entropy;
+	}
+
+	static public function getDefaultCtrDrbg() {
+		if (ctr == null) {
+			ctr = new CtrDrbg();
+			ctr.seed(getDefaultEntropy());
+		}
+		return ctr;
 	}
 
 	static public function loadDefaultCertificates(certificate:mbedtls.Certificate) {
