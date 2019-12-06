@@ -307,6 +307,9 @@ CAMLprim value hx_cert_load_defaults(value certificate) {
 		cert = NULL;
 		while (cert = CertEnumCertificatesInStore(store, cert)) {
 			r = mbedtls_x509_crt_parse_der(chain, (unsigned char *)cert->pbCertEncoded, cert->cbCertEncoded);
+			if (r != 0) {
+				CAMLreturn(Val_int(r));
+			}
 		}
 		CertCloseStore(store, 0);
 	}
