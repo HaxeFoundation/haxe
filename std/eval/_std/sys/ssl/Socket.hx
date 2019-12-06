@@ -187,9 +187,7 @@ class Socket extends sys.net.Socket {
 		if (caCert != null) {
 			conf.caChain(caCert);
 		}
-		if (!verifyCert) {}
-		// conf.setVerify(if (verifyCert) 1 else if (verifyCert == null) 2 else 0);
-
+		conf.authmode(if (verifyCert) SSL_VERIFY_REQUIRED else if (verifyCert == null) SSL_VERIFY_OPTIONAL else SSL_VERIFY_NONE);
 		return conf;
 	}
 }
