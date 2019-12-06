@@ -305,7 +305,7 @@ class TestBasetypes extends Test {
 
 	function testAbstract() {
 		var a = new MyAbstract(33);
-		t( Std.is(a, Int) );
+		t( Std.isOfType(a, Int) );
 		eq( a.toInt(), 33 );
 		var b = a;
 		a.incr();
@@ -317,26 +317,26 @@ class TestBasetypes extends Test {
 		var s = "Abstract casting ::t::";
 		// var from
 		var tpl:unit.MyAbstract.TemplateWrap = s;
-		t(Std.is(tpl, haxe.Template));
-		t(Std.is(tpl.get(), haxe.Template));
+		t(Std.isOfType(tpl, haxe.Template));
+		t(Std.isOfType(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
 
 		//var to
 		var str:String = tpl;
-		t(Std.is(str, String));
+		t(Std.isOfType(str, String));
 		eq(str, "Abstract casting really works!");
 
 		// assign from
 		var tpl:unit.MyAbstract.TemplateWrap;
 		tpl = s;
-		t(Std.is(tpl, haxe.Template));
-		t(Std.is(tpl.get(), haxe.Template));
+		t(Std.isOfType(tpl, haxe.Template));
+		t(Std.isOfType(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
 
 		//assign to
 		var str:String;
 		str = tpl;
-		t(Std.is(str, String));
+		t(Std.isOfType(str, String));
 		eq(str, "Abstract casting really works!");
 
 		// call arg from

@@ -124,7 +124,7 @@ let api_inline ctx c field params p =
 	let tint = ctx.com.basic.tint in
 
 	match c.cl_path, field, params with
-	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true

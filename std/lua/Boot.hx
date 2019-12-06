@@ -70,9 +70,9 @@ class Boot {
 		for the given class.
 	**/
 	static inline public function getClass(o:Dynamic):Class<Dynamic> {
-		if (Std.is(o, Array))
+		if (Std.isOfType(o, Array))
 			return Array;
-		else if (Std.is(o, String))
+		else if (Std.isOfType(o, String))
 			return String;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);

@@ -25,6 +25,10 @@ import jvm.Jvm;
 @:coreApi
 class Std {
 	public static function is(v:Dynamic, t:Dynamic):Bool {
+		return inline isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null || t == null) {
 			return false;
 		}
@@ -98,7 +102,7 @@ class Std {
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Std.is(value, c) ? cast value : null;
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')

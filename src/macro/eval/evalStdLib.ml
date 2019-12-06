@@ -2145,11 +2145,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -3548,6 +3550,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;

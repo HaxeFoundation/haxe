@@ -61,7 +61,7 @@ class Boot {
 	@:pure static function getClass(o:Null<Dynamic>):Null<Dynamic> {
 		if (o == null) {
 			return null;
-		} else if (Std.is(o, Array)) {
+		} else if (Std.isOfType(o, Array)) {
 			return Array;
 		} else {
 			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);

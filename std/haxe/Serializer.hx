@@ -410,7 +410,7 @@ class Serializer {
 						}
 				}
 			case TObject:
-				if (Std.is(v, Class)) {
+				if (Std.isOfType(v, Class)) {
 					var className = Type.getClassName(v);
 					#if (flash || cpp)
 					// Currently, Enum and Class are the same for flash and cpp.
@@ -421,7 +421,7 @@ class Serializer {
 					#end
 					buf.add("A");
 					serializeString(className);
-				} else if (Std.is(v, Enum)) {
+				} else if (Std.isOfType(v, Enum)) {
 					buf.add("B");
 					serializeString(Type.getEnumName(v));
 				} else {

@@ -58,7 +58,7 @@ private class SqliteConnection implements Connection {
 	public function addValue(s:StringBuf, v:Dynamic) {
 		if (v == null) {
 			s.add(v);
-		} else if (Std.is(v, Bool)) {
+		} else if (Std.isOfType(v, Bool)) {
 			s.add(v ? 1 : 0);
 		} else {
 			var t:Int = untyped v.__GetType();

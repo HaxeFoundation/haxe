@@ -50,6 +50,10 @@ class Std {
 	}
 
 	public static function is(v:Dynamic, t:Dynamic):Bool {
+		return inline isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		var t:hl.BaseType = t;
 		if (t == null)
 			return false;

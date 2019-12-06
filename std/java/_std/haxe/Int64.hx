@@ -65,7 +65,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return cast x;
 
 	inline public static function is(val:Dynamic):Bool
-		return Std.is(val, java.lang.Long.LongClass);
+		return Std.isOfType(val, java.lang.Long.LongClass);
 
 	public static inline function toInt(x:Int64):Int {
 		if (x.val < 0x80000000 || x.val > 0x7FFFFFFF)

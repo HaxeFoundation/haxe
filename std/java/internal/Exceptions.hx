@@ -46,7 +46,7 @@ class Exceptions {
 	public function new(obj:Dynamic, msg:String, cause:Throwable) {
 		super(msg, cause);
 
-		if (Std.is(obj, HaxeException)) {
+		if (Std.isOfType(obj, HaxeException)) {
 			var _obj:HaxeException = cast obj;
 			obj = _obj.getObject();
 		}
@@ -77,11 +77,11 @@ class Exceptions {
 
 	public static function wrap(obj:Dynamic):RuntimeException {
 		var ret:RuntimeException = null;
-		if (Std.is(obj, RuntimeException))
+		if (Std.isOfType(obj, RuntimeException))
 			ret = obj;
-		else if (Std.is(obj, String))
+		else if (Std.isOfType(obj, String))
 			ret = new HaxeException(obj, obj, null);
-		else if (Std.is(obj, Throwable))
+		else if (Std.isOfType(obj, Throwable))
 			ret = new HaxeException(obj, Std.string(obj), obj);
 		else
 			ret = new HaxeException(obj, Std.string(obj), null);

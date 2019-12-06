@@ -560,7 +560,7 @@ class TestJs {
 	}
 
 	static inline function as<T>(v:Dynamic, c:Class<T>):Null<T> {
-		return if (Std.is(v, c)) v else null;
+		return if (Std.isOfType(v, c)) v else null;
 	}
 
 }

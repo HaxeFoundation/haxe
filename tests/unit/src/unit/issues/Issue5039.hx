@@ -42,7 +42,7 @@ class Issue5039 extends Test {
 		f(getterCalled);
 		f(setterCalled);
 
-		t(Std.is(@:bypassAccessor c, C));
+		t(Std.isOfType(@:bypassAccessor c, C));
 		eq(42, @:bypassAccessor (@:bypassAccessor c).prop);
 		eq(42, @:bypassAccessor @:bypassAccessor c.prop);
 	}
