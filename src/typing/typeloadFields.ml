@@ -1563,9 +1563,18 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-	let has_struct_init = Meta.has Meta.StructInit c.cl_meta in
+	let has_struct_init, struct_init_pos =
+		try
+			let _,_,p = Meta.get Meta.StructInit c.cl_meta in
+			true, p
+		with Not_found ->
+			false, null_pos
+	in
 	if has_struct_init then
-		ensure_struct_init_constructor ctx c fields p;
+		if c.cl_interface then
+			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
+		else
+			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
 		| Some pf when c.cl_constructor = None ->
 			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
