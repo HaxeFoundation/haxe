@@ -224,6 +224,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	readdir_cache : (string * string,(string array) option) Hashtbl.t;
+	mutable ignore_files : string list;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
@@ -494,6 +495,7 @@ let create version s_version args =
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		readdir_cache = Hashtbl.create 0;
+		ignore_files = [];
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
@@ -660,6 +662,13 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+	try
+		if List.exists (ExtString.String.starts_with f) ctx.ignore_files then begin
+			Hashtbl.add ctx.file_lookup_cache f None;
+			raise Not_found
+		end else
+			raise Exit
+	with Exit ->
 		let remove_extension file =
 			try String.sub file 0 (String.rindex file '.')
 			with Not_found -> file

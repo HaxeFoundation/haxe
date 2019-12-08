@@ -140,6 +140,29 @@ class Compiler {
 		#end
 	}
 
+	/**
+		Ignore any existing files starting with `path`.
+		`path` should be specified relative to the class path directory.
+
+		E.g.
+		```
+		-cp src1
+		-cp src2
+		--macro ignorePath("my/pack")
+		```
+		would ignore all files located in `src1/my/pack`, `src2/my/pack`.
+
+		NOTICE:
+		To cancel the effect of this function the compilation server may need to be restarted.
+
+		Usage of this function outside of initialization macros is not recommended and may cause compilation server issues.
+	**/
+	public static function ignoreFiles(path:String) {
+		#if (neko || eval)
+		load("ignore_files", 1)(path);
+		#end
+	}
+
 	public static function getOutput():String {
 		#if (neko || eval)
 		return load("get_output", 0)();

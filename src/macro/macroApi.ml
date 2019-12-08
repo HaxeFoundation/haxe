@@ -1828,6 +1828,12 @@ let macro_api ccom get_api =
 			Hashtbl.clear com.readdir_cache;
 			vnull
 		);
+		"ignore_files", vfun1 (fun path ->
+			let path = decode_string path in
+			let com = ccom() in
+			com.ignore_files <- path :: com.ignore_files;
+			vnull
+		);
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
