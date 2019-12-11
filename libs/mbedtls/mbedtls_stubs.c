@@ -21,6 +21,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/certs.h"
+#include "mbedtls/oid.h"
 
 #define PVoid_val(v) (*((void**) Data_custom_val(v)))
 
@@ -150,6 +151,79 @@ CAMLprim value ml_mbedtls_x509_crt_parse_file(value chain, value path) {
 CAMLprim value ml_mbedtls_x509_crt_parse_path(value chain, value path) {
 	CAMLparam2(chain, path);
 	CAMLreturn(Val_int(mbedtls_x509_crt_parse_path(X509Crt_val(chain), String_val(path))));
+}
+
+// Certificate Haxe API
+
+value caml_string_of_asn1_buf(mbedtls_asn1_buf* dat) {
+	CAMLparam0();
+	CAMLlocal1(s);
+	s = caml_alloc_string(dat->len);
+	memcpy(String_val(s), dat->p, dat->len);
+	CAMLreturn(s);
+}
+
+CAMLprim value hx_cert_get_subject(value chain, value objname) {
+	CAMLparam2(chain, objname);
+	mbedtls_x509_name *obj;
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	int r;
+	const char *oname, *rname;
+	obj = &cert->subject;
+	rname = String_val(objname);
+	while (obj != NULL) {
+		r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
+		if (r == 0 && strcmp(oname, rname) == 0) {
+			CAMLreturn(caml_string_of_asn1_buf(&obj->val));
+		}
+		obj = obj->next;
+	}
+	CAMLreturn(Val_unit);
+}
+
+CAMLprim value hx_cert_get_issuer(value chain, value objname) {
+	CAMLparam2(chain, objname);
+	mbedtls_x509_name *obj;
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	int r;
+	const char *oname, *rname;
+	obj = &cert->issuer;
+	rname = String_val(objname);
+	while (obj != NULL) {
+		r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
+		if (r == 0 && strcmp(oname, rname) == 0) {
+			CAMLreturn(caml_string_of_asn1_buf(&obj->val));
+		}
+		obj = obj->next;
+	}
+	CAMLreturn(Val_unit);
+}
+
+time_t time_to_time_t(mbedtls_x509_time* t) {
+	struct tm info;
+	info.tm_year = t->year - 1900;
+	info.tm_mon = t->mon - 1;
+	info.tm_mday = t->day;
+	info.tm_hour = t->hour;
+	info.tm_min = t->min;
+	info.tm_sec = t->sec;
+	return mktime(&info);
+}
+
+CAMLprim value hx_cert_get_notafter(value chain) {
+	CAMLparam1(chain);
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	mbedtls_x509_time *t = &cert->valid_to;
+	time_t time = time_to_time_t(t);
+	CAMLreturn(caml_copy_double((double)time));
+}
+
+CAMLprim value hx_cert_get_notbefore(value chain) {
+	CAMLparam1(chain);
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	mbedtls_x509_time *t = &cert->valid_from;
+	time_t time = time_to_time_t(t);
+	CAMLreturn(caml_copy_double((double)time));
 }
 
 // Config

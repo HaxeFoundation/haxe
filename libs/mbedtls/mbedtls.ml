@@ -44,6 +44,11 @@ external mbedtls_x509_crt_init : unit -> mbedtls_x509_crt = "ml_mbedtls_x509_crt
 external mbedtls_x509_crt_parse_file : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_file"
 external mbedtls_x509_crt_parse_path : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_path"
 
+external hx_cert_get_issuer : mbedtls_x509_crt -> string -> string = "hx_cert_get_issuer"
+external hx_cert_get_notafter : mbedtls_x509_crt -> float = "hx_cert_get_notafter"
+external hx_cert_get_notbefore : mbedtls_x509_crt -> float = "hx_cert_get_notbefore"
+external hx_cert_get_subject : mbedtls_x509_crt -> string -> string = "hx_cert_get_subject"
+
 (* glue *)
 
 external hx_cert_load_defaults : mbedtls_x509_crt -> int = "hx_cert_load_defaults"

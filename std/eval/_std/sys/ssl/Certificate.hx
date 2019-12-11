@@ -71,7 +71,9 @@ class Certificate {
 
 	extern public function addDER(der:haxe.io.Bytes):Void;
 
-	extern private function get_commonName():Null<String>;
+	private function get_commonName():Null<String> {
+		return subject("CN");
+	}
 
 	extern private function get_altNames():Array<String>;
 

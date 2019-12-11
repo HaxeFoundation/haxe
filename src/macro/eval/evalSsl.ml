@@ -63,6 +63,29 @@ let init_fields init_fields builtins =
 	let socket_receive socket bytes =
 		Unix.recv socket bytes 0 (Bytes.length bytes) []
 	in
+	let native_cert this =
+		as_x509_crt (EvalField.field this (hash "native"))
+	in
+	init_fields builtins (["sys";"ssl"],"Certificate") [] [
+		"get_notAfter",vifun0 (fun this ->
+			let x509_crt = native_cert this  in
+			let f = hx_cert_get_notafter x509_crt in
+			encode_instance key_Date ~kind:(IDate f)
+		);
+		"get_notBefore",vifun0 (fun this ->
+			let x509_crt = native_cert this in
+			let f = hx_cert_get_notbefore x509_crt in
+			encode_instance key_Date ~kind:(IDate f)
+		);
+		"issuer",vifun1 (fun this field ->
+			let x509_crt = native_cert this in
+			encode_string (hx_cert_get_issuer x509_crt (decode_string field));
+		);
+		"subject",vifun1 (fun this field ->
+			let x509_crt = native_cert this in
+			encode_string (hx_cert_get_subject x509_crt (decode_string field));
+		);
+	];
 	init_fields builtins (["sys";"ssl"],"Mbedtls") [
 		"loadDefaults",vfun1 (fun this ->
 			vint (hx_cert_load_defaults (as_x509_crt this));
