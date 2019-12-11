@@ -45,7 +45,9 @@ class Certificate {
 		return new Certificate(cert);
 	}
 
-	extern public static function fromString(str:String):Certificate;
+	public static function fromString(str:String):Certificate {
+		throw "Not implemented";
+	}
 
 	public static function loadDefaults():Certificate {
 		var cert = new X509Crt();
@@ -73,15 +75,21 @@ class Certificate {
 		return new Certificate(cert);
 	}
 
-	extern public function add(pem:String):Void;
+	public function add(pem:String):Void {
+		throw "Not implemented";
+	}
 
-	extern public function addDER(der:haxe.io.Bytes):Void;
+	public function addDER(der:haxe.io.Bytes):Void {
+		throw "Not implemented";
+	}
 
 	private function get_commonName():Null<String> {
 		return subject("CN");
 	}
 
-	extern private function get_altNames():Array<String>;
+	private function get_altNames():Array<String> {
+		throw "Not implemented";
+	}
 
 	extern private function get_notBefore():Date;
 
