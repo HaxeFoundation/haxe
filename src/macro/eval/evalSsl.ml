@@ -5,9 +5,9 @@ open EvalDecode
 open EvalExceptions
 open Mbedtls
 
-let as_cert vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsCertificate i} -> i
-	| _ -> unexpected_value vthis "Certificate"
+let as_x509_crt vthis = match vthis with
+	| VInstance {ikind = IEmbedtlsX509Crt i} -> i
+	| _ -> unexpected_value vthis "X509Crt"
 
 let as_config vthis = match vthis with
 	| VInstance {ikind = IEmbedtlsConfig i} -> i
@@ -30,11 +30,6 @@ let as_ssl vthis = match vthis with
 	| _ -> unexpected_value vthis "Ssl"
 
 let init_constructors add =
-	add key_mbedtls_Certificate
-		(fun _ ->
-			let cert = mbedtls_x509_crt_init() in
-			encode_instance key_mbedtls_Certificate ~kind:(IEmbedtlsCertificate cert)
-		);
 	add key_mbedtls_Config
 		(fun _ ->
 			let cfg = mbedtls_ssl_config_init() in
@@ -54,6 +49,11 @@ let init_constructors add =
 		(fun _ ->
 			let ssl = mbedtls_ssl_init() in
 			encode_instance key_mbedtls_Ssl ~kind:(IEmbedtlsSsl ssl)
+		);
+	add key_mbedtls_X509Crt
+		(fun _ ->
+			let cert = mbedtls_x509_crt_init() in
+			encode_instance key_mbedtls_X509Crt ~kind:(IEmbedtlsX509Crt cert)
 		)
 
 let init_fields init_fields builtins =
@@ -65,7 +65,7 @@ let init_fields init_fields builtins =
 	in
 	init_fields builtins (["sys";"ssl"],"Mbedtls") [
 		"loadDefaults",vfun1 (fun this ->
-			vint (hx_cert_load_defaults (as_cert this));
+			vint (hx_cert_load_defaults (as_x509_crt this));
 		);
 		"setSocket",vfun2 (fun this socket ->
 			let ctx = as_ssl this in
@@ -74,12 +74,12 @@ let init_fields init_fields builtins =
 			vnull
 		);
 	] [];
-	init_fields builtins (["mbedtls"],"Certificate") [] [
+	init_fields builtins (["mbedtls"],"X509Crt") [] [
 		"parse_file",vifun1 (fun this path ->
-			vint (mbedtls_x509_crt_parse_file (as_cert this) (decode_string path));
+			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (decode_string path));
 		);
 		"parse_path",vifun1 (fun this path ->
-			vint (mbedtls_x509_crt_parse_path (as_cert this) (decode_string path));
+			vint (mbedtls_x509_crt_parse_path (as_x509_crt this) (decode_string path));
 		);
 	];
 	init_fields builtins (["mbedtls"],"Config") [] [
@@ -88,7 +88,7 @@ let init_fields init_fields builtins =
 			vnull;
 		);
 		"ca_chain",vifun1 (fun this ca_chain ->
-			mbedtls_ssl_conf_ca_chain (as_config this) (as_cert ca_chain);
+			mbedtls_ssl_conf_ca_chain (as_config this) (as_x509_crt ca_chain);
 			vnull;
 		);
 		"defaults",vifun3 (fun this endpoint transport preset ->

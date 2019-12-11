@@ -4,6 +4,7 @@ import eval.vm.NativeSocket;
 import mbedtls.Ssl;
 import mbedtls.Entropy;
 import mbedtls.CtrDrbg;
+import mbedtls.X509Crt;
 
 class Mbedtls {
 	static var entropy:Null<Entropy>;
@@ -24,7 +25,7 @@ class Mbedtls {
 		return ctr;
 	}
 
-	static public function loadDefaultCertificates(certificate:mbedtls.Certificate) {
+	static public function loadDefaultCertificates(certificate:X509Crt) {
 		if (loadDefaults(certificate) == 0) {
 			return;
 		}
@@ -61,5 +62,5 @@ class Mbedtls {
 
 	extern static public function setSocket(ssl:Ssl, socket:NativeSocket):Int;
 
-	extern static function loadDefaults(certificate:mbedtls.Certificate):Int;
+	extern static function loadDefaults(certificate:X509Crt):Int;
 }

@@ -169,11 +169,11 @@ and vinstance_kind =
 	(* | ISslConfig of Mbedtls.mbedtls_ssl_config *)
 	(* | ISslContext of Mbedtls.mbedtls_ssl_context *)
 
-	| IEmbedtlsCertificate of Mbedtls.mbedtls_x509_crt
 	| IEmbedtlsConfig of Mbedtls.mbedtls_ssl_config
 	| IEmbedtlsCtrDrbg of Mbedtls.mbedtls_ctr_drbg_context
 	| IEmbedtlsEntropy of Mbedtls.mbedtls_entropy_context
 	| IEmbedtlsSsl of Mbedtls.mbedtls_ssl_context
+	| IEmbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
 
 and vinstance = {

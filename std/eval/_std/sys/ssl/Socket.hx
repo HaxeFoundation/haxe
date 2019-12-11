@@ -1,8 +1,9 @@
 package sys.ssl;
 
 import haxe.io.Bytes;
-import mbedtls.*;
 import eval.vm.NativeSocket;
+import mbedtls.Config;
+import mbedtls.Ssl;
 
 private class SocketInput extends haxe.io.Input {
 	@:allow(sys.ssl.Socket) private var socket:Socket;
@@ -80,6 +81,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 }
 
+@:coreApi
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;
 
@@ -96,13 +98,12 @@ class Socket extends sys.net.Socket {
 	private var handshakeDone:Bool;
 	private var isBlocking:Bool = true;
 
-	override function init(socket:NativeSocket) {
+	override function init(socket:NativeSocket):Void {
 		this.socket = socket;
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
 		if (DEFAULT_VERIFY_CERT && DEFAULT_CA == null) {
-			DEFAULT_CA = new Certificate();
-			Mbedtls.loadDefaultCertificates(DEFAULT_CA);
+			DEFAULT_CA = Certificate.loadDefaults();
 		}
 		verifyCert = DEFAULT_VERIFY_CERT;
 		caCert = DEFAULT_CA;
@@ -179,13 +180,25 @@ class Socket extends sys.net.Socket {
 		return s;
 	}
 
+	public function addSNICertificate(cbServernameMatch:String->Bool, cert:Certificate, key:Key):Void {
+		throw "Not implemented";
+	}
+
+	public function peerCertificate():Certificate {
+		throw "Not implemented";
+	}
+
+	public function setCertificate(cert:Certificate, key:Key):Void {
+		throw "Not implemented";
+	}
+
 	private function buildConfig(server:Bool):Config {
 		var conf = new Config();
 		conf.defaults(server ? SSL_IS_SERVER : SSL_IS_CLIENT, SSL_TRANSPORT_STREAM, SSL_PRESET_DEFAULT);
 		conf.rng(Mbedtls.getDefaultCtrDrbg());
 
 		if (caCert != null) {
-			conf.ca_chain(caCert);
+			conf.ca_chain(@:privateAccess caCert.getNative());
 		}
 		conf.authmode(if (verifyCert) SSL_VERIFY_REQUIRED else if (verifyCert == null) SSL_VERIFY_OPTIONAL else SSL_VERIFY_NONE);
 		return conf;
