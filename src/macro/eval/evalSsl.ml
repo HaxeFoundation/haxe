@@ -79,11 +79,15 @@ let init_fields init_fields builtins =
 		);
 		"issuer",vifun1 (fun this field ->
 			let x509_crt = native_cert this in
-			encode_string (hx_cert_get_issuer x509_crt (decode_string field));
+			match hx_cert_get_issuer x509_crt (decode_string field) with
+			| Some s -> encode_string s
+			| None -> vnull
 		);
 		"subject",vifun1 (fun this field ->
 			let x509_crt = native_cert this in
-			encode_string (hx_cert_get_subject x509_crt (decode_string field));
+			match hx_cert_get_subject x509_crt (decode_string field) with
+			| Some s -> encode_string s
+			| None -> vnull
 		);
 	];
 	init_fields builtins (["sys";"ssl"],"Mbedtls") [
@@ -98,6 +102,11 @@ let init_fields init_fields builtins =
 		);
 	] [];
 	init_fields builtins (["mbedtls"],"X509Crt") [] [
+		"next",vifun0 (fun this ->
+			match mbedtls_x509_next (as_x509_crt this) with
+			| None -> vnull
+			| Some cert -> encode_instance key_mbedtls_X509Crt ~kind:(IEmbedtlsX509Crt cert)
+		);
 		"parse_file",vifun1 (fun this path ->
 			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (decode_string path));
 		);

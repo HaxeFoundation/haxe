@@ -29,6 +29,16 @@ void debug(void* ctx, int debug_level, const char* file_name, int line, const ch
 	printf("%s:%i: %s", file_name, line, message);
 }
 
+#define Val_none Val_int(0)
+
+static value Val_some(value v) {
+    CAMLparam1(v);
+    CAMLlocal1(some);
+    some = caml_alloc(1, 0);
+    Store_field(some, 0, v);
+    CAMLreturn(some);
+}
+
 CAMLprim value ml_mbedtls_strerror(value code) {
 	CAMLparam1(code);
 	CAMLlocal1(r);
@@ -143,6 +153,18 @@ CAMLprim value ml_mbedtls_x509_crt_init(void) {
 	CAMLreturn(obj);
 }
 
+CAMLprim value ml_mbedtls_x509_next(value chain) {
+	CAMLparam1(chain);
+	CAMLlocal2(r, obj);
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	if (cert->next == NULL) {
+		CAMLreturn(Val_none);
+	}
+	obj = caml_alloc_custom(&x509_crt_ops, sizeof(mbedtls_x509_crt*), 0, 1);
+	X509Crt_val(obj) = cert->next;
+	CAMLreturn(Val_some(obj));
+}
+
 CAMLprim value ml_mbedtls_x509_crt_parse_file(value chain, value path) {
 	CAMLparam2(chain, path);
 	CAMLreturn(Val_int(mbedtls_x509_crt_parse_file(X509Crt_val(chain), String_val(path))));
@@ -174,11 +196,11 @@ CAMLprim value hx_cert_get_subject(value chain, value objname) {
 	while (obj != NULL) {
 		r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
 		if (r == 0 && strcmp(oname, rname) == 0) {
-			CAMLreturn(caml_string_of_asn1_buf(&obj->val));
+			CAMLreturn(Val_some(caml_string_of_asn1_buf(&obj->val)));
 		}
 		obj = obj->next;
 	}
-	CAMLreturn(Val_unit);
+	CAMLreturn(Val_none);
 }
 
 CAMLprim value hx_cert_get_issuer(value chain, value objname) {
@@ -192,11 +214,11 @@ CAMLprim value hx_cert_get_issuer(value chain, value objname) {
 	while (obj != NULL) {
 		r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
 		if (r == 0 && strcmp(oname, rname) == 0) {
-			CAMLreturn(caml_string_of_asn1_buf(&obj->val));
+			CAMLreturn(Val_some(caml_string_of_asn1_buf(&obj->val)));
 		}
 		obj = obj->next;
 	}
-	CAMLreturn(Val_unit);
+	CAMLreturn(Val_none);
 }
 
 time_t time_to_time_t(mbedtls_x509_time* t) {

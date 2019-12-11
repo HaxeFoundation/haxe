@@ -41,13 +41,14 @@ external mbedtls_ssl_setup : mbedtls_ssl_context -> mbedtls_ssl_config -> mbedtl
 external mbedtls_ssl_write : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_write"
 
 external mbedtls_x509_crt_init : unit -> mbedtls_x509_crt = "ml_mbedtls_x509_crt_init"
+external mbedtls_x509_next : mbedtls_x509_crt -> mbedtls_x509_crt option = "ml_mbedtls_x509_next"
 external mbedtls_x509_crt_parse_file : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_file"
 external mbedtls_x509_crt_parse_path : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_path"
 
-external hx_cert_get_issuer : mbedtls_x509_crt -> string -> string = "hx_cert_get_issuer"
+external hx_cert_get_issuer : mbedtls_x509_crt -> string -> string option = "hx_cert_get_issuer"
 external hx_cert_get_notafter : mbedtls_x509_crt -> float = "hx_cert_get_notafter"
 external hx_cert_get_notbefore : mbedtls_x509_crt -> float = "hx_cert_get_notbefore"
-external hx_cert_get_subject : mbedtls_x509_crt -> string -> string = "hx_cert_get_subject"
+external hx_cert_get_subject : mbedtls_x509_crt -> string -> string option = "hx_cert_get_subject"
 
 (* glue *)
 

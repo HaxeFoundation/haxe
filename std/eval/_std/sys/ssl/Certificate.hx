@@ -65,7 +65,13 @@ class Certificate {
 
 	extern public function issuer(field:String):Null<String>;
 
-	extern public function next():Null<Certificate>;
+	public function next():Null<Certificate> {
+		var cert = native.next();
+		if (cert == null) {
+			return null;
+		}
+		return new Certificate(cert);
+	}
 
 	extern public function add(pem:String):Void;
 
