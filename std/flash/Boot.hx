@@ -232,7 +232,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function mapDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["mapHX"](f);
 		} else {
 			return untyped d["map"](f);
@@ -240,7 +240,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function filterDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["filterHX"](f);
 		} else {
 			return untyped d["filter"](f);

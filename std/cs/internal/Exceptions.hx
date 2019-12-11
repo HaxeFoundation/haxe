@@ -39,7 +39,7 @@ import cs.system.Exception;
 	public function new(obj:Dynamic) {
 		super();
 
-		if (Std.is(obj, HaxeException)) {
+		if (Std.isOfType(obj, HaxeException)) {
 			var _obj:HaxeException = cast obj;
 			obj = _obj.getObject();
 		}
@@ -55,7 +55,7 @@ import cs.system.Exception;
 	}
 
 	public static function wrap(obj:Dynamic):Exception {
-		if (Std.is(obj, Exception))
+		if (Std.isOfType(obj, Exception))
 			return obj;
 
 		return new HaxeException(obj);

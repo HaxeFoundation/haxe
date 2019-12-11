@@ -15,6 +15,23 @@ var unknown = null;
 ([] is Array) == true;
 (cast unit.MyEnum.A is Array) == false;
 
+// isOfType
+var known:String = null;
+Std.isOfType(known, String) == false;
+
+var unknown = null;
+Std.isOfType(unknown, String) == false;
+Std.isOfType(null, String) == false;
+//Std.isOfType("foo", null) == false;
+
+Std.isOfType("", String) == true;
+Std.isOfType(false, Bool) == true;
+Std.isOfType(1, Int) == true;
+Std.isOfType(1.5, Int) == false;
+Std.isOfType(1.5, Float) == true;
+Std.isOfType([], Array) == true;
+Std.isOfType(cast unit.MyEnum.A, Array) == false;
+
 // instance
 #if !js
 Std.downcast("", String) == "";
