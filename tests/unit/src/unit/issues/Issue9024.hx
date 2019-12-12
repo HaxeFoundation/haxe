@@ -1,6 +1,6 @@
 package unit.issues;
 
-class Issue9027 extends unit.Test {
+class Issue9024 extends unit.Test {
 #if js
 	static var a:String = "a";
 	static var b:String = "b";
