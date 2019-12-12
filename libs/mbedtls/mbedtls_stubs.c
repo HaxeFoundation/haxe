@@ -192,6 +192,31 @@ value caml_string_of_asn1_buf(mbedtls_asn1_buf* dat) {
 	CAMLreturn(s);
 }
 
+CAMLprim value hx_cert_get_alt_names(value chain) {
+	CAMLparam1(chain);
+	CAMLlocal1(obj);
+	mbedtls_x509_crt* cert = X509Crt_val(chain);
+	if (cert->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME == 0 || &cert->subject_alt_names == NULL) {
+		obj = Atom(0);
+	} else {
+		mbedtls_asn1_sequence* cur = &cert->subject_alt_names;
+		int i = 0;
+		while (cur != NULL) {
+			++i;
+			cur = cur->next;
+		}
+		obj = caml_alloc(i, 0);
+		cur = &cert->subject_alt_names;
+		i = 0;
+		while (cur != NULL) {
+			Store_field(obj, i, caml_string_of_asn1_buf(&cur->buf));
+			++i;
+			cur = cur->next;
+		}
+	}
+	CAMLreturn(obj);
+}
+
 CAMLprim value hx_cert_get_subject(value chain, value objname) {
 	CAMLparam2(chain, objname);
 	mbedtls_x509_name *obj;

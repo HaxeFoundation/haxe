@@ -67,6 +67,11 @@ let init_fields init_fields builtins =
 		as_x509_crt (EvalField.field this (hash "native"))
 	in
 	init_fields builtins (["sys";"ssl"],"Certificate") [] [
+		"get_altNames",vifun0 (fun this ->
+			let x509_crt = native_cert this  in
+			let a = hx_cert_get_alt_names x509_crt in
+			VArray (EvalArray.create (Array.map encode_string a))
+		);
 		"get_notAfter",vifun0 (fun this ->
 			let x509_crt = native_cert this  in
 			let f = hx_cert_get_notafter x509_crt in

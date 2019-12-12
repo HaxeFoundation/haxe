@@ -47,6 +47,7 @@ external mbedtls_x509_crt_parse : mbedtls_x509_crt -> bytes -> mbedtls_result = 
 external mbedtls_x509_crt_parse_file : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_file"
 external mbedtls_x509_crt_parse_path : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_path"
 
+external hx_cert_get_alt_names : mbedtls_x509_crt -> string array = "hx_cert_get_alt_names"
 external hx_cert_get_issuer : mbedtls_x509_crt -> string -> string option = "hx_cert_get_issuer"
 external hx_cert_get_notafter : mbedtls_x509_crt -> float = "hx_cert_get_notafter"
 external hx_cert_get_notbefore : mbedtls_x509_crt -> float = "hx_cert_get_notbefore"

@@ -90,9 +90,7 @@ class Certificate {
 		return subject("CN");
 	}
 
-	private function get_altNames():Array<String> {
-		throw "Not implemented";
-	}
+	extern private function get_altNames():Array<String>;
 
 	extern private function get_notBefore():Date;
 
