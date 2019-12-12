@@ -185,7 +185,7 @@ class Type {
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		if (params == null || params.length == 0) {
 			var v:Dynamic = Jvm.readField(e, constr);
-			if (!Std.is(v, e)) {
+			if (!Std.isOfType(v, e)) {
 				throw 'Could not create enum value ${getEnumName(e)}.$constr: Unexpected value $v';
 			}
 			return v;

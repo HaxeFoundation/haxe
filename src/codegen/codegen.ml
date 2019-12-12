@@ -464,7 +464,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
 	let fis = (try
 			let c = (match std with TClassDecl c -> c | _ -> assert false) in
-			FStatic (c, PMap.find "is" c.cl_statics)
+			FStatic (c, PMap.find "isOfType" c.cl_statics)
 		with Not_found ->
 			assert false
 	) in

@@ -5,7 +5,7 @@ class Issue8549 extends unit.Test {
 	function test() {
 		// can be used as a Vector type param, for type checking :-/
 		var v = new flash.Vector<String>();
-		t(Std.is(v, (flash.Vector.typeReference() : Class<flash.Vector<flash.AnyType>>)));
+		t(Std.isOfType(v, (flash.Vector.typeReference() : Class<flash.Vector<flash.AnyType>>)));
 
 		// also assignable from/to stuff, similar to Any, just in case...
 		var v:flash.AnyType = 10;
