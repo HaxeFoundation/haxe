@@ -159,6 +159,15 @@ enum ValueType {
 							valid = false;
 							break;
 					}
+				} else if (Std.isOfType(arg, Bool)) {
+					var name = expectedType.getName();
+					switch (name) {
+						case 'boolean' | 'java.lang.Booelan':
+							callArguments[argNum] = (cast arg : java.lang.Boolean).booleanValue();
+						case _:
+							valid = false;
+							break;
+					}
 				} else {
 					valid = false;
 					break;
