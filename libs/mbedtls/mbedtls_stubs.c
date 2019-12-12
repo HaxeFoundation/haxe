@@ -332,6 +332,66 @@ CAMLprim value ml_mbedtls_ssl_conf_rng(value conf, value p_rng) {
 	CAMLreturn(Val_unit);
 }
 
+// Pk
+
+#define PkContext_val(v) (*((mbedtls_pk_context**) Data_custom_val(v)))
+
+static void ml_mbedtls_pk_context_finalize(value v) {
+	mbedtls_pk_context* pk_context = PkContext_val(v);
+	if (pk_context != NULL) {
+		mbedtls_pk_free(pk_context);
+	}
+}
+
+static struct custom_operations pk_context_ops = {
+	.identifier  = "ml_pk_context",
+	.finalize    = ml_mbedtls_pk_context_finalize,
+	.compare     = custom_compare_default,
+	.hash        = custom_hash_default,
+	.serialize   = custom_serialize_default,
+	.deserialize = custom_deserialize_default,
+};
+
+CAMLprim value ml_mbedtls_pk_init(void) {
+	CAMLparam0();
+	CAMLlocal1(obj);
+	obj = caml_alloc_custom(&pk_context_ops, sizeof(mbedtls_pk_context*), 0, 1);
+	mbedtls_pk_context* pk_context = malloc(sizeof(mbedtls_pk_context));
+	mbedtls_pk_init(pk_context);
+	PkContext_val(obj) = pk_context;
+	CAMLreturn(obj);
+}
+
+CAMLprim value ml_mbedtls_pk_parse_key(value ctx, value key, value password) {
+	CAMLparam3(ctx, key, password);
+	const char* pwd = NULL;
+	size_t pwdlen = 0;
+	if (password != Val_none) {
+		pwd = String_val(Field(password, 0));
+		pwdlen = caml_string_length(Field(password, 0));
+	}
+	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), String_val(key), caml_string_length(key) + 1, pwd, pwdlen));
+}
+
+CAMLprim value ml_mbedtls_pk_parse_keyfile(value ctx, value path, value password) {
+	CAMLparam3(ctx, path, password);
+	const char* pwd = NULL;
+	if (password != Val_none) {
+		pwd = String_val(Field(password, 0));
+	}
+	CAMLreturn(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd));
+}
+
+CAMLprim value ml_mbedtls_pk_parse_public_key(value ctx, value key) {
+	CAMLparam2(ctx, key);
+	CAMLreturn(mbedtls_pk_parse_public_key(PkContext_val(ctx), String_val(key), caml_string_length(key) + 1));
+}
+
+CAMLprim value ml_mbedtls_pk_parse_public_keyfile(value ctx, value path) {
+	CAMLparam2(ctx, path);
+	CAMLreturn(mbedtls_pk_parse_public_keyfile(PkContext_val(ctx), String_val(path)));
+}
+
 // Ssl
 
 #define SslContext_val(v) (*((mbedtls_ssl_context**) Data_custom_val(v)))

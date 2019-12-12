@@ -3,6 +3,7 @@ type mbedtls_entropy_context
 type mbedtls_ssl_config
 type mbedtls_ssl_context
 type mbedtls_x509_crt
+type mbedtls_pk_context
 
 type mbedtls_result = int
 
@@ -40,6 +41,12 @@ external mbedtls_ssl_set_bio :
 external mbedtls_ssl_set_hostname : mbedtls_ssl_context -> string -> mbedtls_result = "ml_mbedtls_ssl_set_hostname"
 external mbedtls_ssl_setup : mbedtls_ssl_context -> mbedtls_ssl_config -> mbedtls_result = "ml_mbedtls_ssl_setup"
 external mbedtls_ssl_write : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_write"
+
+external mbedtls_pk_init : unit -> mbedtls_pk_context = "ml_mbedtls_pk_init"
+external mbedtls_pk_parse_key : mbedtls_pk_context -> bytes -> string option -> mbedtls_result = "ml_mbedtls_pk_parse_key"
+external mbedtls_pk_parse_keyfile : mbedtls_pk_context -> string -> string option -> mbedtls_result = "ml_mbedtls_pk_parse_keyfile"
+external mbedtls_pk_parse_public_keyfile : mbedtls_pk_context -> string -> mbedtls_result = "ml_mbedtls_pk_parse_public_keyfile"
+external mbedtls_pk_parse_public_key : mbedtls_pk_context -> bytes -> mbedtls_result = "ml_mbedtls_pk_parse_public_key"
 
 external mbedtls_x509_crt_init : unit -> mbedtls_x509_crt = "ml_mbedtls_x509_crt_init"
 external mbedtls_x509_next : mbedtls_x509_crt -> mbedtls_x509_crt option = "ml_mbedtls_x509_next"

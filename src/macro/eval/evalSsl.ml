@@ -25,6 +25,10 @@ let as_entropy vthis = match vthis with
 	| VInstance {ikind = IMbedtlsEntropy i} -> i
 	| _ -> unexpected_value vthis "Entropy"
 
+let as_pk_context vthis = match vthis with
+	| VInstance {ikind = IMbedtlsPkContext i} -> i
+	| _ -> unexpected_value vthis "PkContext"
+
 let as_ssl vthis = match vthis with
 	| VInstance {ikind = IMbedtlsSsl ctx} -> ctx
 	| _ -> unexpected_value vthis "Ssl"
@@ -44,6 +48,11 @@ let init_constructors add =
 		(fun _ ->
 			let entropy = mbedtls_entropy_init() in
 			encode_instance key_mbedtls_Entropy ~kind:(IMbedtlsEntropy entropy)
+		);
+	add key_mbedtls_PkContext
+		(fun _ ->
+			let pk = mbedtls_pk_init() in
+			encode_instance key_mbedtls_PkContext ~kind:(IMbedtlsPkContext pk)
 		);
 	add key_mbedtls_Ssl
 		(fun _ ->
@@ -150,6 +159,20 @@ let init_fields init_fields builtins =
 	init_fields builtins (["mbedtls"],"Error") [
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
 	] [];
+	init_fields builtins (["mbedtls"],"PkContext") [] [
+		"parse_key",vifun2 (fun this key password ->
+			vint (mbedtls_pk_parse_key (as_pk_context this) (decode_bytes key) (match password with VNull -> None | _ -> Some (decode_string password)));
+		);
+		"parse_keyfile",vifun2 (fun this path password ->
+			vint (mbedtls_pk_parse_keyfile (as_pk_context this) (decode_string path) (match password with VNull -> None | _ -> Some (decode_string password)));
+		);
+		"parse_public_key",vifun1 (fun this key ->
+			vint (mbedtls_pk_parse_public_key (as_pk_context this) (decode_bytes key));
+		);
+		"parse_public_keyfile",vifun1 (fun this path ->
+			vint (mbedtls_pk_parse_public_keyfile (as_pk_context this) (decode_string path));
+		);
+	];
 	init_fields builtins (["mbedtls"],"Ssl") [] [
 		"get_peer_cert",vifun0 (fun this ->
 			match mbedtls_ssl_get_peer_cert (as_ssl this) with
