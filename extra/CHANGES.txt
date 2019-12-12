@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	java : fix boolean arguments for `Type.createInstance(cls, args)` (#9025)
+	js : fix multiple appearances of the first object added to `ObjectMap` is passed to `ObjectMap.set(obj, v)` multiple times (#9026)
 	windows : fix adding neko to PATH env var running windows installer (#9021)
 
 2019-11-29: 4.0.3
