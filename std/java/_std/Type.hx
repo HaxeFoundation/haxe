@@ -142,6 +142,8 @@ enum ValueType {
 
 				if (arg == null || isDynamic || (argType != null && expectedType.isAssignableFrom(java.Lib.toNativeType(argType)))) {
 					callArguments[argNum] = arg;
+				} else if(expectedType.getName() == 'boolean' && (cast argType:java.lang.Class<Dynamic>).getName() == 'java.lang.Boolean') {
+					callArguments[argNum] = (cast arg : java.lang.Boolean).booleanValue();
 				} else if (Std.is(arg, java.lang.Number)) {
 					var name = expectedType.getName();
 					switch (name) {
