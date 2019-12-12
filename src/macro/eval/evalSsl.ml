@@ -6,11 +6,11 @@ open EvalExceptions
 open Mbedtls
 
 let as_x509_crt vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsX509Crt i} -> i
+	| VInstance {ikind = IMbedtlsX509Crt i} -> i
 	| _ -> unexpected_value vthis "X509Crt"
 
 let as_config vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsConfig i} -> i
+	| VInstance {ikind = IMbedtlsConfig i} -> i
 	| _ -> unexpected_value vthis "Config"
 
 let as_socket vthis = match vthis with
@@ -18,42 +18,42 @@ let as_socket vthis = match vthis with
 	| _ -> unexpected_value vthis "NativeSocket"
 
 let as_ctr_drbg vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsCtrDrbg i} -> i
+	| VInstance {ikind = IMbedtlsCtrDrbg i} -> i
 	| _ -> unexpected_value vthis "CtrDrbg"
 
 let as_entropy vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsEntropy i} -> i
+	| VInstance {ikind = IMbedtlsEntropy i} -> i
 	| _ -> unexpected_value vthis "Entropy"
 
 let as_ssl vthis = match vthis with
-	| VInstance {ikind = IEmbedtlsSsl ctx} -> ctx
+	| VInstance {ikind = IMbedtlsSsl ctx} -> ctx
 	| _ -> unexpected_value vthis "Ssl"
 
 let init_constructors add =
 	add key_mbedtls_Config
 		(fun _ ->
 			let cfg = mbedtls_ssl_config_init() in
-			encode_instance key_mbedtls_Config ~kind:(IEmbedtlsConfig cfg)
+			encode_instance key_mbedtls_Config ~kind:(IMbedtlsConfig cfg)
 		);
 	add key_mbedtls_CtrDrbg
 		(fun _ ->
 			let ctr = mbedtls_ctr_drbg_init() in
-			encode_instance key_mbedtls_CtrDrbg ~kind:(IEmbedtlsCtrDrbg ctr)
+			encode_instance key_mbedtls_CtrDrbg ~kind:(IMbedtlsCtrDrbg ctr)
 		);
 	add key_mbedtls_Entropy
 		(fun _ ->
 			let entropy = mbedtls_entropy_init() in
-			encode_instance key_mbedtls_Entropy ~kind:(IEmbedtlsEntropy entropy)
+			encode_instance key_mbedtls_Entropy ~kind:(IMbedtlsEntropy entropy)
 		);
 	add key_mbedtls_Ssl
 		(fun _ ->
 			let ssl = mbedtls_ssl_init() in
-			encode_instance key_mbedtls_Ssl ~kind:(IEmbedtlsSsl ssl)
+			encode_instance key_mbedtls_Ssl ~kind:(IMbedtlsSsl ssl)
 		);
 	add key_mbedtls_X509Crt
 		(fun _ ->
 			let cert = mbedtls_x509_crt_init() in
-			encode_instance key_mbedtls_X509Crt ~kind:(IEmbedtlsX509Crt cert)
+			encode_instance key_mbedtls_X509Crt ~kind:(IMbedtlsX509Crt cert)
 		)
 
 let init_fields init_fields builtins =
@@ -105,7 +105,7 @@ let init_fields init_fields builtins =
 		"next",vifun0 (fun this ->
 			match mbedtls_x509_next (as_x509_crt this) with
 			| None -> vnull
-			| Some cert -> encode_instance key_mbedtls_X509Crt ~kind:(IEmbedtlsX509Crt cert)
+			| Some cert -> encode_instance key_mbedtls_X509Crt ~kind:(IMbedtlsX509Crt cert)
 		);
 		"parse_file",vifun1 (fun this path ->
 			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (decode_string path));

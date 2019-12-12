@@ -189,12 +189,11 @@ CAMLprim value hx_cert_get_subject(value chain, value objname) {
 	CAMLparam2(chain, objname);
 	mbedtls_x509_name *obj;
 	mbedtls_x509_crt* cert = X509Crt_val(chain);
-	int r;
 	const char *oname, *rname;
 	obj = &cert->subject;
 	rname = String_val(objname);
 	while (obj != NULL) {
-		r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
+		int r = mbedtls_oid_get_attr_short_name(&obj->oid, &oname);
 		if (r == 0 && strcmp(oname, rname) == 0) {
 			CAMLreturn(Val_some(caml_string_of_asn1_buf(&obj->val)));
 		}
