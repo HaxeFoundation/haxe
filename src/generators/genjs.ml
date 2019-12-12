@@ -965,6 +965,19 @@ and gen_syntax ctx meth args pos =
 			| [] when code = "this" ->
 				spr ctx (this ctx)
 			| _ ->
+				let rec reveal_expr expr =
+					match expr.eexpr with
+						| TCast (e, _) | TMeta (_, e) -> reveal_expr e
+						| _ -> expr
+				in
+				let args = List.map
+					(fun arg ->
+						match (reveal_expr arg).eexpr with
+							| TIf _ | TBinop _ | TUnop _ -> { arg with eexpr = TParenthesis arg }
+							| _ -> arg
+					)
+					args
+				in
 				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
 		end
 	| "field" , [eobj;efield] ->
