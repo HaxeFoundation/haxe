@@ -56,6 +56,7 @@ let check_display_field ctx sc c cf =
 	let ctx,cctx = TypeloadFields.create_class_context ctx c context_init cf.cf_pos in
 	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
+	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)
 
 let check_display_class ctx cc cfile c =

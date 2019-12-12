@@ -827,7 +827,9 @@ let module_pass_2 ctx m decls tdecls p =
 	) decls;
 	(* setup module types *)
 	let context_init = new TypeloadFields.context_init in
-	List.iter (init_module_type ctx context_init) tdecls
+	List.iter (init_module_type ctx context_init) tdecls;
+	(* Make sure that we actually init the context at some point (issue #9012) *)
+	delay ctx PConnectField (fun () -> context_init#run)
 
 (*
 	Creates a module context for [m] and types [tdecls] using it.
