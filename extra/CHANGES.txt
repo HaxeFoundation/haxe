@@ -1,3 +1,10 @@
+2019-12-XX: 4.0.5
+
+	Bugfixes:
+
+	java : fix boolean arguments for `Type.createInstance(cls, args)` (#9025)
+	windows : fix adding neko to PATH env var running windows installer (#9021)
+
 2019-11-29: 4.0.3
 
 	General improvements:
