@@ -185,7 +185,7 @@ class Socket extends sys.net.Socket {
 	}
 
 	public function peerCertificate():Certificate {
-		throw "Not implemented";
+		return @:privateAccess new Certificate(ssl.get_peer_cert());
 	}
 
 	public function setCertificate(cert:Certificate, key:Key):Void {

@@ -165,6 +165,13 @@ CAMLprim value ml_mbedtls_x509_next(value chain) {
 	CAMLreturn(Val_some(obj));
 }
 
+CAMLprim value ml_mbedtls_x509_crt_parse(value chain, value bytes) {
+	CAMLparam2(chain, bytes);
+	const char* buf = String_val(bytes);
+	int len = caml_string_length(bytes);
+	CAMLreturn(Val_int(mbedtls_x509_crt_parse(X509Crt_val(chain), buf, len + 1)));
+}
+
 CAMLprim value ml_mbedtls_x509_crt_parse_file(value chain, value path) {
 	CAMLparam2(chain, path);
 	CAMLreturn(Val_int(mbedtls_x509_crt_parse_file(X509Crt_val(chain), String_val(path))));
@@ -328,6 +335,19 @@ CAMLprim value ml_mbedtls_ssl_init(void) {
 	mbedtls_ssl_init(ssl_context);
 	SslContext_val(obj) = ssl_context;
 	CAMLreturn(obj);
+}
+
+CAMLprim value ml_mbedtls_ssl_get_peer_cert(value ssl) {
+	CAMLparam1(ssl);
+	CAMLlocal1(obj);
+	mbedtls_ssl_context* ssl_context = SslContext_val(ssl);
+	mbedtls_x509_crt* crt = (mbedtls_x509_crt*)mbedtls_ssl_get_peer_cert(ssl_context);
+	if (crt == NULL) {
+		CAMLreturn(Val_none);
+	}
+	obj = caml_alloc_custom(&x509_crt_ops, sizeof(mbedtls_x509_crt*), 0, 1);
+	X509Crt_val(obj) = crt;
+	CAMLreturn(Val_some(obj));
 }
 
 CAMLprim value ml_mbedtls_ssl_handshake(value ssl) {

@@ -22,6 +22,7 @@
 
 package sys.ssl;
 
+import haxe.io.Bytes;
 import sys.ssl.Mbedtls;
 import mbedtls.X509Crt;
 
@@ -46,7 +47,9 @@ class Certificate {
 	}
 
 	public static function fromString(str:String):Certificate {
-		throw "Not implemented";
+		var cert = new X509Crt();
+		trace(mbedtls.Error.strerror(cert.parse(Bytes.ofString(str))));
+		return new Certificate(cert);
 	}
 
 	public static function loadDefaults():Certificate {
@@ -76,11 +79,11 @@ class Certificate {
 	}
 
 	public function add(pem:String):Void {
-		throw "Not implemented";
+		native.parse(Bytes.ofString(pem));
 	}
 
-	public function addDER(der:haxe.io.Bytes):Void {
-		throw "Not implemented";
+	public function addDER(der:Bytes):Void {
+		native.parse(der);
 	}
 
 	private function get_commonName():Null<String> {

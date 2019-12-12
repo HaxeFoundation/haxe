@@ -107,6 +107,9 @@ let init_fields init_fields builtins =
 			| None -> vnull
 			| Some cert -> encode_instance key_mbedtls_X509Crt ~kind:(IMbedtlsX509Crt cert)
 		);
+		"parse",vifun1 (fun this bytes ->
+			vint (mbedtls_x509_crt_parse (as_x509_crt this) (decode_bytes bytes));
+		);
 		"parse_file",vifun1 (fun this path ->
 			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (decode_string path));
 		);
@@ -143,6 +146,11 @@ let init_fields init_fields builtins =
 		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
 	] [];
 	init_fields builtins (["mbedtls"],"Ssl") [] [
+		"get_peer_cert",vifun0 (fun this ->
+			match mbedtls_ssl_get_peer_cert (as_ssl this) with
+			| None -> vnull
+			| Some cert -> encode_instance key_mbedtls_X509Crt ~kind:(IMbedtlsX509Crt cert)
+		);
 		"handshake",vifun0 (fun this ->
 			vint (mbedtls_ssl_handshake (as_ssl this));
 		);

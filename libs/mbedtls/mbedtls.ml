@@ -28,6 +28,7 @@ external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_
 external mbedtls_ssl_config_rng : mbedtls_ssl_config -> 'a -> unit = "ml_mbedtls_ssl_conf_rng"
 
 external mbedtls_ssl_init : unit -> mbedtls_ssl_context = "ml_mbedtls_ssl_init"
+external mbedtls_ssl_get_peer_cert : mbedtls_ssl_context -> mbedtls_x509_crt option = "ml_mbedtls_ssl_get_peer_cert"
 external mbedtls_ssl_handshake : mbedtls_ssl_context -> mbedtls_result = "ml_mbedtls_ssl_handshake"
 external mbedtls_ssl_read : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_read"
 external mbedtls_ssl_set_bio :
@@ -42,6 +43,7 @@ external mbedtls_ssl_write : mbedtls_ssl_context -> bytes -> int -> int -> mbedt
 
 external mbedtls_x509_crt_init : unit -> mbedtls_x509_crt = "ml_mbedtls_x509_crt_init"
 external mbedtls_x509_next : mbedtls_x509_crt -> mbedtls_x509_crt option = "ml_mbedtls_x509_next"
+external mbedtls_x509_crt_parse : mbedtls_x509_crt -> bytes -> mbedtls_result = "ml_mbedtls_x509_crt_parse"
 external mbedtls_x509_crt_parse_file : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_file"
 external mbedtls_x509_crt_parse_path : mbedtls_x509_crt -> string -> mbedtls_result = "ml_mbedtls_x509_crt_parse_path"
 
