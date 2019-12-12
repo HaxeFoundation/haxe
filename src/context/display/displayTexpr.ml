@@ -52,7 +52,8 @@ let find_abstract_by_position cfile p =
 
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
-	let ctx,cctx = TypeloadFields.create_class_context ctx c (fun () -> ()) cf.cf_pos in
+	let context_init = new TypeloadFields.context_init in
+	let ctx,cctx = TypeloadFields.create_class_context ctx c context_init cf.cf_pos in
 	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	ignore(follow cf.cf_type)
