@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	java : fix boolean arguments for `Type.createInstance(cls, args)` (#9025)
+	jvm : fix static overloads (#9034)
 	js : fix multiple appearances of the first object added to `ObjectMap` is passed to `ObjectMap.set(obj, v)` multiple times (#9026)
 	js : automatically wrap compound expressions with parentheses when passed to `js.Syntax.code()` (#9024)
 	windows : fix adding neko to PATH env var running windows installer (#9021)

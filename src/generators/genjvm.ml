@@ -82,6 +82,18 @@ let find_overload map_type c cf el =
 	in
 	loop (cf :: cf.cf_overloads)
 
+let filter_overloads candidates =
+	match Overloads.Resolution.reduce_compatible candidates with
+	| [_,_,(c,cf)] -> Some(c,cf)
+	| [] -> None
+	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
+		(* let st = s_type (print_context()) in
+		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
+		List.iter (fun (_,t,(c,cf)) ->
+			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
+		) resolved; *)
+		Some(c,cf)
+
 let find_overload_rec' is_ctor map_type c name el =
 	let candidates = ref [] in
 	let has_function t1 (_,t2,_) =
@@ -114,16 +126,7 @@ let find_overload_rec' is_ctor map_type c name el =
 		end;
 	in
 	loop map_type c;
-	match Overloads.Resolution.reduce_compatible (List.rev !candidates) with
-	| [_,_,(c,cf)] -> Some(c,cf)
-	| [] -> None
-	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
-		(* let st = s_type (print_context()) in
-		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
-		List.iter (fun (_,t,(c,cf)) ->
-			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
-		) resolved; *)
-		Some(c,cf)
+	filter_overloads (List.rev !candidates)
 
 let find_overload_rec is_ctor map_type c cf el =
 	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
@@ -1507,6 +1510,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
+			let c,cf = match cf.cf_overloads with
+				| [] -> c,cf
+				| _ -> match filter_overloads (find_overload (fun t -> t) c cf el) with
+					| None ->
+						Error.error "Could not find overload" e1.epos
+					| Some(c,cf) ->
+						c,cf
+			in
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
