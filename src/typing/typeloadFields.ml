@@ -29,6 +29,18 @@ open CompletionItem.ClassFieldOrigin
 open Common
 open Error
 
+class context_init = object(self)
+	val mutable l = []
+
+	method add (f : unit -> unit) =
+		l <- f :: l
+
+	method run =
+		let l' = l in
+		l <- [];
+		List.iter (fun f -> f()) (List.rev l')
+end
+
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
 	is_lib : bool;
@@ -37,7 +49,7 @@ type class_init_ctx = {
 	is_class_debug : bool;
 	extends_public : bool;
 	abstract : tabstract option;
-	context_init : unit -> unit;
+	context_init : context_init;
 	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
@@ -420,7 +432,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
-				context_init();
+				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
@@ -432,7 +444,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
 						(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 							ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
-						context_init();
+						context_init#run;
 						let e = build_enum_abstract ctx c a (fvars()) p in
 						fbuild e;
 					| _ ->
@@ -771,7 +783,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				r := lazy_processing (fun() -> t);
-				cctx.context_init();
+				cctx.context_init#run;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = TypeloadFunction.type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -1136,7 +1148,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let r = exc_protect ~force:false ctx (fun r ->
 		if not !return_partial_type then begin
 			r := lazy_processing (fun() -> t);
-			cctx.context_init();
+			cctx.context_init#run;
 			incr stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
 			let fmode = (match cctx.abstract with

@@ -401,7 +401,7 @@ let load_enum_field ctx e et is_flat index c =
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
 	an expression into the context
 *)
-let init_module_type ctx context_init do_init (decl,p) =
+let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
@@ -502,23 +502,23 @@ let init_module_type ctx context_init do_init (decl,p) =
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
-						context_init := (fun() ->
+						context_init#add (fun() ->
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
 								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						) :: !context_init)
+						))
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
 					| [] -> ()
 					| (n,p) :: _ -> error ("Unexpected " ^ n) p);
 					let tsub = get_type tsub in
-					context_init := (fun() ->
+					context_init#add (fun() ->
 						try
 							add_static_init tsub name fname
 						with Not_found ->
 							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
-					) :: !context_init;
+					);
 				)
 			| IAll ->
 				let t = (match rest with
@@ -526,7 +526,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| [tsub,_] -> get_type tsub
 					| _ :: (n,p) :: _ -> error ("Unexpected " ^ n) p
 				) in
-				context_init := (fun() ->
+				context_init#add (fun() ->
 					match resolve_typedef t with
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
@@ -536,14 +536,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 					| _ ->
 						error "No statics to import from this type" p
-				) :: !context_init
+				)
 			))
 	| EUsing path ->
 		check_path_display path p;
 		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
 		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
+		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -564,7 +564,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p do_init d.d_flags d.d_data;
+					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
 					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
@@ -638,8 +638,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				}
 			) (!constructs)
 		in
-		let init () = List.iter (fun f -> f()) !context_init in
-		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
 			match e with
 			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
@@ -827,13 +826,10 @@ let module_pass_2 ctx m decls tdecls p =
 			assert false
 	) decls;
 	(* setup module types *)
-	let context_init = ref [] in
-	let do_init() =
-		match !context_init with
-		| [] -> ()
-		| l -> context_init := []; List.iter (fun f -> f()) (List.rev l)
-	in
-	List.iter (init_module_type ctx context_init do_init) tdecls
+	let context_init = new TypeloadFields.context_init in
+	List.iter (init_module_type ctx context_init) tdecls;
+	(* Make sure that we actually init the context at some point (issue #9012) *)
+	delay ctx PConnectField (fun () -> context_init#run)
 
 (*
 	Creates a module context for [m] and types [tdecls] using it.

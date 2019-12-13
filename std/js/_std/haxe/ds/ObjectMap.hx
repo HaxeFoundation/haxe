@@ -43,18 +43,20 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		return untyped obj.__id__;
 	}
 
-	var h:{};
+	var h:{__keys__:{}};
 
 	public function new():Void {
 		h = {__keys__: {}};
 	}
 
-	public function set(key:K, value:V):Void
-		untyped {
-			var id:Int = getId(key) || assignId(key);
-			h[id] = value;
-			h.__keys__[id] = key;
+	public function set(key:K, value:V):Void {
+		var id = getId(key);
+		if(id == null) {
+			id = assignId(key);
 		}
+		Syntax.code('{0}[{1}] = {2}', h, id, value);
+		Syntax.code('{0}[{1}] = {2}', h.__keys__, id, key);
+	}
 
 	public inline function get(key:K):Null<V> {
 		return untyped h[getId(key)];
