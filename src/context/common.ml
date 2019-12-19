@@ -94,6 +94,14 @@ type exceptions_config = {
 	ec_base_throw : path;
 }
 
+type nested_function_scoping =
+	(** each TFunction has its own scope in the output **)
+	| Independent
+	(** TFunction nodes are nested in the output **)
+	| Nested
+	(** TFunction nodes are nested in the output and there is var hoisting **)
+	| JsLike
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -123,6 +131,8 @@ type platform_config = {
 	pf_supports_unicode : bool;
 	(** exceptions handling config **)
 	pf_exceptions : exceptions_config;
+	(** the scoping behavior of nested functions **)
+	pf_nested_function_scoping : nested_function_scoping;
 }
 
 class compiler_callbacks = object(self)
@@ -342,7 +352,8 @@ let default_config =
 			ec_native_catches = [];
 			ec_wildcard_catch = ([],"Dynamic");
 			ec_base_throw = ([],"Dynamic");
-		}
+		};
+		pf_nested_function_scoping = Independent;
 	}
 
 let get_config com =
@@ -366,7 +377,8 @@ let get_config com =
 				ec_native_catches = [];
 				ec_wildcard_catch = ([],"Dynamic");
 				ec_base_throw = ([],"Dynamic");
-			}
+			};
+			pf_nested_function_scoping = JsLike;
 		}
 	| Lua ->
 		{
@@ -487,7 +499,8 @@ let get_config com =
 				];
 				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
 				ec_base_throw = ["python";"Exceptions"],"BaseException";
-			}
+			};
+			pf_nested_function_scoping = Nested;
 		}
 	| Hl ->
 		{
