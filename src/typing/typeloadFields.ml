@@ -1284,7 +1284,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			| Not_found ->
 				if c.cl_interface then begin
 					let cf = mk_field m t p null_pos in
-					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
