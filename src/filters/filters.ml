@@ -217,7 +217,7 @@ let collect_reserved_local_names com =
 		!h
 	| _ -> StringMap.empty
 
-let rec rename_local_vars ctx reserved e =
+let rec rename_local_vars_aux ctx reserved e =
 	let initial_reserved = reserved in
 	let vars = ref [] in
 	let declare v =
@@ -271,11 +271,6 @@ let rec rename_local_vars ctx reserved e =
 			Type.iter collect e
 	in
 	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
 	collect e;
 	(* Pass 2: Check and rename variables. *)
 	let count_table = Hashtbl.create 0 in
@@ -295,13 +290,26 @@ let rec rename_local_vars ctx reserved e =
 		v.v_name <- !name;
 	in
 	List.iter maybe_rename (List.rev !vars);
+	(* Pass 3: Recurse into nested functions. *)
 	List.iter (fun tf ->
 		reserved := initial_reserved;
 		List.iter (fun (v,_) ->
 			maybe_rename v;
 		) tf.tf_args;
-		ignore(rename_local_vars ctx !reserved tf.tf_expr);
-	) !funcs;
+		ignore(rename_local_vars_aux ctx !reserved tf.tf_expr);
+	) !funcs
+
+let rename_local_vars ctx reserved e =
+	let reserved = ref reserved in
+	let reserve name =
+		reserved := StringMap.add name true !reserved
+	in
+	reserve "this";
+	if ctx.com.platform = Java then reserve "_";
+	begin match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> reserve s
+	end;
+	rename_local_vars_aux ctx !reserved e;
 	e
 
 let mark_switch_break_loops e =
