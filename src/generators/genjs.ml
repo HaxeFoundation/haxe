@@ -1144,8 +1144,10 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 
-	generate_class___name__ ctx cl_path;
-	generate_class___isInterface__ ctx c;
+	if not is_abstract_impl then begin
+		generate_class___name__ ctx cl_path;
+		generate_class___isInterface__ ctx c;
+	end;
 
 	if ctx.has_interface_check then
 		(match c.cl_implements with
@@ -1289,7 +1291,8 @@ let generate_class_es6 ctx c =
 
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
 
-	let added_to_hxClasses = ctx.has_resolveClass && not (is_abstract_impl c) in
+	let is_abstract_impl = is_abstract_impl c in
+	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
 
 	let expose = (match get_exposed ctx dotp c.cl_meta with [s] -> "$hx_exports" ^ (path_to_brackets s) | _ -> "") in
 	if expose <> "" || added_to_hxClasses then begin
@@ -1303,8 +1306,10 @@ let generate_class_es6 ctx c =
 		newline ctx;
 	end;
 
-	generate_class___name__ ctx cl_path;
-	generate_class___isInterface__ ctx c;
+	if not is_abstract_impl then begin
+		generate_class___name__ ctx cl_path;
+		generate_class___isInterface__ ctx c;
+	end;
 
 	if ctx.has_interface_check then
 		(match c.cl_implements with
