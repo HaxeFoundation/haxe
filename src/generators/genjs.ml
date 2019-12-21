@@ -1102,35 +1102,52 @@ let get_generated_class_path = function
 	| { cl_path = p } ->
 		p
 
+let is_abstract_impl c = match c.cl_kind with KAbstractImpl _ -> true | _ -> false
+
 let generate_class_es3 ctx c =
 	let cl_path = get_generated_class_path c in
+	let is_abstract_impl = is_abstract_impl c in
 
-	let p = s_path ctx cl_path in
 	if ctx.js_flatten then
 		print ctx "var "
 	else
 		generate_package_create ctx cl_path;
-	if ctx.js_modern || not ctx.has_resolveClass then
+
+	let p = s_path ctx cl_path in
+	let dotp = dot_path cl_path in
+
+	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
+
+	if ctx.js_modern || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
-		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path cl_path);
-	(match (get_exposed ctx (dot_path cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
-	(match c.cl_kind with
-		| KAbstractImpl _ ->
-			(* abstract implementations only contain static members and don't need to have constructor functions *)
-			print ctx "{}"; ctx.separator <- true
-		| _ ->
-			(match c.cl_constructor with
-			| Some { cf_expr = Some e } -> gen_expr ctx e
-			| _ -> (print ctx "function() { }"); ctx.separator <- true)
-	);
+		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
+
+	(match (get_exposed ctx dotp c.cl_meta) with
+	| [s] -> print ctx "$hx_exports%s = " (path_to_brackets s)
+	| _ -> ());
+
+	if is_abstract_impl then begin
+		(* abstract implementations only contain static members and don't need to have constructor functions *)
+		print ctx "{}";
+		ctx.separator <- true
+	end else begin
+		match c.cl_constructor with
+		| Some { cf_expr = Some e } -> gen_expr ctx e
+		| _ -> (print ctx "function() { }"); ctx.separator <- true
+	end;
+
 	newline ctx;
-	if ctx.js_modern && ctx.has_resolveClass then begin
-		print ctx "$hxClasses[\"%s\"] = %s" (dot_path cl_path) p;
+
+	if ctx.js_modern && added_to_hxClasses then begin
+		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
-	generate_class___name__ ctx cl_path;
-	generate_class___isInterface__ ctx c;
+
+	if not is_abstract_impl then begin
+		generate_class___name__ ctx cl_path;
+		generate_class___isInterface__ ctx c;
+	end;
 
 	if ctx.has_interface_check then
 		(match c.cl_implements with
@@ -1198,6 +1215,7 @@ let generate_class_es3 ctx c =
 let generate_class_es6 ctx c =
 	let cl_path = get_generated_class_path c in
 	let p = s_path ctx cl_path in
+	let dotp = dot_path cl_path in
 
 	let cls_name =
 		if not ctx.js_flatten && (fst cl_path) <> [] then begin
@@ -1252,7 +1270,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				(match get_exposed ctx ((dot_path cl_path) ^ (static_field ctx c cf.cf_name)) cf.cf_meta with
+				(match get_exposed ctx (dotp ^ (static_field ctx c cf.cf_name)) cf.cf_meta with
 				| [s] -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods;
 				| _ -> ());
 
@@ -1273,10 +1291,13 @@ let generate_class_es6 ctx c =
 
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
 
-	let expose = (match get_exposed ctx (dot_path cl_path) c.cl_meta with [s] -> "$hx_exports" ^ (path_to_brackets s) | _ -> "") in
-	if expose <> "" || ctx.has_resolveClass then begin
-		if ctx.has_resolveClass then begin
-			print ctx "$hxClasses[\"%s\"] = " (dot_path cl_path)
+	let is_abstract_impl = is_abstract_impl c in
+	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
+
+	let expose = (match get_exposed ctx dotp c.cl_meta with [s] -> "$hx_exports" ^ (path_to_brackets s) | _ -> "") in
+	if expose <> "" || added_to_hxClasses then begin
+		if added_to_hxClasses then begin
+			print ctx "$hxClasses[\"%s\"] = " dotp
 		end;
 		if expose <> "" then begin
 			print ctx "%s = " expose
@@ -1285,8 +1306,10 @@ let generate_class_es6 ctx c =
 		newline ctx;
 	end;
 
-	generate_class___name__ ctx cl_path;
-	generate_class___isInterface__ ctx c;
+	if not is_abstract_impl then begin
+		generate_class___name__ ctx cl_path;
+		generate_class___isInterface__ ctx c;
+	end;
 
 	if ctx.has_interface_check then
 		(match c.cl_implements with
@@ -1387,7 +1410,7 @@ let generate_enum ctx e =
 	(if as_objects then
 		print ctx "$hxEnums[\"%s\"] = " dotp
 	else if has_feature ctx "Type.resolveEnum" then
-		print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path));
+		print ctx "$hxClasses[\"%s\"] = " dotp);
 	spr ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ dotp ^ "\"" else "true");
 	print ctx " __constructs__ : [%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
