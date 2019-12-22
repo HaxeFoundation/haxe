@@ -371,6 +371,14 @@ let gen_constant ctx p = function
 let print_deprecation_message com msg p =
 	com.warning msg p
 
+let is_code_injection_function e =
+	match e.eexpr with
+	| TIdent "__js__"
+	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = "code" }))
+		-> true
+	| _ ->
+		false
+
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
@@ -390,7 +398,7 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TIdent "__js__" -> false | _ -> true) ->
+	| TCall (x,_) , el when not (is_code_injection_function x) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
