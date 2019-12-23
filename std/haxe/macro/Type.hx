@@ -342,11 +342,6 @@ enum ClassKind {
 		A `@:genericBuild` class
 	**/
 	KGenericBuild;
-
-	/**
-		An automatically generated class for a `@:generic` method specialization
-	**/
-	KGenericMethodContainer(cl:Ref<ClassType>, method:String);
 }
 
 /**

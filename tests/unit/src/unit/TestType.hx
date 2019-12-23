@@ -535,38 +535,37 @@ class TestType extends Test {
 		gf1(new haxe.Template("foo"));
 
 		gf1(new haxe.ds.GenericStack<Int>());
-		hsf(Type.resolveClass("unit.TestType_gf1_Int"), "gf1");
-		hsf(Type.resolveClass("unit.TestType_gf1_String"), "gf1");
-		hsf(Type.resolveClass("unit.TestType_gf1_Bool"), "gf1");
+		hsf(TestType, "gf1_Int");
+		hsf(TestType, "gf1_String");
+		hsf(TestType, "gf1_Bool");
 
-		hsf(Type.resolveClass("unit.TestType_gf1_haxe_Template"), "gf1");
+		hsf(TestType, "gf1_haxe_Template");
 
-		hsf(Type.resolveClass("unit.TestType_gf1_haxe_ds_GenericStack_Int"), "gf1");
-		hsf(Type.resolveClass("unit.TestType_gf1_anon_foo_Int"), "gf1");
-		hsf(Type.resolveClass("unit.TestType_gf1_func_Int_String"), "gf1");
+		hsf(TestType, "gf1_haxe_ds_GenericStack_Int");
+		hsf(TestType, "gf1_anon_foo_Int");
+		hsf(TestType, "gf1_func_Int_String");
 		t(typeError(gf1(null))); // monos don't work
 
 		eq("foo[1,2]", gf2("foo", [1, 2]));
 		eq("foo[[1,2]]", gf2("foo", [[1, 2]]));
-		hsf(Type.resolveClass("unit.TestType_gf2_String_Int"), "gf2");
-		hsf(Type.resolveClass("unit.TestType_gf2_String_Array_Int"), "gf2");
+		hsf(TestType, "gf2_String_Int");
+		hsf(TestType, "gf2_String_Array_Int");
 
 		var a = gf3("foo", ["bar", "baz"]);
 		eq(a[0], "bar");
 		eq(a[1], "baz");
 		eq(a[2], "foo");
-		hsf(Type.resolveClass("unit.TestType_gf3_String_Array_String"), "gf3");
+		hsf(TestType, "gf3_String_Array_String");
 
 		var t = new haxe.Template("foo");
 		var ta = gf3(t, [])[0];
 		f(t == ta);
-		hsf(Type.resolveClass("unit.TestType_gf3_haxe_Template_Array_haxe_Template"), "gf3");
+		hsf(TestType, "gf3_haxe_Template_Array_haxe_Template");
 
 		eq(overloadFake(1), 1);
 		eq(overloadFake("bar"), "barfoo");
 	}
 
-	@:pure(false) //prevent analyzer removing calls to this method
 	@:generic static function gf1<T>(a:T) {
 		return a;
 	}

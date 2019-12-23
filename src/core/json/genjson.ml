@@ -252,12 +252,6 @@ and generate_type_path_with_params ctx mpath tpath tl =
 		"params",generate_types ctx tl;
 	]
 
-and generate_type_path_with_field ctx mpath tpath cf =
-	jobject [
-		"path",generate_type_path mpath tpath;
-		"field",jstring cf.cf_name;
-	]
-
 (* type parameter *)
 
 and generate_type_parameter ctx (s,t) =
@@ -587,7 +581,6 @@ let generate_class ctx c =
 		| KExpr e -> "KExpr",Some (generate_expr ctx e)
 		| KGeneric -> "KGeneric",None
 		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl)
-		| KGenericMethodContainer(c,cf) -> "KGenericMethodContainer",Some (generate_type_path_with_field ctx c.cl_module.m_path c.cl_path cf)
 		| KMacroType -> "KMacroType",None
 		| KGenericBuild _ -> "KGenericBuild",None
 		| KAbstractImpl a -> "KAbstractImpl",Some (abstract_ref ctx a)

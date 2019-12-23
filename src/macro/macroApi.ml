@@ -980,7 +980,6 @@ and encode_class_kind k =
 		| KMacroType -> 6, []
 		| KAbstractImpl a -> 7, [encode_abref a]
 		| KGenericBuild cfl -> 8, []
-		| KGenericMethodContainer (cl, cf) -> 9, [encode_clref cl; encode_string cf.cf_name]
 	) in
 	encode_enum IClassKind tag pl
 

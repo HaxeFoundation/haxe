@@ -1,6 +1,6 @@
 package unit.issues;
 
-class MyClass3639<T> {
+private class MyClass<T> {
 	public function new() { }
 
 	@:generic
@@ -27,21 +27,25 @@ class MyClass3639<T> {
 class Issue3639 extends Test {
 	@:analyzer(no_local_dce)
 	function test() {
-		MyClass3639.testStatic(1);
-		MyClass3639.eachStatic(0...5, function(x) return x);
+		MyClass.testStatic(1);
+		MyClass.eachStatic(0...5, function(x) return x);
 
-		hsf(Type.resolveClass('unit.issues.MyClass3639_testStatic_Int'), "testStatic");
-		hsf(Type.resolveClass('unit.issues.MyClass3639_eachStatic_Int_IntIterator'), "eachStatic");
+		#if !cs
+		// https://github.com/HaxeFoundation/haxe/issues/3658
+		hsf(MyClass, "testStatic_Int");
+		hsf(MyClass, "eachStatic_Int_IntIterator");
+		#end
 
-		var t = new MyClass3639();
+		var t = new MyClass();
 		t.testMember(1, "12");
 
-		var t = new MyClass3639();
+		var t = new MyClass();
 		t.eachMember(0...5, function(x) return x);
 
-		hf(MyClass3639, "testMember_String");
-		hf(MyClass3639, "eachMember_IntIterator");
-
+		#if !cs
+		hf(MyClass, "testMember_String");
+		hf(MyClass, "eachMember_IntIterator");
+		#end
 		noAssert();
 	}
 }

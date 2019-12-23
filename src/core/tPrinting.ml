@@ -417,8 +417,6 @@ let s_class_kind = function
 		"KGeneric"
 	| KGenericInstance(c,tl) ->
 		Printf.sprintf "KGenericInstance %s<%s>" (s_type_path c.cl_path) (s_types tl)
-	| KGenericMethodContainer(c,cf) ->
-		Printf.sprintf "KGenericMethodContainer %s.%s" (s_type_path c.cl_path) cf.cf_name
 	| KMacroType ->
 		"KMacroType"
 	| KGenericBuild _ ->

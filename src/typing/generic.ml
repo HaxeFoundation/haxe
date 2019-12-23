@@ -152,7 +152,7 @@ let static_method_container gctx c cf p =
 	try
 		let t = Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) true in
 		match t with
-		| TInst({ cl_kind = KGenericMethodContainer (c1,cf1) } as cg,_) when c1 == c && cf1 == cf -> cg
+		| TInst(cg,_) -> cg
 		| _ -> error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
@@ -164,7 +164,6 @@ let static_method_container gctx c cf p =
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
-		cg.cl_kind <- KGenericMethodContainer (c,cf);
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;

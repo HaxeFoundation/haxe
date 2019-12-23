@@ -457,16 +457,23 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
 			in
 			if stat then begin
-				let c = Generic.static_method_container gctx c cf p in
-				try
-					let cf2 = PMap.find cf.cf_name c.cl_statics in
-					unify_existing_field cf2.cf_type cf2.cf_pos;
-					c, cf2
-				with Not_found ->
-					let cf2 = mk_cf2 cf.cf_name in
+				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
+					let c = Generic.static_method_container gctx c cf p in
+					try
+						let cf2 = PMap.find cf.cf_name c.cl_statics in
+						unify_existing_field cf2.cf_type cf2.cf_pos;
+						c, cf2
+					with Not_found ->
+						let cf2 = mk_cf2 cf.cf_name in
+						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
+						c, finalize_field c cf2
+				end else begin
+					let cf2 = mk_cf2 name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 					c, finalize_field c cf2
+				end
 			end else begin
 				let cf2 = mk_cf2 name in
 				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
