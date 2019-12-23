@@ -450,8 +450,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 					| Meta.Generic -> false
 					| _ -> true
 				) cf.cf_meta in
-				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata;
-				cf2
+				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata
 			in
 			let mk_cf2 name =
 				mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
@@ -467,26 +466,29 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 						let cf2 = mk_cf2 cf.cf_name in
 						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
-						c, finalize_field c cf2
+						finalize_field c cf2;
+						c, cf2
 				end else begin
 					let cf2 = mk_cf2 name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
-					c, finalize_field c cf2
+					finalize_field c cf2;
+					c, cf2
 				end
 			end else begin
 				let cf2 = mk_cf2 name in
 				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
 				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
-				c, finalize_field c cf2
+				finalize_field c cf2;
+				c, cf2
 			end
 		in
 		let e = match c.cl_kind with
 			| KAbstractImpl(a) ->
 				type_type ctx a.a_path p
 			| _ when stat ->
-				{ e with eexpr = TTypeExpr (TClassDecl c) }
+				Builder.make_typeexpr (TClassDecl c) e.epos
 			| _ -> e
 		in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in

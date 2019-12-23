@@ -422,7 +422,7 @@
 	{
 		"name": "GenericClassPerMethod",
 		"metadata": ":genericClassPerMethod",
-		"doc": "Makes compiler to generate separate class per generic static method specialization",
+		"doc": "Makes compiler generate separate class per generic static method specialization",
 		"targets": ["TClass"]
 	},
 	{
