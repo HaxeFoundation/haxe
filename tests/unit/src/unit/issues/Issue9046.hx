@@ -5,6 +5,10 @@ class Issue9046 extends unit.Test {
 		var a = Utils9046.flatten('hello');
 		aeq(['hello'], a);
 
+		//check multiple calls with the same type params
+		var a = Utils9046.flatten('hello');
+		aeq(['hello'], a);
+
 		//Check it gets a separate module.
 		//This test should not rely on a generated module name,
 		//but I don't know how to check it without the name.
