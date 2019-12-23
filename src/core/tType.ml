@@ -182,6 +182,7 @@ and tclass_kind =
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
+	| KGenericMethodContainer of tclass * tclass_field
 	| KMacroType
 	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
