@@ -187,6 +187,20 @@ class Lambda {
 	}
 
 	/**
+		Similar to fold, but also passes the index of each element to `f`.
+
+		If `it` or `f` are null, the result is unspecified.
+	**/
+	public static function foldi<A, B>(it:Iterable<A>, f:(item:A, result:B, index:Int) -> B, first:B):B {
+		var i = 0;
+		for (x in it) {
+			first = f(x, first, i);
+			++i;
+		}
+		return first;
+	}
+
+	/**
 		Returns the number of elements in `it` for which `pred` is true, or the
 		total number of elements in `it` if `pred` is null.
 

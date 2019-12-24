@@ -91,6 +91,11 @@ Lambda.fold(["b","c","d"],function(s,acc) return s + acc,"a") == "dcba";
 Lambda.fold([],function(s:String,acc) return s + acc,"a") == "a";
 Lambda.fold([],function(s:String,acc) return s + acc,null) == null;
 
+// foldi
+Lambda.foldi(["b","c","d"],function(s,acc,i) return Std.string(i) + s + acc,"a") == "2d1c0ba";
+Lambda.foldi([],function(s:String,acc,i) return Std.string(i) + s + acc,"a") == "a";
+Lambda.foldi([],function(s:String,acc,i) return Std.string(i) + s + acc,null) == null;
+
 // count
 Lambda.count([1,2,3]) == 3;
 Lambda.count([1,2,3], function(x) return false) == 0;
