@@ -187,6 +187,20 @@ class Lambda {
 	}
 
 	/**
+		Similar to fold, but also passes the index of each element to `f`.
+
+		If `it` or `f` are null, the result is unspecified.
+	**/
+	public static function foldi<A, B>(it:Iterable<A>, f:(item:A, result:B, index:Int) -> B, first:B):B {
+        var i = 0;
+        for (x in it) {
+            first = f(x, first, i);
+            ++i;
+        }
+        return first;
+    }
+
+	/**
 		Returns the number of elements in `it` for which `pred` is true, or the
 		total number of elements in `it` if `pred` is null.
 
@@ -260,21 +274,4 @@ class Lambda {
 			l.push(x);
 		return l;
 	}
-
-	/**
-		Executes the reducer function `f` on the Iterable `it`, producing a single
-		output value. The value returned by the previous element is passed
-		onto the next one, together with the current element, the index and the
-		Iterable itself. The first element receives the value specified by
-		`initialValue`.
-	**/
-	public static function reduce<A, B>(it: Iterable<A>, f: (B, A, Int, Iterable<A>) -> B, initialValue: B): B {
-        var value = initialValue;
-        var i = 0;
-        for (elem in it) {
-            value = f(value, elem, i, it);
-            ++i;
-        }
-        return value;
-    }
 }
