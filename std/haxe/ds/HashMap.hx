@@ -96,7 +96,7 @@ abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 	/**
 		See `Map.keyValueIterator`
 	**/
-	public inline function keyValueIterator() {
+	public inline function keyValueIterator():HashMapKeyValueIterator<K, V> {
 		return new HashMapKeyValueIterator(cast this);
 	}
 

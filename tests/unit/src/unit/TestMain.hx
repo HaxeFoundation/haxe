@@ -72,6 +72,7 @@ class TestMain {
 			new TestSyntaxModule(),
 			new TestNull(),
 			new TestNumericCasts(),
+			new TestHashMap(),
 			#if (!no_http && (!azure || !(php && Windows)))
 			new TestHttp(),
 			#end
