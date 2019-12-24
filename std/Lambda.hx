@@ -260,4 +260,21 @@ class Lambda {
 			l.push(x);
 		return l;
 	}
+
+	/**
+		Executes the reducer function `f` on the Iterable `it`, producing a single
+		output value. The value returned by the previous element is passed
+		onto the next one, together with the current element, the index and the
+		Iterable itself. The first element receives the value specified by
+		`initialValue`.
+	**/
+	public static function reduce<A, B>(it: Iterable<A>, f: (B, A, Int, Iterable<A>) -> B, initialValue: B): B {
+        var value = initialValue;
+        var i = 0;
+        for (elem in it) {
+            value = f(value, elem, i, it);
+            ++i;
+        }
+        return value;
+    }
 }
