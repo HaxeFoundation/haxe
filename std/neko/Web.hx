@@ -110,6 +110,14 @@ class Web {
 	}
 
 	/**
+		Add an output header value. If some data have been printed, the headers have
+		already been sent so this will raise an exception.
+	**/
+	public static function setHeader(h:String, v:String) {
+		_cgi_add_header(untyped h.__s, untyped v.__s);
+	}
+
+	/**
 		Set the HTTP return code. Same remark as setHeader.
 	**/
 	public static function setReturnCode(r:Int) {
@@ -309,6 +317,7 @@ class Web {
 	static var _get_uri:Dynamic;
 	static var _cgi_redirect:Dynamic;
 	static var _cgi_set_header:Dynamic;
+	static var _cgi_add_header:Dynamic;
 	static var _set_return_code:Dynamic;
 	static var _get_client_header:Dynamic;
 	static var _get_params_string:Dynamic;
@@ -336,6 +345,7 @@ class Web {
 			_get_uri = Lib.load(lib, "get_uri", 0);
 			_cgi_redirect = Lib.load(lib, "redirect", 1);
 			_cgi_set_header = Lib.load(lib, "set_header", 2);
+			_cgi_add_header = Lib.load(lib, "add_header", 2);
 			_set_return_code = Lib.load(lib, "set_return_code", 1);
 			_get_client_header = Lib.load(lib, "get_client_header", 1);
 			_get_params_string = Lib.load(lib, "get_params_string", 0);
@@ -368,6 +378,7 @@ class Web {
 				Lib.print("Location: " + v + "\n");
 			};
 			_cgi_set_header = function(h, v) {};
+			_cgi_add_header = function(h, v) {};
 			_set_return_code = function(i) {};
 			_get_client_header = function(h) {
 				return null;

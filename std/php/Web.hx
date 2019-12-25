@@ -131,6 +131,14 @@ class Web {
 	}
 
 	/**
+		Add an output header value. If some data have been printed, the headers have
+		already been sent so this will raise an exception.
+	**/
+	public static inline function addHeader(h:String, v:String) {
+		header('$h: $v', false);
+	}
+
+	/**
 		Set the HTTP return code. Same remark as `php.Web.setHeader()`.
 		See status code explanation here: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 	**/
