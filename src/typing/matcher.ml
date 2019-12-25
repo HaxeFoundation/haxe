@@ -563,7 +563,9 @@ module Case = struct
 		ignore(unapply_type_parameters ctx.type_params monos);
 		let eg = match eg with
 			| None -> None
-			| Some e -> Some (type_expr ctx e WithType.value)
+			| Some e ->
+				let e = type_expr ctx e WithType.value in
+				Some (AbstractCast.cast_or_unify ctx ctx.t.tbool e e.epos)
 		in
 		let eo = match eo_ast,with_type with
 			| None,WithType.WithType(t,_) ->
