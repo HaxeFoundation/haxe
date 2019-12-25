@@ -113,7 +113,7 @@ class Web {
 		Add an output header value. If some data have been printed, the headers have
 		already been sent so this will raise an exception.
 	**/
-	public static function setHeader(h:String, v:String) {
+	public static function addHeader(h:String, v:String) {
 		_cgi_add_header(untyped h.__s, untyped v.__s);
 	}
 
