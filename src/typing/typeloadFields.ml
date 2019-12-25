@@ -1532,7 +1532,7 @@ let init_class ctx c p context_init herits fields =
 							| KAbstractImpl a -> "abstract",a.a_path
 							| _ -> "class",c.cl_path
 						in
-						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) p
+						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
 			end
