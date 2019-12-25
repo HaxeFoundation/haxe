@@ -40,7 +40,10 @@ private class HaxeError extends js.lib.Error {
 	}
 
 	static function __init__() {
-		js.lib.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
+		try {
+			js.lib.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
+		} catch (e:Dynamic) {
+		}
 	}
 }
 
