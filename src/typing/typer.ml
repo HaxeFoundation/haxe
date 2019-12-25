@@ -2219,6 +2219,7 @@ and type_array_comprehension ctx e with_type p =
 		| EFor(it,e2) -> (EFor (it, map_compr e2),p)
 		| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 		| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
+		| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
 		| EBlock [e] -> (EBlock [map_compr e],p)
 		| EBlock el -> begin match List.rev el with
 			| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
