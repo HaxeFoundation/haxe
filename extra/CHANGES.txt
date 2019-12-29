@@ -3,7 +3,9 @@
 	Bugfixes:
 
 	all : emit an error on an attempt to modify abstract `this` through a chain of inlined calls in a non-inlined method (#9067)
+	all : fixed completion of target specific hx files without the common hx file (e.g. `Example.js.hx` with non-existent `Example.hx`) (#6435)
 	js : fix startup exception in IE8 related to `Object.defineProperty` (#6918)
+
 
 2019-12-17: 4.0.5
 

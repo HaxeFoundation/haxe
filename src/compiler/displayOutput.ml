@@ -334,7 +334,11 @@ let process_display_file com classes =
 					| [name] ->
 						classes := path :: !classes;
 						DPKNormal path
-					| _ ->
+					| [name;target] ->
+						let path = fst path, name in
+						classes := path :: !classes;
+						DPKNormal path
+					| e ->
 						assert false
 				in
 				path
