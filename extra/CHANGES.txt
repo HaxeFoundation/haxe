@@ -1,3 +1,9 @@
+2020-XX-XX: 4.0.X
+
+	Bugfixes:
+
+	all : emit an error on an attempt to modify abstract `this` through a chain of inlined calls in a non-inlined method (#9067)
+
 2019-12-17: 4.0.5
 
 	Bugfixes:
