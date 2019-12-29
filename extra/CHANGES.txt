@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : emit an error on an attempt to modify abstract `this` through a chain of inlined calls in a non-inlined method (#9067)
+	js : fix startup exception in IE8 related to `Object.defineProperty` (#6918)
 
 2019-12-17: 4.0.5
 
