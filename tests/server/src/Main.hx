@@ -106,7 +106,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertSuccess();
 	}
 
-
 	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));

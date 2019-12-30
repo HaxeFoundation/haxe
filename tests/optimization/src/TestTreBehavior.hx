@@ -35,6 +35,21 @@ class TestTreBehavior extends TestBase {
 		assertEquals(2, parent.rec(2));
 		assertEquals(5, child.rec(2));
 	}
+
+	function testSelfModifyingFields() {
+		assertEquals(1, selfModifyingMethod());
+		assertEquals(2, selfModifyingVar());
+	}
+
+	static dynamic function selfModifyingMethod():Int {
+		selfModifyingMethod = () -> 1;
+		return selfModifyingMethod();
+	}
+
+	static var selfModifyingVar:()->Int = function() {
+		selfModifyingVar = () -> 2;
+		return selfModifyingVar();
+	}
 }
 
 private class Parent {

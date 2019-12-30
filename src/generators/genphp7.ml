@@ -799,7 +799,7 @@ let field_name field =
 *)
 let is_std_is expr =
 	match expr.eexpr with
-		| TField (_, FStatic ({ cl_path = path }, { cf_name = "is" })) -> path = boot_type_path || path = std_type_path
+		| TField (_, FStatic ({ cl_path = path }, { cf_name = ("is" | "isOfType") })) -> path = boot_type_path || path = std_type_path
 		| _ -> false
 
 (**

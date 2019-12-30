@@ -243,12 +243,12 @@ struct
 			match e.eexpr with
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" } | TAbstractDecl { a_path = [], "Dynamic" }) }]
 					) ->
 						Type.map_expr run e
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") }) ) },
 						[ obj; { eexpr = TTypeExpr(md) }]
 					) ->
 					let md = change_md md in
@@ -272,7 +272,7 @@ struct
 						match obj.eexpr with
 							| TLocal(v) -> f obj
 							| _ ->
-								let var = mk_temp "is" obj.etype in
+								let var = mk_temp "isOfType" obj.etype in
 								let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 								let local = mk_local var obj.epos in
 								{

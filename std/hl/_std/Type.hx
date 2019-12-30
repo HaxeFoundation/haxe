@@ -109,14 +109,14 @@ class Type {
 
 	public static function resolveClass(name:String):Class<Dynamic> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
-		if (t == null || !Std.is(t, hl.BaseType.Class))
+		if (t == null || !Std.isOfType(t, hl.BaseType.Class))
 			return null;
 		return cast t;
 	}
 
 	public static function resolveEnum(name:String):Enum<Dynamic> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
-		if (t == null || !Std.is(t, hl.BaseType.Enum))
+		if (t == null || !Std.isOfType(t, hl.BaseType.Enum))
 			return null;
 		return cast t;
 	}

@@ -21,10 +21,15 @@
  */
 
 import js.Boot;
+import js.Syntax;
 
 @:keepInit
 @:coreApi class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
@@ -48,10 +53,17 @@ import js.Boot;
 
 	@:pure
 	public static function parseInt(x:String):Null<Int> {
-		var v = untyped __js__('parseInt({0}, {0} && {0}[0]=="0" && ({0}[1]=="x" || {0}[1]=="X") ? 16 : 10)', x);
-		if (untyped __js__("isNaN")(v))
-			return null;
-		return cast v;
+		if(x != null) {
+			for(i in 0...x.length) {
+				var c = StringTools.fastCodeAt(x, i);
+				if(c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
+					var nc = StringTools.fastCodeAt(x, i + 1);
+					var v = js.Lib.parseInt(x, (nc == "x".code || nc == "X".code) ? 16 : 10);
+					return Math.isNaN(v) ? null : cast v;
+				}
+			}
+		}
+		return null;
 	}
 
 	public static inline function parseFloat(x:String):Float {

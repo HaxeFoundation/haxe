@@ -270,7 +270,7 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
 let make_is e (t,p_t) p p_is =
-	let e_is = EField((EConst(Ident "Std"),null_pos),"is"),p_is in
+	let e_is = EField((EConst(Ident "Std"),null_pos),"isOfType"),p_is in
 	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
 

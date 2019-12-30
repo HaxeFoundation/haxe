@@ -22,22 +22,24 @@
 
 package hl.types;
 
+import haxe.iterators.ArrayIterator;
+
 @:keep
 @:generic
-class BytesIterator<T> {
-	var pos:Int;
+class BytesIterator<T> extends ArrayIterator<T> {
 	var a:ArrayBytes<T>;
 
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
 	}
 
-	public function hasNext() {
-		return pos < a.length;
+	override public function hasNext() {
+		return current < a.length;
 	}
 
-	public function next():T {
-		return @:privateAccess a.bytes.get(pos++);
+	override public function next():T {
+		return @:privateAccess a.bytes.get(current++);
 	}
 }
 
@@ -253,7 +255,7 @@ class BytesIterator<T> {
 		return a;
 	}
 
-	public function iterator():Iterator<T> {
+	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
 	}
 

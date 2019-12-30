@@ -34,6 +34,7 @@ type safety_mode =
 	| SMOff
 	| SMLoose
 	| SMStrict
+	| SMStrictThreaded
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
@@ -136,18 +137,18 @@ type safety_subject =
 	*)
 	| SNotSuitable
 
-let rec get_subject loose_safety expr =
+let rec get_subject mode expr =
 	match (reveal_expr expr).eexpr with
 		| TLocal v ->
 			SLocalVar v.v_id
-		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when loose_safety || (has_class_field_flag field CfFinal) ->
+		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when (mode <> SMStrictThreaded) || (has_class_field_flag field CfFinal) ->
 			SFieldOfClass (cls.cl_path, [field.cf_name])
-		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when loose_safety || (has_class_field_flag field CfFinal) ->
+		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when (mode <> SMStrictThreaded) || (has_class_field_flag field CfFinal) ->
 			SFieldOfThis [field.cf_name]
-		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when loose_safety || (has_class_field_flag field CfFinal) ->
+		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when (mode <> SMStrictThreaded) || (has_class_field_flag field CfFinal) ->
 			SFieldOfLocalVar (v.v_id, [field.cf_name])
-		| TField (e, (FInstance (_, _, field) | FAnon field)) when loose_safety ->
-			(match get_subject loose_safety e with
+		| TField (e, (FInstance (_, _, field) | FAnon field)) when (mode <> SMStrictThreaded) ->
+			(match get_subject mode e with
 				| SFieldOfClass (path, fields) -> SFieldOfClass (path, field.cf_name :: fields)
 				| SFieldOfThis fields -> SFieldOfThis (field.cf_name :: fields)
 				| SFieldOfLocalVar (var_id, fields) -> SFieldOfLocalVar (var_id, field.cf_name :: fields)
@@ -155,13 +156,17 @@ let rec get_subject loose_safety expr =
 			)
 		|_ -> SNotSuitable
 
-let rec is_suitable loose_safety expr =
+(**
+	Check if provided expression is a subject to null safety.
+	E.g. a call cannot be such a subject, because we cannot track null-state of the call result.
+*)
+let rec is_suitable mode expr =
 	match (reveal_expr expr).eexpr with
 		| TField ({ eexpr = TConst TThis }, FInstance _)
 		| TField ({ eexpr = TLocal _ }, (FInstance _ | FAnon _))
 		| TField ({ eexpr = TTypeExpr _ }, FStatic _)
 		| TLocal _ -> true
-		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when loose_safety -> is_suitable loose_safety target
+		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when mode <> SMStrictThreaded -> is_suitable mode target
 		|_ -> false
 
 class unificator =
@@ -341,7 +346,7 @@ let rec can_pass_type src dst =
 	Collect nullable local vars which are checked against `null`.
 	Returns a tuple of (vars_checked_to_be_null * vars_checked_to_be_not_null) in case `condition` evaluates to `true`.
 *)
-let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) callback =
+let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback =
 	let nulls = ref []
 	and not_nulls = ref [] in
 	let add to_nulls expr =
@@ -352,17 +357,17 @@ let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) 
 	let rec traverse positive e =
 		match e.eexpr with
 			| TUnop (Not, Prefix, e) -> traverse (not positive) e
-			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable loose_safety checked_expr ->
+			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable mode checked_expr ->
 				add positive checked_expr
-			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable loose_safety checked_expr ->
+			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
 				add positive checked_expr
-			| TBinop (OpNotEq, { eexpr = TConst TNull }, checked_expr) when is_suitable loose_safety checked_expr ->
+			| TBinop (OpNotEq, { eexpr = TConst TNull }, checked_expr) when is_suitable mode checked_expr ->
 				add (not positive) checked_expr
-			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable loose_safety checked_expr ->
+			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
 				add (not positive) checked_expr
-			| TBinop (OpEq, e, checked_expr) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
+			| TBinop (OpEq, e, checked_expr) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
-			| TBinop (OpEq, checked_expr, e) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
+			| TBinop (OpEq, checked_expr, e) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpBoolAnd, left_expr, right_expr) when positive ->
 				traverse positive left_expr;
@@ -370,7 +375,7 @@ let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) 
 			| TBinop (OpBoolAnd, left_expr, right_expr) when not positive ->
 				List.iter
 					(fun e ->
-						let _, not_nulls = process_condition loose_safety left_expr is_nullable_expr callback in
+						let _, not_nulls = process_condition mode left_expr is_nullable_expr callback in
 						List.iter (add true) not_nulls
 					)
 					[left_expr; right_expr]
@@ -380,7 +385,7 @@ let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) 
 			| TBinop (OpBoolOr, left_expr, right_expr) when positive ->
 				List.iter
 					(fun e ->
-						let nulls, _ = process_condition loose_safety left_expr is_nullable_expr callback in
+						let nulls, _ = process_condition mode left_expr is_nullable_expr callback in
 						List.iter (add true) nulls
 					)
 					[left_expr; right_expr]
@@ -406,7 +411,7 @@ let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
 		| (Meta.NullSafety, [], _) :: _
-		| (Meta.NullSafety, [(EConst (Ident ("Loose" | "Strict")), _)], _) :: _  -> true
+		| (Meta.NullSafety, [(EConst (Ident ("Loose" | "Strict" | "StrictThreaded")), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
 let safety_enabled meta =
@@ -423,6 +428,8 @@ let safety_mode (metadata:Ast.metadata) =
 				traverse (Some SMLoose) rest
 			| _, (Meta.NullSafety, [(EConst (Ident "Strict"), _)], _) :: rest ->
 				traverse (Some SMStrict) rest
+			| _, (Meta.NullSafety, [(EConst (Ident "StrictThreaded"), _)], _) :: rest ->
+				traverse (Some SMStrictThreaded) rest
 			| _, _ :: rest ->
 				traverse mode rest
 	in
@@ -435,7 +442,7 @@ let rec validate_safety_meta report (metadata:Ast.metadata) =
 		| [] -> ()
 		| (Meta.NullSafety, args, pos) :: rest ->
 			(match args with
-				| ([] | [(EConst (Ident ("Off" | "Loose" | "Strict")), _)]) -> ()
+				| ([] | [(EConst (Ident ("Off" | "Loose" | "Strict" | "StrictThreaded")), _)]) -> ()
 				| _ -> add_error report "Invalid argument for @:nullSafety meta" pos
 			);
 			validate_safety_meta report rest
@@ -628,31 +635,67 @@ class safety_scope (mode:safety_mode) (scope_type:scope_type) (safe_locals:(safe
 			match self#get_subject expr with
 				| SNotSuitable -> ()
 				| subj ->
-					let remove safe_subj safe_fields fields =
+					(*
+						If this is an assignment to a field, drop all safe field accesses first,
+						because it could alter an object of those field accesses.
+					*)
+					(match subj with
+						| SFieldOfClass _ | SFieldOfLocalVar _ | SFieldOfThis _ -> self#drop_safe_fields_in_strict_mode
+						| _ -> ()
+					);
+					let add_to_remove safe_subj safe_fields fields to_remove =
 						if list_starts_with_list (List.rev safe_fields) (List.rev fields) then
-							Hashtbl.remove safe_locals safe_subj
+							safe_subj :: to_remove
+						else
+							to_remove
 					in
-					Hashtbl.iter
-						(fun safe_subj safe_expr ->
-							match safe_subj, subj with
-								| SFieldOfLocalVar (safe_id, _), SLocalVar v_id when safe_id = v_id ->
-									Hashtbl.remove safe_locals safe_subj
-								| SFieldOfLocalVar (safe_id, safe_fields), SFieldOfLocalVar (v_id, fields) when safe_id = v_id ->
-									remove safe_subj safe_fields fields
-								| SFieldOfClass (safe_path, safe_fields), SFieldOfClass (path, fields) when safe_path = path ->
-									remove safe_subj safe_fields fields
-								| SFieldOfClass (safe_path, safe_fields), SFieldOfClass (path, fields) when safe_path = path ->
-									remove safe_subj safe_fields fields
-								| SFieldOfThis safe_fields, SFieldOfThis fields ->
-									remove safe_subj safe_fields fields
-								| _ -> ()
+					let remove_list =
+						Hashtbl.fold
+							(fun safe_subj safe_expr to_remove ->
+								match safe_subj, subj with
+									| SFieldOfLocalVar (safe_id, _), SLocalVar v_id when safe_id = v_id ->
+										safe_subj :: to_remove
+									| SFieldOfLocalVar (safe_id, safe_fields), SFieldOfLocalVar (v_id, fields) when safe_id = v_id ->
+										add_to_remove safe_subj safe_fields fields to_remove
+									| SFieldOfClass (safe_path, safe_fields), SFieldOfClass (path, fields) when safe_path = path ->
+										add_to_remove safe_subj safe_fields fields to_remove
+									| SFieldOfClass (safe_path, safe_fields), SFieldOfClass (path, fields) when safe_path = path ->
+										add_to_remove safe_subj safe_fields fields to_remove
+									| SFieldOfThis safe_fields, SFieldOfThis fields ->
+										add_to_remove safe_subj safe_fields fields to_remove
+									| _ -> to_remove
+							)
+							safe_locals []
+					in
+					List.iter (Hashtbl.remove safe_locals) remove_list
+		(**
+			Should be called upon a call.
+			In Strict mode making a call removes all field accesses from safety.
+		*)
+		method call_made =
+			self#drop_safe_fields_in_strict_mode
+		(**
+			Un-safe all field accesses if safety mode is one of strict modes
+		*)
+		method private drop_safe_fields_in_strict_mode =
+			match mode with
+			| SMOff | SMLoose -> ()
+			| SMStrict | SMStrictThreaded ->
+				let remove_list =
+					Hashtbl.fold
+						(fun subj expr to_remove ->
+							match subj with
+							| SFieldOfLocalVar _ | SFieldOfClass _ | SFieldOfThis _ -> subj :: to_remove
+							| _ -> to_remove
 						)
-						(Hashtbl.copy safe_locals)
+						safe_locals []
+				in
+				List.iter (Hashtbl.remove safe_locals) remove_list
 		(**
 			Wrapper for `get_subject` function
 		*)
 		method private get_subject =
-			get_subject (mode <> SMStrict)
+			get_subject mode
 	end
 
 (**
@@ -755,12 +798,12 @@ class local_safety (mode:safety_mode) =
 				| TWhile (condition, body, DoWhile) ->
 					let original_safe_locals = self#get_safe_locals_copy in
 					condition_callback condition;
-					let (_, not_nulls) = process_condition (mode <> SMStrict) condition is_nullable_expr (fun _ -> ()) in
+					let (_, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
 					body_callback
 						(fun () ->
 							List.iter
 								(fun not_null ->
-									match get_subject (mode <> SMStrict) not_null with
+									match get_subject mode not_null with
 										| SNotSuitable -> ()
 										| subj ->
 											if Hashtbl.mem original_safe_locals subj then
@@ -771,7 +814,7 @@ class local_safety (mode:safety_mode) =
 						body
 				| TWhile (condition, body, NormalWhile) ->
 					condition_callback condition;
-					let (nulls, not_nulls) = process_condition (mode <> SMStrict) condition is_nullable_expr (fun _ -> ()) in
+					let (nulls, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
 					(** execute `body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback
@@ -823,7 +866,7 @@ class local_safety (mode:safety_mode) =
 				| TIf (condition, if_body, else_body) ->
 					condition_callback condition;
 					let (_, not_nulls) =
-						process_condition (mode <> SMStrict) condition is_nullable_expr (fun _ -> ())
+						process_condition mode condition is_nullable_expr (fun _ -> ())
 					in
 					(* Don't touch expressions, which already was safe before this `if` *)
 					let filter = List.filter (fun e -> not (self#is_safe e)) in
@@ -832,7 +875,7 @@ class local_safety (mode:safety_mode) =
 						{ eexpr = TUnop (Not, Prefix, condition); etype = condition.etype; epos = condition.epos }
 					in
 					let (_, else_not_nulls) =
-						process_condition (mode <> SMStrict) not_condition is_nullable_expr (fun _ -> ())
+						process_condition mode not_condition is_nullable_expr (fun _ -> ())
 					in
 					let else_not_nulls = filter else_not_nulls in
 					(** execute `if_body` with known not-null variables *)
@@ -863,7 +906,7 @@ class local_safety (mode:safety_mode) =
 		*)
 		method process_and left_expr right_expr is_nullable_expr (callback:texpr->unit) =
 			callback left_expr;
-			let (_, not_nulls) = process_condition (mode <> SMStrict) left_expr is_nullable_expr (fun e -> ()) in
+			let (_, not_nulls) = process_condition mode left_expr is_nullable_expr (fun e -> ()) in
 			List.iter self#get_current_scope#add_to_safety not_nulls;
 			callback right_expr;
 			List.iter self#get_current_scope#remove_from_safety not_nulls
@@ -871,7 +914,7 @@ class local_safety (mode:safety_mode) =
 			Handle boolean OR outside of `if` condition.
 		*)
 		method process_or left_expr right_expr is_nullable_expr (callback:texpr->unit) =
-			let (nulls, _) = process_condition (mode <> SMStrict) left_expr is_nullable_expr callback in
+			let (nulls, _) = process_condition mode left_expr is_nullable_expr callback in
 			List.iter self#get_current_scope#add_to_safety nulls;
 			callback right_expr;
 			List.iter self#get_current_scope#remove_from_safety nulls
@@ -879,7 +922,7 @@ class local_safety (mode:safety_mode) =
 			Remove subject from the safety list if a nullable value is assigned or if an object with safe field is reassigned.
 		*)
 		method handle_assignment is_nullable_expr left_expr (right_expr:texpr) =
-			if is_suitable (mode <> SMStrict) left_expr then
+			if is_suitable mode left_expr then
 				self#get_current_scope#reassigned left_expr;
 				if is_nullable_expr right_expr then
 					match left_expr.eexpr with
@@ -901,6 +944,8 @@ class local_safety (mode:safety_mode) =
 						| _ -> ()
 				else if is_nullable_type left_expr.etype then
 					self#get_current_scope#add_to_safety left_expr
+		method call_made =
+			self#get_current_scope#call_made
 	end
 
 (**
@@ -1272,11 +1317,11 @@ class expr_checker mode immediate_execution report =
 			Make sure nobody tries to access a field on a nullable value
 		*)
 		method private check_field target access p =
+			self#check_expr target;
 			if self#is_nullable_expr target then
 				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") [p; target.epos];
-			self#check_expr target
 		(**
-			Check constructor invocation: don't pass nulable values to not-nullable arguments
+			Check constructor invocation: don't pass nullable values to not-nullable arguments
 		*)
 		method private check_new e_new =
 			match e_new.eexpr with
@@ -1311,7 +1356,7 @@ class expr_checker mode immediate_execution report =
 				| _ ->
 					self#check_expr callee
 			);
-			match follow callee.etype with
+			(match follow callee.etype with
 				| TFun (types, _) ->
 					if is_trace callee then
 						let real_args =
@@ -1333,6 +1378,8 @@ class expr_checker mode immediate_execution report =
 						self#check_args callee args types
 				| _ ->
 					List.iter self#check_expr args
+			);
+			local_safety#call_made
 		(**
 			Check if specified expressions can be passed to a call which expects `types`.
 		*)

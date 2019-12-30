@@ -52,9 +52,11 @@ let find_abstract_by_position cfile p =
 
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
-	let ctx,cctx = TypeloadFields.create_class_context ctx c (fun () -> ()) cf.cf_pos in
+	let context_init = new TypeloadFields.context_init in
+	let ctx,cctx = TypeloadFields.create_class_context ctx c context_init cf.cf_pos in
 	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
+	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)
 
 let check_display_class ctx cc cfile c =
@@ -143,8 +145,12 @@ let check_display_file ctx cs =
 			let p = DisplayPosition.display_position#get in
 			let cfile = cc#find_file (Path.unique_full_path p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
-			let m = cc#find_module path in
-			check_display_module ctx cc cfile m
+			(* We have to go through type_module_hook because one of the module's dependencies could be
+			   invalid (issue #8991). *)
+			begin match !TypeloadModule.type_module_hook ctx path null_pos with
+			| None -> raise Not_found
+			| Some m -> check_display_module ctx cc cfile m
+			end
 		with Not_found ->
 			(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 				current file in order to run diagnostics on it again. *)

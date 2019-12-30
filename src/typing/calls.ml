@@ -71,10 +71,13 @@ let make_call ctx e params t ?(force_inline=false) p =
 				if
 					f.cf_name <> "_new"
 					&& has_meta Meta.This v_meta
-					&& not (assign_to_this_is_allowed ctx)
 					&& has_class_field_flag f CfModifiesThis
 				then
-					error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
+					if assign_to_this_is_allowed ctx then
+						(* Current method needs to infer CfModifiesThis flag, since we are calling a method, which modifies `this` *)
+						add_class_field_flag ctx.curfield CfModifiesThis
+					else
+						error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
 		let params = List.map (ctx.g.do_optimize ctx) params in

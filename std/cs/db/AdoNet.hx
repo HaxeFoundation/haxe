@@ -74,9 +74,9 @@ private class AdoConnection implements Connection {
 	}
 
 	public function addValue(s:StringBuf, v:Dynamic) {
-		if (Std.is(v, Date)) {
+		if (Std.isOfType(v, Date)) {
 			v = Std.string(v);
-		} else if (Std.is(v, haxe.io.Bytes)) {
+		} else if (Std.isOfType(v, haxe.io.Bytes)) {
 			var bt:haxe.io.Bytes = v;
 			v = bt.getData();
 		}
@@ -284,7 +284,7 @@ private class AdoResultSet implements ResultSet {
 			} else {
 				val = reader.GetValue(i);
 			}
-			if (Std.is(val, cs.system.DBNull))
+			if (Std.isOfType(val, cs.system.DBNull))
 				val = null;
 			Reflect.setField(ret, name, val);
 		}
