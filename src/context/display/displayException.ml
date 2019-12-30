@@ -154,7 +154,7 @@ let to_json ctx de =
 		let ctx = Genjson.create_context GMFull in
 		let fsig ((_,signature),doc) =
 			let fl = CompletionType.generate_function' ctx signature in
-			let fl = (match doc with None -> fl | Some s -> ("documentation",jstring s) :: fl) in
+			let fl = (match doc with None -> fl | Some d -> ("documentation",jstring (gen_doc_text d)) :: fl) in
 			jobject fl
 		in
 		let sigkind = match kind with
@@ -196,7 +196,7 @@ let to_json ctx de =
 			| _ -> jnull
 		in
 		jobject [
-			"documentation",jopt jstring (CompletionItem.get_documentation hover.hitem);
+			"documentation",jopt jstring (gen_doc_text_opt (CompletionItem.get_documentation hover.hitem));
 			"range",generate_pos_as_range hover.hpos;
 			"item",CompletionItem.to_json ctx None hover.hitem;
 			"expected",expected;

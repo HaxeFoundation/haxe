@@ -195,7 +195,7 @@ let reify in_macro =
 		in
 		let fields = [
 			Some ("name", to_placed_name f.cff_name);
-			(match f.cff_doc with None -> None | Some s -> Some ("doc", to_string s p));
+			(match f.cff_doc with None -> None | Some d -> Some ("doc", to_string (gen_doc_text d) p));
 			(match f.cff_access with [] -> None | l -> Some ("access", to_array to_access l p));
 			Some ("kind", to_kind f.cff_kind);
 			Some ("pos", to_pos f.cff_pos);

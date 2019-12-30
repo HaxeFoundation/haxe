@@ -156,7 +156,7 @@ and parse_abstract doc meta flags = parser
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
 			d_name = name;
-			d_doc = doc;
+			d_doc = doc_from_string_opt doc;
 			d_meta = meta;
 			d_params = tl;
 			d_flags = flags @ sl;
@@ -176,7 +176,7 @@ and parse_type_decl mode s =
 			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 				(EEnum {
 					d_name = name;
-					d_doc = doc;
+					d_doc = doc_from_string_opt doc;
 					d_meta = meta;
 					d_params = tl;
 					d_flags = List.map decl_flag_to_enum_flag c;
@@ -218,7 +218,7 @@ and parse_type_decl mode s =
 			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;
-				d_doc = doc;
+				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map decl_flag_to_class_flag c @ n @ hl;
@@ -230,7 +230,7 @@ and parse_type_decl mode s =
 			| [< >] -> ());
 			(ETypedef {
 				d_name = name;
-				d_doc = doc;
+				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map decl_flag_to_enum_flag c;
@@ -757,7 +757,7 @@ and parse_enum s =
 		) in
 		{
 			ec_name = name,p1;
-			ec_doc = doc;
+			ec_doc = doc_from_string_opt doc;
 			ec_meta = meta;
 			ec_args = args;
 			ec_params = params;
@@ -868,7 +868,7 @@ and parse_class_field tdecl s =
 		in
 		{
 			cff_name = name;
-			cff_doc = doc;
+			cff_doc = doc_from_string_opt doc;
 			cff_meta = meta;
 			cff_access = al;
 			cff_pos = pos;
