@@ -124,6 +124,15 @@ Lambda.find([1,2,3,4,5],function(i) return false) == null;
 Lambda.find([],function(i) return true) == null;
 Lambda.find([],function(i) return false) == null;
 
+// findIndex
+Lambda.findIndex([1,2,3,4,5],function(i) return i % 2 == 0) == 1;
+Lambda.findIndex([1,2,3,4,5],function(i) return i % 4 == 0) == 3;
+Lambda.findIndex([1,2,3,4,5],function(i) return i % 8 == 0) == -1;
+Lambda.findIndex([1,2,3,4,5],function(i) return true) == 0;
+Lambda.findIndex([1,2,3,4,5],function(i) return false) == -1;
+Lambda.findIndex([],function(i) return true) == -1;
+Lambda.findIndex([],function(i) return false) == -1;
+
 // concat
 Lambda.array(Lambda.concat([1,2,3],[3,4,5])) == [1,2,3,3,4,5];
 Lambda.array(Lambda.concat([1,2,3],[])) == [1,2,3];

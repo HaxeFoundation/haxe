@@ -261,6 +261,26 @@ class Lambda {
 	}
 
 	/**
+		Returns the index of the first element of `it` for which `f` is true.
+
+		This function returns as soon as an element is found for which a call to
+		`f` returns true.
+
+		If no such element is found, the result is -1.
+
+		If `f` is null, the result is unspecified.
+	**/
+	public static function findIndex<T>(it:Iterable<T>, f:(item:T) -> Bool):Int {
+		var i = 0;
+		for (v in it) {
+			if (f(v))
+				return i;
+			i++;
+		}
+		return -1;
+	}
+
+	/**
 		Returns a new Array containing all elements of Iterable `a` followed by
 		all elements of Iterable `b`.
 
