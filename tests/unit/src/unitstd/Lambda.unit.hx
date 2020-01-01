@@ -115,6 +115,15 @@ Lambda.indexOf([1,2,3,3],3) == 2;
 Lambda.indexOf([1,2,3],4) == -1;
 Lambda.indexOf([],1) == -1;
 
+// find
+Lambda.find([1,2,3,4,5],function(i) return i % 2 == 0) == 2;
+Lambda.find([1,2,3,4,5],function(i) return i % 4 == 0) == 4;
+Lambda.find([1,2,3,4,5],function(i) return i % 8 == 0) == null;
+Lambda.find([1,2,3,4,5],function(i) return true) == 1;
+Lambda.find([1,2,3,4,5],function(i) return false) == null;
+Lambda.find([],function(i) return true) == null;
+Lambda.find([],function(i) return false) == null;
+
 // concat
 Lambda.array(Lambda.concat([1,2,3],[3,4,5])) == [1,2,3,3,4,5];
 Lambda.array(Lambda.concat([1,2,3],[])) == [1,2,3];
