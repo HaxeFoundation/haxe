@@ -116,22 +116,22 @@ Lambda.indexOf([1,2,3],4) == -1;
 Lambda.indexOf([],1) == -1;
 
 // find
-Lambda.find([1,2,3,4,5],function(i) return i % 2 == 0) == 2;
-Lambda.find([1,2,3,4,5],function(i) return i % 4 == 0) == 4;
-Lambda.find([1,2,3,4,5],function(i) return i % 8 == 0) == null;
-Lambda.find([1,2,3,4,5],function(i) return true) == 1;
-Lambda.find([1,2,3,4,5],function(i) return false) == null;
-Lambda.find([],function(i) return true) == null;
-Lambda.find([],function(i) return false) == null;
+Lambda.find([1,2,3,4,5],i -> i % 2 == 0) == 2;
+Lambda.find([1,2,3,4,5],i -> i % 4 == 0) == 4;
+Lambda.find([1,2,3,4,5],i -> i % 8 == 0) == null;
+Lambda.find([1,2,3,4,5],i -> true) == 1;
+Lambda.find([1,2,3,4,5],i -> false) == null;
+Lambda.find([],i -> true) == null;
+Lambda.find([],i -> false) == null;
 
 // findIndex
-Lambda.findIndex([1,2,3,4,5],function(i) return i % 2 == 0) == 1;
-Lambda.findIndex([1,2,3,4,5],function(i) return i % 4 == 0) == 3;
-Lambda.findIndex([1,2,3,4,5],function(i) return i % 8 == 0) == -1;
-Lambda.findIndex([1,2,3,4,5],function(i) return true) == 0;
-Lambda.findIndex([1,2,3,4,5],function(i) return false) == -1;
-Lambda.findIndex([],function(i) return true) == -1;
-Lambda.findIndex([],function(i) return false) == -1;
+Lambda.findIndex([1,2,3,4,5],i -> i % 2 == 0) == 1;
+Lambda.findIndex([1,2,3,4,5],i -> i % 4 == 0) == 3;
+Lambda.findIndex([1,2,3,4,5],i -> i % 8 == 0) == -1;
+Lambda.findIndex([1,2,3,4,5],i -> true) == 0;
+Lambda.findIndex([1,2,3,4,5],i -> false) == -1;
+Lambda.findIndex([],i -> true) == -1;
+Lambda.findIndex([],i -> false) == -1;
 
 // concat
 Lambda.array(Lambda.concat([1,2,3],[3,4,5])) == [1,2,3,3,4,5];
