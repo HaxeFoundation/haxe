@@ -236,7 +236,7 @@ and type_param = {
 
 and doc_block = {
 	doc_own: string option;
-	mutable doc_inherited: (unit -> (string option)) list
+	mutable doc_inherited: (string option ref) list
 }
 
 and documentation = doc_block option
@@ -342,6 +342,11 @@ let is_lower_ident i =
 
 let pos = snd
 
+let extend_doc (src:documentation) =
+	match src with
+	| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
+	| None -> { doc_own = None; doc_inherited = []; }
+
 let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
 
 let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
@@ -350,7 +355,7 @@ let gen_doc_text d =
 	let docs =
 		let inherited =
 			List.fold_left
-				(fun lst fn -> match fn() with None -> lst | Some s -> s :: lst)
+				(fun lst inherited -> match !inherited with None -> lst | Some s -> s :: lst)
 				[] d.doc_inherited
 		in
 		match d.doc_own with Some s -> s :: inherited | None -> inherited

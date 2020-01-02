@@ -819,23 +819,15 @@ let module_pass_2 ctx m decls tdecls p =
 						if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
 						c.cl_kind <- KGenericBuild d.d_data
 					| Meta.InheritDoc, [], _ ->
+						let doc = extend_doc c.cl_doc in
 						let inherited = ref None in
-						let doc =
-							match c.cl_doc with
-							| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
-							| None -> { doc_own = None; doc_inherited = []; }
-						in
+						doc.doc_inherited <- inherited :: doc.doc_inherited;
 						c.cl_doc <- Some doc;
-						doc.doc_inherited <-
-							(fun() ->
-								match !inherited, c.cl_super with
-								| Some s, _ -> !inherited
-								| None, None -> None
-								| None, Some (csup,_) ->
-									inherited := gen_doc_text_opt csup.cl_doc;
-									!inherited
-							)
-							:: doc.doc_inherited;
+						delay ctx PBuildClass (fun() ->
+							match c.cl_super with
+							| Some (csup,_) -> inherited := gen_doc_text_opt csup.cl_doc
+							| None -> ()
+						);
 					| _ -> ()
 				)
 				c.cl_meta;

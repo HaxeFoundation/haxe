@@ -1034,11 +1034,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 
 let inherit_doc ctx c cf args p =
 	let inherited = ref None in
-	let doc =
-		match cf.cf_doc with
-		| Some d -> { doc_own = d.doc_own; doc_inherited = d.doc_inherited; }
-		| None -> { doc_own = None; doc_inherited = []; }
-	in
+	let doc = extend_doc cf.cf_doc in
 	cf.cf_doc <- Some doc;
 	(match args with
 	| [] ->
@@ -1100,7 +1096,7 @@ let inherit_doc ctx c cf args p =
 		)
 	| _ -> error "Too many arguments for @:inheritDoc" p
 	);
-	doc.doc_inherited <- (fun() -> !inherited) :: doc.doc_inherited
+	doc.doc_inherited <- inherited :: doc.doc_inherited
 
 let create_method (ctx,cctx,fctx) c f fd p =
 	let params = TypeloadFunction.type_function_params ctx fd (fst f.cff_name) p in
