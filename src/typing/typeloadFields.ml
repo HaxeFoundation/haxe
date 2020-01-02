@@ -1071,7 +1071,6 @@ let inherit_doc ctx c cf args p =
 			try Some (Typeload.load_instance ctx (tp,p) true)
 			with Error (Module_not_found _,p2) when p == p2 -> None
 		in
-		flush_pass ctx PBuildClass "inheritDoc";
 		(match t with
 		| None -> ()
 		| Some t ->
