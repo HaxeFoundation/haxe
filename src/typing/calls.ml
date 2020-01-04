@@ -44,27 +44,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
 				)
 		end;
-		let config = match cl with
-			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
-				let t = if f.cf_name = "_new" then
-					t
-				else if params = [] then
-					error "Invalid abstract implementation function" f.cf_pos
-				else
-					follow (List.hd params).etype
-				in
-				begin match t with
-					| TAbstract(a,pl) ->
-						let has_params = a.a_params <> [] || f.cf_params <> [] in
-						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
-						let map_type = fun t -> apply_params a.a_params pl (apply_params f.cf_params monos t) in
-						Some (has_params,map_type)
-					| _ ->
-						None
-				end
-			| _ ->
-				None
-		in
+		let config = Inline.inline_config cl f params t in
 		ignore(follow f.cf_type); (* force evaluation *)
 		(match cl, ctx.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
