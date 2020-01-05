@@ -76,8 +76,39 @@ let collect_statistics ctx pfilter =
 	in
 	let var_decl v = declare (SKVariable v) v.v_pos in
 	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
-	let field_reference cf p =
-		add_relation cf.cf_name_pos (Referenced,patch_string_pos p cf.cf_name)
+	let field_reference co cf p =
+		let p' = patch_string_pos p cf.cf_name in
+		add_relation cf.cf_name_pos (Referenced,p');
+		(* extend to related classes for instance fields *)
+		match co with
+		| Some c ->
+			let check c =
+				try
+					let cf = PMap.find cf.cf_name c.cl_fields in
+					add_relation cf.cf_name_pos (Referenced,p')
+				with Not_found ->
+					()
+			in
+			(* to children *)
+			let rec loop c =
+				List.iter (fun c ->
+					check c;
+					loop c;
+				) c.cl_descendants
+			in
+			loop c;
+			(* to parents *)
+			let rec loop c =
+				let f (c,_) =
+					check c;
+					loop c;
+				in
+				List.iter f c.cl_implements;
+				Option.may f c.cl_super
+			in
+			loop c;
+		| None ->
+			()
 	in
 	let collect_references c e =
 		let rec loop e = match e.eexpr with
@@ -87,11 +118,13 @@ let collect_statistics ctx pfilter =
 				if e1.epos.pmin = e.epos.pmin && e1.epos.pmax <> e.epos.pmax then
 					loop e1;
 				begin match fa with
-					| FStatic(_,cf) | FInstance(_,_,cf) | FClosure(_,cf) ->
-						field_reference cf e.epos
+					| FStatic(_,cf) | FClosure(None,cf) ->
+						field_reference None cf e.epos
+					| FInstance(c,_,cf) | FClosure(Some(c,_),cf) ->
+						field_reference (Some c) cf e.epos
 					| FAnon cf ->
 						declare  (SKField cf) cf.cf_name_pos;
-						field_reference cf e.epos
+						field_reference None cf e.epos
 					| FEnum(_,ef) ->
 						add_relation ef.ef_name_pos (Referenced,patch_string_pos e.epos ef.ef_name)
 					| FDynamic _ ->
@@ -135,6 +168,23 @@ let collect_statistics ctx pfilter =
 			List.iter (fun (p,pn) -> add_relation pn (Referenced,p)) m.m_extra.m_display.m_type_hints
 		end
 	in
+	(* set up descendants *)
+	let f = function
+		| TClassDecl c ->
+				List.iter (fun (iface,_) -> add_descendant iface c) c.cl_implements;
+				begin match c.cl_super with
+					| Some (csup,_) -> add_descendant csup c
+					| None -> ()
+				end;
+		| _ ->
+			()
+	in
+	let rec loop com =
+		List.iter f com.types;
+		Option.may loop (com.get_macros())
+	in
+	loop ctx.com;
+	(* find things *)
 	let f = function
 		| TClassDecl c ->
 			check_module c.cl_module;
