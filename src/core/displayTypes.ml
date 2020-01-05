@@ -289,14 +289,17 @@ module DisplayMode = struct
 		| DMSignature -> "signature"
 end
 
-type reference_kind =
-	| KVar
-	| KIdent
-	| KAnyField
-	| KClassField
-	| KEnumField
-	| KModuleType
-	| KConstructor
+type symbol =
+	| SKClass of tclass
+	| SKInterface of tclass
+	| SKEnum of tenum
+	| SKTypedef of tdef
+	| SKAbstract of tabstract
+	| SKField of tclass_field
+	| SKConstructor of tclass_field
+	| SKEnumField of tenum_field
+	| SKVariable of tvar
+	| SKOther
 
 type completion_subject = {
 	s_name : string option;

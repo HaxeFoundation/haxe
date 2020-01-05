@@ -3,6 +3,7 @@ open Ast
 open Type
 open Common
 open Typecore
+open DisplayTypes
 
 open ImportHandling
 
@@ -11,16 +12,6 @@ type relation =
 	| Extended
 	| Overridden
 	| Referenced
-
-type symbol =
-	| SKClass of tclass
-	| SKInterface of tclass
-	| SKEnum of tenum
-	| SKTypedef of tdef
-	| SKAbstract of tabstract
-	| SKField of tclass_field
-	| SKEnumField of tenum_field
-	| SKVariable of tvar
 
 type statistics_filter =
 	| SFNone
@@ -242,8 +233,10 @@ module Printer = struct
 		| SKTypedef _ -> "typedef"
 		| SKAbstract _ -> "abstract"
 		| SKField _ -> "class field"
+		| SKConstructor _ -> "constructor"
 		| SKEnumField _ -> "enum field"
 		| SKVariable _ -> "variable"
+		| SKOther -> "other"
 
 	let print_statistics (kinds,relations) =
 		let files = Hashtbl.create 0 in
