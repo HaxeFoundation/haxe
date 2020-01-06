@@ -420,6 +420,12 @@
 		"internal": true
 	},
 	{
+		"name": "GenericClassPerMethod",
+		"metadata": ":genericClassPerMethod",
+		"doc": "Makes compiler generate separate class per generic static method specialization",
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Getter",
 		"metadata": ":getter",
 		"doc": "Generates a native getter function on the given field.",
