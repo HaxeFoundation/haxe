@@ -207,7 +207,12 @@ let collect_statistics ctx pfilter =
 			List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
 			begin match c.cl_super with
 				| None -> ()
-				| Some (c',_) -> add_relation c'.cl_name_pos (Extended,c.cl_name_pos);
+				| Some (c',_) ->
+					let rec loop c' =
+						add_relation c'.cl_name_pos (Extended,c.cl_name_pos);
+						Option.may (fun (c',_) -> loop c') c'.cl_super
+					in
+					loop c'
 			end;
 			collect_overrides c;
 			if c.cl_interface then
