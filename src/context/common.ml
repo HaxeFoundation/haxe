@@ -159,7 +159,6 @@ type shared_display_information = {
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 	mutable display_module_has_macro_defines : bool;
 }
 
@@ -440,7 +439,6 @@ let create version s_version args =
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
@@ -519,7 +517,6 @@ let clone com =
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		defines = {

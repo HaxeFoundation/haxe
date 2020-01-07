@@ -69,6 +69,20 @@ let collect_statistics ctx pfilter =
 			loop c
 		) c.cl_overrides
 	in
+	let collect_implementations c =
+		List.iter (fun cf ->
+			let rec loop c =
+				begin try
+					let cf' = PMap.find cf.cf_name c.cl_fields in
+					add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
+				with Not_found ->
+					()
+				end;
+				List.iter loop c.cl_descendants
+			in
+			List.iter loop c.cl_descendants
+		) c.cl_ordered_fields
+	in
 	let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
 		(* The pos comparison might be a bit weak, not sure... *)
 		| Some cf,_ when not (Meta.has Meta.CompilerGenerated cf.cf_meta) && c.cl_pos <> cf.cf_pos -> cf
@@ -196,6 +210,8 @@ let collect_statistics ctx pfilter =
 				| Some (c',_) -> add_relation c'.cl_name_pos (Extended,c.cl_name_pos);
 			end;
 			collect_overrides c;
+			if c.cl_interface then
+				collect_implementations c;
 			let field cf =
 				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
 				let _ = follow cf.cf_type in
@@ -220,11 +236,6 @@ let collect_statistics ctx pfilter =
 		Option.may loop (com.get_macros())
 	in
 	loop ctx.com;
-	let l = List.fold_left (fun acc (_,cfi,_,cfo) -> match cfo with
-		| Some cf -> if List.mem_assoc cf.cf_name_pos acc then acc else (cf.cf_name_pos,cfi.cf_name_pos) :: acc
-		| None -> acc
-	) [] ctx.com.display_information.interface_field_implementations in
-	List.iter (fun (p,p') -> add_relation p' (Implemented,p)) l;
 	(* let deal_with_imports paths =
 		let check_subtype m s p =
 			try
