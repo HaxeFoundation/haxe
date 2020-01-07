@@ -235,7 +235,7 @@ module CompletionModuleType = struct
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
-				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
+				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 			| GMMinimum ->
 				match generate_minimum_metadata ctx cm.meta with
 					| None -> []

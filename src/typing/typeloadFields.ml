@@ -1284,7 +1284,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			| Not_found ->
 				if c.cl_interface then begin
 					let cf = mk_field m t p null_pos in
-					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
@@ -1532,7 +1532,7 @@ let init_class ctx c p context_init herits fields =
 							| KAbstractImpl a -> "abstract",a.a_path
 							| _ -> "class",c.cl_path
 						in
-						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) p
+						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
 			end

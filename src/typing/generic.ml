@@ -145,6 +145,31 @@ let get_short_name =
 		Printf.sprintf "Hx___short___hx_type_%i" !i
 	)
 
+let static_method_container gctx c cf p =
+	let ctx = gctx.ctx in
+	let pack = fst c.cl_path in
+	let name = (snd c.cl_path) ^ "_" ^ cf.cf_name ^ "_" ^ gctx.name in
+	try
+		let t = Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) true in
+		match t with
+		| TInst(cg,_) -> cg
+		| _ -> error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
+	with Error(Module_not_found path,_) when path = (pack,name) ->
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let mg = {
+			m_id = alloc_mid();
+			m_path = (pack,name);
+			m_types = [];
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
+		} in
+		gctx.mg <- Some mg;
+		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		mg.m_types <- [TClassDecl cg];
+		Hashtbl.add ctx.g.modules mg.m_path mg;
+		add_dependency mg m;
+		add_dependency ctx.m.curmod mg;
+		cg
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in

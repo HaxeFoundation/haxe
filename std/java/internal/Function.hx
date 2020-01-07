@@ -50,7 +50,7 @@ import java.internal.Runtime;
 	}
 
 	override public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic {
-		return fun(@:privateAccess Array.ofNative(dynArgs));
+		return fun(dynArgs == null ? [] : @:privateAccess Array.ofNative(dynArgs));
 	}
 }
 
