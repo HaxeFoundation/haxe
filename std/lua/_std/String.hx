@@ -91,7 +91,6 @@ class String {
 	public inline function split(delimiter:String):Array<String> {
 		var idx = 1;
 		var ret = [];
-		var delim_offset = delimiter.length > 0 ? delimiter.length : 1;
 		while (idx != null) {
 			var newidx = 0;
 			if (delimiter.length > 0) {
