@@ -60,8 +60,9 @@ let collect_statistics ctx pfilter =
 						let cf' = PMap.find cf.cf_name c.cl_fields in
 						add_relation cf'.cf_name_pos (Overridden,cf.cf_pos)
 					with Not_found ->
-						loop c
-					end
+						()
+					end;
+					loop c
 				| _ ->
 					()
 			in
