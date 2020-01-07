@@ -81,7 +81,12 @@ let collect_statistics ctx pfilter =
 				List.iter loop c.cl_descendants
 			in
 			List.iter loop c.cl_descendants
-		) c.cl_ordered_fields
+		) c.cl_ordered_fields;
+		let rec loop c' =
+			add_relation c.cl_name_pos ((if c'.cl_interface then Extended else Implemented),c'.cl_name_pos);
+			List.iter loop c'.cl_descendants
+		in
+		List.iter loop c.cl_descendants
 	in
 	let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
 		(* The pos comparison might be a bit weak, not sure... *)
@@ -204,7 +209,6 @@ let collect_statistics ctx pfilter =
 		| TClassDecl c ->
 			check_module c.cl_module;
 			declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
-			List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
 			begin match c.cl_super with
 				| None -> ()
 				| Some (c',_) ->
