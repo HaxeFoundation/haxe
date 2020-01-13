@@ -201,3 +201,26 @@ let find_references tctx com with_definition =
 	t();
 	Display.ReferencePosition.set ("",null_pos,SKOther);
 	DisplayException.raise_positions usages
+
+let find_implementations tctx com =
+	let name,pos,kind = Display.ReferencePosition.get () in
+	let t = Timer.timer ["display";"implementations";"collect"] in
+	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
+	t();
+	let rec loop acc relations = match relations with
+		| ((Statistics.Implemented | Statistics.Overridden | Statistics.Extended),p) :: relations -> loop (p :: acc) relations
+		| _ :: relations -> loop acc relations
+		| [] -> acc
+	in
+	let t = Timer.timer ["display";"implementations";"filter"] in
+	let usages = Hashtbl.fold (fun p sym acc ->
+		(try loop acc (Hashtbl.find relations p)
+		with Not_found -> acc)
+	) symbols [] in
+	let usages = List.sort (fun p1 p2 ->
+		let c = compare p1.pfile p2.pfile in
+		if c <> 0 then c else compare p1.pmin p2.pmin
+	) usages in
+	t();
+	Display.ReferencePosition.set ("",null_pos,SKOther);
+	DisplayException.raise_positions usages

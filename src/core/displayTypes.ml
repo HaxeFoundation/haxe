@@ -183,6 +183,7 @@ module DisplayMode = struct
 		| DMUsage of bool (* true = also report definition *)
 		| DMDefinition
 		| DMTypeDefinition
+		| DMImplementation
 		| DMResolve of string
 		| DMPackage
 		| DMHover
@@ -245,7 +246,7 @@ module DisplayMode = struct
 		match dm with
 		| DMNone -> default_compilation_settings
 		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
-		| DMUsage _ -> { settings with
+		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
 				dms_collect_data = true;
@@ -277,6 +278,7 @@ module DisplayMode = struct
 		| DMDefault -> "field"
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
+		| DMImplementation -> "implementation"
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"

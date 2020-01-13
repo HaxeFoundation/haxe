@@ -28,7 +28,7 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		| _ ->
 			raise_positions [(t_infos mt).mt_name_pos];
 		end
-	| DMUsage _ ->
+	| DMUsage _ | DMImplementation ->
 		let infos = t_infos mt in
 		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,symbol_of_module_type mt)
 	| DMHover ->
@@ -96,7 +96,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type cf.cf_type
-	| DMUsage _ ->
+	| DMUsage _ | DMImplementation ->
 		let name,kind = match cf.cf_name,origin with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
