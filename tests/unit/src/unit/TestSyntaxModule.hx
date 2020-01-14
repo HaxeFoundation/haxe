@@ -48,6 +48,13 @@ class TestSyntaxModule extends Test {
 	}
 	#end
 #end
+
+#if js
+	function testPlainCode() {
+		var s = Syntax.plainCode('"{0}"');
+		eq('{0}', s);
+	}
+#end
 }
 
 private class Construct {

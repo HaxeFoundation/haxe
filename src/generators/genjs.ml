@@ -374,7 +374,7 @@ let print_deprecation_message com msg p =
 let is_code_injection_function e =
 	match e.eexpr with
 	| TIdent "__js__"
-	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = "code" }))
+	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = "code" | "plainCode" }))
 		-> true
 	| _ ->
 		false
@@ -966,7 +966,7 @@ and gen_syntax ctx meth args pos =
 		let code, code_pos =
 			match code.eexpr with
 			| TConst (TString s) -> s, code.epos
-			| _ -> abort "The `code` argument for js.Syntax must be a string constant" code.epos
+			| _ -> abort "The `code` argument for js.Syntax.code must be a string constant" code.epos
 		in
 		begin
 			match args with
@@ -988,6 +988,13 @@ and gen_syntax ctx meth args pos =
 				in
 				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
 		end
+	| "plainCode", [code] ->
+		let code =
+			match code.eexpr with
+			| TConst (TString s) -> s
+			| _ -> abort "The `code` argument for js.Syntax.plainCode must be a string constant" code.epos
+		in
+		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| "field" , [eobj;efield] ->
 		gen_value ctx eobj;
 		(match Texpr.skip efield with
