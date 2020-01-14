@@ -1519,6 +1519,19 @@ let rec make_const e =
 
 let macro_api ccom get_api =
 	[
+		"contains_display_position", vfun1 (fun p ->
+			let p = decode_pos p in
+			let display_pos = DisplayPosition.display_position in
+			let same_file() =
+				let dfile = display_pos#get.pfile in
+				dfile = p.pfile
+				|| (
+					(Filename.is_relative p.pfile || Filename.is_relative dfile)
+					&& (Path.unique_full_path dfile = Path.unique_full_path p.pfile)
+				)
+			in
+			vbool (display_pos#enclosed_in p && same_file())
+		);
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
