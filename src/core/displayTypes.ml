@@ -183,6 +183,7 @@ module DisplayMode = struct
 		| DMUsage of bool (* true = also report definition *)
 		| DMDefinition
 		| DMTypeDefinition
+		| DMImplementation
 		| DMResolve of string
 		| DMPackage
 		| DMHover
@@ -245,6 +246,9 @@ module DisplayMode = struct
 		match dm with
 		| DMNone -> default_compilation_settings
 		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
+		| DMImplementation -> { settings with
+				dms_exit_during_typing = false;
+			}
 		| DMUsage _ -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
@@ -277,6 +281,7 @@ module DisplayMode = struct
 		| DMDefault -> "field"
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
+		| DMImplementation -> "implementation"
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
@@ -289,14 +294,17 @@ module DisplayMode = struct
 		| DMSignature -> "signature"
 end
 
-type reference_kind =
-	| KVar
-	| KIdent
-	| KAnyField
-	| KClassField
-	| KEnumField
-	| KModuleType
-	| KConstructor
+type symbol =
+	| SKClass of tclass
+	| SKInterface of tclass
+	| SKEnum of tenum
+	| SKTypedef of tdef
+	| SKAbstract of tabstract
+	| SKField of tclass_field
+	| SKConstructor of tclass_field
+	| SKEnumField of tenum_field
+	| SKVariable of tvar
+	| SKOther
 
 type completion_subject = {
 	s_name : string option;

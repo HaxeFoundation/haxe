@@ -6,17 +6,26 @@ open Typecore
 open CompilationServer
 open ImportHandling
 
+type reference_kind =
+	| KVar
+	| KIdent
+	| KAnyField
+	| KClassField
+	| KEnumField
+	| KModuleType
+	| KConstructor
+
 let find_possible_references kind name (pack,decls) =
 	(* Employ some heuristics: We know what kind of symbol we are looking for, so let's
 	   filter where we can. *)
 	let check kind' name' =
 		if name = name' then match kind',kind with
 			| KIdent,_
-			| KAnyField,(KAnyField | KClassField | KEnumField)
-			| KClassField,KClassField
-			| KEnumField,KEnumField
-			| KModuleType,KModuleType
-			| KConstructor,(KConstructor | KModuleType) ->
+			| KAnyField,(SKField _ | SKConstructor _ | SKEnumField _)
+			| KClassField,SKField _
+			| KEnumField,SKEnumField _
+			| KModuleType,(SKClass _ | SKEnum _ | SKTypedef _ | SKAbstract _)
+			| KConstructor,(SKConstructor _ | SKClass _) ->
 				raise Exit
 			| _ ->
 				()
@@ -172,7 +181,7 @@ let find_possible_references tctx cs =
 let find_references tctx com with_definition =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	let t = Timer.timer ["display";"references";"collect"] in
-	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
+	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) true in
 	t();
 	let rec loop acc relations = match relations with
 		| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
@@ -190,5 +199,28 @@ let find_references tctx com with_definition =
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) usages in
 	t();
-	Display.ReferencePosition.set ("",null_pos,KVar);
+	Display.ReferencePosition.set ("",null_pos,SKOther);
+	DisplayException.raise_positions usages
+
+let find_implementations tctx com =
+	let name,pos,kind = Display.ReferencePosition.get () in
+	let t = Timer.timer ["display";"implementations";"collect"] in
+	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) false in
+	t();
+	let rec loop acc relations = match relations with
+		| ((Statistics.Implemented | Statistics.Overridden | Statistics.Extended),p) :: relations -> loop (p :: acc) relations
+		| _ :: relations -> loop acc relations
+		| [] -> acc
+	in
+	let t = Timer.timer ["display";"implementations";"filter"] in
+	let usages = Hashtbl.fold (fun p sym acc ->
+		(try loop acc (Hashtbl.find relations p)
+		with Not_found -> acc)
+	) symbols [] in
+	let usages = List.sort (fun p1 p2 ->
+		let c = compare p1.pfile p2.pfile in
+		if c <> 0 then c else compare p1.pmin p2.pmin
+	) usages in
+	t();
+	Display.ReferencePosition.set ("",null_pos,SKOther);
 	DisplayException.raise_positions usages

@@ -355,10 +355,6 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-				if ctx.com.display.dms_collect_data then begin
-						let h = ctx.com.display_information in
-						h.interface_field_implementations <- (intf,f,c,Some f2) :: h.interface_field_implementations;
-				end;
 				ignore(follow f2.cf_type); (* force evaluation *)
 				let p = f2.cf_name_pos in
 				let mkind = function
