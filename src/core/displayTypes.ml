@@ -246,7 +246,10 @@ module DisplayMode = struct
 		match dm with
 		| DMNone -> default_compilation_settings
 		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
-		| DMUsage _ | DMImplementation -> { settings with
+		| DMImplementation -> { settings with
+				dms_exit_during_typing = false;
+			}
+		| DMUsage _ -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
 				dms_collect_data = true;

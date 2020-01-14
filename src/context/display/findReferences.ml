@@ -181,7 +181,7 @@ let find_possible_references tctx cs =
 let find_references tctx com with_definition =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	let t = Timer.timer ["display";"references";"collect"] in
-	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
+	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) true in
 	t();
 	let rec loop acc relations = match relations with
 		| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
@@ -205,7 +205,7 @@ let find_references tctx com with_definition =
 let find_implementations tctx com =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	let t = Timer.timer ["display";"implementations";"collect"] in
-	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
+	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) false in
 	t();
 	let rec loop acc relations = match relations with
 		| ((Statistics.Implemented | Statistics.Overridden | Statistics.Extended),p) :: relations -> loop (p :: acc) relations

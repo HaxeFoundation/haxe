@@ -18,7 +18,7 @@ type statistics_filter =
 	| SFPos of pos
 	| SFFile of string
 
-let collect_statistics ctx pfilter =
+let collect_statistics ctx pfilter with_expressions =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
@@ -223,8 +223,10 @@ let collect_statistics ctx pfilter =
 				collect_implementations c;
 			let field cf =
 				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
-				let _ = follow cf.cf_type in
-				match cf.cf_expr with None -> () | Some e -> collect_references c e
+				if with_expressions then begin
+					let _ = follow cf.cf_type in
+					match cf.cf_expr with None -> () | Some e -> collect_references c e
+				end
 			in
 			Option.may field c.cl_constructor;
 			List.iter field c.cl_ordered_fields;
