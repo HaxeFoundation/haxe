@@ -178,8 +178,7 @@ let find_possible_references tctx cs =
 	t();
 	()
 
-let find_references tctx com with_definition =
-	let name,pos,kind = Display.ReferencePosition.get () in
+let find_references tctx com with_definition name pos kind =
 	let t = Timer.timer ["display";"references";"collect"] in
 	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) true in
 	t();
@@ -202,8 +201,12 @@ let find_references tctx com with_definition =
 	Display.ReferencePosition.set ("",null_pos,SKOther);
 	DisplayException.raise_positions usages
 
-let find_implementations tctx com =
+let find_references tctx com with_definition =
 	let name,pos,kind = Display.ReferencePosition.get () in
+	if pos <> null_pos then find_references tctx com with_definition name pos kind
+	else DisplayException.raise_positions []
+
+let find_implementations tctx com name pos kind =
 	let t = Timer.timer ["display";"implementations";"collect"] in
 	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) false in
 	t();
@@ -224,3 +227,8 @@ let find_implementations tctx com =
 	t();
 	Display.ReferencePosition.set ("",null_pos,SKOther);
 	DisplayException.raise_positions usages
+
+let find_implementations tctx com =
+	let name,pos,kind = Display.ReferencePosition.get () in
+	if pos <> null_pos then find_implementations tctx com name pos kind
+	else DisplayException.raise_positions []
