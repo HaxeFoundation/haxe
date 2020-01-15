@@ -319,18 +319,41 @@ typedef Foo = {
 		});
 	}
 
-	function testIssue9057() {
+	function testIssue9047() {
 		var transform = Marker.extractMarkers("interface Main { var field(never,s{-1-}et):Int; }");
 		vfs.putContent("Main.hx", transform.source);
 		var args = ["Main", "-js", "main.js"];
-
 		function parseGotoDefintion():GotoDefinitionResult {
 			return haxe.Json.parse(lastResult.stderr).result;
 		}
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
+	}
 
-		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
-		Assert.same([], parseGotoDefintion().result);
-		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
-		Assert.same([], parseGotoDefintion().result);
+	function testIssue9082() {
+		var args = ["-cp", ".", "--interp"];
+
+		vfs.putContent("org/Thing.hx", "package org; class Thing {}");
+		vfs.putContent("AThing.hx", "class AThing {}");
+		vfs.putContent("ThingB.hx", "class ThingB {}");
+		runHaxeJson(args, Methods.Initialize, {maxCompletionItems: 2});
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+
+		var transform = Marker.extractMarkers("class C extends Thing{-1-}");
+		vfs.putContent("C.hx", transform.source);
+		runHaxeJson(args, DisplayMethods.Completion, {
+			file: new FsPath("C.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, function(item) {
+			return switch item {
+				case {kind: Type, args: {path: {pack: ["org"], typeName: "Thing"}}}: true;
+				case _: false;
+			}
+		});
 	}
 }

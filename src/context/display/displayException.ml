@@ -56,18 +56,35 @@ let filter_somehow ctx items kind subj =
 		| None -> ""
 		| Some name-> String.lowercase name
 	in
-	let subject_matches s =
-		let rec loop i o =
-			if i < String.length subject then begin
-				let o = String.index_from s o subject.[i] in
-				loop (i + 1) o
+	let determine_cost s =
+		let get_initial_cost o =
+			if o = 0 then
+				0 (* Term starts with subject - perfect *)
+			else begin
+				(* Consider `.` as anchors and determine distance from closest one. Penalize starting distance by factor 2. *)
+				try
+					let last_anchor = String.rindex_from s o '.' in
+					(o - (last_anchor + 1)) * 2
+				with Not_found ->
+					o * 2
 			end
 		in
+		let rec loop i o cost =
+			if i < String.length subject then begin
+				let o' = String.index_from s o subject.[i] in
+				let new_cost = if i = 0 then
+					get_initial_cost o'
+				else
+					(o' - o - 1) * 3 (* Holes are bad, penalize by factor 3. *)
+				in
+				loop (i + 1) o' (cost + new_cost)
+			end else
+				cost + (if o = String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
+		in
 		try
-			loop 0 0;
-			true
+			loop 0 0 0;
 		with Not_found ->
-			false
+			-1
 	in
 	let rec loop items index =
 		match items with
@@ -75,14 +92,14 @@ let filter_somehow ctx items kind subj =
 			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
-			if subject_matches name then begin
+			let cost = determine_cost name in
+			if cost >= 0 then begin
 				(* Treat types with lowest priority. The assumption is that they are the only kind
 				   which actually causes the limit to be hit, so we show everything else and then
 				   fill in types. *)
 				match item.ci_kind with
 				| ITType _ ->
-					if DynArray.length ret + DynArray.length acc_types < !max_completion_items then
-						DynArray.add acc_types (item,index);
+					DynArray.add acc_types (item,index,cost);
 				| _ ->
 					DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
 			end;
@@ -91,10 +108,17 @@ let filter_somehow ctx items kind subj =
 			()
 	in
 	loop items 0;
-	DynArray.iter (fun (item,index) ->
-		if DynArray.length ret < !max_completion_items then
+	let acc_types = List.sort (fun (_,_,cost1) (_,_,cost2) ->
+		compare cost1 cost2
+	) (DynArray.to_list acc_types) in
+	let rec loop acc_types = match acc_types with
+		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
-	) acc_types;
+			loop acc_types
+		| _ ->
+			()
+	in
+	loop acc_types;
 	DynArray.to_list ret,DynArray.length ret
 
 let patch_completion_subject subj =
