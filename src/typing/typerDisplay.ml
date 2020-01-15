@@ -579,8 +579,9 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 		timer();
 		raise_fields l CRNew r.fsubject
 	in
-	let e = match e.eexpr with
-		| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
+	let e = match e_ast, e.eexpr with
+		| _, TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
+		| (EField(_,"new"),_), TFunction { tf_expr = { eexpr = TReturn (Some ({ eexpr = TNew _ } as e1))} } -> e1
 		| _ -> e
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
