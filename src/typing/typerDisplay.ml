@@ -300,7 +300,7 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMHover ->
 		let item = completion_item_of_expr ctx e in
 		raise_hover item (Some with_type) e.epos
-	| DMUsage _ ->
+	| DMUsage _ | DMImplementation ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			Display.ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef);
@@ -416,7 +416,7 @@ and display_expr ctx e_ast e dk with_type p =
 					raise_toplevel ctx dk with_type (name,p)
 				end
 		end
-	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics | DMImplementation ->
+	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
 		let iterator = try
