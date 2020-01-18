@@ -96,37 +96,47 @@ let collect_statistics ctx pfilter with_expressions =
 	in
 	let var_decl v = declare (SKVariable v) v.v_pos in
 	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
+	let related_fields = Hashtbl.create 0 in
 	let field_reference co cf p =
 		let p' = patch_string_pos p cf.cf_name in
 		add_relation cf.cf_name_pos (Referenced,p');
 		(* extend to related classes for instance fields *)
 		match co with
 		| Some c ->
-			let check c =
-				try
-					let cf = PMap.find cf.cf_name c.cl_fields in
-					add_relation cf.cf_name_pos (Referenced,p')
-				with Not_found ->
-					()
-			in
-			(* to children *)
-			let rec loop c =
-				List.iter (fun c ->
-					check c;
-					loop c;
-				) c.cl_descendants
-			in
-			loop c;
-			(* to parents *)
-			let rec loop c =
-				let f (c,_) =
-					check c;
-					loop c;
+			let id = (c.cl_path,cf.cf_name) in
+			begin try
+				let cfl = Hashtbl.find related_fields id in
+				List.iter (fun cf -> add_relation cf.cf_name_pos (Referenced,p')) cfl
+			with Not_found ->
+				let cfl = ref [] in
+				let check c =
+					try
+						let cf = PMap.find cf.cf_name c.cl_fields in
+						add_relation cf.cf_name_pos (Referenced,p');
+						cfl := cf :: !cfl
+					with Not_found ->
+						()
 				in
-				List.iter f c.cl_implements;
-				Option.may f c.cl_super
-			in
-			loop c;
+				(* to children *)
+				let rec loop c =
+					List.iter (fun c ->
+						check c;
+						loop c;
+					) c.cl_descendants
+				in
+				loop c;
+				(* to parents *)
+				let rec loop c =
+					let f (c,_) =
+						check c;
+						loop c;
+					in
+					List.iter f c.cl_implements;
+					Option.may f c.cl_super
+				in
+				loop c;
+				Hashtbl.add related_fields id !cfl
+			end
 		| None ->
 			()
 	in
