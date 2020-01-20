@@ -101,7 +101,7 @@ let collect_statistics ctx pfilter with_expressions =
 		let p' = patch_string_pos p cf.cf_name in
 		add_relation cf.cf_name_pos (Referenced,p');
 		(* extend to related classes for instance fields *)
-		match co with
+		if check_pos cf.cf_name_pos then match co with
 		| Some c ->
 			let id = (c.cl_path,cf.cf_name) in
 			begin try
