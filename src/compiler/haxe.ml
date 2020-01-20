@@ -509,7 +509,7 @@ let do_type tctx config_macros classes =
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match !CompilationServer.instance,com.display.dms_kind with
-		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+		| Some cs,(DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
 	t()
