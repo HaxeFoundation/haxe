@@ -3,13 +3,27 @@ package aio.fs;
 import haxe.errors.InvalidArgument;
 import haxe.errors.NotImplemented;
 
+enum abstract FileAccessBit(Int) to Int {
+	/** File exists and is visible for the user */
+	var Exists = 0;
+	/** File can be executed */
+	var Executable = 1;
+	/** File can be written */
+	var Writable = 2;
+	/** File can be read */
+	var Readable = 4;
+
+	@:op(A | B) function joinBit(other:FileAccessBit):FileAccessMode;
+	@:op(A | B) function joinMode(other:FileAccessMode):FileAccessMode;
+}
+
 /**
 	Filesystem permissions.
 
 	Note that this is not an octal number.
 	For octal numbers use `FileAccessMode.octal` method.
 **/
-abstract FileAccessMode(Int) from Int {
+abstract FileAccessMode(Int) from Int to Int from FileAccessBit {
 	/**
 		Specify symbolic file access mode.
 
@@ -42,7 +56,8 @@ abstract FileAccessMode(Int) from Int {
 	/**
 		Specify file access mode as octal digits.
 
-		For example an octal access mode `0o1765` could be set as `FileAccessMode.octal(1, 7, 6, 5)`
+		For example an octal access mode `0o1765`
+		could be set as `FileAccessMode.octal(1, 7, 6, 5)`
 
 		@param s - sticky bit, SETUID, SETGUID
 		@param u - permissions for file owner
@@ -75,7 +90,11 @@ abstract FileAccessMode(Int) from Int {
 		var mode = FileAccessMode.octal(1, 7, 6, 5);
 		```
 
-		`mode` should contain exactly four items, otherwise `haxe.errors.InvalidArgument` is thrown.
+		`mode` should contain exactly four items, otherwise
+		`haxe.errors.InvalidArgument` is thrown.
+
+		Thanks to Haxe optimizations this method does not allocate an array at
+		run time if supplied with an array declaration.
 	**/
 	@:from static inline function fromOctal(mode:Array<Int>) {
 		if(mode.length != 4) {

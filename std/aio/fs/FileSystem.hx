@@ -4,6 +4,15 @@ import haxe.NoData;
 import haxe.Callback;
 import haxe.errors.NotImplemented;
 
+/**
+	File system operations.
+
+	TODO:
+	Decide on naming convention:
+	- Follow unix names may add unnecessary difficulties for new users, which are not familiar with unix.
+	- Follow `sys.FileSystem`, which does not use unix names (most of the time),
+		but then something like `info` instead of `stat` is kind of weird.
+**/
 class FileSystem {
 	/**
 		Open file for reading and/or writing.
@@ -65,5 +74,28 @@ class FileSystem {
 		callback(new NotImplemented(), NoData);
 	}
 
+	/**
+		Get file or directory information at the given path.
+	**/
+	static public function info(path:FilePath, callback:Callback<Null<FileStat>>):Void {
+		callback(new NotImplemented(), null);
+	}
 
+	/**
+		Check user's access for a path.
+
+		Example:
+		```haxe
+		import aio.fs.FileAccessMode;
+		//check path existence
+		FileSystem.check(path, Exists, (error, result) -> trace(result));
+		//check if file is executable
+		FileSystem.check(path, Executable, (error, result) -> trace(result));
+		//check if file is readable and writable
+		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
+		```
+	**/
+	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
+		callback(new NotImplemented(), false);
+	}
 }

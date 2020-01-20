@@ -7,7 +7,7 @@ import haxe.PosInfos;
 **/
 class Error {
 	/**
-		A human-readable representation of the error.
+		Error message.
 	**/
 	public var message(default, null):String;
 
@@ -21,7 +21,14 @@ class Error {
 		this.posInfos = posInfos;
 	}
 
+	/**
+		Error description.
+	**/
 	public function toString():String {
-		return '$message at $posInfos';
+		return '$message at ${pos()}';
+	}
+
+	function pos():String {
+		return posInfos.fileName + ':' + posInfos.lineNumber;
 	}
 }

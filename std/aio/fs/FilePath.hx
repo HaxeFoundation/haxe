@@ -17,14 +17,14 @@ import haxe.errors.NotImplemented;
 	/**
 		Create file path from plain string.
 	**/
-	@:from public static function fromString(bytes:Bytes):FilePath {
+	@:from public static function fromString(path:String):FilePath {
 		throw new NotImplemented();
 	}
 
 	/**
 		Create file path from bytes.
 	**/
-	@:from public static function fromBytes(bytes:Bytes):FilePath {
+	@:from public static function fromBytes(path:Bytes):FilePath {
 		throw new NotImplemented();
 	}
 
