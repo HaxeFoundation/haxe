@@ -6,8 +6,10 @@ import haxe.errors.NotImplemented;
 	Data from system call to `stat`.
 
 	TODO:
-	- Decide on data type for time fields:
-	- Decide on `ino` type: theoretically it could be any big number. `Int` may not fit it in future.
+	- Decide on data type for time fields: `Date` means additional allocations;
+		`Int` means "end-of-time" issue. Maybe `Float`?
+	- Decide on `ino` type: theoretically it could be any big number. `Int` may
+		not fit it in future.
 	- Decide on `size` type: `Int` limits `size` to ~2GB.
 **/
 typedef FileStat = {

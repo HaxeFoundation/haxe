@@ -205,6 +205,13 @@ class FileSystem {
 	}
 
 	/**
+		Get the value of a symbolic link.
+	**/
+	static public function readLink(path:FilePath, callback:Callback<Null<FilePath>>):Void {
+		callback(new NotImplemented(), null);
+	}
+
+	/**
 		Copy a file from `source` path to `destination` path.
 	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
@@ -227,6 +234,15 @@ class FileSystem {
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
 	static public function resizeFile(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
+		callback(new NotImplemented(), NoData);
+	}
+
+	/**
+		Change access and modification times of a file.
+
+		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
+	**/
+	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		callback(new NotImplemented(), NoData);
 	}
 }
