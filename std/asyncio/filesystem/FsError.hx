@@ -1,4 +1,4 @@
-package aio.fs.errors;
+package asyncio.filesystem.errors;
 
 import haxe.PosInfos;
 

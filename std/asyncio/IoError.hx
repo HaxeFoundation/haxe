@@ -1,6 +1,6 @@
-package aio;
+package asyncio;
 
-import aio.IoErrorType;
+import asyncio.IoErrorType;
 import haxe.Error;
 import haxe.PosInfos;
 

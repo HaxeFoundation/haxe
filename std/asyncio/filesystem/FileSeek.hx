@@ -1,4 +1,4 @@
-package aio.fs;
+package asyncio.filesystem;
 
 /**
 	Modes for moving file position indicator

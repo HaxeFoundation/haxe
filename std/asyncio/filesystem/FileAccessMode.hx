@@ -1,4 +1,4 @@
-package aio.fs;
+package asyncio.filesystem;
 
 import haxe.errors.InvalidArgument;
 import haxe.errors.NotImplemented;

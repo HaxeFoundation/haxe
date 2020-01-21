@@ -1,6 +1,6 @@
-package aio.fs;
+package asyncio.filesystem;
 
-import aio.fs.File;
+import asyncio.filesystem.File;
 
 enum abstract FileOpenFlag<T>(Int) {
 	/**

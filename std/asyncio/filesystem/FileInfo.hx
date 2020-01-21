@@ -1,4 +1,4 @@
-package aio.fs;
+package asyncio.filesystem;
 
 import haxe.errors.NotImplemented;
 
@@ -33,7 +33,7 @@ typedef FileStat = {
 	final rdev:Int;
 	/** Size in bytes */
 	final size:Int;
-	/** Blocksize of filesystem IO */
+	/** Block size of filesystem for IO operations */
 	final blksize:Int;
 	/** Number of 512-bytes blocks allocated */
 	final blocks:Int;
@@ -87,7 +87,7 @@ abstract FileInfo(FileStat) from FileStat to FileStat {
 	var size(get,never):Int;
 	inline function get_size() return this.size;
 
-	/** Blocksize of filesystem IO */
+	/** Block size of filesystem for IO operations */
 	var blockSize(get,never):Int;
 	inline function get_blockSize() return this.blksize;
 

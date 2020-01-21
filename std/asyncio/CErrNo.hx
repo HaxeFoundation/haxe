@@ -1,6 +1,6 @@
-package aio;
+package asyncio;
 
-import aio.IoErrorType.IoErrorTypeTools;
+import asyncio.IoErrorType.IoErrorTypeTools;
 
 /**
 	Error numbers as described in <errno.h>.

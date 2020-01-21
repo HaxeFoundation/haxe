@@ -1,4 +1,4 @@
-package aio;
+package asyncio;
 
 import haxe.NoData;
 import haxe.io.Bytes;

@@ -1,11 +1,11 @@
-package aio;
+package asyncio;
 
-import aio.CErrNo;
+import asyncio.CErrNo;
 
 /**
 	Error types
 **/
-@:using(aio.IoErrorType.IoErrorTypeTools)
+@:using(asyncio.IoErrorType.IoErrorTypeTools)
 enum IoErrorType {
 	/** File or directory not found */
 	FileNotFound;

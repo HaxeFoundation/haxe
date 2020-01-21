@@ -1,11 +1,11 @@
-package aio.fs;
+package asyncio.filesystem;
 
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.Callback;
 import haxe.errors.NotImplemented;
-import aio.IWritable;
-import aio.IReadable;
+import asyncio.IWritable;
+import asyncio.IReadable;
 
 class File implements IWritable implements IReadable {
 	/**
@@ -59,21 +59,21 @@ class File implements IWritable implements IReadable {
 
 /**
 	Limits file operations to reading.
-	@see `aio.fs.File`
+	@see `aio.filesystem.File`
 **/
 @:forward(path,seek,read,close)
 abstract FileRead(File) from File to IReadable {}
 
 /**
 	Limits file operations to writing.
-	@see `aio.fs.File`
+	@see `aio.filesystem.File`
 **/
 @:forward(path,seek,write,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
-	@see `aio.fs.File`
+	@see `aio.filesystem.File`
 **/
 @:forward(path,write,close)
 abstract FileAppend(File) from File to IWritable {}
