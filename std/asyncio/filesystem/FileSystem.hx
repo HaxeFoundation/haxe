@@ -28,7 +28,7 @@ class FileSystem {
 		- `aio.filesystem.FileWrite` for writing only;
 		- `aio.filesystem.FileAppend` for writing to the end of file only;
 
-		@see `asyncio.filesystem.FileOpenFlag` for more details.
+		@see asyncio.filesystem.FileOpenFlag for more details.
 
 		`mode` is used to set permissions for a created file in case of appropriate
 		`flags` are chosen.
@@ -36,7 +36,7 @@ class FileSystem {
 		for everyone.
 	**/
 	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<Null<T>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -47,21 +47,21 @@ class FileSystem {
 		TODO: Can Haxe guarantee automatic file deletion for all targets?
 	**/
 	static public function tempFile(path:FilePath, callback:Callback<Null<File>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Read the contents of a file specified by `path`.
 	**/
 	static public function readFile(path:FilePath, callback:Callback<Null<Bytes>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Read the contents of a file specified by `path` as a `String`.
 	**/
 	static public function readText(path:FilePath, callback:Callback<Null<String>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -70,7 +70,7 @@ class FileSystem {
 		`flags` controls the behavior.
 		By default the file truncated if it exists and created if it does not exist.
 
-		@see `asyncio.filesystem.FileOpenFlag` for more details.
+		@see asyncio.filesystem.FileOpenFlag for more details.
 
 		`mode` is used to set permissions for a created file in case of appropriate
 		`flags` are chosen.
@@ -78,16 +78,16 @@ class FileSystem {
 		for everyone.
 	**/
 	static public function writeFile(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Write `text` into a file specified by `path`
 
 		`flags` controls the behavior.
-		By default the file truncated if it exists and created if it does not exist.
+		By default the file is truncated if it exists and is created if it does not exist.
 
-		@see `asyncio.filesystem.FileOpenFlag` for more details.
+		@see asyncio.filesystem.FileOpenFlag for more details.
 
 		`mode` is used to set permissions for a created file in case of appropriate
 		`flags` are chosen.
@@ -95,14 +95,14 @@ class FileSystem {
 		for everyone.
 	**/
 	static public function writeText(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Open directory for listing.
 	**/
 	static public function openDirectory<T>(path:FilePath, callback:Callback<Null<T>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -115,7 +115,7 @@ class FileSystem {
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
 	static public function createDirectory(path:FilePath, mode:FileAccessMode = 438, recursive:Bool = false, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -127,21 +127,21 @@ class FileSystem {
 		Created directory will _not_ be deleted automatically.
 	**/
 	static public function createTempDirectory(prefix:FilePath, callback:Callback<Null<FilePath>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Remove a file or symbolic link.
 	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Remove an empty directory.
 	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -150,14 +150,14 @@ class FileSystem {
 		Removes files, symbolic links and recursively removes directories and their contents.
 	**/
 	static public function deleteRecursive(path:FilePath, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Get file or directory information at the given path.
 	**/
 	static public function info(path:FilePath, callback:Callback<Null<FileInfo>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -175,21 +175,21 @@ class FileSystem {
 		```
 	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		callback(new NotImplemented(), false);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Set path permissions.
 	**/
 	static public function setPermissions(path:FilePath, mode:FileAccessMode, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Set path owner.
 	**/
 	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -201,28 +201,28 @@ class FileSystem {
 		a link named `file.ext` in the current directory.
 	**/
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Get the value of a symbolic link.
 	**/
 	static public function readLink(path:FilePath, callback:Callback<Null<FilePath>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Copy a file from `source` path to `destination` path.
 	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Copy all the contents of `source` path to `destination` path.
 	**/
 	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -234,7 +234,7 @@ class FileSystem {
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
 	static public function resizeFile(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -243,6 +243,6 @@ class FileSystem {
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
 	**/
 	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 }

@@ -25,7 +25,7 @@ import haxe.errors.NotImplemented;
 		TODO: not sure if we need this in std.
 	**/
 	function create(name:String, callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -34,6 +34,6 @@ import haxe.errors.NotImplemented;
 		TODO: not sure if we need this in std.
 	**/
 	function addUser(user:SystemUser, callback:Callback<Null<SystemGroup>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 }

@@ -29,7 +29,7 @@ class File implements IWritable implements IReadable {
 		current position.
 	**/
 	public function seek(offset:Int, whence:FileSeek, callback:Callback<NoData>) {
-		callback(new NotImplemented(), 0);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -37,7 +37,7 @@ class File implements IWritable implements IReadable {
 		then invoke `callback` with the amount of bytes written.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		callback(new NotImplemented(), 0);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
@@ -46,34 +46,34 @@ class File implements IWritable implements IReadable {
 		then invoke `callback` with the amount of bytes read.
 	**/
 	public function read(buffer:Bytes, offset:Int, callback:Callback<Int>):Void {
-		callback(new NotImplemented(), 0);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Close the file.
 	**/
 	public function close(callback:Callback<NoData>):Void {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 }
 
 /**
 	Limits file operations to reading.
-	@see `aio.filesystem.File`
+	@see aio.filesystem.File
 **/
 @:forward(path,seek,read,close)
 abstract FileRead(File) from File to IReadable {}
 
 /**
 	Limits file operations to writing.
-	@see `aio.filesystem.File`
+	@see aio.filesystem.File
 **/
 @:forward(path,seek,write,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
-	@see `aio.filesystem.File`
+	@see aio.filesystem.File
 **/
 @:forward(path,write,close)
 abstract FileAppend(File) from File to IWritable {}

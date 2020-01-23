@@ -5,17 +5,25 @@ typedef CallbackHandler<T> = (error:Null<Error>, result:T) -> Void;
 /**
 	A callback.
 
+	All instances of `Callback` are one-time functions. That is, invoking a callback
+	the second time is prohibited and will produce a null pointer exception.
+
 	All callbacks in the standard library are functions which accept
-	two arguments: an error (`haxe.Error`) and a result (`T`). Non-null `error` means
-	an operation failed to finish successfully.
+	two arguments: an error (`haxe.Error`) and a result (`T`).
 
-	The callback type is declared in `haxe.CallbackHandler`.
+	Non-null `error` means an operation failed to finish successfully.
+	In case of failure the value of the second argument has no meaning and should
+	not be used.
 
-	TODO:
-	This abstract is introduced for potential callback API improvements.
+	The underlying function type type is declared in `haxe.CallbackHandler`.
 **/
-@:callable
 abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
+	/**
+		This method may be used instead of allocating an anonymous function to ignore
+		the outcome of an operation.
+	**/
+	static public function ignore<T>(?e:Error, result:T):Void {}
+
 	/**
 		Create a callback for an operation, which does not produce any result data.
 
@@ -24,5 +32,31 @@ abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
 	**/
 	@:from static public inline function fromNoResult(fn:(error:Null<Error>) -> Void):Callback<NoData> {
 		return (e:Null<Error>, _) -> fn(e);
+	}
+
+	/**
+		Report a failure.
+	**/
+	public inline function fail(error:Error):Void {
+		//TODO: Does this "tidying up" make sense?
+		//Callback is expected to be one-time and this cleanup is expected to help
+		//to spot multiple calls
+		var fn = this;
+		this = null;
+
+		fn(error, cast null);
+	}
+
+	/**
+		Emit the result of a successful operation.
+	**/
+	public inline function success(result:T):Void {
+		//TODO: Does this "tidying up" make sense?
+		//Callback is expected to be one-time and this cleanup is expected to help
+		//to spot multiple calls
+		var fn = this;
+		this = null;
+
+		fn(null, result);
 	}
 }

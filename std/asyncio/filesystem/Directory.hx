@@ -27,13 +27,13 @@ class Directory {
 		Read next directory entry.
 	**/
 	public function read(callback:Callback<Null<FilePath>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Close the directory.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback(new NotImplemented(), NoData);
+		callback.fail(new NotImplemented());
 	}
 }

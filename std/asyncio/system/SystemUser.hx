@@ -24,6 +24,6 @@ import haxe.errors.NotImplemented;
 		TODO: not sure if we need this in std.
 	**/
 	function create(name:String, callback:Callback<Null<SystemUser>>):Void {
-		callback(new NotImplemented(), null);
+		callback.fail(new NotImplemented());
 	}
 }
