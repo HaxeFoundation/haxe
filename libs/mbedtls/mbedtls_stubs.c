@@ -7,6 +7,10 @@
 #include <wincrypt.h>
 #endif
 
+#ifdef __APPLE__
+#include <Security/Security.h>
+#endif
+
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
@@ -512,6 +516,40 @@ CAMLprim value hx_cert_load_defaults(value certificate) {
 			}
 		}
 		CertCloseStore(store, 0);
+	}
+	#endif
+
+	#ifdef __APPLE__
+	CFMutableDictionaryRef search;
+	CFArrayRef result;
+	SecKeychainRef keychain;
+	SecCertificateRef item;
+	CFDataRef dat;
+	// Load keychain
+	if (SecKeychainOpen("/System/Library/Keychains/SystemRootCertificates.keychain", &keychain) == errSecSuccess) {
+		// Search for certificates
+		search = CFDictionaryCreateMutable(NULL, 0, NULL, NULL);
+		CFDictionarySetValue(search, kSecClass, kSecClassCertificate);
+		CFDictionarySetValue(search, kSecMatchLimit, kSecMatchLimitAll);
+		CFDictionarySetValue(search, kSecReturnRef, kCFBooleanTrue);
+		CFDictionarySetValue(search, kSecMatchSearchList, CFArrayCreate(NULL, (const void **)&keychain, 1, NULL));
+		if (SecItemCopyMatching(search, (CFTypeRef *)&result) == errSecSuccess) {
+			CFIndex n = CFArrayGetCount(result);
+			for (CFIndex i = 0; i < n; i++) {
+				item = (SecCertificateRef)CFArrayGetValueAtIndex(result, i);
+
+				// Get certificate in DER format
+				dat = SecCertificateCopyData(item);
+				if (dat) {
+					r = mbedtls_x509_crt_parse_der(chain, (unsigned char *)CFDataGetBytePtr(dat), CFDataGetLength(dat));
+					CFRelease(dat);
+					if (r != 0) {
+						CAMLreturn(Val_int(r));
+					}
+				}
+			}
+		}
+		CFRelease(keychain);
 	}
 	#endif
 
