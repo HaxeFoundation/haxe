@@ -1,5 +1,6 @@
 package asyncio.system;
 
+import asyncio.system.StdioConfig;
 import asyncio.system.SystemUser;
 import asyncio.filesystem.FilePath;
 
@@ -18,6 +19,20 @@ typedef ProcessOptions = {
 	**/
 	var ?env:Map<String,String>;
 	/**
+		Setup standard IO streams for a new process.
+		First three indices are always used as follows:
+		- 0 - stdin
+		- 1 - stdout
+		- 2 - stderr
+		Indices from 3 and higher can be used to setup additional IO streams.
+		If the array has less than three items, then default setup will be used
+		for missing items.
+		If `stdio` field is not specified at all, three anonymous pipes will be
+		initiated for stdin, stdout and stderr of a new process.
+		@see asyncio.system.StdioConfig
+	**/
+	var ?stdio:Array<StdioConfig>;
+	/**
 		Run new process with `user` identity.
 		By default: the owner of the current process.
 	**/
@@ -34,5 +49,3 @@ typedef ProcessOptions = {
 	**/
 	var ?detached:Bool;
 }
-
-abstract IO(Array<>)

@@ -25,13 +25,13 @@ abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
 	static public function ignore<T>(?e:Error, result:T):Void {}
 
 	/**
-		Create a callback for an operation, which does not produce any result data.
+		Create a callback, which ignores the result of an operation.
 
 		TODO: type inference does not work for arguments of `fn` if `fromNoResult` is
 		used through an implicit cast. Submit compiler issue.
 	**/
-	@:from static public inline function fromNoResult(fn:(error:Null<Error>) -> Void):Callback<NoData> {
-		return (e:Null<Error>, _) -> fn(e);
+	@:from static public inline function ignoreResult<T>(fn:(error:Null<Error>) -> Void):Callback<T> {
+		return (e:Null<Error>, r:T) -> fn(e);
 	}
 
 	/**

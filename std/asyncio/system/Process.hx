@@ -1,5 +1,6 @@
 package asyncio.system;
 
+import haxe.ds.ReadOnlyArray;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.errors.NotImplemented;
@@ -9,8 +10,39 @@ import haxe.Callback;
 	Process execution API
 **/
 class Process {
-	/** Process id */
+	/**
+		Process id.
+	**/
 	public final pid:Int;
+
+	/**
+		A stream used by the process as standard input.
+	**/
+	public var stdin(get,never):IWritable;
+	function get_stdin():IWritable throw new NotImplemented();
+
+	/**
+		A stream used by the process as standard output.
+	**/
+	public var stdout(get,never):IReadable;
+	function get_stdout():IReadable throw new NotImplemented();
+
+	/**
+		A stream used by the process as standard error output.
+	**/
+	public var stderr(get,never):IReadable;
+	function get_stderr():IReadable throw new NotImplemented();
+
+	/**
+		Initial IO streams opened for this process.
+		The first three indices always are:
+		- 0 - stdin
+		- 1 - stdout
+		- 2 - stderr
+		Indices from 3 and higher can be used to setup additional IO streams.
+	**/
+	public var stdio(get,never):ReadOnlyArray<Stream>;
+	function get_stdio():ReadOnlyArray<Stream> throw new NotImplemented();
 
 	//TODO: this is a dummy constructor to make the compiler shut up about uninitialized finals.
 	function new() {

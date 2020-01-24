@@ -7,7 +7,7 @@ import haxe.errors.NotImplemented;
 import asyncio.IWritable;
 import asyncio.IReadable;
 
-class File implements IWritable implements IReadable {
+class File implements IDuplex {
 	/**
 		Path to this file.
 	**/

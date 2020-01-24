@@ -13,31 +13,31 @@ enum Signal {
 		The process is _not_ immediately killed.
 		Instead the process can handle this signal to gracefully shutdown
 		(remove temporary files, close socket connections etc).
-		POSIX analogue: SIGTERM
+		POSIX equivalent: SIGTERM
 	**/
 	Terminate;
 	/**
 		Immediately terminate a process.
 		The process cannot handle this signal.
 		That means, for example, temporary files may stay in file system.
-		POSIX analogue: SIGKILL
+		POSIX equivalent: SIGKILL
 	**/
 	Kill;
 	/**
 		Interrupt a process.
 		The same as pressing "CTRL+C" in a terminal.
-		POSIX analogue: SIGINT
+		POSIX equivalent: SIGINT
 	**/
 	Interrupt;
 	/**
 		_Pause_ a process.
 		The process cannot handle this signal.
-		POSIX analogue: SIGSTOP
+		POSIX equivalent: SIGSTOP
 	**/
 	Stop;
 	/**
 		Continue previously stopped process.
-		POSIX analogue: SIGCONT
+		POSIX equivalent: SIGCONT
 	**/
 	Resume;
 	/**

@@ -4,6 +4,9 @@ import haxe.NoData;
 import haxe.io.Bytes;
 import haxe.Callback;
 
+/**
+	An interface to write bytes into a container of bytes.
+**/
 interface IWritable {
 	/**
 		Write up to `length - offset` bytes from `buffer` starting from `offset`,
