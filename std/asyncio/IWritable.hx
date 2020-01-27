@@ -15,7 +15,7 @@ interface IWritable {
 	function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void;
 
 	/**
-		Close this writable.
+		Close this stream.
 	**/
 	function close(callback:Callback<NoData>):Void;
 }

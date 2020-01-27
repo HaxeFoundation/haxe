@@ -11,27 +11,16 @@ import haxe.Callback;
 **/
 class Process {
 	/**
+		Current process handle.
+		Can be used to communicate with the parent process and for self-signalling.
+	**/
+	static public var current(get,never):CurrentProcess;
+	static function get_current():CurrentProcess throw new NotImplemented();
+
+	/**
 		Process id.
 	**/
 	public final pid:Int;
-
-	/**
-		A stream used by the process as standard input.
-	**/
-	public var stdin(get,never):IWritable;
-	function get_stdin():IWritable throw new NotImplemented();
-
-	/**
-		A stream used by the process as standard output.
-	**/
-	public var stdout(get,never):IReadable;
-	function get_stdout():IReadable throw new NotImplemented();
-
-	/**
-		A stream used by the process as standard error output.
-	**/
-	public var stderr(get,never):IReadable;
-	function get_stderr():IReadable throw new NotImplemented();
 
 	/**
 		Initial IO streams opened for this process.
@@ -39,7 +28,10 @@ class Process {
 		- 0 - stdin
 		- 1 - stdout
 		- 2 - stderr
-		Indices from 3 and higher can be used to setup additional IO streams.
+		Indices from 3 and higher contain handlers for streams created as configured
+		by the corresponding indices in `options.stdio` field of `options` argument
+		for `asyncio.system.Process.open` call.
+		@see asyncio.system.ProcessOptions.stdio
 	**/
 	public var stdio(get,never):ReadOnlyArray<Stream>;
 	function get_stdio():ReadOnlyArray<Stream> throw new NotImplemented();
@@ -54,7 +46,7 @@ class Process {
 		to fully finish and invoke `callback` with the exit code and the contents
 		of stdout, and stderr.
 
-		In case the command didn't emit anything to stdout or stdin, the respective
+		In case the command didn't emit anything to stdout or stderr, the respective
 		field of the result structure will be `null`.
 
 		@see asyncio.system.ProcessOptions for various process configuration options.
@@ -68,7 +60,7 @@ class Process {
 
 		@see asyncio.system.ProcessOptions for various process configuration options.
 	 */
-	static public function open(command:String, args:Array<String>, options:ProcessOptions, callback:Callback<Null<Process>>) {
+	static public function open(command:String, args:Array<String>, options:ProcessOptions, callback:Callback<Null<ChildProcess>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -76,28 +68,11 @@ class Process {
 		Send `signal` to this process.
 
 		This function does not wait for the process to finish.
+		The `callback` only indicates if the signal was sent successfully.
 
 		@see `asyncio.system.Signal`
 	**/
 	public function sendSignal(signal:Int, callback:Callback<NoData>) {
-		callback.fail(new NotImplemented());
-	}
-
-	/**
-		Wait the process to shutdown and get the exit code.
-		If the process is already dead at the moment of this call, then `callback`
-		may be invoked with the exit code immediately.
-	**/
-	public function exitCode(callback:Callback<Int>) {
-		callback.fail(new NotImplemented());
-	}
-
-	/**
-		Close the process handle and release associated resources.
-
-		TODO: should this method wait for the process to finish?
-	**/
-	public function close(callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 }

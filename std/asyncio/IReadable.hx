@@ -16,7 +16,7 @@ interface IReadable {
 	function read(buffer:Bytes, offset:Int, callback:Callback<Int>):Void;
 
 	/**
-		Close this readable.
+		Close this stream.
 	**/
 	function close(callback:Callback<NoData>):Void;
 }
