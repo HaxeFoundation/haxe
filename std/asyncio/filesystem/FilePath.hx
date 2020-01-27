@@ -1,5 +1,6 @@
 package asyncio.filesystem;
 
+import haxe.Callback;
 import haxe.io.Bytes;
 import haxe.errors.NotImplemented;
 
@@ -9,8 +10,8 @@ import haxe.errors.NotImplemented;
 	Most of the time it's a string, but some file systems allow to use arbitrary
 	bytes in file names.
 
-	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 	TODO: add API from `haxe.io.Path`
+	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
 @:coreType abstract FilePath {
 
@@ -54,5 +55,13 @@ import haxe.errors.NotImplemented;
 	**/
 	@:to public function toReadableString():String {
 		throw new NotImplemented();
+	}
+
+	/**
+		Get an absolute path of this path.
+		For example translates `./path` to `/current/dir/path`.
+	**/
+	public function absolute(callback:Callback<Null<FilePath>>) {
+		callback.fail(new NotImplemented());
 	}
 }
