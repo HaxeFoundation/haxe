@@ -131,6 +131,16 @@ class FileSystem {
 	}
 
 	/**
+		Renames the file or directory located at `oldPath` to `newPath`.
+
+		If `newPath` already exists and `overwrite` is `true` (which is the default)
+		the destination is overwritten.
+	**/
+	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
 		Remove a file or symbolic link.
 	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
@@ -180,15 +190,21 @@ class FileSystem {
 
 	/**
 		Set path permissions.
+
+		If `recursive` is `true` and `path` points to a directory: apply `mode`
+		recursively to the directory contents as well.
 	**/
-	static public function setPermissions(path:FilePath, mode:FileAccessMode, callback:Callback<NoData>):Void {
+	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Set path owner.
+
+		If `recursive` is `true` and `path` points to a directory: apply recursively
+		to the directory contents as well.
 	**/
-	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, callback:Callback<NoData>):Void {
+	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
@@ -243,6 +259,28 @@ class FileSystem {
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
 	**/
 	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Acquire or release a file lock.
+
+		The `callback` is supplied with `true` if a lock was successfully acquired.
+
+		Modes:
+		- `Shared` - acquire a shared lock (usually used for reading)
+		- `Exclusive` - acquire an exclusive lock (usually used for writing)
+		- `Unlock` - release a lock.
+
+		By default (`wait` is `true`) `lock` waits until a lock can be acquired.
+		Pass `false` to `wait` to invoke `callback` with `false` if a lock cannot
+		be acquired immediately.
+
+		Although a lock may be released automatically on file closing, for a
+		consistent cross-platform behavior it is strongly recommended to always
+		release a lock manually.
+	**/
+	static public function lock(file:File, mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
 		callback.fail(new NotImplemented());
 	}
 }

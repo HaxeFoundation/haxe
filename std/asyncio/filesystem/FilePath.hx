@@ -64,4 +64,13 @@ import haxe.errors.NotImplemented;
 	public function absolute(callback:Callback<Null<FilePath>>) {
 		callback.fail(new NotImplemented());
 	}
+
+	/**
+		Get a canonical path.
+		Resolves intermediate `.`, `..` and symbolic links.
+		The result may still be a relative path.
+	**/
+	public function real(callback:Callback<Null<FilePath>>) {
+		callback.fail(new NotImplemented());
+	}
 }
