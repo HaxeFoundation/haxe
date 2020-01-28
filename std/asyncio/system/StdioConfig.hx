@@ -13,23 +13,17 @@ enum StdioConfig {
 	/**
 		Create a unidirectional pipe for IO channel.
 		The child process will be able to read from the pipe, while the parent
-		process will be able to write into the pipe.
+		process will be able to write to the pipe.
 		This is the default behavior for stdin.
 	**/
 	PipeRead;
 	/**
 		Create a unidirectional pipe for IO channel.
-		The child process will be able to read from the pipe, while the parent
-		process will be able to write into the pipe.
+		The child process will be able to write to the pipe, while the parent
+		process will be able to read from the pipe.
 		This is the default behavior for stdout and stderr.
 	**/
 	PipeWrite;
-	/**
-		Create a bidirectional pipe for IO channel.
-		Both the child and the parent processes will be able to read from and to
-		write into the pipe.
-	**/
-	PipeReadWrite;
 	/**
 		Use the corresponding IO stream of the parent process.
 		For example if `Inherit` is used for stdin of the child process, then stdin

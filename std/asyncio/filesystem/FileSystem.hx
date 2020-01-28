@@ -131,18 +131,6 @@ class FileSystem {
 	}
 
 	/**
-		Create a named pipe for bidirectional inter-process communications.
-
-		Other processes can open the created pipe just like an ordinary file.
-
-		For a consistent cross-platform behavior it is strongly recommended to
-		always close named pipes manually.
-	**/
-	static public function createNamedPipe(path:FilePath, mode:FileAccessMode = 438, callback:Callback<Null<IDuplex>>):Void {
-		callback.fail(new NotImplemented());
-	}
-
-	/**
 		Renames the file or directory located at `oldPath` to `newPath`.
 
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
