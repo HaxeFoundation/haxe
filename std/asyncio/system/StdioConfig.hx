@@ -48,6 +48,4 @@ enum StdioConfig {
 		Use an opened file as a source and/or a target for IO.
 	**/
 	OpenedFile(file:File);
-
-	//TODO: streams, sockets, pipes...
 }
