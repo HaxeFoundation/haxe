@@ -9,11 +9,10 @@ import haxe.Callback;
 **/
 interface IReadable {
 	/**
-		Read as many bytes as possible (but never more than `buffer.length - offset`)
-		and write them into `buffer` starting from `offset` position in `buffer`,
-		then invoke `callback` with the amount of bytes read.
+		Read up to `length` bytes and write them into `buffer` starting from `offset`
+		position in `buffer`, then invoke `callback` with the amount of bytes read.
 	**/
-	function read(buffer:Bytes, offset:Int, callback:Callback<Int>):Void;
+	function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void;
 
 	/**
 		Close this stream.

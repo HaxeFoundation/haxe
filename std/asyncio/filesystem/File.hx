@@ -33,7 +33,7 @@ class File implements IDuplex {
 	}
 
 	/**
-		Write up to `length - offset` bytes from `buffer` starting from `offset`,
+		Write up to `length` bytes from `buffer` (starting from buffer `offset`),
 		then invoke `callback` with the amount of bytes written.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
@@ -41,11 +41,10 @@ class File implements IDuplex {
 	}
 
 	/**
-		Read as many bytes as possible (but never more than `buffer.length - offset`)
-		and write them into `buffer` starting from `offset` position in `buffer`,
-		then invoke `callback` with the amount of bytes read.
+		Read up to `length` bytes and write them into `buffer` starting from `offset`
+		position in `buffer`, then invoke `callback` with the amount of bytes read.
 	**/
-	public function read(buffer:Bytes, offset:Int, callback:Callback<Int>):Void {
+	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		callback.fail(new NotImplemented());
 	}
 
