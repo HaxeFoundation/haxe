@@ -46,14 +46,14 @@ class FileSystem {
 	/**
 		Read the contents of a file specified by `path`.
 	**/
-	static public function readFile(path:FilePath, callback:Callback<Null<Bytes>>):Void {
+	static public function readBytes(path:FilePath, callback:Callback<Null<Bytes>>):Void {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Read the contents of a file specified by `path` as a `String`.
 	**/
-	static public function readText(path:FilePath, callback:Callback<Null<String>>):Void {
+	static public function readString(path:FilePath, callback:Callback<Null<String>>):Void {
 		callback.fail(new NotImplemented());
 	}
 
@@ -70,7 +70,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeFile(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
@@ -87,7 +87,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeText(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
