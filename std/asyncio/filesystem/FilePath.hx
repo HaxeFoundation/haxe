@@ -53,7 +53,7 @@ import haxe.errors.NotImplemented;
 
 		TODO: decide on skipping/replacing
 	**/
-	@:to public function toReadableString():String {
+	public function toReadableString():String {
 		throw new NotImplemented();
 	}
 
