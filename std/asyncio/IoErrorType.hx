@@ -48,7 +48,7 @@ class IoErrorTypeTools {
 			case FileNotFound:
 				"File or directory not found";
 			case FileExists:
-				"File or directory already exist";
+				"File or directory already exists";
 			case ProcessNotFound:
 				"No such process";
 			case AccessDenied:
