@@ -28,7 +28,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<Null<T>>):Void {
+	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<Null<T>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -39,21 +39,21 @@ class FileSystem {
 
 		TODO: Can Haxe guarantee automatic file deletion for all targets?
 	**/
-	static public function tempFile(path:FilePath, callback:Callback<Null<File>>):Void {
+	static public function tempFile(path:FilePath, callback:Callback<Null<File>>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Read the contents of a file specified by `path`.
 	**/
-	static public function readBytes(path:FilePath, callback:Callback<Null<Bytes>>):Void {
+	static public function readBytes(path:FilePath, callback:Callback<Null<Bytes>>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Read the contents of a file specified by `path` as a `String`.
 	**/
-	static public function readString(path:FilePath, callback:Callback<Null<String>>):Void {
+	static public function readString(path:FilePath, callback:Callback<Null<String>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -70,7 +70,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -87,14 +87,14 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Open directory for listing.
 	**/
-	static public function openDirectory(path:FilePath, callback:Callback<Null<Directory>>):Void {
+	static public function openDirectory(path:FilePath, callback:Callback<Null<Directory>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -107,7 +107,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -119,7 +119,7 @@ class FileSystem {
 
 		Created directory will _not_ be deleted automatically.
 	**/
-	static public function createTempDirectory(prefix:FilePath, callback:Callback<Null<FilePath>>):Void {
+	static public function createTempDirectory(prefix:FilePath, callback:Callback<Null<FilePath>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -129,21 +129,21 @@ class FileSystem {
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
 		the destination is overwritten.
 	**/
-	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Remove a file or symbolic link.
 	**/
-	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
+	static public function deleteFile(path:FilePath, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Remove an empty directory.
 	**/
-	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
+	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -152,14 +152,14 @@ class FileSystem {
 
 		Removes files, symbolic links and recursively removes directories and their contents.
 	**/
-	static public function deleteRecursively(path:FilePath, callback:Callback<NoData>):Void {
+	static public function deleteRecursively(path:FilePath, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Get file or directory information at the given path.
 	**/
-	static public function info(path:FilePath, callback:Callback<Null<FileInfo>>):Void {
+	static public function info(path:FilePath, callback:Callback<Null<FileInfo>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -177,7 +177,7 @@ class FileSystem {
 		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
 		```
 	**/
-	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
+	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -187,7 +187,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply `mode`
 		recursively to the directory contents as well.
 	**/
-	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -197,7 +197,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply recursively
 		to the directory contents as well.
 	**/
-	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -207,7 +207,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply recursively
 		to the directory contents as well.
 	**/
-	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -219,21 +219,21 @@ class FileSystem {
 		For example `FileSystem.link('/path/to/file.ext', callback)` will create
 		a link named `file.ext` in the current directory.
 	**/
-	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
+	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Get the value of a symbolic link.
 	**/
-	static public function readLink(path:FilePath, callback:Callback<Null<FilePath>>):Void {
+	static public function readLink(path:FilePath, callback:Callback<Null<FilePath>>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Copy a file from `source` path to `destination` path.
 	**/
-	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -241,7 +241,7 @@ class FileSystem {
 		Copy all the contents of `source` path to `destination` path.
 		If `source` is a directory, it will be copied recursively.
 	**/
-	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -253,7 +253,7 @@ class FileSystem {
 		If the file is larger than `newSize`, the extra data is lost.
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
-	static public function resizeFile(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
+	static public function resizeFile(path:FilePath, newSize:Int, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -262,7 +262,7 @@ class FileSystem {
 
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
 	**/
-	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
+	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
