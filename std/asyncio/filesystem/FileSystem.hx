@@ -152,7 +152,7 @@ class FileSystem {
 
 		Removes files, symbolic links and recursively removes directories and their contents.
 	**/
-	static public function deleteRecursive(path:FilePath, callback:Callback<NoData>):Void {
+	static public function deleteRecursively(path:FilePath, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
@@ -229,6 +229,7 @@ class FileSystem {
 
 	/**
 		Copy all the contents of `source` path to `destination` path.
+		If `source` is a directory, it will be copied recursively.
 	**/
 	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
