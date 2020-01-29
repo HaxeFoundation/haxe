@@ -1,5 +1,6 @@
 package asyncio.filesystem;
 
+import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.Callback;
@@ -23,13 +24,21 @@ class File implements IDuplex {
 		The pointer position is used in read and write operations as the starting byte
 		of reading or writing respectively.
 
-		If `whence` is `SeekSet` set the pointer to the exact position specified by `offset`.
+		If `whence` is `SeekSet(offset)` set the pointer to the exact position
+		specified by `offset`.
 	 	If `whence` is `SeekEnd` move the pointer to the end-of-file.
-		If `whence` is `SeekCurrent` move the pointer by `offset` bytes relative to the
-		current position.
+		If `whence` is `SeekMove(offset)` move the pointer by `offset` bytes
+		relative to the current position.
 	**/
-	public function seek(offset:Int, whence:FileSeek, callback:Callback<NoData>) {
-		callback.fail(new NotImplemented());
+	public function seek(whence:FileSeek) {
+		throw new NotImplemented();
+	}
+
+	/**
+		Get current position pointer offset.
+	**/
+	public function getOffset():Int64 {
+		throw new NotImplemented();
 	}
 
 	/**

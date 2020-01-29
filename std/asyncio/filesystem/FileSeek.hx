@@ -1,17 +1,19 @@
 package asyncio.filesystem;
 
+import haxe.Int64;
+
 /**
 	Modes for moving file position pointer
 */
-enum abstract FileSeek(Int) {
+enum FileSeek {
 	/** Set the pointer to the exact position specified by `offset` */
-	var SeekSet;
+	SeekSet(offset:Int64);
 	/** Move the pointer to the end-of-file */
-	var SeekEnd;
+	SeekEnd;
 	/**
 		Move the pointer by `offset` bytes.
 		If `offset` is positive the pointer is moved towards the end of file.
 		If `offset` is negative the pointer is moved towards the beginning of file.
 	*/
-	var SeekCurrent;
+	SeekMove(offset:Int);
 }
