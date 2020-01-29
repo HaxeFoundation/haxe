@@ -1,7 +1,6 @@
 package asyncio.net;
 
 import asyncio.net.SocketOption.SocketOptionKind;
-import asyncio.net.Server.ServerAddress;
 import haxe.NoData;
 import haxe.io.Bytes;
 import haxe.Callback;
@@ -9,9 +8,21 @@ import haxe.errors.NotImplemented;
 
 class Socket implements IDuplex {
 	/**
+		Local address of this socket.
+	**/
+	public var localAddress(get,never):SocketAddress;
+	function get_localAddress():SocketAddress throw new NotImplemented();
+
+	/**
+		Remote address of this socket if it is bound.
+	**/
+	public var remoteAddress(get,never):Null<SocketAddress>;
+	function get_remoteAddress():Null<SocketAddress> throw new NotImplemented();
+
+	/**
 		Establish a connection to `address`.
 	**/
-	static public function connect(address:ServerAddress, ?options:Array<SocketOption>, callback:Callback<Null<Socket>>) {
+	static public function connect(address:SocketAddress, ?options:Array<SocketOption>, callback:Callback<Null<Socket>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -35,6 +46,13 @@ class Socket implements IDuplex {
 		Get the value of a specified socket option.
 	**/
 	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set socket option.
+	**/
+	public function setOption(option:SocketOption, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 

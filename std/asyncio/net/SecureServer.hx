@@ -10,7 +10,7 @@ typedef SecureServerOptions = {
 }
 
 /**
-	Secure TCP server.
+	Secure TCP server socket.
 **/
 class SecureServer extends Server {
 	/**
@@ -23,7 +23,7 @@ class SecureServer extends Server {
 		Maximum size of incoming connections queue is specified by `backlog`.
 		If the queue is full, any new incoming connection will be rejected.
 	**/
-	static public function start(host:String, port:Int, options:SecureServerOptions, callback:Callback<Null<SecureServer>>) {
+	static public function open(address:SocketAddress, options:SecureServerOptions, callback:Callback<Null<SecureServer>>) {
 		callback.fail(new NotImplemented());
 	}
 

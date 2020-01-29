@@ -30,6 +30,9 @@ import haxe.errors.NotImplemented;
 	without any unnecessary allocations.
 **/
 class BigBuffer {
+	/**
+		Buffer size (amount of bytes).
+	**/
 	public function getLength():Int64 {
 		throw new NotImplemented();
 	}
@@ -100,7 +103,7 @@ class BigBuffer {
 
 		Advances internal pointer by the amount of bytes returned.
 	**/
-	public function sub(length:Int):Bytes {
+	public function slice(length:Int):Bytes {
 		throw new NotImplemented();
 	}
 
@@ -129,26 +132,49 @@ class BigBuffer {
 	}
 
 	/**
-		Stores the given IEEE double-precision value `v` at the internal pointer
+		Stores the given IEEE double-precision value `value` at the internal pointer
 		position in little-endian encoding.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
 		Advances internal pointer by 8 bytes.
 	**/
-	public function setDouble(v:Float):Void {
+	public function setDouble(value:Float):Void {
 		throw new NotImplemented();
 	}
 
 	/**
-		Stores the given IEEE single-precision value `v` at the internal pointer
+		Stores the given IEEE single-precision value `value` at the internal pointer
 		position in little-endian encoding.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
 		Advances internal pointer by 8 bytes.
 	**/
-	public function setFloat(v:Float):Void {
+	public function setFloat(value:Float):Void {
+		throw new NotImplemented();
+	}
+
+	/**
+		Returns the 8-bit unsigned integer at the internal pointer position.
+
+		Throws if internal pointer is at the end of this buffer.
+
+		Advances internal pointer by 1 byte.
+	**/
+	public function getByte():Int {
+		throw new NotImplemented();
+	}
+
+	/**
+		Stores the given 8-bit unsigned integer `value` at the internal pointer position.
+
+		Throws if internal pointer is at the end of this buffer.
+		Throws if `value` overflows 8-bit unsigned integer.
+
+		Advances internal pointer by 1 byte.
+	**/
+	public function setByte(value:Int):Void {
 		throw new NotImplemented();
 	}
 
@@ -160,19 +186,20 @@ class BigBuffer {
 
 		Advances internal pointer by 2 bytes.
 	**/
-	public function getUInt16(pos:Int):Int {
+	public function getUInt16():Int {
 		throw new NotImplemented();
 	}
 
 	/**
-		Stores the given 16-bit unsigned integer `v` at the internal pointer position
-		(in little-endian encoding).
+		Stores the given 16-bit unsigned integer `value` at the internal pointer
+		position (in little-endian encoding).
 
 		Throws if internal pointer is less than 2 bytes to the end of this buffer.
+		Throws if `value` overflows 16-bit unsigned integer.
 
 		Advances internal pointer by 2 bytes.
 	**/
-	public function setUInt16(pos:Int, v:Int):Void {
+	public function setUInt16(value:Int):Void {
 		throw new NotImplemented();
 	}
 
@@ -184,7 +211,7 @@ class BigBuffer {
 
 		Advances internal pointer by 4 bytes.
 	**/
-	public function getInt32(pos:Int):Int {
+	public function getInt32():Int {
 		throw new NotImplemented();
 	}
 
@@ -196,7 +223,7 @@ class BigBuffer {
 
 		Advances internal pointer by 8 bytes.
 	**/
-	public function getInt64(pos:Int):Int64 {
+	public function getInt64():Int64 {
 		throw new NotImplemented();
 	}
 
@@ -205,10 +232,11 @@ class BigBuffer {
 		little-endian encoding).
 
 		Throws if internal pointer is less than 4 bytes to the end of this buffer.
+		Throws if `value` overflows 32-bit signed integer.
 
 		Advances internal pointer by 4 bytes.
 	**/
-	public function setInt32(pos:Int, v:Int):Void {
+	public function setInt32(value:Int):Void {
 		throw new NotImplemented();
 	}
 
@@ -220,7 +248,7 @@ class BigBuffer {
 
 		Advances internal pointer by 8 bytes.
 	**/
-	public function setInt64(pos:Int, v:Int64):Void {
+	public function setInt64(v:Int64):Void {
 		throw new NotImplemented();
 	}
 
@@ -229,10 +257,11 @@ class BigBuffer {
 		interpreted with the given `encoding` (UTF-8 by default).
 
 		Throws if internal pointer is less than `length` bytes to the end of this buffer.
+		Throws if the requested bytes don't represent a valid encoded string.
 
 		Advances internal pointer by `length` bytes.
 	**/
-	public function getString(pos:Int, length:Int, ?encoding:Encoding):String {
+	public function getString(length:Int, ?encoding:Encoding):String {
 		throw new NotImplemented();
 	}
 

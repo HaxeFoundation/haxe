@@ -14,6 +14,18 @@ class UdpSocket {
 	function get_bound():Bool throw new NotImplemented();
 
 	/**
+		Local address of this socket.
+	**/
+	public var localAddress(get,never):{host:String, port:Int};
+	function get_localAddress():{host:String, port:Int} throw new NotImplemented();
+
+	/**
+		Remote address of this socket if it is bound.
+	**/
+	public var remoteAddress(get,never):Null<{host:String, port:Int}>;
+	function get_remoteAddress():Null<{host:String, port:Int}> throw new NotImplemented();
+
+	/**
 		Open a UDP socket.
 	**/
 	static public function open(?address:{host:String, port:Int}, ?options:Array<SocketOption>, callback:Callback<Null<UdpSocket>>) {
@@ -62,6 +74,13 @@ class UdpSocket {
 		Get the value of a specified socket option.
 	**/
 	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set socket option.
+	**/
+	public function setOption(option:SocketOption, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
