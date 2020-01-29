@@ -62,11 +62,10 @@ class UdpSocket {
 		position in `buffer`.
 		The `callback` is supplied with the amount of bytes read and the peer address.
 
-		TODO:
-		Maybe add `?recycle:{bytesReceived:Int, remoteHost:String, remotePort:String}` argument
-		to reuse allocated structures?
+		If `recycle` is `true` then the structure passed to `callback` will be reused
+		instead of allocating a new one on the next read call with recycling enabled.
 	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Null<{bytesReceived:Int, remoteHost:String, remotePort:String}>>) {
+	public function read(buffer:Bytes, offset:Int, length:Int, ?recycle:Bool = false, callback:Callback<Null<{bytesReceived:Int, remoteHost:Ip, remotePort:Int}>>) {
 		callback.fail(new NotImplemented());
 	}
 
