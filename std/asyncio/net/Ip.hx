@@ -72,6 +72,13 @@ class IpTools {
 	}
 
 	/**
+		Convert any IP address to IPv6 format.
+	**/
+	static public function toIpv6(ip:Ip):Ip {
+		throw new NotImplemented();
+	}
+
+	/**
 		Check if `a` and `b` contain the same IP address.
 	**/
 	static public function equals(a:Ip, b:Ip):Bool {
