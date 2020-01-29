@@ -42,25 +42,30 @@ class Process {
 	}
 
 	/**
-		Execute `command` with `args` command line arguments, wait for the command
-		to fully finish and invoke `callback` with the exit code and the contents
-		of stdout, and stderr.
+		Execute and wait for the `command` to fully finish and invoke `callback` with
+		the exit code and the contents of stdout, and stderr.
+
+		The `command` argument should not contain command line arguments. Those should
+		be passed to `options.args`
 
 		In case the command didn't emit anything to stdout or stderr, the respective
 		field of the result structure will be `null`.
 
 		@see asyncio.system.ProcessOptions for various process configuration options.
 	 */
-	static public function execute(command:String, args:Array<String>, options:ProcessOptions, callback:Callback<Null<{?stdout:Bytes, ?stderr:Bytes, exitCode:Int}>>) {
+	static public function execute(command:String, ?options:ProcessOptions, callback:Callback<Null<{?stdout:Bytes, ?stderr:Bytes, exitCode:Int}>>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
-		Start `command` execution with `args` command line arguments.
+		Start `command` execution.
+
+		The `command` argument should not contain command line arguments. Those should
+		be passed to `options.args`
 
 		@see asyncio.system.ProcessOptions for various process configuration options.
 	 */
-	static public function open(command:String, args:Array<String>, options:ProcessOptions, callback:Callback<Null<ChildProcess>>) {
+	static public function open(command:String, ?options:ProcessOptions, callback:Callback<Null<ChildProcess>>) {
 		callback.fail(new NotImplemented());
 	}
 

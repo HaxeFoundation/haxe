@@ -9,6 +9,10 @@ import asyncio.filesystem.FilePath;
 **/
 typedef ProcessOptions = {
 	/**
+		Command line arguments.
+	**/
+	var ?args:Array<String>;
+	/**
 		Working directory for a new process.
 		By default current process working directory is used.
 	**/
@@ -27,6 +31,8 @@ typedef ProcessOptions = {
 		Indices from 3 and higher can be used to setup additional IO streams.
 		If the array has less than three items, then default setup will be used
 		for missing items.
+		If `stdio` contains less than 3 items, default behavior will be used for
+		missing ones.
 		If `stdio` field is not specified at all, three anonymous pipes will be
 		initiated for stdin, stdout and stderr of a new process.
 		@see asyncio.system.StdioConfig
