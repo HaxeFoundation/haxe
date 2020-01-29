@@ -94,7 +94,7 @@ class FileSystem {
 	/**
 		Open directory for listing.
 	**/
-	static public function openDirectory<T>(path:FilePath, callback:Callback<Null<T>>):Void {
+	static public function openDirectory(path:FilePath, callback:Callback<Null<Directory>>):Void {
 		callback.fail(new NotImplemented());
 	}
 
