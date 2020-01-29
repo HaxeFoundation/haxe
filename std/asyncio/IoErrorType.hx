@@ -10,7 +10,7 @@ enum IoErrorType {
 	/** File or directory not found */
 	FileNotFound;
 	/** File or directory already exist */
-	FileExist;
+	FileExists;
 	/** No such process */
 	ProcessNotFound;
 	/** Permission denied */
@@ -47,7 +47,7 @@ class IoErrorTypeTools {
 		return switch type {
 			case FileNotFound:
 				"File or directory not found";
-			case FileExist:
+			case FileExists:
 				"File or directory already exist";
 			case ProcessNotFound:
 				"No such process";

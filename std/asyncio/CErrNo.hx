@@ -423,7 +423,7 @@ class CErrNoTools {
 		return switch err {
 			case EPERM | EACCES: AccessDenied;
 			case ENOENT: FileNotFound;
-			case EEXIST: FileExist;
+			case EEXIST: FileExists;
 			case EISDIR: IsDirectory;
 			case EMFILE: TooManyOpenFiles;
 			case EPIPE: BrokenPipe;
