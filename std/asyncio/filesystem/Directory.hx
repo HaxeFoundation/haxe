@@ -26,7 +26,7 @@ class Directory {
 	/**
 		Read next directory entry.
 	**/
-	public function read(callback:Callback<Null<FilePath>>):Void {
+	public function next(callback:Callback<Null<FilePath>>):Void {
 		callback.fail(new NotImplemented());
 	}
 

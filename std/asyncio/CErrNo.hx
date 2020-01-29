@@ -412,7 +412,7 @@ enum abstract CErrNo(Int) from Int to Int {
 	}
 
 	/**
-		Convert C error number to `aio.ErrorType`
+		Convert C error number to `asyncio.IoErrorType`
 	**/
 	@:to public function toIoErrorType():IoErrorType {
 		return switch this {

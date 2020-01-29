@@ -46,7 +46,7 @@ class IpTools {
 
 		Throws an exception if provided string does not represent a valid IP address.
 	**/
-	static public function parse(ip:String):Ip {
+	static public function parseIp(ip:String):Ip {
 		throw new NotImplemented();
 	}
 

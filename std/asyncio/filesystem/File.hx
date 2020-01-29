@@ -19,13 +19,13 @@ class File implements IDuplex {
 	}
 
 	/**
-		Change file position indicator.
-		The indicator position is used in read and write operations as the starting byte
+		Change file position pointer.
+		The pointer position is used in read and write operations as the starting byte
 		of reading or writing respectively.
 
-		If `whence` is `SeekSet` set the indicator to the exact position specified by `offset`.
-	 	If `whence` is `SeekEnd` move the indicator to the end-of-file.
-		If `whence` is `SeekCurrent` move the indicator by `offset` bytes relative to the
+		If `whence` is `SeekSet` set the pointer to the exact position specified by `offset`.
+	 	If `whence` is `SeekEnd` move the pointer to the end-of-file.
+		If `whence` is `SeekCurrent` move the pointer by `offset` bytes relative to the
 		current position.
 	**/
 	public function seek(offset:Int, whence:FileSeek, callback:Callback<NoData>) {
@@ -58,21 +58,21 @@ class File implements IDuplex {
 
 /**
 	Limits file operations to reading.
-	@see aio.filesystem.File
+	@see asyncio.filesystem.File
 **/
 @:forward(path,seek,read,close)
 abstract FileRead(File) from File to IReadable {}
 
 /**
 	Limits file operations to writing.
-	@see aio.filesystem.File
+	@see asyncio.filesystem.File
 **/
 @:forward(path,seek,write,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
-	@see aio.filesystem.File
+	@see asyncio.filesystem.File
 **/
 @:forward(path,write,close)
 abstract FileAppend(File) from File to IWritable {}

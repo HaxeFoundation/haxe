@@ -6,7 +6,7 @@ import haxe.PosInfos;
 
 class IoError extends Error {
 	/**
-		Error number
+		Error type
 	**/
 	public final type:IoErrorType;
 

@@ -9,13 +9,6 @@ import haxe.errors.NotImplemented;
 
 /**
 	File system operations.
-
-	TODO:
-	Decide on naming convention:
-	- Follow unix names: does not match `sys.FileSystem` names and may add unnecessary
-		difficulties for new users, which are not familiar with unix.
-	- Follow `sys.FileSystem`, which does not use unix names (most of the time),
-		but then something like `info` instead of `stat` is kind of weird.
 **/
 class FileSystem {
 	/**
@@ -23,10 +16,10 @@ class FileSystem {
 
 		Depending on `flags` value `callback` will be invoked with the appropriate
 		object type to read and/or write the file:
-		- `aio.filesystem.File` for reading and writing;
-		- `aio.filesystem.FileRead` for reading only;
-		- `aio.filesystem.FileWrite` for writing only;
-		- `aio.filesystem.FileAppend` for writing to the end of file only;
+		- `asyncio.filesystem.File` for reading and writing;
+		- `asyncio.filesystem.FileRead` for reading only;
+		- `asyncio.filesystem.FileWrite` for writing only;
+		- `asyncio.filesystem.FileAppend` for writing to the end of file only;
 
 		@see asyncio.filesystem.FileOpenFlag for more details.
 
@@ -114,7 +107,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function createDirectory(path:FilePath, mode:FileAccessMode = 438, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
