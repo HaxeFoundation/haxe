@@ -5,7 +5,7 @@ import haxe.io.Bytes;
 import haxe.Callback;
 
 /**
-	An interface to write bytes into a container of bytes.
+	An interface to write bytes into an out-going stream of bytes.
 **/
 interface IWritable {
 	/**
