@@ -70,9 +70,9 @@ class Process {
 		This function does not wait for the process to finish.
 		The `callback` only indicates if the signal was sent successfully.
 
-		@see `asyncio.system.Signal`
+		@see asyncio.system.Signal
 	**/
-	public function sendSignal(signal:Int, callback:Callback<NoData>) {
+	public function sendSignal(signal:Signal, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 }
