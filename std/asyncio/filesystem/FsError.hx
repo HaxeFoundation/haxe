@@ -1,4 +1,4 @@
-package asyncio.filesystem.errors;
+package asyncio.filesystem;
 
 import haxe.PosInfos;
 
