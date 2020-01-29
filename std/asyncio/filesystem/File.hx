@@ -45,7 +45,7 @@ class File implements IDuplex {
 		Write up to `length` bytes from `buffer` (starting from buffer `offset`),
 		then invoke `callback` with the amount of bytes written.
 	**/
-	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
+	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -53,21 +53,28 @@ class File implements IDuplex {
 		Read up to `length` bytes and write them into `buffer` starting from `offset`
 		position in `buffer`, then invoke `callback` with the amount of bytes read.
 	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
+	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Force all buffered data to be written to disk.
 	**/
-	public function flush(callback:Callback<NoData>):Void {
+	public function flush(callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Synchronize file in-memory state with the storage device.
+	**/
+	public function sync(callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
 	/**
 		Close the file.
 	**/
-	public function close(callback:Callback<NoData>):Void {
+	public function close(callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 }
@@ -83,12 +90,12 @@ abstract FileRead(File) from File to IReadable {}
 	Limits file operations to writing.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,seek,write,flush,close)
+@:forward(path,seek,write,flush,sync,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,write,flush,close)
+@:forward(path,write,flush,sync,close)
 abstract FileAppend(File) from File to IWritable {}
