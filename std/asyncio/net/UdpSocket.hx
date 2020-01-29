@@ -65,7 +65,7 @@ class UdpSocket {
 		If `recycle` is `true` then the structure passed to `callback` will be reused
 		instead of allocating a new one on the next read call with recycling enabled.
 	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, ?recycle:Bool = false, callback:Callback<Null<{bytesReceived:Int, remoteHost:Ip, remotePort:Int}>>) {
+	public function read(buffer:Bytes, offset:Int, length:Int, recycle:Bool = false, callback:Callback<Null<{bytesReceived:Int, remoteHost:Ip, remotePort:Int}>>) {
 		callback.fail(new NotImplemented());
 	}
 
