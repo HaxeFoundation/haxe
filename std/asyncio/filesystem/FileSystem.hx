@@ -192,12 +192,22 @@ class FileSystem {
 	}
 
 	/**
-		Set path owner.
+		Set path owner and group.
 
 		If `recursive` is `true` and `path` points to a directory: apply recursively
 		to the directory contents as well.
 	**/
 	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set path owning group.
+
+		If `recursive` is `true` and `path` points to a directory: apply recursively
+		to the directory contents as well.
+	**/
+	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
 		callback.fail(new NotImplemented());
 	}
 
