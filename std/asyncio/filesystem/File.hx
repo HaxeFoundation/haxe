@@ -49,6 +49,13 @@ class File implements IDuplex {
 	}
 
 	/**
+		Force all buffered data to be written to disk.
+	**/
+	public function flush(callback:Callback<NoData>):Void {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
 		Close the file.
 	**/
 	public function close(callback:Callback<NoData>):Void {
@@ -67,12 +74,12 @@ abstract FileRead(File) from File to IReadable {}
 	Limits file operations to writing.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,seek,write,close)
+@:forward(path,seek,write,flush,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,write,close)
+@:forward(path,write,flush,close)
 abstract FileAppend(File) from File to IWritable {}

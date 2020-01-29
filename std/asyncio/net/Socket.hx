@@ -43,6 +43,13 @@ class Socket implements IDuplex {
 	}
 
 	/**
+		Force all buffered data to be committed.
+	**/
+	public function flush(callback:Callback<NoData>):Void {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
 		Get the value of a specified socket option.
 	**/
 	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {

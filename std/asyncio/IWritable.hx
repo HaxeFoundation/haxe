@@ -15,6 +15,11 @@ interface IWritable {
 	function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void;
 
 	/**
+		Force all buffered data to be committed.
+	**/
+	function flush(callback:Callback<NoData>):Void;
+
+	/**
 		Close this stream.
 	**/
 	function close(callback:Callback<NoData>):Void;
