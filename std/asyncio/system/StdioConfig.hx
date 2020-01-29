@@ -25,6 +25,12 @@ enum StdioConfig {
 	**/
 	PipeWrite;
 	/**
+		Create a bidirectional pipe for IO channel.
+		Both child and parent processes will be able to read from and to write to
+		the pipe.
+	**/
+	PipeReadWrite;
+	/**
 		Use the corresponding IO stream of the parent process.
 		For example if `Inherit` is used for stdin of the child process, then stdin
 		of the parent process will be used.
