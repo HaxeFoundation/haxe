@@ -5,283 +5,288 @@ import asyncio.IoErrorType.IoErrorTypeTools;
 /**
 	Error numbers as described in <errno.h>.
 
-	TODO: All the docs and strings below are copied from man errno. Is it legal?
+	TODO:
+	All the docs and strings below are copied from man errno.
+	Rewrite to avoid legal issues.
 **/
-enum abstract CErrNo(Int) from Int to Int {
+@:using(asyncio.CErrNo.CErrNoTools)
+extern enum abstract CErrNo(Int) from Int to Int {
 	/** Operation not permitted */
-	var EPERM = 1;
+	var EPERM;
 	/** No such file or directory */
-	var ENOENT = 2;
+	var ENOENT;
 	/** No such process */
-	var ESRCH = 3;
+	var ESRCH;
 	/** Interrupted system call */
-	var EINTR = 4;
+	var EINTR;
 	/** Input/output error */
-	var EIO = 5;
+	var EIO;
 	/** No such device or address */
-	var ENXIO = 6;
+	var ENXIO;
 	/** Argument list too long */
-	var E2BIG = 7;
+	var E2BIG;
 	/** Exec format error */
-	var ENOEXEC = 8;
+	var ENOEXEC;
 	/** Bad file descriptor */
-	var EBADF = 9;
+	var EBADF;
 	/** No child processes */
-	var ECHILD = 10;
+	var ECHILD;
 	/** Resource temporarily unavailable */
-	var EAGAIN = 11;
+	var EAGAIN;
 	/** Cannot allocate memory */
-	var ENOMEM = 12;
+	var ENOMEM;
 	/** Permission denied */
-	var EACCES = 13;
+	var EACCES;
 	/** Bad address */
-	var EFAULT = 14;
+	var EFAULT;
 	/** Block device required */
-	var ENOTBLK = 15;
+	var ENOTBLK;
 	/** Device or resource busy */
-	var EBUSY = 16;
+	var EBUSY;
 	/** File exists */
-	var EEXIST = 17;
+	var EEXIST;
 	/** Invalid cross-device link */
-	var EXDEV = 18;
+	var EXDEV;
 	/** No such device */
-	var ENODEV = 19;
+	var ENODEV;
 	/** Not a directory */
-	var ENOTDIR = 20;
+	var ENOTDIR;
 	/** Is a directory */
-	var EISDIR = 21;
+	var EISDIR;
 	/** Invalid argument */
-	var EINVAL = 22;
+	var EINVAL;
 	/** Too many open files in system */
-	var ENFILE = 23;
+	var ENFILE;
 	/** Too many open files */
-	var EMFILE = 24;
+	var EMFILE;
 	/** Inappropriate ioctl for device */
-	var ENOTTY = 25;
+	var ENOTTY;
 	/** Text file busy */
-	var ETXTBSY = 26;
+	var ETXTBSY;
 	/** File too large */
-	var EFBIG = 27;
+	var EFBIG;
 	/** No space left on device */
-	var ENOSPC = 28;
+	var ENOSPC;
 	/** Illegal seek */
-	var ESPIPE = 29;
+	var ESPIPE;
 	/** Read-only file system */
-	var EROFS = 30;
+	var EROFS;
 	/** Too many links */
-	var EMLINK = 31;
+	var EMLINK;
 	/** Broken pipe */
-	var EPIPE = 32;
+	var EPIPE;
 	/** Numerical argument out of domain */
-	var EDOM = 33;
+	var EDOM;
 	/** Numerical result out of range */
-	var ERANGE = 34;
+	var ERANGE;
 	/** Resource deadlock avoided */
-	var EDEADLK = 35;
+	var EDEADLK;
 	/** File name too long */
-	var ENAMETOOLONG = 36;
+	var ENAMETOOLONG;
 	/** No locks available */
-	var ENOLCK = 37;
+	var ENOLCK;
 	/** Function not implemented */
-	var ENOSYS = 38;
+	var ENOSYS;
 	/** Directory not empty */
-	var ENOTEMPTY = 39;
+	var ENOTEMPTY;
 	/** Too many levels of symbolic links */
-	var ELOOP = 40;
+	var ELOOP;
 	/** Resource temporarily unavailable */
-	var EWOULDBLOCK = 11;
+	var EWOULDBLOCK;
 	/** No message of desired type */
-	var ENOMSG = 42;
+	var ENOMSG;
 	/** Identifier removed */
-	var EIDRM = 43;
+	var EIDRM;
 	/** Channel number out of range */
-	var ECHRNG = 44;
+	var ECHRNG;
 	/** Level 2 not synchronized */
-	var EL2NSYNC = 45;
+	var EL2NSYNC;
 	/** Level 3 halted */
-	var EL3HLT = 46;
+	var EL3HLT;
 	/** Level 3 reset */
-	var EL3RST = 47;
+	var EL3RST;
 	/** Link number out of range */
-	var ELNRNG = 48;
+	var ELNRNG;
 	/** Protocol driver not attached */
-	var EUNATCH = 49;
+	var EUNATCH;
 	/** No CSI structure available */
-	var ENOCSI = 50;
+	var ENOCSI;
 	/** Level 2 halted */
-	var EL2HLT = 51;
+	var EL2HLT;
 	/** Invalid exchange */
-	var EBADE = 52;
+	var EBADE;
 	/** Invalid request descriptor */
-	var EBADR = 53;
+	var EBADR;
 	/** Exchange full */
-	var EXFULL = 54;
+	var EXFULL;
 	/** No anode */
-	var ENOANO = 55;
+	var ENOANO;
 	/** Invalid request code */
-	var EBADRQC = 56;
+	var EBADRQC;
 	/** Invalid slot */
-	var EBADSLT = 57;
+	var EBADSLT;
 	/** Resource deadlock avoided */
-	var EDEADLOCK = 35;
+	var EDEADLOCK;
 	/** Bad font file format */
-	var EBFONT = 59;
+	var EBFONT;
 	/** Device not a stream */
-	var ENOSTR = 60;
+	var ENOSTR;
 	/** No data available */
-	var ENODATA = 61;
+	var ENODATA;
 	/** Timer expired */
-	var ETIME = 62;
+	var ETIME;
 	/** Out of streams resources */
-	var ENOSR = 63;
+	var ENOSR;
 	/** Machine is not on the network */
-	var ENONET = 64;
+	var ENONET;
 	/** Package not installed */
-	var ENOPKG = 65;
+	var ENOPKG;
 	/** Object is remote */
-	var EREMOTE = 66;
+	var EREMOTE;
 	/** Link has been severed */
-	var ENOLINK = 67;
+	var ENOLINK;
 	/** Advertise error */
-	var EADV = 68;
+	var EADV;
 	/** Srmount error */
-	var ESRMNT = 69;
+	var ESRMNT;
 	/** Communication error on send */
-	var ECOMM = 70;
+	var ECOMM;
 	/** Protocol error */
-	var EPROTO = 71;
+	var EPROTO;
 	/** Multihop attempted */
-	var EMULTIHOP = 72;
+	var EMULTIHOP;
 	/** RFS specific error */
-	var EDOTDOT = 73;
+	var EDOTDOT;
 	/** Bad message */
-	var EBADMSG = 74;
+	var EBADMSG;
 	/** Value too large for defined data type */
-	var EOVERFLOW = 75;
+	var EOVERFLOW;
 	/** Name not unique on network */
-	var ENOTUNIQ = 76;
+	var ENOTUNIQ;
 	/** File descriptor in bad state */
-	var EBADFD = 77;
+	var EBADFD;
 	/** Remote address changed */
-	var EREMCHG = 78;
+	var EREMCHG;
 	/** Can not access a needed shared library */
-	var ELIBACC = 79;
+	var ELIBACC;
 	/** Accessing a corrupted shared library */
-	var ELIBBAD = 80;
+	var ELIBBAD;
 	/** .lib section in a.out corrupted */
-	var ELIBSCN = 81;
+	var ELIBSCN;
 	/** Attempting to link in too many shared libraries */
-	var ELIBMAX = 82;
+	var ELIBMAX;
 	/** Cannot exec a shared library directly */
-	var ELIBEXEC = 83;
+	var ELIBEXEC;
 	/** Invalid or incomplete multibyte or wide character */
-	var EILSEQ = 84;
+	var EILSEQ;
 	/** Interrupted system call should be restarted */
-	var ERESTART = 85;
+	var ERESTART;
 	/** Streams pipe error */
-	var ESTRPIPE = 86;
+	var ESTRPIPE;
 	/** Too many users */
-	var EUSERS = 87;
+	var EUSERS;
 	/** Socket operation on non-socket */
-	var ENOTSOCK = 88;
+	var ENOTSOCK;
 	/** Destination address required */
-	var EDESTADDRREQ = 89;
+	var EDESTADDRREQ;
 	/** Message too long */
-	var EMSGSIZE = 90;
+	var EMSGSIZE;
 	/** Protocol wrong type for socket */
-	var EPROTOTYPE = 91;
+	var EPROTOTYPE;
 	/** Protocol not available */
-	var ENOPROTOOPT = 92;
+	var ENOPROTOOPT;
 	/** Protocol not supported */
-	var EPROTONOSUPPORT = 93;
+	var EPROTONOSUPPORT;
 	/** Socket type not supported */
-	var ESOCKTNOSUPPORT = 94;
+	var ESOCKTNOSUPPORT;
 	/** Operation not supported */
-	var EOPNOTSUPP = 95;
+	var EOPNOTSUPP;
 	/** Protocol family not supported */
-	var EPFNOSUPPORT = 96;
+	var EPFNOSUPPORT;
 	/** Address family not supported by protocol */
-	var EAFNOSUPPORT = 97;
+	var EAFNOSUPPORT;
 	/** Address already in use */
-	var EADDRINUSE = 98;
+	var EADDRINUSE;
 	/** Cannot assign requested address */
-	var EADDRNOTAVAIL = 99;
+	var EADDRNOTAVAIL;
 	/** Network is down */
-	var ENETDOWN = 100;
+	var ENETDOWN;
 	/** Network is unreachable */
-	var ENETUNREACH = 101;
+	var ENETUNREACH;
 	/** Network dropped connection on reset */
-	var ENETRESET = 102;
+	var ENETRESET;
 	/** Software caused connection abort */
-	var ECONNABORTED = 103;
+	var ECONNABORTED;
 	/** Connection reset by peer */
-	var ECONNRESET = 104;
+	var ECONNRESET;
 	/** No buffer space available */
-	var ENOBUFS = 105;
+	var ENOBUFS;
 	/** Transport endpoint is already connected */
-	var EISCONN = 106;
+	var EISCONN;
 	/** Transport endpoint is not connected */
-	var ENOTCONN = 107;
+	var ENOTCONN;
 	/** Cannot send after transport endpoint shutdown */
-	var ESHUTDOWN = 108;
+	var ESHUTDOWN;
 	/** Too many references: cannot splice */
-	var ETOOMANYREFS = 109;
+	var ETOOMANYREFS;
 	/** Connection timed out */
-	var ETIMEDOUT = 110;
+	var ETIMEDOUT;
 	/** Connection refused */
-	var ECONNREFUSED = 111;
+	var ECONNREFUSED;
 	/** Host is down */
-	var EHOSTDOWN = 112;
+	var EHOSTDOWN;
 	/** No route to host */
-	var EHOSTUNREACH = 113;
+	var EHOSTUNREACH;
 	/** Operation already in progress */
-	var EALREADY = 114;
+	var EALREADY;
 	/** Operation now in progress */
-	var EINPROGRESS = 115;
+	var EINPROGRESS;
 	/** Stale file handle */
-	var ESTALE = 116;
+	var ESTALE;
 	/** Structure needs cleaning */
-	var EUCLEAN = 117;
+	var EUCLEAN;
 	/** Not a XENIX named type file */
-	var ENOTNAM = 118;
+	var ENOTNAM;
 	/** No XENIX semaphores available */
-	var ENAVAIL = 119;
+	var ENAVAIL;
 	/** Is a named type file */
-	var EISNAM = 120;
+	var EISNAM;
 	/** Remote I/O error */
-	var EREMOTEIO = 121;
+	var EREMOTEIO;
 	/** Disk quota exceeded */
-	var EDQUOT = 122;
+	var EDQUOT;
 	/** No medium found */
-	var ENOMEDIUM = 123;
+	var ENOMEDIUM;
 	/** Wrong medium type */
-	var EMEDIUMTYPE = 124;
+	var EMEDIUMTYPE;
 	/** Operation canceled */
-	var ECANCELED = 125;
+	var ECANCELED;
 	/** Required key not available */
-	var ENOKEY = 126;
+	var ENOKEY;
 	/** Key has expired */
-	var EKEYEXPIRED = 127;
+	var EKEYEXPIRED;
 	/** Key has been revoked */
-	var EKEYREVOKED = 128;
+	var EKEYREVOKED;
 	/** Key was rejected by service */
-	var EKEYREJECTED = 129;
+	var EKEYREJECTED;
 	/** Owner died */
-	var EOWNERDEAD = 130;
+	var EOWNERDEAD;
 	/** State not recoverable */
-	var ENOTRECOVERABLE = 131;
+	var ENOTRECOVERABLE;
 	/** Operation not possible due to RF-kill */
-	var ERFKILL = 132;
+	var ERFKILL;
 	/** Memory page has hardware error */
-	var EHWPOISON = 133;
+	var EHWPOISON;
 	/** Operation not supported */
-	var ENOTSUP = 95;
+	var ENOTSUP;
+}
 
+class CErrNoTools {
 	/**
 		Error description
 	**/
-	public function toString():String {
-		return switch this {
+	static public function toString(err:CErrNo):String {
+		return switch err {
 			case E2BIG: "Argument list too long";
 			case EACCES: "Permission denied";
 			case EADDRINUSE: "Address already in use";
@@ -407,15 +412,15 @@ enum abstract CErrNo(Int) from Int to Int {
 			case EUSERS: "Too many users";
 			case EXDEV: "Improper link";
 			case EXFULL: "Exchange full";
-			case _: 'Error #$this';
+			case _: 'Error #$err';
 		}
 	}
 
 	/**
 		Convert C error number to `asyncio.IoErrorType`
 	**/
-	@:to public function toIoErrorType():IoErrorType {
-		return switch this {
+	static public function toIoErrorType(err:CErrNo):IoErrorType {
+		return switch err {
 			case EPERM | EACCES: AccessDenied;
 			case ENOENT: FileNotFound;
 			case EEXIST: FileExist;
@@ -427,7 +432,7 @@ enum abstract CErrNo(Int) from Int to Int {
 			case ECONNRESET: ConnectionReset;
 			case ETIMEDOUT: TimedOut;
 			case ECONNREFUSED: ConnectionRefused;
-			case _: CError(this);
+			case _: CError(err);
 		}
 	}
 }

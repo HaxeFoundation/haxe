@@ -27,7 +27,9 @@ abstract FileAccessMode(Int) from Int to Int from FileAccessBit {
 	/**
 		Specify symbolic file access mode.
 
-		:TODO: The following doc is copied from man chomd. Is it legal to copy?
+		TODO:
+		The following doc is copied from man chomd.
+		Rewrite to avoid legal issues.
 
 		Format: `[ugoa...][[-+=][rwxXst...]...]`
 
