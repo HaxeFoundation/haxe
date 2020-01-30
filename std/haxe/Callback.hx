@@ -6,7 +6,7 @@ typedef CallbackHandler<T> = (error:Null<Error>, result:T) -> Void;
 	A callback.
 
 	All instances of `Callback` are one-time functions. That is, invoking a callback
-	the second time is prohibited and will produce a null pointer exception.
+	the second time must never happen.
 
 	All callbacks in the standard library are functions which accept
 	two arguments: an error (`haxe.Error`) and a result (`T`).
@@ -15,7 +15,7 @@ typedef CallbackHandler<T> = (error:Null<Error>, result:T) -> Void;
 	In case of failure the value of the second argument has no meaning and should
 	not be used.
 
-	The underlying function type type is declared in `haxe.CallbackHandler`.
+	The underlying function type is declared in `haxe.CallbackHandler`.
 **/
 abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
 	/**
@@ -38,25 +38,13 @@ abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
 		Report a failure.
 	**/
 	public inline function fail(error:Error):Void {
-		//TODO: Does this "tidying up" make sense?
-		//Callback is expected to be one-time and this cleanup is expected to help
-		//to spot multiple calls
-		var fn = this;
-		this = null;
-
-		fn(error, cast null);
+		this(error, cast null);
 	}
 
 	/**
 		Emit the result of a successful operation.
 	**/
 	public inline function success(result:T):Void {
-		//TODO: Does this "tidying up" make sense?
-		//Callback is expected to be one-time and this cleanup is expected to help
-		//to spot multiple calls
-		var fn = this;
-		this = null;
-
-		fn(null, result);
+		this(null, result);
 	}
 }
