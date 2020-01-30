@@ -1,5 +1,7 @@
 package asyncio.filesystem;
 
+import asyncio.system.SystemGroup;
+import asyncio.system.SystemUser;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
@@ -72,6 +74,75 @@ class File implements IDuplex {
 	}
 
 	/**
+		Get file status information.
+	**/
+	public function info(callback:Callback<Null<FileInfo>>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set file permissions.
+	**/
+	public function setPermissions(mode:FileAccessMode, callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set file owner and group.
+	**/
+	public function setOwner(user:SystemUser, ?group:SystemGroup, callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Set file owning group.
+	**/
+	public function setGroup(group:SystemGroup, callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Shrink or expand the file to `newSize` bytes.
+
+		If the file is larger than `newSize`, the extra data is lost.
+		If the file is shorter, zero bytes are used to fill the added length.
+	**/
+	public function resize(newSize:Int, callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Change access and modification times of the file.
+
+		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
+	**/
+	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
+		Acquire or release a file lock.
+
+		The `callback` is supplied with `true` if a lock was successfully acquired.
+
+		Modes:
+		- `Shared` - acquire a shared lock (usually used for reading)
+		- `Exclusive` - acquire an exclusive lock (usually used for writing)
+		- `Unlock` - release a lock.
+
+		By default (`wait` is `true`) `lock` waits until a lock can be acquired.
+		Pass `false` to `wait` to invoke `callback` with `false` if a lock cannot
+		be acquired immediately.
+
+		Although a lock may be released automatically on file closing, for a
+		consistent cross-platform behavior it is strongly recommended to always
+		release a lock manually.
+	**/
+	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
+		callback.fail(new NotImplemented());
+	}
+
+	/**
 		Close the file.
 	**/
 	public function close(callback:Callback<NoData>) {
@@ -83,19 +154,19 @@ class File implements IDuplex {
 	Limits file operations to reading.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,seek,read,close)
+@:forward(path,seek,getOffset,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close)
 abstract FileRead(File) from File to IReadable {}
 
 /**
 	Limits file operations to writing.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,seek,write,flush,sync,close)
+@:forward(path,seek,getOffset,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asyncio.filesystem.File
 **/
-@:forward(path,write,flush,sync,close)
+@:forward(path,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileAppend(File) from File to IWritable {}

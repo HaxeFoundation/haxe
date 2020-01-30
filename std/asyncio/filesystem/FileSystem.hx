@@ -148,11 +148,11 @@ class FileSystem {
 	}
 
 	/**
-		Recursively remove everything at the given `path`.
+		Remove everything at the given `path`.
 
 		Removes files, symbolic links and recursively removes directories and their contents.
 	**/
-	static public function deleteRecursively(path:FilePath, callback:Callback<NoData>) {
+	static public function delete(path:FilePath, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -253,7 +253,7 @@ class FileSystem {
 		If the file is larger than `newSize`, the extra data is lost.
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
-	static public function resizeFile(path:FilePath, newSize:Int, callback:Callback<NoData>) {
+	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -262,29 +262,7 @@ class FileSystem {
 
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asyncio.filesystem.FileInfo.FileStat`
 	**/
-	static public function setFileTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
-		callback.fail(new NotImplemented());
-	}
-
-	/**
-		Acquire or release a file lock.
-
-		The `callback` is supplied with `true` if a lock was successfully acquired.
-
-		Modes:
-		- `Shared` - acquire a shared lock (usually used for reading)
-		- `Exclusive` - acquire an exclusive lock (usually used for writing)
-		- `Unlock` - release a lock.
-
-		By default (`wait` is `true`) `lock` waits until a lock can be acquired.
-		Pass `false` to `wait` to invoke `callback` with `false` if a lock cannot
-		be acquired immediately.
-
-		Although a lock may be released automatically on file closing, for a
-		consistent cross-platform behavior it is strongly recommended to always
-		release a lock manually.
-	**/
-	static public function lock(file:File, mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
+	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 }
