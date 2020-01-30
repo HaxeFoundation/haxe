@@ -25,4 +25,18 @@ class CurrentProcess extends Process {
 	**/
 	public var stderr(get,never):IWritable;
 	function get_stderr():IWritable throw new NotImplemented();
+
+	/**
+		Set the action taken by the process on receipt of a `signal`.
+
+		Possible `action` values:
+		- `Ignore` - ignore the signal;
+		- `Default` - restore default action;
+		- `Handle(handler:() -> Void)` - execute `handler` on `signal` receipt.
+
+		Actions for `Kill` and `Stop` signals cannot be changed.
+	**/
+	public function setSignalAction(signal:Signal, action:SignalAction):Void {
+		throw new NotImplemented();
+	}
 }
