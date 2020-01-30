@@ -2,12 +2,24 @@ package haxe.io;
 
 import haxe.errors.NotImplemented;
 
+enum abstract Endian(Int) {
+	var BigEndian;
+	var LittleEndian;
+}
+
 /**
 	TODO:
 	This is an attempt to design a cross-platform API for big byte buffers (more than 2GB)
 	without any unnecessary allocations.
 **/
 class BigBuffer {
+	/**
+		Current byte order for reading and writing numbers.
+	**/
+	public var endian(get,set):Endian;
+	function get_endian():Endian throw new NotImplemented();
+	function set_endian(v:Endian):Endian throw new NotImplemented();
+
 	/**
 		Buffer size (amount of bytes).
 	**/
@@ -86,8 +98,7 @@ class BigBuffer {
 	}
 
 	/**
-		Returns the IEEE double-precision value at the internal pointer position (in
-		little-endian encoding).
+		Returns the IEEE double-precision value at the internal pointer position.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
@@ -98,8 +109,7 @@ class BigBuffer {
 	}
 
 	/**
-		Returns the IEEE single-precision value at the internal pointer position (in
-		little-endian encoding).
+		Returns the IEEE single-precision value at the internal pointer position.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
@@ -111,7 +121,7 @@ class BigBuffer {
 
 	/**
 		Stores the given IEEE double-precision value `value` at the internal pointer
-		position in little-endian encoding.
+		position.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
@@ -123,7 +133,7 @@ class BigBuffer {
 
 	/**
 		Stores the given IEEE single-precision value `value` at the internal pointer
-		position in little-endian encoding.
+		position.
 
 		Throws if internal pointer is less than 8 bytes to the end of this buffer.
 
@@ -251,7 +261,7 @@ class BigBuffer {
 		Returns a new `BigBuffer` instance with the given `length`. The values of the
 		bytes are not initialized and may not be zero.
 	**/
-	public static function alloc(length:Int64):BigBuffer {
+	public static function alloc(length:Int64, endian:Endian = LittleEndian):BigBuffer {
 		throw new NotImplemented();
 	}
 
@@ -260,7 +270,7 @@ class BigBuffer {
 
 		Total length of the result buffer always equals the sum of `bytes` lengths.
 	**/
-	public static function join(bytes:Array<Bytes>):BigBuffer {
+	public static function join(bytes:Array<Bytes>, endian:Endian = LittleEndian):BigBuffer {
 		throw new NotImplemented();
 	}
 }
