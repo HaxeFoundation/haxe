@@ -7,7 +7,7 @@ package asyncio.system;
 	Docs below are copy-pasted from `man 7 signal`.
 	Rewrite to avoid legal issues.
 **/
-extern enum abstract CSigNum(Int) from Int to Int {
+extern enum abstract CSignalCode(Int) from Int to Int {
 	/** Hangup detected on controlling terminal or death of controlling process */
 	var SIGHUP;
 	/** Interrupt from keyboard */
