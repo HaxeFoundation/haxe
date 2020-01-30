@@ -1,6 +1,6 @@
 package asyncio.net;
 
-import asyncio.net.SocketOption.SocketOptionKind;
+import asyncio.net.SocketOptions.SocketOptionKind;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.errors.NotImplemented;
@@ -28,7 +28,7 @@ class UdpSocket {
 	/**
 		Open a UDP socket.
 	**/
-	static public function open(?address:{host:String, port:Int}, ?options:Array<SocketOption>, callback:Callback<Null<UdpSocket>>) {
+	static public function open(?address:{host:String, port:Int}, ?options:SocketOptions, callback:Callback<Null<UdpSocket>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -79,7 +79,7 @@ class UdpSocket {
 	/**
 		Set socket option.
 	**/
-	public function setOption(option:SocketOption, callback:Callback<NoData>) {
+	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 

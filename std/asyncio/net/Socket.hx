@@ -1,6 +1,6 @@
 package asyncio.net;
 
-import asyncio.net.SocketOption.SocketOptionKind;
+import asyncio.net.SocketOptions.SocketOptionKind;
 import haxe.NoData;
 import haxe.io.Bytes;
 import haxe.Callback;
@@ -22,7 +22,7 @@ class Socket implements IDuplex {
 	/**
 		Establish a connection to `address`.
 	**/
-	static public function connect(address:SocketAddress, ?options:Array<SocketOption>, callback:Callback<Null<Socket>>) {
+	static public function connect(address:SocketAddress, ?options:SocketOptions, callback:Callback<Null<Socket>>) {
 		callback.fail(new NotImplemented());
 	}
 
@@ -59,7 +59,7 @@ class Socket implements IDuplex {
 	/**
 		Set socket option.
 	**/
-	public function setOption(option:SocketOption, callback:Callback<NoData>) {
+	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 

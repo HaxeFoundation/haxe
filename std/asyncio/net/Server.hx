@@ -1,21 +1,17 @@
 package asyncio.net;
 
-import asyncio.net.SocketOption.SocketOptionKind;
+import asyncio.net.SocketOptions.SocketOptionKind;
 import haxe.NoData;
 import haxe.Callback;
 import haxe.errors.NotImplemented;
 
-typedef ServerOptions = {
+typedef ServerOptions = SocketOptions & {
 	/**
 		Maximum size of incoming connections queue.
 		Default: 0
 		TODO: decide on a meaningful default value.
 	**/
 	var ?backlog:Int;
-	/**
-		Socket options as described in `asyncio.net.SocketOptions`
-	**/
-	var ?socketOptions:Array<SocketOption>;
 }
 
 /**
@@ -59,7 +55,7 @@ class Server {
 	/**
 		Set socket option.
 	**/
-	public function setOption(option:SocketOption, callback:Callback<NoData>) {
+	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
 		callback.fail(new NotImplemented());
 	}
 

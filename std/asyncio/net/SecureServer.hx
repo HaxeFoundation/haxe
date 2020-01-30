@@ -1,11 +1,9 @@
 package asyncio.net;
 
-import asyncio.net.SocketOption;
 import haxe.Callback;
 import haxe.errors.NotImplemented;
 
-typedef SecureServerOptions = {
-	var ?socketOptions:Array<SocketOption>;
+typedef SecureServerOptions = SocketOptions & {
 	//TODO
 }
 

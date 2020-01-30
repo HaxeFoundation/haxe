@@ -3,8 +3,7 @@ package asyncio.net;
 import haxe.Callback;
 import haxe.errors.NotImplemented;
 
-typedef SecureSocketOptions = {
-	var ?socketOptions:Array<SocketOption>;
+typedef SecureSocketOptions = SocketOptions & {
 	//TODO
 }
 
