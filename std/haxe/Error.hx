@@ -12,9 +12,18 @@ extern class Error {
 	public var message(default,null):String;
 
 	/**
-		Wrap native exception into an instance of `haxe.Error`
+		Get an instance of `haxe.Error` for a native exception.
+
+		Used internally for wildcard catches like `catch(e:Error)`.
 	**/
 	static public function ofNative(exception:NativeException):Error;
+
+	/**
+		Get an instance of `haxe.Error` for an arbitrary value.
+
+		Used internally for throwing dynamically typed values.
+	**/
+	static public function ofAny(value:Any):Error;
 
 	/**
 		Create a new Error instance.

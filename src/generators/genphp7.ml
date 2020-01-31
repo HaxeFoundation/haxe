@@ -150,6 +150,14 @@ let bool_type_path = ([], "Bool")
 	Type path of the `Std`
 *)
 let std_type_path = ([], "Std")
+(**
+	Type path for `haxe.Error`
+*)
+let error_type_path = (["haxe"], "Error")
+(**
+	Type path for `haxe.ValueError`
+*)
+let value_error_type_path = (["haxe"], "ValueError")
 
 (**
 	The name of a file with polyfills for some functions which are not available in PHP 7.0
@@ -557,6 +565,21 @@ let rec is_native_exception (target:Type.t) =
 					| Some parent -> is_native_exception (TInst (parent, params))
 					| None -> false
 				)
+		| _ -> false
+
+(**
+	Check if `target` is or extends `haxe.Error`
+*)
+let rec is_haxe_error ?(extends=true) (target:Type.t) =
+	let rec check cls =
+		cls.cl_path = error_type_path
+		|| (extends && match cls.cl_super with
+			| None -> false
+			| Some (cls, _) -> check cls
+		)
+	in
+	match follow target with
+		| TInst (cls, _) -> check cls
 		| _ -> false
 
 (**
@@ -1935,22 +1958,107 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			self#write "throw ";
 			if is_native_exception expr.etype then
 				self#write_expr expr
-			else if sure_extends_extern expr.etype || is_dynamic_type expr.etype then
+			else if is_haxe_error expr.etype then
 				begin
-					self#write "(is_object($__hx__throw = ";
+					let field = { eexpr = TField (expr, FDynamic "getNative"); etype = t_dynamic; epos = expr.epos } in
+					self#write_expr { field with eexpr = TCall (field, []) }
+				end
+			else if is_dynamic_type expr.etype then
+				begin
+					self#write ((self#use error_type_path) ^ "::ofAny(");
 					self#write_expr expr;
-					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use hxexception_type_path) ^ "($__hx__throw))")
+					self#write ")->getNative()"
 				end
 			else
 				begin
-					self#write ("new " ^ (self#use hxexception_type_path) ^ "(");
+					self#write ("(new " ^ (self#use value_error_type_path) ^ "(");
 					self#write_expr expr;
-					self#write ")"
+					self#write "))->getNative()"
 				end
 		(**
 			Writes try...catch to output buffer
 		*)
 		method write_expr_try_catch try_expr catches =
+			self#write "try ";
+			self#write_as_block try_expr;
+			let capture_stack() =
+				if has_feature ctx.pgc_common "haxe.CallStack.exceptionStack"  then
+					self#write_statement ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace($__hx__e->getNative())");
+			in
+			let rec traverse = function
+				| (v, body) :: rest when is_native_exception v.v_type ->
+					self#write (" catch(" ^ (self#use_t v.v_type) ^ " $" ^ v.v_name ^ ") ");
+					self#write_as_block body;
+					traverse rest
+				| [] -> ()
+				| rest ->
+					self#write (" catch(\\Throwable $__hx__e) {\n");
+					self#indent_more;
+					self#write_statement ("$__hx__e = " ^ (self#use error_type_path) ^ "::ofNative($__hx__e)");
+					let rec traverse = function
+						| (v, body) :: rest when is_haxe_error v.v_type ->
+							if is_haxe_error ~extends:false v.v_type then
+								self#write "if (true) {\n"
+							else
+								self#write ("if($__hx__e instanceof " ^ (self#use_t v.v_type) ^ ") {\n");
+							self#indent_more;
+							self#write_statement ("$" ^ v.v_name ^ " = $__hx__e");
+							write_body body rest
+						| (v, body) :: rest when is_dynamic_type v.v_type ->
+							self#write "if (true) {\n";
+							self#indent_more;
+							capture_stack();
+							self#write_statement ("$" ^ v.v_name ^ " = $__hx__e instanceof " ^ (self#use value_error_type_path) ^ " ? $__hx__e->value : $__hx__e");
+							write_body body rest
+						| (v, body) :: rest ->
+							self#write ("if ($__hx__e instanceof " ^ (self#use value_error_type_path) ^ " && ");
+							(match follow v.v_type with
+								| TInst ({ cl_path = ([], "String") }, _) -> self#write "is_string($__hx__e->value)"
+								| TAbstract ({ a_path = ([], "Float") }, _) -> self#write "is_float($__hx__e->value)"
+								| TAbstract ({ a_path = ([], "Int") }, _) -> self#write "is_int($__hx__e->value)"
+								| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "is_bool($__hx__e->value)"
+								| vtype -> self#write ("$__hx__e->value instanceof " ^ (self#use_t vtype))
+							);
+							self#write ") {\n";
+							self#indent_more;
+							capture_stack();
+							self#write_statement ("$" ^ v.v_name ^ " = $__hx__e->value");
+							write_body body rest
+						| [] -> ()
+					and write_body body rest =
+						self#write_indentation;
+						self#write_as_block ~inline:true body;
+						self#indent_less;
+						self#write_indentation;
+						self#write "}";
+						if rest <> [] then self#write " else ";
+						traverse rest
+					in
+					self#write_indentation;
+					traverse rest;
+					let has_wildcard_catches =
+						List.exists (fun (v, _) ->
+							(is_dynamic_type v.v_type) || (is_haxe_error ~extends:false v.v_type)
+						) catches
+					in
+					if not has_wildcard_catches then begin
+						self#write " else {\n";
+						self#indent_more;
+						self#write_statement "throw $__hx__e->getNative()";
+						self#indent_less;
+						self#write_indentation;
+						self#write "}"
+					end;
+					self#write "\n";
+					self#indent_less;
+					self#write_indentation;
+					self#write "}"
+			in
+			traverse catches
+		(**
+			Writes try...catch to output buffer
+		*)
+		method write_expr_try_catch_old try_expr catches =
 			let catching_dynamic = ref false in
 			let haxe_exception = self#use hxexception_type_path
 			and first_catch = ref true in

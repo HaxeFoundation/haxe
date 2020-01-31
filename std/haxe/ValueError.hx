@@ -8,10 +8,12 @@ package haxe;
 	throw "Terrible error";
 	```
 **/
+@:keep
 class ValueError extends Error {
-	public var value:Any;
+	public var value(default,null):Any;
 
 	public function new(value:Any, ?native:haxe.Error.NativeException) {
 		super(Std.string(value), native);
+		this.value = value;
 	}
 }
