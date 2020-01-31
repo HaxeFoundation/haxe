@@ -1,0 +1,17 @@
+package haxe;
+
+/**
+	An error containing arbitrary value.
+
+	This class is automatically used for throws like the following:
+	```haxe
+	throw "Terrible error";
+	```
+**/
+class ValueError extends Error {
+	public var value:Any;
+
+	public function new(value:Any, ?native:haxe.Error.NativeException) {
+		super(Std.string(value), native);
+	}
+}

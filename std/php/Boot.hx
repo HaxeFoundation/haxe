@@ -293,6 +293,13 @@ class Boot {
 	}
 
 	/**
+		Unsafe cast to HxException
+	**/
+	public static inline function castHxException(value:Dynamic):HxException {
+		return cast value;
+	}
+
+	/**
 		Unsafe cast to HxClass
 	**/
 	public static inline function castClass(cls:Class<Dynamic>):HxClass {
@@ -532,6 +539,13 @@ class Boot {
 	}
 
 	/**
+		Check if `value` is an instance of `HxException`
+	**/
+	public static inline function isHxException(value:Dynamic):Bool {
+		return Std.isOfType(value, HxException);
+	}
+
+	/**
 		Performs `left >>> right` operation
 	**/
 	public static function shiftRightUnsigned(left:Int, right:Int):Int {
@@ -559,6 +573,13 @@ class Boot {
 	**/
 	static public inline function createAnon(data:NativeArray):Dynamic {
 		return new HxAnon(data);
+	}
+
+	/**
+		Create a native exception for Haxe errors.
+	**/
+	static public inline function createHxException(error:haxe.Error):HxException {
+		return new HxException(error);
 	}
 
 	/**
@@ -1022,10 +1043,10 @@ private class HxClosure {
 @:keep
 @:dox(hide)
 private class HxException extends Exception {
-	var e:Dynamic;
+	public var e(default,null):haxe.Error;
 
-	public function new(e:Dynamic):Void {
+	public function new(e:haxe.Error):Void {
+		super(e.message);
 		this.e = e;
-		super(Boot.stringify(e));
 	}
 }
