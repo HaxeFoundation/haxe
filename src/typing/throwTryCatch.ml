@@ -163,9 +163,12 @@ and catch_native ctx catches t p =
 		(* TODO *)
 		mk (TBlock []) (mk_mono()) null_pos
 	in
+	let haxe_error_type = TInst(haxe_error_class ctx p,[]) in
 	let rec transform = function
 		(* Keep catches for native exceptions intact *)
-		| (v,_) as current :: rest when is_native_exception ctx.com v.v_type ->
+		| (v,_) as current :: rest when (is_native_exception ctx.com v.v_type)
+			(* in case haxe.Error extends native exception on current target *)
+			&& not (fast_eq haxe_error_type (follow v.v_type)) ->
 			current :: (transform rest)
 		| [] -> []
 		(* Everything else falls into `if(Std.is(e, ExceptionType){`-fest *)
@@ -178,8 +181,7 @@ and catch_native ctx catches t p =
 			let catch_var = gen_local ctx native_exception_type null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
-				let haxe_error_type = TInst(haxe_error_class ctx p,[])
-				and value_error_class = haxe_value_error_class ctx p in
+				let value_error_class = haxe_value_error_class ctx p in
 				let value_error_type = TInst(value_error_class,[]) in
 				let haxe_error_var = gen_local ctx haxe_error_type null_pos in
 				let haxe_error_local = mk (TLocal haxe_error_var) haxe_error_var.v_type null_pos in
