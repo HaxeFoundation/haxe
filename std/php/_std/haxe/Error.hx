@@ -1,21 +1,28 @@
 package haxe;
 
+import haxe.ErrorStack;
 import php.Boot;
 import php.Throwable;
 
 typedef NativeException = Throwable;
 
+@:coreApi
 class Error {
-	public var message(default,null):String;
+	public var message(get,never):String;
+	public var stack(get,never):ErrorStack;
+	public var previous(get,never):Null<Error>;
+	public var native(get,never):NativeException;
 
-	var stack:Null<ErrorStack>;
-	var native:Throwable;
+	@:noCompletion var _errorMessage:String;
+	@:noCompletion var _errorStack:Null<ErrorStack>;
+	@:noCompletion var _nativeException:Throwable;
+	@:noCompletion var _previousError:Null<Error>;
 
 	static public function ofNative(exception:NativeException):Error {
 		if(Boot.isHxException(exception)) {
 			return Boot.castHxException(exception).e;
 		} else {
-			return new Error(exception.getMessage(), exception);
+			return new Error(exception.getMessage(), null, exception);
 		}
 	}
 
@@ -29,25 +36,46 @@ class Error {
 		}
 	}
 
-	public function new(message:String, ?native:NativeException) {
-		this.message = message;
-		this.native = (native == null ? Boot.createHxException(this) : native);
+	public function new(message:String, ?previous:Error, ?native:NativeException) {
+		this._errorMessage = message;
+		this._previousError = previous;
+		this._nativeException = (native == null ? Boot.createHxException(this) : native);
 	}
 
-	public function getNative():NativeException {
-		return native;
+	function get_message():String {
+		return _errorMessage;
 	}
 
-	public function getStack():ErrorStack {
-		return switch stack {
+	function get_previous():Null<Error> {
+		return _previousError;
+	}
+
+	function get_native():NativeException {
+		return _nativeException;
+	}
+
+	function get_stack():ErrorStack {
+		return switch _errorStack {
 			case null:
-				stack = @:privateAccess CallStack.makeStack(native.getTrace());
-			case stack:
-				stack;
+				_errorStack = @:privateAccess CallStack.makeStack(_nativeException.getTrace());
+			case s: s;
 		}
 	}
 
 	public function toString():String {
-		return message;
+		var result = '';
+		var e:Null<Error> = this;
+		var prev:Null<Error> = null;
+		while(e != null) {
+			if(prev == null) {
+				result = 'Error: ${e.message}\nStack:${e.stack}' + result;
+			} else {
+				var prevStack = @:privateAccess e.stack.subtract(prev.stack);
+				result = 'Error: ${e.message}\nStack:$prevStack\n\nNext ' + result;
+			}
+			prev = e;
+			e = e.previous;
+		}
+		return result;
 	}
 }

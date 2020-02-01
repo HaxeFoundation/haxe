@@ -11,6 +11,14 @@ let haxe_error_type_path = (["haxe"],"Error")
 let haxe_value_error_type_path = (["haxe"],"ValueError")
 
 (**
+	Get `Type.t` instance for `haxe.Error.NativeException`
+*)
+let native_exception_type ctx p =
+	match Typeload.load_type_raise ctx haxe_error_type_path "NativeException" p with
+	| TTypeDecl td -> TType(td,[])
+	| _ -> error "haxe.Error.NativeExtension is expected to be a typedef" p
+
+(**
 	Get `tclass` instance for `haxe.Error`
 *)
 let haxe_error_class ctx p =
@@ -66,18 +74,20 @@ let std_is_call ctx e t p =
 (**
 	Check if `t` can be used as native target exception type.
 *)
-let rec is_native_exception com t =
-	match com.config.pf_native_exception with
-	| None -> false
-	| Some native_exception_path ->
-		let rec check cls =
-			cls.cl_path = native_exception_path
-			|| List.exists (fun (cls,_) -> check cls) cls.cl_implements
-			|| Option.map_default (fun (cls,_) -> check cls) false cls.cl_super
-		in
-		match follow t with
-		| TInst (cls, _) -> check cls
-		| _ -> false
+let rec is_native_exception ctx t =
+	let native_exception_path =
+		match follow (native_exception_type ctx null_pos) with
+		| TInst(cls,_) -> cls.cl_path
+		| _ -> error "haxe.Error.NativeException must be an alias of a class or interface." null_pos
+	in
+	let rec check cls =
+		cls.cl_path = native_exception_path
+		|| List.exists (fun (cls,_) -> check cls) cls.cl_implements
+		|| Option.map_default (fun (cls,_) -> check cls) false cls.cl_super
+	in
+	match follow t with
+	| TInst (cls, _) -> check cls
+	| _ -> false
 
 (**
 	Check if `t` is or extends `haxe.Error`
@@ -100,7 +110,7 @@ let rec is_haxe_error ?(check_parent=true) (t:Type.t) =
 let throw_native ctx e_thrown p =
 	let e_native =
 		(* already a native exception *)
-		if is_native_exception ctx.com e_thrown.etype then
+		if is_native_exception ctx e_thrown.etype then
 			e_thrown
 		else begin
 			(* Wrap any value into `haxe.Error` instance *)
@@ -116,17 +126,17 @@ let throw_native ctx e_thrown p =
 					let error_cls = haxe_value_error_class ctx p in
 					mk (TNew(error_cls,[],[e_thrown])) (TInst(error_cls,[])) p
 			in
-			(* generate `haxe_error.getNative()` *)
-			match quick_field haxe_error.etype "getNative" with
+			(* generate `haxe_error.get_native()` *)
+			match quick_field haxe_error.etype "get_native" with
 			| FInstance (_,_,cf) as faccess ->
 				let efield = { eexpr = TField(haxe_error,faccess); etype = cf.cf_type; epos = e_thrown.epos } in
 				let rt =
 					match follow cf.cf_type with
 					| TFun(_,t) -> t
-					| _ -> error ("haxe.Error.getNative is not a function and cannot be called") p
+					| _ -> error ("haxe.Error.get_native is not a function and cannot be called") p
 				in
 				make_call ctx efield [] rt p
-			| _ -> error ("haxe.Error.getNative is not an instance field") p
+			| _ -> error ("haxe.Error.get_native is not an instance field") p
 		end
 	in
 	mk (TThrow e_native) (mk_mono()) p
@@ -166,19 +176,14 @@ and catch_native ctx catches t p =
 	let haxe_error_type = TInst(haxe_error_class ctx p,[]) in
 	let rec transform = function
 		(* Keep catches for native exceptions intact *)
-		| (v,_) as current :: rest when (is_native_exception ctx.com v.v_type)
+		| (v,_) as current :: rest when (is_native_exception ctx v.v_type)
 			(* in case haxe.Error extends native exception on current target *)
 			&& not (fast_eq haxe_error_type (follow v.v_type)) ->
 			current :: (transform rest)
 		| [] -> []
 		(* Everything else falls into `if(Std.is(e, ExceptionType){`-fest *)
 		| rest ->
-			let native_exception_type =
-				match Typeload.load_type_raise ctx haxe_error_type_path "NativeException" p with
-				| TTypeDecl td -> TType(td,[])
-				| _ -> assert false
-			in
-			let catch_var = gen_local ctx native_exception_type null_pos in
+			let catch_var = gen_local ctx (native_exception_type ctx p) null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
 				let value_error_class = haxe_value_error_class ctx p in

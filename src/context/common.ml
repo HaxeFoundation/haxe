@@ -106,8 +106,6 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
-	(** base class or interface for native exceptions, which can be used for wildcard catches *)
-	pf_native_exception : path option;
 }
 
 class compiler_callbacks = object(self)
@@ -323,7 +321,6 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
-		pf_native_exception = None;
 	}
 
 let get_config com =
@@ -369,7 +366,6 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
-			pf_native_exception = Some (["php"],"Throwable")
 		}
 	| Cpp ->
 		{

@@ -1049,4 +1049,9 @@ private class HxException extends Exception {
 		super(e.message);
 		this.e = e;
 	}
+
+	@:phpMagic
+	override public function __toString():String {
+		return e.toString();
+	}
 }

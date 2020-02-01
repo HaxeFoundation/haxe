@@ -1,15 +1,37 @@
 package haxe;
 
+/**
+	An alias of the base class or interface for native exceptions.
+**/
 typedef NativeException = Any;
 
 /**
-	Common class for errors.
+	Base class for exceptions.
 **/
 extern class Error {
 	/**
 		Error message.
 	**/
-	public var message(default,null):String;
+	public var message(get,never):String;
+	private function get_error():String;
+
+	/**
+		The call stack at the moment of the error creation.
+	**/
+	public var stack(get,never):ErrorStack;
+	private function get_stack():ErrorStack;
+
+	/**
+		Contains an error, which was passed to `previous` constructor argument.
+	**/
+	public var previous(get,never):Null<Error>;
+	private function get_previous():Null<Error>;
+
+	/**
+		Native exception, which caused this error.
+	**/
+	public var native(get,never):NativeException;
+	private function get_native():NativeException;
 
 	/**
 		Get an instance of `haxe.Error` for a native exception.
@@ -34,17 +56,9 @@ extern class Error {
 	public function new(message:String, ?previous:Error, ?native:NativeException):Void;
 
 	/**
-		Retrieve native exception, which caused this error.
-	**/
-	public function getNative():NativeException;
-
-	/**
-		Error call stack.
-	**/
-	public function getStack():ErrorStack;
-
-	/**
 		Error description.
+
+		Includes message, stack and the previous error (if set).
 	**/
 	public function toString():String;
 }
