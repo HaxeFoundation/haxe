@@ -179,19 +179,9 @@ end
 let is_keyword str = Hashtbl.mem php_keywords_tbl (String.lowercase str)
 
 (**
-	Check if specified type is Void
-*)
-let is_void_type t = match follow t with TAbstract ({ a_path = void_type_path }, _) -> true | _ -> false
-
-(**
-	Check if specified type is Bool
-*)
-let is_bool_type t = match follow t with TAbstract ({ a_path = bool_type_path }, _) -> true | _ -> false
-
-(**
 	Check if specified type is php.NativeArray
 *)
-let is_native_array_type t = match follow t with TAbstract ({ a_path = native_array_type_path }, _) -> true | _ -> false
+let is_native_array_type t = match follow t with TAbstract ({ a_path = tp }, _) -> tp = native_array_type_path | _ -> false
 
 (**
 	If `name` is not a reserved word in PHP then `name` is returned as-is.
@@ -298,17 +288,12 @@ let is_int expr = match follow expr.etype with TAbstract ({ a_path = ([], "Int")
 (**
 	Check if specified expression is of `Float` type
 *)
-let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
-
-(**
-	Check if specified type is String
-*)
-let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+let is_float expr = ExtType.is_float (follow expr.etype)
 
 (**
 	Check if specified expression is of String type
 *)
-let is_string expr = is_string_type expr.etype
+let is_string expr = ExtType.is_string (follow expr.etype)
 
 (**
 	Check if specified type is Array
@@ -392,6 +377,17 @@ let needs_dereferencing for_assignment expr =
 		| TField (target_expr, _) -> is_create target_expr
 		| TArray (target_expr, _) -> is_create target_expr
 		| _ -> false
+
+(**
+	Check if the value of `expr` needs to be stored to a temporary variable to be
+	reused.
+*)
+let rec needs_temp_var expr =
+	match (reveal_expr_with_parenthesis expr).eexpr with
+		| TConst _ | TLocal _ -> false
+		| TField (target, FInstance _) | TField (target, FStatic _) -> needs_temp_var target
+		| TArray (target, index) -> needs_temp_var target || needs_temp_var index
+		| _ -> true
 
 (**
 	@return (arguments_list, return_type)
@@ -1625,7 +1621,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
-				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_syntax_instanceof [arg1; arg2]
+				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
 				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
@@ -2640,6 +2636,44 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					write_args self#write self#write_expr args;
 					self#write ")"
 				end
+		(**
+			Writes `Std.isOfType(value, type)` to output buffer
+		*)
+		method write_expr_std_is target_expr value_expr type_expr =
+			if instanceof_compatible value_expr type_expr then
+				self#write_expr_syntax_instanceof [value_expr; type_expr]
+			else
+				let no_optimisation() =
+					self#write_expr_call target_expr [value_expr; type_expr]
+				in
+				match (reveal_expr type_expr).eexpr with
+					| TTypeExpr mtype ->
+						let t = follow (type_of_module_type mtype) in
+						if ExtType.is_string t then
+							begin
+								self#write "is_string(";
+								self#write_expr value_expr;
+								self#write ")"
+							end
+						else if ExtType.is_bool t then
+							begin
+								self#write "is_bool(";
+								self#write_expr value_expr;
+								self#write ")"
+							end
+						else if ExtType.is_float t && not (needs_temp_var value_expr) then
+							begin
+								self#write "(is_float(";
+								self#write_expr value_expr;
+								self#write ") || is_int(";
+								self#write_expr value_expr;
+								self#write "))"
+							end
+						else
+							no_optimisation()
+					| _ ->
+						no_optimisation()
+
 		(**
 			Writes a name of a function or a constant from global php namespace
 		*)
