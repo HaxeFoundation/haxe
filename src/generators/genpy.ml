@@ -2434,6 +2434,10 @@ module Generator = struct
 				spr ctx "        self.__dict__ = fields\n";
 				spr ctx "    def __repr__(self):\n";
 				spr ctx "        return repr(self.__dict__)\n";
+				spr ctx "    def __contains__(self, item):\n";
+				spr ctx "        return item in self.__dict__\n";
+				spr ctx "    def __getitem__(self, item):\n";
+				spr ctx "        return self.__dict__[item]\n";
 				spr ctx "    def __getattr__(self, name):\n";
 				spr ctx "        if (self._hx_disable_getattr):\n";
 				spr ctx "            raise AttributeError('field does not exist')\n";
