@@ -5,7 +5,6 @@ import php.Throwable;
 
 typedef NativeException = Throwable;
 
-@:keep
 class Error {
 	public var message(default,null):String;
 
@@ -49,6 +48,6 @@ class Error {
 	}
 
 	public function toString():String {
-		return 'Error: $message\n${getStack()}';
+		return message;
 	}
 }

@@ -8,7 +8,6 @@ package haxe;
 	throw "Terrible error";
 	```
 **/
-@:keep
 class ValueError extends Error {
 	public var value(default,null):Any;
 

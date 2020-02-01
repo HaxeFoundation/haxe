@@ -165,6 +165,37 @@ let check_error ctx err p = match err with
 	| _ ->
 		display_error ctx (error_msg err) p
 
+(**
+	Check if `t` can be used as native target exception type.
+*)
+let rec is_native_exception com t =
+	match com.config.pf_native_exception with
+	| None -> false
+	| Some native_exception_path ->
+		let rec check cls =
+			cls.cl_path = native_exception_path
+			|| List.exists (fun (cls,_) -> check cls) cls.cl_implements
+			|| Option.map_default (fun (cls,_) -> check cls) false cls.cl_super
+		in
+		match follow t with
+		| TInst (cls, _) -> check cls
+		| _ -> false
+
+(**
+	Check if `t` is or extends `haxe.Error`
+*)
+let rec is_haxe_error ?(check_parent=true) (t:Type.t) =
+	let rec check cls =
+		cls.cl_path = (["haxe"], "Error")
+		|| (check_parent && match cls.cl_super with
+			| None -> false
+			| Some (cls, _) -> check cls
+		)
+	in
+	match follow t with
+		| TInst (cls, _) -> check cls
+		| _ -> false
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -1899,6 +1930,52 @@ and type_new ctx path el with_type force_inline p =
 		display_error ctx (error_msg err) p;
 		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 
+and type_throw ctx e p =
+	let e = type_expr ctx e WithType.value in
+	(* make sure we will throw a native exception *)
+	let e =
+		(* already a native exception *)
+		if is_native_exception ctx.com e.etype then
+			e
+		else begin
+			let return_type cf =
+				match follow cf.cf_type with
+				| TFun(_,t) -> t
+				| _ -> assert false
+			in
+			(* Wrap any value into `haxe.Error` instance *)
+			let haxe_error =
+				(* already a `haxe.Error` instance *)
+				if is_haxe_error e.etype then
+					e
+				(* throwing dynamic values: generate `haxe.Error.ofAny(e)` *)
+				else if (follow e.etype) == t_dynamic then
+					match Typeload.load_type ctx (["haxe"],"Error") "Error" p with
+					| TClassDecl error_cls ->
+						let ofAny_field =
+							try PMap.find "ofAny" error_cls.cl_statics
+							with Not_found -> assert false
+						in
+						let rt = return_type ofAny_field in
+						make_static_call ctx error_cls ofAny_field (fun t -> t) [e] rt p
+					| _ -> assert false
+				(* throwing other values: generate `new haxe.ValueError(e)` *)
+				else
+					match Typeload.load_type ctx (["haxe"],"ValueError") "ValueError" p with
+					| TClassDecl error_cls ->
+						mk (TNew(error_cls,[],[e])) (TInst(error_cls,[])) p
+					| _ -> assert false
+			in
+			(* generate `haxe_error.getNative()` *)
+			match quick_field haxe_error.etype "getNative" with
+			| FInstance (_,_,cf) as faccess ->
+				let efield = { eexpr = TField(haxe_error,faccess); etype = cf.cf_type; epos = e.epos } in
+				make_call ctx efield [] (return_type cf) p
+			| _ -> assert false
+		end
+	in
+	mk (TThrow e) (mk_mono()) p
+
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	let rec check_unreachable cases t p = match cases with
@@ -1975,6 +2052,88 @@ and type_try ctx e1 catches with_type p =
 			e1,catches,t
 	in
 	mk (TTry (e1,List.rev catches)) t p
+
+and transform_typed_try ctx try_body catches t p =
+	let capture_stack() =
+		(* TODO *)
+		()
+	in
+	let rec transform = function
+		| (v,_) as c :: rest when is_native_exception ctx.com v.v_type ->
+			c :: (transform rest)
+		| [] -> []
+		| rest ->
+			let native_exception_type =
+				match Typeload.load_type ctx (["haxe"],"ValueError") "ValueError" p with
+				| TTypeDecl td -> TType(td,[])
+				| _ -> assert false
+			in
+			let v = add_local_with_origin ctx TVOCatchVariable "`e" native_exception_type null_pos in
+			let body =
+				self#indent_more;
+				self#write_statement ("$__hx__e = " ^ (self#use error_type_path) ^ "::ofNative($__hx__e)");
+				let rec transform = function
+					| (v, body) :: rest when is_haxe_error v.v_type ->
+						if is_haxe_error ~extends:false v.v_type then
+							self#write "if (true) {\n"
+						else
+							self#write ("if($__hx__e instanceof " ^ (self#use_t v.v_type) ^ ") {\n");
+						self#indent_more;
+						self#write_statement ("$" ^ v.v_name ^ " = $__hx__e");
+						write_body body rest
+					| (v, body) :: rest when is_dynamic_type v.v_type ->
+						self#write "if (true) {\n";
+						self#indent_more;
+						capture_stack();
+						self#write_statement ("$" ^ v.v_name ^ " = $__hx__e instanceof " ^ (self#use value_error_type_path) ^ " ? $__hx__e->value : $__hx__e");
+						write_body body rest
+					| (v, body) :: rest ->
+						self#write ("if ($__hx__e instanceof " ^ (self#use value_error_type_path) ^ " && ");
+						(match follow v.v_type with
+							| TInst ({ cl_path = ([], "String") }, _) -> self#write "is_string($__hx__e->value)"
+							| TAbstract ({ a_path = ([], "Float") }, _) -> self#write "is_float($__hx__e->value)"
+							| TAbstract ({ a_path = ([], "Int") }, _) -> self#write "is_int($__hx__e->value)"
+							| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "is_bool($__hx__e->value)"
+							| vtype -> self#write ("$__hx__e->value instanceof " ^ (self#use_t vtype))
+						);
+						self#write ") {\n";
+						self#indent_more;
+						capture_stack();
+						self#write_statement ("$" ^ v.v_name ^ " = $__hx__e->value");
+						write_body body rest
+					| [] -> ()
+				and write_body body rest =
+					self#write_indentation;
+					self#write_as_block ~inline:true body;
+					self#indent_less;
+					self#write_indentation;
+					self#write "}";
+					if rest <> [] then self#write " else ";
+					transform rest
+				in
+				self#write_indentation;
+				transform rest;
+				let has_wildcard_catches =
+					List.exists (fun (v, _) ->
+						(is_dynamic_type v.v_type) || (is_haxe_error ~extends:false v.v_type)
+					) catches
+				in
+				if not has_wildcard_catches then begin
+					self#write " else {\n";
+					self#indent_more;
+					self#write_statement "throw $__hx__e->getNative()";
+					self#indent_less;
+					self#write_indentation;
+					self#write "}"
+				end;
+				self#write "\n";
+				self#indent_less;
+				self#write_indentation;
+				self#write "}"
+			in (* let body =  *)
+			[(v,body)]
+	in
+	transform catches
 
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
@@ -2601,6 +2760,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_expr ctx e1 with_type
 	| ETry (e1,catches) ->
 		type_try ctx e1 catches with_type p
+	| EThrow e when ctx.com.platform = Php ->
+		type_throw ctx e p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p

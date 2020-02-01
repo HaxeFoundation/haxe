@@ -1956,7 +1956,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_throw expr =
 			self#write "throw ";
-			if is_native_exception expr.etype then
+			self#write_expr expr
+			(* if is_native_exception expr.etype then
 				self#write_expr expr
 			else if is_haxe_error expr.etype then
 				begin
@@ -1974,7 +1975,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write ("(new " ^ (self#use value_error_type_path) ^ "(");
 					self#write_expr expr;
 					self#write "))->getNative()"
-				end
+				end *)
 		(**
 			Writes try...catch to output buffer
 		*)
