@@ -35,7 +35,6 @@ class Error extends Exception {
 	@:noCompletion var __errorStack:Null<ErrorStack>;
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousError:Null<Error>;
-	@:noCompletion var __isWrapper:Bool;
 
 	static public function ofNative(exception:Any):Error {
 		if(Std.is(exception, Error)) {
@@ -48,8 +47,6 @@ class Error extends Exception {
 	static public function ofAny(value:Any):Error {
 		if(Std.isOfType(value, Throwable)) {
 			return ofNative(value);
-		} else if(Std.isOfType(value, Error)) {
-			return value;
 		} else {
 			return new ValueError(value);
 		}
@@ -58,17 +55,11 @@ class Error extends Exception {
 	public function new(message:String, ?previous:Error, ?native:Any) {
 		super(message, 0, previous);
 		this.__previousError = previous;
-		if(native == null) {
-			this.__isWrapper = false;
-			this.__nativeException = cast this;
-		} else {
-			this.__isWrapper = true;
-			this.__nativeException = native;
-		}
+		this.__nativeException = native == null ? cast this : native;
 	}
 
 	public function unwrap():Any {
-		return __isWrapper ? native : this;
+		return __nativeException;
 	}
 
 	public function toString():String {

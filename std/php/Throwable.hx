@@ -52,5 +52,5 @@ extern interface MetaThrowable {
 	@:noCompletion private function getLine():Int;
 	@:noCompletion private function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>;
 	@:noCompletion private function getTraceAsString():String;
-	@:noCompletion@:phpMagic private function __toString():String;
+	@:noCompletion @:phpMagic private function __toString():String;
 }
