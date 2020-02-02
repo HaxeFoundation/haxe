@@ -59,14 +59,14 @@ extern class Error {
 
 		Used internally for wildcard catches like `catch(e:Error)`.
 	**/
-	static function ofNative(exception:Any):Error;
+	static private function ofNative(exception:Any):Error;
 
 	/**
 		Get an instance of `haxe.Error` for an arbitrary value.
 
 		Used internally for throwing dynamically typed values.
 	**/
-	static function ofAny(value:Any):Error;
+	static private function ofAny(value:Any):Error;
 
 	/**
 		Create a new Error instance.

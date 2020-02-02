@@ -36,7 +36,7 @@ class Error extends Exception {
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousError:Null<Error>;
 
-	static public function ofNative(exception:Any):Error {
+	static function ofNative(exception:Any):Error {
 		if(Std.is(exception, Error)) {
 			return exception;
 		} else {
@@ -44,7 +44,7 @@ class Error extends Exception {
 		}
 	}
 
-	static public function ofAny(value:Any):Error {
+	static function ofAny(value:Any):Error {
 		if(Std.isOfType(value, Throwable)) {
 			return ofNative(value);
 		} else {

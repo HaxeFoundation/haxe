@@ -1910,7 +1910,10 @@ and type_try ctx e1 catches with_type p =
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| TDynamic _, TDynamic _ ->
+					| TDynamic _, TDynamic _
+					| TInst({ cl_path = ["haxe"],"Error"},_), TDynamic _
+					| TDynamic _, TInst({ cl_path = ["haxe"],"Error"},_)
+					| TInst({ cl_path = ["haxe"],"Error"},_), TInst({ cl_path = ["haxe"],"Error"},_) ->
 						unreachable()
 					| TDynamic _,_ ->
 						()
