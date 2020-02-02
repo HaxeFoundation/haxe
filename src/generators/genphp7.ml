@@ -668,28 +668,9 @@ let is_magic expr =
 			| "__call__" -> true
 			| "__physeq__" -> true
 			| "__var__" -> true
-			| "__saveExceptionStack__" -> true
 			| _ -> false
 		)
 	| _ -> false
-
-(**
-	Check if `expr` should not be generated
-*)
-let skip_expr ctx expr =
-	match expr.eexpr with
-		| TCall (target, args) ->
-			(match target.eexpr with
-				| TIdent "__saveExceptionStack__" ->
-					not (has_feature ctx.pgc_common "haxe.CallStack.exceptionStack")
-				| _ when is_syntax_extern target ->
-					(match args with
-						| [{ eexpr = TField (_, FStatic (_, { cf_name = "keepVar" })) }] -> true
-						| _ -> false
-					)
-				| _ -> false
-			)
-		| _ -> false
 
 (**
 	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
@@ -1775,7 +1756,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			vars#captured used_vars;
 			self#write " ";
 			if List.length used_vars > 0 then begin
-				self#write " use (";
+				self#write "use (";
 				write_args self#write (fun name -> self#write ("&$" ^ name)) used_vars;
 				self#write ") "
 			end;
@@ -1845,11 +1826,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_as_block ?inline ?unset_locals expr =
 			let unset_locals = match unset_locals with Some true -> true | _ -> false
-			and exprs =
-				List.filter
-					(fun e -> not (skip_expr ctx e))
-					(match expr.eexpr with TBlock exprs -> exprs | _ -> [expr])
-			in
+			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
 					if not ctx.pgc_skip_line_directives && not (is_block expr) && expr.epos <> null_pos then
@@ -1954,17 +1931,10 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
 		method write_expr_magic name args =
-			if name <> "__saveExceptionStack__" then
-				ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
+			ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __POS__
-				| [expr] when name = "__saveExceptionStack__" ->
-					if has_feature ctx.pgc_common "haxe.CallStack.exceptionStack" then begin
-						self#write ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace(");
-						self#write_expr expr;
-						self#write ")"
-					end
 				| { eexpr = TConst (TString code) } as expr :: args ->
 					(match name with
 						| "__php__" ->

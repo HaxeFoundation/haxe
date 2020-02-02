@@ -171,8 +171,12 @@ and catch_native ctx catches t p =
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			(* __saveExceptionStack__(catch_var) *)
 			let capture_stack() =
-				let fn = { eexpr = TIdent "__saveExceptionStack__"; etype = mk_mono(); epos = null_pos } in
-				{ eexpr = TCall (fn, [catch_local]); etype = ctx.basic.tvoid; epos = null_pos }
+				(* TODO: generate `haxe.CallStack.captureExceptionStack(capture_var)` *)
+				if false && has_feature ctx.typer.com "haxe.CallStack.exceptionStack" then
+					let fn = { eexpr = TIdent "__saveExceptionStack__"; etype = mk_mono(); epos = null_pos } in
+					{ eexpr = TCall (fn, [catch_local]); etype = ctx.basic.tvoid; epos = null_pos }
+				else
+					mk (TBlock[]) ctx.basic.tvoid null_pos
 			in
 			let body =
 				let haxe_error_var = gen_local ctx.typer ctx.haxe_error_type null_pos in
