@@ -37,6 +37,13 @@ enum StackItem {
 	Get information about the call stack.
 **/
 class CallStack {
+	/**
+		This method is used internally by some targets for non-haxe.Error catches
+		to provide stack for `haxe.CallStack.exceptionStack()`
+	**/
+	static inline function saveExceptionStack(exception:Any) {
+	}
+
 	#if js
 	static var lastException:js.lib.Error;
 

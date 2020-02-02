@@ -16,7 +16,8 @@ type context = {
 	haxe_error_class : tclass;
 	haxe_error_type : Type.t;
 	haxe_value_error_class : tclass;
-	haxe_value_error_type : Type.t
+	haxe_value_error_type : Type.t;
+	haxe_call_stack_class : tclass;
 }
 
 (**
@@ -53,7 +54,7 @@ let haxe_error_instance_call ctx haxe_error method_name args p =
 (**
 	Generate `Std.isOfType(e, t)`
 *)
-let std_is_call ctx e t p =
+let std_is ctx e t p =
 	let std_cls =
 		match Typeload.load_type_raise ctx.typer ([],"Std") "Std" p with
 		| TClassDecl cls -> cls
@@ -70,6 +71,24 @@ let std_is_call ctx e t p =
 	in
 	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = null_pos } in
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
+
+(**
+	Generates `haxe.CallStack.saveExceptionStack(catch_local)` if needed
+*)
+let save_exception_stack ctx catch_local =
+	if has_feature ctx.typer.com "haxe.CallStack.exceptionStack" then
+		let method_field =
+			try PMap.find "saveExceptionStack" ctx.haxe_call_stack_class.cl_statics
+			with Not_found -> error ("haxe.Error has no field saveExceptionStack") null_pos
+		in
+		let return_type =
+			match follow method_field.cf_type with
+			| TFun(_,t) -> t
+			| _ -> error ("haxe.CallStack." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
+		in
+		make_static_call ctx.typer ctx.haxe_call_stack_class method_field (fun t -> t) [catch_local] return_type null_pos
+	else
+		mk (TBlock[]) ctx.basic.tvoid null_pos
 
 (**
 	Check if `t` can be used as native target exception type.
@@ -169,15 +188,6 @@ and catch_native ctx catches t p =
 		| rest ->
 			let catch_var = gen_local ctx.typer ctx.native_exception_type null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
-			(* __saveExceptionStack__(catch_var) *)
-			let capture_stack() =
-				(* TODO: generate `haxe.CallStack.captureExceptionStack(capture_var)` *)
-				if false && has_feature ctx.typer.com "haxe.CallStack.exceptionStack" then
-					let fn = { eexpr = TIdent "__saveExceptionStack__"; etype = mk_mono(); epos = null_pos } in
-					{ eexpr = TCall (fn, [catch_local]); etype = ctx.basic.tvoid; epos = null_pos }
-				else
-					mk (TBlock[]) ctx.basic.tvoid null_pos
-			in
 			let body =
 				let haxe_error_var = gen_local ctx.typer ctx.haxe_error_type null_pos in
 				let haxe_error_local = mk (TLocal haxe_error_var) haxe_error_var.v_type null_pos in
@@ -193,7 +203,7 @@ and catch_native ctx catches t p =
 							if fast_eq ctx.haxe_error_type (follow v.v_type) then
 								mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
 							else
-								std_is_call ctx haxe_error_local v.v_type v.v_pos
+								std_is ctx haxe_error_local v.v_type v.v_pos
 						in
 						let body =
 							mk (TBlock [
@@ -209,7 +219,7 @@ and catch_native ctx catches t p =
 						let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
 						let body =
 							mk (TBlock [
-								capture_stack();
+								save_exception_stack ctx catch_local;
 								(* var v:Dynamic = haxe_error_local.unwrap(); *)
 								mk (TVar (v, Some (unwrap()))) ctx.basic.tvoid null_pos;
 								body
@@ -220,11 +230,11 @@ and catch_native ctx catches t p =
 					| (v, body) :: rest ->
 						let condition =
 							(* Std.isOfType(haxe_error_local.unwrap(), ExceptionType) *)
-							std_is_call ctx (unwrap()) v.v_type v.v_pos
+							std_is ctx (unwrap()) v.v_type v.v_pos
 						in
 						let body =
 							mk (TBlock [
-								capture_stack();
+								save_exception_stack ctx catch_local;
 								(* var v:ExceptionType = cast haxe_error_local.unwrap() *)
 								mk (TVar (v, Some (mk_cast (unwrap()) v.v_type null_pos))) ctx.basic.tvoid null_pos;
 								body
@@ -268,6 +278,10 @@ let filter tctx =
 			match Typeload.load_type_raise tctx haxe_error_type_path "ValueError" null_pos with
 			| TClassDecl cls -> cls
 			| _ -> error "haxe.ValueError is expected to be a class" null_pos
+		and haxe_call_stack_class =
+			match Typeload.load_type_raise tctx (["haxe"],"CallStack") "CallStack" null_pos with
+			| TClassDecl cls -> cls
+			| _ -> error "haxe.CallStack is expected to be a class" null_pos
 		in
 		let ctx = {
 			typer = tctx;
@@ -277,6 +291,7 @@ let filter tctx =
 			haxe_error_type = TInst(haxe_error_class,[]);
 			haxe_value_error_class = haxe_value_error_class;
 			haxe_value_error_type = TInst(haxe_value_error_class,[]);
+			haxe_call_stack_class = haxe_call_stack_class;
 		} in
 		let rec run e =
 			match e.eexpr with

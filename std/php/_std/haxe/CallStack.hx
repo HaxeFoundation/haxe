@@ -88,8 +88,11 @@ class CallStack {
 		}
 	}
 
-	@:ifFeature("haxe.CallStack.exceptionStack")
-	static function saveExceptionTrace(e:Throwable):Void {
+	/**
+		This method is used internally for non-haxe.Error catches to provide stack
+		for `haxe.CallStack.exceptionStack()`
+	**/
+	static function saveExceptionStack(e:Throwable):Void {
 		lastExceptionTrace = e.getTrace();
 
 		// Reduce exception stack to the place where exception was caught
