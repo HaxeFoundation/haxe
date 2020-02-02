@@ -108,11 +108,11 @@ class Error extends PhpException {
 @:noCompletion
 @:native('Exception')
 private extern class PhpException implements MetaThrowable {
-	private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
+	@:noCompletion private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
 
-	private var code:Int;
-	private var file:String;
-	private var line:Int;
+	@:noCompletion private var code:Int;
+	@:noCompletion private var file:String;
+	@:noCompletion private var line:Int;
 
 	@:noCompletion final private function getPrevious():Throwable;
 	@:noCompletion private function getMessage():String;
