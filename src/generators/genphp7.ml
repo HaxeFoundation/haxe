@@ -146,14 +146,6 @@ let bool_type_path = ([], "Bool")
 	Type path of the `Std`
 *)
 let std_type_path = ([], "Std")
-(**
-	Type path for `haxe.Error`
-*)
-let error_type_path = (["haxe"], "Error")
-(**
-	Type path for `haxe.ValueError`
-*)
-let value_error_type_path = (["haxe"], "ValueError")
 
 (**
 	The name of a file with polyfills for some functions which are not available in PHP 7.0
@@ -314,7 +306,7 @@ let is_function_type t = match follow t with TFun _ -> true | _ -> false
 *)
 let is_syntax_extern expr =
 	match expr.eexpr with
-		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) when path = syntax_type_path -> true
+		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) -> path = syntax_type_path
 		| _ -> false
 
 (**
@@ -676,9 +668,28 @@ let is_magic expr =
 			| "__call__" -> true
 			| "__physeq__" -> true
 			| "__var__" -> true
+			| "__saveExceptionStack__" -> true
 			| _ -> false
 		)
 	| _ -> false
+
+(**
+	Check if `expr` should not be generated
+*)
+let skip_expr ctx expr =
+	match expr.eexpr with
+		| TCall (target, args) ->
+			(match target.eexpr with
+				| TIdent "__saveExceptionStack__" ->
+					not (has_feature ctx.pgc_common "haxe.CallStack.exceptionStack")
+				| _ when is_syntax_extern target ->
+					(match args with
+						| [{ eexpr = TField (_, FStatic (_, { cf_name = "keepVar" })) }] -> true
+						| _ -> false
+					)
+				| _ -> false
+			)
+		| _ -> false
 
 (**
 	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
@@ -1600,9 +1611,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
-				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
-					ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
-					self#write_expr_magic name args
+				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
 				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
@@ -1836,15 +1845,23 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_as_block ?inline ?unset_locals expr =
 			let unset_locals = match unset_locals with Some true -> true | _ -> false
-			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
+			and exprs =
+				List.filter
+					(fun e -> not (skip_expr ctx e))
+					(match expr.eexpr with TBlock exprs -> exprs | _ -> [expr])
+			in
 			let write_body () =
 				let write_expr expr =
-					if not ctx.pgc_skip_line_directives && not (is_block expr) then
+					if not ctx.pgc_skip_line_directives && not (is_block expr) && expr.epos <> null_pos then
 						if self#write_pos expr then self#write_indentation;
-					self#write_expr expr;
 					match expr.eexpr with
-						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
-						| _ -> self#write ";\n"
+						| TBlock _ ->
+							self#write_as_block ~inline:true expr
+						| _ ->
+							self#write_expr expr;
+							match expr.eexpr with
+								| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
+								| _ -> self#write ";\n"
 				in
 				let write_expr_with_indent expr =
 					self#write_indentation;
@@ -1937,9 +1954,17 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
 		method write_expr_magic name args =
+			if name <> "__saveExceptionStack__" then
+				ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __POS__
+				| [expr] when name = "__saveExceptionStack__" ->
+					if has_feature ctx.pgc_common "haxe.CallStack.exceptionStack" then begin
+						self#write ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace(");
+						self#write_expr expr;
+						self#write ")"
+					end
 				| { eexpr = TConst (TString code) } as expr :: args ->
 					(match name with
 						| "__php__" ->

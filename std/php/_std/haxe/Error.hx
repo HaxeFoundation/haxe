@@ -6,6 +6,19 @@ import php.Throwable;
 
 typedef NativeException = Throwable;
 
+class ValueError extends Error {
+	public var value(default,null):Any;
+
+	public function new(value:Any, ?previous:Error):Void {
+		super(Std.string(value), previous);
+		this.value = value;
+	}
+
+	override public function unwrap():Any {
+		return value;
+	}
+}
+
 @:coreApi
 class Error {
 	public var message(get,never):String;
@@ -13,10 +26,11 @@ class Error {
 	public var previous(get,never):Null<Error>;
 	public var native(get,never):NativeException;
 
-	@:noCompletion var _errorMessage:String;
-	@:noCompletion var _errorStack:Null<ErrorStack>;
-	@:noCompletion var _nativeException:Throwable;
-	@:noCompletion var _previousError:Null<Error>;
+	@:noCompletion var __errorMessage:String;
+	@:noCompletion var __errorStack:Null<ErrorStack>;
+	@:noCompletion var __nativeException:Throwable;
+	@:noCompletion var __previousError:Null<Error>;
+	@:noCompletion var __isWrapper:Bool;
 
 	static public function ofNative(exception:NativeException):Error {
 		if(Boot.isHxException(exception)) {
@@ -37,32 +51,25 @@ class Error {
 	}
 
 	public function new(message:String, ?previous:Error, ?native:NativeException) {
-		this._errorMessage = message;
-		this._previousError = previous;
-		this._nativeException = (native == null ? Boot.createHxException(this) : native);
-	}
-
-	function get_message():String {
-		return _errorMessage;
-	}
-
-	function get_previous():Null<Error> {
-		return _previousError;
-	}
-
-	function get_native():NativeException {
-		return _nativeException;
-	}
-
-	function get_stack():ErrorStack {
-		return switch _errorStack {
-			case null:
-				_errorStack = @:privateAccess CallStack.makeStack(_nativeException.getTrace());
-			case s: s;
+		this.__errorMessage = message;
+		this.__previousError = previous;
+		if(native == null) {
+			this.__isWrapper = false;
+			this.__nativeException = Boot.createHxException(this);
+		} else {
+			this.__isWrapper = true;
+			this.__nativeException = native;
 		}
 	}
 
+	public function unwrap():Any {
+		return __isWrapper ? native : this;
+	}
+
 	public function toString():String {
+		if(previous == null) {
+			return 'Error: $message\nStack:$stack';
+		}
 		var result = '';
 		var e:Null<Error> = this;
 		var prev:Null<Error> = null;
@@ -77,5 +84,25 @@ class Error {
 			e = e.previous;
 		}
 		return result;
+	}
+
+	function get_message():String {
+		return __errorMessage;
+	}
+
+	function get_previous():Null<Error> {
+		return __previousError;
+	}
+
+	function get_native():NativeException {
+		return __nativeException;
+	}
+
+	function get_stack():ErrorStack {
+		return switch __errorStack {
+			case null:
+				__errorStack = @:privateAccess CallStack.makeStack(__nativeException.getTrace());
+			case s: s;
+		}
 	}
 }

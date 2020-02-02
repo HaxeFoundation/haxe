@@ -5,6 +5,25 @@ package haxe;
 **/
 typedef NativeException = Any;
 
+
+/**
+	An error containing arbitrary value.
+
+	This class is automatically used for throwing non-haxe.Error values like this:
+	```haxe
+	throw "Terrible error";
+	```
+**/
+extern class ValueError extends Error {
+	/**
+		Thrown value.
+	**/
+	public var value(default,null):Any;
+
+	public function new(value:Any, ?previous:Error):Void;
+}
+
+
 /**
 	Base class for exceptions.
 **/
@@ -54,6 +73,16 @@ extern class Error {
 		keep `?native:NativeException` argument unless you know what you're doing.
 	**/
 	public function new(message:String, ?previous:Error, ?native:NativeException):Void;
+
+	/**
+		Extract an originally thrown value.
+
+		This method must always return the same value.
+		Used internally for catching non-native exceptions.
+
+		Do _not_ override unless you know what you are doing.
+	**/
+	public function unwrap():Any;
 
 	/**
 		Error description.
