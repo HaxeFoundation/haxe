@@ -18,6 +18,8 @@ type context = {
 	haxe_value_error_class : tclass;
 	haxe_value_error_type : Type.t;
 	haxe_call_stack_class : tclass;
+	(* Indicates if `haxe.Error` extends or implements native exception type *)
+	mutable haxe_error_is_native : bool;
 }
 
 (**
@@ -76,6 +78,7 @@ let std_is ctx e t p =
 	Generates `haxe.CallStack.saveExceptionStack(catch_local)` if needed
 *)
 let save_exception_stack ctx catch_local =
+	(* TODO: this `has_feature` always returns `true` if executed before DCE filters *)
 	if has_feature ctx.typer.com "haxe.CallStack.exceptionStack" then
 		let method_field =
 			try PMap.find "saveExceptionStack" ctx.haxe_call_stack_class.cl_statics
@@ -143,8 +146,11 @@ let throw_native ctx e_thrown t p =
 				else
 					mk (TNew(ctx.haxe_value_error_class,[],[e_thrown])) ctx.haxe_value_error_type p
 			in
-			(* generate `haxe_error.get_native()` *)
-			haxe_error_instance_call ctx haxe_error "get_native" [] e_thrown.epos
+			(* generate `haxe_error.get_native()` if needed *)
+			if not ctx.haxe_error_is_native then
+				haxe_error_instance_call ctx haxe_error "get_native" [] e_thrown.epos
+			else
+				haxe_error
 		end
 	in
 	mk (TThrow e_native) t p
@@ -286,6 +292,7 @@ let filter tctx =
 		let ctx = {
 			typer = tctx;
 			basic = tctx.t;
+			haxe_error_is_native = false;
 			native_exception_type = native_exception_type;
 			haxe_error_class = haxe_error_class;
 			haxe_error_type = TInst(haxe_error_class,[]);
@@ -293,6 +300,7 @@ let filter tctx =
 			haxe_value_error_type = TInst(haxe_value_error_class,[]);
 			haxe_call_stack_class = haxe_call_stack_class;
 		} in
+		ctx.haxe_error_is_native <- is_native_exception ctx ctx.haxe_error_type;
 		let rec run e =
 			match e.eexpr with
 			| TThrow e1 ->

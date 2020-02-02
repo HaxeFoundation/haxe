@@ -15,7 +15,7 @@ class ValueError extends Error {
 	public var value(default,null):Any;
 
 	public function new(value:Any, ?previous:Error):Void {
-		super(Std.string(value), previous);
+		super(inline Std.string(value), previous);
 		this.value = value;
 	}
 
@@ -26,7 +26,7 @@ class ValueError extends Error {
 
 @:coreApi
 @:access(haxe.CallStack)
-class Error extends Exception {
+class Error extends PhpException {
 	public var message(get,never):String;
 	public var stack(get,never):ErrorStack;
 	public var previous(get,never):Null<Error>;
@@ -107,7 +107,7 @@ class Error extends Exception {
 @:dox(hide)
 @:noCompletion
 @:native('Exception')
-private extern class Exception implements MetaThrowable {
+private extern class PhpException implements MetaThrowable {
 	private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
 
 	private var code:Int;

@@ -2,6 +2,8 @@ package haxe;
 
 /**
 	An alias of the base class or interface for native exceptions.
+
+	Used internally to detect native exceptions.
 **/
 @:dox(hide)
 @:noCompletion
@@ -28,6 +30,9 @@ extern class ValueError extends Error {
 
 /**
 	Base class for exceptions.
+	This is a wildcard type to catch any exception.
+
+	TODO: move to the root package for convenience?
 **/
 extern class Error {
 	/**

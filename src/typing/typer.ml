@@ -1906,14 +1906,12 @@ and type_try ctx e1 catches with_type p =
 			let unreachable () =
 				display_error ctx "This block is unreachable" p;
 				let st = s_type (print_context()) in
-				display_error ctx (Printf.sprintf "%s can be assigned to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				display_error ctx (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| TDynamic _, TDynamic _
-					| TInst({ cl_path = ["haxe"],"Error"},_), TDynamic _
-					| TDynamic _, TInst({ cl_path = ["haxe"],"Error"},_)
-					| TInst({ cl_path = ["haxe"],"Error"},_), TInst({ cl_path = ["haxe"],"Error"},_) ->
+					| _, TDynamic _
+					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
 						unreachable()
 					| TDynamic _,_ ->
 						()
