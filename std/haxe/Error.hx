@@ -3,6 +3,8 @@ package haxe;
 /**
 	An alias of the base class or interface for native exceptions.
 **/
+@:dox(hide)
+@:noCompletion
 typedef NativeException = Any;
 
 
@@ -49,30 +51,30 @@ extern class Error {
 	/**
 		Native exception, which caused this error.
 	**/
-	public var native(get,never):NativeException;
-	private function get_native():NativeException;
+	public var native(get,never):Any;
+	private function get_native():Any;
 
 	/**
 		Get an instance of `haxe.Error` for a native exception.
 
 		Used internally for wildcard catches like `catch(e:Error)`.
 	**/
-	static public function ofNative(exception:NativeException):Error;
+	static function ofNative(exception:Any):Error;
 
 	/**
 		Get an instance of `haxe.Error` for an arbitrary value.
 
 		Used internally for throwing dynamically typed values.
 	**/
-	static public function ofAny(value:Any):Error;
+	static function ofAny(value:Any):Error;
 
 	/**
 		Create a new Error instance.
 
 		Upon extending `haxe.Error` for custom error classes there is no need to
-		keep `?native:NativeException` argument unless you know what you're doing.
+		keep `?native:Any` argument unless you know what you're doing.
 	**/
-	public function new(message:String, ?previous:Error, ?native:NativeException):Void;
+	public function new(message:String, ?previous:Error, ?native:Any):Void;
 
 	/**
 		Extract an originally thrown value.

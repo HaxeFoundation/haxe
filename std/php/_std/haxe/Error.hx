@@ -2,9 +2,14 @@ package haxe;
 
 import haxe.ErrorStack;
 import php.Boot;
+import php.Global;
 import php.Throwable;
+import php.NativeAssocArray;
+import php.NativeIndexedArray;
 
-typedef NativeException = Throwable;
+@:dox(hide)
+@:noCompletion
+typedef NativeException = MetaThrowable;
 
 class ValueError extends Error {
 	public var value(default,null):Any;
@@ -20,23 +25,23 @@ class ValueError extends Error {
 }
 
 @:coreApi
-class Error {
+@:access(haxe.CallStack)
+class Error extends Exception {
 	public var message(get,never):String;
 	public var stack(get,never):ErrorStack;
 	public var previous(get,never):Null<Error>;
-	public var native(get,never):NativeException;
+	public var native(get,never):Any;
 
-	@:noCompletion var __errorMessage:String;
 	@:noCompletion var __errorStack:Null<ErrorStack>;
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousError:Null<Error>;
 	@:noCompletion var __isWrapper:Bool;
 
-	static public function ofNative(exception:NativeException):Error {
-		if(Boot.isHxException(exception)) {
-			return Boot.castHxException(exception).e;
+	static public function ofNative(exception:Any):Error {
+		if(Std.is(exception, Error)) {
+			return exception;
 		} else {
-			return new Error(exception.getMessage(), null, exception);
+			return new Error((exception:Throwable).getMessage(), null, exception);
 		}
 	}
 
@@ -50,12 +55,12 @@ class Error {
 		}
 	}
 
-	public function new(message:String, ?previous:Error, ?native:NativeException) {
-		this.__errorMessage = message;
+	public function new(message:String, ?previous:Error, ?native:Any) {
+		super(message, 0, previous);
 		this.__previousError = previous;
 		if(native == null) {
 			this.__isWrapper = false;
-			this.__nativeException = Boot.createHxException(this);
+			this.__nativeException = cast this;
 		} else {
 			this.__isWrapper = true;
 			this.__nativeException = native;
@@ -87,22 +92,43 @@ class Error {
 	}
 
 	function get_message():String {
-		return __errorMessage;
+		return this.getMessage();
 	}
 
 	function get_previous():Null<Error> {
 		return __previousError;
 	}
 
-	function get_native():NativeException {
+	function get_native():Any {
 		return __nativeException;
 	}
 
 	function get_stack():ErrorStack {
 		return switch __errorStack {
 			case null:
-				__errorStack = @:privateAccess CallStack.makeStack(__nativeException.getTrace());
+				var nativeTrace = CallStack.complementTrace(__nativeException.getTrace(), __nativeException);
+				__errorStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}
 	}
+}
+
+@:dox(hide)
+@:noCompletion
+@:native('Exception')
+private extern class Exception implements MetaThrowable {
+	private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
+
+	private var code:Int;
+	private var file:String;
+	private var line:Int;
+
+	@:noCompletion final private function getPrevious():Throwable;
+	@:noCompletion private function getMessage():String;
+	@:noCompletion private function getCode():Int;
+	@:noCompletion private function getFile():String;
+	@:noCompletion private function getLine():Int;
+	@:noCompletion private function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>;
+	@:noCompletion private function getTraceAsString():String;
+	@:noCompletion @:phpMagic private function __toString():String;
 }

@@ -93,37 +93,42 @@ class CallStack {
 		for `haxe.CallStack.exceptionStack()`
 	**/
 	static function saveExceptionStack(e:Throwable):Void {
-		lastExceptionTrace = e.getTrace();
+		var nativeTrace = e.getTrace();
 
 		// Reduce exception stack to the place where exception was caught
 		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
 		var count = Global.count(currentTrace);
 
 		for (i in -(count - 1)...1) {
-			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(lastExceptionTrace);
+			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(nativeTrace);
 
 			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
-				Global.array_pop(lastExceptionTrace);
+				Global.array_pop(nativeTrace);
 			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
-				Global.array_pop(lastExceptionTrace);
+				Global.array_pop(nativeTrace);
 			} else {
 				break;
 			}
 		}
 
 		// Remove arguments from trace to avoid blocking some objects from GC
-		var count = Global.count(lastExceptionTrace);
+		var count = Global.count(nativeTrace);
 		for (i in 0...count) {
-			lastExceptionTrace[i]['args'] = new NativeArray();
+			nativeTrace[i]['args'] = new NativeArray();
 		}
 
+		lastExceptionTrace = complementTrace(nativeTrace, e);
+	}
+
+	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
 		var thrownAt = new NativeAssocArray<Dynamic>();
 		thrownAt['function'] = '';
 		thrownAt['line'] = e.getLine();
 		thrownAt['file'] = e.getFile();
 		thrownAt['class'] = '';
 		thrownAt['args'] = new NativeArray();
-		Global.array_unshift(lastExceptionTrace, thrownAt);
+		Global.array_unshift(nativeTrace, thrownAt);
+		return nativeTrace;
 	}
 
 	static function makeStack(native:NativeTrace):Array<StackItem> {

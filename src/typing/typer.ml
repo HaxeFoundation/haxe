@@ -2774,6 +2774,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ignore(TypeloadModule.load_module ctx (["haxe"],"Error") null_pos);
 	ctx.g.complete <- true;
 	ctx
 
