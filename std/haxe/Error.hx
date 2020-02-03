@@ -53,7 +53,7 @@ extern class Error {
 		Native exception, which caused this error.
 	**/
 	public var native(get,never):Any;
-	private function get_native():Any;
+	final private function get_native():Any;
 
 	/**
 		Get an instance of `haxe.Error` for an arbitrary value.

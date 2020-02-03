@@ -87,7 +87,7 @@ class Error extends PhpException {
 		return __previousError;
 	}
 
-	function get_native():Any {
+	final function get_native():Any {
 		return __nativeException;
 	}
 
