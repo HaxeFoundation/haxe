@@ -60,18 +60,14 @@ extern class Error {
 	private function get_native():Any;
 
 	/**
-		Get an instance of `haxe.Error` for a native exception.
-
-		Used internally for wildcard catches like `catch(e:Error)`.
-	**/
-	static private function ofNative(exception:Any):Error;
-
-	/**
 		Get an instance of `haxe.Error` for an arbitrary value.
 
+		Returns the `value` as is, if it's already an instance of `haxe.Error`.
+
+		Used internally for wildcard catches like `catch(e:Error)`.
 		Used internally for throwing dynamically typed values.
 	**/
-	static private function ofAny(value:Any):Error;
+	static public function wrap(value:Any):Error;
 
 	/**
 		Create a new Error instance.
@@ -84,9 +80,8 @@ extern class Error {
 	/**
 		Extract an originally thrown value.
 
-		This method must always return the same value.
+		This method must return the same value on subsequent calls.
 		Used internally for catching non-native exceptions.
-
 		Do _not_ override unless you know what you are doing.
 	**/
 	public function unwrap():Any;

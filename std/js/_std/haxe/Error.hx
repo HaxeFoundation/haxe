@@ -1,15 +1,10 @@
 package haxe;
 
 import haxe.ErrorStack;
-import php.Boot;
-import php.Global;
-import php.Throwable;
-import php.NativeAssocArray;
-import php.NativeIndexedArray;
 
 @:dox(hide)
 @:noCompletion
-typedef NativeException = MetaThrowable;
+typedef NativeException = Dynamic;
 
 class ValueError extends Error {
 	public var value(default,null):Any;
@@ -25,8 +20,7 @@ class ValueError extends Error {
 }
 
 @:coreApi
-@:access(haxe.CallStack)
-class Error extends PhpException {
+class Error extends JsError {
 	public var message(get,never):String;
 	public var stack(get,never):ErrorStack;
 	public var previous(get,never):Null<Error>;
@@ -36,20 +30,20 @@ class Error extends PhpException {
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousError:Null<Error>;
 
-	static public function wrap(value:Any):Error {
-		if(Std.is(value, Error)) {
-			return value;
-		} else if(Std.isOfType(value, Throwable)) {
-			return new Error((value:Throwable).getMessage(), null, value);
+	static function wrap(value:Any):Error {
+		if(Std.isOfType(value, Throwable)) {
+			return ofNative(value);
 		} else {
 			return new ValueError(value);
 		}
 	}
 
 	public function new(message:String, ?previous:Error, ?native:Any) {
-		super(message, 0, previous);
-		this.__previousError = previous;
-		this.__nativeException = native == null ? cast this : native;
+		super(message);
+		this.__nativeException = native == null ? this : native;
+
+		if ((cast js.lib.Error).captureStackTrace)
+			(cast js.lib.Error).captureStackTrace(this, HaxeError);
 	}
 
 	public function unwrap():Any {
@@ -77,7 +71,7 @@ class Error extends PhpException {
 	}
 
 	function get_message():String {
-		return this.getMessage();
+		return (cast this:js.lib.Error).message;
 	}
 
 	function get_previous():Null<Error> {
@@ -100,20 +94,11 @@ class Error extends PhpException {
 
 @:dox(hide)
 @:noCompletion
-@:native('Exception')
-private extern class PhpException implements MetaThrowable {
-	@:noCompletion private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
+@:native('Error')
+private extern class JsError {
+	// private var message:String; //redefined in haxe.Error
+	@:noCompletion private var name:String;
+	// private var stack(default, null):String; //redefined in haxe.Error
 
-	@:noCompletion private var code:Int;
-	@:noCompletion private var file:String;
-	@:noCompletion private var line:Int;
-
-	@:noCompletion final private function getPrevious():Throwable;
-	@:noCompletion private function getMessage():String;
-	@:noCompletion private function getCode():Int;
-	@:noCompletion private function getFile():String;
-	@:noCompletion private function getLine():Int;
-	@:noCompletion private function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>;
-	@:noCompletion private function getTraceAsString():String;
-	@:noCompletion @:phpMagic private function __toString():String;
+	private function new(?message:String):Void;
 }

@@ -139,9 +139,9 @@ let throw_native ctx e_thrown t p =
 				(* already a `haxe.Error` instance *)
 				if is_haxe_error e_thrown.etype then
 					e_thrown
-				(* throwing dynamic values: generate `haxe.Error.ofAny(e_thrown)` *)
+				(* throwing dynamic values: generate `haxe.Error.wrap(e_thrown)` *)
 				else if (follow e_thrown.etype) == t_dynamic then
-					haxe_error_static_call ctx "ofAny" [e_thrown] p
+					haxe_error_static_call ctx "wrap" [e_thrown] p
 				(* throwing other values: generate `new haxe.ValueError(e_thrown)` *)
 				else
 					mk (TNew(ctx.haxe_value_error_class,[],[e_thrown])) ctx.haxe_value_error_type p
@@ -172,7 +172,7 @@ let throw_native ctx e_thrown t p =
 	} catch(e:SomeNativeError) {
 		doStuff();
 	} catch(etmp:WildCardNativeException) {
-		var ehx:haxe.Error = haxe.Error.ofNative(etmp);
+		var ehx:haxe.Error = haxe.Error.wrap(etmp);
 		if(Std.isOfType(ehx.unwrap(), String)) {
 			var e:String = ehx.unwrap();
 			trace(e);
@@ -256,11 +256,11 @@ and catch_native ctx catches t p =
 					in
 					mk (TIf(condition, body, Some else_body)) t p
 				in
-				(* haxe.Error.ofNative(catch_var) *)
-				let ofNative_call = haxe_error_static_call ctx "ofNative" [catch_local] null_pos in
+				(* haxe.Error.wrap(catch_var) *)
+				let wrap = haxe_error_static_call ctx "wrap" [catch_local] null_pos in
 				let exprs = [
-					(* var haxe_error_var = haxe.Error.ofNative(catch_var); *)
-					(mk (TVar (haxe_error_var, Some ofNative_call)) ctx.basic.tvoid null_pos);
+					(* var haxe_error_var = haxe.Error.wrap(catch_var); *)
+					(mk (TVar (haxe_error_var, Some wrap)) ctx.basic.tvoid null_pos);
 					transform rest
 				] in
 				mk (TBlock exprs) t p
