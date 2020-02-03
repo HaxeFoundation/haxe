@@ -26,7 +26,41 @@ extern class ValueError extends Error {
 
 /**
 	Base class for exceptions.
-	This is a wildcard type to catch any exception.
+
+	Custom exceptions should extend this class:
+	```haxe
+	class MyError extends haxe.Error {}
+	//...
+	throw new MyError('terrible error');
+	```
+
+	To rethrow `haxe.Error`-based exceptions just throw them again:
+	```haxe
+	try {
+		throw new MyError();
+	} catch(e:MyError) {
+		throw e;
+	}
+	```
+
+	`haxe.Error` is also a wildcard type to catch any exception:
+	```haxe
+	try {
+		throw 'Catch me!';
+	} catch(e:haxe.Error) {
+		trace(e.message); // Output: Catch me!
+	}
+	```
+
+	To rethrow original native exception use `haxe.Error.native` property:
+	```haxe
+	try {
+		var a:Array<Int> = null;
+		a.push(1); // generates target-specific null-pointer exception
+	} catch(e:haxe.Error) {
+		throw e.native; // rethrows native exception instead of haxe.Error
+	}
+	```
 
 	TODO: move to the root package for convenience?
 **/
