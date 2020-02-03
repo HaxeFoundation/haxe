@@ -12,6 +12,7 @@ let haxe_error_type_path = (["haxe"],"Error")
 type context = {
 	typer : typer;
 	basic : basic_types;
+	throws_any_values : bool; (* if the target is capable of throwing and catching values of any type *)
 	native_exception_type : Type.t;
 	haxe_error_class : tclass;
 	haxe_error_type : Type.t;
@@ -147,10 +148,10 @@ let throw_native ctx e_thrown t p =
 					mk (TNew(ctx.haxe_value_error_class,[],[e_thrown])) ctx.haxe_value_error_type p
 			in
 			(* generate `haxe_error.get_native()` if needed *)
-			if not ctx.haxe_error_is_native then
-				haxe_error_instance_call ctx haxe_error "get_native" [] e_thrown.epos
-			else
+			if ctx.haxe_error_is_native || ctx.throws_any_values then
 				haxe_error
+			else
+				haxe_error_instance_call ctx haxe_error "get_native" [] e_thrown.epos
 		end
 	in
 	mk (TThrow e_native) t p
@@ -280,8 +281,8 @@ and catch_native ctx catches t p =
 	transform catches
 
 let filter tctx =
-	match tctx.com.platform with (* TODO: implements for all targets *)
-	| Php ->
+	match tctx.com.platform with (* TODO: implement for all targets *)
+	| Php | Js ->
 		let native_exception_type =
 			match Typeload.load_type_raise tctx haxe_error_type_path "NativeException" null_pos with
 			| TTypeDecl td -> TType(td,[])
@@ -302,6 +303,7 @@ let filter tctx =
 		let ctx = {
 			typer = tctx;
 			basic = tctx.t;
+			throws_any_values = (match follow native_exception_type with TInst _ -> false | _ -> true);
 			haxe_error_is_native = false;
 			native_exception_type = native_exception_type;
 			haxe_error_class = haxe_error_class;
