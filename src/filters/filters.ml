@@ -821,7 +821,7 @@ let run com tctx main =
 		check_local_vars_init;
 		check_abstract_as_value;
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
-		ThrowTryCatch.filter tctx;
+		Exceptions.filter tctx;
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		CapturedVars.captured_vars com;
@@ -838,8 +838,6 @@ let run com tctx main =
 			filters @ [
 				TryCatchWrapper.configure_java com
 			]
-		(* | Js ->
-			filters @ [JsExceptions.init tctx]; *)
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -927,7 +925,6 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		(* | Js -> JsExceptions.inject_callstack com type_filters *)
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in
