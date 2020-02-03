@@ -197,9 +197,12 @@ and catch_native ctx catches t p =
 			let body =
 				let haxe_error_var = gen_local ctx.typer ctx.haxe_error_type null_pos in
 				let haxe_error_local = mk (TLocal haxe_error_var) haxe_error_var.v_type null_pos in
+				let unwrapped_var = gen_local ctx.typer t_dynamic null_pos in
+				let unwrapped_local = mk (TLocal unwrapped_var) unwrapped_var.v_type null_pos in
+				let needs_unwrap = ref false in
 				let unwrap() =
-					(* haxe_error_local.unwrap(); *)
-					haxe_error_instance_call ctx haxe_error_local "unwrap" [] null_pos;
+					needs_unwrap := true;
+					unwrapped_local;
 				in
 				let rec transform = function
 					(* catch(e:ExtendsHaxeError) *)
@@ -259,8 +262,15 @@ and catch_native ctx catches t p =
 				(* haxe.Error.wrap(catch_var) *)
 				let wrap = haxe_error_static_call ctx "wrap" [catch_local] null_pos in
 				let exprs = [
-					(* var haxe_error_var = haxe.Error.wrap(catch_var); *)
+					(* var haxe_error_local = haxe.Error.wrap(catch_var); *)
 					(mk (TVar (haxe_error_var, Some wrap)) ctx.basic.tvoid null_pos);
+					(* var unwrapped_local = haxe_error_local.unwrap(); *)
+					if !needs_unwrap then
+						let unwrap = haxe_error_instance_call ctx haxe_error_local "unwrap" [] null_pos in
+						mk (TVar (unwrapped_var, Some unwrap)) ctx.basic.tvoid null_pos
+					else
+						mk (TBlock[]) ctx.basic.tvoid null_pos;
+					(* transform catches *)
 					transform rest
 				] in
 				mk (TBlock exprs) t p
