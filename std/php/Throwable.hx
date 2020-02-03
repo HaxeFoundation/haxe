@@ -26,7 +26,7 @@ package php;
 	@see http://php.net/manual/en/class.throwable.php
 **/
 @:native('Throwable')
-extern interface Throwable extends MetaThrowable {
+extern interface Throwable {
 	function getPrevious():Throwable; // Returns previous Throwable
 	function getMessage():String; // message of the exception
 	function getCode():Int; // code of the exception
@@ -35,22 +35,4 @@ extern interface Throwable extends MetaThrowable {
 	function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>; // an array of the backtrace
 	function getTraceAsString():String; // formatted string of trace
 	@:phpMagic function __toString():String; // formatted string for display
-}
-
-/**
-	This interface is used to make `haxe.Error` implement `Throwable`
-	without exposing Throwable API on `haxe.Error` instances.
-**/
-@:dox(hide)
-@:noCompletion
-@:native('Throwable')
-extern interface MetaThrowable {
-	@:noCompletion private function getPrevious():Throwable;
-	@:noCompletion private function getMessage():String;
-	@:noCompletion private function getCode():Int;
-	@:noCompletion private function getFile():String;
-	@:noCompletion private function getLine():Int;
-	@:noCompletion private function getTrace():NativeIndexedArray<NativeAssocArray<Dynamic>>;
-	@:noCompletion private function getTraceAsString():String;
-	@:noCompletion @:phpMagic private function __toString():String;
 }

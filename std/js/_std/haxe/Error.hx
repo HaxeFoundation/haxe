@@ -1,17 +1,12 @@
 package haxe;
 
 import haxe.ErrorStack;
-import js.Syntax;
-
-@:dox(hide)
-@:noCompletion
-typedef NativeException = Dynamic;
 
 class ValueError extends Error {
 	public var value(default,null):Any;
 
 	public function new(value:Any, ?previous:Error):Void {
-		super(inline Std.string(value), previous, this);
+		super(inline Std.string(value), previous);
 		this.value = value;
 	}
 
@@ -32,10 +27,18 @@ class Error extends JsError {
 	@:noCompletion var __previousError:Null<Error>;
 
 	static public function wrap(value:Any):Error {
-		if(Syntax.instanceof(value, Error)) {
+		if(Std.isOfType(value, Error)) {
 			return value;
-		} else if(Syntax.instanceof(value, js.lib.Error)) {
+		} else if(Std.isOfType(value, js.lib.Error)) {
 			return new Error((cast value).message, null, value);
+		} else {
+			return new ValueError(value);
+		}
+	}
+
+	static public function wrapNative(value:Any):Any {
+		if(Std.isOfType(value, js.lib.Error)) {
+			return value;
 		} else {
 			return new ValueError(value);
 		}
@@ -48,7 +51,7 @@ class Error extends JsError {
 
 		if(native != null) {
 			this.__nativeException = native;
-			(cast this).stack = Syntax.instanceof(native, js.lib.Error) ? (cast native).stack : null;
+			(cast this).stack = Std.is(native, js.lib.Error) ? (cast native).stack : null;
 		} else {
 			this.__nativeException = this;
 			if ((cast js.lib.Error).captureStackTrace) {

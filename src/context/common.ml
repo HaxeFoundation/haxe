@@ -79,6 +79,15 @@ type capture_policy =
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
 	| CPLoopVars
 
+type exceptions_config = {
+	(* Base types which may be thrown from Haxe code without wrapping. *)
+	ec_native_throws : path list;
+	(* Base types which may be caught from Haxe code without wrapping. *)
+	ec_native_catches : path list;
+	(* Path of a native class or interface, which can be used for wildcard catches. *)
+	ec_wildcard_catch : path;
+}
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -106,6 +115,8 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** exceptions handling config **)
+	pf_exceptions : exceptions_config;
 }
 
 class compiler_callbacks = object(self)
@@ -321,6 +332,11 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_exceptions = {
+			ec_native_throws = [];
+			ec_native_catches = [];
+			ec_wildcard_catch = ([],"Dynamic");
+		}
 	}
 
 let get_config com =
@@ -336,6 +352,14 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_exceptions = {
+				ec_native_throws = [
+					["js";"lib"],"Error";
+					["haxe"],"Error";
+				];
+				ec_native_catches = [];
+				ec_wildcard_catch = ([],"Dynamic");
+			}
 		}
 	| Lua ->
 		{
@@ -366,6 +390,17 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["php"],"Throwable";
+					["haxe"],"Error";
+				];
+				ec_native_catches = [
+					["php"],"Throwable";
+					["haxe"],"Error";
+				];
+				ec_wildcard_catch = (["php"],"Throwable");
+			}
 		}
 	| Cpp ->
 		{

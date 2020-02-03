@@ -7,10 +7,6 @@ import php.Throwable;
 import php.NativeAssocArray;
 import php.NativeIndexedArray;
 
-@:dox(hide)
-@:noCompletion
-typedef NativeException = MetaThrowable;
-
 class ValueError extends Error {
 	public var value(default,null):Any;
 
@@ -40,6 +36,14 @@ class Error extends PhpException {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
 			return new Error((value:Throwable).getMessage(), null, value);
+		} else {
+			return new ValueError(value);
+		}
+	}
+
+	static public function wrapNative(value:Any):Any {
+		if(Std.isOfType(value, Throwable)) {
+			return value;
 		} else {
 			return new ValueError(value);
 		}
@@ -97,11 +101,15 @@ class Error extends PhpException {
 	}
 }
 
+/**
+	This class is used to make `haxe.Error` extend `php.Exception` at runtime
+	without exposing Throwable API on `haxe.Error` instances.
+**/
 @:dox(hide)
 @:noCompletion
 @:native('Exception')
-private extern class PhpException implements MetaThrowable {
-	@:noCompletion private function new(?message:String, ?code:Int, ?previous:MetaThrowable):Void;
+private extern class PhpException {
+	@:noCompletion private function new(?message:String, ?code:Int, ?previous:PhpException):Void;
 
 	@:noCompletion private var code:Int;
 	@:noCompletion private var file:String;

@@ -12,15 +12,11 @@ let haxe_error_type_path = (["haxe"],"Error")
 type context = {
 	typer : typer;
 	basic : basic_types;
-	throws_any_values : bool; (* if the target is capable of throwing and catching values of any type *)
-	native_exception_type : Type.t;
+	config : exceptions_config;
+	wildcard_catch_type : Type.t;
 	haxe_error_class : tclass;
 	haxe_error_type : Type.t;
-	haxe_value_error_class : tclass;
-	haxe_value_error_type : Type.t;
 	haxe_call_stack_class : tclass;
-	(* Indicates if `haxe.Error` extends or implements native exception type *)
-	mutable haxe_error_is_native : bool;
 }
 
 (**
@@ -96,13 +92,13 @@ let save_exception_stack ctx catch_local =
 		mk (TBlock[]) ctx.basic.tvoid null_pos
 
 (**
-	Check if `t` can be used as native target exception type.
+	Check if type path of `t` exists in `lst`
 *)
-let rec is_native_exception ctx t =
-	match follow ctx.native_exception_type with
-	| TInst({ cl_path = native_exception_path },_) ->
+let is_in_list t lst =
+	match Abstract.follow_with_abstracts t with
+	| TInst(cls,_) ->
 		let rec check cls =
-			cls.cl_path = native_exception_path
+			List.mem cls.cl_path lst
 			|| List.exists (fun (cls,_) -> check cls) cls.cl_implements
 			|| Option.map_default (fun (cls,_) -> check cls) false cls.cl_super
 		in
@@ -110,7 +106,22 @@ let rec is_native_exception ctx t =
 		| TInst (cls, _) -> check cls
 		| _ -> false
 		)
+	| TAbstract({ a_path = path },_)
+	| TEnum({ e_path = path },_) ->
+		List.mem path lst
 	| _ -> false
+
+(**
+	Check if `t` can be thrown without wrapping.
+*)
+let rec is_native_throw ctx t =
+	is_in_list t ctx.config.ec_native_throws
+
+(**
+	Check if `t` can be caught without wrapping.
+*)
+let rec is_native_catch ctx t =
+	is_in_list t ctx.config.ec_native_catches
 
 (**
 	Check if `t` is or extends `haxe.Error`
@@ -133,27 +144,14 @@ let rec is_haxe_error ?(check_parent=true) (t:Type.t) =
 let throw_native ctx e_thrown t p =
 	let e_native =
 		(* already a native exception *)
-		if is_native_exception ctx e_thrown.etype then
+		if is_native_throw ctx e_thrown.etype then
 			e_thrown
-		else begin
-			(* Wrap any value into `haxe.Error` instance *)
-			let haxe_error =
-				(* already a `haxe.Error` instance *)
-				if is_haxe_error e_thrown.etype then
-					e_thrown
-				(* throwing dynamic values: generate `haxe.Error.wrap(e_thrown)` *)
-				else if (follow e_thrown.etype) == t_dynamic then
-					haxe_error_static_call ctx "wrap" [e_thrown] p
-				(* throwing other values: generate `new haxe.ValueError(e_thrown)` *)
-				else
-					mk (TNew(ctx.haxe_value_error_class,[],[e_thrown])) ctx.haxe_value_error_type p
-			in
-			(* generate `haxe_error.get_native()` if needed *)
-			if ctx.haxe_error_is_native || ctx.throws_any_values then
-				haxe_error
-			else
-				haxe_error_instance_call ctx haxe_error "get_native" [] e_thrown.epos
-		end
+		(* for `haxe.Error` instances generate `e_thrown.get_native()` *)
+		else if is_haxe_error e_thrown.etype then
+			haxe_error_instance_call ctx e_thrown "get_native" [] e_thrown.epos
+		(* Wrap everything else with `haxe.Error.wrapThrow` call *)
+		else
+			haxe_error_static_call ctx "wrapNative" [e_thrown] p
 	in
 	mk (TThrow e_native) t p
 
@@ -187,14 +185,17 @@ let throw_native ctx e_thrown t p =
 and catch_native ctx catches t p =
 	let rec transform = function
 		(* Keep catches for native exceptions intact *)
-		| (v,_) as current :: rest when (is_native_exception ctx v.v_type)
-			(* in case haxe.Error extends native exception on current target *)
+		| (v,_) as current :: rest when (is_native_catch ctx v.v_type)
+			(*
+				In case haxe.Error extends native exception on current target.
+				We don't want it to be generated as a native catch.
+			*)
 			&& not (fast_eq ctx.haxe_error_type (follow v.v_type)) ->
 			current :: (transform rest)
 		| [] -> []
-		(* Everything else falls into `if(Std.is(e, ExceptionType){`-fest *)
+		(* Everything else falls into `if(Std.is(e, ExceptionType)`-fest *)
 		| rest ->
-			let catch_var = gen_local ctx.typer ctx.native_exception_type null_pos in
+			let catch_var = gen_local ctx.typer ctx.wildcard_catch_type null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
 				let haxe_error_var = gen_local ctx.typer ctx.haxe_error_type null_pos in
@@ -284,36 +285,28 @@ and catch_native ctx catches t p =
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
 	| Php | Js ->
-		let native_exception_type =
-			match Typeload.load_type_raise tctx haxe_error_type_path "NativeException" null_pos with
-			| TTypeDecl td -> TType(td,[])
-			| _ -> error "haxe.Error.NativeExtension is expected to be a typedef" null_pos
-		and haxe_error_class =
-			match Typeload.load_type_raise tctx haxe_error_type_path "Error" null_pos with
-			| TClassDecl cls -> cls
+		let config = tctx.com.config.pf_exceptions in
+		let tp (pack,name) = ({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos) in
+		let wildcard_catch_type =
+			Typeload.load_instance tctx (tp config.ec_wildcard_catch) true
+		and haxe_error_type, haxe_error_class =
+			match Typeload.load_instance tctx (tp haxe_error_type_path) true with
+			| TInst(cls,_) as t -> t,cls
 			| _ -> error "haxe.Error is expected to be a class" null_pos
-		and haxe_value_error_class =
-			match Typeload.load_type_raise tctx haxe_error_type_path "ValueError" null_pos with
-			| TClassDecl cls -> cls
-			| _ -> error "haxe.ValueError is expected to be a class" null_pos
 		and haxe_call_stack_class =
-			match Typeload.load_type_raise tctx (["haxe"],"CallStack") "CallStack" null_pos with
-			| TClassDecl cls -> cls
+			match Typeload.load_instance tctx (tp (["haxe"],"CallStack")) true with
+			| TInst(cls,_) -> cls
 			| _ -> error "haxe.CallStack is expected to be a class" null_pos
 		in
 		let ctx = {
 			typer = tctx;
 			basic = tctx.t;
-			throws_any_values = (match follow native_exception_type with TInst _ -> false | _ -> true);
-			haxe_error_is_native = false;
-			native_exception_type = native_exception_type;
+			config = config;
+			wildcard_catch_type = wildcard_catch_type;
 			haxe_error_class = haxe_error_class;
-			haxe_error_type = TInst(haxe_error_class,[]);
-			haxe_value_error_class = haxe_value_error_class;
-			haxe_value_error_type = TInst(haxe_value_error_class,[]);
+			haxe_error_type = haxe_error_type;
 			haxe_call_stack_class = haxe_call_stack_class;
 		} in
-		ctx.haxe_error_is_native <- is_native_exception ctx ctx.haxe_error_type;
 		let rec run e =
 			match e.eexpr with
 			| TThrow e1 ->

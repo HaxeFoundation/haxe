@@ -1913,6 +1913,8 @@ and type_try ctx e1 catches with_type p =
 					| _, TDynamic _
 					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
 						unreachable()
+					| _, TInst({ cl_path = path },_) when path = ctx.com.config.pf_exceptions.ec_wildcard_catch ->
+						unreachable()
 					| TDynamic _,_ ->
 						()
 					| _ ->

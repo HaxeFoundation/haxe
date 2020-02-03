@@ -1,24 +1,17 @@
 package haxe;
 
 /**
-	An alias of the base class or interface for native exceptions.
-
-	Used internally to detect native exceptions.
-
-	If the aliased type is not a class and is not an interface, then the target
-	platform is treated as being able to throw and catch any values.
-**/
-@:dox(hide)
-@:noCompletion
-typedef NativeException = Dynamic;
-
-
-/**
 	An error containing arbitrary value.
 
-	This class is automatically used for throwing non-haxe.Error values like this:
+	This class is automatically used for throwing values, which don't extend `haxe.Error`
+	or native exception type.
+	For example:
 	```haxe
 	throw "Terrible error";
+	```
+	will be compiled to
+	```haxe
+	throw new ValueError("Terrible error");
 	```
 **/
 extern class ValueError extends Error {
@@ -68,9 +61,15 @@ extern class Error {
 		Returns the `value` as is, if it's already an instance of `haxe.Error`.
 
 		Used internally for wildcard catches like `catch(e:Error)`.
-		Used internally for throwing dynamically typed values.
 	**/
 	static public function wrap(value:Any):Error;
+
+	/**
+		Wrap `value` into a native exception, which can be used for throwing.
+
+		Used internally for wrapping non-throwable values for `throw` expressions.
+	**/
+	static public function wrapNative(value:Any):Any;
 
 	/**
 		Create a new Error instance.
