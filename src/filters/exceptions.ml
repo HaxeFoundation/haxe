@@ -58,6 +58,7 @@ let haxe_error_instance_call ctx haxe_error method_name args p =
 	Generate `Std.isOfType(e, t)`
 *)
 let std_is ctx e t p =
+	let t = follow t in
 	let std_cls =
 		match Typeload.load_type_raise ctx.typer ([],"Std") "Std" p with
 		| TClassDecl cls -> cls
