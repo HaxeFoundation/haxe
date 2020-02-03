@@ -319,9 +319,8 @@ let filter tctx =
 				{ e with eexpr = TThrow (throw_native ctx (run e1) e.etype e.epos) }
 			| TTry(e1,catches) ->
 				let catches =
-					List.map
-						(fun (v,e) -> (v,run e))
-						(catch_native ctx catches e.etype e.epos)
+					let catches = List.map (fun (v,e) -> (v,run e)) catches in
+					(catch_native ctx catches e.etype e.epos)
 				in
 				{ e with eexpr = TTry(run e1,catches) }
 			| _ ->
