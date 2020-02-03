@@ -838,8 +838,8 @@ let run com tctx main =
 			filters @ [
 				TryCatchWrapper.configure_java com
 			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+		(* | Js ->
+			filters @ [JsExceptions.init tctx]; *)
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -927,7 +927,7 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
+		(* | Js -> JsExceptions.inject_callstack com type_filters *)
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

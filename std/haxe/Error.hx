@@ -4,10 +4,13 @@ package haxe;
 	An alias of the base class or interface for native exceptions.
 
 	Used internally to detect native exceptions.
+
+	If the aliased type is not a class and is not an interface, then the target
+	platform is treated as being able to throw and catch any values.
 **/
 @:dox(hide)
 @:noCompletion
-typedef NativeException = Any;
+typedef NativeException = Dynamic;
 
 
 /**

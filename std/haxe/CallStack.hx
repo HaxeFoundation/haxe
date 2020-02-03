@@ -36,12 +36,16 @@ enum StackItem {
 /**
 	Get information about the call stack.
 **/
+@:allow(haxe.Error)
 class CallStack {
 	/**
 		This method is used internally by some targets for non-haxe.Error catches
 		to provide stack for `haxe.CallStack.exceptionStack()`
 	**/
-	static inline function saveExceptionStack(exception:Any) {
+	static inline function saveExceptionStack(e:Any) {
+		#if js
+			lastException = e;
+		#end
 	}
 
 	#if js
@@ -362,7 +366,7 @@ class CallStack {
 			if (stack[0] == "Error")
 				stack.shift();
 			var m = [];
-			var rie10 = ~/^   at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
+			var rie10 = ~/^    at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 			for (line in stack) {
 				if (rie10.match(line)) {
 					var path = rie10.matched(1).split(".");

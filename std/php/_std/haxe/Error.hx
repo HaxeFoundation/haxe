@@ -25,7 +25,6 @@ class ValueError extends Error {
 }
 
 @:coreApi
-@:access(haxe.CallStack)
 class Error extends PhpException {
 	public var message(get,never):String;
 	public var stack(get,never):ErrorStack;

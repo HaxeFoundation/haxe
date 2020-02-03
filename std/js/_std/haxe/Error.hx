@@ -1,6 +1,7 @@
 package haxe;
 
 import haxe.ErrorStack;
+import js.Syntax;
 
 @:dox(hide)
 @:noCompletion
@@ -10,7 +11,7 @@ class ValueError extends Error {
 	public var value(default,null):Any;
 
 	public function new(value:Any, ?previous:Error):Void {
-		super(inline Std.string(value), previous);
+		super(inline Std.string(value), previous, this);
 		this.value = value;
 	}
 
@@ -27,12 +28,14 @@ class Error extends JsError {
 	public var native(get,never):Any;
 
 	@:noCompletion var __errorStack:Null<ErrorStack>;
-	@:noCompletion var __nativeException:Throwable;
+	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousError:Null<Error>;
 
-	static function wrap(value:Any):Error {
-		if(Std.isOfType(value, Throwable)) {
-			return ofNative(value);
+	static public function wrap(value:Any):Error {
+		if(Syntax.instanceof(value, Error)) {
+			return value;
+		} else if(Syntax.instanceof(value, js.lib.Error)) {
+			return new Error((cast value).message, null, value);
 		} else {
 			return new ValueError(value);
 		}
@@ -40,10 +43,25 @@ class Error extends JsError {
 
 	public function new(message:String, ?previous:Error, ?native:Any) {
 		super(message);
-		this.__nativeException = native == null ? this : native;
+		(cast this:js.lib.Error).message = message;
+		this.__previousError = previous;
 
-		if ((cast js.lib.Error).captureStackTrace)
-			(cast js.lib.Error).captureStackTrace(this, HaxeError);
+		if(native != null) {
+			this.__nativeException = native;
+			(cast this).stack = Syntax.instanceof(native, js.lib.Error) ? (cast native).stack : null;
+		} else {
+			this.__nativeException = this;
+			if ((cast js.lib.Error).captureStackTrace) {
+				(cast js.lib.Error).captureStackTrace(this, Error);
+			} else {
+				var stack:String = new js.lib.Error().stack;
+				//remove the first line, which is a call to `new js.lib.Error()`
+				(cast this).stack = switch stack.indexOf('\n') {
+					case p if(p >= 0): stack.substr(p + 1);
+					case _: stack;
+				}
+			}
+		}
 	}
 
 	public function unwrap():Any {
@@ -85,8 +103,8 @@ class Error extends JsError {
 	function get_stack():ErrorStack {
 		return switch __errorStack {
 			case null:
-				var nativeTrace = CallStack.complementTrace(__nativeException.getTrace(), __nativeException);
-				__errorStack = CallStack.makeStack(nativeTrace);
+				__errorStack = CallStack.makeStack((cast this:js.lib.Error).stack);
+				__errorStack = CallStack.getStack(cast this);
 			case s: s;
 		}
 	}
