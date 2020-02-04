@@ -65,7 +65,7 @@ else
 	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
 endif
 ifeq ($(SYSTEM_NAME),Mac)
-	LIB_PARAMS+= -cclib '-framework Security' -cclib '-framework CoreFoundation'
+	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
 endif
 
 all: haxe tools
