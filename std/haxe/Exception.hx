@@ -85,8 +85,8 @@ extern class Exception extends NativeException {
 	/**
 		The call stack at the moment of the exception creation.
 	**/
-	public var stack(get,never):ExceptionStack;
-	private function get_stack():ExceptionStack;
+	public var stack(get,never):CallStack;
+	private function get_stack():CallStack;
 
 	/**
 		Contains an exception, which was passed to `previous` constructor argument.

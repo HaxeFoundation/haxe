@@ -296,7 +296,8 @@ let filter tctx =
 		and haxe_call_stack_class =
 			match Typeload.load_instance tctx (tp (["haxe"],"CallStack")) true with
 			| TInst(cls,_) -> cls
-			| _ -> error "haxe.CallStack is expected to be a class" null_pos
+			| TAbstract({ a_impl = Some cls },_) -> cls
+			| _ -> error "haxe.CallStack is expected to be a class or an abstract" null_pos
 		in
 		let ctx = {
 			typer = tctx;

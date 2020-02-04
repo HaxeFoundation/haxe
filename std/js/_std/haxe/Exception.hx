@@ -1,6 +1,5 @@
 package haxe;
 
-import haxe.ExceptionStack;
 import js.lib.Error;
 
 class ValueException extends Exception {
@@ -19,11 +18,11 @@ class ValueException extends Exception {
 @:coreApi
 class Exception extends NativeException {
 	public var message(get,never):String;
-	public var stack(get,never):ExceptionStack;
+	public var stack(get,never):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion var __errorStack:Null<ExceptionStack>;
+	@:noCompletion var __errorStack:Null<CallStack>;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -74,17 +73,17 @@ class Exception extends NativeException {
 
 	public function toString():String {
 		if(previous == null) {
-			return 'Exception: $message\nStack:$stack';
+			return 'Exception: $message$stack';
 		}
 		var result = '';
 		var e:Null<Exception> = this;
 		var prev:Null<Exception> = null;
 		while(e != null) {
 			if(prev == null) {
-				result = 'Exception: ${e.message}\nStack:${e.stack}' + result;
+				result = 'Exception: ${e.message}${e.stack}' + result;
 			} else {
 				var prevStack = @:privateAccess e.stack.subtract(prev.stack);
-				result = 'Exception: ${e.message}\nStack:$prevStack\n\nNext ' + result;
+				result = 'Exception: ${e.message}$prevStack\n\nNext ' + result;
 			}
 			prev = e;
 			e = e.previous;
@@ -104,7 +103,7 @@ class Exception extends NativeException {
 		return __nativeException;
 	}
 
-	function get_stack():ExceptionStack {
+	function get_stack():CallStack {
 		return switch __errorStack {
 			case null:
 				__errorStack = CallStack.makeStack((cast this:Error).stack);

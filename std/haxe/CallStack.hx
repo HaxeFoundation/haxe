@@ -22,6 +22,12 @@
 
 package haxe;
 
+#if php
+import php.*;
+
+private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
+#end
+
 /**
 	Elements return by `CallStack` methods.
 **/
@@ -37,7 +43,238 @@ enum StackItem {
 	Get information about the call stack.
 **/
 @:allow(haxe.Exception)
-class CallStack {
+abstract CallStack(Array<StackItem>) from Array<StackItem> {
+	/**
+	 *
+	 */
+	public var length(get,never):Int;
+	inline function get_length():Int return this.length;
+
+	@:arrayAccess public inline function get(index:Int):StackItem {
+		return this[index];
+	}
+
+	/**
+		Make a copy of the stack.
+	**/
+	public inline function copy():CallStack {
+		return this.copy();
+	}
+
+	/**
+		Returns a representation of the stack as a printable string.
+	**/
+	@:enum //TODO: terrible hack, don't do this at home
+	@:impl static public function toString(stack:Array<StackItem>):String {
+		return toStringImpl(stack);
+	}
+
+	/**
+		Returns a range of entries of current stack from the beginning to the the
+		common part of this and `stack`.
+	**/
+	public function subtract(stack:CallStack):CallStack {
+		var startIndex = -1;
+		var i = -1;
+		while(++i < this.length) {
+			for(j in 0...stack.length) {
+				if(equalItems(this[i], stack[j])) {
+					if(startIndex < 0) {
+						startIndex = i;
+					}
+					++i;
+					if(i >= this.length) break;
+				} else {
+					startIndex = -1;
+				}
+			}
+			if(startIndex >= 0) break;
+		}
+		return startIndex >= 0 ? this.slice(0, startIndex) : this;
+	}
+
+	static function equalItems(item1:Null<StackItem>, item2:Null<StackItem>):Bool {
+		return switch([item1, item2]) {
+			case [null, null]: true;
+			case [CFunction, CFunction]: true;
+			case [Module(m1), Module(m2)]:
+				m1 == m2;
+			case [FilePos(item1, file1, line1, col1), FilePos(item2, file2, line2, col2)]:
+				file1 == file2 && line1 == line2 && col1 == col2 && equalItems(item1, item2);
+			case [Method(class1, method1), Method(class2, method2)]:
+				class1 == class2 && method1 == method2;
+			case [LocalFunction(v1), LocalFunction(v2)]:
+				v1 == v2;
+			case _: false;
+		}
+	}
+
+	/**
+		Return the call stack elements, or an empty array if not available.
+	**/
+	public static function callStack():Array<StackItem> {
+		return callStackImpl();
+	}
+
+	/**
+		Return the exception stack : this is the stack elements between
+		the place the last exception was thrown and the place it was
+		caught, or an empty array if not available.
+	**/
+	#if cpp
+	@:noDebug /* Do not mess up the exception stack */
+	#end
+	public static function exceptionStack():Array<StackItem> {
+		return exceptionStackImpl();
+	}
+
+	static function itemToString(b:StringBuf, s) {
+		switch (s) {
+			case CFunction:
+				b.add("a C function");
+			case Module(m):
+				b.add("module ");
+				b.add(m);
+			case FilePos(s, file, line, col):
+				if (s != null) {
+					itemToString(b, s);
+					b.add(" (");
+				}
+				b.add(file);
+				b.add(" line ");
+				b.add(line);
+				if (col != null) {
+					b.add(" column ");
+					b.add(col);
+				}
+				if (s != null)
+					b.add(")");
+			case Method(cname, meth):
+				b.add(cname == null ? "<unknown>" : cname);
+				b.add(".");
+				b.add(meth);
+			case LocalFunction(n):
+				b.add("local function #");
+				b.add(n);
+		}
+	}
+
+// All target specifics should stay beyond this line.
+
+#if php
+	/**
+		This method is used internally by some targets for non-haxe.Error catches
+		to provide stack for `haxe.CallStack.exceptionStack()`
+	**/
+	static function saveExceptionStack(e:Throwable):Void {
+		var nativeTrace = e.getTrace();
+
+		// Reduce exception stack to the place where exception was caught
+		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
+		var count = Global.count(currentTrace);
+
+		for (i in -(count - 1)...1) {
+			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(nativeTrace);
+
+			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
+				Global.array_pop(nativeTrace);
+			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
+				Global.array_pop(nativeTrace);
+			} else {
+				break;
+			}
+		}
+
+		// Remove arguments from trace to avoid blocking some objects from GC
+		var count = Global.count(nativeTrace);
+		for (i in 0...count) {
+			nativeTrace[i]['args'] = new NativeArray();
+		}
+
+		lastExceptionTrace = complementTrace(nativeTrace, e);
+	}
+
+	/**
+		If defined this function will be used to transform call stack entries.
+		@param String - generated php file name.
+		@param Int - Line number in generated file.
+	**/
+	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
+
+	@:ifFeature("haxe.CallStack.exceptionStack")
+	static var lastExceptionTrace:NativeTrace;
+
+	inline static function callStackImpl():Array<StackItem> {
+		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
+	}
+
+	inline static function exceptionStackImpl():Array<StackItem> {
+		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
+	}
+
+	inline static function toStringImpl(stack:Array<StackItem>) {
+		var b = new StringBuf();
+		for (s in stack) {
+			b.add("\nCalled from ");
+			itemToString(b, s);
+		}
+		return b.toString();
+	}
+
+	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
+		var thrownAt = new NativeAssocArray<Dynamic>();
+		thrownAt['function'] = '';
+		thrownAt['line'] = e.getLine();
+		thrownAt['file'] = e.getFile();
+		thrownAt['class'] = '';
+		thrownAt['args'] = new NativeArray();
+		Global.array_unshift(nativeTrace, thrownAt);
+		return nativeTrace;
+	}
+
+	static function makeStack(native:NativeTrace):Array<StackItem> {
+		var result = [];
+		var count = Global.count(native);
+
+		for (i in 0...count) {
+			var entry = native[i];
+			var item = null;
+
+			if (i + 1 < count) {
+				var next = native[i + 1];
+
+				if (!Global.isset(next['function']))
+					next['function'] = '';
+				if (!Global.isset(next['class']))
+					next['class'] = '';
+
+				if ((next['function'] : String).indexOf('{closure}') >= 0) {
+					item = LocalFunction();
+				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
+					var cls = Boot.getClassName(next['class']);
+					item = Method(cls, next['function']);
+				}
+			}
+			if (Global.isset(entry['file'])) {
+				if (mapPosition != null) {
+					var pos = mapPosition(entry['file'], entry['line']);
+					if (pos != null && pos.source != null && pos.originalLine != null) {
+						entry['file'] = pos.source;
+						entry['line'] = pos.originalLine;
+					}
+				}
+				result.push(FilePos(item, entry['file'], entry['line']));
+			} else if (item != null) {
+				result.push(item);
+			}
+		}
+
+		return result;
+	}
+
+// end of PHP implementation
+#else
+
 	/**
 		This method is used internally by some targets for non-haxe.Error catches
 		to provide stack for `haxe.CallStack.exceptionStack()`
@@ -99,10 +336,7 @@ class CallStack {
 	}
 	#end
 
-	/**
-		Return the call stack elements, or an empty array if not available.
-	**/
-	public static function callStack():Array<StackItem> {
+	inline static function callStackImpl():Array<StackItem> {
 		#if neko
 		var a = makeStack(untyped __dollar__callstack());
 		a.shift(); // remove Stack.callStack()
@@ -191,15 +425,7 @@ class CallStack {
 	}
 	#end
 
-	/**
-		Return the exception stack : this is the stack elements between
-		the place the last exception was thrown and the place it was
-		caught, or an empty array if not available.
-	**/
-	#if cpp
-	@:noDebug /* Do not mess up the exception stack */
-	#end
-	public static function exceptionStack():Array<StackItem> {
+	inline static function exceptionStackImpl():Array<StackItem> {
 		#if neko
 		return makeStack(untyped __dollar__excstack());
 		#elseif hl
@@ -262,47 +488,13 @@ class CallStack {
 		#end
 	}
 
-	/**
-		Returns a representation of the stack as a printable string.
-	**/
-	public static function toString(stack:Array<StackItem>) {
+	inline static function toStringImpl(stack:Array<StackItem>) {
 		var b = new StringBuf();
 		for (s in stack) {
 			b.add("\nCalled from ");
 			itemToString(b, s);
 		}
 		return b.toString();
-	}
-
-	private static function itemToString(b:StringBuf, s) {
-		switch (s) {
-			case CFunction:
-				b.add("a C function");
-			case Module(m):
-				b.add("module ");
-				b.add(m);
-			case FilePos(s, file, line, col):
-				if (s != null) {
-					itemToString(b, s);
-					b.add(" (");
-				}
-				b.add(file);
-				b.add(" line ");
-				b.add(line);
-				if (col != null) {
-					b.add(" column ");
-					b.add(col);
-				}
-				if (s != null)
-					b.add(")");
-			case Method(cname, meth):
-				b.add(cname == null ? "<unknown>" : cname);
-				b.add(".");
-				b.add(meth);
-			case LocalFunction(n):
-				b.add("local function #");
-				b.add(n);
-		}
 	}
 
 	#if cpp
@@ -421,6 +613,7 @@ class CallStack {
 		return null;
 		#end
 	}
+#end
 }
 
 #if js
