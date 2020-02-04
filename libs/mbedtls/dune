@@ -1,0 +1,9 @@
+(include_subdirs no)
+
+(library
+	(name mbedtls)
+	(c_names
+		mbedtls_stubs
+	)
+	(wrapped false)
+)
