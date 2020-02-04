@@ -43,6 +43,7 @@ enum StackItem {
 	Get information about the call stack.
 **/
 @:allow(haxe.Exception)
+@:using(haxe.CallStack)
 abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	/**
 	 *
@@ -64,9 +65,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	/**
 		Returns a representation of the stack as a printable string.
 	**/
-	@:enum //TODO: terrible hack, don't do this at home
-	@:impl static public function toString(stack:Array<StackItem>):String {
-		return toStringImpl(stack);
+	static public function toString(stack:CallStack):String {
+		return toStringImpl(cast stack);
 	}
 
 	/**
