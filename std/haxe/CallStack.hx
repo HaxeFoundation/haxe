@@ -46,8 +46,8 @@ enum StackItem {
 @:using(haxe.CallStack)
 abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	/**
-	 *
-	 */
+		The length of this stack.
+	**/
 	public var length(get,never):Int;
 	inline function get_length():Int return this.length;
 
@@ -120,6 +120,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		Return the exception stack : this is the stack elements between
 		the place the last exception was thrown and the place it was
 		caught, or an empty array if not available.
+
+		May not work if catch type was a derivative from `haxe.Exception`.
 	**/
 	#if cpp
 	@:noDebug /* Do not mess up the exception stack */
