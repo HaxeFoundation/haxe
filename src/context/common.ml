@@ -355,7 +355,7 @@ let get_config com =
 			pf_exceptions = {
 				ec_native_throws = [
 					["js";"lib"],"Error";
-					["haxe"],"Error";
+					["haxe"],"Exception";
 				];
 				ec_native_catches = [];
 				ec_wildcard_catch = ([],"Dynamic");
@@ -393,11 +393,11 @@ let get_config com =
 			pf_exceptions = {
 				ec_native_throws = [
 					["php"],"Throwable";
-					["haxe"],"Error";
+					["haxe"],"Exception";
 				];
 				ec_native_catches = [
 					["php"],"Throwable";
-					["haxe"],"Error";
+					["haxe"],"Exception";
 				];
 				ec_wildcard_catch = (["php"],"Throwable");
 			}

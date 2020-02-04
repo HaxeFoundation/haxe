@@ -34,7 +34,7 @@ enum StackItem {
 	LocalFunction(?v:Int);
 }
 
-@:allow(haxe.Error)
+@:allow(haxe.Exception)
 class CallStack {
 	/**
 		If defined this function will be used to transform call stack entries.

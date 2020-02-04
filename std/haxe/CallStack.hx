@@ -36,7 +36,7 @@ enum StackItem {
 /**
 	Get information about the call stack.
 **/
-@:allow(haxe.Error)
+@:allow(haxe.Exception)
 class CallStack {
 	/**
 		This method is used internally by some targets for non-haxe.Error catches

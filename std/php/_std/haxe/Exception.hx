@@ -1,16 +1,16 @@
 package haxe;
 
-import haxe.ErrorStack;
+import haxe.ExceptionStack;
 import php.Boot;
 import php.Global;
 import php.Throwable;
 import php.NativeAssocArray;
 import php.NativeIndexedArray;
 
-class ValueError extends Error {
+class ValueException extends Exception {
 	public var value(default,null):Any;
 
-	public function new(value:Any, ?previous:Error):Void {
+	public function new(value:Any, ?previous:Exception):Void {
 		super(inline Std.string(value), previous);
 		this.value = value;
 	}
@@ -21,23 +21,23 @@ class ValueError extends Error {
 }
 
 @:coreApi
-class Error extends PhpException {
+class Exception extends NativeException {
 	public var message(get,never):String;
-	public var stack(get,never):ErrorStack;
-	public var previous(get,never):Null<Error>;
+	public var stack(get,never):ExceptionStack;
+	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion var __errorStack:Null<ErrorStack>;
+	@:noCompletion var __exceptionStack:Null<ExceptionStack>;
 	@:noCompletion var __nativeException:Throwable;
-	@:noCompletion var __previousError:Null<Error>;
+	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function wrap(value:Any):Error {
-		if(Std.is(value, Error)) {
+	static public function wrap(value:Any):Exception {
+		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
-			return new Error((value:Throwable).getMessage(), null, value);
+			return new Exception((value:Throwable).getMessage(), null, value);
 		} else {
-			return new ValueError(value);
+			return new ValueException(value);
 		}
 	}
 
@@ -45,13 +45,13 @@ class Error extends PhpException {
 		if(Std.isOfType(value, Throwable)) {
 			return value;
 		} else {
-			return new ValueError(value);
+			return new ValueException(value);
 		}
 	}
 
-	public function new(message:String, ?previous:Error, ?native:Any) {
+	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message, 0, previous);
-		this.__previousError = previous;
+		this.__previousException = previous;
 		this.__nativeException = native == null ? cast this : native;
 	}
 
@@ -61,17 +61,17 @@ class Error extends PhpException {
 
 	public function toString():String {
 		if(previous == null) {
-			return 'Error: $message\nStack:$stack';
+			return 'Exception: $message\nStack:$stack';
 		}
 		var result = '';
-		var e:Null<Error> = this;
-		var prev:Null<Error> = null;
+		var e:Null<Exception> = this;
+		var prev:Null<Exception> = null;
 		while(e != null) {
 			if(prev == null) {
-				result = 'Error: ${e.message}\nStack:${e.stack}' + result;
+				result = 'Exception: ${e.message}\nStack:${e.stack}' + result;
 			} else {
 				var prevStack = @:privateAccess e.stack.subtract(prev.stack);
-				result = 'Error: ${e.message}\nStack:$prevStack\n\nNext ' + result;
+				result = 'Exception: ${e.message}\nStack:$prevStack\n\nNext ' + result;
 			}
 			prev = e;
 			e = e.previous;
@@ -83,33 +83,29 @@ class Error extends PhpException {
 		return this.getMessage();
 	}
 
-	function get_previous():Null<Error> {
-		return __previousError;
+	function get_previous():Null<Exception> {
+		return __previousException;
 	}
 
 	final function get_native():Any {
 		return __nativeException;
 	}
 
-	function get_stack():ErrorStack {
-		return switch __errorStack {
+	function get_stack():ExceptionStack {
+		return switch __exceptionStack {
 			case null:
 				var nativeTrace = CallStack.complementTrace(__nativeException.getTrace(), __nativeException);
-				__errorStack = CallStack.makeStack(nativeTrace);
+				__exceptionStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}
 	}
 }
 
-/**
-	This class is used to make `haxe.Error` extend `php.Exception` at runtime
-	without exposing Throwable API on `haxe.Error` instances.
-**/
 @:dox(hide)
 @:noCompletion
 @:native('Exception')
-private extern class PhpException {
-	@:noCompletion private function new(?message:String, ?code:Int, ?previous:PhpException):Void;
+private extern class NativeException {
+	@:noCompletion private function new(?message:String, ?code:Int, ?previous:NativeException):Void;
 
 	@:noCompletion private var code:Int;
 	@:noCompletion private var file:String;

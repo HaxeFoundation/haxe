@@ -10,13 +10,13 @@ import haxe.CallStack.StackItem;
 	of using this workaround.
 **/
 @:forward(length,iterator)
-abstract ErrorStack(Array<StackItem>) from Array<StackItem> {
+abstract ExceptionStack(Array<StackItem>) from Array<StackItem> {
 
 	@:arrayAccess public inline function get(index:Int):StackItem {
 		return this[index];
 	}
 
-	public inline function copy():ErrorStack {
+	public inline function copy():ExceptionStack {
 		return this.copy();
 	}
 
@@ -30,7 +30,7 @@ abstract ErrorStack(Array<StackItem>) from Array<StackItem> {
 	/**
 		Returns a range of entries of current stack from the beginning to the the common part of this and `stack`.
 	**/
-	function subtract(stack:ErrorStack):ErrorStack {
+	function subtract(stack:ExceptionStack):ExceptionStack {
 		var startIndex = -1;
 		var i = -1;
 		while(++i < this.length) {

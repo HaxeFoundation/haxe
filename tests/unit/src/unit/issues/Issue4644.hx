@@ -13,9 +13,9 @@ class Issue4644 extends Test {
 			throw (new js.lib.Error() : Dynamic),
 			isHaxeError,
 			#if js_unflatten
-			__js__("haxe.Error")
+			__js__("haxe.Exception")
 			#else
-			__js__("haxe_Error")
+			__js__("haxe_Exception")
 			#end
 		);
 		f(isHaxeError);
