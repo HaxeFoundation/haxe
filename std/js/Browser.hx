@@ -62,6 +62,7 @@ class Browser {
 	 * This can be used to check if the code is being executed in a non-browser
 	 * environment such as node.js.
 	 */
+	@:deprecated('Use js.Browser.window != null or feature detection instead')
 	public static var supported(get, never):Bool;
 
 	extern inline static function get_supported()
