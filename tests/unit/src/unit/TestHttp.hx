@@ -21,7 +21,7 @@ class TestHttp extends Test {
 		// }
 
 		#if (js && !nodejs)
-		if(js.Browser.window == null)) {
+		if(js.Browser.window == null) {
 			noAssert();
 			async.done();
 			return;
