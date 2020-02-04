@@ -15,7 +15,7 @@ class TestMain {
 
 	static function main() {
 		#if js
-		if (js.Browser.supported) {
+		if (js.Browser.window != null) {
 			var oTrace = haxe.Log.trace;
 			var traceElement = js.Browser.document.getElementById("haxe:trace");
 			haxe.Log.trace = function(v, ?infos) {
@@ -137,7 +137,7 @@ class TestMain {
 				}
 			}
 			#if js
-			if (js.Browser.supported && e.totals == e.done) {
+			if (js.Browser.window != null && e.totals == e.done) {
 				untyped js.Browser.window.success = success;
 			};
 			#end

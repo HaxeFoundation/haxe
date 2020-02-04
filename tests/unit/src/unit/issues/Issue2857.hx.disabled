@@ -3,7 +3,7 @@ package unit.issues;
 class Issue2857 extends unit.Test {
 #if js
 	function testElement() {
-		if (js.Browser.supported) {
+		if (js.Browser.window != null) {
 			var vid = js.Browser.document.createVideoElement();
 			t(Std.is(vid, js.html.VideoElement));
 			t(Std.is(vid, js.html.Element));

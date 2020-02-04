@@ -179,7 +179,7 @@ class TestDCE extends Test {
 			throw c;
 		} catch (_:Dynamic) { }
 		#if js
-		if (!js.Browser.supported || js.Browser.navigator.userAgent.indexOf('MSIE 8') == -1)
+		if (js.Browser.window == null || js.Browser.navigator.userAgent.indexOf('MSIE 8') == -1)
 		#end
 		hf(ThrownWithToString, "toString");
 	}

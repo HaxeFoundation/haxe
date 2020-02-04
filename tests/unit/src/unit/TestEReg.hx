@@ -20,7 +20,7 @@ class TestEReg extends Test {
 		eq( r.matched(0), "aaa" );
 		eq( r.matchedLeft(), "" );
 		eq( r.matchedRight(), "" );
-		t(r.matched(1) == null #if js || (js.Browser.supported && js.Browser.navigator.userAgent.indexOf('MSIE 8') > -1) #end); // JS/IE7-8 bug
+		t(r.matched(1) == null #if js || (js.Browser.window != null && js.Browser.navigator.userAgent.indexOf('MSIE 8') > -1) #end); // JS/IE7-8 bug
 		eq( r.matched(2), "" );
 		unspec(function() r.matched(3));
 		unspec(function() r.matched(-1));
@@ -28,7 +28,7 @@ class TestEReg extends Test {
 		var r = ~/^(b)?$/;
 		t( r.match("") );
 		eq( r.matched(0), "" );
-		t(r.matched(1) == null #if js || (js.Browser.supported && js.Browser.navigator.userAgent.indexOf('MSIE 8') > -1) #end); // JS/IE7-8 bug
+		t(r.matched(1) == null #if js || (js.Browser.window != null && js.Browser.navigator.userAgent.indexOf('MSIE 8') > -1) #end); // JS/IE7-8 bug
 
 		t( ~/\//.match("/") );
 
