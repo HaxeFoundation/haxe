@@ -66,7 +66,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		Returns a representation of the stack as a printable string.
 	**/
 	static public function toString(stack:CallStack):String {
-		return toStringImpl(cast stack);
+		return inline toStringImpl(stack);
 	}
 
 	/**
@@ -128,6 +128,39 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#end
 	public static function exceptionStack():Array<StackItem> {
 		return exceptionStackImpl();
+	}
+
+	inline function asArray():Array<StackItem> {
+		return this;
+	}
+
+	static function exceptionToString(e:Exception):String {
+		if(e.previous == null) {
+			return 'Exception: ${e.message}${e.stack}';
+		}
+		var result = '';
+		var e:Null<Exception> = e;
+		var prev:Null<Exception> = null;
+		while(e != null) {
+			if(prev == null) {
+				result = 'Exception: ${e.message}${e.stack}' + result;
+			} else {
+				var prevStack = @:privateAccess e.stack.subtract(prev.stack);
+				result = 'Exception: ${e.message}${prevStack}\n\nNext ' + result;
+			}
+			prev = e;
+			e = e.previous;
+		}
+		return result;
+	}
+
+	static function toStringImpl(stack:CallStack) {
+		var b = new StringBuf();
+		for (s in stack.asArray()) {
+			b.add('\nCalled from ');
+			itemToString(b, s);
+		}
+		return b.toString();
 	}
 
 	static function itemToString(b:StringBuf, s) {
@@ -212,15 +245,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 	inline static function exceptionStackImpl():Array<StackItem> {
 		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
-	}
-
-	inline static function toStringImpl(stack:Array<StackItem>) {
-		var b = new StringBuf();
-		for (s in stack) {
-			b.add("\nCalled from ");
-			itemToString(b, s);
-		}
-		return b.toString();
 	}
 
 	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
@@ -488,15 +512,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#else
 		return []; // Unsupported
 		#end
-	}
-
-	inline static function toStringImpl(stack:Array<StackItem>) {
-		var b = new StringBuf();
-		for (s in stack) {
-			b.add("\nCalled from ");
-			itemToString(b, s);
-		}
-		return b.toString();
 	}
 
 	#if cpp

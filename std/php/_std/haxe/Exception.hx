@@ -59,23 +59,7 @@ class Exception extends NativeException {
 	}
 
 	public function toString():String {
-		if(previous == null) {
-			return 'Exception: $message$stack';
-		}
-		var result = '';
-		var e:Null<Exception> = this;
-		var prev:Null<Exception> = null;
-		while(e != null) {
-			if(prev == null) {
-				result = 'Exception: ${e.message}${e.stack}' + result;
-			} else {
-				var prevStack = @:privateAccess e.stack.subtract(prev.stack);
-				result = 'Exception: ${e.message}$prevStack\n\nNext ' + result;
-			}
-			prev = e;
-			e = e.previous;
-		}
-		return result;
+		return inline CallStack.exceptionToString(this);
 	}
 
 	function get_message():String {
