@@ -78,6 +78,7 @@ tests/unit/compile.php.hxml
 !/extra/build-haxesetup.xml
 tests/optimization/testopt.js
 tests/misc/pythonImport/native_python/__pycache__
+tests/misc/python/pythonImport/native_python/__pycache__
 tests/unit/unit.py
 tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
@@ -114,7 +115,7 @@ Makefile.modules
 /tests/unit/compiler_loops/log.txt
 tests/benchs/mandelbrot/bin/
 
-tests/unit/pypy3-*
+tests/unit/pypy3*
 tmp.tmp
 
 dev-display.hxml
