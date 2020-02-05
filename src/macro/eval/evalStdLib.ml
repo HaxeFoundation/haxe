@@ -1999,7 +1999,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -3177,9 +3177,9 @@ let init_constructors builtins =
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3230,7 +3230,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3526,7 +3527,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3663,4 +3664,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins
