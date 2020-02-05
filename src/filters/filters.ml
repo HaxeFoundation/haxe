@@ -830,9 +830,7 @@ let run com tctx main =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
 			filters @ [

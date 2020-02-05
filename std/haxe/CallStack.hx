@@ -198,7 +198,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 #if php
 	/**
-		This method is used internally by some targets for non-haxe.Error catches
+		This method is used internally by some targets for non-haxe.Exception catches
 		to provide stack for `haxe.CallStack.exceptionStack()`
 	**/
 	static function saveExceptionStack(e:Throwable):Void {
@@ -302,12 +302,14 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 #else
 
 	/**
-		This method is used internally by some targets for non-haxe.Error catches
+		This method is used internally by some targets for non-haxe.Exception catches
 		to provide stack for `haxe.CallStack.exceptionStack()`
 	**/
 	static inline function saveExceptionStack(e:Any) {
 		#if js
 			lastException = e;
+		#elseif cs
+			cs.internal.Exceptions.exception = e;
 		#end
 	}
 

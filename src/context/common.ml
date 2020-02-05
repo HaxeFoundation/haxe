@@ -418,6 +418,17 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_exceptions = {
+				ec_native_throws = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs";"system"],"Exception");
+			}
 		}
 	| Java ->
 		{
