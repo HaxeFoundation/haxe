@@ -1,7 +1,5 @@
 package haxe;
 
-import php.Boot;
-import php.Global;
 import php.Throwable;
 import php.NativeAssocArray;
 import php.NativeIndexedArray;
@@ -41,7 +39,9 @@ class Exception extends NativeException {
 	}
 
 	static public function wrapNative(value:Any):Any {
-		if(Std.isOfType(value, Throwable)) {
+		if(Std.isOfType(value, Exception)) {
+			return (value:Exception).native;
+		} else if(Std.isOfType(value, Throwable)) {
 			return value;
 		} else {
 			return new ValueException(value);
@@ -77,7 +77,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = CallStack.complementTrace(__nativeException.getTrace(), __nativeException);
+				var nativeTrace = CallStack.complementTrace(native.getTrace(), native);
 				__exceptionStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}

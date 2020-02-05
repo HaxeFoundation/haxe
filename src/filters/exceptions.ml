@@ -143,10 +143,26 @@ let rec is_haxe_exception ?(check_parent=true) (t:Type.t) =
 *)
 let throw_native ctx e_thrown t p =
 	let e_native =
+		(*
+			Check if `e_thrown` is of `haxe.Exception` type directly (not a descendant),
+			but not a `new haxe.Exception(...)` expression.
+			In this case we have to generate `throw e_thrown.get_native()` even if
+			`haxe.Exception` extends a native exception. Because it could happen to be a wrapper
+			for a wildcard catch.
+		*)
+		let is_direct_haxe_exception_stored() =
+			fast_eq ctx.haxe_exception_type (follow e_thrown.etype)
+			&& match e_thrown.eexpr with
+				| TNew(_,_,_) -> false
+				| _ -> true
+		in
 		(* already a native exception *)
-		if is_native_throw ctx e_thrown.etype then
+		if is_native_throw ctx e_thrown.etype && not (is_direct_haxe_exception_stored()) then
 			e_thrown
-		(* for `haxe.Exception` instances generate `e_thrown.get_native()` *)
+		(*
+			For `haxe.Exception` instances, which don't extend native throwables,
+			generate `e_thrown.get_native()`
+		*)
 		else if is_haxe_exception e_thrown.etype then
 			haxe_exception_instance_call ctx e_thrown "get_native" [] e_thrown.epos
 		(* Wrap everything else with `haxe.Exception.wrapThrow` call *)

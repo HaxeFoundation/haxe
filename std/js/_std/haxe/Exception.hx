@@ -37,7 +37,9 @@ class Exception extends NativeException {
 	}
 
 	static public function wrapNative(value:Any):Any {
-		if(Std.isOfType(value, Error)) {
+		if(Std.isOfType(value, Exception)) {
+			return (value:Exception).native;
+		} else if(Std.isOfType(value, Error)) {
 			return value;
 		} else {
 			return new ValueException(value);
@@ -90,8 +92,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __errorStack {
 			case null:
-				__errorStack = CallStack.makeStack((cast this:Error).stack);
-				__errorStack = CallStack.getStack(cast this);
+				__errorStack = CallStack.getStack(native);
 			case s: s;
 		}
 	}
