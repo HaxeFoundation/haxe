@@ -58,15 +58,23 @@ class Browser {
 
 	/**
 	 * True if a window object exists, false otherwise.
-	 *
-	 * This can be used to check if the code is being executed in a non-browser
-	 * environment such as node.js.
 	 */
-	@:deprecated('Use js.Browser.window != null or feature detection instead')
+	public static var hasWindow(get, never):Bool;
+
+	extern inline static function get_hasWindow()
+		return js.Syntax.typeof(window) != "undefined";
+
+	/**
+	* True if a window object exists, false otherwise.
+	*
+	* This can be used to check if the code is being executed in a non-browser
+	* environment such as node.js.
+	*/
+	@:deprecated('Use js.Browser.hasWindow or feature detection instead')
 	public static var supported(get, never):Bool;
 
 	extern inline static function get_supported()
-		return js.Syntax.typeof(window) != "undefined";
+		return hasWindow;
 
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
