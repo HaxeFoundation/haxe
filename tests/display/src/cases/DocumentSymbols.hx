@@ -97,6 +97,13 @@ class DocumentSymbols extends DisplayTestCase {
 	}
 
 	function checkDocumentSymbols(expected:Array<ModuleSymbolEntry>, actual:Array<ModuleSymbolEntry>, ?pos:haxe.PosInfos) {
-		arrayCheck(expected, actual, function(entry) return entry.kind + ":" + entry.name + ":" + entry.containerName, pos);
+		for (entry in expected) {
+			entry.containerName = "cases.DocumentSymbols" + if (entry.containerName == null) {
+				"";
+			} else {
+				"." + entry.containerName;
+			}
+		}
+		arrayCheck(expected, actual, entry -> entry.kind + ":" + entry.name + ":" + entry.containerName, pos);
 	}
 }
