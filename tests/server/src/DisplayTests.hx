@@ -370,9 +370,9 @@ typedef Foo = {
 		// TODO: We should use the markers, but I forgot how to get lines and characters from offsets
 		// Also That Assert.same doesn't work
 		Assert.equals(9, result[0].range.start.line);
-		Assert.equals(1, result[0].range.start.character);
-		Assert.equals(11, result[0].range.end.line);
-		Assert.equals(2, result[0].range.end.character);
+		Assert.equals(19, result[0].range.start.character);
+		Assert.equals(9, result[0].range.end.line);
+		Assert.equals(23, result[0].range.end.character);
 		// Assert.same([
 		// 	{
 		// 		range: {
