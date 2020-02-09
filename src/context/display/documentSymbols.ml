@@ -1,5 +1,5 @@
 open Ast
-
+open Globals
 open DisplayTypes.SymbolKind
 
 let collect_module_symbols with_locals (pack,decls) =
@@ -56,26 +56,36 @@ let collect_module_symbols with_locals (pack,decls) =
 			add_field Property;
 			if with_locals then expr_opt field_parent eo
 	in
-	List.iter (fun (td,p) -> match td with
+	List.iter (fun (td,p) ->
+		let add_type d kind =
+			let module_name = Path.module_name_of_file p.pfile in
+			let pack = String.concat "." pack in
+			let type_name = fst d.d_name in
+			let primary_type = type_name = module_name in
+			let type_path = if primary_type then pack else pack ^ "." ^ module_name in
+			add type_name kind p type_path (is_deprecated d.d_meta);
+			if type_path = "" then type_name else type_path ^ "." ^ type_name
+		in
+		match td with
 		| EImport _ | EUsing _ ->
-			() (* TODO: Can we do anything with these? *)
+			()
 		| EClass d ->
-			add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p "" (is_deprecated d.d_meta);
-			List.iter (field (fst d.d_name)) d.d_data
+			let parent = add_type d (if List.mem HInterface d.d_flags then Interface else Class) in
+			List.iter (field parent) d.d_data
 		| EEnum d ->
-			add (fst d.d_name) Enum p "" (is_deprecated d.d_meta);
+			let parent = add_type d Enum in
 			List.iter (fun ef ->
-				add (fst ef.ec_name) Method ef.ec_pos (fst d.d_name) (is_deprecated ef.ec_meta)
+				add (fst ef.ec_name) Method ef.ec_pos parent (is_deprecated ef.ec_meta)
 			) d.d_data
 		| ETypedef d ->
-			add (fst d.d_name) Typedef p "" (is_deprecated d.d_meta);
+			let parent = add_type d Typedef in
 			(match d.d_data with
 			| CTAnonymous fields,_ ->
-				List.iter (field (fst d.d_name)) fields
+				List.iter (field parent) fields
 			| _ -> ())
 		| EAbstract d ->
-			add (fst d.d_name) Abstract p "" (is_deprecated d.d_meta);
-			List.iter (field (fst d.d_name)) d.d_data
+			let parent = add_type d Abstract in
+			List.iter (field parent) d.d_data
 	) decls;
 	l
 
