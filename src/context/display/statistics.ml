@@ -257,6 +257,15 @@ let collect_statistics ctx pfilter with_expressions =
 		Option.may loop (com.get_macros())
 	in
 	loop ctx.com;
+	(* TODO: Using syntax-exploration here is technically fine, but I worry about performance in real codebases. *)
+	(* let find_symbols = Hashtbl.fold (fun _ kind acc ->
+		let name = string_of_symbol kind in
+		(name,kind) :: acc
+	) symbols [] in
+	let additional_modules = SyntaxExplorer.explore_uncached_modules ctx (CompilationServer.force()) find_symbols in
+	List.iter (fun md ->
+		List.iter f md.m_types
+	) additional_modules; *)
 	(* let deal_with_imports paths =
 		let check_subtype m s p =
 			try

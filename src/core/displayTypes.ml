@@ -314,3 +314,13 @@ let make_subject name ?(start_pos=None) insert_pos = {
 	s_start_pos = (match start_pos with None -> insert_pos | Some p -> p);
 	s_insert_pos = insert_pos;
 }
+
+let string_of_symbol = function
+	| SKClass c | SKInterface c -> snd c.cl_path
+	| SKEnum en -> snd en.e_path
+	| SKTypedef td -> snd td.t_path
+	| SKAbstract a -> snd a.a_path
+	| SKField cf | SKConstructor cf -> cf.cf_name
+	| SKEnumField ef -> ef.ef_name
+	| SKVariable v -> v.v_name
+	| SKOther -> ""
