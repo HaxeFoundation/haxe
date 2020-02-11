@@ -119,30 +119,7 @@ and eval_binop_exprs ctx e1 e2 =
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
 
-class condition_handler_nop = object(self)
-	val null = EConst(Ident "null"),null_pos
-
-	method cond_if (e : expr) =
-		()
-
-	method cond_else =
-		()
-
-	method cond_elseif (e : expr) =
-		()
-
-	method cond_end =
-		()
-
-	method get_current_condition : expr =
-		null
-
-	method get_conditions : expr list =
-		[]
-end
-
 class condition_Handler = object(self)
-	inherit condition_handler_nop
 	val mutable conditional_expressions = []
 	val mutable conditional_stack = []
 	val mutable depths = []
@@ -226,8 +203,6 @@ class dead_block_collector conds = object(self)
 		DynArray.to_list dead_blocks
 end
 
-let nop_handler = new condition_handler_nop
-
 (* parse main *)
 let parse ctx code file =
 	let old = Lexer.save() in
@@ -259,7 +234,7 @@ let parse ctx code file =
 		error (Custom line) p
 	in
 
-	let conds = if !in_display_file then new condition_Handler else nop_handler in
+	let conds = new condition_Handler in
 	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)

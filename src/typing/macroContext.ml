@@ -129,7 +129,7 @@ let make_macro_api ctx p =
 			try
 				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
 					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
-					| ParseSuccess(data,false,_) -> data
+					| ParseSuccess(data,_,_) -> data
 					| ParseError _ -> raise MacroApi.Invalid_expr
 				end
 			with Exit ->

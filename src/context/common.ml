@@ -154,7 +154,6 @@ end
 
 type shared_display_information = {
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
@@ -434,7 +433,6 @@ let create version s_version args =
 		shared = {
 			shared_display_information = {
 				diagnostics_messages = [];
-				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
