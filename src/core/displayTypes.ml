@@ -213,6 +213,7 @@ module DisplayMode = struct
 		dms_inline : bool;
 		dms_display_file_policy : display_file_policy;
 		dms_exit_during_typing : bool;
+		dms_per_file : bool;
 	}
 
 	let default_display_settings = {
@@ -226,6 +227,7 @@ module DisplayMode = struct
 		dms_inline = false;
 		dms_display_file_policy = DFPOnly;
 		dms_exit_during_typing = true;
+		dms_per_file = false;
 	}
 
 	let default_compilation_settings = {
@@ -239,6 +241,7 @@ module DisplayMode = struct
 		dms_inline = true;
 		dms_display_file_policy = DFPNo;
 		dms_exit_during_typing = false;
+		dms_per_file = false;
 	}
 
 	let create dm =
@@ -257,12 +260,14 @@ module DisplayMode = struct
 				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = false;
+				dms_per_file = true;
 			}
 		| DMDiagnostics global -> { default_compilation_settings with
 				dms_kind = DMDiagnostics global;
 				dms_error_policy = EPCollect;
 				dms_collect_data = true;
 				dms_display_file_policy = if global then DFPNo else DFPAlso;
+				dms_per_file = true;
 			}
 		| DMStatistics -> { settings with
 				dms_full_typing = true;
@@ -271,6 +276,7 @@ module DisplayMode = struct
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = true;
+				dms_per_file = true;
 			}
 
 	let to_string = function

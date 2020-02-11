@@ -235,7 +235,7 @@ module PdiHandler = struct
 	let is_true defines e =
 		ParserEntry.is_true (ParserEntry.eval defines e)
 
-	let handle_pdi com file pdi =
+	let handle_pdi com pdi =
 		let macro_defines = adapt_defines_to_macro_context com.defines in
 		let check = (if com.display.dms_kind = DMHover then
 			encloses_position_gt
@@ -262,20 +262,10 @@ module PdiHandler = struct
 		| _ ->
 			()
 		end;
-		let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
-		let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) pdi.pd_dead_blocks in
-		let sdi = com.shared.shared_display_information in
-		begin try
-			let dead_blocks2 = Hashtbl.find sdi.dead_blocks file in
-			(* Intersect *)
-			let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
-			Hashtbl.replace sdi.dead_blocks file dead_blocks2
-		with Not_found ->
-			Hashtbl.add sdi.dead_blocks file dead_blocks
-		end;
+		()
 end
 
-let handle_parser_result com file p result =
+let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
@@ -290,7 +280,7 @@ let handle_parser_result com file p result =
 				| (msg,p) :: _ -> handle_parser_error msg p
 				| [] -> ()
 				end;
-				PdiHandler.handle_pdi com file pdi;
+				PdiHandler.handle_pdi com pdi;
 			end;
 			data
 		| ParseError(data,(msg,p),_) ->
@@ -298,7 +288,7 @@ let handle_parser_result com file p result =
 			data
 
 let parse_module_file com file p =
-	handle_parser_result com file p ((!parse_hook) com file p)
+	handle_parser_result com p ((!parse_hook) com file p)
 
 let parse_module' com m p =
 	let remap = ref (fst m) in

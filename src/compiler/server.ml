@@ -147,9 +147,16 @@ let parse_file cs com file p =
 				let parse_result = TypeloadParse.parse_file com file p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseSuccess(_,true,_) -> "not cached, is display file",true
-					| ParseSuccess(data,_,pdi) ->
-						begin try
+					| ParseSuccess(data,is_display_file,pdi) ->
+						if is_display_file then begin
+							if pdi.pd_errors <> [] then
+								"not cached, is display file with parse errors",true
+							else if com.display.dms_per_file then begin
+								cc#cache_file ffile ftime data pdi;
+								"cached, is intact display file",true
+							end else
+								"not cached, is display file",true
+						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if not com.display.dms_display then raise Not_found;

@@ -10,6 +10,7 @@ type diagnostics_context = {
 	com : Common.context;
 	mutable removable_code : (string * pos * pos) list;
 	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 open DisplayTypes
@@ -106,6 +107,7 @@ let prepare com global =
 		removable_code = [];
 		com = com;
 		import_positions = PMap.empty;
+		dead_blocks = Hashtbl.create 0;
 	} in
 	List.iter (function
 		| TClassDecl c when global || DisplayPosition.display_position#is_in_file c.cl_pos.pfile ->
@@ -115,6 +117,30 @@ let prepare com global =
 		| _ ->
 			()
 	) com.types;
+	let handle_dead_blocks com = match com.cache with
+		| Some cc ->
+			let macro_defines = adapt_defines_to_macro_context com.defines in
+			let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+			let is_true defines e =
+				ParserEntry.is_true (ParserEntry.eval defines e)
+			in
+			Hashtbl.iter (fun file cfile ->
+				if DisplayPosition.display_position#is_in_file file then begin
+					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
+					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
+					try
+						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file in
+						(* Intersect *)
+						let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
+						Hashtbl.replace dctx.dead_blocks file dead_blocks2
+					with Not_found ->
+						Hashtbl.add dctx.dead_blocks file dead_blocks
+				end
+			) cc#get_files
+		| None ->
+			()
+	in
+	handle_dead_blocks com;
 	let process_modules com =
 		List.iter (fun m ->
 			PMap.iter (fun p b ->
@@ -221,7 +247,7 @@ module Printer = struct
 				] in
 				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
 			) ranges
-		) com.shared.shared_display_information.dead_blocks;
+		) dctx.dead_blocks;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [
