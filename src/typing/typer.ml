@@ -391,7 +391,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							ImportHandling.maybe_mark_import_position ctx pt;
+							ImportHandling.mark_import_position ctx pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -413,7 +413,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						ImportHandling.maybe_mark_import_position ctx pt;
+						ImportHandling.mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -422,7 +422,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		ImportHandling.maybe_mark_import_position ctx pi;
+		ImportHandling.mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field_default_cfg ctx e name p mode
 
@@ -1360,7 +1360,7 @@ and handle_efield ctx e p mode =
 									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
 								with Not_found ->
 									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
-									ImportHandling.maybe_mark_import_position ctx p;
+									ImportHandling.mark_import_position ctx p;
 									t
 							in
 							get_static true t
