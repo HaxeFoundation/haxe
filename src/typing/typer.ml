@@ -1631,7 +1631,7 @@ and format_string ctx s p =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
 				try
 					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 					end
 				with Exit ->

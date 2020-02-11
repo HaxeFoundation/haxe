@@ -77,10 +77,8 @@ type parser_display_information = {
 }
 
 type 'a parse_result =
-	(* Parsed display file. There can be errors. *)
-	| ParseDisplayFile of 'a * parser_display_information
 	(* Parsed non-display-file without errors. *)
-	| ParseSuccess of 'a
+	| ParseSuccess of 'a * bool * parser_display_information
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 

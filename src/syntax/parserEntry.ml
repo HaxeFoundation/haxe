@@ -385,10 +385,11 @@ let parse ctx code file =
 		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
+		let pdi = {pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
 		if was_display_file then
-			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions})
+			ParseSuccess(l,true,pdi)
 		else begin match List.rev !syntax_errors with
-			| [] -> ParseSuccess l
+			| [] -> ParseSuccess(l,false,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end
 	with
@@ -447,6 +448,5 @@ let parse_expr_string com s p error inl =
 		| _ -> raise Exit
 	in
 	match parse_string com (head ^ s ^ ";}") p error inl with
-	| ParseSuccess data -> ParseSuccess(extract_expr data)
+	| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(extract_expr data,is_display_file,pdi)
 	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
-	| ParseDisplayFile(data,pdi) -> ParseDisplayFile(extract_expr data,pdi)

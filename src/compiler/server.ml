@@ -142,13 +142,13 @@ let parse_file cs com file p =
 			try
 				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com file p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseDisplayFile _ -> "not cached, is display file",true
-					| ParseSuccess data ->
+					| ParseSuccess(_,true,_) -> "not cached, is display file",true
+					| ParseSuccess(data,_,pdi) ->
 						begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
@@ -156,7 +156,7 @@ let parse_file cs com file p =
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data;
+							cc#cache_file ffile ftime data pdi;
 							"cached",false
 						end
 				in
