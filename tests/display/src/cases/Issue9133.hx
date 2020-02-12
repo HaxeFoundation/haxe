@@ -21,15 +21,4 @@ class Issue9133 extends DisplayTestCase {
 		Assert.isTrue(i1 < i2);
 		Assert.isTrue(i1 != -1);
 	}
-
-	/**
-		class Main {
-		static function main() {
-			var i = 1;
-			var s = "";
-
-			var map:Map<Int, Int> = [
-				{-1-}
-	**/
-	function test2() {}
 }
