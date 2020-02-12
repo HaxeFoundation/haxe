@@ -208,7 +208,6 @@ module DisplayMode = struct
 		dms_full_typing : bool;
 		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
-		dms_collect_data : bool;
 		dms_check_core_api : bool;
 		dms_inline : bool;
 		dms_display_file_policy : display_file_policy;
@@ -222,7 +221,6 @@ module DisplayMode = struct
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
-		dms_collect_data = false;
 		dms_check_core_api = false;
 		dms_inline = false;
 		dms_display_file_policy = DFPOnly;
@@ -236,7 +234,6 @@ module DisplayMode = struct
 		dms_full_typing = true;
 		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
-		dms_collect_data = false;
 		dms_check_core_api = true;
 		dms_inline = true;
 		dms_display_file_policy = DFPNo;
@@ -252,7 +249,6 @@ module DisplayMode = struct
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
-				dms_collect_data = true;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
 			}
@@ -265,13 +261,11 @@ module DisplayMode = struct
 		| DMDiagnostics global -> { default_compilation_settings with
 				dms_kind = DMDiagnostics global;
 				dms_error_policy = EPCollect;
-				dms_collect_data = true;
 				dms_display_file_policy = if global then DFPNo else DFPAlso;
 				dms_per_file = true;
 			}
 		| DMStatistics -> { settings with
 				dms_full_typing = true;
-				dms_collect_data = true;
 				dms_inline = false;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false;
