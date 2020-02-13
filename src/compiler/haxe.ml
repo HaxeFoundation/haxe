@@ -458,21 +458,21 @@ let process_display_configuration ctx =
 	end
 
 let run_or_diagnose com f arg =
-	let handle_diagnostics global msg p kind =
+	let handle_diagnostics msg p kind =
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com global;
+		Diagnostics.run com;
 	in
 	match com.display.dms_kind with
-	| DMDiagnostics global ->
+	| DMDiagnostics _ ->
 		begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
-			handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			handle_diagnostics (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
 		| Parser.Error(msg,p) ->
-			handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
 	| _ ->
 		f arg

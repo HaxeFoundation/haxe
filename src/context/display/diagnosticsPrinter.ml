@@ -7,6 +7,13 @@ open DiagnosticsTypes
 
 type t = DiagnosticsKind.t * pos
 
+let is_diagnostics_file file =
+	let file = Path.unique_full_path file in
+	match (!Parser.display_mode) with
+	| DMDiagnostics [] -> true
+	| DMDiagnostics files -> List.exists (fun file' -> file = file') files
+	| _ -> false
+
 module UnresolvedIdentifierSuggestion = struct
 	type t =
 		| UISImport
@@ -36,7 +43,7 @@ let json_of_diagnostics dctx =
 			Hashtbl.add diag p (dk,p,sev,args)
 	in
 	let add dk p sev args =
-		if dctx.global || p = null_pos || DisplayPosition.display_position#is_in_file p.pfile then add dk p sev args
+		if p = null_pos || is_diagnostics_file p.pfile then add dk p sev args
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->

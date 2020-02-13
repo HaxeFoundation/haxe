@@ -12,6 +12,8 @@ open DiagnosticsTypes
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
+let is_diagnostics_run p = DiagnosticsPrinter.is_diagnostics_file p.pfile
+
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
@@ -96,9 +98,8 @@ let prepare_field dctx com cf = match cf.cf_expr with
 		check_other_things com e;
 		DeprecationCheck.run_on_expr com e
 
-let prepare com global =
+let prepare com =
 	let dctx = {
-		global = global;
 		removable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
@@ -106,7 +107,7 @@ let prepare com global =
 		unresolved_identifiers = [];
 	} in
 	List.iter (function
-		| TClassDecl c when global || DisplayPosition.display_position#is_in_file c.cl_pos.pfile ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file c.cl_pos.pfile ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
@@ -159,18 +160,13 @@ let prepare com global =
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
 
-let is_diagnostics_run p = match (!Parser.display_mode) with
-	| DMDiagnostics true -> true
-	| DMDiagnostics false -> DisplayPosition.display_position#is_in_file p.pfile
-	| _ -> false
-
 let secure_generated_code ctx e =
 	if is_diagnostics_run e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 
-let print com global =
-	let dctx = prepare com global in
+let print com =
+	let dctx = prepare com in
 	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx)
 
-let run com global =
-	let dctx = prepare com global in
+let run com =
+	let dctx = prepare com in
 	DisplayException.raise_diagnostics dctx

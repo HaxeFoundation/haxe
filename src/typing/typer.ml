@@ -1239,7 +1239,7 @@ and type_ident ctx i p mode =
 					match ctx.com.display.dms_kind with
 						| DMNone ->
 							raise (Error(err,p))
-						| DMDiagnostics b when b || ctx.is_display_file ->
+						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
 							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)

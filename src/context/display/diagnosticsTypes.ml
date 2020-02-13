@@ -2,7 +2,6 @@ open Globals
 open Ast
 
 type diagnostics_context = {
-	global : bool;
 	mutable removable_code : (string * pos * pos) list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;

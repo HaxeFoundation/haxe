@@ -188,7 +188,7 @@ module DisplayMode = struct
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of bool (* true = global, false = only in display file *)
+		| DMDiagnostics of string list
 		| DMStatistics
 		| DMSignature
 
@@ -258,10 +258,10 @@ module DisplayMode = struct
 				dms_force_macro_typing = false;
 				dms_per_file = true;
 			}
-		| DMDiagnostics global -> { default_compilation_settings with
-				dms_kind = DMDiagnostics global;
+		| DMDiagnostics files -> { default_compilation_settings with
+				dms_kind = DMDiagnostics files;
 				dms_error_policy = EPCollect;
-				dms_display_file_policy = if global then DFPNo else DFPAlso;
+				dms_display_file_policy = if files = [] then DFPNo else DFPAlso;
 				dms_per_file = true;
 			}
 		| DMStatistics -> { settings with
@@ -286,7 +286,7 @@ module DisplayMode = struct
 		| DMUsage false -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
+		| DMDiagnostics _ -> "diagnostics"
 		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end

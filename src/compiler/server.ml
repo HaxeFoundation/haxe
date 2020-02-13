@@ -38,7 +38,7 @@ let s_version with_build =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics global->
+		| DMDiagnostics _->
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -47,7 +47,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				in
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com global))
+			raise (Completion (Diagnostics.print ctx.com))
 		| _ ->
 			f_otherwise ()
 		end
