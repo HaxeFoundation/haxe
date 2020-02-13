@@ -1194,7 +1194,11 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
+	| DisplayException(DisplayDiagnostics dctx) ->
+		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

@@ -22,7 +22,7 @@ type signature_kind =
 	| SKArrayAccess
 
 type kind =
-	| Diagnostics of string
+	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
@@ -34,7 +34,7 @@ type kind =
 
 exception DisplayException of kind
 
-let raise_diagnostics s = raise (DisplayException(Diagnostics s))
+let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
@@ -167,12 +167,13 @@ let fields_to_json ctx fields kind subj =
 
 let to_json ctx de =
 	match de with
-	| Diagnostics _
 	| Statistics _
 	| ModuleSymbols _
 	| Metadata _ -> assert false
 	| DisplaySignatures None ->
 		jnull
+	| DisplayDiagnostics dctx ->
+		DiagnosticsPrinter.json_of_diagnostics dctx
 	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
