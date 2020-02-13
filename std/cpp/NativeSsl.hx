@@ -25,7 +25,7 @@ package cpp;
 @:buildXml('<include name="${HXCPP}/src/hx/libs/ssl/Build.xml"/>')
 extern class NativeSsl {
 	@:native("_hx_ssl_debug_set")
-	public static function ssl_debug_set(int:Int)
+	public static function ssl_debug_set(int:Int):Void;
 	
 	@:native("_hx_ssl_new")
 	public static function ssl_new(conf:Dynamic):Dynamic;
