@@ -54,6 +54,7 @@ let filter_somehow ctx items kind subj =
 		| None -> ""
 		| Some name-> String.lowercase name
 	in
+	let subject_length = String.length subject in
 	let determine_cost s =
 		let get_initial_cost o =
 			if o = 0 then
@@ -67,21 +68,29 @@ let filter_somehow ctx items kind subj =
 					o * 2
 			end
 		in
-		let rec loop i o cost =
-			if i < String.length subject then begin
-				let o' = String.index_from s o subject.[i] in
-				let new_cost = if i = 0 then
-					get_initial_cost o'
+		let index_from o c =
+			let rec loop o cost =
+				let c' = s.[o] in
+				if c' = c then
+					o,cost
 				else
-					(o' - o - 1) * 3 (* Holes are bad, penalize by factor 3. *)
-				in
+					loop (o + 1) (cost + 3) (* Holes are bad, penalize by 3. *)
+			in
+			loop o 0
+		in
+		let rec loop i o cost =
+			if i < subject_length then begin
+				let o',new_cost = index_from o subject.[i] in
 				loop (i + 1) o' (cost + new_cost)
 			end else
 				cost + (if o = String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
 		in
-		try
-			loop 0 0 0;
-		with Not_found ->
+		if subject_length = 0 then
+			0
+		else try
+			let o = String.index s subject.[0] in
+			loop 1 o (get_initial_cost o);
+		with Not_found | Invalid_argument _ ->
 			-1
 	in
 	let rec loop acc items index =
