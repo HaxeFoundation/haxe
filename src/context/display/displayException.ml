@@ -50,8 +50,6 @@ let last_completion_pos = ref None
 let max_completion_items = ref 0
 
 let filter_somehow ctx items kind subj =
-	let ret = DynArray.create () in
-	let acc_types = DynArray.create () in
 	let subject = match subj.s_name with
 		| None -> ""
 		| Some name-> String.lowercase name
@@ -86,31 +84,25 @@ let filter_somehow ctx items kind subj =
 		with Not_found ->
 			-1
 	in
-	let rec loop items index =
+	let rec loop acc items index =
 		match items with
-		| _ when DynArray.length ret >= !max_completion_items ->
-			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
 			let cost = determine_cost name in
-			if cost >= 0 then begin
-				(* Treat types with lowest priority. The assumption is that they are the only kind
-				   which actually causes the limit to be hit, so we show everything else and then
-				   fill in types. *)
-				match item.ci_kind with
-				| ITType _ ->
-					DynArray.add acc_types (item,index,cost);
-				| _ ->
-					DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
-			end;
-			loop items (index + 1)
+			let acc = if cost >= 0 then
+				(item,index,cost) :: acc
+			else
+				acc
+			in
+			loop acc items (index + 1)
 		| [] ->
-			()
+			acc
 	in
-	loop items 0;
-	let acc_types = List.sort (fun (_,_,cost1) (_,_,cost2) ->
+	let acc = loop [] items 0 in
+	let acc = List.sort (fun (_,_,cost1) (_,_,cost2) ->
 		compare cost1 cost2
-	) (DynArray.to_list acc_types) in
+	) acc in
+	let ret = DynArray.create () in
 	let rec loop acc_types = match acc_types with
 		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
@@ -118,7 +110,7 @@ let filter_somehow ctx items kind subj =
 		| _ ->
 			()
 	in
-	loop acc_types;
+	loop acc;
 	DynArray.to_list ret,DynArray.length ret
 
 let patch_completion_subject subj =
