@@ -2,19 +2,6 @@ package haxe;
 
 import js.lib.Error;
 
-class ValueException extends Exception {
-	public var value(default,null):Any;
-
-	public function new(value:Any, ?previous:Exception):Void {
-		super(inline Std.string(value), previous);
-		this.value = value;
-	}
-
-	override public function unwrap():Any {
-		return value;
-	}
-}
-
 @:coreApi
 class Exception extends NativeException {
 	public var message(get,never):String;

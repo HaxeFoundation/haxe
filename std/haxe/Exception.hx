@@ -1,30 +1,6 @@
 package haxe;
 
 /**
-	An exception containing arbitrary value.
-
-	This class is automatically used for throwing values, which don't extend `haxe.Exception`
-	or native exception type.
-	For example:
-	```haxe
-	throw "Terrible error";
-	```
-	will be compiled to
-	```haxe
-	throw new ValueException("Terrible error");
-	```
-**/
-extern class ValueException extends Exception {
-	/**
-		Thrown value.
-	**/
-	public var value(default,null):Any;
-
-	public function new(value:Any, ?previous:Exception):Void;
-}
-
-
-/**
 	Base class for exceptions.
 
 	If this class (or derivatives) is used to catch an exception, then

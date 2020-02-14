@@ -1,6 +1,7 @@
 ﻿package unit;
 
 import haxe.Exception;
+import haxe.ValueException;
 
 private enum EnumError {
 	EError;
