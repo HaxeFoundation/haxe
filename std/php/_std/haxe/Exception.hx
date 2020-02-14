@@ -77,7 +77,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = CallStack.complementTrace(native.getTrace(), native);
+				var nativeTrace = CallStack.complementTrace((native:php.Exception).getTrace(), native);
 				__exceptionStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}

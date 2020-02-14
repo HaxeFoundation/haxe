@@ -24,6 +24,7 @@ package haxe;
 
 #if php
 import php.*;
+import haxe.Exception in Exception;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 #end
