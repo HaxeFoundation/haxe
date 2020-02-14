@@ -7,6 +7,9 @@ private enum EnumError {
 	EError;
 }
 
+private abstract AbstrString(String) from String {}
+private abstract AbstrException(CustomHaxeException) from CustomHaxeException {}
+
 private class CustomHaxeException extends Exception {}
 
 #if php
@@ -59,6 +62,22 @@ class TestExceptions extends Test {
 		} catch(e:CustomNativeException) {
 			eq(thrown, e);
 			t(rethrown);
+		}
+	}
+
+	public function testCatchAbstract() {
+		var a:AbstrString = 'hello';
+		try {
+			throw a;
+		} catch(e:AbstrString) {
+			eq(a, e);
+		}
+
+		var a:AbstrException = new CustomHaxeException('');
+		try {
+			throw a;
+		} catch(e:AbstrException) {
+			eq(a, e);
 		}
 	}
 
