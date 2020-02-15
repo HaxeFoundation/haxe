@@ -427,7 +427,7 @@ let init_module_type ctx context_init (decl,p) =
 			| _ ->
 				(match List.rev path with
 				(* p spans `import |` (to the display position), so we take the pmax here *)
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in

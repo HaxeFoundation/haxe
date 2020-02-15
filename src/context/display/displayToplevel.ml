@@ -189,7 +189,7 @@ let pack_contains pack1 pack2 =
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
-let collect ctx tk with_type =
+let collect ctx tk with_type sort =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
@@ -471,8 +471,10 @@ let collect ctx tk with_type =
 	let l = DynArray.to_list cctx.items in
 	let l = if is_legacy_completion then
 		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-	else
+	else if sort then
 		Display.sort_fields l with_type tk
+	else
+		l
 	in
 	t();
 	l
@@ -482,12 +484,12 @@ let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	| Some p' when pname.pmin = p'.pmin ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
-		collect ctx tk with_type
+		collect ctx tk with_type (name = "")
 	in
 	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
+	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue false in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in

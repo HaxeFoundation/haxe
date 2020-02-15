@@ -108,9 +108,13 @@ let filter_somehow ctx items kind subj =
 			acc
 	in
 	let acc = loop [] items 0 in
-	let acc = List.sort (fun (_,_,cost1) (_,_,cost2) ->
-		compare cost1 cost2
-	) acc in
+	let acc = if subject_length = 0 then
+		List.rev acc
+	else
+		List.sort (fun (_,_,cost1) (_,_,cost2) ->
+			compare cost1 cost2
+		) acc
+	in
 	let ret = DynArray.create () in
 	let rec loop acc_types = match acc_types with
 		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
