@@ -405,12 +405,14 @@ let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p =
+	let commit_import path mode p =
+		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
+	in
+	let check_path_display path p =
 		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 	in
 	let init_import path mode =
-		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		check_path_display path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -497,7 +499,7 @@ let init_module_type ctx context_init (decl,p) =
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
-								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
 						))
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
@@ -508,7 +510,7 @@ let init_module_type ctx context_init (decl,p) =
 						try
 							add_static_init tsub name fname
 						with Not_found ->
-							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+							display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
 					);
 				)
 			| IAll ->
@@ -533,8 +535,9 @@ let init_module_type ctx context_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		begin try
-			init_import path mode
-		with Error(Module_not_found _ as err,p) ->
+			init_import path mode;
+			commit_import path mode p;
+		with Error(err,p) ->
 			display_error ctx (Error.error_msg err) p
 		end
 	| EUsing path ->
