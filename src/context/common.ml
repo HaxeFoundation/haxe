@@ -438,6 +438,17 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_this_before_super = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["java";"lang"],"Throwable");
+			}
 		}
 	| Python ->
 		{

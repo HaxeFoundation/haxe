@@ -833,9 +833,7 @@ let run com tctx main =
 			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in

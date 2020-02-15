@@ -1783,7 +1783,7 @@ let generate con =
 				| TBreak -> write w "break"
 				| TContinue -> write w "continue"
 				| TThrow e ->
-					write w "throw ";
+					write w "throw (java.lang.RuntimeException)";
 					expr_s w e
 				| TCast (e1,md_t) ->
 					((*match gen.gfollow#run_f e.etype with

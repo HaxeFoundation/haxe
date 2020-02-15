@@ -27,6 +27,12 @@ import php.*;
 import haxe.Exception in Exception;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
+#else
+private typedef NativeTrace =
+	#if java java.NativeArray<java.lang.StackTraceElement>
+	#elseif cs cs.system.diagnostics.StackTrace
+	#else Dynamic
+	#end;
 #end
 
 /**
@@ -311,6 +317,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			lastException = e;
 		#elseif cs
 			cs.internal.Exceptions.exception = e;
+		#elseif java
+			@:privateAccess inline java.internal.Exceptions.setException(e);
 		#end
 	}
 
@@ -386,19 +394,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			return a;
 		}
 		#elseif java
-		var stack = [];
-		for (el in java.lang.Thread.currentThread().getStackTrace()) {
-			var className = el.getClassName();
-			var methodName = el.getMethodName();
-			var fileName = el.getFileName();
-			var lineNumber = el.getLineNumber();
-			var method = Method(className, methodName);
-			if (fileName != null || lineNumber >= 0) {
-				stack.push(FilePos(method, fileName, lineNumber));
-			} else {
-				stack.push(method);
-			}
-		}
+		var stack = makeStack(java.lang.Thread.currentThread().getStackTrace());
 		stack.shift();
 		stack.shift();
 		stack.pop();
@@ -478,24 +474,12 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 		return makeStack(s);
 		#elseif java
-		var stack = [];
 		switch (#if jvm jvm.Exception #else java.internal.Exceptions #end.currentException()) {
 			case null:
+				return [];
 			case current:
-				for (el in current.getStackTrace()) {
-					var className = el.getClassName();
-					var methodName = el.getMethodName();
-					var fileName = el.getFileName();
-					var lineNumber = el.getLineNumber();
-					var method = Method(className, methodName);
-					if (fileName != null || lineNumber >= 0) {
-						stack.push(FilePos(method, fileName, lineNumber));
-					} else {
-						stack.push(method);
-					}
-				}
+				return makeStack(current.getStackTrace());
 		}
-		return stack;
 		#elseif cs
 		return cs.internal.Exceptions.exception == null ? [] : makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
 		#elseif python
@@ -520,7 +504,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#if cpp
 	@:noDebug /* Do not mess up the exception stack */
 	#end
-	private static function makeStack(s #if cs:cs.system.diagnostics.StackTrace #elseif hl:hl.NativeArray<hl.Bytes> #else:Dynamic #end) {
+	private static function makeStack(s:NativeTrace) {
 		#if neko
 		var a = new Array();
 		var l = untyped __dollar__asize(s);
@@ -613,6 +597,21 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(FilePos(method, fileName, lineNumber));
 			else
 				stack.push(method);
+		}
+		return stack;
+		#elseif java
+		var stack = [];
+		for (el in s) {
+			var className = el.getClassName();
+			var methodName = el.getMethodName();
+			var fileName = el.getFileName();
+			var lineNumber = el.getLineNumber();
+			var method = Method(className, methodName);
+			if (fileName != null || lineNumber >= 0) {
+				stack.push(FilePos(method, fileName, lineNumber));
+			} else {
+				stack.push(method);
+			}
 		}
 		return stack;
 		#elseif hl

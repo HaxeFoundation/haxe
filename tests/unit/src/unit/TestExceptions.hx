@@ -183,4 +183,18 @@ class TestExceptions extends Test {
 			t(rethrown);
 		}
 	}
+
+	public function testExceptionStack() {
+		function level2() {
+			throw 'hello';
+		}
+		function level1() {
+			level2();
+		}
+		try {
+			level1();
+		} catch(e:Exception) {
+			t(e.stack.length > 0);
+		}
+	}
 }

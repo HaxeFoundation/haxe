@@ -165,7 +165,7 @@ let throw_native ctx e_thrown t p =
 		*)
 		else if is_haxe_exception e_thrown.etype then
 			haxe_exception_instance_call ctx e_thrown "get_native" [] e_thrown.epos
-		(* Wrap everything else with `haxe.Exception.wrapThrow` call *)
+		(* Wrap everything else with `haxe.Exception.wrapNative` call *)
 		else
 			haxe_exception_static_call ctx "wrapNative" [e_thrown] p
 	in
@@ -300,7 +300,7 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js ->
+	| Php | Js | Java ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) = ({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos) in
 		let wildcard_catch_type =
