@@ -126,14 +126,14 @@ final class Array<T> implements ArrayAccess<Int, T> {
 
 	public function remove(x:T):Bool {
 		var result = false;
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			if (value == x) {
+		for(index in 0...length) {
+			if (arr[index] == x) {
 				Global.array_splice(arr, index, 1);
 				length--;
 				result = true;
-				Syntax.code('break');
+				break;
 			}
-		});
+		}
 		return result;
 	}
 
