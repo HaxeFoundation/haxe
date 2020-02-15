@@ -409,8 +409,7 @@ let init_module_type ctx context_init (decl,p) =
 		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
 		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
 	in
-	match decl with
-	| EImport (path,mode) ->
+	let init_import path mode =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		check_path_display path p;
 		let rec loop acc = function
@@ -530,6 +529,14 @@ let init_module_type ctx context_init (decl,p) =
 						error "No statics to import from this type" p
 				)
 			))
+	in
+	match decl with
+	| EImport (path,mode) ->
+		begin try
+			init_import path mode
+		with Error(Module_not_found _ as err,p) ->
+			display_error ctx (Error.error_msg err) p
+		end
 	| EUsing path ->
 		check_path_display path p;
 		let types,filter_classes = handle_using ctx path p in
