@@ -83,12 +83,12 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 						let md = TypeloadModule.load_module ctx m p in
 						(* first look for existing subtype *)
 						(try
-							let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
+							let t = Typeload.find_type_in_module md sname in
 							Some (field_chain ctx path (fun _ -> AKExpr (type_module_type ctx t None p)))
 						with Not_found -> try
 						(* then look for main type statics *)
 							if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
-							let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
+							let t = Typeload.find_type_in_module md (snd m) in
 							Some (get_static false t)
 						with Not_found ->
 							None)
