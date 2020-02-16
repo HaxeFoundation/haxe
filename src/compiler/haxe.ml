@@ -677,7 +677,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
