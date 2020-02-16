@@ -1,22 +1,30 @@
 package cases;
 
-class Issue7945 extends DisplayTestCase {
+class Issue7948 extends DisplayTestCase {
 	/**
-		abstract Test(Int) {-1-}too{-2-} Int {}
+		class Main {
+			{-1-}class{-2-} Moin {
+
+			}
+		}
 	**/
-	function test1() {
+	function test() {
 		arrayEq([
 			{
 				kind: DKParserError,
 				severity: Error,
 				range: diagnosticsRange(pos(1), pos(2)),
-				args: "Expected { or to or from"
+				args: "Unexpected class"
 			}
 		], diagnostics());
 	}
 
 	/**
-		class Test {-1-}extend{-2-} OtherClass {}
+		class Main {
+			static function main()
+				trace("Test");
+			}
+		{-1-}}{-2-}
 	**/
 	function test2() {
 		arrayEq([
@@ -24,7 +32,7 @@ class Issue7945 extends DisplayTestCase {
 				kind: DKParserError,
 				severity: Error,
 				range: diagnosticsRange(pos(1), pos(2)),
-				args: "Expected extends or implements or {"
+				args: "Unexpected }"
 			}
 		], diagnostics());
 	}

@@ -51,6 +51,11 @@ type syntax_completion =
 	| SCTypeDecl of type_decl_completion_mode
 	| SCAfterTypeFlag of decl_flag list
 
+type 'a sequence_parsing_result =
+	| Success of 'a
+	| End of pos
+	| Error of string
+
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
