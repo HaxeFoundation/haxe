@@ -119,7 +119,7 @@ and eval_binop_exprs ctx e1 e2 =
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
 
-class condition_Handler = object(self)
+class condition_handler = object(self)
 	val mutable conditional_expressions = []
 	val mutable conditional_stack = []
 	val mutable depths = []
@@ -234,7 +234,7 @@ let parse ctx code file =
 		error (Custom line) p
 	in
 
-	let conds = new condition_Handler in
+	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
