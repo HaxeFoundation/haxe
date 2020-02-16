@@ -13,17 +13,17 @@ class Exception extends NativeException {
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function wrap(value:Any):Exception {
+	static public function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Error)) {
 			return new Exception((cast value:Error).message, null, value);
 		} else {
-			return new ValueException(value);
+			return new ValueException(value, null, value);
 		}
 	}
 
-	static public function wrapNative(value:Any):Any {
+	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else if(Std.isOfType(value, Error)) {
@@ -38,20 +38,20 @@ class Exception extends NativeException {
 		(cast this:Error).message = message;
 		this.__previousException = previous;
 
-		if(native != null) {
-			this.__nativeException = native;
-			(cast this).stack = Std.is(native, Error) ? (cast native).stack : null;
+		this.__nativeException = native != null ? native : this;
+		if(Std.isOfType(native, Error) ) {
+			(cast this).stack = (cast native).stack;
 		} else {
-			this.__nativeException = this;
-			if ((cast Error).captureStackTrace) {
+			var stack:String = if ((cast Error).captureStackTrace) {
 				(cast Error).captureStackTrace(this, Exception);
+				(cast this).stack;
 			} else {
-				var stack:String = new Error().stack;
-				//remove the first line, which is a call to `new Error()`
-				(cast this).stack = switch stack.indexOf('\n') {
-					case p if(p >= 0): stack.substr(p + 1);
-					case _: stack;
-				}
+				new Error().stack;
+			}
+			//remove the first line, which is a call to `new Error()`
+			(cast this).stack = switch stack.indexOf('\n') {
+				case p if(p >= 0): stack.substr(p + 1);
+				case _: stack;
 			}
 		}
 	}
@@ -79,7 +79,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __errorStack {
 			case null:
-				__errorStack = CallStack.getStack(native);
+				__errorStack = CallStack.getStack(cast this);
 			case s: s;
 		}
 	}

@@ -24,7 +24,7 @@ class Exception extends NativeException {
 		} else if(Std.isOfType(value, Throwable)) {
 			return new Exception((value:Throwable).getMessage(), null, value);
 		} else {
-			return new ValueException(value);
+			return new ValueException(value, null, value);
 		}
 	}
 
