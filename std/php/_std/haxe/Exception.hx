@@ -15,17 +15,17 @@ class Exception extends NativeException {
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function wrap(value:Any):Exception {
+	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
 			return new Exception((value:Throwable).getMessage(), null, value);
 		} else {
-			return new ValueException(value);
+			return new ValueException(value, null, value);
 		}
 	}
 
-	static public function wrapNative(value:Any):Any {
+	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else if(Std.isOfType(value, Throwable)) {
@@ -38,7 +38,11 @@ class Exception extends NativeException {
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message, 0, previous);
 		this.__previousException = previous;
-		this.__nativeException = native == null ? cast this : native;
+		if(native != null && Std.isOfType(native, Throwable)) {
+			__nativeException = native;
+		} else {
+			__nativeException = cast this;
+		}
 	}
 
 	public function unwrap():Any {
@@ -64,7 +68,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = CallStack.complementTrace((native:php.Exception).getTrace(), native);
+				var nativeTrace = CallStack.complementTrace(__nativeException.getTrace(), native);
 				__exceptionStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}
