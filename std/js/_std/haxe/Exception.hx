@@ -9,7 +9,7 @@ class Exception extends NativeException {
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion var __errorStack:Null<CallStack>;
+	@:noCompletion var __errorStack(get,set):Null<CallStack>;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -35,7 +35,7 @@ class Exception extends NativeException {
 
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message);
-		(cast this:Error).message = message;
+		(cast this).message = message;
 		this.__previousException = previous;
 
 		this.__nativeException = native != null ? native : this;
@@ -78,9 +78,25 @@ class Exception extends NativeException {
 
 	function get_stack():CallStack {
 		return switch __errorStack {
-			case null:
-				__errorStack = CallStack.getStack(cast this);
+			case null: __errorStack = CallStack.getStack(cast this);
 			case s: s;
+		}
+	}
+
+	inline function get___errorStack():CallStack {
+		return (cast this).__errorStack;
+	}
+
+	inline function set___errorStack(value:CallStack):CallStack {
+		setProperty('__errorStack', value);
+		return value;
+	}
+
+	function setProperty(name:String, value:Any):Void {
+		try {
+			js.lib.Object.defineProperty(this, name, {value:value});
+		} catch(e:Exception) {
+			js.Syntax.code('{0}[{1}] = {2}', this, name, value);
 		}
 	}
 }
