@@ -23,8 +23,6 @@
 package java.internal;
 
 import java.lang.Throwable;
-import java.lang.RuntimeException;
-import java.lang.Exception;
 
 @:native("haxe.lang.Exceptions")
 class Exceptions {
@@ -38,53 +36,3 @@ class Exceptions {
 		return exception.get();
 	}
 }
-
-// @:classCode("public static final long serialVersionUID = 5956463319488556322L;")
-// @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException {
-// 	private var obj:Dynamic;
-
-// 	public function new(obj:Dynamic, msg:String, cause:Throwable) {
-// 		super(msg, cause);
-
-// 		if (Std.isOfType(obj, HaxeException)) {
-// 			var _obj:HaxeException = cast obj;
-// 			obj = _obj.getObject();
-// 		}
-
-// 		this.obj = obj;
-// 	}
-
-// 	public function getObject():Dynamic {
-// 		return obj;
-// 	}
-
-// 	#if !debug
-// 	@:overload override public function fillInStackTrace():Throwable {
-// 		return this;
-// 	}
-// 	#end
-
-// 	@:overload override public function toString():String {
-// 		return "Haxe Exception: " + obj;
-// 	}
-
-// 	@:overload override public function getMessage():String {
-// 		return switch (super.getMessage()) {
-// 			case null: Std.string(obj);
-// 			case var message: message;
-// 		}
-// 	}
-
-// 	public static function wrap(obj:Dynamic):RuntimeException {
-// 		var ret:RuntimeException = null;
-// 		if (Std.isOfType(obj, RuntimeException))
-// 			ret = obj;
-// 		else if (Std.isOfType(obj, String))
-// 			ret = new HaxeException(obj, obj, null);
-// 		else if (Std.isOfType(obj, Throwable))
-// 			ret = new HaxeException(obj, Std.string(obj), obj);
-// 		else
-// 			ret = new HaxeException(obj, Std.string(obj), null);
-// 		return ret;
-// 	}
-// }

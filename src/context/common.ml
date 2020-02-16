@@ -440,7 +440,7 @@ let get_config com =
 			pf_this_before_super = false;
 			pf_exceptions = {
 				ec_native_throws = [
-					["java";"lang"],"Throwable";
+					["java";"lang"],"RuntimeException";
 					["haxe"],"Exception";
 				];
 				ec_native_catches = [

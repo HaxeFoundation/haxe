@@ -12,13 +12,13 @@ class Exception extends NativeException {
 	public var message(get,never):String;
 	public var stack(get,never):CallStack;
 	public var previous(get,never):Null<Exception>;
-	public var native(get,never):NativeException;
+	public var native(get,never):Any;
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function wrap(value:Any):Exception {
+	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
@@ -28,9 +28,10 @@ class Exception extends NativeException {
 		}
 	}
 
-	static public function wrapNative(value:Any):NativeException {
+	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
-			return (value:Exception).native;
+			var native = (value:Exception).__nativeException;
+			return Std.isOfType(native, RuntimeException) ? native : value;
 		} else if(Std.isOfType(value, RuntimeException)) {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
@@ -42,8 +43,13 @@ class Exception extends NativeException {
 
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message, previous);
-		this.__previousException = previous;
-		this.__nativeException = native == null ? cast this : native;
+		__previousException = previous;
+		if(native != null && Std.isOfType(native, Throwable)) {
+			__nativeException = native;
+			setStackTrace(__nativeException.getStackTrace());
+		} else {
+			__nativeException = cast this;
+		}
 	}
 
 	public function unwrap():Any {
@@ -62,14 +68,14 @@ class Exception extends NativeException {
 		return __previousException;
 	}
 
-	final function get_native():NativeException {
-		return Std.isOfType(__nativeException, RuntimeException) ? cast __nativeException : this;
+	final function get_native():Any {
+		return __nativeException;
 	}
 
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = CallStack.makeStack(native.getStackTrace());
+				__exceptionStack = CallStack.makeStack(__nativeException.getStackTrace());
 			case s: s;
 		}
 	}

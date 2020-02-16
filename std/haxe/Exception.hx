@@ -21,15 +21,6 @@ package haxe;
 	throw new MyException('terrible exception');
 	```
 
-	To rethrow `haxe.Exception`-based exceptions just throw them again:
-	```haxe
-	try {
-		throw new MyException();
-	} catch(e:MyException) {
-		throw e;
-	}
-	```
-
 	`haxe.Exception` is also a wildcard type to catch any exception:
 	```haxe
 	try {
@@ -39,19 +30,18 @@ package haxe;
 	}
 	```
 
-	To rethrow original native exception use `haxe.Exception.native` property:
+	To rethrow an exception just throw it again.
+	Haxe will try to rethrow an original native exception whenever possible.
 	```haxe
 	try {
 		var a:Array<Int> = null;
 		a.push(1); // generates target-specific null-pointer exception
 	} catch(e:haxe.Exception) {
-		throw e.native; // rethrows native exception instead of haxe.Exception
+		throw e; // rethrows native exception instead of haxe.Exception
 	}
 	```
-
-	TODO: move to the root package for convenience?
 **/
-extern class Exception extends NativeException {
+extern class Exception {
 	/**
 		Exception message.
 	**/
@@ -73,24 +63,18 @@ extern class Exception extends NativeException {
 	/**
 		Native exception, which caused this exception.
 	**/
-	public var native(get,never):NativeException;
-	final private function get_native():NativeException;
+	public var native(get,never):Any;
+	final private function get_native():Any;
 
 	/**
-		Get an instance of `haxe.Exception` for an arbitrary value.
-
-		Returns the `value` as is, if it's already an instance of `haxe.Exception`.
-
 		Used internally for wildcard catches like `catch(e:Exception)`.
 	**/
-	static public function wrap(value:Any):Exception;
+	static public function caught(value:Any):Exception;
 
 	/**
-		Wrap `value` into a native exception, which can be used for throwing.
-
 		Used internally for wrapping non-throwable values for `throw` expressions.
 	**/
-	static public function wrapNative(value:Any):NativeException;
+	static public function thrown(value:Any):Any;
 
 	/**
 		Create a new Exception instance.
@@ -103,7 +87,6 @@ extern class Exception extends NativeException {
 	/**
 		Extract an originally thrown value.
 
-		This method must return the same value on subsequent calls.
 		Used internally for catching non-native exceptions.
 		Do _not_ override unless you know what you are doing.
 	**/

@@ -146,9 +146,8 @@ let throw_native ctx e_thrown t p =
 		(*
 			Check if `e_thrown` is of `haxe.Exception` type directly (not a descendant),
 			but not a `new haxe.Exception(...)` expression.
-			In this case we have to generate `throw e_thrown.get_native()` even if
-			`haxe.Exception` extends a native exception. Because it could happen to be a wrapper
-			for a wildcard catch.
+			In this case we delegate the decision to `haxe.Exception.thrown(e_thrown)`.
+			Because it could happen to be a wrapper for a wildcard catch.
 		*)
 		let is_direct_haxe_exception_stored() =
 			fast_eq ctx.haxe_exception_type (follow e_thrown.etype)
@@ -159,15 +158,15 @@ let throw_native ctx e_thrown t p =
 		(* already a native exception *)
 		if is_native_throw ctx e_thrown.etype && not (is_direct_haxe_exception_stored()) then
 			e_thrown
-		(*
+		(* (*
 			For `haxe.Exception` instances, which don't extend native throwables,
 			generate `e_thrown.get_native()`
 		*)
 		else if is_haxe_exception e_thrown.etype then
-			haxe_exception_instance_call ctx e_thrown "get_native" [] e_thrown.epos
-		(* Wrap everything else with `haxe.Exception.wrapNative` call *)
+			haxe_exception_instance_call ctx e_thrown "get_native" [] e_thrown.epos *)
+		(* Wrap everything else with `haxe.Exception.thrown` call *)
 		else
-			haxe_exception_static_call ctx "wrapNative" [e_thrown] p
+			haxe_exception_static_call ctx "thrown" [e_thrown] p
 	in
 	mk (TThrow e_native) t p
 
@@ -188,7 +187,7 @@ let throw_native ctx e_thrown t p =
 	} catch(e:SomeNativeError) {
 		doStuff();
 	} catch(etmp:WildCardNativeException) {
-		var ehx:haxe.Exception = haxe.Exception.wrap(etmp);
+		var ehx:haxe.Exception = haxe.Exception.caught(etmp);
 		if(Std.isOfType(ehx.unwrap(), String)) {
 			var e:String = ehx.unwrap();
 			trace(e);
@@ -278,11 +277,11 @@ and catch_native ctx catches t p =
 					in
 					mk (TIf(condition, body, Some else_body)) t p
 				in
-				(* haxe.Exception.wrap(catch_var) *)
-				let wrap = haxe_exception_static_call ctx "wrap" [catch_local] null_pos in
+				(* haxe.Exception.caught(catch_var) *)
+				let caught = haxe_exception_static_call ctx "caught" [catch_local] null_pos in
 				let exprs = [
-					(* var haxe_exception_local = haxe.Exception.wrap(catch_var); *)
-					(mk (TVar (haxe_exception_var, Some wrap)) ctx.basic.tvoid null_pos);
+					(* var haxe_exception_local = haxe.Exception.caught(catch_var); *)
+					(mk (TVar (haxe_exception_var, Some caught)) ctx.basic.tvoid null_pos);
 					(* var unwrapped_local = haxe_exception_local.unwrap(); *)
 					if !needs_unwrap then
 						let unwrap = haxe_exception_instance_call ctx haxe_exception_local "unwrap" [] null_pos in
