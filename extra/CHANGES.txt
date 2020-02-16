@@ -7,6 +7,7 @@
 	all : fixed inlining regression (#9058)
 	all : fixed invalid generation of static properties access in abstracts (#9060)
 	js : fixed startup exception in IE8 related to `Object.defineProperty` (#6918)
+	eval : respect custom `toString()` implementations in debugger (#9036)
 
 
 2019-12-17: 4.0.5

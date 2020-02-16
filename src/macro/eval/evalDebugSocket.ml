@@ -14,6 +14,32 @@ open EvalDebugMisc
 
 (* Printing *)
 
+
+let handle_in_temp_thread ctx env f =
+	let channel = Event.new_channel () in
+	let _ = EvalThread.spawn ctx (fun () ->
+		let eval = get_eval ctx in
+		eval.env <- Some env;
+		let v = try
+			f()
+		with
+		| RunTimeException(v,stack,p) ->
+			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
+			vnull
+		| exc ->
+			prerr_endline (Printexc.to_string exc);
+			vnull
+		in
+		Event.poll (Event.send channel v)
+	) in
+	Event.sync (Event.receive channel)
+
+let thread_safe_value_string env v =
+	let ctx = get_ctx() in
+	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
+	| VString s -> s.sstring
+	| _ -> assert false
+
 let var_to_json name value vio env =
 	let jv t v num_children =
 		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
@@ -95,7 +121,7 @@ let var_to_json name value vio env =
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
-			let class_name () = EvalDebugMisc.safe_call env.env_eval EvalPrinting.value_string v in
+			let class_name () = thread_safe_value_string env v in
 			let num_children,class_name = match vi.ikind with
 			| IMutex _ -> 1,class_name()
 			| IThread _ -> 1,class_name()
@@ -300,25 +326,6 @@ let output_inner_vars v env =
 	let children = loop v in
 	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
-
-let handle_in_temp_thread ctx env f =
-	let channel = Event.new_channel () in
-	let _ = EvalThread.spawn ctx (fun () ->
-		let eval = get_eval ctx in
-		eval.env <- Some env;
-		let v = try
-			f()
-		with
-		| RunTimeException(v,stack,p) ->
-			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
-			vnull
-		| exc ->
-			prerr_endline (Printexc.to_string exc);
-			vnull
-		in
-		Event.poll (Event.send channel v)
-	) in
-	Event.sync (Event.receive channel)
 
 module ValueCompletion = struct
 	let prototype_instance_fields proto =
