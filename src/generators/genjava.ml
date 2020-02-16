@@ -907,8 +907,8 @@ let rec handle_throws gen cf =
 			let throwable = get_cl (get_type gen (["java";"lang"],"Throwable")) in
 			let catch_var = alloc_var "typedException" (TInst(throwable,[])) in
 			let rethrow = mk_local catch_var e.epos in
-			let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
-			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
+			let hx_exception = get_cl (get_type gen (["haxe"], "Exception")) in
+			let wrap_static = mk_static_field_access (hx_exception) "wrapNative" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
 			let wrapped = { rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; } in
 			let map_throws cl =
 				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_params)) in
@@ -1783,7 +1783,7 @@ let generate con =
 				| TBreak -> write w "break"
 				| TContinue -> write w "continue"
 				| TThrow e ->
-					write w "throw (java.lang.RuntimeException)";
+					write w "throw ";
 					expr_s w e
 				| TCast (e1,md_t) ->
 					((*match gen.gfollow#run_f e.etype with

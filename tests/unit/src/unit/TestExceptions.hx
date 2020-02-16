@@ -16,6 +16,8 @@ private class CustomHaxeException extends Exception {}
 private class CustomNativeException extends php.Exception {}
 #elseif js
 private class CustomNativeException extends js.lib.Error {}
+#elseif java
+private class CustomNativeException extends java.lang.RuntimeException {}
 #end
 
 class TestExceptions extends Test {

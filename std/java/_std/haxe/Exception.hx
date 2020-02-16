@@ -2,6 +2,7 @@ package haxe;
 
 import java.NativeArray;
 import java.lang.Throwable;
+import java.lang.RuntimeException;
 import java.lang.StackTraceElement;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -11,7 +12,7 @@ class Exception extends NativeException {
 	public var message(get,never):String;
 	public var stack(get,never):CallStack;
 	public var previous(get,never):Null<Exception>;
-	public var native(get,never):Any;
+	public var native(get,never):NativeException;
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeException:Throwable;
@@ -27,11 +28,13 @@ class Exception extends NativeException {
 		}
 	}
 
-	static public function wrapNative(value:Any):Any {
+	static public function wrapNative(value:Any):NativeException {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
-		} else if(Std.isOfType(value, Throwable)) {
+		} else if(Std.isOfType(value, RuntimeException)) {
 			return value;
+		} else if(Std.isOfType(value, Throwable)) {
+			return new Exception((value:Throwable).getMessage(), null, value);
 		} else {
 			return new ValueException(value);
 		}
@@ -59,14 +62,14 @@ class Exception extends NativeException {
 		return __previousException;
 	}
 
-	final function get_native():Any {
-		return __nativeException;
+	final function get_native():NativeException {
+		return Std.isOfType(__nativeException, RuntimeException) ? cast __nativeException : this;
 	}
 
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = CallStack.makeStack(native);
+				__exceptionStack = CallStack.makeStack(native.getStackTrace());
 			case s: s;
 		}
 	}

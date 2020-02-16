@@ -73,8 +73,8 @@ extern class Exception extends NativeException {
 	/**
 		Native exception, which caused this exception.
 	**/
-	public var native(get,never):Any;
-	final private function get_native():Any;
+	public var native(get,never):NativeException;
+	final private function get_native():NativeException;
 
 	/**
 		Get an instance of `haxe.Exception` for an arbitrary value.
@@ -90,7 +90,7 @@ extern class Exception extends NativeException {
 
 		Used internally for wrapping non-throwable values for `throw` expressions.
 	**/
-	static public function wrapNative(value:Any):Any;
+	static public function wrapNative(value:Any):NativeException;
 
 	/**
 		Create a new Exception instance.

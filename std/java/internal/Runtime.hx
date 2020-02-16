@@ -294,7 +294,7 @@ package java.internal;
 		}
 
 		if (throwErrors)
-			throw HaxeException.wrap(t);
+			throw haxe.Exception.wrapNative(t);
 
 		return null;
 	}
@@ -331,7 +331,7 @@ package java.internal;
 		}
 		catch (Throwable t)
 		{
-			throw HaxeException.wrap(t);
+			throw haxe.Exception.wrapNative(t);
 		}
 	')
 	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic {
@@ -421,7 +421,7 @@ package java.internal;
 
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
-			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
+			throw haxe.Exception.wrapNative("No compatible method found for: " + field);
 
 		if (hasNumber)
 		{
@@ -471,12 +471,12 @@ package java.internal;
 
 		catch (java.lang.reflect.InvocationTargetException e)
 		{
-			throw haxe.lang.HaxeException.wrap(e.getCause());
+			throw haxe.Exception.wrapNative(e.getCause());
 		}
 
 		catch (Throwable t)
 		{
-			throw haxe.lang.HaxeException.wrap(t);
+			throw haxe.Exception.wrapNative(t);
 		}
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic {
