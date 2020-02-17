@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 /**
@@ -29,13 +30,12 @@ package haxe.io;
 	is reached.
 **/
 class Input {
-
 	/**
 		Endianness (word byte order) used when reading numbers.
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
-	public var bigEndian(default,set) : Bool;
+	public var bigEndian(default, set):Bool;
 
 	#if cs
 	private var helper:BytesData;
@@ -46,12 +46,12 @@ class Input {
 	/**
 		Read and return one byte.
 	**/
-	public function readByte() : Int {
-	#if cpp
+	public function readByte():Int {
+		#if cpp
 		throw "Not implemented";
-	#else
+		#else
 		return throw "Not implemented";
-	#end
+		#end
 	}
 
 	/**
@@ -61,27 +61,27 @@ class Input {
 
 		See `readFullBytes` that tries to read the exact amount of specified bytes.
 	**/
-	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
+	public function readBytes(s:Bytes, pos:Int, len:Int):Int {
 		var k = len;
 		var b = #if (js || hl) @:privateAccess s.b #else s.getData() #end;
-		if( pos < 0 || len < 0 || pos + len > s.length )
+		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw Error.OutsideBounds;
 		try {
-			while( k > 0 ) {
+			while (k > 0) {
 				#if neko
-					untyped __dollar__sset(b,pos,readByte());
+				untyped __dollar__sset(b, pos, readByte());
 				#elseif php
-					b.set(pos, readByte());
+				b.set(pos, readByte());
 				#elseif cpp
-					b[pos] = untyped readByte();
+				b[pos] = untyped readByte();
 				#else
-					b[pos] = cast readByte();
+				b[pos] = cast readByte();
 				#end
 				pos++;
 				k--;
 			}
-		} catch (eof: haxe.io.Eof){}
-		return len-k;
+		} catch (eof:haxe.io.Eof) {}
+		return len - k;
 	}
 
 	/**
@@ -89,40 +89,38 @@ class Input {
 
 		Behaviour while reading after calling this method is unspecified.
 	**/
-	public function close() : Void {
-	}
+	public function close():Void {}
 
-	function set_bigEndian( b : Bool ) : Bool {
+	function set_bigEndian(b:Bool):Bool {
 		bigEndian = b;
 		return b;
 	}
 
 	/* ------------------ API ------------------ */
-
 	/**
 		Read and return all available data.
 
 		The `bufsize` optional argument specifies the size of chunks by
 		which data is read. Its default value is target-specific.
 	**/
-	public function readAll( ?bufsize : Int ) : Bytes {
-		if( bufsize == null )
-		#if php
+	public function readAll(?bufsize:Int):Bytes {
+		if (bufsize == null)
+			#if php
 			bufsize = 8192; // default value for PHP and max under certain circumstances
-		#else
+			#else
 			bufsize = (1 << 14); // 16 Ko
-		#end
+			#end
 
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {
-			while( true ) {
-				var len = readBytes(buf,0,bufsize);
-				if( len == 0 )
+			while (true) {
+				var len = readBytes(buf, 0, bufsize);
+				if (len == 0)
 					throw Error.Blocked;
-				total.addBytes(buf,0,len);
+				total.addBytes(buf, 0, len);
 			}
-		} catch( e : Eof ) { }
+		} catch (e:Eof) {}
 		return total.getBytes();
 	}
 
@@ -131,9 +129,9 @@ class Input {
 
 		Unlike `readBytes`, this method tries to read the exact `len` amount of bytes.
 	**/
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
-		while( len > 0 ) {
-			var k = readBytes(s,pos,len);
+	public function readFullBytes(s:Bytes, pos:Int, len:Int):Void {
+		while (len > 0) {
+			var k = readBytes(s, pos, len);
 			if (k == 0)
 				throw Error.Blocked;
 			pos += k;
@@ -144,12 +142,13 @@ class Input {
 	/**
 		Read and return `nbytes` bytes.
 	**/
-	public function read( nbytes : Int ) : Bytes {
+	public function read(nbytes:Int):Bytes {
 		var s = Bytes.alloc(nbytes);
 		var p = 0;
-		while( nbytes > 0 ) {
-			var k = readBytes(s,p,nbytes);
-			if( k == 0 ) throw Error.Blocked;
+		while (nbytes > 0) {
+			var k = readBytes(s, p, nbytes);
+			if (k == 0)
+				throw Error.Blocked;
 			p += k;
 			nbytes -= k;
 		}
@@ -161,11 +160,11 @@ class Input {
 
 		The final character is not included in the resulting string.
 	**/
-	public function readUntil( end : Int ) : String {
+	public function readUntil(end:Int):String {
 		var buf = new BytesBuffer();
-		var last : Int;
-		while( (last = readByte()) != end )
-			buf.addByte( last );
+		var last:Int;
+		while ((last = readByte()) != end)
+			buf.addByte(last);
 		return buf.getBytes().toString();
 	}
 
@@ -174,18 +173,19 @@ class Input {
 
 		The CR/LF characters are not included in the resulting string.
 	**/
-	public function readLine() : String {
+	public function readLine():String {
 		var buf = new BytesBuffer();
-		var last : Int;
+		var last:Int;
 		var s;
 		try {
-			while( (last = readByte()) != 10 )
-				buf.addByte( last );
+			while ((last = readByte()) != 10)
+				buf.addByte(last);
 			s = buf.getBytes().toString();
-			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
-		} catch( e : Eof ) {
+			if (s.charCodeAt(s.length - 1) == 13)
+				s = s.substr(0, -1);
+		} catch (e:Eof) {
 			s = buf.getBytes().toString();
-			if( s.length == 0 )
+			if (s.length == 0)
 				#if neko neko.Lib.rethrow #else throw #end (e);
 		}
 		return s;
@@ -196,7 +196,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readFloat() : Float {
+	public function readFloat():Float {
 		return FPHelper.i32ToFloat(readInt32());
 	}
 
@@ -205,18 +205,18 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readDouble() : Float {
+	public function readDouble():Float {
 		var i1 = readInt32();
 		var i2 = readInt32();
-		return bigEndian ? FPHelper.i64ToDouble(i2,i1) : FPHelper.i64ToDouble(i1,i2);
+		return bigEndian ? FPHelper.i64ToDouble(i2, i1) : FPHelper.i64ToDouble(i1, i2);
 	}
 
 	/**
 		Read a 8-bit signed integer.
 	**/
-	public function readInt8() : Int {
+	public function readInt8():Int {
 		var n = readByte();
-		if( n >= 128 )
+		if (n >= 128)
 			return n - 256;
 		return n;
 	}
@@ -226,11 +226,11 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt16() : Int {
+	public function readInt16():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var n = bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
-		if( n & 0x8000 != 0 )
+		if (n & 0x8000 != 0)
 			return n - 0x10000;
 		return n;
 	}
@@ -240,7 +240,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readUInt16() : Int {
+	public function readUInt16():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		return bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
@@ -251,12 +251,12 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt24() : Int {
+	public function readInt24():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var n = bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
-		if( n & 0x800000 != 0 )
+		if (n & 0x800000 != 0)
 			return n - 0x1000000;
 		return n;
 	}
@@ -266,7 +266,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readUInt24() : Int {
+	public function readUInt24():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -278,31 +278,32 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt32() : Int {
+	public function readInt32():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
-#if (php || python)
+		#if (php || python)
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)
-			return ( n | 0x80000000);
-		else return n;
-#elseif lua
+			return (n | 0x80000000);
+		else
+			return n;
+		#elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		return lua.Boot.clamp(n);
-#else
+		return lua.Boot.clampInt32(n);
+		#else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-#end
+		#end
 	}
 
 	/**
 		Read and `len` bytes as a string.
 	**/
-	public function readString( len : Int, ?encoding : Encoding ) : String {
+	public function readString(len:Int, ?encoding:Encoding):String {
 		var b = Bytes.alloc(len);
-		readFullBytes(b,0,len);
+		readFullBytes(b, 0, len);
 		#if neko
 		return neko.Lib.stringReference(b);
 		#else
@@ -310,21 +311,21 @@ class Input {
 		#end
 	}
 
-#if neko
-	static var _float_of_bytes = neko.Lib.load("std","float_of_bytes",2);
-	static var _double_of_bytes = neko.Lib.load("std","double_of_bytes",2);
-	static function __init__() untyped {
-		Input.prototype.bigEndian = false;
-	}
-#end
+	#if neko
+	static var _float_of_bytes = neko.Lib.load("std", "float_of_bytes", 2);
+	static var _double_of_bytes = neko.Lib.load("std", "double_of_bytes", 2);
 
-#if (flash || js || python)
-	function getDoubleSig(bytes:Array<Int>)
-	{
-		return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
-			(bytes[4] >> 7) * 2147483648 +
-			(((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
-	}
-#end
+	static function __init__()
+		untyped {
+			Input.prototype.bigEndian = false;
+		}
+	#end
 
+	#if (flash || js || python)
+	function getDoubleSig(bytes:Array<Int>) {
+		return (((bytes[1] & 0xF) << 16) | (bytes[2] << 8) | bytes[3]) * 4294967296.
+			+ (bytes[4] >> 7) * 2147483648
+			+ (((bytes[4] & 0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
+	}
+	#end
 }

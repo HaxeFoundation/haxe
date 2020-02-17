@@ -33,6 +33,10 @@ open Calls
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
+let is_lower_ident s p =
+	try Ast.is_lower_ident s
+	with Invalid_argument msg -> error msg p
+
 let check_assign ctx e =
 	match e.eexpr with
 	| TLocal {v_final = true} ->
@@ -42,7 +46,7 @@ let check_assign ctx e =
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		error "Invalid assign" e.epos
+		invalid_assign e.epos
 
 type type_class =
 	| KInt
@@ -51,7 +55,8 @@ type type_class =
 	| KUnk
 	| KDyn
 	| KOther
-	| KParam of t
+	| KNumParam of t
+	| KStrParam of t
 	| KAbstract of tabstract * t list
 
 let rec classify t =
@@ -60,9 +65,11 @@ let rec classify t =
 	| TAbstract({a_impl = Some _} as a,tl) -> KAbstract (a,tl)
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
-	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
-	| TMono r when !r = None -> KUnk
+	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
+	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
 
@@ -107,7 +114,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
-							if (List.exists (fast_eq t) stack) then raise Exit;
+							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
@@ -182,7 +189,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
 			| TLazy f -> loop (lazy_type f)
-			| TMono r -> (match !r with None -> () | Some t -> loop t)
+			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
 			| _ -> tl := t :: !tl)
 		in
 		loop t;
@@ -283,6 +290,13 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let unify_min_for_type_source ctx el src =
+	match src with
+	| Some WithType.ImplicitReturn when List.exists (fun e -> ExtType.is_void (follow e.etype)) el ->
+		ctx.com.basic.tvoid
+	| _ ->
+		unify_min ctx el
+
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -296,12 +310,11 @@ let rec type_ident_raise ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
+		if mode = MSet then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
 		| MSet, KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
-			| Method MethInline -> ()
-			| Method _ when ctx.curfield.cf_name = "_new" -> ()
-			| _ -> error "Abstract 'this' value can only be modified inside an inline function" p);
+			if not (assign_to_this_is_allowed ctx) then
+				error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
 		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
@@ -378,7 +391,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							ImportHandling.maybe_mark_import_position ctx pt;
+							ImportHandling.mark_import_position ctx pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -400,7 +413,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						ImportHandling.maybe_mark_import_position ctx pt;
+						ImportHandling.mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -409,7 +422,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		ImportHandling.maybe_mark_import_position ctx pi;
+		ImportHandling.mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field_default_cfg ctx e name p mode
 
@@ -696,7 +709,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
-			| KUnk | KDyn | KParam _ | KOther ->
+			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
 				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
@@ -750,18 +763,21 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			let ok1 = unify_int ctx e1 KUnk in
 			let ok2 = unify_int ctx e2 KUnk in
 			if ok1 && ok2 then tint else tfloat
-		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
+		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
 			t1
-		| KParam t, KInt | KInt, KParam t ->
+		| KNumParam t, KInt | KInt, KNumParam t ->
 			t
-		| KParam _, KFloat | KFloat, KParam _ | KParam _, KParam _ ->
+		| KNumParam _, KFloat | KFloat, KNumParam _ | KNumParam _, KNumParam _ ->
 			tfloat
-		| KParam t, KUnk ->
+		| KNumParam t, KUnk ->
 			unify ctx e2.etype tfloat e2.epos;
 			tfloat
-		| KUnk, KParam t ->
+		| KUnk, KNumParam t ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
+		| KStrParam _, _
+		| _, KStrParam _ ->
+			tstring
 		| KAbstract _,KFloat ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
@@ -776,8 +792,8 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			ctx.t.tint
 		| KAbstract _,_
 		| _,KAbstract _
-		| KParam _, _
-		| _, KParam _
+		| KNumParam _, _
+		| _, KNumParam _
 		| KOther, _
 		| _ , KOther ->
 			let pr = print_context() in
@@ -801,13 +817,13 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		(match classify e1.etype, classify e2.etype with
 		| KFloat, KFloat ->
 			result := tfloat
-		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
+		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
 			if op <> OpDiv then result := t1
-		| KParam _, KParam _ ->
+		| KNumParam _, KNumParam _ ->
 			result := tfloat
-		| KParam t, KInt | KInt, KParam t ->
+		| KNumParam t, KInt | KInt, KNumParam t ->
 			if op <> OpDiv then result := t
-		| KParam _, KFloat | KFloat, KParam _ ->
+		| KNumParam _, KFloat | KFloat, KNumParam _ ->
 			result := tfloat
 		| KFloat, k ->
 			ignore(unify_int ctx e2 k);
@@ -854,8 +870,10 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
-		| KParam _ , x when x <> KString && x <> KOther -> ()
-		| x , KParam _ when x <> KString && x <> KOther -> ()
+		| KNumParam _ , (KInt | KFloat | KNumParam _ | KDyn | KUnk ) -> ()
+		| (KInt | KFloat | KDyn | KUnk ), KNumParam _ -> ()
+		| KStrParam _ , (KString | KStrParam _ | KUnk | KDyn) -> ()
+		| (KString | KUnk | KDyn) , KStrParam _ -> ()
 		| KAbstract _,_
 		| _,KAbstract _
 		| KDyn , KUnk
@@ -864,8 +882,10 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		| KString , KFloat
 		| KInt , KString
 		| KFloat , KString
-		| KParam _ , _
-		| _ , KParam _
+		| KNumParam _ , _
+		| _ , KNumParam _
+		| KStrParam _ , _
+		| _ , KStrParam _
 		| KOther , _
 		| _ , KOther ->
 			let pr = print_context() in
@@ -997,7 +1017,13 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| [] ->
 				raise Not_found
 		in
-		loop a.a_ops
+		if left then
+			loop a.a_ops
+		else
+			let not_impl_or_is_commutative (_, cf) =
+				not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Commutative cf.cf_meta
+			in
+			loop (List.filter not_impl_or_is_commutative a.a_ops)
 	in
 	try
 		begin match follow e1.etype with
@@ -1032,7 +1058,7 @@ and type_unop ctx op flag e p =
 				if set then check_assign ctx e;
 				(match classify e.etype with
 				| KFloat -> ctx.t.tfloat
-				| KParam t ->
+				| KNumParam t ->
 					unify ctx e.etype ctx.t.tfloat e.epos;
 					t
 				| k ->
@@ -1096,6 +1122,48 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
+		| AKUsing (emethod,cl,cf,etarget,force_inline) when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+			let l = save_locals ctx in
+			let init_tmp,etarget,eget =
+				match needs_temp_var etarget, fst e with
+				| true, EField (_, field_name) ->
+					let tmp = gen_local ctx etarget.etype p in
+					let tmp_ident = (EConst (Ident tmp.v_name), p) in
+					(
+						mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
+						mk (TLocal tmp) tmp.v_type p,
+						(EField (tmp_ident,field_name), p)
+					)
+				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+			in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let one = (EConst (Int "1"),p) in
+			(match follow cf.cf_type with
+			| TFun (_, t) ->
+				(match flag with
+				| Prefix ->
+					let get = type_binop ctx op eget one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
+					mk (TBlock [init_tmp; call_setter]) t p
+				| Postfix ->
+					let get = type_expr ctx eget WithType.value in
+					let tmp_value = gen_local ctx t p in
+					let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					mk (TBlock [
+						init_tmp;
+						mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
+						make_call ctx emethod [etarget; plusone] t ~force_inline p;
+						mk (TLocal tmp_value) t p;
+					]) t p
+				)
+			| _ ->
+				l();
+				assert false
+			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
@@ -1137,7 +1205,7 @@ and type_ident ctx i p mode =
 		type_ident_raise ctx i p mode
 	with Not_found -> try
 		(* lookup type *)
-		if is_lower_ident i then raise Not_found;
+		if is_lower_ident i p then raise Not_found;
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
@@ -1171,13 +1239,16 @@ and type_ident ctx i p mode =
 					match ctx.com.display.dms_kind with
 						| DMNone ->
 							raise (Error(err,p))
-						| DMDiagnostics b when b || ctx.is_display_file ->
+						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
 							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)
 						| _ ->
 							display_error ctx (error_msg err) p;
 							let t = mk_mono() in
+							(* Add a fake local for #8751. *)
+							if !ServerConfig.legacy_completion then
+								ignore(add_local ctx VGenerated i t p);
 							AKExpr (mk (TIdent i) t p)
 				end
 			end
@@ -1289,7 +1360,7 @@ and handle_efield ctx e p mode =
 									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
 								with Not_found ->
 									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
-									ImportHandling.maybe_mark_import_position ctx p;
+									ImportHandling.mark_import_position ctx p;
 									t
 							in
 							get_static true t
@@ -1346,10 +1417,11 @@ and handle_efield ctx e p mode =
 								raise (Error (Module_not_found (List.rev !path,name),p))
 							with
 								Not_found ->
+									let sl = List.map (fun (n,_,_) -> n) (List.rev acc) in
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then begin
-										if ctx.com.json_out = None then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false,p))
-										else raise_fields (DisplayToplevel.collect ctx TKType WithType.no_value) CRTypeHint (Some p0);
+										if is_legacy_completion ctx.com then raise (Parser.TypePath (sl,None,false,p))
+										else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 									end;
 									raise e)
 		in
@@ -1382,9 +1454,9 @@ and handle_efield ctx e p mode =
 	let rec loop acc (e,p) =
 		match e with
 		| EField (e,s) ->
-			loop ((s,not (is_lower_ident s),p) :: acc) e
+			loop ((s,not (is_lower_ident s p),p) :: acc) e
 		| EConst (Ident i) ->
-			type_path ((i,not (is_lower_ident i),p) :: acc)
+			type_path ((i,not (is_lower_ident i p),p) :: acc)
 		| _ ->
 			fields acc (type_access ctx e p)
 	in
@@ -1428,8 +1500,11 @@ and type_access ctx e p mode =
 		handle_efield ctx e p mode
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
+	| EDisplay (e,dk) ->
+		let resume_typing = type_expr ~mode in
+		AKExpr (TyperDisplay.handle_edisplay ~resume_typing ctx e dk WithType.value)
 	| _ ->
-		AKExpr (type_expr ctx (e,p) WithType.value)
+		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
 
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
@@ -1447,7 +1522,6 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
 			if final then v.v_final <- true;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
@@ -1458,6 +1532,14 @@ and type_vars ctx vl p =
 				check_error ctx e p;
 				add_local ctx VGenerated v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
+	delay ctx PTypeField (fun() ->
+		List.iter
+			(fun (v,_) ->
+				if ExtType.is_void (follow v.v_type) then
+					error "Variables of type Void are not allowed" v.v_pos
+			)
+			vl
+	);
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p
@@ -1487,7 +1569,7 @@ and format_string ctx s p =
 	in
 	let add_sub start pos =
 		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,SDoubleQuotes))) len
 	in
 	let len = String.length s in
 	let rec parse start pos =
@@ -1549,7 +1631,7 @@ and format_string ctx s p =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
 				try
 					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 					end
 				with Exit ->
@@ -1593,8 +1675,12 @@ and type_object_decl ctx fl with_type p =
 		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq t t') seen) ->
-				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t
+				when not (Meta.has Meta.CoreType a.a_meta)
+					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
+				let froms = get_abstract_froms a pl
+				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				(match List.fold_left fold [] froms with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -1728,9 +1814,14 @@ and type_new ctx path el with_type force_inline p =
 		| _ ->
 			error "Constructor is not a function" p
 	in
-	let t = if (fst path).tparams <> [] then
-		Typeload.load_instance ctx path false
-	else try
+	let t = if (fst path).tparams <> [] then begin
+		try
+			Typeload.load_instance ctx path false
+		with Error _ as exc when ctx.com.display.dms_display ->
+			(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
+			List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+			raise exc
+	end else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 		let t = Typeload.load_instance ctx path true in
 		let t_follow = follow t in
@@ -1740,9 +1831,10 @@ and type_new ctx path el with_type force_inline p =
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Generic.Generic_Exception _ ->
+	with
+	| Generic.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
+		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
@@ -1766,6 +1858,10 @@ and type_new ctx path el with_type force_inline p =
 			end
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
+		end
+	| Error _ as exc when ctx.com.display.dms_display ->
+		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+		raise exc
 	in
 	DisplayEmitter.check_display_type ctx t (pos path);
 	let t = follow t in
@@ -1852,7 +1948,6 @@ and type_try ctx e1 catches with_type p =
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let name,t2 = loop t in
-		if starts_with v '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
@@ -1870,7 +1965,8 @@ and type_try ctx e1 catches with_type p =
 	let e1,catches,t = match with_type with
 		| WithType.NoValue -> e1,catches,ctx.t.tvoid
 		| WithType.Value _ -> e1,catches,unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+			e1,catches,unify_min_for_type_source ctx el src
 		| WithType.WithType(t,_) ->
 			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 			let catches = List.map (fun (v,e) ->
@@ -1905,6 +2001,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = e1 :: el in
 	let el_kv = List.map (fun e -> match fst e with
 		| EBinop(OpArrow,e1,e2) -> e1,e2
+		| EDisplay _ ->
+			ignore(type_expr ctx e (WithType.with_type tkey));
+			error "Expected a => b" (pos e)
 		| _ -> error "Expected a => b" (pos e)
 	) el in
 	let el_k,el_v,tkey,tval = if has_type then begin
@@ -1949,7 +2048,8 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx name inline f with_type p =
+and type_local_function ctx kind f with_type p =
+	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
@@ -1998,7 +2098,6 @@ and type_local_function ctx name inline f with_type p =
 	let v = (match v with
 		| None -> None
 		| Some v ->
-			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
@@ -2018,7 +2117,7 @@ and type_local_function ctx name inline f with_type p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
-	(match v with
+	match v with
 	| None -> e
 	| Some v ->
 		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
@@ -2030,23 +2129,29 @@ and type_local_function ctx name inline f with_type p =
 			| LocalUsage.Use _ | LocalUsage.Assign _ | LocalUsage.Declare _ -> ()
 		in
 		let is_rec = (try local_usage loop e; false with Exit -> true) in
-		let decl = (if is_rec then begin
-			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			let el =
+		let exprs =
+			if with_type <> WithType.NoValue && not inline then [mk (TLocal v) v.v_type p]
+			else []
+		in
+		let exprs =
+			if is_rec then begin
+				if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
-				(if with_type = WithType.NoValue then [] else [mk (TLocal v) ft p])
-			in
-			let e = mk (TBlock el) ft p in
-			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end else if inline && not ctx.com.display.dms_display then
-			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
-		else
-			mk (TVar (v,Some e)) ctx.t.tvoid p
-		) in
-		if with_type <> WithType.NoValue && not inline then mk (TBlock [decl;mk (TLocal v) v.v_type p]) v.v_type p else decl)
+				exprs
+			end else if inline && not ctx.com.display.dms_display then
+				(mk (TBlock []) ctx.t.tvoid p) :: exprs (* do not add variable since it will be inlined *)
+			else
+				(mk (TVar (v,Some e)) ctx.t.tvoid p) :: exprs
+		in
+		match exprs with
+		| [e] -> e
+		| _ ->
+			let block = mk (TBlock exprs) v.v_type p in
+			mk (TMeta ((Meta.MergeBlock, [], null_pos), block)) v.v_type p
 
 and type_array_decl ctx el with_type p =
+	let allow_array_dynamic = ref false in
 	let tp = (match with_type with
 	| WithType.WithType(t,_) ->
 		let rec loop seen t =
@@ -2054,16 +2159,18 @@ and type_array_decl ctx el with_type p =
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
 				(match follow tp with
 				| TMono _ -> None
-				| _ -> Some tp)
+				| _ as t ->
+					if t == t_dynamic then allow_array_dynamic := true;
+					Some tp)
 			| TAnon _ ->
 				(try
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t (follow t')) seen) ->
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let types =
 					List.fold_left
-						(fun acc t -> match loop (t :: seen) t with
+						(fun acc t' -> match loop (t :: seen) t' with
 							| None -> acc
 							| Some t -> t :: acc
 						)
@@ -2074,7 +2181,12 @@ and type_array_decl ctx el with_type p =
 				| [t] -> Some t
 				| _ -> None)
 			| t ->
-				if t == t_dynamic then Some t else None)
+				if t == t_dynamic then begin
+					allow_array_dynamic := true;
+					Some t
+				end else
+					None
+			)
 		in
 		loop [] t
 	| _ ->
@@ -2086,7 +2198,9 @@ and type_array_decl ctx el with_type p =
 		let t = try
 			unify_min_raise ctx.com.basic el
 		with Error (Unify l,p) ->
-			if ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then t_dynamic else begin
+			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
+				t_dynamic
+			else begin
 				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
 				raise (Error (Unify l, p))
 			end
@@ -2102,11 +2216,13 @@ and type_array_decl ctx el with_type p =
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (mk_mono()) p in
 	let et = ref (EConst(Ident "null"),p) in
+	let comprehension_pos = p in
 	let rec map_compr (e,p) =
 		match e with
 		| EFor(it,e2) -> (EFor (it, map_compr e2),p)
 		| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 		| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
+		| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
 		| EBlock [e] -> (EBlock [map_compr e],p)
 		| EBlock el -> begin match List.rev el with
 			| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
@@ -2114,10 +2230,10 @@ and type_array_comprehension ctx e with_type p =
 			end
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
-			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
+			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 		| _ ->
-			et := (EArrayDecl [],p);
+			et := (EArrayDecl [],comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in
@@ -2130,19 +2246,24 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e with_type p =
+and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
 		let expect_void = match with_type with
 			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
-			let e = type_expr ctx e (WithType.with_type ctx.ret) in
+			let with_expected_type =
+				if implicit then WithType.of_implicit_return ctx.ret
+				else WithType.with_type ctx.ret
+			in
+			let e = type_expr ctx e with_expected_type in
 			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
@@ -2204,7 +2325,8 @@ and type_if ctx e e1 e2 with_type p =
 		let e1,e2,t = match with_type with
 			| WithType.NoValue -> e1,e2,ctx.t.tvoid
 			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
+			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+				e1,e2,unify_min_for_type_source ctx [e1; e2] src
 			| WithType.WithType(t,_) ->
 				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
@@ -2212,11 +2334,11 @@ and type_if ctx e e1 e2 with_type p =
 		in
 		mk (TIf (e,e1,Some e2)) t p)
 
-and type_meta ctx m e1 with_type p =
+and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
 	let old = ctx.meta in
 	ctx.meta <- m :: ctx.meta;
-	let e () = type_expr ctx e1 with_type in
+	let e () = type_expr ~mode ctx e1 with_type in
 	let e = match m with
 		| (Meta.ToString,_,_) ->
 			let e = e() in
@@ -2269,37 +2391,42 @@ and type_meta ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
-			| EFunction(Some(_) as name,e1) ->
-				type_local_function ctx name true e1 with_type p
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
+			end
+		| (Meta.ImplicitReturn,_,_) ->
+			begin match e1 with
+			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
+			| _ -> e()
 			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
 	e
 
-and type_call ctx e el (with_type:WithType.t) inline p =
-	let def () =
-		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
-		let e = if not inline then
+and type_call_target ctx e with_type inline p =
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	if not inline then
+		e
+	else match e with
+		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
+			begin match extract_field fa with
+			| Some cf -> AKInline(e1,cf,fa,t)
+			| None -> e
+			end;
+		| AKUsing(e,c,cf,ef,_) ->
+			AKUsing(e,c,cf,ef,true)
+		| AKExpr {eexpr = TLocal _} ->
+			display_error ctx "Cannot force inline on local functions" p;
 			e
-		else match e with
-			| AKExpr {eexpr = TField(e1,fa); etype = t} ->
-				begin match extract_field fa with
-				| Some cf -> AKInline(e1,cf,fa,t)
-				| None -> e
-				end;
-			| AKUsing(e,c,cf,ef,_) ->
-				AKUsing(e,c,cf,ef,true)
-			| AKExpr {eexpr = TLocal _} ->
-				display_error ctx "Cannot force inline on local functions" p;
-				e
-			| _ ->
-				e
-		in
-		build_call ctx e el with_type p
+		| _ ->
+			e
+
+and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
+	let def () =
+		let e = type_call_target ctx e with_type inline p in
+		build_call ~mode ctx e el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2375,32 +2502,40 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 	| _ ->
 		def ()
 
-and type_expr ctx (e,p) (with_type:WithType.t) =
+and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
-	| EField ((EConst (String s),ps),"code") ->
+	| EField ((EConst (String(s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
-		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
+		mk (TConst (TInt (Int32.of_int (UCharExt.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when starts_with n '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then error "Cannot use super as value" p;
-		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type false p in
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode) with_type false p in
 		acc_get ctx e p
 	| EField _
 	| EArray _ ->
-		acc_get ctx (type_access ctx e p MGet) p
+		acc_get ctx (type_access ctx e p mode) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
-	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
+	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
-	| EBlock [] when with_type <> WithType.NoValue ->
+	| EBlock [] when (match with_type with
+			| NoValue -> false
+			(*
+				If expected type is unknown then treat `(...) -> {}` as an empty function
+				(just like `function(...) {}`) instead of returning an object.
+			*)
+			| WithType (t, Some ImplicitReturn) -> not (ExtType.is_mono (follow t))
+			| _ -> true
+		) ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
 		let locals = save_locals ctx in
@@ -2417,17 +2552,24 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		type_map_declaration ctx e1 el with_type p
 	| EArrayDecl el ->
-		begin match el,with_type with
-			| [],WithType(t,_) ->
-				let rec loop t = match follow t with
-					| TAbstract({a_path = (["haxe";"ds"],"Map")},_) ->
-						type_expr ctx (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p) with_type
-					| _ ->
-						type_array_decl ctx el with_type p
-				in
-				loop t
+		begin match with_type with
+		| WithType(t,_) ->
+			begin match follow t with
+			| TAbstract({a_path = (["haxe";"ds"],"Map")},[tk;tv]) ->
+				begin match el with
+				| [] ->
+					type_expr ctx (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p) with_type
+				| [(EDisplay _,_) as e1] ->
+					(* This must mean we're just typing the first key of a map declaration (issue #9133). *)
+					type_expr ctx e1 (WithType.with_type tk)
+				| _ ->
+					type_array_decl ctx el with_type p
+				end
 			| _ ->
 				type_array_decl ctx el with_type p
+			end
+		| _ ->
+			type_array_decl ctx el with_type p
 		end
 	| EVars vl ->
 		type_vars ctx vl p
@@ -2473,13 +2615,13 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type false p
+		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
-	| EFunction (name,f) ->
-		type_local_function ctx name false f with_type p
+	| EFunction (kind,f) ->
+		type_local_function ctx kind f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
@@ -2506,7 +2648,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
-		type_meta ctx m e1 with_type p
+		type_meta ~mode ctx m e1 with_type p
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
@@ -2530,6 +2672,7 @@ let rec create com =
 			std = null_module;
 			global_using = [];
 			complete = false;
+			type_hints = [];
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
@@ -2574,6 +2717,7 @@ let rec create com =
 		vthis = None;
 		in_call_args = false;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
+		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
@@ -2645,6 +2789,8 @@ let rec create com =
 
 ;;
 unify_min_ref := unify_min;
+unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 build_call_ref := build_call;
+type_call_target_ref := type_call_target;
 type_block_ref := type_block

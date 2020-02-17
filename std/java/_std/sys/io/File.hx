@@ -19,122 +19,101 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 @:coreApi
 class File {
-
-	public static function getContent( path : String ) : String
-	{
+	public static function getContent(path:String):String {
 		var f = read(path, false);
 		var ret = f.readAll().toString();
 		f.close();
 		return ret;
 	}
 
-	public static function saveContent( path : String, content : String ) : Void
-	{
+	public static function saveContent(path:String, content:String):Void {
 		var f = write(path, false);
 		f.writeString(content);
 		f.close();
 	}
 
-	public static function getBytes( path : String ) : haxe.io.Bytes
-	{
+	public static function getBytes(path:String):haxe.io.Bytes {
 		var f = read(path, true);
 		var ret = f.readAll();
 		f.close();
 		return ret;
 	}
 
-	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void
-	{
+	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {
 		var f = write(path, true);
 		f.writeBytes(bytes, 0, bytes.length);
 		f.close();
 	}
 
-	public static function read( path : String, binary : Bool = true ) : FileInput
-	{
-		try
-		{
-			return new FileInput( new java.io.RandomAccessFile(new java.io.File(path), "r") );
-		}
-		catch (e:Dynamic) //swallow checked exceptions
+	public static function read(path:String, binary:Bool = true):FileInput {
+		try {
+			return new FileInput(new java.io.RandomAccessFile(new java.io.File(path), "r"));
+		} catch (e:Dynamic) // swallow checked exceptions
 		{
 			throw e;
 		}
 	}
 
-	public static function write( path : String, binary : Bool = true ) : FileOutput
-	{
+	public static function write(path:String, binary:Bool = true):FileOutput {
 		var f = new java.io.File(path);
-		if (f.exists())
-		{
+		if (f.exists()) {
 			f.delete();
 		}
 
-		try
-		{
-			return new FileOutput( new java.io.RandomAccessFile(f, "rw") );
-		}
-		catch (e:Dynamic) //swallow checked exceptions
+		try {
+			return new FileOutput(new java.io.RandomAccessFile(f, "rw"));
+		} catch (e:Dynamic) // swallow checked exceptions
 		{
 			throw e;
 		}
 	}
 
-	public static function append( path : String, binary : Bool = true ) : FileOutput
-	{
+	public static function append(path:String, binary:Bool = true):FileOutput {
 		var f = new java.io.File(path);
 
-		try
-		{
+		try {
 			var ra = new java.io.RandomAccessFile(f, "rw");
-			if (f.exists())
-			{
+			if (f.exists()) {
 				ra.seek(f.length());
 			}
-			return new FileOutput( ra );
-		}
-		catch (e:Dynamic) //swallow checked exceptions
+			return new FileOutput(ra);
+		} catch (e:Dynamic) // swallow checked exceptions
 		{
 			throw e;
 		}
 	}
 
-	public static function update( path : String, binary : Bool = true ) : FileOutput
-	{
+	public static function update(path:String, binary:Bool = true):FileOutput {
 		var f = new java.io.File(path);
 
-		try
-		{
+		try {
 			var ra = new java.io.RandomAccessFile(f, "rw");
-			return new FileOutput( ra );
-		}
-		catch (e:Dynamic) //swallow checked exceptions
+			return new FileOutput(ra);
+		} catch (e:Dynamic) // swallow checked exceptions
 		{
 			throw e;
 		}
 	}
 
-	public static function copy( srcPath : String, dstPath : String ) : Void
-	{
+	public static function copy(srcPath:String, dstPath:String):Void {
 		var r:FileInput = null;
 		var w:FileOutput = null;
-		try
-		{
+		try {
 			r = read(srcPath);
 			w = write(dstPath);
 			w.writeInput(r);
 			r.close();
 			w.close();
-		}
-
-		catch (e:Dynamic)
-		{
-			if (r != null) r.close();
-			if (w != null) w.close();
+		} catch (e:Dynamic) {
+			if (r != null)
+				r.close();
+			if (w != null)
+				w.close();
 			throw e;
 		}
 	}

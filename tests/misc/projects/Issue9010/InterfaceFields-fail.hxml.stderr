@@ -1,0 +1,3 @@
+InterfaceFields.hx:1: characters 7-22 : Field missing needed by IFace is missing
+InterfaceFields.hx:4: characters 13-24 : Field wrongAccess has different property access than in IFace ((never,null) should be (default,null))
+InterfaceFields.hx:5: characters 18-27 : Field wrongKind has different property access than in IFace (method should be var)

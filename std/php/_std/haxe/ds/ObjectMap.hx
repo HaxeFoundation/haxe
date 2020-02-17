@@ -25,7 +25,7 @@ package haxe.ds;
 import php.*;
 
 @:coreApi
-class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
+class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	var _keys:NativeAssocArray<K>;
 	var _values:NativeAssocArray<V>;
 
@@ -49,7 +49,7 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		return Global.array_key_exists(Global.spl_object_hash(key), _values);
 	}
 
-	public function remove( key : K ) : Bool {
+	public function remove(key:K):Bool {
 		var id = Global.spl_object_hash(key);
 		if (Global.array_key_exists(id, _values)) {
 			Global.unset(_keys[id], _values[id]);
@@ -59,32 +59,39 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		}
 	}
 
-	public inline function keys() : Iterator<K> {
+	public inline function keys():Iterator<K> {
 		return _keys.iterator();
 	}
 
-	public inline function iterator() : Iterator<V> {
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():Iterator<V> {
 		return _values.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public inline function copy() : ObjectMap<K,V> {
+	public inline function copy():ObjectMap<K, V> {
 		return Syntax.clone(this);
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = "{";
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s += Std.string(i);
 			s += " => ";
 			s += Std.string(get(i));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s += ", ";
 		}
 		return s + "}";
+	}
+
+	public inline function clear():Void {
+		_keys = new NativeAssocArray();
+		_values = new NativeAssocArray();
 	}
 }

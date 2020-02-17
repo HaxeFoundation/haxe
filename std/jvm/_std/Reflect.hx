@@ -26,11 +26,11 @@ import jvm.Jvm;
 class Reflect {
 	public static function hasField(o:Dynamic, field:String):Bool {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
-			var c:java.lang.Class <Dynamic>= Jvm.instanceof(o, java.lang.Class) ? cast o : (cast o : java.lang.Object).getClass();
+			var c:java.lang.Class<Dynamic> = Jvm.instanceof(o, java.lang.Class) ? cast o : (cast o : java.lang.Object).getClass();
 			try {
 				c.getField(field);
 				return true;
-			} catch(e:Dynamic) {
+			} catch (e:Dynamic) {
 				return false;
 			}
 		}
@@ -126,7 +126,7 @@ class Reflect {
 			var arg1 = c1.getDeclaredField("argL1");
 			arg1.setAccessible(true);
 			return arg0.get(f1) == arg0.get(f2) && arg1.get(f1) == arg1.get(f2);
-		} catch(_:Dynamic) {
+		} catch (_:Dynamic) {
 			return false;
 		}
 	}
@@ -164,7 +164,7 @@ class Reflect {
 		return (cast o : jvm.DynamicObject)._hx_deleteField(field);
 	}
 
-	public static function copy<T>(o:T):T {
+	public static function copy<T>(o:Null<T>):Null<T> {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			return null;
 		}

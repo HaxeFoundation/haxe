@@ -1,1 +1,1 @@
-FailFrom.hx:10: characters 1-57 : You can only declare from/to with compatible types
+FailFrom.hx:10: characters 44-54 : You can only declare from/to with compatible types

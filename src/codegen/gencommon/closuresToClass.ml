@@ -305,7 +305,7 @@ let rec get_type_params acc t =
 		| TEnum(_, params)
 		| TInst(_, params) ->
 			List.fold_left get_type_params acc params
-		| TMono r -> (match !r with
+		| TMono r -> (match r.tm_type with
 			| Some t -> get_type_params acc t
 			| None -> acc)
 		| _ -> get_type_params acc (follow_once t)

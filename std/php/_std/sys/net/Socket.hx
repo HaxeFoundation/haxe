@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 import php.*;
@@ -29,74 +30,75 @@ import sys.io.FileOutput;
 
 @:coreApi
 class Socket {
+	private var __s:Resource;
+	private var stream:Resource;
 
-	private var __s : Resource;
-	private var stream : Resource;
-	public var input(default,null) : haxe.io.Input;
-	public var output(default,null) : haxe.io.Output;
-	public var custom : Dynamic;
+	public var input(default, null):haxe.io.Input;
+	public var output(default, null):haxe.io.Output;
+	public var custom:Dynamic;
 
-	var protocol : String;
+	var protocol:String;
 
-	public function new() : Void {
+	public function new():Void {
 		input = @:privateAccess new sys.io.FileInput(null);
 		output = @:privateAccess new sys.io.FileOutput(null);
 		initSocket();
 		protocol = "tcp";
 	}
 
-	private function initSocket() : Void {
+	private function initSocket():Void {
 		__s = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 	}
 
-	private function assignHandler() : Void {
+	private function assignHandler():Void {
 		stream = socket_export_stream(__s);
-		@:privateAccess (cast input:FileInput).__f = stream;
-		@:privateAccess (cast output:FileOutput).__f = stream;
+		@:privateAccess (cast input : FileInput).__f = stream;
+		@:privateAccess (cast output : FileOutput).__f = stream;
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		socket_close(__s);
-		@:privateAccess (cast input:FileInput).__f = null;
-		@:privateAccess (cast output:FileOutput).__f = null;
+		@:privateAccess (cast input : FileInput).__f = null;
+		@:privateAccess (cast output : FileOutput).__f = null;
 		input.close();
 		output.close();
 	}
 
-	public function read() : String {
+	public function read():String {
 		var b = '';
-		while(!feof(stream)) b += fgets(stream);
+		while (!feof(stream))
+			b += fgets(stream);
 		return b;
 	}
 
-	public function write( content : String ) : Void {
+	public function write(content:String):Void {
 		fwrite(stream, content);
 	}
 
-	public function connect(host : Host, port : Int) : Void {
+	public function connect(host:Host, port:Int):Void {
 		var r = socket_connect(__s, host.host, port);
 		checkError(r, 0, 'Unable to connect');
 		assignHandler();
 	}
 
-	public function listen(connections : Int) : Void {
+	public function listen(connections:Int):Void {
 		var r = socket_listen(__s, connections);
 		checkError(r, 0, 'Unable to listen on socket');
 		assignHandler();
 	}
 
-	public function shutdown( read : Bool, write : Bool ) : Void {
+	public function shutdown(read:Bool, write:Bool):Void {
 		var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
 		var r = socket_shutdown(__s, rw);
 		checkError(r, 0, 'Unable to shutdown');
 	}
 
-	public function bind(host : Host, port : Int) : Void {
+	public function bind(host:Host, port:Int):Void {
 		var r = socket_bind(__s, host.host, port);
 		checkError(r, 0, "Unable to bind socket");
 	}
 
-	public function accept() : Socket {
+	public function accept():Socket {
 		var r = socket_accept(__s);
 		checkError(r, 0, 'Unable to accept connections on socket');
 		var s = new Socket();
@@ -106,21 +108,21 @@ class Socket {
 		return s;
 	}
 
-	public function peer() : { host : Host, port : Int } {
+	public function peer():{host:Host, port:Int} {
 		var host:String = "", port:Int = 0;
 		var r = socket_getpeername(__s, host, port);
 		checkError(r, 0, 'Unable to retrieve the peer name');
 		return {host: new Host(host), port: port};
 	}
 
-	public function host() : { host : Host, port : Int } {
+	public function host():{host:Host, port:Int} {
 		var host:String = "", port:Int = 0;
 		var r = socket_getsockname(__s, host, port);
 		checkError(r, 0, 'Unable to retrieve the host name');
 		return {host: new Host(host), port: port};
 	}
 
-	public function setTimeout( timeout : Float ) : Void {
+	public function setTimeout(timeout:Float):Void {
 		var s = Std.int(timeout);
 		var ms = Std.int((timeout - s) * 1000000);
 		var timeOut:NativeStructArray<{sec:Int, usec:Int}> = {sec: s, usec: ms};
@@ -130,30 +132,33 @@ class Socket {
 		checkError(r, 0, 'Unable to set send timeout');
 	}
 
-	public function setBlocking( b : Bool ) : Void {
+	public function setBlocking(b:Bool):Void {
 		var r = b ? socket_set_block(__s) : socket_set_nonblock(__s);
 		checkError(r, 0, 'Unable to set blocking');
 	}
 
-	public function setFastSend( b : Bool ) : Void {
+	public function setFastSend(b:Bool):Void {
 		var r = socket_set_option(__s, SOL_TCP, TCP_NODELAY, true);
 		checkError(r, 0, "Unable to set TCP_NODELAY on socket");
 	}
 
-	public function waitForRead() : Void {
+	public function waitForRead():Void {
 		select([this], null, null);
 	}
 
-	private static function checkError(r : Bool, code : Int, msg : String) : Void {
-		if(r != false) return;
+	private static function checkError(r:Bool, code:Int, msg:String):Void {
+		if (r != false)
+			return;
 		throw haxe.io.Error.Custom('Error [$code]: $msg');
 	}
 
-	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
-	{
+	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		var map:Map<Int, Socket> = new Map();
 		inline function addSockets(sockets:Array<Socket>) {
-			if (sockets != null) for (s in sockets) map[Syntax.int(s.__s)] = s;
+			if (sockets != null)
+				for (s in sockets)
+					map[Syntax.int(s.__s)] = s;
 		}
 		inline function getRaw(sockets:Array<Socket>):Array<Resource> {
 			return sockets == null ? [] : [for (s in sockets) s.__s];
@@ -170,8 +175,8 @@ class Socket {
 		var rawRead:NativeIndexedArray<Resource> = getRaw(read),
 			rawWrite:NativeIndexedArray<Resource> = getRaw(write),
 			rawOthers:NativeIndexedArray<Resource> = getRaw(others);
-		var sec = Std.int(timeout),
-			usec = Std.int((timeout % 1) * 1000000);
+		var sec = timeout == null ? null : Std.int(timeout);
+		var usec = timeout == null ? 0 : Std.int((timeout % 1) * 1000000);
 		var result = socket_select(rawRead, rawWrite, rawOthers, sec, usec);
 		checkError(result, 0, "Error during select call");
 		// convert raw resources back to Socket objects
@@ -181,5 +186,4 @@ class Socket {
 			others: getOriginal(rawOthers),
 		}
 	}
-
 }

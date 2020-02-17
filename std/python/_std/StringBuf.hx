@@ -25,8 +25,7 @@ import python.lib.io.StringIO;
 
 @:coreApi
 class StringBuf {
-
-	private var b : StringIO;
+	private var b:StringIO;
 
 	public inline function new():Void {
 		this.b = new StringIO();
@@ -34,7 +33,7 @@ class StringBuf {
 
 	public var length(get, never):Int;
 
-	function get_length ():Int {
+	function get_length():Int {
 		var pos = b.tell();
 		b.seek(0, SeekEnd);
 		var len = b.tell();
@@ -42,7 +41,7 @@ class StringBuf {
 		return len;
 	}
 
-	public inline function add<T>( x : T ) : Void {
+	public inline function add<T>(x:T):Void {
 		add1(Std.string(x));
 	}
 
@@ -50,15 +49,15 @@ class StringBuf {
 		b.write(s);
 	}
 
-	public inline function addChar( c : Int ) : Void {
+	public inline function addChar(c:Int):Void {
 		add1(String.fromCharCode(c));
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
+	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
 		add1((len == null ? s.substr(pos) : s.substr(pos, len)));
 	}
 
-	public inline function toString() : String {
+	public inline function toString():String {
 		return b.getvalue();
 	}
 }

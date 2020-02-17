@@ -19,13 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
 	The `Collator` object is a constructor for collators, objects that enable language
 	sensitive string comparison.
 
-	Documentation [Collator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Collator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [Collator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Collator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Collator$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Intl.Collator")
 extern class Collator {
@@ -107,7 +108,6 @@ typedef CollatorResolvedOptions = {
 	final locale:String;
 
 	final usage:Usage;
-
 	final sensitivity:Sensitivity;
 
 	/**
@@ -142,7 +142,7 @@ enum abstract Sensitivity(String) {
 		Examples: a ≠ b, a = á, a = A.
 	**/
 	var Base = "base";
-	
+
 	/**
 		Only strings that differ in base letters or accents and other diacritic marks compare as unequal.
 		Examples: a ≠ b, a ≠ á, a = A.

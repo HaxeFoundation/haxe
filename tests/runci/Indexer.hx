@@ -5,6 +5,15 @@ using StringTools;
 
 class Indexer
 {
+	static function main():Void {
+		switch (Sys.args()) {
+			case []:
+				throw "missing s3 path argument";
+			case [s3path]:
+				index(s3path);
+		}
+	}
+
 	public static function index(s3path:String)
 	{
 		var spaceRegex = ~/[ \t]+/g,

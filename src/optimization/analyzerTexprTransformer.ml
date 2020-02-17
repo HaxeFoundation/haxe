@@ -173,8 +173,6 @@ let rec func ctx bb tf t p =
 			close_node g bb;
 			add_cfg_edge bb_func_end bb_next CFGGoto;
 			bb_next,ec
-		(*| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			error "Cannot use abstract as value" e.epos*)
 		| TConst _ | TTypeExpr _ ->
 			bb,e
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
@@ -245,6 +243,7 @@ let rec func ctx bb tf t p =
 		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
+		no_void v.v_type p;
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
@@ -266,7 +265,6 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let generate bb e =
-			no_void v.v_type p;
 			let ev = mk (TLocal v) v.v_type p in
 			let was_assigned = ref false in
 			let assign e =
@@ -477,7 +475,7 @@ let rec func ctx bb tf t p =
 			let bb_next = if bb_breaks = [] then begin
 				(* The loop appears to be infinite, let's assume that something within it throws.
 				   Otherwise DCE's mark-pass won't see its body and removes everything. *)
-				add_cfg_edge bb_loop_body_next bb_exit CFGMaybeThrow;
+				add_cfg_edge bb_loop_body bb_exit CFGMaybeThrow;
 				g.g_unreachable
 			end else
 				create_node BKNormal bb.bb_type bb.bb_pos
@@ -486,7 +484,7 @@ let rec func ctx bb tf t p =
 			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next));
 			close_node g bb_loop_pre;
 			add_texpr bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
-			add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
+			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
 			add_cfg_edge bb_loop_head bb_loop_body CFGGoto;
 			close_node g bb_loop_body_next;
 			close_node g bb_loop_head;
@@ -737,8 +735,13 @@ and func ctx i =
 			begin match e1.eexpr,e2.eexpr with
 				| TLocal v1,TLocal v2 when v1 == v2 && not v1.v_capture && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
-						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Increment,Prefix,e1)}
-						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
+						| (OpAdd|OpSub) as op,TConst (TInt i32) when Int32.to_int i32 = 1 && ExtType.is_numeric (Abstract.follow_with_abstracts v1.v_type) ->
+							let op = match op with
+								| OpAdd -> Increment
+								| OpSub -> Decrement
+								| _ -> assert false
+							in
+							{e with eexpr = TUnop(op,Prefix,e1)}
 						| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}
 					end
 				| _ ->

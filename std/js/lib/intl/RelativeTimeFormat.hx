@@ -19,13 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
 	The `RelativeTimeFormat` object is a constructor for objects that enable language-sensitive
 	relative time formatting.
 
-	Documentation [RelativeTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RelativeTimeFormat) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [RelativeTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RelativeTimeFormat) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RelativeTimeFormat$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Intl.RelativeTimeFormat")
 extern class RelativeTimeFormat {
@@ -46,7 +47,7 @@ extern class RelativeTimeFormat {
 
 	/**
 		Returns a new object with properties reflecting the locale and formatting options
-		computed during initialization of the object. 
+		computed during initialization of the object.
 	**/
 	@:pure function resolvedOptions():RelativeTimeFormatResolvedOptions;
 
@@ -72,7 +73,7 @@ typedef RelativeTimeFormatOptions = {
 		The `Auto` value allows to not always have to use numeric values in the output.
 	**/
 	var ?numeric:RelativeTimeNumeric;
-	
+
 	/**
 		The length of the internationalized message.
 		The default value is `Long`.

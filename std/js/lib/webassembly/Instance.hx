@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 import haxe.Constraints.Function;
@@ -28,7 +29,7 @@ import haxe.Constraints.Function;
 	Instance objects contain all the [Exported WebAssembly functions](https://developer.mozilla.org/en-US/docs/WebAssembly/Exported_functions)
 	that allow calling into WebAssembly code from JavaScript.
 
-	Documentation [Instance](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [Instance](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("WebAssembly.Instance")
 extern class Instance {
@@ -36,7 +37,7 @@ extern class Instance {
 		Returns an object containing as its members all the functions exported from
 		the WebAssembly module instance, to allow them to be accessed and used by JavaScript.
 	**/
-	var exports(default,never):Dynamic<Function>;
+	var exports(default, never):Dynamic<Function>;
 
 	@:pure function new(module:Module, ?importObject:{}):Void;
 }

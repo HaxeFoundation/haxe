@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 import haxe.Constraints.Function;
@@ -30,7 +31,7 @@ import haxe.Constraints.Function;
 	which stores function references. A table created by JavaScript or in WebAssembly code will be
 	accessible and mutable from both JavaScript and WebAssembly.
 
-	Documentation [Table](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [Table](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("WebAssembly.Table")
 extern class Table {
@@ -52,7 +53,7 @@ extern class Table {
 	function grow(number:Int):Int;
 
 	/**
-		Sets an element stored at a given index to a given value. 
+		Sets an element stored at a given index to a given value.
 	**/
 	function set(index:Int, value:Function):Void;
 }
@@ -70,7 +71,7 @@ typedef TableDescriptor = {
 	var initial:Int;
 
 	/**
-		The maximum number of elements the WebAssembly Table is allowed to grow to. 
+		The maximum number of elements the WebAssembly Table is allowed to grow to.
 	**/
 	var ?maximum:Int;
 }

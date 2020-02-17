@@ -30,13 +30,15 @@ let reify in_macro =
 		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
+		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
 		| Int i -> cst "CInt" i
-		| String s -> cst "CString" s
+		| String(s,qs) ->
+			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
+			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
 		| Float s -> cst "CFloat" s
 		| Ident s -> cst "CIdent" s
-		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
+		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
 	in
 	let rec to_binop o p =
 		let op n = mk_enum "Binop" n [] p in
@@ -71,7 +73,7 @@ let reify in_macro =
 		if len > 1 && s.[0] = '$' then
 			(EConst (Ident (String.sub s 1 (len - 1))),p)
 		else
-			(EConst (String s),p)
+			(EConst (String(s,SDoubleQuotes)),p)
 	in
 	let to_placed_name (s,p) =
 		to_string s p
@@ -193,7 +195,7 @@ let reify in_macro =
 		in
 		let fields = [
 			Some ("name", to_placed_name f.cff_name);
-			(match f.cff_doc with None -> None | Some s -> Some ("doc", to_string s p));
+			(match f.cff_doc with None -> None | Some d -> Some ("doc", to_string (gen_doc_text d) p));
 			(match f.cff_access with [] -> None | l -> Some ("access", to_array to_access l p));
 			Some ("kind", to_kind f.cff_kind);
 			Some ("pos", to_pos f.cff_pos);
@@ -215,7 +217,7 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String p.pfile),p) in
+		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
 		if in_macro then
@@ -280,21 +282,14 @@ let reify in_macro =
 				] in
 				to_obj fields p
 			) vl p]
-		| EFunction (name,f) ->
-			let name = match name with
-				| None ->
-					to_null null_pos
-				| Some (name,pn) ->
-					if ExtString.String.starts_with name "inline_$" then begin
-						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name pn in
-						let e_inline = to_string "inline_" p in
-						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
-						e_add
-					end else
-						to_string name pn
+		| EFunction (kind,f) ->
+			let kind, args = match kind with
+				| FKAnonymous -> "FAnonymous", []
+				| FKArrow -> "FArrow", []
+				| FKNamed ((name,pn),inline) -> "FNamed", [to_string name pn; to_bool inline pn]
 			in
-			expr "EFunction" [name; to_fun f p]
+			let kind = mk_enum "FunctionKind" kind args p in
+			expr "EFunction" [kind; to_fun f p]
 		| EBlock el ->
 			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->

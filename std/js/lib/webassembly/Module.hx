@@ -19,18 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
-import js.lib.ArrayBuffer;
-import js.lib.Int8Array;
-import js.lib.Uint8Array;
-import js.lib.Uint8ClampedArray;
-import js.lib.Int16Array;
-import js.lib.Uint16Array;
-import js.lib.Int32Array;
-import js.lib.Uint32Array;
-import js.lib.Float32Array;
-import js.lib.Float64Array;
+import js.lib.BufferSource;
 
 /**
 	A WebAssembly `Module` object contains stateless WebAssembly code that has already
@@ -38,20 +30,11 @@ import js.lib.Float64Array;
 	and instantiated multiple times. To instantiate the module, call
 	[the secondary overload of `WebAssembly.instantiate()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#Secondary_overload_%E2%80%94_taking_a_module_object_instance).
 
-	Documentation [Module](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [Module](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("WebAssembly.Module")
 extern class Module {
-	@:overload(function(bufferSource:Int8Array):Void {})
-	@:overload(function(bufferSource:Uint8Array):Void {})
-	@:overload(function(bufferSource:Uint8ClampedArray):Void {})
-	@:overload(function(bufferSource:Int16Array):Void {})
-	@:overload(function(bufferSource:Uint16Array):Void {})
-	@:overload(function(bufferSource:Int32Array):Void {})
-	@:overload(function(bufferSource:Uint32Array):Void {})
-	@:overload(function(bufferSource:Float32Array):Void {})
-	@:overload(function(bufferSource:Float64Array):Void {})
-	@:pure function new(bufferSource:ArrayBuffer):Void;
+	@:pure function new(bufferSource:BufferSource):Void;
 
 	/**
 		Given a `Module` and string, returns a copy of the contents of all custom sections
@@ -65,7 +48,7 @@ extern class Module {
 	@:pure static function exports(module:Module):Array<ModuleExportDescriptor>;
 
 	/**
-		Given a `Module`, returns an array containing descriptions of all the declared imports. 
+		Given a `Module`, returns an array containing descriptions of all the declared imports.
 	**/
 	@:pure static function imports(module:Module):Array<ModuleImportDescriptor>;
 }

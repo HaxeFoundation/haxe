@@ -21,6 +21,7 @@
  */
 
 package haxe.ds;
+
 import cs.NativeArray;
 
 /*
@@ -30,8 +31,7 @@ import cs.NativeArray;
  * Thanks also to Jonas Malaco Filho for his Haxe-written IntMap code inspired by Python tables.
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T>
-{
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private static inline var HASH_UPPER = 0.7;
 
 	private var flags:NativeArray<Int>;
@@ -43,26 +43,22 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
-#if !no_map_cache
+	#if !no_map_cache
 	private var cachedKey:Int;
 	private var cachedIndex:Int;
-#end
+	#end
 
-	public function new() : Void
-	{
-#if !no_map_cache
+	public function new():Void {
+		#if !no_map_cache
 		cachedIndex = -1;
-#end
+		#end
 	}
 
-	public function set( key : Int, value : T ) : Void
-	{
+	public function set(key:Int, value:T):Void {
 		var targetIndex:Int;
-		if (nOccupied >= upperBound)
-		{
-			if (nBuckets > (size << 1))
-			{
-				resize(nBuckets - 1); //clear "deleted" elements
+		if (nOccupied >= upperBound) {
+			if (nBuckets > (size << 1)) {
+				resize(nBuckets - 1); // clear "deleted" elements
 			} else {
 				resize(nBuckets + 1);
 			}
@@ -71,27 +67,23 @@ import cs.NativeArray;
 		var flags = flags, _keys = _keys;
 		{
 			var mask = nBuckets - 1,
-			    hashedKey = hash(key),
-			    curIndex = hashedKey & mask;
+				hashedKey = hash(key),
+				curIndex = hashedKey & mask;
 
-			var delKey = -1,
-			    curFlag = 0;
+			var delKey = -1, curFlag = 0;
 			// to speed things up, don't loop if the first bucket is already free
 			if (isEmpty(getFlag(flags, curIndex))) {
 				targetIndex = curIndex;
 			} else {
-				var inc = getInc(hashedKey, mask),
-				    last = curIndex;
-				while (! (_keys[curIndex] == key || isEmpty(curFlag = getFlag(flags, curIndex))) )
-				{
-					if (delKey == -1 && isDel(curFlag))
-					{
+				var inc = getInc(hashedKey, mask), last = curIndex;
+				while (!(_keys[curIndex] == key || isEmpty(curFlag = getFlag(flags, curIndex)))) {
+					if (delKey == -1 && isDel(curFlag)) {
 						delKey = curIndex;
 					}
 					curIndex = (curIndex + inc) & mask;
-#if debug
+					#if debug
 					assert(curIndex != last);
-#end
+					#end
 				}
 
 				if (delKey != -1 && isEmpty(getFlag(flags, curIndex))) {
@@ -103,8 +95,7 @@ import cs.NativeArray;
 		}
 
 		var flag = getFlag(flags, targetIndex);
-		if (isEmpty(flag))
-		{
+		if (isEmpty(flag)) {
 			_keys[targetIndex] = key;
 			vals[targetIndex] = value;
 			setIsBothFalse(flags, targetIndex);
@@ -116,30 +107,26 @@ import cs.NativeArray;
 			setIsBothFalse(flags, targetIndex);
 			size++;
 		} else {
-#if debug
+			#if debug
 			assert(_keys[targetIndex] == key);
-#end
+			#end
 			vals[targetIndex] = value;
 		}
 	}
 
-	final private function lookup( key : Int ) : Int
-	{
-		if (nBuckets != 0)
-		{
+	final private function lookup(key:Int):Int {
+		if (nBuckets != 0) {
 			var flags = flags, _keys = _keys;
 
 			var mask = nBuckets - 1,
-			    k = hash(key),
-			    index = k & mask,
-			    curFlag = -1,
-			    inc = getInc(k, mask), /* inc == 1 for linear probing */
-			    last = index;
-			do
-			{
+				k = hash(key),
+				index = k & mask,
+				curFlag = -1,
+				inc = getInc(k, mask), /* inc == 1 for linear probing */
+				last = index;
+			do {
 				if (_keys[index] == key) {
-					if (isEmpty(curFlag = getFlag(flags, index)))
-					{
+					if (isEmpty(curFlag = getFlag(flags, index))) {
 						index = (index + inc) & mask;
 						continue;
 					} else if (isDel(curFlag)) {
@@ -156,69 +143,60 @@ import cs.NativeArray;
 		return -1;
 	}
 
-	public function get( key : Int ) : Null<T>
-	{
+	public function get(key:Int):Null<T> {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return vals[idx];
 		}
-#end
+		#end
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 			return vals[idx];
 		}
 
 		return null;
 	}
 
-	private function getDefault( key : Int, def : T ) : T
-	{
+	private function getDefault(key:Int, def:T):T {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return vals[idx];
 		}
-#end
+		#end
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 			return vals[idx];
 		}
 
 		return def;
 	}
 
-	public function exists( key : Int ) : Bool
-	{
+	public function exists(key:Int):Bool {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return true;
 		}
-#end
+		#end
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 
 			return true;
 		}
@@ -226,28 +204,24 @@ import cs.NativeArray;
 		return false;
 	}
 
-	public function remove( key : Int ) : Bool
-	{
+	public function remove(key:Int):Bool {
 		var idx = -1;
-#if !no_map_cache
-		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
-#end
+		#if !no_map_cache
+		if (!(cachedKey == key && ((idx = cachedIndex) != -1)))
+		#end
 		{
 			idx = lookup(key);
 		}
 
-		if (idx == -1)
-		{
+		if (idx == -1) {
 			return false;
 		} else {
-#if !no_map_cache
-			if (cachedKey == key)
-			{
+			#if !no_map_cache
+			if (cachedKey == key) {
 				cachedIndex = -1;
 			}
-#end
-			if (!isEither(getFlag(flags, idx)))
-			{
+			#end
+			if (!isEither(getFlag(flags, idx))) {
 				setIsDelTrue(flags, idx);
 				--size;
 
@@ -263,59 +237,53 @@ import cs.NativeArray;
 		}
 	}
 
-	final private function resize(newNBuckets:Int) : Void
-	{
-		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
+	final private function resize(newNBuckets:Int):Void {
+		// This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newFlags = null;
 		var j = 1;
 		{
 			newNBuckets = roundUp(newNBuckets);
-			if (newNBuckets < 4) newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5)) /* requested size is too small */
-			{
+			if (newNBuckets < 4)
+				newNBuckets = 4;
+			if (size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested size is too small */ {
 				j = 0;
 			} else { /* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = flagsSize(newNBuckets);
-				newFlags = new NativeArray( nfSize );
-				for (i in 0...nfSize)
-				{
+				newFlags = new NativeArray(nfSize);
+				for (i in 0...nfSize) {
 					newFlags[i] = 0xaaaaaaaa; // isEmpty = true; isDel = false
 				}
-				if (nBuckets < newNBuckets) //expand
+				if (nBuckets < newNBuckets) // expand
 				{
 					var k = new NativeArray(newNBuckets);
-					if (_keys != null)
-					{
+					if (_keys != null) {
 						arrayCopy(_keys, 0, k, 0, nBuckets);
 					}
 					_keys = k;
 
 					var v = new NativeArray(newNBuckets);
-					if (vals != null)
-					{
+					if (vals != null) {
 						arrayCopy(vals, 0, v, 0, nBuckets);
 					}
 					vals = v;
-				} //otherwise shrink
+				} // otherwise shrink
 			}
 		}
 
-		if (j != 0)
-		{ //rehashing is required
-#if !no_map_cache
-			//resetting cache
+		if (j != 0) { // rehashing is required
+			#if !no_map_cache
+			// resetting cache
 			cachedKey = 0;
 			cachedIndex = -1;
-#end
+			#end
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, flags = flags;
 
 			var newMask = newNBuckets - 1;
-			while (++j < nBuckets)
-			{
-				if (!isEither(getFlag(flags, j)))
-				{
+			while (++j < nBuckets) {
+				if (!isEither(getFlag(flags, j))) {
 					var key = _keys[j];
 					var val = vals[j];
 
@@ -323,25 +291,23 @@ import cs.NativeArray;
 					// _keys[j] = 0;
 					vals[j] = cast null;
 					setIsDelTrue(flags, j);
-					while (true) /* kick-out process; sort of like in Cuckoo hashing */
-					{
+					while (true)
+						/* kick-out process; sort of like in Cuckoo hashing */ {
 						var k = hash(key);
 						var inc = getInc(k, newMask);
 						var i = k & newMask;
-						while (!isEmpty(getFlag(newFlags, i)))
-						{
+						while (!isEmpty(getFlag(newFlags, i))) {
 							i = (i + inc) & newMask;
 						}
 						setIsEmptyFalse(newFlags, i);
 
-						if (i < nBuckets && !isEither(getFlag(flags, i))) /* kick out the existing element */
-						{
+						if (i < nBuckets && !isEither(getFlag(flags, i)))
+							/* kick out the existing element */ {
 							{
 								var tmp = _keys[i];
 								_keys[i] = key;
 								key = tmp;
-							}
-							{
+							} {
 								var tmp = vals[i];
 								vals[i] = val;
 								val = tmp;
@@ -357,14 +323,13 @@ import cs.NativeArray;
 				}
 			}
 
-			if (nBuckets > newNBuckets) /* shrink the hash table */
-			{
+			if (nBuckets > newNBuckets)
+				/* shrink the hash table */ {
 				{
 					var k = new NativeArray(newNBuckets);
 					arrayCopy(_keys, 0, k, 0, newNBuckets);
 					this._keys = k;
-				}
-				{
+				} {
 					var v = new NativeArray(newNBuckets);
 					arrayCopy(vals, 0, v, 0, newNBuckets);
 					this.vals = v;
@@ -378,74 +343,74 @@ import cs.NativeArray;
 		}
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
-	public inline function keys() : Iterator<Int>
-	{
+	public inline function keys():Iterator<Int> {
 		return new IntMapKeyIterator(this);
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
-	public inline function iterator() : Iterator<T>
-	{
+	public inline function iterator():Iterator<T> {
 		return new IntMapValueIterator(this);
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap<T>();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
-
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
-	private static inline function assert(x:Bool):Void
-	{
-		#if debug
-		if (!x) throw "assert failed";
+	public function clear():Void {
+		flags = null;
+		_keys = null;
+		vals = null;
+		nBuckets = 0;
+		size = 0;
+		nOccupied = 0;
+		upperBound = 0;
+		#if !no_map_cache
+		cachedKey = 0;
+		cachedIndex = -1;
 		#end
 	}
 
-	private static inline function defaultK():Int return 0;
+	private static inline function assert(x:Bool):Void {
+		#if debug
+		if (!x)
+			throw "assert failed";
+		#end
+	}
 
-	private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
-	{
+	private static inline function defaultK():Int
+		return 0;
+
+	private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int,
+			length:Int):Void {
 		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 	}
 
-	private static inline function getInc(k:Int, mask:Int):Int
-	{
+	private static inline function getInc(k:Int, mask:Int):Int {
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 	}
 
-	private static inline function hash(i:Int):Int
-	{
+	private static inline function hash(i:Int):Int {
 		return i;
 	}
 
@@ -455,18 +420,15 @@ import cs.NativeArray;
 	//  * gets the integer with (flags / 16)
 	//  * shifts those bits to the right ((flags % 16) * 2) places
 	//  * masks it with 0b11
-	private static inline function getFlag(flags:NativeArray<Int>, i:Int):Int
-	{
-		return ( (flags[i >> 4] >>> ((i & 0xf) << 1)) & 3 );
+	private static inline function getFlag(flags:NativeArray<Int>, i:Int):Int {
+		return ((flags[i >> 4] >>> ((i & 0xf) << 1)) & 3);
 	}
 
-	private static inline function isDel(flag:Int):Bool
-	{
+	private static inline function isDel(flag:Int):Bool {
 		return (flag & 1) != 0;
 	}
 
-	private static inline function isEmpty(flag:Int):Bool
-	{
+	private static inline function isEmpty(flag:Int):Bool {
 		return (flag & 2) != 0;
 	}
 
@@ -474,28 +436,23 @@ import cs.NativeArray;
 		return flag != 0;
 	}
 
-	private static inline function setIsDelFalse(flags:NativeArray<Int>, i:Int):Void
-	{
+	private static inline function setIsDelFalse(flags:NativeArray<Int>, i:Int):Void {
 		flags[i >> 4] &= ~(1 << ((i & 0xf) << 1));
 	}
 
-	private static inline function setIsEmptyFalse(flags:NativeArray<Int>, i:Int):Void
-	{
+	private static inline function setIsEmptyFalse(flags:NativeArray<Int>, i:Int):Void {
 		flags[i >> 4] &= ~(2 << ((i & 0xf) << 1));
 	}
 
-	private static inline function setIsBothFalse(flags:NativeArray<Int>, i:Int):Void
-	{
+	private static inline function setIsBothFalse(flags:NativeArray<Int>, i:Int):Void {
 		flags[i >> 4] &= ~(3 << ((i & 0xf) << 1));
 	}
 
-	private static inline function setIsDelTrue(flags:NativeArray<Int>, i:Int):Void
-	{
+	private static inline function setIsDelTrue(flags:NativeArray<Int>, i:Int):Void {
 		flags[i >> 4] |= 1 << ((i & 0xf) << 1);
 	}
 
-	private static inline function roundUp(x:Int):Int
-	{
+	private static inline function roundUp(x:Int):Int {
 		--x;
 		x |= (x) >>> 1;
 		x |= (x) >>> 2;
@@ -505,70 +462,26 @@ import cs.NativeArray;
 		return ++x;
 	}
 
-	private static inline function flagsSize(m:Int):Int
-	{
-		return ((m) < 16? 1 : (m) >> 4);
+	private static inline function flagsSize(m:Int):Int {
+		return ((m) < 16 ? 1 : (m) >> 4);
 	}
 }
 
 @:access(haxe.ds.IntMap)
-private final class IntMapKeyIterator<T>
-{
+private final class IntMapKeyIterator<T> {
 	var m:IntMap<T>;
 	var i:Int;
 	var len:Int;
 
-	public function new(m:IntMap<T>)
-	{
-		this.i = 0;
-		this.m = m;
-		this.len = m.nBuckets;
-	}
-
-	public function hasNext():Bool
-	{
-		for (j in i...len)
-		{
-			if (!IntMap.isEither(IntMap.getFlag(m.flags, j)))
-			{
-				i = j;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	public function next():Int
-	{
-		var ret = m._keys[i];
-#if !no_map_cache
-		m.cachedIndex = i;
-		m.cachedKey = ret;
-#end
-		i++;
-		return ret;
-	}
-}
-
-@:access(haxe.ds.IntMap)
-private final class IntMapValueIterator<T>
-{
-	var m:IntMap<T>;
-	var i:Int;
-	var len:Int;
-
-	public function new(m:IntMap<T>)
-	{
+	public function new(m:IntMap<T>) {
 		this.i = 0;
 		this.m = m;
 		this.len = m.nBuckets;
 	}
 
 	public function hasNext():Bool {
-		for (j in i...len)
-		{
-			if (!IntMap.isEither(IntMap.getFlag(m.flags, j)))
-			{
+		for (j in i...len) {
+			if (!IntMap.isEither(IntMap.getFlag(m.flags, j))) {
 				i = j;
 				return true;
 			}
@@ -576,8 +489,40 @@ private final class IntMapValueIterator<T>
 		return false;
 	}
 
-	public inline function next():T
-	{
+	public function next():Int {
+		var ret = m._keys[i];
+		#if !no_map_cache
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+		#end
+		i++;
+		return ret;
+	}
+}
+
+@:access(haxe.ds.IntMap)
+private final class IntMapValueIterator<T> {
+	var m:IntMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:IntMap<T>) {
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!IntMap.isEither(IntMap.getFlag(m.flags, j))) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T {
 		return m.vals[i++];
 	}
 }
