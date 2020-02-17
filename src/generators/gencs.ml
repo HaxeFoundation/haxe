@@ -2791,6 +2791,8 @@ let generate con =
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 						(if (Meta.has Meta.CsUsing cl.cl_meta) then
 							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,_,p when not file_start ->
+									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
 								| _,[],p ->
 									gen.gcon.error "One or several string constants expected" p
 								| _,e,_ ->
