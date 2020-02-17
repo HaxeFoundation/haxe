@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess data | ParseDisplayFile(data,_) -> data
+	| ParseSuccess(data,_,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)

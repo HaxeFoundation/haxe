@@ -54,6 +54,3 @@ let mark_import_position ctx p =
 		r := true
 	with Not_found ->
 		()
-
-let maybe_mark_import_position ctx p =
-	if Diagnostics.is_diagnostics_run p then mark_import_position ctx p

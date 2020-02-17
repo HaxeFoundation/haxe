@@ -405,21 +405,14 @@ let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match !Parser.display_mode with
-		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || DisplayPosition.display_position#is_in_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
-			ImportHandling.add_import_position ctx p path;
-		| DMStatistics ->
-			ImportHandling.add_import_position ctx p path;
-		| DMUsage _ ->
-			ImportHandling.add_import_position ctx p path;
-			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
-		| _ ->
-			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
-	in
-	match decl with
-	| EImport (path,mode) ->
+	let commit_import path mode p =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
+		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
+	in
+	let check_path_display path p =
+		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
+	in
+	let init_import path mode =
 		check_path_display path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -434,7 +427,7 @@ let init_module_type ctx context_init (decl,p) =
 			| _ ->
 				(match List.rev path with
 				(* p spans `import |` (to the display position), so we take the pmax here *)
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -506,7 +499,7 @@ let init_module_type ctx context_init (decl,p) =
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
-								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
 						))
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
@@ -517,7 +510,7 @@ let init_module_type ctx context_init (decl,p) =
 						try
 							add_static_init tsub name fname
 						with Not_found ->
-							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+							display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
 					);
 				)
 			| IAll ->
@@ -538,6 +531,15 @@ let init_module_type ctx context_init (decl,p) =
 						error "No statics to import from this type" p
 				)
 			))
+	in
+	match decl with
+	| EImport (path,mode) ->
+		begin try
+			init_import path mode;
+			commit_import path mode p;
+		with Error(err,p) ->
+			display_error ctx (Error.error_msg err) p
+		end
 	| EUsing path ->
 		check_path_display path p;
 		let types,filter_classes = handle_using ctx path p in
@@ -915,8 +917,7 @@ let handle_import_hx ctx m decls p =
 		with Not_found ->
 			if Sys.file_exists path then begin
 				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
-					| ParseSuccess data -> data
-					| ParseDisplayFile(data,_) -> data
+					| ParseSuccess(data,_,_) -> data
 					| ParseError(_,(msg,p),_) -> Parser.error msg p
 				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;

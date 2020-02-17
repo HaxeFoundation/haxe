@@ -458,21 +458,21 @@ let process_display_configuration ctx =
 	end
 
 let run_or_diagnose com f arg =
-	let handle_diagnostics global msg p kind =
+	let handle_diagnostics msg p kind =
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com global;
+		Diagnostics.run com;
 	in
 	match com.display.dms_kind with
-	| DMDiagnostics global ->
+	| DMDiagnostics _ ->
 		begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
-			handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			handle_diagnostics (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
 		| Parser.Error(msg,p) ->
-			handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
 	| _ ->
 		f arg
@@ -677,7 +677,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1194,7 +1194,11 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
+	| DisplayException(DisplayDiagnostics dctx) ->
+		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

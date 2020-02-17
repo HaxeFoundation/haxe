@@ -137,14 +137,10 @@ let check_display_file ctx cs =
 	match ctx.com.cache with
 	| Some cc ->
 		begin try
-			(* TODO: diagnostics currently relies on information collected during typing. *)
-			begin match ctx.com.display.dms_kind with
-				| DMDiagnostics _ -> raise Not_found
-				| _ -> ()
-			end;
 			let p = DisplayPosition.display_position#get in
 			let cfile = cc#find_file (Path.unique_full_path p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
+			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
 			begin match !TypeloadModule.type_module_hook ctx path null_pos with
@@ -152,9 +148,7 @@ let check_display_file ctx cs =
 			| Some m -> check_display_module ctx cc cfile m
 			end
 		with Not_found ->
-			(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
-				current file in order to run diagnostics on it again. *)
-			if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
+			if ctx.com.display.dms_display then begin
 				let file = (DisplayPosition.display_position#get).pfile in
 				(* force parsing again : if the completion point have been changed *)
 				cs#remove_files file;

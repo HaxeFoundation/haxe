@@ -5,3 +5,4 @@
 -lib haxeserver
 --interp
 -D use-rtti-doc
+#-D test=9133
