@@ -196,6 +196,13 @@
 		"internal": true
 	},
 	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
