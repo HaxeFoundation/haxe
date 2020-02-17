@@ -42,7 +42,7 @@ class Exception extends NativeException {
 	}
 
 	public function new(message:String, ?previous:Exception, ?native:Any) {
-		super(message, previous);
+		super(message, cast previous);
 		__previousException = previous;
 		if(native != null && Std.isOfType(native, Throwable)) {
 			__nativeException = native;
@@ -85,7 +85,7 @@ class Exception extends NativeException {
 @:noCompletion
 @:native('java.lang.RuntimeException')
 private extern class NativeException {
-	@:noCompletion private function new(?message:String, ?cause:NativeException):Void;
+	@:noCompletion private function new(?message:String, ?cause:Throwable):Void;
 
 	@:noCompletion private function addSuppressed (param1:Throwable):Void;
 	@:noCompletion private function fillInStackTrace ():Throwable;

@@ -73,7 +73,12 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		Returns a representation of the stack as a printable string.
 	**/
 	static public function toString(stack:CallStack):String {
-		return inline toStringImpl(stack);
+		var b = new StringBuf();
+		for (s in stack.asArray()) {
+			b.add('\nCalled from ');
+			itemToString(b, s);
+		}
+		return b.toString();
 	}
 
 	/**
@@ -159,15 +164,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			e = e.previous;
 		}
 		return result;
-	}
-
-	static function toStringImpl(stack:CallStack) {
-		var b = new StringBuf();
-		for (s in stack.asArray()) {
-			b.add('\nCalled from ');
-			itemToString(b, s);
-		}
-		return b.toString();
 	}
 
 	static function itemToString(b:StringBuf, s) {
@@ -307,6 +303,9 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 // end of PHP implementation
 #else
+	#if java
+	static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
+	#end
 
 	/**
 		This method is used internally by some targets for non-haxe.Exception catches
@@ -318,7 +317,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cs
 			cs.internal.Exceptions.exception = e;
 		#elseif java
-			@:privateAccess inline java.internal.Exceptions.setException(e);
+			exception.set(e);
 		#end
 	}
 
@@ -474,7 +473,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 		return makeStack(s);
 		#elseif java
-		switch (#if jvm jvm.Exception #else java.internal.Exceptions #end.currentException()) {
+		switch (exception.get()) {
 			case null:
 				return [];
 			case current:
