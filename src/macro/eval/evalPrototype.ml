@@ -33,8 +33,8 @@ let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true e.epos.pfile kind jit.capture_infos in
-		let env = push_environment ctx info jit.max_num_locals num_captures in
+		let info = create_env_info true e.epos.pfile kind jit.capture_infos jit.max_num_locals num_captures in
+		let env = push_environment ctx info in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 
@@ -159,7 +159,7 @@ module PrototypeBuilder = struct
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
 		if pctx.is_static then
-			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
+			ctx.static_prototypes#add proto
 		else begin
 			ctx.instance_prototypes <- IntMap.add pctx.key proto ctx.instance_prototypes;
 			if pctx.key = key_String then ctx.string_prototype <- proto
@@ -307,7 +307,7 @@ let add_types ctx types ready =
 			false
 		with Not_found ->
 			ctx.instance_prototypes <- IntMap.remove key ctx.instance_prototypes;
-			ctx.static_prototypes <- IntMap.remove key ctx.static_prototypes;
+			ctx.static_prototypes#remove key;
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
@@ -341,6 +341,9 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
+			if Meta.has Meta.CoreType a.a_meta then
+				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()
 	) new_types;
@@ -355,7 +358,7 @@ let add_types ctx types ready =
 		| _ ->
 			DynArray.add fl_static_init (proto,delays);
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
-			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
+			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;

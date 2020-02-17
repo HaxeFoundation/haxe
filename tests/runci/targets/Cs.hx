@@ -61,18 +61,18 @@ class Cs {
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
 			var extras = fastcast.concat(erasegenerics).concat(noroot);
-			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 
-			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras).concat(args));
 			runCs("bin/cs_unsafe/bin/TestMain-Debug.exe");
 		}
 
-		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
+		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no'].concat(args));
 		runCs("bin/cs/bin/TestMain-Debug.exe");
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
+		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 
 		// changeDirectory(threadsDir);

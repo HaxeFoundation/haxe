@@ -10,7 +10,7 @@ class Issue7945 extends DisplayTestCase {
 				kind: DKParserError,
 				severity: Error,
 				range: diagnosticsRange(pos(1), pos(2)),
-				args: "Unexpected too"
+				args: "Expected { or to or from"
 			}
 		], diagnostics());
 	}

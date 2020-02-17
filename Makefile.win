@@ -6,6 +6,12 @@ HAXELIB_OUTPUT=haxelib.exe
 PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
+ARCH?=32
+DUNE_COMMAND=dune.exe
+
+ifeq ($(ARCH),64)
+NEKO_ARCH_STR=64
+endif
 
 kill:
 	-@taskkill /F /IM haxe.exe
@@ -34,10 +40,18 @@ endif
 
 ifdef FILTER
 CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std _build "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')"
+ifeq ($(STATICLINK),0)
+	LIB_PARAMS = -cclib -lpcre -cclib -lz -cclib -lcrypt32 -cclib -lmbedtls -cclib -lmbedcrypto -cclib -lmbedx509
+endif
+
+PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedcrypto.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedtls.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedx509.dll | sed -e 's/^\s*//')"
 
 echo_package_files:
 	echo $(PACKAGE_FILES)
@@ -45,10 +59,6 @@ echo_package_files:
 package_win:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
-	#delete all content which was generated in _build dir except interfaces
-	find _build/ -type f ! -name '*.cmi' -delete
-	#add ocaml version to the _build dir
-	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)
@@ -71,7 +81,7 @@ package_choco:
 	rm -rf out/choco
 
 $(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
-	wget -nv http://nekovm.org/media/neko-2.1.0-win.zip -O installer/neko-win.zip
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
 
 package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
@@ -84,12 +94,8 @@ package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	# haxe
 	7z x -y $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.zip -o$(INSTALLER_TMP_DIR)/resources
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
-	# haxesetup.exe
-	cd extra && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) install hxcpp --quiet && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) run hxcpp build-haxesetup.xml
-	cp extra/haxesetup.exe $(INSTALLER_TMP_DIR)/resources/haxe
+	# WinSetup.hx
+	cp extra/WinSetup.hx $(INSTALLER_TMP_DIR)/resources/haxe
 	# extra
 	cp extra/*.nsi $(INSTALLER_TMP_DIR)
 	cp extra/*.nsh $(INSTALLER_TMP_DIR)

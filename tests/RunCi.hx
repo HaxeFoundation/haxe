@@ -31,6 +31,12 @@ class RunCi {
 
 		infoMsg('Going to test: $tests');
 
+		if (isCi()) {
+			changeDirectory('echoServer');
+			runCommand('haxe', ['build.hxml']);
+			changeDirectory(cwd);
+		}
+
 		for (test in tests) {
 			switch (ci) {
 				case TravisCI:
@@ -46,6 +52,9 @@ class RunCi {
 				case _:
 					//pass
 			}
+
+			//run neko-based http echo server
+			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
 
 			infoMsg('test $test');
 			var success = true;
@@ -63,6 +72,7 @@ class RunCi {
 					case AzurePipelines:
 						["-D","azure"];
 				}
+				args = args.concat(["-D", systemName]);
 				switch (test) {
 					case Macro:
 						runci.targets.Macro.run(args);
@@ -88,8 +98,6 @@ class RunCi {
 						runci.targets.Cs.run(args);
 					case Flash9:
 						runci.targets.Flash.run(args);
-					case As3:
-						runci.targets.As3.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:
@@ -111,6 +119,9 @@ class RunCi {
 			} else {
 				failMsg('test ${test} failed');
 			}
+
+			echoServer.kill();
+			echoServer.close();
 		}
 
 		if (success) {

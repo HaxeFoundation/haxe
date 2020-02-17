@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.internal.Function;
 import cs.system.reflection.*;
-
 import cs.internal.*;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
@@ -31,38 +31,36 @@ import cs.system.Object;
 import cs.system.reflection.*;
 
 @:coreApi class Reflect {
+	public static function hasField(o:Dynamic, field:String):Bool {
+		var ihx:IHxObject = Lib.as(o, IHxObject);
+		if (ihx != null)
+			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, true, false) != Runtime.undefined;
 
-	public static function hasField( o : Dynamic, field : String ) : Bool
-	{
-		var ihx:IHxObject = Lib.as(o,IHxObject);
-		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, true, false) != Runtime.undefined;
-
-		return Runtime.slowHasField(o,field);
+		return Runtime.slowHasField(o, field);
 	}
 
 	@:keep
-	public static function field( o : Dynamic, field : String ) : Dynamic
-	{
-		var ihx:IHxObject = Lib.as(o,IHxObject);
-		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, false);
+	public static function field(o:Dynamic, field:String):Dynamic {
+		var ihx:IHxObject = Lib.as(o, IHxObject);
+		if (ihx != null)
+			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, false);
 
-		return Runtime.slowGetField(o,field,false);
+		return Runtime.slowGetField(o, field, false);
 	}
 
 	@:keep
-	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
-	{
-		var ihx:IHxObject = Lib.as(o,IHxObject);
+	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
+		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, false);
 		else
-			Runtime.slowSetField(o,field,value);
+			Runtime.slowSetField(o, field, value);
 	}
 
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic
-	{
-		var ihx:IHxObject = Lib.as(o,IHxObject);
-		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, true);
+	public static function getProperty(o:Dynamic, field:String):Dynamic {
+		var ihx:IHxObject = Lib.as(o, IHxObject);
+		if (ihx != null)
+			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, true);
 
 		if (Runtime.slowHasField(o, "get_" + field))
 			return Runtime.slowCallField(o, "get_" + field, null);
@@ -70,70 +68,60 @@ import cs.system.reflection.*;
 		return Runtime.slowGetField(o, field, false);
 	}
 
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
-	{
-		var ihx:IHxObject = Lib.as(o,IHxObject);
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, true);
 		else if (Runtime.slowHasField(o, 'set_$field'))
 			Runtime.slowCallField(o, 'set_$field', cs.NativeArray.make(value));
 		else
-			Runtime.slowSetField(o,field,value);
+			Runtime.slowSetField(o, field, value);
 	}
 
-	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
-	{
-		var args = cs.Lib.nativeArray(args,true);
+	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+		var args = cs.Lib.nativeArray(args, true);
 		return untyped cast(func, Function).__hx_invokeDynamic(args);
 	}
 
 	@:keep
-	public static function fields( o : Dynamic ) : Array<String>
-	{
-		var ihx = Lib.as(o,IHxObject);
-		if (ihx != null)
-		{
+	public static function fields(o:Dynamic):Array<String> {
+		var ihx = Lib.as(o, IHxObject);
+		if (ihx != null) {
 			var ret = [];
 			untyped ihx.__hx_getFields(ret);
 			return ret;
-		} else if (Std.is(o, cs.system.Type)) {
+		} else if (Std.isOfType(o, cs.system.Type)) {
 			return Type.getClassFields(o);
 		} else {
-			return instanceFields( untyped o.GetType() );
+			return instanceFields(untyped o.GetType());
 		}
 	}
 
-	private static function instanceFields( c : Class<Dynamic> ) : Array<String>
-	{
+	private static function instanceFields(c:Class<Dynamic>):Array<String> {
 		var c = cs.Lib.toNativeType(c);
 		var ret = [];
 		var mis = c.GetFields(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-		for (i in 0...mis.Length)
-		{
+		for (i in 0...mis.Length) {
 			var i = mis[i];
 			ret.push(i.Name);
 		}
 		return ret;
 	}
 
-	inline public static function isFunction( f : Dynamic ) : Bool
-	{
-		return Std.is(f, Function);
+	inline public static function isFunction(f:Dynamic):Bool {
+		return Std.isOfType(f, Function);
 	}
 
-	public static function compare<T>( a : T, b : T ) : Int
-	{
+	public static function compare<T>(a:T, b:T):Int {
 		return cs.internal.Runtime.compare(a, b);
 	}
 
 	@:access(cs.internal.Closure)
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
-	{
+	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
 		if (f1 == f2)
 			return true;
 
-		if (Std.is(f1, Closure) && Std.is(f2, Closure))
-		{
+		if (Std.isOfType(f1, Closure) && Std.isOfType(f2, Closure)) {
 			var f1c:Closure = cast f1;
 			var f2c:Closure = cast f2;
 
@@ -143,36 +131,32 @@ import cs.system.reflection.*;
 		return false;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool
-	{
-		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, cs.system.ValueType));
+	public static function isObject(v:Dynamic):Bool {
+		return v != null && !(Std.isOfType(v, HxEnum) || Std.isOfType(v, Function) || Std.isOfType(v, cs.system.ValueType));
 	}
 
-	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != null && (Std.is(v, HxEnum) || Std.is(v, cs.system.Enum));
+	public static function isEnumValue(v:Dynamic):Bool {
+		return v != null && (Std.isOfType(v, HxEnum) || Std.isOfType(v, cs.system.Enum));
 	}
 
-	public static function deleteField( o : Dynamic, field : String ) : Bool
-	{
-		var ihx = Lib.as(o,DynamicObject);
+	public static function deleteField(o:Dynamic, field:String):Bool {
+		var ihx = Lib.as(o, DynamicObject);
 		if (ihx != null)
 			return untyped ihx.__hx_deleteField(field, FieldLookup.hash(field));
 		return false;
 	}
 
-	public static function copy<T>( o : Null<T> ) : Null<T>
-	{
-		if(o == null) return null;
-		var o2 : Dynamic = {};
-		for( f in Reflect.fields(o) )
-			Reflect.setField(o2,f,Reflect.field(o,f));
+	public static function copy<T>(o:Null<T>):Null<T> {
+		if (o == null)
+			return null;
+		var o2:Dynamic = {};
+		for (f in Reflect.fields(o))
+			Reflect.setField(o2, f, Reflect.field(o, f));
 		return cast o2;
 	}
 
-	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
-	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
-	{
+	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
+	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return new VarArgsFunction(f);
 	}
-
 }

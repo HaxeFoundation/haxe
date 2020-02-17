@@ -19,18 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi class Resource {
+	@:keep static var content:Array<String>;
 
-	@:keep static var content : Array<String>;
-
-	public static inline function listNames() : Array<String> {
+	public static inline function listNames():Array<String> {
 		return content.copy();
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getString( name : String ) : String {
+	public static function getString(name:String):String {
 		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
@@ -40,7 +40,7 @@ package haxe;
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getBytes( name : String ) : haxe.io.Bytes {
+	public static function getBytes(name:String):haxe.io.Bytes {
 		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)

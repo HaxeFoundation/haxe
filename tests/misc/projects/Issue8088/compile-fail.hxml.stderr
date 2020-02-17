@@ -1,0 +1,6 @@
+Fail.hx:5: characters 3-8 : Cannot compare check.T and Float
+Fail.hx:6: characters 3-4 : check.T should be Int
+Fail.hx:7: characters 3-4 : check.T should be Int
+Fail.hx:8: characters 3-8 : Cannot compare Float and check.T
+Fail.hx:9: characters 7-8 : check.T should be Int
+Fail.hx:10: characters 7-8 : check.T should be Int

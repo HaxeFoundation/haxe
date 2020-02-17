@@ -19,21 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi
 class Resource {
-
-	public static function listNames() : Array<String> {
+	public static function listNames():Array<String> {
 		return untyped __global__.__hxcpp_resource_names();
 	}
-	public static function getString(name:String) : String {
+
+	public static function getString(name:String):String {
 		return untyped __global__.__hxcpp_resource_string(name);
 	}
-	public static function getBytes(name:String) : haxe.io.Bytes {
+
+	public static function getBytes(name:String):haxe.io.Bytes {
 		var array:haxe.io.BytesData = untyped __global__.__hxcpp_resource_bytes(name);
-		if (array==null) return null;
+		if (array == null)
+			return null;
 		return haxe.io.Bytes.ofData(array);
 	}
-
 }

@@ -19,85 +19,96 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
-
+class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	static var count = 0;
 
-	static inline function assignId(obj: { } ):Int {
+	static inline function assignId(obj:{}):Int {
 		var newId = count++;
 		untyped obj.__id__ = newId;
 		return newId;
 	}
 
-	static inline function getId(obj: { } ):Int {
+	static inline function getId(obj:{}):Int {
 		return untyped obj.__id__;
 	}
 
-	var h : { };
-	var k : { };
+	var h:{};
+	var k:{};
 
-	public function new() : Void {
+	public function new():Void {
 		h = untyped __dollar__hnew(0);
 		k = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : K, value : V ) : Void untyped {
-		var id = key.__id__ != null ? key.__id__ : assignId(key);
-		untyped __dollar__hset(h,id,value,null);
-		untyped __dollar__hset(k,id,key,null);
+	public inline function set(key:K, value:V):Void
+		untyped {
+			var id = key.__id__ != null ? key.__id__ : assignId(key);
+			untyped __dollar__hset(h, id, value, null);
+			untyped __dollar__hset(k, id, key, null);
+		}
+
+	public function get(key:K):Null<V> {
+		return untyped __dollar__hget(h, getId(key), null);
 	}
 
-	public function get( key : K ) : Null<V> {
-		return untyped __dollar__hget(h,getId(key),null);
+	public inline function exists(key:K):Bool {
+		return untyped __dollar__hmem(h, getId(key), null);
 	}
 
-	public inline function exists( key : K ) : Bool {
-		return untyped __dollar__hmem(h,getId(key),null);
-	}
-
-	public function remove( key : K ) : Bool {
+	public function remove(key:K):Bool {
 		var id = getId(key);
-		untyped __dollar__hremove(h,id,null);
-		return untyped __dollar__hremove(k,id,null);
+		untyped __dollar__hremove(h, id, null);
+		return untyped __dollar__hremove(k, id, null);
 	}
 
-	public function keys() : Iterator<K> {
+	public function keys():Iterator<K> {
 		var l = new List<K>();
-		untyped __dollar__hiter(k,function(_,v) { l.push(v); });
+		untyped __dollar__hiter(k, function(_, v) {
+			l.push(v);
+		});
 		return l.iterator();
 	}
 
-	public function iterator() : Iterator<V> {
+	public function iterator():Iterator<V> {
 		var l = new List<V>();
-		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
+		untyped __dollar__hiter(h, function(_, v) {
+			l.push(v);
+		});
 		return l.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : ObjectMap<K, V> {
+	public function copy():ObjectMap<K, V> {
 		var copied = new ObjectMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(Std.string(i));
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
+		k = untyped __dollar__hnew(0);
 	}
 }

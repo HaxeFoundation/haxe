@@ -19,11 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 class Host {
-	public var host(default,null):String;
-	public var ip(default,null):Int;
+	public var host(default, null):String;
+	public var ip(default, null):Int;
 
 	public function new(name:String) {
 		host = name;
@@ -43,7 +44,10 @@ class Host {
 	}
 
 	extern static public function localhost();
+
 	extern static function hostReverse(ip:Int);
+
 	extern static function hostToString(ip:Int);
+
 	extern static function resolve(name:String);
 }

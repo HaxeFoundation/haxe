@@ -19,75 +19,58 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
 import java.Lib;
 import java.lang.System;
+
 using haxe.Int64;
 
 @:coreApi
-@:native('haxe.java.vm.Lock') class Lock
-{
+@:native('haxe.java.vm.Lock') class Lock {
 	@:private @:volatile var releasedCount = 0;
 
-	public function new()
-	{
-	}
+	public function new() {}
 
-	public function wait(?timeout : Float) : Bool
-	{
+	public function wait(?timeout:Float):Bool {
 		var ret = false;
-		java.Lib.lock(this,
-		{
-			if (--releasedCount < 0)
-			{
-				if (timeout == null)
-				{
+		java.Lib.lock(this, {
+			if (--releasedCount < 0) {
+				if (timeout == null) {
 					// since .notify() is asynchronous, this `while` is needed
 					// because there is a very remote possibility of release() awaking a thread,
 					// but before it releases, another thread calls wait - and since the release count
 					// is still positive, it will get the lock.
-					while( releasedCount < 0 )
-					{
-						try
-						{
+					while (releasedCount < 0) {
+						try {
 							(cast this : java.lang.Object).wait();
-						}
-						catch(e:java.lang.InterruptedException)
-						{
-						}
+						} catch (e:java.lang.InterruptedException) {}
 					}
 				} else {
 					var timeout:haxe.Int64 = cast timeout * 1000;
 					var cur = System.currentTimeMillis(),
-					    max = cur.add(timeout);
+						max = cur.add(timeout);
 					// see above comment about this while loop
-					while ( releasedCount < 0 && cur.compare(max) < 0 )
-					{
-						try
-						{
+					while (releasedCount < 0 && cur.compare(max) < 0) {
+						try {
 							var t = max.sub(cur);
 							(cast this : java.lang.Object).wait(t);
 							cur = System.currentTimeMillis();
-						}
-						catch(e:java.lang.InterruptedException)
-						{
-						}
+						} catch (e:java.lang.InterruptedException) {}
 					}
 				}
 			}
 			ret = this.releasedCount >= 0;
 			if (!ret)
-				this.releasedCount++; //timed out
+				this.releasedCount++; // timed out
 		});
 		return ret;
 	}
 
-	public function release():Void
-	{
-		untyped __lock__(this,
-		{
-			if (++releasedCount >= 0)
-			{
+	public function release():Void {
+		untyped __lock__(this, {
+			if (++releasedCount >= 0) {
 				untyped this.notify();
 			}
 		});

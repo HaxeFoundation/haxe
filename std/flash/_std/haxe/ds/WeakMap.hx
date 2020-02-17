@@ -19,79 +19,69 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package haxe.ds;
+
+package haxe.ds;
 
 @:coreApi
-class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K,V> {
-
+class WeakMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K, V> {
 	public function new() {
 		super(true);
 	}
 
-	public inline function get( key : K ) : Null<V> {
+	public inline function get(key:K):Null<V> {
 		return untyped this[key];
 	}
 
-	public inline function set( key : K, value : V ):Void {
+	public inline function set(key:K, value:V):Void {
 		untyped this[key] = value;
 	}
 
-	public inline function exists( key : K ) : Bool {
+	public inline function exists(key:K):Bool {
 		return untyped this[key] != null;
 	}
 
-	public function remove( key : K ):Bool {
+	public function remove(key:K):Bool {
 		var has = exists(key);
 		untyped __delete__(this, key);
 		return has;
 	}
 
-	#if as3
-
- 	public function keys() : Iterator<K> {
-		return untyped __keys__(this).iterator();
- 	}
-
- 	public function iterator() : Iterator<V> {
-		var ret = [];
-		for (i in keys())
-			ret.push(get(i));
-		return ret.iterator();
- 	}
-	#else
-
-	public function keys() : Iterator<K> {
+	public function keys():Iterator<K> {
 		return NativePropertyIterator.iterator(this);
 	}
 
-	public function iterator() : Iterator<V> {
+	public function iterator():Iterator<V> {
 		return NativeValueIterator.iterator(this);
 	}
 
-	#end
-
-	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : WeakMap<K,V> {
+	public function copy():WeakMap<K, V> {
 		var copied = new WeakMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = "";
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s += (s == "" ? "" : ",") + Std.string(i);
 			s += " => ";
 			s += Std.string(get(i));
 		}
 		return s + "}";
 	}
+
+	public function clear():Void {
+		for (i in keys())
+			untyped __delete__(this, i);
+	}
 }
-#if !as3
+
 private class NativePropertyIterator {
 	var collection:Dynamic;
 	var index:Int = 0;
@@ -149,4 +139,3 @@ private class NativeValueIterator {
 		return result;
 	}
 }
-#end

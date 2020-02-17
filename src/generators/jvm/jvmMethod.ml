@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open Globals
 open JvmGlobals
 open JvmData
@@ -374,56 +393,169 @@ class builder jc name jsig = object(self)
 	(** Casts the top of the stack to [jsig]. If [allow_to_string] is true, Jvm.toString is called. **)
 	method cast ?(not_null=false) ?(allow_to_string=false) jsig =
 		let jsig' = code#get_stack#top in
+		let is_number_sig except = function
+			| TObject((["java";"lang"],("Byte" | "Short" | "Integer" | "Long" | "Float" | "Double" as name)),_) when name <> except ->
+				true
+			| _ ->
+				false
+		in
+		let rec unboxed_to_byte () = match code#get_stack#top with
+			| TByte | TBool -> ()
+			| TChar | TShort | TInt ->
+				code#i2b TByte
+			| TLong ->
+				code#l2i;
+				unboxed_to_byte ();
+			| TFloat ->
+				code#f2i;
+				unboxed_to_byte ();
+			| TDouble ->
+				code#d2i;
+				unboxed_to_byte ();
+			| jsig ->
+				failwith (s_signature_kind jsig);
+		in
+		let rec unboxed_to_short () = match code#get_stack#top with
+			| TShort -> ()
+			| TBool | TByte | TChar | TInt ->
+				code#i2s;
+			| TLong ->
+				code#l2i;
+				unboxed_to_short ();
+			| TFloat ->
+				code#f2i;
+				unboxed_to_short ();
+			| TDouble ->
+				code#d2i;
+				unboxed_to_short ();
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_int () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				ignore(code#get_stack#pop);
+				code#get_stack#push TInt;
+			| TLong ->
+				code#l2i;
+			| TFloat ->
+				code#f2i;
+			| TDouble ->
+				code#d2i;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_long () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2l;
+			| TLong ->
+				()
+			| TFloat ->
+				code#f2l;
+			| TDouble ->
+				code#d2l;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_float () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2f;
+			| TLong ->
+				code#l2f;
+			| TFloat ->
+				()
+			| TDouble ->
+				code#d2f;
+			| _ ->
+				assert false
+		in
+		let rec unboxed_to_double () = match code#get_stack#top with
+			| TBool | TByte | TShort | TChar | TInt ->
+				code#i2d;
+			| TLong ->
+				code#l2d;
+			| TFloat ->
+				code#f2d;
+			| TDouble ->
+				()
+			| _ ->
+				assert false
+		in
+		let get_conv = function
+			| "Byte" -> unboxed_to_byte
+			| "Short" -> unboxed_to_short
+			| "Integer" -> unboxed_to_int
+			| "Long" -> unboxed_to_long
+			| "Float" -> unboxed_to_float
+			| "Double" -> unboxed_to_double
+			| _ -> assert false
+		in
+		let number_to name =
+			let boxed_sig = TObject((["java";"lang"],name),[]) in
+			self#invokestatic (["haxe";"jvm"],"Jvm") ("numberTo" ^ name) (method_sig [number_sig] (Some boxed_sig))
+		in
+		let dynamic_to name =
+			let boxed_sig = TObject((["java";"lang"],name),[]) in
+			self#invokestatic (["haxe";"jvm"],"Jvm") ("dynamicTo" ^ name) (method_sig [object_sig] (Some boxed_sig))
+		in
+		let numeric_cast_boxed name jsig =
+			if is_unboxed jsig then begin
+				(get_conv name) ();
+				self#expect_reference_type
+			end else if is_number_sig name jsig then
+				number_to name
+			else if jsig = object_sig then
+				dynamic_to name
+			else
+				code#checkcast (["java";"lang"],name)
+		in
+		let numeric_cast_unboxed name jsig =
+			if is_unboxed jsig then
+				(get_conv name) ()
+			else begin
+				let unboxed_sig = get_unboxed_type (TObject((["java";"lang"],name),[])) in
+				self#expect_basic_type unboxed_sig;
+				(get_conv name) ()
+			end
+		in
 		begin match jsig,jsig' with
-		| TObject((["java";"lang"],"Double"),_),TInt ->
-			code#i2d;
-			self#expect_reference_type;
-		| TObject((["java";"lang"],"Double"),_),TObject((["java";"lang"],"Integer"),_) ->
-			self#invokestatic (["haxe";"jvm"],"Jvm") "nullIntToNullFloat" (method_sig [integer_sig] (Some double_sig))
-		| TObject((["java";"lang"],"Double"),_),TObject((["java";"lang"],"Object"),_) ->
-			self#invokestatic (["haxe";"jvm"],"Jvm") "dynamicToNullFloat" (method_sig [object_sig] (Some double_sig))
-		(* from double *)
-		| TFloat,TDouble ->
-			code#d2f
-		| TInt,TDouble ->
+		| TObject((["java";"lang"],"Byte"),_),jsig' ->
+			numeric_cast_boxed "Byte" jsig'
+		| TByte,jsig' ->
+			numeric_cast_unboxed "Byte" jsig'
+		| TObject((["java";"lang"],"Short"),_),jsig' ->
+			numeric_cast_boxed "Short" jsig'
+		| TShort,jsig' ->
+			numeric_cast_unboxed "Short" jsig'
+		| TObject((["java";"lang"],"Integer"),_),jsig' ->
+			numeric_cast_boxed "Integer" jsig'
+		| TInt,jsig' ->
+			numeric_cast_unboxed "Integer" jsig'
+		| TObject((["java";"lang"],"Long"),_),jsig' ->
+			numeric_cast_boxed "Long" jsig'
+		| TLong,jsig' ->
+			numeric_cast_unboxed "Long" jsig'
+		| TObject((["java";"lang"],"Float"),_),jsig' ->
+			numeric_cast_boxed "Float" jsig'
+		| TFloat,jsig' ->
+			numeric_cast_unboxed "Float" jsig'
+		| TObject((["java";"lang"],"Double"),_),jsig' ->
+			numeric_cast_boxed "Double" jsig'
+		| TDouble,jsig' ->
+			numeric_cast_unboxed "Double" jsig'
+		| TChar,TDouble ->
 			code#d2i;
-		| TLong,TDouble ->
-			code#d2l;
-		(* from float *)
-		| TDouble,TFloat ->
-			code#f2d
-		| TInt,TFloat ->
+			code#i2c;
+		| TChar,TFloat ->
 			code#f2i;
-		| TLong,TFloat ->
-			code#f2l;
-		(* from int *)
+			code#i2c;
+		| TChar,(TByte | TShort | TInt) ->
+			code#i2c;
+		| TChar,TLong ->
+			code#l2i;
+			code#i2c;
 		| TBool,TInt ->
 			ignore(code#get_stack#pop);
 			code#get_stack#push TBool;
-		| TByte,TInt ->
-			code#i2b TByte
-		| TChar,TInt ->
-			code#i2c
-		| TDouble,TInt ->
-			code#i2d;
-		| TFloat,TInt ->
-			code#i2f
-		| TLong,TInt ->
-			code#i2l;
-		| TShort,TInt ->
-			code#i2s
-		(* from long *)
-		| TDouble,TLong ->
-			code#l2d;
-		| TFloat,TLong ->
-			code#l2f
-		| TInt,TLong ->
-			code#l2i;
-		(* widening *)
-		| TInt,(TByte | TShort | TChar) ->
-			(* No cast, but rewrite stack top *)
-			ignore(code#get_stack#pop);
-			code#get_stack#push jsig;
 		| TObject(path1,_),TObject(path2,_) when path1 = path2 ->
 			()
 		| TObject((["java";"lang"],"String"),_),_ when allow_to_string ->
@@ -542,28 +674,28 @@ class builder jc name jsig = object(self)
 				def,cases
 		in
 		let flat_cases = DynArray.create () in
-		let case_lut = ref IntMap.empty in
+		let case_lut = ref Int32Map.empty in
 		let fp = code#get_fp in
-		let imin = ref max_int in
-		let imax = ref min_int in
+		let imin = ref Int32.min_int in
+		let imax = ref Int32.max_int in
 		let cases = List.map (fun (il,f) ->
 			let rl = List.map (fun i32 ->
 				let r = ref fp in
-				let i = Int32.to_int i32 in
-				if i < !imin then imin := i;
-				if i > !imax then imax := i;
-				DynArray.add flat_cases (i,r);
-				case_lut := IntMap.add i r !case_lut;
+				if i32 < !imin then imin := i32;
+				if i32 > !imax then imax := i32;
+				DynArray.add flat_cases (i32,r);
+				case_lut := Int32Map.add i32 r !case_lut;
 				r
 			) il in
 			(rl,f)
 		) cases in
 		let offset_def = ref fp in
 		(* No idea what's a good heuristic here... *)
-		let use_tableswitch = (!imax - !imin) < (DynArray.length flat_cases + 10) in
+		let diff = Int32.sub !imax !imin in
+		let use_tableswitch = diff < (Int32.of_int (DynArray.length flat_cases + 10)) && diff >= Int32.zero (* #8388 *) in
 		if use_tableswitch then begin
-			let offsets = Array.init (!imax - !imin + 1) (fun i ->
-				try IntMap.find (i + !imin) !case_lut
+			let offsets = Array.init (Int32.to_int (Int32.sub !imax !imin) + 1) (fun i ->
+				try Int32Map.find (Int32.add (Int32.of_int i) !imin) !case_lut
 				with Not_found -> offset_def
 			) in
 			code#tableswitch offset_def !imin !imax offsets
@@ -573,6 +705,7 @@ class builder jc name jsig = object(self)
 			code#lookupswitch offset_def a;
 		end;
 		let restore = self#start_branch in
+		let offset_exit = ref code#get_fp in
 		let def_term,r_def = match def with
 			| None ->
 				true,ref 0
@@ -584,7 +717,6 @@ class builder jc name jsig = object(self)
 				pop_scope();
 				self#is_terminated,self#maybe_make_jump
 		in
-
 		let rec loop acc cases = match cases with
 		| (rl,f) :: cases ->
 			restore();
@@ -599,7 +731,8 @@ class builder jc name jsig = object(self)
 			List.rev acc
 		in
 		let rl = loop [] cases in
-		self#close_jumps (def <> None) ((def_term,if def = None then offset_def else r_def) :: rl)
+		self#close_jumps (def <> None) ((def_term,if def = None then offset_def else r_def) :: rl);
+		if def = None then code#get_fp else !offset_exit
 
 	(** Adds a local with a given [name], signature [jsig] and an [init_state].
 	    This function returns a tuple consisting of:

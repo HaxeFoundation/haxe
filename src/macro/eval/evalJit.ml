@@ -684,11 +684,8 @@ and jit_tfunction jit static pos tf =
 	pop_scope jit;
 	fl,exec
 
-and get_env_creation jit static file info = {
-	ec_info = create_env_info static file info jit.capture_infos;
-	ec_num_locals = jit.max_num_locals;
-	ec_num_captures = Hashtbl.length jit.captures;
-}
+and get_env_creation jit static file info =
+	create_env_info static file info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =

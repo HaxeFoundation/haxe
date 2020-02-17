@@ -19,61 +19,58 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
 @:native("java.lang.String")
 extern class String implements java.lang.CharSequence {
+	var length(default, null):Int;
 
-	var length(default,null) : Int;
+	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void {})
+	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void {})
+	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void {})
+	@:overload(function(b:java.NativeArray<Int>, offset:Int, count:Int):Void {})
+	function new(string:String):Void;
 
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void { })
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void { })
-	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void { })
-	@:overload(function(b:java.NativeArray<Int>, offset:Int, count:Int):Void { })
-	function new(string:String) : Void;
+	function toUpperCase():String;
+	function toLowerCase():String;
 
-	function toUpperCase() : String;
-	function toLowerCase() : String;
-
-	@:runtime inline function charAt( index : Int) : String {
+	@:runtime inline function charAt(index:Int):String {
 		return jvm.StringExt.charAt(this, index);
 	}
 
-	inline function charCodeAt( index : Int) : Null<Int> {
+	inline function charCodeAt(index:Int):Null<Int> {
 		return jvm.StringExt.charCodeAt(this, index);
 	}
 
-	inline function indexOf( str : String, ?startIndex : Int ) : Int {
+	inline function indexOf(str:String, ?startIndex:Int):Int {
 		return jvm.StringExt.indexOf(this, str, startIndex);
 	}
 
-	@:runtime inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+	@:runtime inline function lastIndexOf(str:String, ?startIndex:Int):Int {
 		return jvm.StringExt.lastIndexOf(this, str, startIndex);
 	}
 
-	@:runtime inline function split( delimiter : String ) : Array<String> {
+	@:runtime inline function split(delimiter:String):Array<String> {
 		return jvm.StringExt.split(this, delimiter);
 	}
 
-	@:runtime inline function substr( pos : Int, ?len : Int ) : String {
+	@:runtime inline function substr(pos:Int, ?len:Int):String {
 		return jvm.StringExt.substr(this, pos, len);
 	}
 
-	@:runtime inline function substring( startIndex : Int, ?endIndex : Int ) : String {
+	@:runtime inline function substring(startIndex:Int, ?endIndex:Int):String {
 		return jvm.StringExt.substring(this, startIndex, endIndex);
 	}
 
-	function toString() : String;
+	function toString():String;
 
-	private function compareTo( anotherString : String ) : Int;
+	private function compareTo(anotherString:String):Int;
 
-	private function codePointAt( idx : Int ) : Int;
+	private function codePointAt(idx:Int):Int;
 
-	@:overload(function() : haxe.io.BytesData { })
-	private function getBytes(encoding:String) : haxe.io.BytesData;
+	@:overload(function():haxe.io.BytesData {})
+	private function getBytes(encoding:String):haxe.io.BytesData;
 
-	@:runtime static inline function fromCharCode( code : Int ) : String {
+	@:runtime static inline function fromCharCode(code:Int):String {
 		return jvm.StringExt.fromCharCode(code);
 	}
-
 }

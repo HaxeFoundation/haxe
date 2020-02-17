@@ -13,7 +13,7 @@ private class TakeParent {
 private class TakeChild extends TakeParent {
 	public function new(child:Child) {
 		super(child);
-		if (!Std.is(child, Child)) throw 'wtf?';
+		if (!Std.isOfType(child, Child)) throw 'wtf?';
 	}
 }
 

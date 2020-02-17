@@ -151,8 +151,14 @@ class Flash {
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
 		setupFlexSdk();
-		runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
-		var success = runFlash("bin/unit9.swf");
+		var success = true;
+		for (argsVariant in [[], ["--swf-version", "32"]]) {
+			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
+			var runSuccess = runFlash("bin/unit9.swf");
+			if (!runSuccess) {
+				success = false;
+			}
+		}
 		if (!success)
 			fail();
 	}

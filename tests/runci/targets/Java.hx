@@ -15,26 +15,33 @@ class Java {
 	}
 
 	static public function run(args:Array<String>) {
+		deleteDirectoryRecursively("bin/java");
 		getJavaDependencies();
+
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 		runCommand("haxe", ["compile-java.hxml","-dce","no"].concat(args));
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
+		changeDirectory(miscJavaDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-java.hxml"]);
+		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
+		runCommand("haxe", ["build.hxml", "-java", "export/java"].concat(args));
 		if (systemName != "Windows") { // #8154
 			runCommand("java", ["-jar", "export/java/Main.jar"]);
 		}
 
 		infoMsg("Testing java-lib extras");
 		changeDirectory('$unitDir/bin');
-		runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
+		if (!FileSystem.exists('java-lib-tests')) {
+			runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
+		}
 		for (dir in FileSystem.readDirectory('java-lib-tests'))
 		{
 			var path = 'java-lib-tests/$dir';
@@ -46,8 +53,5 @@ class Java {
 				}
 			}
 		}
-
-		changeDirectory(miscJavaDir);
-		runCommand("haxe", ["run.hxml"]);
 	}
 }

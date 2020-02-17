@@ -4,11 +4,6 @@ open Type
 open Typecore
 open Error
 
-type access_mode =
-	| MGet
-	| MSet
-	| MCall
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
@@ -25,6 +20,7 @@ type object_decl_kind =
 	| ODKPlain
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -43,18 +39,18 @@ let relative_path ctx file =
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
-		(("fileName",null_pos,NoQuotes) , (EConst (String file) , p)) ::
+		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos,NoQuotes), (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
 	) ,p)
 
 let rec is_pos_infos = function
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->
@@ -92,6 +88,16 @@ let get_this ctx p =
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
+
+let assign_to_this_is_allowed ctx =
+	match ctx.curclass.cl_kind with
+		| KAbstractImpl _ ->
+			(match ctx.curfield.cf_kind with
+				| Method MethInline -> true
+				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| _ -> false
+			)
+		| _ -> false
 
 let rec type_module_type ctx t tparams p =
 	match t with
@@ -197,7 +203,7 @@ let get_abstract_froms a pl =
 		match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
 			(try
-				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
+				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
 				v :: acc
 			with Unify_error _ ->
 				acc)

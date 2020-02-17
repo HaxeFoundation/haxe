@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package js.lib;
+
+package js.lib;
 
 /**
 	Native JavaScript regular expressions.
@@ -29,10 +30,10 @@
 **/
 @:native("RegExp")
 extern class RegExp {
-	var global(default,null):Bool;
-	var ignoreCase(default,null):Bool;
-	var multiline(default,null):Bool;
-	var source(default,null):String;
+	var global(default, null):Bool;
+	var ignoreCase(default, null):Bool;
+	var multiline(default, null):Bool;
+	var source(default, null):String;
 	var lastIndex:Int;
 	function new(pattern:String, ?flags:String);
 	function exec(str:String):Null<RegExpMatch>;

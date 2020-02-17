@@ -19,29 +19,27 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 class Mysql {
-
 	static var init = false;
 
-	public static function connect( params : {
-		host : String,
-		?port : Int,
-		user : String,
-		pass : String,
-		?socket : String,
-		?database : String
-	} ) : sys.db.Connection {
-		if (!init)
-		{
+	public static function connect(params:{
+		host:String,
+		?port:Int,
+		user:String,
+		pass:String,
+		?socket:String,
+		?database:String
+	}):sys.db.Connection {
+		if (!init) {
 			java.lang.Class.forName("com.mysql.jdbc.Driver");
 			init = true;
 		}
 		var url = new StringBuf();
 		url.add('jdbc:mysql:');
-		if (params.socket != null)
-		{
+		if (params.socket != null) {
 			url.add(params.socket);
 		} else {
 			url.add('//');
@@ -55,5 +53,4 @@ class Mysql {
 		var cnx = java.sql.DriverManager.getConnection(url.toString(), params.user, params.pass);
 		return java.db.Jdbc.create(cnx);
 	}
-
 }

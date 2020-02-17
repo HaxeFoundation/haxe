@@ -21,6 +21,7 @@ PACKAGE_SRC_EXTENSION=.tar.gz
 MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
+DUNE_COMMAND=dune
 HAXE_OUTPUT=haxe
 HAXELIB_OUTPUT=haxelib
 PREBUILD_OUTPUT=prebuild
@@ -28,49 +29,20 @@ EXTENSION=
 LFLAGS=
 STATICLINK?=0
 
-# Configuration
-
-# Modules in these directories should only depend on modules that are in directories to the left
-HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators generators/jvm optimization filters macro macro/eval macro/eval/bytes typing compiler
-EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
-OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib ptmap sha
-
-FINDLIB_LIBS=$(OCAML_LIBS)
-FINDLIB_LIBS+=$(OPAM_LIBS)
-
-# Includes, packages and compiler
-
-HAXE_INCLUDES=$(HAXE_DIRECTORIES:%=-I _build/src/%)
-EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
-ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
-FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
-CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
-
-MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
-
-ifeq ($(BYTECODE),1)
-	TARGET_FLAG = bytecode
-	COMPILER = ocamlfind ocamlc
-	LIB_EXT = cma
-	MODULE_EXT = cmo
-	NATIVE_LIB_FLAG = -custom
+SYSTEM_NAME=Unknown
+ifeq ($(OS),Windows_NT)
+	SYSTEM_NAME=Windows
 else
-	TARGET_FLAG = native
-	COMPILER = ocamlfind ocamlopt
-	LIB_EXT = cmxa
-	MODULE_EXT = cmx
-	OCAMLDEP_FLAGS = -native
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		SYSTEM_NAME=Linux
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		SYSTEM_NAME=Mac
+	endif
 endif
 
-CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
-
-# Meta information
-
-BUILD_DIRECTORIES := $(HAXE_DIRECTORIES:%=_build/src/%)
-HAXE_SRC := $(wildcard $(HAXE_DIRECTORIES:%=src/%/*.ml))
-BUILD_SRC := $(HAXE_SRC:%=_build/%)
+# Configuration
 
 ADD_REVISION?=0
 
@@ -87,92 +59,32 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-# using $(CURDIR) on Windows will not work since it might be a Cygwin path
-ifdef SYSTEMROOT
-	EXTENSION=.exe
-else
-	export HAXE_STD_PATH=$(CURDIR)/std
-endif
-
-# Native libraries
-
 ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz
+	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
+endif
+ifeq ($(SYSTEM_NAME),Mac)
+	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
 endif
 
-NATIVE_LIBS=-thread -cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
+all: haxe tools
 
-# Modules
+haxe:
+	$(DUNE_COMMAND) build --workspace dune-workspace.dev src-prebuild/prebuild.exe
+	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
+	_build/default/src-prebuild/prebuild.exe version $(ADD_REVISION) $(BRANCH) $(COMMIT_SHA) > src/compiler/version.ml
+	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
+	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
 
--include Makefile.modules
-
-# Rules
-
-all: libs haxe tools
-
-libs:
-	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
-
-_build/%:%
-	mkdir -p $(dir $@)
-	cp $< $@
-
-build_dirs:
-	@mkdir -p $(BUILD_DIRECTORIES)
-
-_build/src/syntax/grammar.ml:src/syntax/grammar.mly
-	camlp4o -impl $< -o $@
-
-_build/src/compiler/version.ml: FORCE
-ifneq ($(ADD_REVISION),0)
-	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
-else
-	echo let version_extra = None > _build/src/compiler/version.ml
-endif
-
-_build/src/core/defineList.ml: src-json/define.json prebuild
-	./$(PREBUILD_OUTPUT) define $< > $@
-
-_build/src/core/metaList.ml: src-json/meta.json prebuild
-	./$(PREBUILD_OUTPUT) meta $< > $@
-
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
-
-prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
-	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
-
-haxe: build_src
-	$(MAKE) -f $(MAKEFILENAME) build_pass_1
-	$(MAKE) -f $(MAKEFILENAME) build_pass_2
-	$(MAKE) -f $(MAKEFILENAME) build_pass_3
-	$(MAKE) -f $(MAKEFILENAME) build_pass_4
-
-build_pass_1:
-	printf MODULES= > Makefile.modules
-	ls -1 $(HAXE_DIRECTORIES:%=_build/src/%/*.ml) | tr '\n' ' ' >> Makefile.modules
-
-build_pass_2:
-	printf MODULES= > Makefile.modules
-	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
-
-build_pass_3:
-	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
-
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -g -o $(HAXE_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+plugin: haxe
+	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
+	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
 kill_exe_win:
 ifdef SYSTEMROOT
 	-@taskkill /F /IM haxe.exe 2>/dev/null
-endif
-
-plugin:
-ifeq ($(BYTECODE),1)
-	$(CC_CMD) $(PLUGIN).ml
-else
-	$(COMPILER) $(ALL_CFLAGS) -shared -o $(PLUGIN).cmxs $(PLUGIN).ml
 endif
 
 # Only use if you have only changed gencpp.ml
@@ -211,13 +123,15 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
+	opam install camlp5 ocamlfind dune --yes
 
-# Dependencies
-
--include Makefile.dependencies
+haxe_deps:
+	opam pin add haxe . --no-action
+	opam install haxe --deps-only --yes
 
 # Package
+
+package_env: opam_install haxe_deps
 
 package_src:
 	mkdir -p $(PACKAGE_OUT_DIR)
@@ -229,13 +143,9 @@ package_src:
 package_unix:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
-	#delete all content which was generated in _build dir except interfaces
-	find _build/ -type f ! -name '*.cmi' -delete
-	#add ocaml version to the _build dir
-	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
-	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt _build $(PACKAGE_FILE_NAME)
+	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
@@ -254,7 +164,7 @@ $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
 $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
 # Installer
 
@@ -304,10 +214,7 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 
 # Clean
 
-clean: clean_libs clean_haxe clean_tools clean_package
-
-clean_libs:
-	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
+clean: clean_haxe clean_tools clean_package
 
 clean_haxe:
 	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
@@ -328,4 +235,4 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: prebuild haxe libs haxelib
+.PHONY: haxe haxelib

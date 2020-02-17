@@ -1,3 +1,25 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 package jvm;
 
 import haxe.extern.Rest;
@@ -50,7 +72,8 @@ class Jvm {
 		return argTypes;
 	}
 
-	static public function unifyCallArguments(args:NativeArray<Dynamic>, params:NativeArray<java.lang.Class<Dynamic>>, allowPadding:Bool = false):Option<NativeArray<Dynamic>> {
+	static public function unifyCallArguments(args:NativeArray<Dynamic>, params:NativeArray<java.lang.Class<Dynamic>>,
+			allowPadding:Bool = false):Option<NativeArray<Dynamic>> {
 		var callArgs:NativeArray<Dynamic> = {
 			if (args.length < params.length) {
 				var callArgs = new NativeArray(params.length);
@@ -104,7 +127,7 @@ class Jvm {
 				continue;
 			}
 			if (arg == (cast java.lang.Double.DoubleClass) && argType == cast java.lang.Integer.IntegerClass) {
-		 		callArgs[i] = nullIntToNullFloat(args[i]);
+				callArgs[i] = numberToDouble(args[i]);
 			} else {
 				return None;
 			}
@@ -122,23 +145,76 @@ class Jvm {
 
 	// casts
 
-	static public function dynamicToNullFloat<T>(d:T):Null<Float> {
-		if (instanceof(d, java.lang.Integer.IntegerClass)) {
-			return nullIntToNullFloat(cast d);
+	// TODO: add other dynamicToType methods
+
+	static public function dynamicToByte<T>(d:T):Null<java.lang.Byte> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToByte(cast d);
 		}
-		// TODO: need a better strategy to avoid infinite recursion here
 		return cast d;
 	}
 
-	static public function nullIntToNullFloat(i:Null<Int>):Null<Float> {
-		if (i == null) {
-			return null;
+	static public function dynamicToShort<T>(d:T):Null<java.lang.Short> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToShort(cast d);
 		}
-		return (cast i : java.lang.Number).intValue();
+		return cast d;
+	}
+
+	static public function dynamicToInteger<T>(d:T):Null<Int> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToInteger(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToLong<T>(d:T):Null<java.lang.Long> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToLong(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToFloat<T>(d:T):Null<java.lang.Float> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToFloat(cast d);
+		}
+		return cast d;
+	}
+
+	static public function dynamicToDouble<T>(d:T):Null<Float> {
+		if (instanceof(d, java.lang.Number)) {
+			return numberToDouble(cast d);
+		}
+		return cast d;
+	}
+
+	static public function numberToByte(n:java.lang.Number):Null<java.lang.Byte> {
+		return n == null ? null : n.byteValue();
+	}
+
+	static public function numberToShort(n:java.lang.Number):Null<java.lang.Short> {
+		return n == null ? null : n.shortValue();
+	}
+
+	static public function numberToInteger(n:java.lang.Number):Null<Int> {
+		return n == null ? null : n.intValue();
+	}
+
+	static public function numberToLong(n:java.lang.Number):Null<java.lang.Long> {
+		return n == null ? null : n.longValue();
+	}
+
+	static public function numberToFloat(n:java.lang.Number):Null<java.lang.Float> {
+		return n == null ? null : n.floatValue();
+	}
+
+	static public function numberToDouble(n:java.lang.Number):Null<Float> {
+		return n == null ? null : n.doubleValue();
 	}
 
 	static public function toByte(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Byte).byteValue();
+		return d == null ? 0 : (d : java.lang.Number).byteValue();
 	}
 
 	static public function toChar(d:Dynamic) {
@@ -158,11 +234,11 @@ class Jvm {
 	}
 
 	static public function toLong(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Long).longValue();
+		return d == null ? 0 : (d : java.lang.Number).longValue();
 	}
 
 	static public function toShort(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Short).shortValue();
+		return d == null ? 0 : (d : java.lang.Number).shortValue();
 	}
 
 	static public function toBoolean(d:Dynamic) {
@@ -248,18 +324,30 @@ class Jvm {
 		}
 		if (instanceof(obj, java.NativeString)) {
 			switch (name) {
-				case "length": return (obj : String).length;
-				case "charAt": return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "charCodeAt": return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "indexOf": return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "iterator": return function() return new haxe.iterators.StringIterator(obj);
-				case "keyValueIterator": return function() return new haxe.iterators.StringKeyValueIterator(obj);
-				case "lastIndexOf": return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "split": return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "substr": return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "substring": return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "toLowerCase": return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "toUpperCase": return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "length":
+					return (obj : String).length;
+				case "charAt":
+					return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "charCodeAt":
+					return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "indexOf":
+					return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "iterator":
+					return function() return new haxe.iterators.StringIterator(obj);
+				case "keyValueIterator":
+					return function() return new haxe.iterators.StringKeyValueIterator(obj);
+				case "lastIndexOf":
+					return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "split":
+					return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "substr":
+					return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "substring":
+					return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "toLowerCase":
+					return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "toUpperCase":
+					return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);

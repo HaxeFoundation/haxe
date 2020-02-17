@@ -82,6 +82,7 @@ let type_function_arg_value ctx t c do_display =
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
+                | TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
@@ -128,14 +129,7 @@ let type_function ctx args ret fmode f do_display p =
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
-		try
-			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
-			let e = Optimizer.optimize_completion_expr e f.f_args in
-			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
-			type_expr ctx e NoValue
-		with
-		| Parser.TypePath (_,None,_,_) | Exit ->
-			type_expr ctx e NoValue
+		type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

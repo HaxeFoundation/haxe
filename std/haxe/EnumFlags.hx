@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
@@ -28,11 +29,10 @@ package haxe;
 
 	Enum constructor indices are preserved from Haxe syntax, so the first
 	declared is index 0, the next index 1 etc. The methods are optimized if the
-	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
-	Type.enumIndex() reflection is used.
+	enum instance is passed directly, e.g. as `has(EnumCtor)`. Otherwise
+	`Type.enumIndex()` reflection is used.
 **/
 abstract EnumFlags<T:EnumValue>(Int) {
-
 	/**
 		Initializes the bitflags to `i`.
 	**/
@@ -44,11 +44,11 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Checks if the index of enum instance `v` is set.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
-	public inline function has( v : T ) : Bool {
+	public inline function has(v:T):Bool {
 		return this & (1 << Type.enumIndex(v)) != 0;
 	}
 
@@ -56,11 +56,11 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Sets the index of enum instance `v`.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
-	public inline function set( v : T ) : Void {
+	public inline function set(v:T):Void {
 		this |= 1 << Type.enumIndex(v);
 	}
 
@@ -68,11 +68,11 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Unsets the index of enum instance `v`.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
-	public inline function unset( v : T ) : Void {
+	public inline function unset(v:T):Void {
 		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));
 	}
 
@@ -80,7 +80,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert a integer bitflag into a typed one (this is a no-op, it does not
 		have any impact on speed).
 	**/
-	public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
+	public inline static function ofInt<T:EnumValue>(i:Int):EnumFlags<T> {
 		return new EnumFlags<T>(i);
 	}
 
@@ -88,7 +88,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert the typed bitflag into the corresponding int value (this is a
 		no-op, it doesn't have any impact on speed).
 	**/
-	public inline function toInt() : Int {
+	public inline function toInt():Int {
 		return this;
 	}
 }
