@@ -9,6 +9,7 @@ type cached_file = {
 	c_package : string list;
 	c_decls : type_decl list;
 	mutable c_module_name : string option;
+	mutable c_pdi : Parser.parser_display_information;
 }
 
 type cached_directory = {
@@ -33,8 +34,8 @@ class context_cache (index : int) = object(self)
 	method find_file key =
 		Hashtbl.find files key
 
-	method cache_file key time data =
-		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
+	method cache_file key time data pdi =
+		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
 
 	method remove_file key =
 		if Hashtbl.mem files key then begin
@@ -163,17 +164,6 @@ class cache = object(self)
 				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m.m_path
 			) cc#get_modules
 		) contexts
-
-	method filter_modules file =
-		let removed = DynArray.create () in
-		(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
-		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun k m ->
-				if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
-			) cc#get_modules
-		) contexts;
-		DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
-		DynArray.to_list removed
 
 	(* haxelibs *)
 

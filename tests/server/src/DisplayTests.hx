@@ -257,4 +257,141 @@ typedef Foo = {
 			Assert.same({"start":{"line":7, "character":12}, "end":{"line":7, "character":15}}, result.result[0].range);
 		}
 	}
+
+	function testIssue8992() {
+		var mainHx = Marker.extractMarkers('class Main {
+	static func{-1-}tion main() {
+	}
+}');
+		vfs.putContent("Main.hx", mainHx.source);
+
+		runHaxe(["--no-output", "-main", "Main"]);
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: mainHx.markers[1]});
+
+		var result = parseHover().result;
+		Assert.isNull(result);
+	}
+
+	function testIssue8991() {
+		var mainHx = 'class Main {
+	static function main() {
+		C.inst{-1-}ance;
+	}
+}';
+		var cHx = 'class C {
+	public static var instance:Int;
+}';
+		var mainHx = Marker.extractMarkers(mainHx);
+		vfs.putContent("Main.hx", mainHx.source);
+		vfs.putContent("C.hx", cHx);
+
+		runHaxe(["--no-output", "-main", "Main"]);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("C.hx")});
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: mainHx.markers[1]});
+
+		var result = parseHover().result;
+		Assert.equals(DisplayItemKind.ClassField, result.item.kind);
+	}
+
+	function testIssue9012() {
+		vfs.putContent("Some.hx", "class Some { public static function func():String return 'hello'; }");
+
+		var content = "import Some.func; class Main { static function main() { fu{-1-}nc(); } }";
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+
+		runHaxe(["--no-output", "-main", "Main"]); // commenting this makes it work
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.markers[1]});
+		var result = parseHover().result;
+
+		Assert.equals(DisplayItemKind.ClassField, result.item.kind);
+	}
+
+	function testIssue9039() {
+		vfs.putContent("I.hx", "interface I { var prop(get,never):Int; }");
+		vfs.putContent("Main.hx", "class Main { static function main() { var i:I = null; } }");
+
+		runHaxe(["--no-output", "-main", "Main"]);
+
+		var content = "class Main { static function main() { var i:I = null; i.{-1-} } }";
+		var transform = Marker.extractMarkers(content);
+
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+
+		assertHasNoCompletion(parseCompletion(), function(item) {
+			return switch item.kind {
+				case ClassField: item.args.field.name == "get_prop";
+				case _: false;
+			}
+		});
+	}
+
+	function testIssue9047() {
+		var transform = Marker.extractMarkers("interface Main { var field(never,s{-1-}et):Int; }");
+		vfs.putContent("Main.hx", transform.source);
+		var args = ["Main", "-js", "main.js"];
+		function parseGotoDefintion():GotoDefinitionResult {
+			return haxe.Json.parse(lastResult.stderr).result;
+		}
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
+	}
+
+	function testIssue9082() {
+		var args = ["-cp", ".", "--interp"];
+
+		vfs.putContent("org/Thing.hx", "package org; class Thing {}");
+		vfs.putContent("AThing.hx", "class AThing {}");
+		vfs.putContent("ThingB.hx", "class ThingB {}");
+		runHaxeJson(args, Methods.Initialize, {maxCompletionItems: 2});
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+
+		var transform = Marker.extractMarkers("class C extends Thing{-1-}");
+		vfs.putContent("C.hx", transform.source);
+		runHaxeJson(args, DisplayMethods.Completion, {
+			file: new FsPath("C.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, function(item) {
+			return switch item {
+				case {kind: Type, args: {path: {pack: ["org"], typeName: "Thing"}}}: true;
+				case _: false;
+			}
+		});
+	}
+
+	function testIssue9087() {
+		var content = getTemplate("issues/Issue9087/A.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("A.hx", transform.source);
+		var args = ["A", "-js", "main.js"];
+		function parseGotoDefintion():GotoDefinitionResult {
+			return haxe.Json.parse(lastResult.stderr).result;
+		}
+		runHaxeJson(args, DisplayMethods.GotoImplementation, {file: new FsPath("A.hx"), offset: transform.markers[1], contents: transform.source});
+		var result = parseGotoDefintion().result;
+		// TODO: We should use the markers, but I forgot how to get lines and characters from offsets
+		// Also That Assert.same doesn't work
+		Assert.equals(9, result[0].range.start.line);
+		Assert.equals(19, result[0].range.start.character);
+		Assert.equals(9, result[0].range.end.line);
+		Assert.equals(23, result[0].range.end.character);
+		// Assert.same([
+		// 	{
+		// 		range: {
+		// 			start: {line: 9, character: 1},
+		// 			end: {line: 11, character: 2}
+		// 		}
+		// 	}
+		// ], result);
+	}
 }

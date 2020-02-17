@@ -29,6 +29,19 @@ EXTENSION=
 LFLAGS=
 STATICLINK?=0
 
+SYSTEM_NAME=Unknown
+ifeq ($(OS),Windows_NT)
+	SYSTEM_NAME=Windows
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		SYSTEM_NAME=Linux
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		SYSTEM_NAME=Mac
+	endif
+endif
+
 # Configuration
 
 ADD_REVISION?=0
@@ -47,9 +60,12 @@ HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}'
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz
+	LIB_PARAMS?= -cclib -lpcre -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
+endif
+ifeq ($(SYSTEM_NAME),Mac)
+	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
 endif
 
 all: haxe tools
@@ -60,6 +76,11 @@ haxe:
 	_build/default/src-prebuild/prebuild.exe version $(ADD_REVISION) $(BRANCH) $(COMMIT_SHA) > src/compiler/version.ml
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
+
+plugin: haxe
+	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
+	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
 kill_exe_win:
 ifdef SYSTEMROOT
@@ -143,7 +164,7 @@ $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
 $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
 # Installer
 

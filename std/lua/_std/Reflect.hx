@@ -122,7 +122,7 @@ import lua.Boot;
 		}
 
 	public static function isEnumValue(v:Dynamic):Bool {
-		return v != null && Std.is(v, lua.Table) && v.__enum__ != null;
+		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool

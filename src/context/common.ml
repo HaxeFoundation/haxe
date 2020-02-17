@@ -153,14 +153,11 @@ class compiler_callbacks = object(self)
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 	mutable display_module_has_macro_defines : bool;
 }
 
@@ -355,14 +352,6 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
 		}
-	| Flash when defined Define.As3 ->
-		{
-			default_config with
-			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
-			pf_add_final_return = true;
-			pf_can_skip_non_nullable_argument = false;
-		}
 	| Flash ->
 		{
 			default_config with
@@ -443,14 +432,11 @@ let create version s_version args =
 		args = args;
 		shared = {
 			shared_display_information = {
-				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
@@ -529,7 +515,6 @@ let clone com =
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		defines = {

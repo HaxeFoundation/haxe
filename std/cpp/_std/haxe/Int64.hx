@@ -37,7 +37,7 @@ private extern class ___Int64 {
 	public static function ofInt(value:Int):__Int64;
 
 	@:native(" ::cpp::Int64Struct::is")
-	public static function is(d:Dynamic):Bool;
+	public static function isInt64(d:Dynamic):Bool;
 
 	@:native("_hx_int64_is_neg")
 	public static function isNeg(a:__Int64):Bool;
@@ -156,8 +156,13 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
-	public static #if !cppia inline #end function is(val:Dynamic):Bool
-		return __Int64.is(val);
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	inline public static function is(val:Dynamic):Bool {
+		return isInt64(val);
+	}
+
+	public static #if !cppia inline #end function isInt64(val:Dynamic):Bool
+		return __Int64.isInt64(val);
 
 	@:deprecated("Use high instead")
 	public static #if !cppia inline #end function getHigh(x:Int64):Int32

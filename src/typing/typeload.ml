@@ -106,7 +106,7 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 *)
 let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (DisplayTypes.make_subject None p);
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
@@ -122,7 +122,7 @@ let load_type_def ctx p t =
 		with Not_found ->
 			(* Check the local imports *)
 			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			ImportHandling.mark_import_position ctx.com pi;
+			ImportHandling.mark_import_position ctx pi;
 			t
 	with
 	| Not_found when no_pack ->
@@ -134,7 +134,7 @@ let load_type_def ctx p t =
 				| (pack,ppack) :: l ->
 					begin try
 						let mt = load_type ctx (pack,t.tname) tname p in
-						ImportHandling.mark_import_position ctx.com ppack;
+						ImportHandling.mark_import_position ctx ppack;
 						mt
 					with Not_found ->
 						loop l
@@ -842,7 +842,7 @@ let handle_using ctx path p =
 		| (s1,_) :: sl ->
 			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in
 	let types = (match t.tsub with
 		| None ->

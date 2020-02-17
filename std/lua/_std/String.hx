@@ -25,9 +25,9 @@ import lua.Table;
 import lua.Boot;
 
 #if lua_vanilla
-typedef BaseString = lua.NativeStringTools;
+private typedef BaseString = lua.NativeStringTools;
 #else
-typedef BaseString = lua.lib.luautf8.Utf8;
+private typedef BaseString = lua.lib.luautf8.Utf8;
 #end
 
 @:coreApi
@@ -91,7 +91,6 @@ class String {
 	public inline function split(delimiter:String):Array<String> {
 		var idx = 1;
 		var ret = [];
-		var delim_offset = delimiter.length > 0 ? delimiter.length : 1;
 		while (idx != null) {
 			var newidx = 0;
 			if (delimiter.length > 0) {

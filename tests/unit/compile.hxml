@@ -20,7 +20,6 @@ compile-java-runner.hxml
 --next compile-lua.hxml
 --next compile-neko.hxml
 --next compile-php.hxml
---next compile-as3.hxml
 --next compile-cpp.hxml
 --next compile-java.hxml
 --next compile-cs.hxml

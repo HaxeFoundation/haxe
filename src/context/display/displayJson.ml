@@ -63,8 +63,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
-			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			cs#remove_files file;
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
@@ -104,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 3;
+					"minor",jint 4;
 					"patch",jint 0;
 				]
 			])
@@ -127,6 +125,11 @@ let handler =
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+		);
+		"display/implementation", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display (DMImplementation);
 		);
 		"display/typeDefinition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;

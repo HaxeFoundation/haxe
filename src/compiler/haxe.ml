@@ -82,7 +82,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
+	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
 let reserved_flag_namespaces = ["target"]
@@ -104,9 +104,10 @@ let expand_env ?(h=None) path  =
 	) path
 
 let add_libs com libs =
+	let global_repo = List.exists (fun a -> a = "--haxelib-global") com.args in
 	let call_haxelib() =
 		let t = Timer.timer ["haxelib"] in
-		let cmd = "haxelib path " ^ String.concat " " libs in
+		let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
 		let err = Std.input_list perr in
@@ -307,8 +308,6 @@ let generate tctx ext interp swf_header =
 		()
 	else begin
 		let generate,name = match com.platform with
-		| Flash when Common.defined com Define.As3 ->
-			Genas3.generate,"AS3"
 		| Flash ->
 			Genswf.generate swf_header,"swf"
 		| Neko ->
@@ -459,21 +458,21 @@ let process_display_configuration ctx =
 	end
 
 let run_or_diagnose com f arg =
-	let handle_diagnostics global msg p kind =
+	let handle_diagnostics msg p kind =
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com global;
+		Diagnostics.run com;
 	in
 	match com.display.dms_kind with
-	| DMDiagnostics global ->
+	| DMDiagnostics _ ->
 		begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
-			handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			handle_diagnostics (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
 		| Parser.Error(msg,p) ->
-			handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
 	| _ ->
 		f arg
@@ -502,6 +501,7 @@ let do_type tctx config_macros classes =
 	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose com (fun () ->
+		if com.display.dms_kind <> DMNone then Option.may (DisplayTexpr.check_display_file tctx) (CompilationServer.get ());
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev classes);
 		Finalization.finalize tctx;
 	) ();
@@ -509,7 +509,7 @@ let do_type tctx config_macros classes =
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match !CompilationServer.instance,com.display.dms_kind with
-		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+		| Some cs,(DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
 	t()
@@ -645,7 +645,8 @@ let rec process_params create pl =
 		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
-			loop acc l
+			(* Push the --cwd arg so the arg processor know we did something. *)
+			loop (dir :: "--cwd" :: acc) l
 		| "--connect" :: hp :: l ->
 			(match CompilationServer.get() with
 			| None ->
@@ -676,7 +677,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -716,11 +717,6 @@ try
 		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
 		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
 		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
-		("Target",["--as3"],["-as3"],Arg.String (fun dir ->
-			Initialize.set_platform com Flash dir;
-			Common.define com Define.As3;
-			Common.define com Define.NoInline;
-		),"<directory>","generate AS3 code into target directory");
 		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
 		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
@@ -841,18 +837,18 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header>","define SWF header (width:height:fps:color)");
 		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
-		("Target-specific",[],["--swf-lib";"-swf-lib"],Arg.String (fun file ->
+		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
 		(* FIXME: replace with -D define *)
-		("Target-specific",[],["--swf-lib-extern";"-swf-lib-extern"],Arg.String (fun file ->
+		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			add_native_lib file true;
 		),"<file>","use the SWF library for type checking");
-		("Target-specific",[],["--java-lib";"-java-lib"],Arg.String (fun file ->
+		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add an external JAR or class directory library");
-		("Target-specific",[],["--net-lib";"-net-lib"],Arg.String (fun file ->
+		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
@@ -937,8 +933,10 @@ try
 			assert false
 		),"<[host:]port>","connect on the given port and run commands there");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
-			assert false
+			(* This is handled by process_params, but passed through so we know we did something. *)
+			did_something := true;
 		),"<dir>","set current working directory");
+		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 	] in
 	let args_callback cl =
 		begin try
@@ -1196,7 +1194,11 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
+	| DisplayException(DisplayDiagnostics dctx) ->
+		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

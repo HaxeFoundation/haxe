@@ -344,30 +344,75 @@ let module_pass_1 ctx m tdecls loadp =
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
+let load_enum_field ctx e et is_flat index c =
+	let p = c.ec_pos in
+	let params = ref [] in
+	params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+	let params = !params in
+	let ctx = { ctx with type_params = params @ ctx.type_params } in
+	let rt = (match c.ec_type with
+		| None -> et
+		| Some (t,pt) ->
+			let t = load_complex_type ctx true (t,pt) in
+			(match follow t with
+			| TEnum (te,_) when te == e ->
+				()
+			| _ ->
+				error "Explicit enum type must be of the same enum type" pt);
+			t
+	) in
+	let t = (match c.ec_args with
+		| [] -> rt
+		| l ->
+			is_flat := false;
+			let pnames = ref PMap.empty in
+			TFun (List.map (fun (s,opt,(t,tp)) ->
+				(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
+				if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
+				pnames := PMap.add s () (!pnames);
+				s, opt, load_type_hint ~opt ctx p (Some (t,tp))
+			) l, rt)
+	) in
+	let f = {
+		ef_name = fst c.ec_name;
+		ef_type = t;
+		ef_pos = p;
+		ef_name_pos = snd c.ec_name;
+		ef_doc = c.ec_doc;
+		ef_index = !index;
+		ef_params = params;
+		ef_meta = c.ec_meta;
+	} in
+	let cf = {
+		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
+		cf_kind = (match follow f.ef_type with
+			| TFun _ -> Method MethNormal
+			| _ -> Var { v_read = AccNormal; v_write = AccNo }
+		);
+		cf_doc = f.ef_doc;
+		cf_params = f.ef_params;
+	} in
+	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
+		DisplayEmitter.display_enum_field ctx e f p;
+	f,cf
+
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
 	an expression into the context
 *)
-let init_module_type ctx context_init do_init (decl,p) =
+let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match ctx.com.display.dms_kind with
-		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || DisplayPosition.display_position#is_in_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
-			ImportHandling.add_import_position ctx.com p path;
-		| DMStatistics ->
-			ImportHandling.add_import_position ctx.com p path;
-		| DMUsage _ ->
-			ImportHandling.add_import_position ctx.com p path;
-			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
-		| _ ->
-			if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
-	in
-	match decl with
-	| EImport (path,mode) ->
+	let commit_import path mode p =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
+		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
+	in
+	let check_path_display path p =
+		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
+	in
+	let init_import path mode =
 		check_path_display path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -382,7 +427,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| _ ->
 				(match List.rev path with
 				(* p spans `import |` (to the display position), so we take the pmax here *)
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -450,23 +495,23 @@ let init_module_type ctx context_init do_init (decl,p) =
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
-						context_init := (fun() ->
+						context_init#add (fun() ->
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
-								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						) :: !context_init)
+								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+						))
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
 					| [] -> ()
 					| (n,p) :: _ -> error ("Unexpected " ^ n) p);
 					let tsub = get_type tsub in
-					context_init := (fun() ->
+					context_init#add (fun() ->
 						try
 							add_static_init tsub name fname
 						with Not_found ->
-							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
-					) :: !context_init;
+							display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+					);
 				)
 			| IAll ->
 				let t = (match rest with
@@ -474,7 +519,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| [tsub,_] -> get_type tsub
 					| _ :: (n,p) :: _ -> error ("Unexpected " ^ n) p
 				) in
-				context_init := (fun() ->
+				context_init#add (fun() ->
 					match resolve_typedef t with
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
@@ -484,14 +529,23 @@ let init_module_type ctx context_init do_init (decl,p) =
 						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 					| _ ->
 						error "No statics to import from this type" p
-				) :: !context_init
+				)
 			))
+	in
+	match decl with
+	| EImport (path,mode) ->
+		begin try
+			init_import path mode;
+			commit_import path mode p;
+		with Error(err,p) ->
+			display_error ctx (Error.error_msg err) p
+		end
 	| EUsing path ->
 		check_path_display path p;
 		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
 		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
+		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -512,7 +566,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p do_init d.d_flags d.d_data;
+					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
 					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
@@ -586,8 +640,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				}
 			) (!constructs)
 		in
-		let init () = List.iter (fun f -> f()) !context_init in
-		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
 			match e with
 			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
@@ -617,56 +670,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
 		List.iter (fun c ->
-			let p = c.ec_pos in
-			let params = ref [] in
-			params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
-			let params = !params in
-			let ctx = { ctx with type_params = params @ ctx.type_params } in
-			let rt = (match c.ec_type with
-				| None -> et
-				| Some (t,pt) ->
-					let t = load_complex_type ctx true (t,pt) in
-					(match follow t with
-					| TEnum (te,_) when te == e ->
-						()
-					| _ ->
-						error "Explicit enum type must be of the same enum type" pt);
-					t
-			) in
-			let t = (match c.ec_args with
-				| [] -> rt
-				| l ->
-					is_flat := false;
-					let pnames = ref PMap.empty in
-					TFun (List.map (fun (s,opt,(t,tp)) ->
-						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
-						if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
-						pnames := PMap.add s () (!pnames);
-						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
-					) l, rt)
-			) in
 			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f = {
-				ef_name = fst c.ec_name;
-				ef_type = t;
-				ef_pos = p;
-				ef_name_pos = snd c.ec_name;
-				ef_doc = c.ec_doc;
-				ef_index = !index;
-				ef_params = params;
-				ef_meta = c.ec_meta;
-			} in
-			let cf = {
-				(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-				cf_kind = (match follow f.ef_type with
-					| TFun _ -> Method MethNormal
-					| _ -> Var { v_read = AccNormal; v_write = AccNo }
-				);
-				cf_doc = f.ef_doc;
-				cf_params = f.ef_params;
-			} in
- 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
- 				DisplayEmitter.display_enum_field ctx e f p;
+			let f,cf = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
@@ -823,13 +828,10 @@ let module_pass_2 ctx m decls tdecls p =
 			assert false
 	) decls;
 	(* setup module types *)
-	let context_init = ref [] in
-	let do_init() =
-		match !context_init with
-		| [] -> ()
-		| l -> context_init := []; List.iter (fun f -> f()) (List.rev l)
-	in
-	List.iter (init_module_type ctx context_init do_init) tdecls
+	let context_init = new TypeloadFields.context_init in
+	List.iter (init_module_type ctx context_init) tdecls;
+	(* Make sure that we actually init the context at some point (issue #9012) *)
+	delay ctx PConnectField (fun () -> context_init#run)
 
 (*
 	Creates a module context for [m] and types [tdecls] using it.
@@ -915,8 +917,7 @@ let handle_import_hx ctx m decls p =
 		with Not_found ->
 			if Sys.file_exists path then begin
 				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
-					| ParseSuccess data -> data
-					| ParseDisplayFile(data,_) -> data
+					| ParseSuccess(data,_,_) -> data
 					| ParseError(_,(msg,p),_) -> Parser.error msg p
 				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;

@@ -68,7 +68,7 @@ package flash;
 		so there is no way to check if a value is of a type with specific type parameters.
 
 		However, on the Flash target, the `flash.Vector<T>` values carry type parameter
-		information at run-time all the type-checks (such as `Std.is` and `Std.downcast`) on them
+		information at run-time all the type-checks (such as `Std.isOfType` and `Std.downcast`) on them
 		must be done using a `Class<T>` value that also carries the type parameters. However,
 		Haxe syntax does not allow creating such values and this function exists to mitigate
 		this limitation.
@@ -76,11 +76,11 @@ package flash;
 		It should be used as such:
 		```haxe
 		var specificVectorType:Class<Vector<Int>> = Vector.typeReference();
-		trace(Std.is(vec, specificVectorType));
+		trace(Std.isOfType(vec, specificVectorType));
 		```
 		or using the type-check syntax:
 		```haxe
-		trace(Std.is(vec, (Vector.typeReference() : Class<Vector<Int>>)));
+		trace(Std.isOfType(vec, (Vector.typeReference() : Class<Vector<Int>>)));
 		```
 
 		It's also helpful when working with native Flash libraries, that receive Class instances:

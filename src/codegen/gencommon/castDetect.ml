@@ -71,6 +71,14 @@ struct
 		let current_ret_type = ref None in
 		let handle e tto tfrom = gen.ghandle_cast (gen.greal_type tto) (gen.greal_type tfrom) e in
 		let in_value = ref false in
+		let binop_right_expr_type op actual_type =
+			match op with
+			| OpShr | OpShl | OpUShr | OpAssignOp (OpShr | OpShl | OpUShr) ->
+				(match follow actual_type with
+				| TAbstract ({ a_path = (["cs"], "Int64") }, _) -> gen.gcon.basic.tint
+				| _ -> actual_type)
+			| _ -> actual_type
+		in
 
 		let rec run e =
 			let was_in_value = !in_value in
@@ -103,16 +111,19 @@ struct
 				(match field_access_esp gen (gen.greal_type tf.etype) (f) with
 					| FClassField(cl,params,_,_,is_static,actual_t,_) ->
 						let actual_t = if is_static then actual_t else apply_params cl.cl_params params actual_t in
+						let actual_t = binop_right_expr_type op actual_t in
 						let e1 = extract_expr (run e1) in
 						{ e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
 					| _ ->
 						let e1 = extract_expr (run e1) in
-						{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+						let actual_t = binop_right_expr_type op e2.etype in
+						{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype actual_t); etype = e1.etype }
 				)
 			| TBinop ( (Ast.OpAssign as op),e1,e2)
 			| TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
 				let e1 = extract_expr (run e1) in
-				{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+				let actual_t = binop_right_expr_type op e2.etype in
+				{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype actual_t); etype = e1.etype }
 			| _ -> Type.map_expr run e
 		in
 		run
@@ -708,8 +719,19 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* unify applied original *)
 			with
 				| Unify_error el ->
-						(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
-						gen.gcon.warning ("This expression may be invalid") pos
+						(match el with
+						(*
+							Don't emit a warning for abstracts if underlying type is the same as the second type.
+							This situation is caused by `Normalize.filter_param` not "unpacking" abstracts.
+						*)
+						| [Cannot_unify (TAbstract(a,params), b)]
+						| [Cannot_unify (b, TAbstract(a,params))] ->
+							let a = apply_params a.a_params params a.a_this in
+							if not (shallow_eq a b) then
+								gen.gcon.warning ("This expression may be invalid") pos
+						| _ ->
+							gen.gcon.warning ("This expression may be invalid") pos
+						)
 				| Invalid_argument _ ->
 						gen.gcon.warning ("This expression may be invalid") pos
 			);
@@ -1035,6 +1057,11 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			| TCast( { eexpr = TCall( { eexpr = TIdent "__delegate__" } as local, [del] ) } as e2, _) ->
 				{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
+			| TBinop (OpAssignOp (Ast.OpShl | Ast.OpShr | Ast.OpUShr as op), e1, e2 ) ->
+				let e1 = run ~just_type:true e1 in
+				let e2 = handle (run e2) (gen.gcon.basic.tint) e2.etype in
+				let rett = binop_type op e e1 e2 in
+				{ e with eexpr = TBinop(OpAssignOp op, e1, e2); etype = rett.etype }
 			| TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
 				let e1 = run ~just_type:true e1 in
 				let e2 = handle (run e2) e1.etype e2.etype in

@@ -391,7 +391,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							ImportHandling.maybe_mark_import_position ctx pt;
+							ImportHandling.mark_import_position ctx pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -413,7 +413,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						ImportHandling.maybe_mark_import_position ctx pt;
+						ImportHandling.mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -422,7 +422,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		ImportHandling.maybe_mark_import_position ctx pi;
+		ImportHandling.mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field_default_cfg ctx e name p mode
 
@@ -1122,6 +1122,48 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
+		| AKUsing (emethod,cl,cf,etarget,force_inline) when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+			let l = save_locals ctx in
+			let init_tmp,etarget,eget =
+				match needs_temp_var etarget, fst e with
+				| true, EField (_, field_name) ->
+					let tmp = gen_local ctx etarget.etype p in
+					let tmp_ident = (EConst (Ident tmp.v_name), p) in
+					(
+						mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
+						mk (TLocal tmp) tmp.v_type p,
+						(EField (tmp_ident,field_name), p)
+					)
+				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+			in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let one = (EConst (Int "1"),p) in
+			(match follow cf.cf_type with
+			| TFun (_, t) ->
+				(match flag with
+				| Prefix ->
+					let get = type_binop ctx op eget one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
+					mk (TBlock [init_tmp; call_setter]) t p
+				| Postfix ->
+					let get = type_expr ctx eget WithType.value in
+					let tmp_value = gen_local ctx t p in
+					let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
+					unify ctx get.etype t p;
+					l();
+					mk (TBlock [
+						init_tmp;
+						mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
+						make_call ctx emethod [etarget; plusone] t ~force_inline p;
+						mk (TLocal tmp_value) t p;
+					]) t p
+				)
+			| _ ->
+				l();
+				assert false
+			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
@@ -1197,7 +1239,7 @@ and type_ident ctx i p mode =
 					match ctx.com.display.dms_kind with
 						| DMNone ->
 							raise (Error(err,p))
-						| DMDiagnostics b when b || ctx.is_display_file ->
+						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
 							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)
@@ -1318,7 +1360,7 @@ and handle_efield ctx e p mode =
 									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
 								with Not_found ->
 									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
-									ImportHandling.maybe_mark_import_position ctx p;
+									ImportHandling.mark_import_position ctx p;
 									t
 							in
 							get_static true t
@@ -1589,7 +1631,7 @@ and format_string ctx s p =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
 				try
 					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 					end
 				with Exit ->
@@ -1959,6 +2001,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = e1 :: el in
 	let el_kv = List.map (fun e -> match fst e with
 		| EBinop(OpArrow,e1,e2) -> e1,e2
+		| EDisplay _ ->
+			ignore(type_expr ctx e (WithType.with_type tkey));
+			error "Expected a => b" (pos e)
 		| _ -> error "Expected a => b" (pos e)
 	) el in
 	let el_k,el_v,tkey,tval = if has_type then begin
@@ -2177,6 +2222,7 @@ and type_array_comprehension ctx e with_type p =
 		| EFor(it,e2) -> (EFor (it, map_compr e2),p)
 		| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 		| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
+		| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
 		| EBlock [e] -> (EBlock [map_compr e],p)
 		| EBlock el -> begin match List.rev el with
 			| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
@@ -2506,17 +2552,24 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		type_map_declaration ctx e1 el with_type p
 	| EArrayDecl el ->
-		begin match el,with_type with
-			| [],WithType(t,_) ->
-				let rec loop t = match follow t with
-					| TAbstract({a_path = (["haxe";"ds"],"Map")},_) ->
-						type_expr ctx (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p) with_type
-					| _ ->
-						type_array_decl ctx el with_type p
-				in
-				loop t
+		begin match with_type with
+		| WithType(t,_) ->
+			begin match follow t with
+			| TAbstract({a_path = (["haxe";"ds"],"Map")},[tk;tv]) ->
+				begin match el with
+				| [] ->
+					type_expr ctx (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p) with_type
+				| [(EDisplay _,_) as e1] ->
+					(* This must mean we're just typing the first key of a map declaration (issue #9133). *)
+					type_expr ctx e1 (WithType.with_type tk)
+				| _ ->
+					type_array_decl ctx el with_type p
+				end
 			| _ ->
 				type_array_decl ctx el with_type p
+			end
+		| _ ->
+			type_array_decl ctx el with_type p
 		end
 	| EVars vl ->
 		type_vars ctx vl p

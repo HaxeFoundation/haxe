@@ -189,8 +189,6 @@ let fix_override com c f fd =
 						{ e with eexpr = TBlock (el_v @ el) }
 				);
 			} in
-			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && has_class_field_flag f CfPublic then add_class_field_flag f2 CfPublic;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -466,7 +464,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
 	let fis = (try
 			let c = (match std with TClassDecl c -> c | _ -> assert false) in
-			FStatic (c, PMap.find "is" c.cl_statics)
+			FStatic (c, PMap.find "isOfType" c.cl_statics)
 		with Not_found ->
 			assert false
 	) in

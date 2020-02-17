@@ -43,11 +43,13 @@ let rec pow a b = match b with
 
 let java_hash s =
 	let h = ref Int32.zero in
-	let l = String.length s in
+	let l = UTF8.length s in
 	let i31 = Int32.of_int 31 in
-	String.iteri (fun i char ->
-		let char = Int32.of_int (int_of_char char) in
-		h := Int32.add !h (Int32.mul char (pow i31 (l - (i + 1))))
+	let i = ref 0 in
+	UTF8.iter (fun char ->
+		let char = Int32.of_int (UCharExt.uint_code char) in
+		h := Int32.add !h (Int32.mul char (pow i31 (l - (!i + 1))));
+		incr i;
 	) s;
 	!h
 
@@ -79,6 +81,18 @@ let find_overload map_type c cf el =
 			List.rev !matches
 	in
 	loop (cf :: cf.cf_overloads)
+
+let filter_overloads candidates =
+	match Overloads.Resolution.reduce_compatible candidates with
+	| [_,_,(c,cf)] -> Some(c,cf)
+	| [] -> None
+	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
+		(* let st = s_type (print_context()) in
+		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
+		List.iter (fun (_,t,(c,cf)) ->
+			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
+		) resolved; *)
+		Some(c,cf)
 
 let find_overload_rec' is_ctor map_type c name el =
 	let candidates = ref [] in
@@ -112,16 +126,7 @@ let find_overload_rec' is_ctor map_type c name el =
 		end;
 	in
 	loop map_type c;
-	match Overloads.Resolution.reduce_compatible (List.rev !candidates) with
-	| [_,_,(c,cf)] -> Some(c,cf)
-	| [] -> None
-	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
-		(* let st = s_type (print_context()) in
-		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
-		List.iter (fun (_,t,(c,cf)) ->
-			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
-		) resolved; *)
-		Some(c,cf)
+	filter_overloads (List.rev !candidates)
 
 let find_overload_rec is_ctor map_type c cf el =
 	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
@@ -201,6 +206,7 @@ let rec jsignature_of_type stack t =
 			| ["java"],"Char16" -> TChar
 			| [],"Single" -> TFloat
 			| [],"Float" -> TDouble
+			| [],"Void" -> void_sig
 			| [],"Null" ->
 				begin match tl with
 				| [t] -> get_boxed_type (jsignature_of_type t)
@@ -575,11 +581,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method expect_reference_type = jm#expect_reference_type
 
 	method cast t =
-		if follow t != t_dynamic then begin
-			let vt = self#vtype t in
-			jm#cast vt
-		end else
-			self#expect_reference_type
+		let vt = self#vtype t in
+		jm#cast vt
 
 	method cast_expect ret t = match ret with
 		| RValue (Some jsig) -> jm#cast jsig
@@ -1508,6 +1511,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
+			let c,cf = match cf.cf_overloads with
+				| [] -> c,cf
+				| _ -> match filter_overloads (find_overload (fun t -> t) c cf el) with
+					| None ->
+						Error.error "Could not find overload" e1.epos
+					| Some(c,cf) ->
+						c,cf
+			in
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
@@ -2759,7 +2770,9 @@ let debug_path path = match path with
 
 let is_extern_abstract a = match a.a_impl with
 	| Some {cl_extern = true} -> true
-	| _ -> false
+	| _ -> match a.a_path with
+		| ([],("Void" | "Float" | "Int" | "Single" | "Bool" | "Null")) -> true
+		| _ -> false
 
 let generate_module_type ctx mt =
 	failsafe (t_infos mt).mt_pos (fun () ->

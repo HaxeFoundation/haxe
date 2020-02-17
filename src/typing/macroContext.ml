@@ -128,9 +128,8 @@ let make_macro_api ctx p =
 		typing_timer ctx false (fun() ->
 			try
 				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
-					| ParseSuccess data -> data
-					| ParseDisplayFile(data,_) when inl -> data (* ignore errors when inline-parsing in display file *)
-					| ParseDisplayFile _ -> assert false (* cannot happen because ParserEntry.parse_string sets `display_position := null_pos;` *)
+					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
+					| ParseSuccess(data,_,_) -> data
 					| ParseError _ -> raise MacroApi.Invalid_expr
 				end
 			with Exit ->
@@ -139,8 +138,7 @@ let make_macro_api ctx p =
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
-			| ParseSuccess(_,[ETypedef t,_]) -> t.d_meta
-			| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+			| ParseSuccess((_,[ETypedef t,_]),_,_) -> t.d_meta
 			| ParseError(_,_,_) -> error "Malformed metadata string" p
 			| _ -> assert false
 		with _ ->
@@ -234,8 +232,7 @@ let make_macro_api ctx p =
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
-					| ParseSuccess(_,[ETypedef { d_data = ct },_]) -> Some ct
-					| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+					| ParseSuccess((_,[ETypedef { d_data = ct },_]),_,_) -> Some ct
 					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
 					| _ -> assert false
 				) in
@@ -742,9 +739,8 @@ let call_init_macro ctx e =
 	let e = try
 		if String.get e (String.length e - 1) = ';' then error "Unexpected ;" p;
 		begin match ParserEntry.parse_expr_string ctx.com.defines e p error false with
-		| ParseSuccess data -> data
+		| ParseSuccess(data,_,_) -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
-		| ParseDisplayFile _ -> assert false (* cannot happen *)
 		end
 	with err ->
 		display_error ctx ("Could not parse `" ^ e ^ "`") p;
