@@ -544,6 +544,9 @@ let rec type_field cfg ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
+			| (MGet | MCall), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+				let ef = field_expr f (field_type f) in
+				AKExpr(ef)
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in

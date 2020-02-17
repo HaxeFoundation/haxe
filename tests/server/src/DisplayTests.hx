@@ -246,6 +246,18 @@ typedef Foo = {
 		});
 	}
 
+	function testIssue8805_gotoAbstractPropertyWithInlineGetter() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8805/Main.hx"));
+		var args = ["-main", "Main"];
+		runHaxeJson(args, DisplayMethods.GotoDefinition, {file: new FsPath("Main.hx"), offset: 56});
+		var result = parseGotoDefinition();
+		if(result.result.length == 0) {
+			Assert.fail('display/definition failed');
+		} else {
+			Assert.same({"start":{"line":7, "character":12}, "end":{"line":7, "character":15}}, result.result[0].range);
+		}
+	}
+
 	function testIssue8992() {
 		var mainHx = Marker.extractMarkers('class Main {
 	static func{-1-}tion main() {
