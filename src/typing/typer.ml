@@ -1256,26 +1256,6 @@ and type_ident ctx i p mode =
 (* MORDOR *)
 and handle_efield ctx e p mode =
 	let p0 = p in
-	(*
-		given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
-		return a new `access_mode->access_kind` getter for the whole field access chain.
-
-		if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
-		cases, normal type errors will be raised if a field can't be accessed.
-	*)
-	let fields ?(resume=false) path e =
-		let resume = ref resume in
-		let force = ref false in
-		let e = List.fold_left (fun e (f,_,p) ->
-			let e = acc_get ctx (e MGet) p in
-			let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
-			force := !resume;
-			resume := false;
-			f
-		) e path in
-		if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
-		e
-	in
 
 	(*
 		given a chain of identifiers (dot-path) represented as a list of (ident,starts_uppercase,pos) tuples,
@@ -1307,7 +1287,7 @@ and handle_efield ctx e p mode =
 				let def() =
 					try
 						let e = type_type ctx (pack,name) p in
-						fields path (fun _ -> AKExpr e)
+						field_chain ctx path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
 							(* if it's not a module path after all, it could be an untyped field access that looks like
@@ -1326,7 +1306,7 @@ and handle_efield ctx e p mode =
 
 					(* get static field by `sname` from a given type `t`, if `resume` is true - raise Not_found *)
 					let get_static resume t =
-						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
+						field_chain ctx ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 					in
 
 					(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
@@ -1336,7 +1316,7 @@ and handle_efield ctx e p mode =
 							(* first look for existing subtype *)
 							(try
 								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
-								Some (fields path (fun _ -> AKExpr (type_module_type ctx t None p)))
+								Some (field_chain ctx path (fun _ -> AKExpr (type_module_type ctx t None p)))
 							with Not_found -> try
 							(* then look for main type statics *)
 								if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
@@ -1400,7 +1380,7 @@ and handle_efield ctx e p mode =
 				| [] -> assert false
 				| (name,flag,p) :: path ->
 					try
-						fields path (type_ident ctx name p)
+						field_chain ctx path (type_ident ctx name p)
 					with
 						Error (Unknown_ident _,p2) as e when p = p2 ->
 							try
@@ -1434,7 +1414,7 @@ and handle_efield ctx e p mode =
 					this doesn't support untyped identifiers yet, because we want to check
 					fully-qualified dot paths first even in an untyped block.
 				*)
-				fields pnext (fun _ -> type_ident_raise ctx name p MGet)
+				field_chain ctx pnext (fun _ -> type_ident_raise ctx name p MGet)
 			with Not_found ->
 				(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
 				loop [] path
@@ -1458,7 +1438,7 @@ and handle_efield ctx e p mode =
 		| EConst (Ident i) ->
 			type_path ((i,not (is_lower_ident i p),p) :: acc)
 		| _ ->
-			fields acc (type_access ctx e p)
+			field_chain ctx acc (type_access ctx e p)
 	in
 	loop [] (e,p) mode
 
