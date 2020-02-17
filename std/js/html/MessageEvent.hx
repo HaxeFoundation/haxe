@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,42 +25,47 @@
 package js.html;
 
 /**
-	A `MessageEvent` is the interface representing a message received by a target, being a `WebSocket` or a WebRTC `RTCDataChannel`
+	The `MessageEvent` interface represents a message received by a target object.
 
 	Documentation [MessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent>
 **/
 @:native("MessageEvent")
-extern class MessageEvent extends Event
-{
+extern class MessageEvent extends Event {
 	
 	/**
-		Returns a `DOMString`, `Blob` or an `ArrayBuffer` containing the data send by the emitter.
+		The data sent by the message emitter.
 	**/
 	var data(default,null) : Dynamic;
 	
 	/**
-		Is a `DOMString` …
+		A `USVString` representing the origin of the message emitter.
 	**/
 	var origin(default,null) : String;
+	
+	/**
+		A `DOMString` representing a unique ID for the event.
+	**/
 	var lastEventId(default,null) : String;
 	
 	/**
-		…
+		A `MessageEventSource` (which can be a `WindowProxy`, `MessagePort`, or `ServiceWorker` object) representing the message emitter.
 	**/
-	var source(default,null) : haxe.extern.EitherType<Window,MessagePort>;
+	var source(default,null) : haxe.extern.EitherType<Window,haxe.extern.EitherType<MessagePort,ServiceWorker>>;
 	
 	/**
-		…
+		An array of `MessagePort` objects representing the ports associated with the channel the message is being sent through (where appropriate, e.g. in channel messaging or when sending a message to a shared worker).
 	**/
-	var ports(default,null) : MessagePortList;
+	var ports(default,null) : Array<MessagePort>;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MessageEventInit ) : Void;
 	
 	/**
-		… Do not use this anymore: use the `MessageEvent.MessageEvent` constructor instead.
+		Initializes a message event. Do not use this anymore — use the `MessageEvent.MessageEvent` constructor instead.
 	**/
-	function initMessageEvent( type : String, bubbles : Bool, cancelable : Bool, data : Dynamic, origin : String, lastEventId : String, source : haxe.extern.EitherType<Window,MessagePort>, ports : Array<MessagePort> ) : Void;
+	@:overload( function( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort>) : Void {} )
+	@:overload( function( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort>) : Void {} )
+	function initMessageEvent( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> ) : Void;
 }

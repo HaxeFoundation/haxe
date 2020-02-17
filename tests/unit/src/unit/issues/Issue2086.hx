@@ -1,7 +1,7 @@
 package unit.issues;
 
-#if !java
 @:generic
+@:keep
 private class Node<T:Node<T>> extends Foo<T> {
 	public var node:T;
 	public function new(node:T) {
@@ -17,6 +17,7 @@ private class Node<T:Node<T>> extends Foo<T> {
 }
 
 @:generic
+@:keep
 private class Foo<T> {
 	public var s:String = "";
 	public function new() { }
@@ -25,6 +26,7 @@ private class Foo<T> {
 	}
 }
 
+@:keep
 private class StringNode extends Node<StringNode> {
 	public function new(s:String) {
 		super(this);
@@ -35,13 +37,9 @@ private class StringNode extends Node<StringNode> {
 	}
 }
 
-#end
-
 class Issue2086 extends Test {
 	function test() {
-		#if !java
 		var sNode = new StringNode("foo");
 		eq("StringNode_funcNode_funcFoo_super_func", sNode.s);
-		#end
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,11 @@ package haxe;
 
 /**
 	This class provides advanced methods on enums. It is ideally used with
-	`using EnumTools` and then acts as an 
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
-  `enum` types.
+	`using EnumTools` and then acts as an
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `enum` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumTools {
@@ -37,7 +37,9 @@ extern class EnumTools {
 
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
+		
 			pack1.pack2.(...).packN.EnumName
+
 		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
@@ -112,15 +114,14 @@ extern class EnumTools {
 
 /**
 	This class provides advanced methods on enum values. It is ideally used with
-	`using EnumValueTools` and then acts as an 
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
-  `EnumValue` types.
+	`using EnumValueTools` and then acts as an
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `EnumValue` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumValueTools {
-
 	/**
 		Recursively compares two enum instances `a` and `b` by value.
 
@@ -168,37 +169,5 @@ extern class EnumValueTools {
 	**/
 	static public inline function getIndex(e:EnumValue):Int {
 		return Type.enumIndex(e);
-	}
-
-	/**
-		Matches enum instance `e` against pattern `pattern`, returning `true` if
-		matching succeeded and `false` otherwise.
-
-		Example usage:
-
-		```haxe
-		if (e.match(pattern)) {
-			// codeIfTrue
-		} else {
-			// codeIfFalse
-		}
-		```
-
-		This is equivalent to the following code:
-
-		```haxe
-		switch (e) {
-			case pattern:
-				// codeIfTrue
-			case _:
-				// codeIfFalse
-		}
-		```
-
-		This method is implemented in the compiler. This definition exists only
-		for documentation.
-	**/
-	static public function match(e:EnumValue, pattern:Dynamic):Bool {
-		return false;
 	}
 }

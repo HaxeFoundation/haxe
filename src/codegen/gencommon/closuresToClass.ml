@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -111,7 +111,12 @@ let funct gen t = match follow (run_follow gen t) with
 
 let mk_conversion_fun gen e =
 	let args, ret = funct gen e.etype in
-	let tf_args = List.map (fun (n,o,t) -> alloc_var n t,None) args in
+	let i = ref 0 in
+	let tf_args = List.map (fun (n,o,t) ->
+		let n = if n = "" then ("arg" ^ string_of_int(!i)) else n in
+		incr i;
+		alloc_var n t,None) args
+	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
 			v.v_capture <- true;
@@ -188,16 +193,30 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 					(match (vv, ve) with
 						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
 						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
-							ignore(tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr });
+							tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 							{ e with eexpr = TBlock([]) }
 						| _ ->
 							Type.map_expr run { e with eexpr = TVar(vv, ve) })
 					)
-			| TLocal ({ v_extra = Some( _ :: _, _) } as v)
-			| TArray ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) }, _) -> (* captured transformation *)
+			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
+				(match tparam_anon_decl with
+					| None -> assert false
+					| Some tparam_anon_decl ->
+						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
+						{ e with eexpr = TBlock([]) }
+				)
+			| TLocal ({ v_extra = Some( _ :: _, _) } as v) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
-				| Some tparam_anon_acc -> tparam_anon_acc v e)
+				| Some tparam_anon_acc -> tparam_anon_acc v e false)
+			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr), _) -> (* captured transformation *)
+				(match tparam_anon_acc with
+				| None -> Type.map_expr run e
+				| Some tparam_anon_acc -> tparam_anon_acc v { expr with etype = e.etype } false)
+			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr)) ->
+				(match tparam_anon_acc with
+				| None -> Type.map_expr run e
+				| Some tparam_anon_acc -> tparam_anon_acc v expr true)
 			| TCall( { eexpr = TField(_, FEnum _) }, _ ) ->
 				Type.map_expr run e
 			(* if a TClosure is being call immediately, there's no need to convert it to a TClosure *)
@@ -259,8 +278,9 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 
 let rec get_type_params acc t =
 	match t with
-		| TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
-			if List.memq cl acc then acc else cl :: acc
+		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
+			let params = List.fold_left get_type_params acc constraints in
+			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
 		| TDynamic t ->
@@ -285,7 +305,7 @@ let rec get_type_params acc t =
 		| TEnum(_, params)
 		| TInst(_, params) ->
 			List.fold_left get_type_params acc params
-		| TMono r -> (match !r with
+		| TMono r -> (match r.tm_type with
 			| Some t -> get_type_params acc t
 			| None -> acc)
 		| _ -> get_type_params acc (follow_once t)
@@ -351,7 +371,9 @@ let get_captured expr =
 *)
 let configure gen ft =
 
-	let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
+	let tvar_to_cdecl = Hashtbl.create 0 in
+
+	let handle_anon_func fexpr ?tvar tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
 		let fexpr = match fexpr.eexpr with
 			| TFunction(_) ->
 				{ fexpr with eexpr = TFunction(tfunc) }
@@ -382,9 +404,19 @@ let configure gen ft =
 			| Some cf -> cf.cf_name
 		in
 		let cur_line = Lexer.get_error_line fexpr.epos in
-		let path = (fst gen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd gen.gcurrent_path) cfield cur_line) in
+		let name = match tvar with
+			| None ->
+				Printf.sprintf "%s_%s_%d__Fun" (snd gen.gcurrent_path) cfield cur_line
+			| Some (v) ->
+				Printf.sprintf "%s_%s_%d__Fun" (snd gen.gcurrent_path) v.v_name cur_line
+		in
+		let path = (fst gen.gcurrent_path, name) in
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
+
+		(* forward NativeGen meta for Cs target *)
+		if (Common.platform gen.gcon Cs) && not(is_hxgen (TClassDecl (get gen.gcurrent_class))) && Meta.has(Meta.NativeGen) (get gen.gcurrent_class).cl_meta then
+			cls.cl_meta <- (Meta.NativeGen,[],null_pos) :: cls.cl_meta;
 
 		if Common.defined gen.gcon Define.EraseGenerics then begin
 			cls.cl_meta <- (Meta.HaxeGeneric,[],null_pos) :: cls.cl_meta
@@ -436,7 +468,7 @@ let configure gen ft =
 				let pos = cls.cl_pos in
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
-				cf.cf_meta <- (Meta.Final,[],pos) :: cf.cf_meta;
+				add_class_field_flag cf CfFinal;
 				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
 				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
 				(* invoke function body: call Delegate function *)
@@ -494,7 +526,14 @@ let configure gen ft =
 		cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
 		cls.cl_overrides <- invoke_field :: cls.cl_overrides;
 
-		gen.gadd_to_module (TClassDecl cls) priority;
+		(match tvar with
+		| None -> ()
+		| Some ({ v_extra = Some(_ :: _, _) } as v) ->
+			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
+		| _ -> ());
+
+		(* set priority as priority + 0.00001 so that this filter runs again *)
+		gen.gadd_to_module (TClassDecl cls) (priority +. 0.000001);
 
 		(* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
 		let expr, clscapt =
@@ -542,15 +581,14 @@ let configure gen ft =
 			}, clscapt
 	in
 
-	let tvar_to_cdecl = Hashtbl.create 0 in
 
 	let run = traverse
 		gen
 		~tparam_anon_decl:(fun v e fn ->
-			let _, info = handle_anon_func e fn null_map_info None in
-			Hashtbl.add tvar_to_cdecl v.v_id info
+			let _, (cls,captured) = handle_anon_func e ~tvar:v fn null_map_info None in
+			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
 		)
-		~tparam_anon_acc:(fun v e -> try
+		~tparam_anon_acc:(fun v e in_tparam -> try
 			let cls, captured = Hashtbl.find tvar_to_cdecl v.v_id in
 			let captured = List.sort (fun e1 e2 -> match e1, e2 with
 				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
@@ -588,12 +626,25 @@ let configure gen ft =
 			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }
 		with
 			| Not_found ->
-			gen.gcon.warning "This expression may be invalid" e.epos;
-			e
+				if in_tparam then begin
+					gen.gcon.warning "This expression may be invalid" e.epos;
+					e
+				end else
+					(* It is possible that we are recursively calling a function
+					   that has type parameters. In this case, we must leave it be
+					   because as soon as the new class is added to the module,
+					   this filter will run again. By this time, the tvar-to-cdecl
+					   hashtable will be already filled with all functions, so
+					   it should run correctly. In this case, if it keeps failing.
+					   we will add the "Expression may be invalid warning" like we did
+					   before (see Issue #7118) *)
+					{ e with eexpr = TMeta(
+						(Meta.Custom(":tparamcall"), [], e.epos), e
+					) }
 			| Unify_error el ->
 				List.iter (fun el -> gen.gcon.warning (Error.unify_error_msg (print_context()) el) e.epos) el;
-			gen.gcon.warning "This expression may be invalid" e.epos;
-			e
+				gen.gcon.warning "This expression may be invalid" e.epos;
+				e
 		)
 		(* (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 		(fun e f info delegate_type -> fst (handle_anon_func e f info delegate_type))
@@ -684,7 +735,7 @@ struct
 				| Some const ->
 					{ eexpr = TIf(
 						{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
-						{ elocal with eexpr = TConst(const); etype = const_type basic const t },
+						const,
 						Some ( mk_cast t elocal )
 					); etype = t; epos = elocal.epos }
 			in

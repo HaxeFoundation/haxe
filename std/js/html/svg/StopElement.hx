@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,11 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStopElement>
 **/
 @:native("SVGStopElement")
-extern class StopElement extends Element
-{
+extern class StopElement extends Element {
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `offset` of the given element.
+	**/
 	var offset(default,null) : AnimatedNumber;
 	
 }

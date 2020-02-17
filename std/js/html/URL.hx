@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,19 +25,17 @@
 package js.html;
 
 /**
-	The `URL` interface represent an object providing static methods used for creating object URLs.
+	The URL interface represents an object providing static methods used for creating object URLs.
 
 	Documentation [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/URL$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/URL>
 **/
 @:native("URL")
-extern class URL
-{
+extern class URL {
 	/** @throws DOMError */
-	@:overload( function( blob : Blob, ?options : ObjectURLOptions ) : String {} )
-	@:overload( function( stream : MediaStream, ?options : ObjectURLOptions ) : String {} )
-	static function createObjectURL( source : MediaSource, ?options : ObjectURLOptions ) : String;
+	@:overload( function( blob : Blob ) : String {} )
+	static function createObjectURL( source : MediaSource ) : String;
 	/** @throws DOMError */
 	static function revokeObjectURL( url : String ) : Void;
 	
@@ -67,7 +65,7 @@ extern class URL
 	var password : String;
 	
 	/**
-		Is a `DOMString` containing the host, that is the hostname, a `':'`, and the port of the URL.
+		Is a `DOMString` containing the domain (that is the hostname) followed by (if a port was specified) a `':'` and the port of the URL.
 	**/
 	var host : String;
 	
@@ -102,6 +100,6 @@ extern class URL
 	var hash : String;
 	
 	/** @throws DOMError */
-	@:overload( function( url : String, base : URL ) : Void {} )
 	function new( url : String, ?base : String ) : Void;
+	function toJSON() : String;
 }

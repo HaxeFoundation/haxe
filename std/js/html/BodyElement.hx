@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBodyElement>
 **/
 @:native("HTMLBodyElement")
-extern class BodyElement extends Element
-{
+extern class BodyElement extends Element {
 	
 	/**
 		Is a `DOMString` that represents the foreground color of text.
@@ -66,10 +65,11 @@ extern class BodyElement extends Element
 	var background : String;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;
-	var onbeforeunload : Event -> String;
+	var onbeforeunload : Event -> Null<String>;
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var onpagehide : haxe.Constraints.Function;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,26 +19,25 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp;
 
 class Random {
-
-	var r : Dynamic;
+	var r:Dynamic;
 
 	public function new() {
 		r = cpp.NativeRandom.random_new();
 	}
 
-	public function setSeed( s : Int ) {
-		cpp.NativeRandom.random_set_seed(r,s);
+	public function setSeed(s:Int) {
+		cpp.NativeRandom.random_set_seed(r, s);
 	}
 
-	public function int( max : Int ) : Int {
-		return cpp.NativeRandom.random_int(r,max);
+	public function int(max:Int):Int {
+		return cpp.NativeRandom.random_int(r, max);
 	}
 
-	public function float() : Float {
+	public function float():Float {
 		return cpp.NativeRandom.random_float(r);
 	}
-
 }

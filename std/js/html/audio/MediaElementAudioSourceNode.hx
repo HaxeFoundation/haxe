@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaElementAudioSourceNode>
 **/
 @:native("MediaElementAudioSourceNode")
-extern class MediaElementAudioSourceNode extends AudioNode
-{
+extern class MediaElementAudioSourceNode extends AudioNode {
+	/** @throws DOMError */
+	function new( context : AudioContext, options : MediaElementAudioSourceOptions ) : Void;
 }

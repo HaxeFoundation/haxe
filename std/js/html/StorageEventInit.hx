@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef StorageEventInit =
-{
-	> EventInit,
-	@:optional var key : String;
-	@:optional var newValue : String;
-	@:optional var oldValue : String;
-	@:optional var storageArea : Storage;
-	@:optional var url : String;
+typedef StorageEventInit = EventInit & {
+	var ?key : String;
+	var ?newValue : String;
+	var ?oldValue : String;
+	var ?storageArea : Storage;
+	var ?url : String;
 }

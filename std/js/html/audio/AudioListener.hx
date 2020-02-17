@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,20 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioListener>
 **/
 @:native("AudioListener")
-extern class AudioListener
-{
-	var dopplerFactor : Float;
-	var speedOfSound : Float;
-	
-	
-	/**
-		Sets the position of the listener. See `Deprecated features` to learn why this method was removed.
-	**/
+extern class AudioListener {
 	function setPosition( x : Float, y : Float, z : Float ) : Void;
-	
-	/**
-		Sets the orientation of the listener.
-	**/
 	function setOrientation( x : Float, y : Float, z : Float, xUp : Float, yUp : Float, zUp : Float ) : Void;
-	function setVelocity( x : Float, y : Float, z : Float ) : Void;
 }

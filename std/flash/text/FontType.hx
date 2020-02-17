@@ -1,7 +1,7 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum FontType {
-	DEVICE;
-	EMBEDDED;
-	EMBEDDED_CFF;
+@:native("flash.text.FontType") extern enum abstract FontType(String) {
+	var DEVICE;
+	var EMBEDDED;
+	var EMBEDDED_CFF;
 }

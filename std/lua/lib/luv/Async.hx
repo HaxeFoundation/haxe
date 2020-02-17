@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Async extends Handle {
-  static function new_async() : Async;
-  @:native("new_async") function new() : Void;
-  function send() : Int;
+	static function new_async():Async;
+	@:native("new_async") function new():Void;
+	function send():Int;
 }

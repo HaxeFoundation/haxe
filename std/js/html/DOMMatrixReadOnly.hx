@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,46 +32,45 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly>
 **/
 @:native("DOMMatrixReadOnly")
-extern class DOMMatrixReadOnly
-{
+extern class DOMMatrixReadOnly {
 	
 	/**
 		Are <code>double</code> representing each component of a 4x4 matrix needed for 2D rotations and translations. They are aliases for some components of the 4x4 matrix:
-		 <table class="standard-table">
-		  
-		   <tr>
-		    2D
-		    3D equivalent
-		   </tr>
-		  
-		  
-		   <tr>
-		    <td><code>a</code></td>
-		    <td><code>m11</code></td>
-		   </tr>
-		   <tr>
-		    <td><code>b</code></td>
-		    <td><code>m12</code></td>
-		   </tr>
-		   <tr>
-		    <td><code>c</code></td>
-		    <td><code>m21</code></td>
-		   </tr>
-		   <tr>
-		    <td><code>d</code></td>
-		    <td><code>m22</code></td>
-		   </tr>
-		   <tr>
-		    <td><code>e</code></td>
-		    <td><code>m41</code></td>
-		   </tr>
-		   <tr>
-		    <td><code>f</code></td>
-		    <td><code>m42</code></td>
-		   </tr>
-		  
-		 </table>
-		 They are read-only, but their counterpart, with the same name, in <code>DOMMatrix</code> aren't.
+			<table class="standard-table">
+				
+					<tr>
+						2D
+						3D equivalent
+					</tr>
+				
+				
+					<tr>
+						<td><code>a</code></td>
+						<td><code>m11</code></td>
+					</tr>
+					<tr>
+						<td><code>b</code></td>
+						<td><code>m12</code></td>
+					</tr>
+					<tr>
+						<td><code>c</code></td>
+						<td><code>m21</code></td>
+					</tr>
+					<tr>
+						<td><code>d</code></td>
+						<td><code>m22</code></td>
+					</tr>
+					<tr>
+						<td><code>e</code></td>
+						<td><code>m41</code></td>
+					</tr>
+					<tr>
+						<td><code>f</code></td>
+						<td><code>m42</code></td>
+					</tr>
+				
+			</table>
+			They are read-only, but their counterpart, with the same name, in <code>DOMMatrix</code> aren't.
 	**/
 	var a(default,null) : Float;
 	var b(default,null) : Float;
@@ -104,33 +103,40 @@ extern class DOMMatrixReadOnly
 		Is a `Boolean` indicating if the matrix contains a 2D matrix and only accept 2D transformations.
 	**/
 	var is2D(default,null) : Bool;
-	var identity(default,null) : Bool;
 	
+	/**
+		Is a `Boolean` indincating if the matrix identity, that is a matrix with `1` on the components of its diagonal, and `0` elsewhere.
+	**/
+	var isIdentity(default,null) : Bool;
+	
+	/** @throws DOMError */
+	@:overload( function( ?init : Array<Float>) : DOMMatrixReadOnly {} )
+	function new( ?init : String ) : Void;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix being translated by the given vector. The original matrix is not modified.
 	**/
-	function translate( tx : Float, ty : Float, ?tz : Float = 0.0 ) : DOMMatrix;
+	function translate( tx : Float, ty : Float, tz : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x and y dimensions being scaled by the given factor, centered on the origin given. The original matrix is not modified.
 	**/
-	function scale( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function scale( scale : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x, y and z dimension being scaled by the given factor, centered on the origin given. The original matrix is not modified.
 	**/
-	function scale3d( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scale3d( scale : Float, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x, y and z dimension being scaled by the given factor for each dimension, centered on the origin given. The original matrix is not modified.
 	**/
-	function scaleNonUniform( scaleX : Float, ?scaleY : Float = 1.0, ?scaleZ : Float = 1.0, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scaleNonUniform( scaleX : Float, scaleY : Float = 1.0, scaleZ : Float = 1.0, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the given angle, with the rotation centered on the origin given. The original matrix is not modified.
 	**/
-	function rotate( angle : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function rotate( angle : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the angle between the given vector and (1,0), centered on the origin given. The original matrix is not modified.
@@ -138,7 +144,7 @@ extern class DOMMatrixReadOnly
 	function rotateFromVector( x : Float, y : Float ) : DOMMatrix;
 	
 	/**
-		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the given angle and the give vector. The original matrix is not modified.
+		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the given angle and the given vector. The original matrix is not modified.
 	**/
 	function rotateAxisAngle( x : Float, y : Float, z : Float, angle : Float ) : DOMMatrix;
 	
@@ -166,22 +172,31 @@ extern class DOMMatrixReadOnly
 		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being flipped around the y-axis, that is multiplied by the `DOMMatrix(1, 0, 0, -1, 0, 0)`. The original matrix is not modified.
 	**/
 	function flipY() : DOMMatrix;
+	
+	/**
+		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being inverted. The original matrix is not modified. If the matrix cannot be inverted, all its components are set to `NaN` and `is2D()` returns `false`.
+	**/
 	function inverse() : DOMMatrix;
 	
 	/**
-		Returns a `DOMPoint` that is the point given in parameter multiplied by the matrix. Bot the original point and the matrix aren't modified.
+		Returns a `DOMPoint` that is the point given in parameter multiplied by the matrix. But the original point and the matrix aren't modified.
 	**/
 	function transformPoint( ?point : DOMPointInit ) : DOMPoint;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `Float32Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
+		@throws DOMError
 	**/
-	function toFloat32Array() : Float32Array;
-	/** @throws DOMError */
+	function toFloat32Array() : js.lib.Float32Array;
 	
 	/**
 		Returns a `Float64Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
+		@throws DOMError
 	**/
-	function toFloat64Array() : Float64Array;
+	function toFloat64Array() : js.lib.Float64Array;
+	
+	/**
+		Returns a JSON representation of the `DOMMatrixReadOnly` object.
+	**/
+	function toJSON() : Dynamic;
 }

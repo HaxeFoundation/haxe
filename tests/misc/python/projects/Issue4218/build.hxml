@@ -1,0 +1,3 @@
+-python Test.py
+--main Main
+-cmd python3 Test.py

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,19 +32,39 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement>
 **/
 @:native("SVGMaskElement")
-extern class MaskElement extends Element
-{
+extern class MaskElement extends Element {
 	static inline var SVG_MASKTYPE_LUMINANCE : Int = 0;
 	static inline var SVG_MASKTYPE_ALPHA : Int = 1;
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
 	
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `maskUnits` attribute of the given `mask` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var maskUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `maskContentUnits` attribute of the given `mask` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var maskContentUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `mask` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y` attribute of the given `mask` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `width` attribute of the given `mask` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `height` attribute of the given `mask` element.
+	**/
 	var height(default,null) : AnimatedLength;
 	
 }

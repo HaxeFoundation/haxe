@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,17 +19,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 class StringInput extends BytesInput {
-
-	public function new( s : String ) {
+	public function new(s:String) {
 		#if neko
 		// don't copy the string
-		super( neko.Lib.bytesReference(s) );
+		super(neko.Lib.bytesReference(s));
 		#else
-		super( haxe.io.Bytes.ofString(s) );
+		super(haxe.io.Bytes.ofString(s));
 		#end
 	}
-
 }

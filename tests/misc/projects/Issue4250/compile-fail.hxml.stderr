@@ -1,5 +1,3 @@
-Main.hx:11: characters 9-31 : SomeNode should be Node
-Main.hx:11: characters 9-31 : SomeNode should be { parent : Node }
-Main.hx:11: characters 9-31 : Invalid type for field parent :
-Main.hx:11: characters 9-31 : SomeNode should be Node
-Main.hx:11: characters 9-31 : SomeNode should be { parent : Node }
+Main.hx:11: characters 9-31 : error: SomeNode should be Node
+Main.hx:11: characters 9-31 :  have: { parent: SomeNode }
+Main.hx:11: characters 9-31 :  want: { parent: Node }

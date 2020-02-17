@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,15 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEFloodElement` interface corresponds to the `feFlood` element.
+
+	Documentation [SVGFEFloodElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement>
+**/
 @:native("SVGFEFloodElement")
-extern class FEFloodElement extends Element
-{
+extern class FEFloodElement extends Element {
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;
 	var width(default,null) : AnimatedLength;

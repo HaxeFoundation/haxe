@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,40 +19,46 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
-class Uncompress
-{
-	public function new( ?windowBits : Int ) {
-		throw "Not implemented for this platform";
+import java.util.zip.Inflater;
+
+class Uncompress {
+	final inflater:Inflater;
+
+	public function new(?windowBits:Int) {
+		inflater = new Inflater(windowBits != null && windowBits < 0);
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return null;
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
+		inflater.setInput(src.getData(), srcPos, src.length - srcPos);
+		inflater.inflate(dst.getData(), dstPos, dst.length - dstPos);
+		return {
+			done: inflater.finished(),
+			read: Int64.toInt(inflater.getBytesRead()),
+			write: Int64.toInt(inflater.getBytesWritten())
+		};
 	}
 
-	public function setFlushMode( f : FlushMode ) {
-	}
+	public function setFlushMode(f:FlushMode) {}
 
 	public function close() {
+		inflater.end();
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes
-	{
+	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes {
 		var decompresser = new java.util.zip.Inflater();
 		var buf = haxe.io.Bytes.alloc(bufsize == null ? src.length : bufsize).getData();
 
 		var out = new java.io.ByteArrayOutputStream(src.length);
 		decompresser.setInput(src.getData(), 0, src.length);
 
-		while (!decompresser.finished())
-		{
+		while (!decompresser.finished()) {
 			var count = decompresser.inflate(buf);
 			out.write(buf, 0, count);
 		}
 		out.close();
 		return haxe.io.Bytes.ofData(out.toByteArray());
 	}
-
 }
-

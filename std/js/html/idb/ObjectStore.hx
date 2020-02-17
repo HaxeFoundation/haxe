@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,12 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore>
 **/
 @:native("IDBObjectStore")
-extern class ObjectStore
-{
+extern class ObjectStore {
 	
 	/**
 		The name of this object store.
 	**/
-	var name(default,null) : String;
+	var name : String;
 	
 	/**
 		The key path of this object store. If this attribute is `null`, the application must provide a key for each modification operation.
@@ -60,80 +59,89 @@ extern class ObjectStore
 	**/
 	var autoIncrement(default,null) : Bool;
 	
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a structured clone of the `value`, and stores the cloned value in the object store. This is for updating existing records in an object store when the transaction's mode is `readwrite`.
+		@throws DOMError
 	**/
 	function put( value : Dynamic, ?key : Dynamic ) : Request;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a structured clone of the `value`, and stores the cloned value in the object store. This is for adding new records to an object store.
+		@throws DOMError
 	**/
 	function add( value : Dynamic, ?key : Dynamic ) : Request;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_( key : Dynamic ) : Request;
-	/** @throws DOMError */
+	
+	/**
+		returns an `IDBRequest` object, and, in a separate thread, deletes the store object selected by the specified key. This is for deleting individual records out of an object store.
+		@throws DOMError
+	**/
+	function delete( key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, returns the store object store selected by the specified key. This is for retrieving specific records from an object store.
+		@throws DOMError
 	**/
 	function get( key : Dynamic ) : Request;
-	/** @throws DOMError */
+	
+	/**
+		Returns an `IDBRequest` object, and, in a separate thread retrieves and returns the record key for the object in the object stored matching the specified parameter.
+		@throws DOMError
+	**/
+	function getKey( key : Dynamic ) : Request;
 	
 	/**
 		Creates and immediately returns an `IDBRequest` object, and clears this object store in a separate thread. This is for deleting all current records out of an object store.
+		@throws DOMError
 	**/
 	function clear() : Request;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursorWithValue` object. Used for iterating through an object store by primary key with a cursor.
+		@throws DOMError
 	**/
-	function openCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
-	/** @throws DOMError */
-	@:overload( function( name : String, keyPath : String, ?optionalParameters : IndexParameters ) : Index {} )
+	function openCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Creates a new index during a version upgrade, returning a new `IDBIndex` object in the connected database.
+		@throws DOMError
 	**/
-	function createIndex( name : String, keyPath : Array<String>, ?optionalParameters : IndexParameters ) : Index;
-	/** @throws DOMError */
+	@:overload( function( name : String, keyPath : Array<String>, ?optionalParameters : IndexParameters) : Index {} )
+	function createIndex( name : String, keyPath : String, ?optionalParameters : IndexParameters ) : Index;
 	
 	/**
 		Opens an index from this object store after which it can, for example, be used to return a sequence of records sorted by that index using a cursor.
+		@throws DOMError
 	**/
 	function index( name : String ) : Index;
-	/** @throws DOMError */
 	
 	/**
 		Destroys the specified index in the connected database, used during a version upgrade.
+		@throws DOMError
 	**/
 	function deleteIndex( indexName : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, returns the total number of records that match the provided key or `IDBKeyRange`. If no arguments are provided, it returns the total number of records in the store.
+		@throws DOMError
 	**/
 	function count( ?key : Dynamic ) : Request;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object retrieves all objects in the object store matching the specified parameter or all objects in the store if no parameters are given.
+		@throws DOMError
 	**/
 	function getAll( ?key : Dynamic, ?limit : Int ) : Request;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object retrieves record keys for all objects in the object store matching the specified parameter or all objects in the store if no parameters are given.
+		@throws DOMError
 	**/
 	function getAllKeys( ?key : Dynamic, ?limit : Int ) : Request;
-	/** @throws DOMError */
 	
 	/**
-		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursorWithValue`. Used for iterating through an object store with a key.
+		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursor`. Used for iterating through an object store with a key.
+		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
+	function openKeyCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 }

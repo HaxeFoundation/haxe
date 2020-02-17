@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent>
 **/
 @:native("AudioProcessingEvent")
-extern class AudioProcessingEvent extends js.html.Event
-{
+extern class AudioProcessingEvent extends js.html.Event {
 	var playbackTime(default,null) : Float;
 	var inputBuffer(default,null) : AudioBuffer;
 	var outputBuffer(default,null) : AudioBuffer;

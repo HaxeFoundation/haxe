@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,9 @@
 
 package js.html;
 
-@:enum abstract AlignSetting(String)
-{
+enum abstract AlignSetting(String) {
 	var START = "start";
-	var MIDDLE = "middle";
+	var CENTER = "center";
 	var END = "end";
 	var LEFT = "left";
 	var RIGHT = "right";

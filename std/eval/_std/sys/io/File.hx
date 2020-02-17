@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,17 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 @:coreApi
 class File {
-	@:extern static public function getContent(path:String):String { return ""; }
-	@:extern static public function saveContent(path:String, content:String):Void { }
-	@:extern static public function getBytes(path:String):haxe.io.Bytes { return haxe.io.Bytes.alloc(0); }
-	@:extern static public function saveBytes(path:String, bytes:haxe.io.Bytes):Void { }
-	@:extern static public function read(path:String, binary:Bool = true):FileInput { return null; }
-	@:extern static public function write(path:String, binary:Bool = true):FileOutput { return null; }
-	@:extern static public function append(path:String, binary:Bool = true):FileOutput { return null; }
+	extern static public function getContent(path:String):String;
+
+	extern static public function saveContent(path:String, content:String):Void;
+
+	extern static public function getBytes(path:String):haxe.io.Bytes;
+
+	extern static public function saveBytes(path:String, bytes:haxe.io.Bytes):Void;
+
+	extern static public function read(path:String, binary:Bool = true):FileInput;
+
+	extern static public function write(path:String, binary:Bool = true):FileOutput;
+
+	extern static public function append(path:String, binary:Bool = true):FileOutput;
+
+	extern static public function update(path:String, binary:Bool = true):FileOutput;
 
 	static public function copy(srcPath:String, dstPath:String):Void {
 		var s = read(srcPath, true);

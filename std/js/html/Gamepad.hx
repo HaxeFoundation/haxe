@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
 **/
 @:native("Gamepad")
-extern class Gamepad
-{
+extern class Gamepad {
 	
 	/**
 		A `DOMString` containing identifying information about the controller.
@@ -66,7 +65,7 @@ extern class Gamepad
 	var axes(default,null) : Array<Float>;
 	
 	/**
-		A `DOMHighResTimeStamp` representing the last time the data for this gamepad was updated. Note that this property is not currently supported anywhere.
+		A `DOMHighResTimeStamp` representing the last time the data for this gamepad was updated.
 	**/
 	var timestamp(default,null) : Float;
 	

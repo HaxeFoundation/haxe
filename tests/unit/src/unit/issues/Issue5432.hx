@@ -21,5 +21,5 @@ private class Point
 	public var x:Float = 1;
 	public var y:Float = 2;
 
-	@:extern inline public function new() {}
+	extern inline public function new() {}
 }

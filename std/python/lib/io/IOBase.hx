@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,28 +19,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
-@:enum abstract SeekSet(Int) {
+enum abstract SeekSet(Int) {
 	var SeekSet = 0;
 	var SeekCur = 1;
 	var SeekEnd = 2;
 }
+
 @:pythonImport("io", "IOBase")
 extern class IOBase implements IIOBase {
-
 	public function close():Void;
 	public function flush():Void;
 	public function readline(limit:Int = -1):String;
 	public function readable():Bool;
 	public var closed(default, null):Bool;
-	public function readlines(hint:Int=-1):Array<String>;
+	public function readlines(hint:Int = -1):Array<String>;
 	public function tell():Int;
 	public function writable():Bool;
 	public function seekable():Bool;
 	public function fileno():Int;
 	public function seek(offset:Int, whence:SeekSet):Int;
-	public function truncate (size:Int):Int;
+	public function truncate(size:Int):Int;
 }
 
 @:remove extern interface IIOBase {
@@ -49,11 +50,11 @@ extern class IOBase implements IIOBase {
 	public function readline(limit:Int = -1):String;
 	public function readable():Bool;
 	public var closed(default, null):Bool;
-	public function readlines(hint:Int=-1):Array<String>;
+	public function readlines(hint:Int = -1):Array<String>;
 	public function tell():Int;
 	public function writable():Bool;
 	public function seekable():Bool;
 	public function fileno():Int;
 	public function seek(offset:Int, whence:SeekSet):Int;
-	public function truncate (size:Int):Int;
+	public function truncate(size:Int):Int;
 }

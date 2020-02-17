@@ -5,6 +5,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Python {
+	static var miscPythonDir(get,never):String;
+	static inline function get_miscPythonDir() return miscDir + 'python/';
+
 	static public function getPythonDependencies():Array<String> {
 		switch (systemName) {
 			case "Linux":
@@ -18,9 +21,12 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					var pypyVersion = "pypy3-2.4.0-linux64";
-					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
-					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+					var pypyVersion = "pypy3.6-v7.3.0-linux64";
+					var file = '${pypyVersion}.tar.bz2';
+					if(!FileSystem.exists(file)) {
+						runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/$file'], true);
+					}
+					runCommand("tar", ["-xf", file]);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
 				runCommand(pypy, ["-V"]);
@@ -60,13 +66,15 @@ class Python {
 		}
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
-		runCommand("haxe", ["compile-python.hxml"]);
+		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runCommand(py, ["bin/python/sys.py"]);
 		}
 
-		changeDirectory(miscDir + "pythonImport");
+		changeDirectory(miscPythonDir);
+		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(miscPythonDir + "pythonImport");
 		runCommand("haxe", ["compile.hxml"]);
 		for (py in pys) {
 			runCommand(py, ["test.py"]);

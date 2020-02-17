@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,18 +25,17 @@
 package js.html.audio;
 
 /**
-	`AudioDestinationNode` has no output (as it is the output, no more `AudioNode` can be linked after it in the audio graph) and one input. The amount of channels in the input must be between `0` and the `maxChannelCount` value or an exception is raised.
+	`AudioDestinationNode` has no output (as it is the output, no more `AudioNode` can be linked after it in the audio graph) and one input. The number of channels in the input must be between `0` and the `maxChannelCount` value or an exception is raised.
 
 	Documentation [AudioDestinationNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode>
 **/
 @:native("AudioDestinationNode")
-extern class AudioDestinationNode extends AudioNode
-{
+extern class AudioDestinationNode extends AudioNode {
 	
 	/**
-		Is an `unsigned long` defining the maximum amount of channels that the physical device can handle.
+		Is an `unsigned long` defining the maximum number of channels that the physical device can handle.
 	**/
 	var maxChannelCount(default,null) : Int;
 	

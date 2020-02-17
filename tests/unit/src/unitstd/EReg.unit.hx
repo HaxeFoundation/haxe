@@ -109,6 +109,12 @@ pos.len == 2;
 ~/(Hola)/.map("Hello World", function(e) return throw "not called") == "Hello World";
 
 // escape
-#if !hl
 new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ ^ $ * + ? . ( ) | { } [ ]") == true;
-#end
+
+// #6641
+~/(b)/.split("abc") == ["a","c"];
+
+// #3430
+~/(\d+)/g.replace("a1234b12","$1") == "a1234b12";
+~/(\d+)/g.replace("a1234b12","\\$1") == "a\\1234b\\12";
+~/(\d+)/g.replace("a1234b12","$$1") == "a$1b$1";

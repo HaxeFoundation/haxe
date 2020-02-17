@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,29 @@
 
 package js.html;
 
+/**
+	The `MimeTypeArray` interface returns an array of `MimeType` instances, each of which contains information about a supported browser plugins. This object is returned by `NavigatorPlugins.mimeTypes`.
+
+	Documentation [MimeTypeArray](https://developer.mozilla.org/en-US/docs/Web/API/MimeTypeArray) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MimeTypeArray$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MimeTypeArray>
+**/
 @:native("MimeTypeArray")
-extern class MimeTypeArray implements ArrayAccess<MimeType>
-{
+extern class MimeTypeArray implements ArrayAccess<MimeType> {
+	
+	/**
+		The number of items in the array.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns the `MimeType` object with the specified index.
+	**/
 	function item( index : Int ) : MimeType;
+	
+	/**
+		Returns the `MimeType` object with the specified name.
+	**/
 	function namedItem( name : String ) : MimeType;
 }

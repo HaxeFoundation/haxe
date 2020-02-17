@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,10 +32,9 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TimeEvent>
 **/
 @:native("TimeEvent")
-extern class TimeEvent extends Event
-{
+extern class TimeEvent extends Event {
 	var detail(default,null) : Int;
 	var view(default,null) : Window;
 	
-	function initTimeEvent( aType : String, aView : Window, aDetail : Int ) : Void;
+	function initTimeEvent( aType : String, ?aView : Window, aDetail : Int = 0 ) : Void;
 }

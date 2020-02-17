@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParagraphElement>
 **/
 @:native("HTMLParagraphElement")
-extern class ParagraphElement extends Element
-{
+extern class ParagraphElement extends Element {
+	
+	/**
+		A `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
+	**/
 	var align : String;
 	
 }

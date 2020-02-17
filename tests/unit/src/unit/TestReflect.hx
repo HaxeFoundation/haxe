@@ -4,11 +4,11 @@ import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 }
 
 class ClassWithProp implements InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 	var _x : Int;
 
 	public function new() {
@@ -23,7 +23,7 @@ class ClassWithProp implements InterfWithProp {
 		return v;
 	}
 
-	public static var STAT_X(default, set_STAT_X) : Int;
+	public static var STAT_X(default, set) : Int;
 
 	static function set_STAT_X(v) {
 		STAT_X = v * 2;
@@ -77,12 +77,7 @@ class TestReflect extends Test {
 	}
 
 	static inline function u2( s : String, s2 ) : String {
-		#if as3
-		return s + "." +s2;
-		#else
-		// this causes a null pointer exception on as3 for whatever reason
 		return u(s) + "." + u(s2);
-		#end
 	}
 
 	static var TNAMES = [
@@ -97,7 +92,6 @@ class TestReflect extends Test {
 		for( i in 1...TYPES.length ) {
 			var t : Dynamic = TYPES[i];
 			var name = TNAMES[i];
-			infos("type "+name);
 			f( t == null );
 			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
@@ -109,52 +103,48 @@ class TestReflect extends Test {
 				eq( Type.resolveClass(name), t );
 			}
 		}
-		infos(null);
 	}
 
 	public function testIs() {
-		is(null,null);
-		is(0,Int,Float);
-		is(1,Int,Float);
-		is(-1,Int,Float);
-		is(2.0,Int,Float);
-		is(1.2,Float);
-		is(1e10,Float);
-		is(-1e10,Float);
-		is(Math.NaN,Float);
-		is(Math.POSITIVE_INFINITY,Float);
-		is(Math.NEGATIVE_INFINITY,Float);
-		is(true,Bool);
-		is(false,Bool);
-		is("Hello",String);
-		is("123",String);
-		is("false",String);
-		is("",String);
-		is([],Array);
-		is([1, 2], Array);
-		is([1.1, 2.2], Array);
-		is(["a", "b"], Array);
-		is((["a",2]:Array<Dynamic>),Array);
-		is(new List(),List);
-		is(new haxe.ds.StringMap(),haxe.ds.StringMap);
-		is(new MyClass(0),MyClass);
-		is(new MySubClass(0),MyClass,MySubClass);
-		is(MyEnum.A,MyEnum);
-		is(MyEnum.C(0,""),MyEnum);
-		is(Date.now(),Date);
-		is({ x : 0 },null);
-		is(function() { },null);
-		is(MyClass,Class);
-		is(MyEnum,Enum);
+		isTrue(0,Int,Float);
+		isTrue(1,Int,Float);
+		isTrue(-1,Int,Float);
+		isTrue(2.0,Int,Float);
+		isTrue(1.2,Float);
+		isTrue(1e10,Float);
+		isTrue(-1e10,Float);
+		isTrue(Math.NaN,Float);
+		isTrue(Math.POSITIVE_INFINITY,Float);
+		isTrue(Math.NEGATIVE_INFINITY,Float);
+		isTrue(true,Bool);
+		isTrue(false,Bool);
+		isTrue("Hello",String);
+		isTrue("123",String);
+		isTrue("false",String);
+		isTrue("",String);
+		isTrue([],Array);
+		isTrue([1, 2], Array);
+		isTrue([1.1, 2.2], Array);
+		isTrue(["a", "b"], Array);
+		isTrue((["a",2]:Array<Dynamic>),Array);
+		isTrue(new List(),List);
+		isTrue(new haxe.ds.StringMap(),haxe.ds.StringMap);
+		isTrue(new MyClass(0),MyClass);
+		isTrue(new MySubClass(0),MyClass,MySubClass);
+		isTrue(MyEnum.A,MyEnum);
+		isTrue(MyEnum.C(0,""),MyEnum);
+		isTrue(Date.now(),Date);
+		isTrue({ x : 0 },null);
+		isTrue(function() { },null);
+		isTrue(MyClass,Class);
+		isTrue(MyEnum,Enum);
 	}
 
-	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
+	function isTrue( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
 		for( i in 0...TYPES.length ) {
 			var c : Dynamic = TYPES[i];
-			infos(Std.string(v)+" is "+TNAMES[i]);
-			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
+			eq( Std.isOfType(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
-		infos(null);
 		t( (v is Dynamic), pos );
 	}
 
@@ -205,7 +195,6 @@ class TestReflect extends Test {
 
 	function typeof( v : Dynamic, rt : ValueType, ?pos : haxe.PosInfos ) {
 		var vt = Type.typeof(v);
-		infos("typeof("+Std.string(v)+") = "+vt);
 		t( Type.enumEq(vt,rt), pos );
 	}
 
@@ -230,7 +219,6 @@ class TestReflect extends Test {
 	}
 
 	function testCreate() {
-		#if !java
 		var i = Type.createInstance(MyClass,[33]);
 		t( (i is MyClass) );
 		eq( i.get(), 33 );
@@ -249,7 +237,6 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
 		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
-		#end
 	}
 
 	static function compareMethodsDummy() {}

@@ -1,13 +1,18 @@
 compile-each.hxml
--main Main
+--main Main
 -php bin/php/Main
 
 --next
 compile-each.hxml
--main TestArguments
+--main TestArguments
 -php bin/php/TestArguments
 
 --next
 compile-each.hxml
--main ExitCode
+--main ExitCode
 -php bin/php/ExitCode
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-php bin/php/UtilityProcess

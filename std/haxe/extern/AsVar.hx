@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,5 +27,5 @@ package haxe.extern;
 	argument expressions are bound to a local variable.
 **/
 @:forward
-@:analyzer(as_var)
+@:semantics(variable)
 abstract AsVar<T>(T) from T to T {}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,51 +19,54 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl.types;
 
 typedef ObjectMapData = Abstract<"hl_obj_map">;
 
 abstract ObjectMap(ObjectMapData) {
-
-	@:extern public inline function new() {
+	extern public inline function new() {
 		this = alloc();
 	}
 
-	@:hlNative("std","hoalloc") static function alloc() : ObjectMapData {
+	@:hlNative("std", "hoalloc") static function alloc():ObjectMapData {
 		return null;
 	}
 
-	@:hlNative("std","hoset")
-	public function set( key : Dynamic, value : Dynamic ) {
-	}
+	@:hlNative("std", "hoset")
+	public function set(key:Dynamic, value:Dynamic) {}
 
-	@:hlNative("std","hoexists")
-	public function exists( key : Dynamic ) : Bool {
+	@:hlNative("std", "hoexists")
+	public function exists(key:Dynamic):Bool {
 		return false;
 	}
 
-	@:hlNative("std","hoget")
-	public function get( key : Dynamic ) : Dynamic {
+	@:hlNative("std", "hoget")
+	public function get(key:Dynamic):Dynamic {
 		return null;
 	}
 
-	@:hlNative("std","horemove")
-	public function remove( key : Dynamic ) : Bool {
+	@:hlNative("std", "horemove")
+	public function remove(key:Dynamic):Bool {
 		return false;
 	}
 
-	@:hlNative("std","hokeys")
-	public function keysArray() : NativeArray<Dynamic> {
+	@:hlNative("std", "hokeys")
+	public function keysArray():NativeArray<Dynamic> {
 		return null;
 	}
 
-	@:hlNative("std","hovalues")
-	public function valuesArray() : NativeArray<Dynamic> {
+	@:hlNative("std", "hovalues")
+	public function valuesArray():NativeArray<Dynamic> {
 		return null;
 	}
 
-	@:extern public inline function iterator() {
+	#if (hl_ver >= version("1.11.0"))
+	@:hlNative("std", "hoclear")
+	public function clear():Void {}
+	#end
+
+	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}
-
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -85,7 +85,7 @@ module EnumToClass2Modf = struct
 		let e_pack, e_name = en.e_path in
 		let cl_enum_t = TInst (cl_enum, []) in
 		let cf_getTag_t = tfun [] basic.tstring in
-		let cf_getParams_ret = basic.tarray basic.tstring in
+		let cf_getParams_ret = basic.tarray (mk_anon PMap.empty) in
 		let cf_getParams_t = tfun [] cf_getParams_ret in
 		let static_ctors = ref [] in
 		let ctors_map = ref PMap.empty in
@@ -94,11 +94,11 @@ module EnumToClass2Modf = struct
 			let pos = ef.ef_pos in
 
 			let cl_ctor = mk_class en.e_module (e_pack, e_name ^ "_" ^ name) pos in
+			cl_ctor.cl_final <- true;
 			cl_ctor.cl_super <- Some (cl_enum, []);
 			cl_ctor.cl_meta <- [
 				(Meta.Enum,[],pos);
 				(Meta.NativeGen,[],pos);
-				(Meta.Final,[],pos);
 			] @ cl_ctor.cl_meta;
 			ctors_map := PMap.add name cl_ctor !ctors_map;
 

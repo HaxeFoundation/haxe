@@ -31,9 +31,9 @@ e2.length == 0;
 var a = [1, 2, 3];
 var b = Lambda.map(a,function(i) return i * 2);
 b.length == 3;
-b.pop() == 2;
-b.pop() == 4;
 b.pop() == 6;
+b.pop() == 4;
+b.pop() == 2;
 
 // mapi
 var a = [1, 2, 3];
@@ -45,9 +45,9 @@ function myMap(index, i) {
 var b = Lambda.mapi(a, myMap);
 total == 3;
 b.length == 3;
-b.pop() == 2;
-b.pop() == 4;
 b.pop() == 6;
+b.pop() == 4;
+b.pop() == 2;
 
 // has
 Lambda.has([1,2,3],1) == true;
@@ -91,6 +91,11 @@ Lambda.fold(["b","c","d"],function(s,acc) return s + acc,"a") == "dcba";
 Lambda.fold([],function(s:String,acc) return s + acc,"a") == "a";
 Lambda.fold([],function(s:String,acc) return s + acc,null) == null;
 
+// foldi
+Lambda.foldi(["b","c","d"],function(s,acc,i) return Std.string(i) + s + acc,"a") == "2d1c0ba";
+Lambda.foldi([],function(s:String,acc,i) return Std.string(i) + s + acc,"a") == "a";
+Lambda.foldi([],function(s:String,acc,i) return Std.string(i) + s + acc,null) == null;
+
 // count
 Lambda.count([1,2,3]) == 3;
 Lambda.count([1,2,3], function(x) return false) == 0;
@@ -109,6 +114,24 @@ Lambda.indexOf([1,2,3],3) == 2;
 Lambda.indexOf([1,2,3,3],3) == 2;
 Lambda.indexOf([1,2,3],4) == -1;
 Lambda.indexOf([],1) == -1;
+
+// find
+Lambda.find([1,2,3,4,5],i -> i % 2 == 0) == 2;
+Lambda.find([1,2,3,4,5],i -> i % 4 == 0) == 4;
+Lambda.find([1,2,3,4,5],i -> i % 8 == 0) == null;
+Lambda.find([1,2,3,4,5],i -> true) == 1;
+Lambda.find([1,2,3,4,5],i -> false) == null;
+Lambda.find([],i -> true) == null;
+Lambda.find([],i -> false) == null;
+
+// findIndex
+Lambda.findIndex([1,2,3,4,5],i -> i % 2 == 0) == 1;
+Lambda.findIndex([1,2,3,4,5],i -> i % 4 == 0) == 3;
+Lambda.findIndex([1,2,3,4,5],i -> i % 8 == 0) == -1;
+Lambda.findIndex([1,2,3,4,5],i -> true) == 0;
+Lambda.findIndex([1,2,3,4,5],i -> false) == -1;
+Lambda.findIndex([],i -> true) == -1;
+Lambda.findIndex([],i -> false) == -1;
 
 // concat
 Lambda.array(Lambda.concat([1,2,3],[3,4,5])) == [1,2,3,3,4,5];

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range>
 **/
 @:native("Range")
-extern class Range
-{
+extern class Range {
 	static inline var START_TO_START : Int = 0;
 	static inline var START_TO_END : Int = 1;
 	static inline var END_TO_END : Int = 2;
@@ -72,45 +71,137 @@ extern class Range
 	
 	/** @throws DOMError */
 	function new() : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the start position of a `Range`.
+		@throws DOMError
+	**/
 	function setStart( refNode : Node, offset : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the end position of a `Range`.
+		@throws DOMError
+	**/
 	function setEnd( refNode : Node, offset : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the start position of a `Range` relative to another `Node`.
+		@throws DOMError
+	**/
 	function setStartBefore( refNode : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the start position of a `Range` relative to another `Node`.
+		@throws DOMError
+	**/
 	function setStartAfter( refNode : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the end position of a `Range` relative to another `Node`.
+		@throws DOMError
+	**/
 	function setEndBefore( refNode : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the end position of a `Range` relative to another `Node`.
+		@throws DOMError
+	**/
 	function setEndAfter( refNode : Node ) : Void;
-	function collapse( ?toStart : Bool = false ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Collapses the `Range` to one of its boundary points.
+	**/
+	function collapse( toStart : Bool = false ) : Void;
+	
+	/**
+		Sets the `Range` to contain the `Node` and its contents.
+		@throws DOMError
+	**/
 	function selectNode( refNode : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the `Range` to contain the contents of a `Node`.
+		@throws DOMError
+	**/
 	function selectNodeContents( refNode : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Compares the boundary points of the `Range` with another `Range`.
+		@throws DOMError
+	**/
 	function compareBoundaryPoints( how : Int, sourceRange : Range ) : Int;
-	/** @throws DOMError */
+	
+	/**
+		Removes the contents of a `Range` from the `Document`.
+		@throws DOMError
+	**/
 	function deleteContents() : Void;
-	/** @throws DOMError */
+	
+	/**
+		Moves contents of a `Range` from the document tree into a `DocumentFragment`.
+		@throws DOMError
+	**/
 	function extractContents() : DocumentFragment;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `DocumentFragment` copying the nodes of a `Range`.
+		@throws DOMError
+	**/
 	function cloneContents() : DocumentFragment;
-	/** @throws DOMError */
+	
+	/**
+		Insert a `Node` at the start of a `Range`.
+		@throws DOMError
+	**/
 	function insertNode( node : Node ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Moves content of a `Range` into a new `Node`.
+		@throws DOMError
+	**/
 	function surroundContents( newParent : Node ) : Void;
+	
+	/**
+		Returns a `Range` object with boundary points identical to the cloned `Range`.
+	**/
 	function cloneRange() : Range;
+	
+	/**
+		Releases the `Range` from use to improve performance.
+	**/
 	function detach() : Void;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `boolean` indicating whether the given point is in the `Range`.
+		@throws DOMError
+	**/
 	function isPointInRange( node : Node, offset : Int ) : Bool;
-	/** @throws DOMError */
+	
+	/**
+		Returns -1, 0, or 1 indicating whether the point occurs before, inside, or after the `Range`.
+		@throws DOMError
+	**/
 	function comparePoint( node : Node, offset : Int ) : Int;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `boolean` indicating whether the given node intersects the `Range`.
+		@throws DOMError
+	**/
 	function intersectsNode( node : Node ) : Bool;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `DocumentFragment` created from a given string of code.
+		@throws DOMError
+	**/
 	function createContextualFragment( fragment : String ) : DocumentFragment;
+	
+	/**
+		Returns a list of `DOMRect` objects that aggregates the results of `Element.getClientRects()` for all the elements in the `Range`.
+	**/
 	function getClientRects() : DOMRectList;
+	
+	/**
+		Returns a `DOMRect` object which bounds the entire contents of the `Range`; this would be the union of all the rectangles returned by `range.getClientRects()`.
+	**/
 	function getBoundingClientRect() : DOMRect;
 }

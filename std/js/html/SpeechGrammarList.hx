@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList>
 **/
 @:native("SpeechGrammarList")
-extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
-{
+extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar> {
 	
 	/**
 		Returns the number of `SpeechGrammar` objects contained in the `SpeechGrammarList`.
@@ -42,22 +41,22 @@ extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 	
 	/** @throws DOMError */
 	function new() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Standard getter — allows individual `SpeechGrammar` objects to be retrieved from the `SpeechGrammarList` using array syntax.
+		@throws DOMError
 	**/
 	function item( index : Int ) : SpeechGrammar;
-	/** @throws DOMError */
 	
 	/**
 		Takes a grammar present at a specific URI and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+		@throws DOMError
 	**/
 	function addFromURI( src : String, ?weight : Float ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Takes a grammar present in a specific `DOMString` within the code base (e.g. stored in a variable) and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+		@throws DOMError
 	**/
 	function addFromString( string : String, ?weight : Float ) : Void;
 }

@@ -40,7 +40,7 @@ import unit.HelperMacros.getMeta;
 
 		var m = haxe.rtti.Meta.getFields(TestMeta);
 		eq( fields(m), "_" );
-		eq( fields(m._), #if as3 "_"+#end "new" );
+		eq( fields(m._), "new" );
 
 		var m = haxe.rtti.Meta.getStatics(TestMeta);
 		eq( fields(m), "foo" );

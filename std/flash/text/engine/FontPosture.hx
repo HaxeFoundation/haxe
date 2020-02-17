@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum FontPosture {
-	ITALIC;
-	NORMAL;
+@:native("flash.text.engine.FontPosture") extern enum abstract FontPosture(String) {
+	var ITALIC;
+	var NORMAL;
 }

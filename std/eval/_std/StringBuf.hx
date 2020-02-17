@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,14 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
 extern class StringBuf {
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 	public function new():Void;
-	function get_length() : Int;
-	public function add<T>( x : T ) : Void;
-	public function addChar( c : Int ) : Void;
-	public function addSub( s : String, pos : Int, ?len : Int) : Void;
-	public function toString() : String;
+	private function get_length():Int;
+	public function add<T>(x:T):Void;
+	public function addChar(c:Int):Void;
+	public function addSub(s:String, pos:Int, ?len:Int):Void;
+	public function toString():String;
 }

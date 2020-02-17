@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement>
 **/
 @:native("HTMLEmbedElement")
-extern class EmbedElement extends Element
-{
+extern class EmbedElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `src` HTML attribute, containing the address of the resource.
@@ -51,12 +50,12 @@ extern class EmbedElement extends Element
 	var width : String;
 	
 	/**
-		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"center"`, and `"justify"`.
+		Is a `DOMString` reflecting the `height` HTML attribute, containing the displayed height of the resource.
 	**/
 	var height : String;
 	
 	/**
-		Is a `DOMString` reflecting the `height` HTML attribute, containing the displayed height of the resource.
+		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"center"`, and `"justify"`.
 	**/
 	var align : String;
 	

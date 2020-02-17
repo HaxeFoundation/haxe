@@ -1,7 +1,6 @@
 package unit.issues;
 
-@:enum
-private abstract E(Int) {
+private enum abstract E(Int) {
 	var A = 1;
 	var B = 2;
 }

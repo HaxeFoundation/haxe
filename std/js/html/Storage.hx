@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,49 +25,48 @@
 package js.html;
 
 /**
-	The `Storage` interface of the Web Storage API provides access to the session storage or local storage for a particular domain, allowing you to for example add, modify or delete stored data items.
+	The `Storage` interface of the Web Storage API provides access to a particular domain's session or local storage. It allows, for example, the addition, modification, or deletion of stored data items.
 
 	Documentation [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Storage$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Storage>
 **/
 @:native("Storage")
-extern class Storage
-{
+extern class Storage {
 	
 	/**
 		Returns an integer representing the number of data items stored in the `Storage` object.
 	**/
 	var length(default,null) : Int;
 	
-	/** @throws DOMError */
 	
 	/**
 		When passed a number n, this method will return the name of the nth key in the storage.
+		@throws DOMError
 	**/
 	function key( index : Int ) : String;
-	/** @throws DOMError */
 	
 	/**
 		When passed a key name, will return that key's value.
+		@throws DOMError
 	**/
 	function getItem( key : String ) : String;
-	/** @throws DOMError */
 	
 	/**
 		When passed a key name and value, will add that key to the storage, or update that key's value if it already exists.
+		@throws DOMError
 	**/
 	function setItem( key : String, value : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		When passed a key name, will remove that key from the storage.
+		@throws DOMError
 	**/
 	function removeItem( key : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		When invoked, will empty all keys out of the storage.
+		@throws DOMError
 	**/
 	function clear() : Void;
 }

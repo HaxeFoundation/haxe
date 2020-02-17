@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedRect>
 **/
 @:native("SVGAnimatedRect")
-extern class AnimatedRect
-{
+extern class AnimatedRect {
 	var baseVal(default,null) : Rect;
 	var animVal(default,null) : Rect;
 	

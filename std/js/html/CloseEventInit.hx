@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,8 @@
 
 package js.html;
 
-typedef CloseEventInit =
-{
-	> EventInit,
-	@:optional var code : Int;
-	@:optional var reason : String;
-	@:optional var wasClean : Bool;
+typedef CloseEventInit = EventInit & {
+	var ?code : Int;
+	var ?reason : String;
+	var ?wasClean : Bool;
 }

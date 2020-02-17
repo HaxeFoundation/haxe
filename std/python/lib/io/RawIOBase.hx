@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.lib.io.FileIO;
@@ -26,17 +27,15 @@ import python.lib.io.IOBase;
 
 @:pythonImport("io", "RawIOBase")
 extern class RawIOBase extends IOBase implements IRawIOBase {
-
 	public function readall():Bytes;
-	public function read(n:Int=-1):Null<Bytes>;
+	public function read(n:Int = -1):Null<Bytes>;
 	public function write(b:Bytearray):Null<Int>;
 	public function readinto(b:Bytearray):Null<Int>;
 }
 
 @:remove extern interface IRawIOBase extends IIOBase {
-
 	public function readall():Bytes;
-	public function read(n:Int=-1):Null<Bytes>;
+	public function read(n:Int = -1):Null<Bytes>;
 	public function write(b:Bytearray):Null<Int>;
 	public function readinto(b:Bytearray):Null<Int>;
 }

@@ -5,10 +5,13 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
+	static var miscCsDir(get,never):String;
+	static inline function get_miscCsDir() return miscDir + 'cs/';
+
 	static public function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
-				if (commandSucceed("mono", ["--version"]))
+				if (!isCi() && commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
 					Linux.requireAptPackages(["mono-devel", "mono-mcs"]);
@@ -58,22 +61,28 @@ class Cs {
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
 			var extras = fastcast.concat(erasegenerics).concat(noroot);
-			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 
-			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras).concat(args));
 			runCs("bin/cs_unsafe/bin/TestMain-Debug.exe");
 		}
 
-		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
+		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no'].concat(args));
 		runCs("bin/cs/bin/TestMain-Debug.exe");
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
-		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
+		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 
-		changeDirectory(miscDir + "csTwoLibs");
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
+		// runCs("export/cs/bin/Main.exe");
+
+		changeDirectory(miscCsDir);
+		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(miscCsDir + "csTwoLibs");
 		for (i in 1...5)
 		{
 			runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);

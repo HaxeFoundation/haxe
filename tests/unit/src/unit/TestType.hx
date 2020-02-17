@@ -35,9 +35,6 @@ class TestType extends Test {
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|") );
 
-		// AS3 generator will create native properties
-		#if !as3
-
 		// x should not be listed since it's not a variable
 		var fl = Type.getInstanceFields(VarProps);
 		var fields = ["get_x","get_y","set_x","set_y","set_z","y","z"];
@@ -49,8 +46,6 @@ class TestType extends Test {
 		var fields = ["SY", "get_SX", "get_SY", "set_SX", "set_SY"];
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|"));
-
-		#end
 	}
 
 	public function testEnumEq() {
@@ -99,11 +94,8 @@ class TestType extends Test {
 		var c = new MyClass.MyChild1();
 		eq(12, c.a());
 
-		// TODO: this is also a problem
-		#if !as3
 		var mc2 = new MyChild2();
 		eq(21, mc2.test1(new MyChild1()));
-		#end
 	}
 
 	function testUnifyMin() {
@@ -179,7 +171,7 @@ class TestType extends Test {
 		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
 
 		#if flash
-		typedAs(function() { return 0; var v:UInt = 0; return v; } (), 1);
+		typedAs((function() { return 0; var v:UInt = 0; return v; }) (), 1);
 		#end
 	}
 
@@ -260,9 +252,8 @@ class TestType extends Test {
 		var f : Void -> String = foo.bind(0);
  		eq("foo0", f());
 
-		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if (flash || hl)
+		#if flash // Cannot skip not-nullable argument
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);
@@ -307,8 +298,8 @@ class TestType extends Test {
 
 		var c = new Cov2();
 		typedAs(c.covariant(), c1);
-		t(Std.is(c.covariant(), Child1));
-		t(Std.is(cast(c, Cov1).covariant(), Child1));
+		t(Std.isOfType(c.covariant(), Child1));
+		t(Std.isOfType(cast(c, Cov1).covariant(), Child1));
 
 		// base class reference
 		var br:Cov1 = c;
@@ -475,8 +466,8 @@ class TestType extends Test {
 
 	function testInline()
 	{
-		typedAs(inlineTest1([1]), var void:Void);
-		typedAs(inlineTest2([1]), var void:Void);
+		typedAs(inlineTest1([1]), (function():Void{})());
+		typedAs(inlineTest2([1]), (function():Void{})());
 	}
 
 	inline function inlineTest1<T>(map:Array<T>) {
@@ -538,6 +529,8 @@ class TestType extends Test {
 		gf1(2);
 		gf1("foo");
 		gf1(true);
+		gf1({foo: 1});
+		gf1(function(i:Int):String return '$i');
 
 		gf1(new haxe.Template("foo"));
 
@@ -549,8 +542,9 @@ class TestType extends Test {
 		hsf(TestType, "gf1_haxe_Template");
 
 		hsf(TestType, "gf1_haxe_ds_GenericStack_Int");
+		hsf(TestType, "gf1_anon_foo_Int");
+		hsf(TestType, "gf1_func_Int_String");
 		t(typeError(gf1(null))); // monos don't work
-		t(typeError(gf1( { foo:1 } ))); // structures don't work
 
 		eq("foo[1,2]", gf2("foo", [1, 2]));
 		eq("foo[[1,2]]", gf2("foo", [[1, 2]]));
@@ -777,8 +771,7 @@ class TestType extends Test {
 		eq(mr["hhh"], 2);
 		eq(v, "hhhh");
 
-		// note for later: As3 compilation fails if the function name is removed
-		mr["101"] = function n(x) return 9 + x;
+		mr["101"] = function(x) return 9 + x;
 		eq(mr["101"](1), 10);
 	}
 
@@ -794,6 +787,7 @@ class TestType extends Test {
 	function testAbstractTypeParameterVariance() {
 		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
 		var b:Array<unit.MyAbstract.MyInt2> = a;
+		t(true);
 	}
 
 	function testExposingAbstract() {

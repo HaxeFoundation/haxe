@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement>
 **/
 @:native("HTMLAreaElement")
-extern class AreaElement extends Element
-{
+extern class AreaElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `alt` HTML attribute, containing alternative text for the element.
@@ -65,6 +64,11 @@ extern class AreaElement extends Element
 		Is a `DOMString` that reflects the `rel` HTML attribute, indicating relationships of the current document to the linked resource.
 	**/
 	var rel : String;
+	
+	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use when fetching the linked resource.
+	**/
+	var referrerPolicy : String;
 	
 	/**
 		Returns a `DOMTokenList` that reflects the `rel` HTML attribute, indicating relationships of the current document to the linked resource, as a list of tokens.

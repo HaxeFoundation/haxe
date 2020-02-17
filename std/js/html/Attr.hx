@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,51 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Attr>
 **/
 @:native("Attr")
-extern class Attr extends Node
-{
+extern class Attr extends Node {
+	
+	/**
+		A `DOMString` representing the local part of the qualified name of the attribute.
+	**/
+	var localName(default,null) : String;
+	
+	/**
+		The attribute's value.
+	**/
 	var value : String;
+	
+	/**
+		The attribute's name.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		A `DOMString` representing the namespace URI of the attribute, or `null` if there is no namespace.
+	**/
+	var namespaceURI(default,null) : String;
+	
+	/**
+		A `DOMString` representing the namespace prefix of the attribute, or `null` if no prefix is specified.
+	**/
+	var prefix(default,null) : String;
+	
+	/**
+		This property always returns `true`. Originally, it returned `true `if the attribute was explicitly specified in the source code or by a script, and `false` if its value came from the default one defined in the document's DTD.
+	**/
 	var specified(default,null) : Bool;
+	
+	/**
+		
+			The element holding the attribute.
+		
+			
+			Note: DOM Level 4 removed this property. The assumption was that since you get an `Attr` object from an `Element`, you should already know the associated element.
+		
+			As that doesn't hold true in cases like `Attr` objects being returned by `Document.evaluate`, the DOM Living Standard reintroduced the property.
+		
+			Gecko outputs a deprecation note starting from Gecko 7.0 `7.0`. This note was removed again in Gecko 49.0 `49.0`.
+			
+			
+	**/
 	var ownerElement(default,null) : Element;
 	
 }

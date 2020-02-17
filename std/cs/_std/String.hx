@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,38 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.StdTypes;
 
 @:coreApi extern class String implements ArrayAccess<Char16> {
-
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
 
-	var length(default,null) : Int;
+	private static function CompareOrdinal(s1:String, s2:String):Int;
 
-	function new(string:String) : Void;
+	var length(default, null):Int;
 
-	function toUpperCase() : String;
+	function new(string:String):Void;
 
-	function toLowerCase() : String;
+	function toUpperCase():String;
 
-	function charAt( index : Int) : String;
+	function toLowerCase():String;
 
-	function charCodeAt( index : Int) : Null<Int>;
+	function charAt(index:Int):String;
 
-	function indexOf( str : String, ?startIndex : Int ) : Int;
+	function charCodeAt(index:Int):Null<Int>;
 
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+	function indexOf(str:String, ?startIndex:Int):Int;
 
-	function split( delimiter : String ) : Array<String>;
+	function lastIndexOf(str:String, ?startIndex:Int):Int;
 
-	function substr( pos : Int, ?len : Int ) : String;
+	function split(delimiter:String):Array<String>;
 
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
+	function substr(pos:Int, ?len:Int):String;
 
-	function toString() : String;
+	function substring(startIndex:Int, ?endIndex:Int):String;
 
-	static function fromCharCode( code : Int ) : String;
+	function toString():String;
+
+	static function fromCharCode(code:Int):String;
 
 	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;
@@ -62,5 +64,4 @@ import cs.StdTypes;
 	private function CompareTo(obj:Dynamic):Int;
 	@:overload(function(startIndex:Int):String {})
 	private function Substring(startIndex:Int, length:Int):String;
-
 }

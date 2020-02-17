@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,11 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Thread {
-  static function new_thread() : Timer;
-  @:native("new_thread") function new() : Void;
+	static function new_thread():Timer;
+	@:native("new_thread") function new():Void;
 
-  static function self() : Thread;
-  static function sleep(msec : Int) : Void;
-  function equal(t : Thread) : Bool;
-  function join(t : Thread) : Bool;
+	static function self():Thread;
+	static function sleep(msec:Int):Void;
+	function equal(t:Thread):Bool;
+	function join(t:Thread):Bool;
 }

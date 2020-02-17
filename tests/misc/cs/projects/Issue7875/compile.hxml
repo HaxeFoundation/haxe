@@ -1,0 +1,3 @@
+--main Main
+-cs bin
+-D net-ver=45

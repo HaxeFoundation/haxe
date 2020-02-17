@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,16 +25,28 @@
 package js.html.rtc;
 
 /**
-	WebRTC provides a method—`RTCPeerConnection.getStats()`—which returns a set of statistics about the state of the connection and the data transfers which have taken place. This status report is an object of type `RTCStatsReport`, and consists of a mapping of strings identifying objects which have had statistics recorded and a dictionary containing all of the corresponding data.
+	The `RTCStatsReport` interface is used to provide statistics data about WebRTC connections as returned by the `RTCPeerConnection.getStats()`, `RTCRtpReceiver.getStats()`, and `RTCRtpSender.getStats()` methods.
 
 	Documentation [RTCStatsReport](https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport>
 **/
 @:native("RTCStatsReport")
-extern class StatsReport
-{
-	function forEach( callbackFn : StatsReport -> Void, ?thisArg : Dynamic ) : Void;
-	function get( key : String ) : Dynamic;
+extern class StatsReport {
+	var size(default,null) : Int;
+	
+	/** @throws DOMError */
+	function entries() : Dynamic;
+	/** @throws DOMError */
+	function keys() : Dynamic;
+	/** @throws DOMError */
+	function values() : Dynamic;
+	/** @throws DOMError */
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
+	/** @throws DOMError */
+	@:pure
 	function has( key : String ) : Bool;
+	/** @throws DOMError */
+	@:pure
+	function get( key : String ) : Dynamic;
 }

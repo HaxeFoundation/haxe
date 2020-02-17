@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,45 +19,39 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package haxe.io;
 
-typedef ArrayBufferViewData = js.html.ArrayBufferView;
+package haxe.io;
+
+typedef ArrayBufferViewData = js.lib.ArrayBufferView;
 
 abstract ArrayBufferView(ArrayBufferViewData) {
+	public var buffer(get, never):haxe.io.Bytes;
+	public var byteOffset(get, never):Int;
+	public var byteLength(get, never):Int;
 
-	public static var EMULATED(get,never) : Bool;
-	static inline function get_EMULATED() {
-		#if nodejs
-		return false;
-		#else
-		return (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer;
-		#end
+	public inline function new(size:Int) {
+		this = new js.lib.Uint8Array(size);
 	}
 
-	public var buffer(get,never) : haxe.io.Bytes;
-	public var byteOffset(get, never) : Int;
-	public var byteLength(get, never) : Int;
+	inline function get_byteOffset()
+		return this.byteOffset;
 
-	public inline function new( size : Int ) {
-		this = new js.html.Uint8Array(size);
-	}
+	inline function get_byteLength()
+		return this.byteLength;
 
-	inline function get_byteOffset() return this.byteOffset;
-	inline function get_byteLength() return this.byteLength;
-	inline function get_buffer() : haxe.io.Bytes {
+	inline function get_buffer():haxe.io.Bytes {
 		return haxe.io.Bytes.ofData(this.buffer);
 	}
 
-	public inline function sub( begin : Int, ?length : Int ) {
-		return fromData(new js.html.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
+	public inline function sub(begin:Int, ?length:Int) {
+		return fromData(new js.lib.Uint8Array(this.buffer.slice(begin, length == null ? null : begin + length)));
 	}
 
-	public inline function getData() : ArrayBufferViewData {
+	public inline function getData():ArrayBufferViewData {
 		return this;
 	}
 
-	public static inline function fromData( a : ArrayBufferViewData ) : ArrayBufferView {
+	public static inline function fromData(a:ArrayBufferViewData):ArrayBufferView {
 		return cast a;
 	}
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,15 +24,16 @@
 
 package js.html;
 
-typedef PointerEventInit =
-{
-	> MouseEventInit,
-	@:optional var height : Int;
-	@:optional var isPrimary : Bool;
-	@:optional var pointerId : Int;
-	@:optional var pointerType : String;
-	@:optional var pressure : Float;
-	@:optional var tiltX : Int;
-	@:optional var tiltY : Int;
-	@:optional var width : Int;
+typedef PointerEventInit = MouseEventInit & {
+	var ?coalescedEvents : Array<PointerEvent>;
+	var ?height : Int;
+	var ?isPrimary : Bool;
+	var ?pointerId : Int;
+	var ?pointerType : String;
+	var ?pressure : Float;
+	var ?tangentialPressure : Float;
+	var ?tiltX : Int;
+	var ?tiltY : Int;
+	var ?twist : Int;
+	var ?width : Int;
 }

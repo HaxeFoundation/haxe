@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	A `StorageEvent` is sent to a window when a storage area changes.
+	A `StorageEvent` is sent to a window when a storage area it has access to is changed within the context of another document.
 
 	Documentation [StorageEvent](https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent>
 **/
 @:native("StorageEvent")
-extern class StorageEvent extends Event
-{
+extern class StorageEvent extends Event {
 	var key(default,null) : String;
 	var oldValue(default,null) : String;
 	var newValue(default,null) : String;
@@ -42,5 +41,5 @@ extern class StorageEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : StorageEventInit ) : Void;
-	function initStorageEvent( type : String, canBubble : Bool, cancelable : Bool, key : String, oldValue : String, newValue : String, url : String, storageArea : Storage ) : Void;
+	function initStorageEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?key : String, ?oldValue : String, ?newValue : String, ?url : String, ?storageArea : Storage ) : Void;
 }

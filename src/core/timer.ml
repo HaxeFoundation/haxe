@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -20,53 +20,75 @@
 type timer_infos = {
 	id : string list;
 	mutable start : float list;
+	mutable pauses : float list;
 	mutable total : float;
 	mutable calls : int;
 }
+
+let measure_times = ref false
 
 let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
 let new_timer id =
-	let key = String.concat "." id in
+	let now = get_time() in
 	try
-		let t = Hashtbl.find htimers key in
-		t.start <- get_time() :: t.start;
+		let t = Hashtbl.find htimers id in
+		t.start <- now :: t.start;
+		t.pauses <- 0. :: t.pauses;
 		t.calls <- t.calls + 1;
 		t
 	with Not_found ->
-		let t = { id = id; start = [get_time()]; total = 0.; calls = 1; } in
-		Hashtbl.add htimers key t;
+		let t = { id = id; start = [now]; pauses = [0.]; total = 0.; calls = 1; } in
+		Hashtbl.add htimers id t;
 		t
 
 let curtime = ref []
 
-let close t =
-	let start = (match t.start with
-		| [] -> assert false
-		| s :: l -> t.start <- l; s
-	) in
-	let now = get_time() in
-	let dt = now -. start in
-	t.total <- t.total +. dt;
-	let rec loop() =
-		match !curtime with
-		| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
-		| tt :: l -> curtime := l; if t != tt then loop()
-	in
-	loop();
-	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
-	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
+let rec close now t =
+	match !curtime with
+	| [] ->
+		failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
+	| tt :: rest ->
+		if t == tt then begin
+			match t.start, t.pauses with
+			| start :: rest_start, pauses :: rest_pauses ->
+				let dt = now -. start in
+				t.total <- t.total +. dt -. pauses;
+				t.start <- rest_start;
+				t.pauses <- rest_pauses;
+				curtime := rest;
+				(match !curtime with
+				| [] -> ()
+				| current :: _ ->
+					match current.pauses with
+					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
+					| _ -> assert false
+				)
+			| _ -> assert false
+		end else
+			close now tt
 
 let timer id =
-	let t = new_timer id in
-	curtime := t :: !curtime;
-	(function() -> close t)
+	if !measure_times then (
+		let t = new_timer id in
+		curtime := t :: !curtime;
+		(function() -> close (get_time()) t)
+	) else
+		(fun() -> ())
+
+let current_id() =
+	match !curtime with
+	| [] -> None
+	| t :: _ -> Some t.id
 
 let rec close_times() =
+	let now = get_time() in
 	match !curtime with
 	| [] -> ()
-	| t :: _ -> close t; close_times()
+	| t :: _ -> close now t; close_times()
+
+let close = close (get_time())
 
 (* Printing *)
 
@@ -80,7 +102,7 @@ type timer_node = {
 	mutable children : timer_node list;
 }
 
-let report_times print =
+let build_times_tree () =
 	let nodes = Hashtbl.create 0 in
 	let rec root = {
 		name = "";
@@ -149,13 +171,17 @@ let report_times print =
 		if node.time > 0.0009 && l > !max_name then max_name := l;
 	in
 	loop 0 root;
-	let max_calls = String.length (string_of_int !max_calls) in
-	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
-	let sep = String.make (!max_name + max_calls + 27) '-' in
+	!max_name,!max_calls,root
+
+let report_times print =
+	let max_name,max_calls,root = build_times_tree () in
+	let max_calls = String.length (string_of_int max_calls) in
+	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" max_name "name" "time(s)" max_calls "#");
+	let sep = String.make (max_name + max_calls + 27) '-' in
 	print sep;
 	let print_time name node =
 		if node.time > 0.0009 then
-			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
 	in
 	let rec loop depth node =
 		let name = (String.make (depth * 2) ' ') ^ node.name in

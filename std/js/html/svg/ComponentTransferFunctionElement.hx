@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,15 @@
 
 package js.html.svg;
 
+/**
+	The `SVGComponentTransferFunctionElement` interface defines a base interface used by the component transfer function interfaces.
+
+	Documentation [SVGComponentTransferFunctionElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGComponentTransferFunctionElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGComponentTransferFunctionElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGComponentTransferFunctionElement>
+**/
 @:native("SVGComponentTransferFunctionElement")
-extern class ComponentTransferFunctionElement extends Element
-{
+extern class ComponentTransferFunctionElement extends Element {
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_UNKNOWN : Int = 0;
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY : Int = 1;
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_TABLE : Int = 2;
@@ -34,12 +40,40 @@ extern class ComponentTransferFunctionElement extends Element
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_LINEAR : Int = 4;
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_GAMMA : Int = 5;
 	
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `type` attribute of the given element. It takes one of the `SVG_FECOMPONENTTRANSFER_TYPE_*` constants defined on this interface.
+	**/
 	var type(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedNumberList` corresponding to the `tableValues` attribute of the given element.
+	**/
 	var tableValues(default,null) : AnimatedNumberList;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `slope` attribute of the given element.
+	**/
 	var slope(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `intercept` attribute of the given element.
+	**/
 	var intercept(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `amplitude` attribute of the given element.
+	**/
 	var amplitude(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `exponent` attribute of the given element.
+	**/
 	var exponent(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `offset` attribute of the given element.
+	**/
 	var offset(default,null) : AnimatedNumber;
 	
 }

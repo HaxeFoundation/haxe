@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,32 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.DataView;
-
-@:native("DataView")
-extern class DataView extends ArrayBufferView
-{
-	/** @throws DOMError */
-	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;
-	@:pure function getInt8( byteOffset : Int ) : Int;
-	@:pure function getUint8( byteOffset : Int ) : Int;
-	@:pure function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	@:pure function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	function setInt8( byteOffset : Int, value : Int ) : Void;
-	function setUint8( byteOffset : Int, value : Int ) : Void;
-	function setInt16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setInt32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
-	function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
-}
+@:deprecated typedef DataView = js.lib.DataView;

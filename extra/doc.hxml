@@ -1,6 +1,6 @@
 --no-output
 --macro ImportAll.run()
--dce no
+--dce no
 -D doc-gen
 
 --each
@@ -17,7 +17,7 @@
 
 -swf all9.swf
 -xml doc/flash.xml
--swf-version 11.4
+--swf-version 11.4
 
 --next
 
@@ -28,24 +28,20 @@
 
 -cpp all_cpp
 -xml doc/cpp.xml
--D xmldoc
 -D HXCPP_MULTI_THREADED
 
 --next
 -java all_java
 -xml doc/java.xml
--D xmldoc
 
 --next
 -cs all_cs
 -D unsafe
 -xml doc/cs.xml
--D xmldoc
 
 --next
 -python all_py
 -xml doc/python.xml
--D xmldoc
 
 --next
 --interp

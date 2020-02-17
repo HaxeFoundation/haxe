@@ -1,12 +1,10 @@
 package unit.issues;
 
-@:enum
-private abstract Enum1(Int) from Int to Int {
+private enum abstract Enum1(Int) from Int to Int {
 	var AA = 16;
 }
 
-@:enum
-private abstract Enum2(Int) from Int to Int {
+private enum abstract Enum2(Int) from Int to Int {
 	var BShl = Enum1.AA << 1;
 	var BShr = Enum1.AA >> 1;
 	var BUShr = Enum1.AA >>> 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,19 @@
 
 package js.html;
 
+/**
+	The `AudioTrackList` interface is used to represent a list of the audio tracks contained within a given HTML media element, with each track represented by a separate `AudioTrack` object in the list.
+
+	Documentation [AudioTrackList](https://developer.mozilla.org/en-US/docs/Web/API/AudioTrackList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioTrackList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioTrackList>
+**/
 @:native("AudioTrackList")
-extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack>
-{
+extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack> {
+	
+	/**
+		The number of tracks in the list.
+	**/
 	var length(default,null) : Int;
 	var onchange : haxe.Constraints.Function;
 	var onaddtrack : haxe.Constraints.Function;

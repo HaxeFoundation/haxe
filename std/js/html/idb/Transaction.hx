@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction>
 **/
 @:native("IDBTransaction")
-extern class Transaction extends js.html.EventTarget
-{
+extern class Transaction extends js.html.EventTarget {
 	
 	/**
 		The mode for isolating access to data in the object stores that are in the scope of the transaction. For possible values, see the Constants section below. The default value is `readonly`.
@@ -46,12 +45,20 @@ extern class Transaction extends js.html.EventTarget
 	var db(default,null) : Database;
 	
 	/**
-		Returns one of several types of error when there is an unsuccessful transaction. This property is `null` if the transaction is not finished, is finished and successfully committed, or was aborted with `IDBTransaction.abort` function.
+		Returns a `DOMException` indicating the type of error that occured when there is an unsuccessful transaction. This property is `null` if the transaction is not finished, is finished and successfully committed, or was aborted with `IDBTransaction.abort` function.
 	**/
-	var error(default,null) : js.html.DOMError;
+	var error(default,null) : js.html.DOMException;
 	
 	/**
-		The event handler for the `abort` event, fired when the transaction is aborted.
+		The event handler for the `abort` event, fired when the transaction is aborted. This can happen due to:
+		 
+		  bad requests, e.g. trying to add() the same key twice, or put() with the same index key with a uniqueness constraint and there is no error handler on the request to call preventDefault() on the event,
+		  an explicit abort() call from script
+		  uncaught exception in request's success/error handler,
+		  an I/O error (actual failure to write to disk, e.g. disk detached, or other OS/hardware failure), or
+		  quota exceeded.
+		 
+		 
 	**/
 	var onabort : haxe.Constraints.Function;
 	

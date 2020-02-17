@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGMarkerElement")
-extern class MarkerElement extends Element
-{
+extern class MarkerElement extends Element {
 	static inline var SVG_MARKERUNITS_UNKNOWN : Int = 0;
 	static inline var SVG_MARKERUNITS_USERSPACEONUSE : Int = 1;
 	static inline var SVG_MARKERUNITS_STROKEWIDTH : Int = 2;

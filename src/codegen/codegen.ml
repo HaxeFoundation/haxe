@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -94,7 +94,7 @@ let update_cache_dependencies t =
 		| TAnon an ->
 			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> check_t m t
 			| _ -> ())
 		| TLazy f ->
@@ -170,7 +170,7 @@ let fix_override com c f fd =
 					end;
 					cur
 				with Unify_error _ ->
-					let v2 = alloc_var (prefix ^ v.v_name) t2 v.v_pos in
+					let v2 = alloc_var VGenerated (prefix ^ v.v_name) t2 v.v_pos in
 					changed_args := (v,v2) :: !changed_args;
 					v2,ct
 			) fd.tf_args targs in
@@ -189,8 +189,6 @@ let fix_override com c f fd =
 						{ e with eexpr = TBlock (el_v @ el) }
 				);
 			} in
-			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -247,7 +245,7 @@ let fix_abstract_inheritance com t =
 let rec is_volatile t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_volatile t
 		| _ -> false)
 	| TLazy f ->
@@ -275,7 +273,7 @@ module Dump = struct
 			close_out ch)
 
 	let create_dumpfile_from_path com path =
-		let buf,close = create_dumpfile [] ("dump" :: (platform_name com.platform) :: fst path @ [snd path]) in
+		let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
 		buf,close
 
 	let dump_types com s_expr =
@@ -289,7 +287,7 @@ module Dump = struct
 				let args el =
 					match el with
 					| [] -> ""
-					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.s_expr e) el)) in
+					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.Printer.s_expr e) el)) in
 				match ml with
 				| [] -> ""
 				| ml -> String.concat " " (List.map (fun me -> match me with (m,el,_) -> "@" ^ Meta.to_string m ^ args el) ml) ^ "\n" ^ tabs in
@@ -303,7 +301,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -339,7 +337,6 @@ module Dump = struct
 				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
-				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
 				print " {\n";
 				(match c.cl_constructor with
@@ -388,19 +385,43 @@ module Dump = struct
 			close();
 		) com.types
 
+	let dump_position com =
+		List.iter (fun mt ->
+			match mt with
+				| TClassDecl c ->
+					let buf,close = create_dumpfile_from_path com (t_path mt) in
+					Printf.bprintf buf "%s\n" (s_type_path c.cl_path);
+					let field cf =
+						Printf.bprintf buf "\t%s\n" cf.cf_name;
+						begin match cf.cf_expr with
+						| None -> ()
+						| Some e ->
+							Printf.bprintf buf "%s\n" (Texpr.dump_with_pos "\t" e);
+						end
+					in
+					Option.may field c.cl_constructor;
+					List.iter field c.cl_ordered_statics;
+					List.iter field c.cl_ordered_fields;
+					close();
+				| _ ->
+					()
+		) com.types
+
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
 			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
 			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
+			| "position" -> dump_position com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with
-			| None -> platform_name com.platform
+			| None -> platform_name_macro com
 			| Some s -> s
 		in
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependencies"] in
+		let dump_dependencies_path = [dump_path com;target_name;".dependencies"] in
+		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
@@ -412,7 +433,8 @@ module Dump = struct
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependants"] in
+		let dump_dependants_path = [dump_path com;target_name;".dependants"] in
+		let buf,close = create_dumpfile [] dump_dependants_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		Hashtbl.iter (fun n ml ->
 			print "%s:\n" n;
@@ -435,26 +457,29 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 		| TTypeDecl _ -> assert false
 	in
-	let vtmp = alloc_var vtmp e.etype e.epos in
+	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
 	let fis = (try
 			let c = (match std with TClassDecl c -> c | _ -> assert false) in
-			FStatic (c, PMap.find "is" c.cl_statics)
+			FStatic (c, PMap.find "isOfType" c.cl_statics)
 		with Not_found ->
 			assert false
 	) in
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let enull = Texpr.Builder.make_null vexpr.etype p in
+	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
+	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent echeck,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = ref []
+	let tf_stack = new_rec_stack()
 
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
@@ -522,7 +547,7 @@ module UnificationCallback = struct
 					| _ -> e
 				end
 			| TReturn (Some e1) ->
-				begin match !tf_stack with
+				begin match tf_stack.rec_stack with
 					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
 					| _ -> e
 				end
@@ -531,10 +556,7 @@ module UnificationCallback = struct
 		in
 		match e.eexpr with
 			| TFunction tf ->
-				tf_stack := tf :: !tf_stack;
-				let etf = {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})} in
-				tf_stack := List.tl !tf_stack;
-				etf
+				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
 			| _ ->
 				check (Type.map_expr (run ff) e)
 end;;

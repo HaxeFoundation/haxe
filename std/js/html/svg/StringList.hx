@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList>
 **/
 @:native("SVGStringList")
-extern class StringList implements ArrayAccess<String>
-{
+extern class StringList implements ArrayAccess<String> {
 	var length(default,null) : Int;
 	var numberOfItems(default,null) : Int;
 	

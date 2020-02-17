@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,30 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
+/**
+	The `RTCRtpSender` interface provides the ability to control and obtain details about how a particular `MediaStreamTrack` is encoded and sent to a remote peer.
+
+	Documentation [RTCRtpSender](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender>
+**/
 @:native("RTCRtpSender")
-extern class RtpSender
-{
+extern class RtpSender {
+
+	/**
+		The `MediaStreamTrack` which is being handled by the `RTCRtpSender`. If `track` is `null`, the `RTCRtpSender` doesn't transmit anything.
+	**/
 	var track(default,null) : js.html.MediaStreamTrack;
-	
+
+	/**
+		An `RTCDTMFSender` which can be used to send `DTMF` tones using `"telephone-event"` payloads on the RTP session represented by the `RTCRtpSender` object. If `null`, the track and/or the connection doesn't support DTMF. Only audio tracks can support DTMF.
+	**/
+	var dtmf(default,null) : DTMFSender;
+
 	function setParameters( ?parameters : RtpParameters ) : Promise<Void>;
 	function getParameters() : RtpParameters;
-	function replaceTrack( track : js.html.MediaStreamTrack ) : Promise<Void>;
+	function replaceTrack( withTrack : js.html.MediaStreamTrack ) : Promise<Void>;
+	function getStats() : Promise<StatsReport>;
 }

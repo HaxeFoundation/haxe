@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLShaderPrecisionFormat>
 **/
 @:native("WebGLShaderPrecisionFormat")
-extern class ShaderPrecisionFormat
-{
+extern class ShaderPrecisionFormat {
 	
 	/**
 		The base 2 log of the absolute value of the minimum value that can be represented.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,17 +24,17 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Process extends Handle {
-  static function disable_stdio_inheritance() : Void;
-  static function spawn(path : String, options : Dynamic, cb : Int->Signal->Void ) : LuvSpawn;
-  function kill(sig:String) : Int;
+	static function disable_stdio_inheritance():Void;
+	static function spawn(path:String, options:Dynamic, cb:Int->Signal->Void):LuvSpawn;
+	function kill(sig:String):Int;
 }
 
 typedef ProcessOptions = {
-  args : Table<Int,String>,
-  stdio : Table<Int,Pipe>
+	args:Table<Int, String>,
+	stdio:Table<Int, Pipe>
 }
 
 @:multiReturn extern class LuvSpawn {
-  var handle : Process;
-  var pid : Int;
+	var handle:Process;
+	var pid:Int;
 }

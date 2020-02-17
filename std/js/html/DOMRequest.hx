@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,11 +25,10 @@
 package js.html;
 
 @:native("DOMRequest")
-extern class DOMRequest extends EventTarget
-{
+extern class DOMRequest extends EventTarget {
 	var readyState(default,null) : DOMRequestReadyState;
 	var result(default,null) : Dynamic;
-	var error(default,null) : DOMError;
+	var error(default,null) : DOMException;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	

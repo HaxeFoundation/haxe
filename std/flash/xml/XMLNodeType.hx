@@ -1,11 +1,11 @@
 package flash.xml;
 
-@:fakeEnum(UInt) extern enum XMLNodeType {
-	CDATA_NODE;
-	COMMENT_NODE;
-	DOCUMENT_TYPE_NODE;
-	ELEMENT_NODE;
-	PROCESSING_INSTRUCTION_NODE;
-	TEXT_NODE;
-	XML_DECLARATION;
+@:native("flash.xml.XMLNodeType") extern enum abstract XMLNodeType(UInt) {
+	var CDATA_NODE;
+	var COMMENT_NODE;
+	var DOCUMENT_TYPE_NODE;
+	var ELEMENT_NODE;
+	var PROCESSING_INSTRUCTION_NODE;
+	var TEXT_NODE;
+	var XML_DECLARATION;
 }

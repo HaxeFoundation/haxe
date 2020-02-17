@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,12 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Timer extends Handle {
-  static function new_timer() : Timer;
-  @:native("new_timer") function new() : Void;
+	static function new_timer():Timer;
+	@:native("new_timer") function new():Void;
 
-  function start(timeout : Int, repeat : Int, cb : Void->Void) : Int;
-  function stop() : Int;
-  function again() : Int;
-  function set_repeat(repeat : Int) : Void;
-  function get_repeat() : Int;
+	function start(timeout:Int, repeat:Int, cb:Void->Void):Int;
+	function stop():Int;
+	function again():Int;
+	function set_repeat(repeat:Int):Void;
+	function get_repeat():Int;
 }

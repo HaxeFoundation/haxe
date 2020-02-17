@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,17 +25,40 @@
 package js.html.svg;
 
 /**
-	The `SVGCircleElement` interface is an interface for the `circle` element. The circle element is defined by the cx and cy attributes, that denote the coordinates of the centre of the circle. It also has a radius attribute r that denotes the radius of the circle. The radius value must be positive to allow the successful rendering of the element.
+	The `SVGCircleElement` interface is an interface for the `circle` element. The circle element is defined by the cx and cy attributes that denote the coordinates of the centre of the circle.
 
 	Documentation [SVGCircleElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement>
 **/
 @:native("SVGCircleElement")
-extern class CircleElement extends GraphicsElement
-{
+extern class CircleElement extends GeometryElement {
+	
+	/**
+		
+		 This property defines the x-coordinate of the center of the circle element. It is denoted by the `cx` attribute of the `circle` element. If unspecified, the value of this attribute is assumed to be `0`.
+		
+		 It can be animated by SVG's animation elements.
+		 
+	**/
 	var cx(default,null) : AnimatedLength;
+	
+	/**
+		
+		 This property defines the y-coordinate of the center of the circle element. It is denoted by the `cy` attribute of the `circle` element. If unspecified, the value of this attribute is assumed to be `0`.
+		
+		 It can be animated by SVG's animation elements.
+		 
+	**/
 	var cy(default,null) : AnimatedLength;
+	
+	/**
+		
+		 This property defines the radius of the circle element. It is denoted by the `r` of the `circle` element. A negative value gives an error, while `0` disables the rendering of the element.
+		
+		 It can be animated by SVG's animation elements.
+		 
+	**/
 	var r(default,null) : AnimatedLength;
 	
 }

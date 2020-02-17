@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,8 @@
 
 package js.html;
 
-typedef FetchEventInit =
-{
-	> EventInit,
-	@:optional var clientId : String;
-	@:optional var isReload : Bool;
+typedef FetchEventInit = EventInit & {
+	var ?clientId : String;
+	var ?isReload : Bool;
 	var request : Request;
 }

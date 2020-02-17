@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,42 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PannerNode>
 **/
 @:native("PannerNode")
-extern class PannerNode extends AudioNode
-{
+extern class PannerNode extends AudioNode {
 	
 	/**
 		An enumerated value determining which spatialisation algorithm to use to position the audio in 3D space.
 	**/
 	var panningModel : PanningModelType;
+	
+	/**
+		Represents the horizontal position of the audio in a right-hand cartesian coordinate sytem. The default is 0. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 0.
+	**/
+	var positionX(default,null) : AudioParam;
+	
+	/**
+		Represents the vertical position of the audio in a right-hand cartesian coordinate sytem. The default is 0. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 0.
+	**/
+	var positionY(default,null) : AudioParam;
+	
+	/**
+		Represents the longitudinal (back and forth) position of the audio in a right-hand cartesian coordinate sytem. The default is 0. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 0.
+	**/
+	var positionZ(default,null) : AudioParam;
+	
+	/**
+		Represents the horizontal position of the audio source's vector in a right-hand cartesian coordinate sytem. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 1.
+	**/
+	var orientationX(default,null) : AudioParam;
+	
+	/**
+		Represents the vertical position of the audio source's vector in a right-hand cartesian coordinate sytem. The default is 0. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 0.
+	**/
+	var orientationY(default,null) : AudioParam;
+	
+	/**
+		Represents the longitudinal (back and forth) position of the audio source's vector in a right-hand cartesian coordinate sytem. The default is 0. While this `AudioParam` cannot be directly changed, its value can be altered using its `AudioParam.value` property. The default is value is 0.
+	**/
+	var orientationZ(default,null) : AudioParam;
 	
 	/**
 		An enumerated value determining which algorithm to use to reduce the volume of the audio source as it moves away from the listener.
@@ -75,6 +104,8 @@ extern class PannerNode extends AudioNode
 	**/
 	var coneOuterGain : Float;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : PannerOptions ) : Void;
 	
 	/**
 		Defines the position of the audio source relative to the listener (represented by an `AudioListener` object stored in the `AudioContext.listener` attribute.)
@@ -85,9 +116,4 @@ extern class PannerNode extends AudioNode
 		Defines the direction the audio source is playing in.
 	**/
 	function setOrientation( x : Float, y : Float, z : Float ) : Void;
-	
-	/**
-		Defines the velocity vector of the audio source — how fast it is moving and in what direction. In a previous version of the specification, the `PannerNode` had a velocity that could pitch up or down `AudioBufferSourceNode`s connected downstream. This feature was not clearly specified and had a number of issues, so it was removed from the specification.
-	**/
-	function setVelocity( x : Float, y : Float, z : Float ) : Void;
 }

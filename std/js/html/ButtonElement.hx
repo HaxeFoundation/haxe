@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement>
 **/
 @:native("HTMLButtonElement")
-extern class ButtonElement extends Element
-{
+extern class ButtonElement extends Element {
 	
 	/**
 		Is a `Boolean` indicating whether or not the control should have input focus when the page loads, unless the user overrides it, for example by typing in a different control. Only one form-associated element in a document can have this attribute specified.
@@ -48,7 +47,7 @@ extern class ButtonElement extends Element
 	/**
 		Is a `HTMLFormElement` reflecting the form that this button is associated with. If the button is a descendant of a form element, then this attribute is the ID of that form element.
 		
-		 If the button is not a descendant of a form element, then the attribute can be the ID of any form element in the same document it is related to, or the `null` value if none matches.
+			If the button is not a descendant of a form element, then the attribute can be the ID of any form element in the same document it is related to, or the `null` value if none matches.
 	**/
 	var form(default,null) : FormElement;
 	
@@ -56,6 +55,10 @@ extern class ButtonElement extends Element
 		Is a `DOMString` reflecting the URI of a resource that processes information submitted by the button. If specified, this attribute overrides the `action` attribute of the `form` element that owns this element.
 	**/
 	var formAction : String;
+	
+	/**
+		Is a `DOMString` reflecting the type of content that is used to submit the form to the server. If specified, this attribute overrides the `enctype` attribute of the `form` element that owns this element.
+	**/
 	var formEnctype : String;
 	
 	/**
@@ -80,13 +83,13 @@ extern class ButtonElement extends Element
 	
 	/**
 		Is a `DOMString` indicating the behavior of the button. This is an enumerated attribute with the following possible values:
-		 
-		  `"submit"`: The button submits the form. This is the default value if the attribute is not specified, {{HTMLVersionInline(5)}} or if it is dynamically changed to an empty or invalid value.
-		  `"reset"`: The button resets the form.
-		  `"button"`: The button does nothing.
-		  `"menu"`: The button displays a menu. <em>(experimental)</em>
-		 
-		 
+			
+				`"submit"`: The button submits the form. This is the default value if the attribute is not specified, {{HTMLVersionInline(5)}} or if it is dynamically changed to an empty or invalid value.
+				`"reset"`: The button resets the form.
+				`"button"`: The button does nothing.
+				`"menu"`: The button displays a menu. <em>(experimental)</em>
+			
+			
 	**/
 	var type : String;
 	
@@ -110,6 +113,12 @@ extern class ButtonElement extends Element
 	**/
 	var validationMessage(default,null) : String;
 	
+	/**
+		Is a `NodeList` that represents a list of `label` elements that are labels for this button.
+	**/
+	var labels(default,null) : NodeList;
+	
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
 }

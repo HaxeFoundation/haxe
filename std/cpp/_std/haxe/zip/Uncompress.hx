@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,56 +19,58 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 @:coreApi @:buildXml('<include name="${HXCPP}/src/hx/libs/zlib/Build.xml"/>')
 class Uncompress {
-	var s : Dynamic;
+	var s:Dynamic;
 
-	public function new( ?windowBits : Int ) : Void {
+	public function new(?windowBits:Int):Void {
 		s = _inflate_init(windowBits);
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
+		return _inflate_buffer(s, src.getData(), srcPos, dst.getData(), dstPos);
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
-		_set_flush_mode(s,untyped f.__Tag());
+	public function setFlushMode(f:FlushMode):Void {
+		_set_flush_mode(s, untyped f.__Tag());
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		_inflate_end(s);
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes {
 		var u = new Uncompress(null);
-		if( bufsize == null ) bufsize = 1 << 16; // 64K
+		if (bufsize == null)
+			bufsize = 1 << 16; // 64K
 		var tmp = haxe.io.Bytes.alloc(bufsize);
 		var b = new haxe.io.BytesBuffer();
 		var pos = 0;
 		u.setFlushMode(FlushMode.SYNC);
-		while( true ) {
-			var r = u.execute(src,pos,tmp,0);
-			b.addBytes(tmp,0,r.write);
+		while (true) {
+			var r = u.execute(src, pos, tmp, 0);
+			b.addBytes(tmp, 0, r.write);
 			pos += r.read;
-			if( r.done )
+			if (r.done)
 				break;
 		}
 		u.close();
 		return b.getBytes();
 	}
 
-   @:extern @:native("_hx_inflate_init")
-	static function _inflate_init(windowBits:Dynamic) : Dynamic return null;
+	@:native("_hx_inflate_init")
+	extern static function _inflate_init(windowBits:Dynamic):Dynamic;
 
-   @:extern @:native("_hx_inflate_buffer")
-	static function _inflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
+	@:native("_hx_inflate_buffer")
+	extern static function _inflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int, dest:haxe.io.BytesData,
+		destPos:Int):{done:Bool, read:Int, write:Int};
 
-   @:extern @:native("_hx_inflate_end")
-	static function _inflate_end(handle:Dynamic):Void { }
+	@:native("_hx_inflate_end")
+	extern static function _inflate_end(handle:Dynamic):Void;
 
-   @:extern @:native("_hx_zip_set_flush_mode")
-	static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
-
+	@:native("_hx_zip_set_flush_mode")
+	extern static function _set_flush_mode(handle:Dynamic, flushMode:String):Void;
 }

@@ -20,5 +20,6 @@ class Issue4672 extends Test {
 
 		var x = new C2<String>();
 		x.test("foo");
+		noAssert();
 	}
 }

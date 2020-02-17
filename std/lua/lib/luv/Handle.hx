@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,13 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Handle {
-  function is_active() : Bool;
-  function is_closing() : Bool;
-  function close() : Void;
-  function ref() : Void;
-  function unref() : Void;
-  function has_ref() : Bool;
-  function send_buffer_size(size : Int) : Int;
-  function recv_buffer_size(size : Int) : Int;
-  function fileno() : Int;
+	function is_active():Bool;
+	function is_closing():Bool;
+	function close():Void;
+	function ref():Void;
+	function unref():Void;
+	function has_ref():Bool;
+	function send_buffer_size(size:Int):Int;
+	function recv_buffer_size(size:Int):Int;
+	function fileno():Int;
 }

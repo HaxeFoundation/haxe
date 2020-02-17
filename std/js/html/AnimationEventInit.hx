@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,8 @@
 
 package js.html;
 
-typedef AnimationEventInit =
-{
-	> EventInit,
-	@:optional var animationName : String;
-	@:optional var elapsedTime : Float;
-	@:optional var pseudoElement : String;
+typedef AnimationEventInit = EventInit & {
+	var ?animationName : String;
+	var ?elapsedTime : Float;
+	var ?pseudoElement : String;
 }

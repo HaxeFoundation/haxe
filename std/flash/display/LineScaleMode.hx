@@ -1,8 +1,8 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum LineScaleMode {
-	HORIZONTAL;
-	NONE;
-	NORMAL;
-	VERTICAL;
+@:native("flash.display.LineScaleMode") extern enum abstract LineScaleMode(String) {
+	var HORIZONTAL;
+	var NONE;
+	var NORMAL;
+	var VERTICAL;
 }

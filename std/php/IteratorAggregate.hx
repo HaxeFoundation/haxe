@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,14 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
+/**
+	@see https://www.php.net/manual/en/class.iteratoraggregate.php
+**/
 @:native('IteratorAggregate')
-extern interface IteratorAggregate<T> {
+extern interface IteratorAggregate<T> extends Traversable {
 	/**
 		This method is not public to not induce Haxe users to use it ;)
 		Use iterator() instead.
-		The return type would be Aggregator that is unusable in Haxe
 	**/
-	private function getIterator() : Iterator<T>; //
+	private function getIterator():Traversable;
+
 }

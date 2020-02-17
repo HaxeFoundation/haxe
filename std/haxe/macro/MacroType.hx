@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.macro;
 
 /**
 	This type is meant to be used to generate custom types using a macro.
 	For instance by doing MacroType<[my.Class.myMacro(55)]>
 **/
-extern class MacroType<Const> {
-}
+extern class MacroType<Const> {}

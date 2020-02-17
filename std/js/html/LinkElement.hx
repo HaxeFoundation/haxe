@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement>
 **/
 @:native("HTMLLinkElement")
-extern class LinkElement extends Element
-{
+extern class LinkElement extends Element {
 	
 	/**
 		Is a `Boolean` which represents whether the link is disabled; currently only used with style sheet links.
@@ -76,6 +75,11 @@ extern class LinkElement extends Element
 	var type : String;
 	
 	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use.
+	**/
+	var referrerPolicy : String;
+	
+	/**
 		Is a `DOMSettableTokenList` that reflects the `sizes` HTML attribute, as a list of tokens.
 	**/
 	var sizes(default,null) : DOMTokenList;
@@ -87,6 +91,8 @@ extern class LinkElement extends Element
 	
 	/**
 		Is a `DOMString` representing the reverse relationship of the linked resource from the resource to the document.
+		 Note: Currently the W3C HTML 5.2 spec states that `rev` is no longer obsolete, whereas the WHATWG living standard still has it labeled obsolete. Until this discrepancy is resolved, you should still assume it is obsolete.
+		 
 	**/
 	var rev : String;
 	
@@ -94,9 +100,12 @@ extern class LinkElement extends Element
 		Is a `DOMString` representing the name of the target frame to which the resource applies.
 	**/
 	var target : String;
-	@:native("import")
-	var import_(default,null) : HTMLDocument;
 	var integrity : String;
+	
+	/**
+		Is a `DOMString` representing the type of content being loaded by the HTML link.
+	**/
+	var as : String;
 	var sheet(default,null) : StyleSheet;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,11 +31,21 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate>
 **/
-@:native("DeviceRotationRate")
-extern class DeviceRotationRate
-{
+typedef DeviceRotationRate = {
+	
+	/**
+		The amount of rotation around the Z axis, in degrees per second.
+	**/
 	var alpha(default,null) : Float;
+	
+	/**
+		The amount of rotation around the X axis, in degrees per second.
+	**/
 	var beta(default,null) : Float;
+	
+	/**
+		The amount of rotation around the Y axis, in degrees per second.
+	**/
 	var gamma(default,null) : Float;
 	
 }

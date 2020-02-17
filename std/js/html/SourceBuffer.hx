@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `SourceBuffer` interface represents a chunk of media to be passed into an `HTMLMediaElement` and played, via a `MediaSource` object. This can be made up of one or several media segments.
+	The `SourceBuffer` interface represents a chunk of media to be passed into an `HTMLMediaElement` and played, via a `MediaSource` object. This can be made up of one or several media segments.
 
 	Documentation [SourceBuffer](https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer>
 **/
 @:native("SourceBuffer")
-extern class SourceBuffer extends EventTarget
-{
+extern class SourceBuffer extends EventTarget {
 	
 	/**
 		Controls how the order of media segments in the `SourceBuffer` is handled, in terms of whether they can be appended in any order, or they have to be kept in a strict sequence.
@@ -41,7 +40,7 @@ extern class SourceBuffer extends EventTarget
 	var mode : SourceBufferAppendMode;
 	
 	/**
-		Indicates whether the `SourceBuffer` is currently being updated — i.e. whether an `SourceBuffer.appendBuffer()`, `SourceBuffer.appendStream()`, or `SourceBuffer.remove()` operation is currently in progress.
+		A boolean indicating whether the `SourceBuffer` is currently being updated — i.e. whether an `SourceBuffer.appendBuffer()`, `SourceBuffer.appendStream()`, or `SourceBuffer.remove()` operation is currently in progress.
 	**/
 	var updating(default,null) : Bool;
 	
@@ -56,7 +55,7 @@ extern class SourceBuffer extends EventTarget
 	var timestampOffset : Float;
 	
 	/**
-		Controls the timestamp for the start of the append window. This is a timestamp range that can be used to filter what media data is appended to the `SourceBuffer`. Coded media frames with timestamps wthin this range will be appended, whereas those outside the range will be filtered out.
+		Controls the timestamp for the start of the append window. This is a timestamp range that can be used to filter what media data is appended to the `SourceBuffer`. Coded media frames with timestamps within this range will be appended, whereas those outside the range will be filtered out.
 	**/
 	var appendWindowStart : Float;
 	
@@ -65,23 +64,54 @@ extern class SourceBuffer extends EventTarget
 	**/
 	var appendWindowEnd : Float;
 	
-	/** @throws DOMError */
-	@:overload( function( data : ArrayBuffer ) : Void {} )
+	/**
+		Fired whenever the value of `SourceBuffer.updating` transitions from `false` to `true`.
+	**/
+	var onupdatestart : haxe.Constraints.Function;
+	
+	/**
+		Fired whenever `SourceBuffer.appendBuffer()` method or the `SourceBuffer.remove()` completes. `SourceBuffer.updating` changes from `true` to `false`. This event is fired before `onupdateend`.
+	**/
+	var onupdate : haxe.Constraints.Function;
+	
+	/**
+		Fired whenever `SourceBuffer.appendBuffer()` method or the `SourceBuffer.remove()` has ended. This event is fired after `onupdate`.
+	**/
+	var onupdateend : haxe.Constraints.Function;
+	
+	/**
+		Fired whenever an error occurs during `SourceBuffer.appendBuffer()` or `SourceBuffer.appendStream()`. `SourceBuffer.updating` changes from `true` to `false`.
+	**/
+	var onerror : haxe.Constraints.Function;
+	
+	/**
+		Fired whenever `SourceBuffer.appendBuffer()` or `SourceBuffer.appendStream()` is ended by a call to `SourceBuffer.abort()`. `SourceBuffer.updating` changes from `true` to `false`.
+	**/
+	var onabort : haxe.Constraints.Function;
+	
 	
 	/**
 		Appends media segment data from an `ArrayBuffer` or `ArrayBufferView` object to the `SourceBuffer`.
+		@throws DOMError
 	**/
-	function appendBuffer( data : ArrayBufferView ) : Void;
-	/** @throws DOMError */
+	@:overload( function( data : js.lib.ArrayBuffer ) : Void {} )
+	function appendBuffer( data : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Aborts the current segment and resets the segment parser.
+		@throws DOMError
 	**/
 	function abort() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Removes media segments within a specific time range from the `SourceBuffer`.
+		@throws DOMError
 	**/
 	function remove( start : Float, end : Float ) : Void;
+	
+	/**
+		Changes the `MIME type` that future calls to `SourceBuffer.appendBuffer` will expect the new data to conform to.
+		@throws DOMError
+	**/
+	function changeType( type : String ) : Void;
 }

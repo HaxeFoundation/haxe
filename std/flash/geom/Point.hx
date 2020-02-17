@@ -1,7 +1,7 @@
 package flash.geom;
 
 extern class Point {
-	var length(default,never) : Float;
+	@:flash.property var length(get,never) : Float;
 	var x : Float;
 	var y : Float;
 	function new(x : Float = 0, y : Float = 0) : Void;
@@ -9,6 +9,7 @@ extern class Point {
 	function clone() : Point;
 	@:require(flash11) function copyFrom(sourcePoint : Point) : Void;
 	function equals(toCompare : Point) : Bool;
+	private function get_length() : Float;
 	function normalize(thickness : Float) : Void;
 	function offset(dx : Float, dy : Float) : Void;
 	@:require(flash11) function setTo(xa : Float, ya : Float) : Void;

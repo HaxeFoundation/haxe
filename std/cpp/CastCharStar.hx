@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
 
-abstract CastCharStar( RawPointer<Char> ) to(RawPointer<Char>)
-{
-   inline function new(s:String) this = cast untyped s.__s;
+package cpp;
 
-   @:from
-   static public inline function fromString(s:String) return new CastCharStar(s);
+abstract CastCharStar(RawPointer<Char>) to(RawPointer<Char>) {
+	inline function new(s:String)
+		this = cast untyped s.__s;
 
-    @:to
-    public inline function toPointer() return this;
+	@:from
+	static public inline function fromString(s:String)
+		return new CastCharStar(s);
+
+	@:to
+	public inline function toPointer()
+		return this;
 }
-

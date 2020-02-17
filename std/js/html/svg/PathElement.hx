@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,33 +32,13 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPathElement>
 **/
 @:native("SVGPathElement")
-extern class PathElement extends GraphicsElement
-{
-	var pathLength(default,null) : AnimatedNumber;
+extern class PathElement extends GeometryElement {
 	var pathSegList(default,null) : PathSegList;
 	var animatedPathSegList(default,null) : PathSegList;
 	
-	function getTotalLength() : Float;
-	/** @throws DOMError */
-	function getPointAtLength( distance : Float ) : Point;
+	
+	/**
+		Returns an unsigned long representing the index within the `SVGAnimatedPathData.pathSegList` utilizing the user agent's distance-along-a-path algorithm.
+	**/
 	function getPathSegAtLength( distance : Float ) : Int;
-	function createSVGPathSegClosePath() : PathSegClosePath;
-	function createSVGPathSegMovetoAbs( x : Float, y : Float ) : PathSegMovetoAbs;
-	function createSVGPathSegMovetoRel( x : Float, y : Float ) : PathSegMovetoRel;
-	function createSVGPathSegLinetoAbs( x : Float, y : Float ) : PathSegLinetoAbs;
-	function createSVGPathSegLinetoRel( x : Float, y : Float ) : PathSegLinetoRel;
-	function createSVGPathSegCurvetoCubicAbs( x : Float, y : Float, x1 : Float, y1 : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicAbs;
-	function createSVGPathSegCurvetoCubicRel( x : Float, y : Float, x1 : Float, y1 : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicRel;
-	function createSVGPathSegCurvetoQuadraticAbs( x : Float, y : Float, x1 : Float, y1 : Float ) : PathSegCurvetoQuadraticAbs;
-	function createSVGPathSegCurvetoQuadraticRel( x : Float, y : Float, x1 : Float, y1 : Float ) : PathSegCurvetoQuadraticRel;
-	function createSVGPathSegArcAbs( x : Float, y : Float, r1 : Float, r2 : Float, angle : Float, largeArcFlag : Bool, sweepFlag : Bool ) : PathSegArcAbs;
-	function createSVGPathSegArcRel( x : Float, y : Float, r1 : Float, r2 : Float, angle : Float, largeArcFlag : Bool, sweepFlag : Bool ) : PathSegArcRel;
-	function createSVGPathSegLinetoHorizontalAbs( x : Float ) : PathSegLinetoHorizontalAbs;
-	function createSVGPathSegLinetoHorizontalRel( x : Float ) : PathSegLinetoHorizontalRel;
-	function createSVGPathSegLinetoVerticalAbs( y : Float ) : PathSegLinetoVerticalAbs;
-	function createSVGPathSegLinetoVerticalRel( y : Float ) : PathSegLinetoVerticalRel;
-	function createSVGPathSegCurvetoCubicSmoothAbs( x : Float, y : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicSmoothAbs;
-	function createSVGPathSegCurvetoCubicSmoothRel( x : Float, y : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicSmoothRel;
-	function createSVGPathSegCurvetoQuadraticSmoothAbs( x : Float, y : Float ) : PathSegCurvetoQuadraticSmoothAbs;
-	function createSVGPathSegCurvetoQuadraticSmoothRel( x : Float, y : Float ) : PathSegCurvetoQuadraticSmoothRel;
 }

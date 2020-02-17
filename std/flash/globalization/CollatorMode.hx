@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:fakeEnum(String) extern enum CollatorMode {
-	MATCHING;
-	SORTING;
+@:native("flash.globalization.CollatorMode") extern enum abstract CollatorMode(String) {
+	var MATCHING;
+	var SORTING;
 }

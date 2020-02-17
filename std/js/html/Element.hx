@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,22 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement>
 **/
 @:native("HTMLElement")
-extern class Element extends DOMElement
-{
+extern class Element extends DOMElement {
+	
+	/**
+		Sends a mouse click event to the element.
+	**/
+	function click() : Void;
+	
+	/**
+		Makes the element the current keyboard focus.
+		@throws DOMError
+	**/
+	function focus() : Void;
+	
+	/**
+		Removes keyboard focus from the currently focused element.
+		@throws DOMError
+	**/
+	function blur() : Void;
 }

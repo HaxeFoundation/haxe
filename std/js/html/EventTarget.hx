@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,26 +32,27 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget>
 **/
 @:native("EventTarget")
-extern class EventTarget
-{
+extern class EventTarget {
 	/** @throws DOMError */
-	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false, ?wantsUntrusted : Bool ) : Void {} )
+	function new() : Void;
 	
 	/**
 		Register an event handler of a specific event type on the `EventTarget`.
+		@throws DOMError
 	**/
-	function addEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
-	/** @throws DOMError */
-	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false ) : Void {} )
+	@:overload( function( type : String, listener : EventListener, ?options : haxe.extern.EitherType<AddEventListenerOptions,Bool>, ?wantsUntrusted : Bool ) : Void {} )
+	function addEventListener( type: String, listener: haxe.Constraints.Function, ?options : haxe.extern.EitherType<AddEventListenerOptions,Bool>, ?wantsUntrusted : Bool ) : Void;
 	
 	/**
 		Removes an event listener from the `EventTarget`.
+		@throws DOMError
 	**/
-	function removeEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
-	/** @throws DOMError */
+	@:overload( function( type : String, listener : EventListener, ?options : haxe.extern.EitherType<EventListenerOptions,Bool>) : Void {} )
+	function removeEventListener( type : String, listener : haxe.Constraints.Function, ?options : haxe.extern.EitherType<EventListenerOptions,Bool> ) : Void;
 	
 	/**
 		Dispatch an event to this `EventTarget`.
+		@throws DOMError
 	**/
 	function dispatchEvent( event : Event ) : Bool;
 }

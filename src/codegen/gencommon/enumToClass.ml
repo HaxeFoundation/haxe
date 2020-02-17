@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -138,7 +138,7 @@ struct
 					let cf = mk_class_field name ef_type true pos (Method MethNormal) cf_params in
 					cf.cf_meta <- [];
 
-					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
+					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some (Texpr.Builder.make_null t null_pos) else None) ) params in
 					let arr_decl = mk_nativearray_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
 					let expr = {
 						eexpr = TFunction({
@@ -182,7 +182,7 @@ struct
 
 		let getTag_cf_type = tfun [] basic.tstring in
 		let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
-		getTag_cf.cf_meta <- [(Meta.Final, [], pos)];
+		add_class_field_flag getTag_cf CfFinal;
 		getTag_cf.cf_expr <- Some {
 			eexpr = TFunction {
 				tf_args = [];

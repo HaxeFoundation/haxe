@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,13 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode>
 **/
 @:native("MediaStreamAudioDestinationNode")
-extern class MediaStreamAudioDestinationNode extends AudioNode
-{
+extern class MediaStreamAudioDestinationNode extends AudioNode {
 	
 	/**
 		Is a `MediaStream` containing a single `AudioMediaStreamTrack` with the same number of channels as the node itself. You can use this property to get a stream out of the audio graph and feed it into another construct, such as a Media Recorder.
 	**/
 	var stream(default,null) : js.html.MediaStream;
 	
+	/** @throws DOMError */
+	function new( context : AudioContext, ?options : AudioNodeOptions ) : Void;
 }

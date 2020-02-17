@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,9 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 import haxe.PosInfos;
+import haxe.extern.EitherType;
 
 using php.Global;
 
@@ -34,31 +36,44 @@ using php.Global;
 class Boot {
 	/** List of Haxe classes registered by their PHP class names  */
 	@:protected static var aliases = new NativeAssocArray<String>();
+
 	/** Cache of HxClass instances */
 	@:protected static var classes = new NativeAssocArray<HxClass>();
+
 	/** List of getters (for Reflect) */
 	@:protected static var getters = new NativeAssocArray<NativeAssocArray<Bool>>();
+
 	/** List of setters (for Reflect) */
 	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
+
 	/** Metadata storage */
 	@:protected static var meta = new NativeAssocArray<{}>();
+
+	/** Cache for closures created of static methods */
+	@:protected static var staticClosures = new NativeAssocArray<NativeAssocArray<HxClosure>>();
 
 	/**
 		Initialization stuff.
 		This method is called once before invoking any Haxe-generated user code.
 	**/
 	static function __init__() {
+		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
 			var previousLevel = Global.error_reporting(Const.E_ALL);
-			var previousHandler = Global.set_error_handler(
-				function (errno:Int, errstr:String, errfile:String, errline:Int) {
-					if (Global.error_reporting() & errno == 0) {
-						return false;
-					}
-					throw new ErrorException(errstr, 0, errno, errfile, errline);
+			var previousHandler = Global.set_error_handler(function(errno:Int, errstr:String, errfile:String, errline:Int) {
+				if (Global.error_reporting() & errno == 0) {
+					return false;
 				}
-			);
-			//Already had user-defined handler. Return it.
+				/*
+				 * Division by zero should not throw
+				 * @see https://github.com/HaxeFoundation/haxe/issues/7034#issuecomment-394264544
+				 */
+				if (errno == Const.E_WARNING && errstr == 'Division by zero') {
+					return true;
+				}
+				throw new ErrorException(errstr, 0, errno, errfile, errline);
+			});
+			// Already had user-defined handler. Return it.
 			if (previousHandler != null) {
 				Global.error_reporting(previousLevel);
 				Global.set_error_handler(previousHandler);
@@ -67,35 +82,35 @@ class Boot {
 	}
 
 	/**
-		Returns root namespace based on a value of `--php-prefix` compiler flag.
-		Returns empty string if no `--php-prefix` provided.
+		Returns root namespace based on a value of `-D php-prefix=value` compiler flag.
+		Returns empty string if no `-D php-prefix=value` provided.
 	**/
-	public static inline function getPrefix() : String {
+	public static function getPrefix():String {
 		return Syntax.code('self::PHP_PREFIX');
 	}
 
 	/**
 		Register list of getters to be able to call getters using reflection
 	**/
-	public static function registerGetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+	public static function registerGetters(phpClassName:String, list:NativeAssocArray<Bool>):Void {
 		getters[phpClassName] = list;
 	}
 
 	/**
 		Register list of setters to be able to call getters using reflection
 	**/
-	public static function registerSetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+	public static function registerSetters(phpClassName:String, list:NativeAssocArray<Bool>):Void {
 		setters[phpClassName] = list;
 	}
 
 	/**
 		Check if specified property has getter
 	**/
-	public static function hasGetter( phpClassName:String, property:String ) : Bool {
+	public static function hasGetter(phpClassName:String, property:String):Bool {
 		ensureLoaded(phpClassName);
 
 		var has = false;
-		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		var phpClassName:haxe.extern.EitherType<Bool, String> = phpClassName;
 		do {
 			has = Global.isset(getters[phpClassName][property]);
 			phpClassName = Global.get_parent_class(phpClassName);
@@ -107,11 +122,11 @@ class Boot {
 	/**
 		Check if specified property has setter
 	**/
-	public static function hasSetter( phpClassName:String, property:String ) : Bool {
+	public static function hasSetter(phpClassName:String, property:String):Bool {
 		ensureLoaded(phpClassName);
 
 		var has = false;
-		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		var phpClassName:haxe.extern.EitherType<Bool, String> = phpClassName;
 		do {
 			has = Global.isset(setters[phpClassName][property]);
 			phpClassName = Global.get_parent_class(phpClassName);
@@ -123,14 +138,14 @@ class Boot {
 	/**
 		Save metadata for specified class
 	**/
-	public static function registerMeta( phpClassName:String, data:Dynamic ) : Void {
+	public static function registerMeta(phpClassName:String, data:Dynamic):Void {
 		meta[phpClassName] = data;
 	}
 
 	/**
 		Retrieve metadata for specified class
 	**/
-	public static function getMeta( phpClassName:String ) : Null<Dynamic> {
+	public static function getMeta(phpClassName:String):Null<Dynamic> {
 		ensureLoaded(phpClassName);
 		return Global.isset(meta[phpClassName]) ? meta[phpClassName] : null;
 	}
@@ -138,7 +153,7 @@ class Boot {
 	/**
 		Associate PHP class name with Haxe class name
 	**/
-	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
+	public static function registerClass(phpClassName:String, haxeClassName:String):Void {
 		aliases[phpClassName] = haxeClassName;
 	}
 
@@ -164,7 +179,7 @@ class Boot {
 		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
 		It's always the same instance for the same `phpClassName`
 	**/
-	public static function getClass( phpClassName:String ) : HxClass {
+	public static function getClass(phpClassName:String):HxClass {
 		if (phpClassName.charAt(0) == '\\') {
 			phpClassName = phpClassName.substr(1);
 		}
@@ -178,21 +193,28 @@ class Boot {
 	/**
 		Returns Class<HxAnon>
 	**/
-	public static inline function getHxAnon() : HxClass {
+	public static inline function getHxAnon():HxClass {
 		return cast HxAnon;
+	}
+
+	/**
+		Check if provided value is an anonymous object
+	**/
+	public static inline function isAnon(v:Any):Bool {
+		return Std.isOfType(v, HxAnon);
 	}
 
 	/**
 		Returns Class<HxClass>
 	**/
-	public static inline function getHxClass() : HxClass {
+	public static inline function getHxClass():HxClass {
 		return cast HxClass;
 	}
 
 	/**
 		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
 	**/
-	public static function getClassName( phpClassName:String ) : String {
+	public static function getClassName(phpClassName:String):String {
 		var hxClass = getClass(phpClassName);
 		var name = getHaxeName(hxClass);
 		return (name == null ? hxClass.phpClassName : name);
@@ -201,19 +223,27 @@ class Boot {
 	/**
 		Returns original Haxe fully qualified class name for this type (if exists)
 	**/
-	public static function getHaxeName( hxClass:HxClass) : Null<String> {
+	public static function getHaxeName(hxClass:HxClass):Null<String> {
 		switch (hxClass.phpClassName) {
-			case 'Int': return 'Int';
-			case 'String': return 'String';
-			case 'Bool': return 'Bool';
-			case 'Float': return 'Float';
-			case 'Class': return 'Class';
-			case 'Enum': return 'Enum';
-			case 'Dynamic': return 'Dynamic';
+			case 'Int':
+				return 'Int';
+			case 'String':
+				return 'String';
+			case 'Bool':
+				return 'Bool';
+			case 'Float':
+				return 'Float';
+			case 'Class':
+				return 'Class';
+			case 'Enum':
+				return 'Enum';
+			case 'Dynamic':
+				return 'Dynamic';
 			case _:
 		}
 
-		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
+		inline function exists()
+			return Global.isset(aliases[hxClass.phpClassName]);
 
 		if (exists()) {
 			return aliases[hxClass.phpClassName];
@@ -230,24 +260,14 @@ class Boot {
 		Find corresponding PHP class name.
 		Returns `null` if specified class does not exist.
 	**/
-	public static function getPhpName( haxeName:String ) : Null<String> {
+	public static function getPhpName(haxeName:String):Null<String> {
 		var prefix = getPrefix();
-		var phpParts = (prefix.length == 0 ? [] : [prefix]);
+		var phpParts = (Global.strlen(prefix) == 0 ? [] : [prefix]);
 
 		var haxeParts = haxeName.split('.');
 		for (part in haxeParts) {
-			switch (part.toLowerCase()) {
-				case "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
-					| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
-					| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
-					| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
-					| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
-					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
-					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
-					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable":
-						part += '_hx';
-				case _:
+			if (isPhpKeyword(part)) {
+				part += '_hx';
 			}
 			phpParts.push(part);
 		}
@@ -256,32 +276,40 @@ class Boot {
 	}
 
 	/**
-		Creates Haxe-compatible closure.
-		@param type `this` for instance methods; full php class name for static methods
-		@param func Method name
+		Check if the value of `str` is a reserved keyword in PHP
+		@see https://www.php.net/manual/en/reserved.keywords.php
 	**/
-	public static inline function closure( target:Dynamic, func:Dynamic ) : HxClosure {
-		return new HxClosure(target, func);
+	@:pure(false)
+	static public function isPhpKeyword(str:String):Bool {
+		//The body of this method is generated by the compiler
+		return false;
 	}
 
 	/**
 		Unsafe cast to HxClosure
 	**/
-	public static inline function castClosure(value:Dynamic) : HxClosure {
+	public static inline function castClosure(value:Dynamic):HxClosure {
 		return value;
 	}
 
 	/**
 		Unsafe cast to HxClass
 	**/
-	public static inline function castClass(cls:Class<Dynamic>) : HxClass {
+	public static inline function castClass(cls:Class<Dynamic>):HxClass {
 		return cast cls;
+	}
+
+	/**
+		Unsafe cast to HxEnum
+	**/
+	public static inline function castEnumValue(enm:EnumValue):HxEnum {
+		return cast enm;
 	}
 
 	/**
 		Returns `Class<T>` for `HxClosure`
 	**/
-	public static inline function closureHxClass() : HxClass {
+	public static inline function closureHxClass():HxClass {
 		return cast HxClosure;
 	}
 
@@ -289,7 +317,9 @@ class Boot {
 		Implementation for `cast(value, Class<Dynamic>)`
 		@throws HxException if `value` cannot be casted to this type
 	**/
-	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+	public static function typedCast(hxClass:HxClass, value:Dynamic):Dynamic {
+		if (value == null)
+			return null;
 		switch (hxClass.phpClassName) {
 			case 'Int':
 				if (Boot.isNumber(value)) {
@@ -312,7 +342,7 @@ class Boot {
 					return value;
 				}
 			case _:
-				if (value.is_object() && Std.is(value, cast hxClass)) {
+				if (value.is_object() && Std.isOfType(value, cast hxClass)) {
 					return value;
 				}
 		}
@@ -322,7 +352,10 @@ class Boot {
 	/**
 		Returns string representation of `value`
 	**/
-	public static function stringify( value : Dynamic ) : String {
+	public static function stringify(value:Dynamic, maxRecursion:Int = 10):String {
+		if (maxRecursion <= 0) {
+			return '<...>';
+		}
 		if (value == null) {
 			return 'null';
 		}
@@ -338,33 +371,45 @@ class Boot {
 		if (value.is_array()) {
 			var strings = Syntax.arrayDecl();
 			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
-				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+				strings.push(Syntax.string(key) + ' => ' + stringify(item, maxRecursion - 1));
 			});
 			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
+			if (Std.isOfType(value, Array)) {
+				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
+			}
+			if (Std.isOfType(value, HxEnum)) {
+				var e:HxEnum = value;
+				var result = e.tag;
+				if (Global.count(e.params) > 0) {
+					var strings = Global.array_map(function(item) return Boot.stringify(item, maxRecursion - 1), e.params);
+					result += '(' + Global.implode(',', strings) + ')';
+				}
+				return result;
+			}
 			if (value.method_exists('toString')) {
 				return value.toString();
 			}
 			if (value.method_exists('__toString')) {
 				return value.__toString();
 			}
-			if (Std.is(value, StdClass)) {
-				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
+			if (Std.isOfType(value, StdClass)) {
+				if (Global.isset(Syntax.field(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
 				var data = Global.get_object_vars(value);
 				for (key in data.array_keys()) {
-					result.array_push('$key : ' + stringify(data[key]));
+					result.array_push('$key : ' + stringify(data[key], maxRecursion - 1));
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
 			if (isFunction(value)) {
 				return '<function>';
 			}
-			if (Std.is(value, HxClass)) {
-				return '[class ' + getClassName((value:HxClass).phpClassName) + ']';
+			if (Std.isOfType(value, HxClass)) {
+				return '[class ' + getClassName((value : HxClass).phpClassName) + ']';
 			} else {
 				return '[object ' + getClassName(Global.get_class(value)) + ']';
 			}
@@ -372,19 +417,27 @@ class Boot {
 		throw "Unable to stringify value";
 	}
 
-	static public inline function isNumber( value:Dynamic ) {
+	static public function stringifyNativeIndexedArray<T>(arr:NativeIndexedArray<T>, maxRecursion:Int = 10):String {
+		var strings = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			strings[index] = Boot.stringify(value, maxRecursion - 1);
+		});
+		return '[' + Global.implode(',', strings) + ']';
+	}
+
+	static public inline function isNumber(value:Dynamic) {
 		return value.is_int() || value.is_float();
 	}
 
 	/**
 		Check if specified values are equal
 	**/
-	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
+	public static function equal(left:Dynamic, right:Dynamic):Bool {
 		if (isNumber(left) && isNumber(right)) {
 			return Syntax.equal(left, right);
 		}
-		if (Std.is(left, HxClosure) && Std.is(right, HxClosure)) {
-			return (left:HxClosure).equals(right);
+		if (Std.isOfType(left, HxClosure) && Std.isOfType(right, HxClosure)) {
+			return (left : HxClosure).equals(right);
 		}
 		return Syntax.strictEqual(left, right);
 	}
@@ -393,32 +446,38 @@ class Boot {
 		Concat `left` and `right` if both are strings or string and null.
 		Otherwise return sum of `left` and `right`.
 	**/
-	public static function addOrConcat( left:Dynamic, right:Dynamic ) : Dynamic {
+	public static function addOrConcat(left:Dynamic, right:Dynamic):Dynamic {
 		if (left.is_string() || right.is_string()) {
-			return (left:String) + (right:String);
+			return (left : String) + (right : String);
 		}
 		return Syntax.add(left, right);
 	}
 
+	@:deprecated('php.Boot.is() is deprecated. Use php.Boot.isOfType() instead')
+	public static inline function is(value:Dynamic, type:HxClass):Bool {
+		return isOfType(value, type);
+	}
+
 	/**
-		`Std.is()` implementation
+		`Std.isOfType()` implementation
 	**/
-	public static function is( value:Dynamic, type:HxClass ) : Bool {
-		if (type == null) return false;
+	public static function isOfType(value:Dynamic, type:HxClass):Bool {
+		if (type == null)
+			return false;
 
 		var phpType = type.phpClassName;
+		#if php_prefix
+		var prefix = getPrefix();
+		if (Global.substr(phpType, 0, Global.strlen(prefix) + 1) == '$prefix\\') {
+			phpType = Global.substr(phpType, Global.strlen(prefix) + 1);
+		}
+		#end
+
 		switch (phpType) {
 			case 'Dynamic':
-				return true;
+				return value != null;
 			case 'Int':
-				return (
-						value.is_int()
-						|| (
-							value.is_float()
-							&& Syntax.equal(Syntax.int(value), value)
-							&& !Global.is_nan(value)
-						)
-					)
+				return (value.is_int() || (value.is_float() && Syntax.equal(Syntax.int(value), value) && !Global.is_nan(value)))
 					&& Global.abs(value) <= 2147483648;
 			case 'Float':
 				return value.is_float() || value.is_int();
@@ -428,10 +487,10 @@ class Boot {
 				return value.is_string();
 			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
-			case 'Enum', 'Class':
-				if (Std.is(value, HxClass)) {
-					var valuePhpClass = (cast value:HxClass).phpClassName;
-					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
+			case 'Enum' | 'Class':
+				if (Std.isOfType(value, HxClass)) {
+					var valuePhpClass = (cast value : HxClass).phpClassName;
+					var enumPhpClass = (cast HxEnum : HxClass).phpClassName;
 					var isEnumType = Global.is_subclass_of(valuePhpClass, enumPhpClass);
 					return (phpType == 'Enum' ? isEnumType : !isEnumType);
 				}
@@ -447,39 +506,39 @@ class Boot {
 	/**
 		Check if `value` is a `Class<T>`
 	**/
-	public static inline function isClass(value:Dynamic) : Bool {
-		return Std.is(value, HxClass);
+	public static inline function isClass(value:Dynamic):Bool {
+		return Std.isOfType(value, HxClass);
 	}
 
 	/**
 		Check if `value` is an enum constructor instance
 	**/
-	public static inline function isEnumValue(value:Dynamic) : Bool {
-		return Std.is(value, HxEnum);
+	public static inline function isEnumValue(value:Dynamic):Bool {
+		return Std.isOfType(value, HxEnum);
 	}
 
 	/**
 		Check if `value` is a function
 	**/
-	public static inline function isFunction(value:Dynamic) : Bool {
-		return Std.is(value, Closure) || Std.is(value, HxClosure);
+	public static inline function isFunction(value:Dynamic):Bool {
+		return Std.isOfType(value, Closure) || Std.isOfType(value, HxClosure);
 	}
 
 	/**
 		Check if `value` is an instance of `HxClosure`
 	**/
-	public static inline function isHxClosure(value:Dynamic) : Bool {
-		return Std.is(value, HxClosure);
+	public static inline function isHxClosure(value:Dynamic):Bool {
+		return Std.isOfType(value, HxClosure);
 	}
 
 	/**
 		Performs `left >>> right` operation
 	**/
-	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
+	public static function shiftRightUnsigned(left:Int, right:Int):Int {
 		if (right == 0) {
 			return left;
 		} else if (left >= 0) {
-			return (left >> right);
+			return (left >> right) & ~((1 << (8 * Const.PHP_INT_SIZE - 1)) >> (right - 1));
 		} else {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
@@ -487,46 +546,103 @@ class Boot {
 
 	/**
 		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
-		```
+		```haxe
 		(new MyClass()).fieldName = 'value';
 		```
 	**/
-	static public function deref( value:Dynamic ) : Dynamic {
+	static public function deref(value:Dynamic):Dynamic {
 		return value;
 	}
 
 	/**
 		Create Haxe-compatible anonymous structure of `data` associative array
 	**/
-	static public inline function createAnon( data:NativeArray ) : Dynamic {
+	static public inline function createAnon(data:NativeArray):Dynamic {
 		return new HxAnon(data);
 	}
 
 	/**
 		Make sure specified class is loaded
 	**/
-	static public inline function ensureLoaded( phpClassName:String ) : Bool {
+	static public inline function ensureLoaded(phpClassName:String):Bool {
 		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
 	}
 
 	/**
 		Get `field` of a dynamic `value` in a safe manner (avoid exceptions on trying to get a method)
 	**/
-	static public function dynamicField( value:Dynamic, field:String ) : Dynamic {
-		if(Global.method_exists(value, field)) {
+	static public function dynamicField(value:Dynamic, field:String):Dynamic {
+		if (Global.method_exists(value, field)) {
 			return closure(value, field);
 		}
-		if(Global.is_string(value)) {
+		if (Global.is_string(value)) {
 			value = @:privateAccess new HxDynamicStr(value);
 		}
-		return Syntax.getField(value, field);
+		return Syntax.field(value, field);
 	}
 
-	public static function dynamicString( str:String ) : HxDynamicStr {
+	public static function dynamicString(str:String):HxDynamicStr {
 		return @:privateAccess new HxDynamicStr(str);
 	}
-}
 
+	/**
+		Creates Haxe-compatible closure of an instance method.
+		@param obj - any object
+	**/
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
+		if (result != null) {
+			return result;
+		}
+		result = new HxClosure(obj, methodName);
+		if (!Global.property_exists(obj, '__hx_closureCache')) {
+			obj.__hx_closureCache = new NativeAssocArray();
+		}
+		obj.__hx_closureCache[methodName] = result;
+		return result;
+	}
+
+	/**
+		Creates Haxe-compatible closure of a static method.
+	**/
+	public static function getStaticClosure(phpClassName:String, methodName:String) {
+		var result = Syntax.coalesce(staticClosures[phpClassName][methodName], null);
+		if (result != null) {
+			return result;
+		}
+		result = new HxClosure(phpClassName, methodName);
+		if (!Global.array_key_exists(phpClassName, staticClosures)) {
+			staticClosures[phpClassName] = new NativeAssocArray();
+		}
+		staticClosures[phpClassName][methodName] = result;
+		return result;
+	}
+
+	/**
+		Creates Haxe-compatible closure.
+		@param type `this` for instance methods; full php class name for static methods
+		@param func Method name
+	**/
+	public static inline function closure(target:Dynamic, func:String):HxClosure {
+		return target.is_string() ? getStaticClosure(target, func) : getInstanceClosure(target, func);
+	}
+
+	/**
+		Get UTF-8 code of the first character in `s` without any checks
+	**/
+	static public inline function unsafeOrd(s:NativeString):Int {
+		var code = Global.ord(s[0]);
+		if (code < 0xC0) {
+			return code;
+		} else if (code < 0xE0) {
+			return ((code - 0xC0) << 6) + Global.ord(s[1]) - 0x80;
+		} else if (code < 0xF0) {
+			return ((code - 0xE0) << 12) + ((Global.ord(s[1]) - 0x80) << 6) + Global.ord(s[2]) - 0x80;
+		} else {
+			return ((code - 0xF0) << 18) + ((Global.ord(s[1]) - 0x80) << 12) + ((Global.ord(s[2]) - 0x80) << 6) + Global.ord(s[3]) - 0x80;
+		}
+	}
+}
 
 /**
 	Class<T> implementation for Haxe->PHP internals.
@@ -534,10 +650,9 @@ class Boot {
 @:keep
 @:dox(hide)
 private class HxClass {
+	public var phpClassName(default, null):String;
 
-	public var phpClassName (default,null) : String;
-
-	public function new( phpClassName:String ) : Void {
+	public function new(phpClassName:String):Void {
 		this.phpClassName = phpClassName;
 	}
 
@@ -545,8 +660,8 @@ private class HxClass {
 		Magic method to call static methods of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
 	@:phpMagic
-	function __call( method:String, args:NativeArray ) : Dynamic {
-		var callback = (phpClassName == 'String' ? (cast HxString:HxClass).phpClassName : phpClassName) + '::' + method;
+	function __call(method:String, args:NativeArray):Dynamic {
+		var callback = (phpClassName == 'String' ? Syntax.nativeClassName(HxString) : phpClassName) + '::' + method;
 		return Global.call_user_func_array(callback, args);
 	}
 
@@ -554,12 +669,12 @@ private class HxClass {
 		Magic method to get static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
 	@:phpMagic
-	function __get( property:String ) : Dynamic {
+	function __get(property:String):Dynamic {
 		if (Global.defined('$phpClassName::$property')) {
 			return Global.constant('$phpClassName::$property');
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
-		} else if(phpClassName.method_exists(property)) {
+		} else if (phpClassName.method_exists(property)) {
 			return new HxClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
@@ -570,7 +685,7 @@ private class HxClass {
 		Magic method to set static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
 	@:phpMagic
-	function __set( property:String, value:Dynamic ) : Void {
+	function __set(property:String, value:Dynamic):Void {
 		if (Boot.hasSetter(phpClassName, property)) {
 			Syntax.staticCall(phpClassName, 'set_$property', value);
 		} else {
@@ -579,18 +694,19 @@ private class HxClass {
 	}
 }
 
-
 /**
 	Base class for enum types
 **/
 @:keep
 @:dox(hide)
+@:allow(php.Boot.stringify)
+@:allow(Type)
 private class HxEnum {
-	var tag : String;
-	var index : Int;
-	var params : NativeArray;
+	final tag:String;
+	final index:Int;
+	final params:NativeArray;
 
-	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
+	public function new(tag:String, index:Int, arguments:NativeArray = null):Void {
 		this.tag = tag;
 		this.index = index;
 		params = (arguments == null ? new NativeArray() : arguments);
@@ -599,7 +715,7 @@ private class HxEnum {
 	/**
 		Get string representation of this `Class`
 	**/
-	public function toString() : String {
+	public function toString():String {
 		return __toString();
 	}
 
@@ -607,16 +723,12 @@ private class HxEnum {
 		PHP magic method to get string representation of this `Class`
 	**/
 	@:phpMagic
-	public function __toString() : String {
-		var result = tag;
-		if (Global.count(params) > 0) {
-			var strings = Global.array_map(function (item) return Boot.stringify(item), params);
-			result += '(' + Global.implode(',', strings) + ')';
-		}
-		return result;
+	public function __toString():String {
+		return Boot.stringify(this);
 	}
-}
 
+	extern public static function __hx__list():Array<String>;
+}
 
 /**
 	`String` implementation
@@ -624,43 +736,74 @@ private class HxEnum {
 @:keep
 @:dox(hide)
 private class HxString {
-
-	public static function toUpperCase( str:String ) : String {
-		return Global.strtoupper(str);
+	public static function toUpperCase(str:String):String {
+		return Global.mb_strtoupper(str);
 	}
 
-	public static function toLowerCase( str:String ) : String {
-		return Global.strtolower(str);
+	public static function toLowerCase(str:String):String {
+		return Global.mb_strtolower(str);
 	}
 
-	public static function charAt( str:String, index:Int) : String {
-		if (index < 0 || index >= str.length) {
-			return '';
-		} else {
-			return (str:NativeString)[index];
-		}
+	public static function charAt(str:String, index:Int):String {
+		return index < 0 ? '' : Global.mb_substr(str, index, 1);
 	}
 
-	public static function charCodeAt( str:String, index:Int) : Null<Int> {
-		if (index < 0 || index >= str.length) {
+	public static function charCodeAt(str:String, index:Int):Null<Int> {
+		if (index < 0 || str == '') {
 			return null;
-		} else {
-			return Global.ord((str:NativeString)[index]);
 		}
+		if (index == 0) {
+			return Boot.unsafeOrd(str);
+		}
+		var char = Global.mb_substr(str, index, 1);
+		return char == '' ? null : Boot.unsafeOrd(char);
 	}
 
-	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
+	public static function indexOf(str:String, search:String, startIndex:Int = null):Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0) {
-			startIndex += str.length;
+		} else {
+			var length = str.length;
+			if (startIndex < 0) {
+				startIndex += length;
+				if (startIndex < 0) {
+					startIndex = 0;
+				}
+			}
+			if (startIndex >= length && search != '') {
+				return -1;
+			}
 		}
-		var index = Global.strpos(str, search, startIndex);
+		var index:EitherType<Int, Bool> = if (search == '') {
+			var length = str.length;
+			startIndex > length ? length : startIndex;
+		} else {
+			Global.mb_strpos(str, search, startIndex);
+		}
 		return (index == false ? -1 : index);
 	}
 
-	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
-		var index = Global.strrpos(str, search, (startIndex == null ? 0 : startIndex - str.length));
+	public static function lastIndexOf(str:String, search:String, startIndex:Int = null):Int {
+		var start = startIndex;
+		if (start == null) {
+			start = 0;
+		} else {
+			var length = str.length;
+			if (start >= 0) {
+				start = start - length;
+				if (start > 0) {
+					start = 0;
+				}
+			} else if (start < -length) {
+				start = -length;
+			}
+		}
+		var index:EitherType<Int, Bool> = if (search == '') {
+			var length = str.length;
+			startIndex == null || startIndex > length ? length : startIndex;
+		} else {
+			Global.mb_strrpos(str, search, start);
+		}
 		if (index == false) {
 			return -1;
 		} else {
@@ -668,50 +811,47 @@ private class HxString {
 		}
 	}
 
-	public static function split( str:String, delimiter:String ) : Array<String> {
-		if (delimiter == '') {
-			return @:privateAccess Array.wrap(Global.str_split(str));
+	public static function split(str:String, delimiter:String):Array<String> {
+		var arr:NativeArray = if (delimiter == '') {
+			Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
 		} else {
-			return @:privateAccess Array.wrap(Global.explode(delimiter, str));
+			delimiter = Global.preg_quote(delimiter, '/');
+			Global.preg_split('/$delimiter/', str);
 		}
+		return @:privateAccess Array.wrap(arr);
 	}
 
-	public static function substr( str:String, pos:Int, ?len:Int ) : String {
-		if (pos < -str.length) {
-			pos = 0;
-		} else if (pos >= str.length) {
-			return '';
-		}
-		if (len == null) {
-			return Global.substr(str, pos);
-		} else {
-			var result = Global.substr(str, pos, len);
-			return (result == false ? '' : result);
-		}
+	public static function substr(str:String, pos:Int, ?len:Int):String {
+		return Global.mb_substr(str, pos, len);
 	}
 
-	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
+	public static function substring(str:String, startIndex:Int, ?endIndex:Int):String {
 		if (endIndex == null) {
-			endIndex = str.length;
-		} else if (endIndex < 0) {
+			if (startIndex < 0) {
+				startIndex = 0;
+			}
+			return Global.mb_substr(str, startIndex);
+		}
+		if (endIndex < 0) {
 			endIndex = 0;
 		}
-		if (startIndex < 0) startIndex = 0;
+		if (startIndex < 0) {
+			startIndex = 0;
+		}
 		if (startIndex > endIndex) {
 			var tmp = endIndex;
 			endIndex = startIndex;
 			startIndex = tmp;
 		}
-		var result = Global.substr(str, startIndex, endIndex - startIndex);
-		return (result == false ? '' : result);
+		return Global.mb_substr(str, startIndex, endIndex - startIndex);
 	}
 
-	public static function toString( str:String ) : String {
+	public static function toString(str:String):String {
 		return str;
 	}
 
-	public static function fromCharCode( code:Int ) : String {
-		return Global.chr(code);
+	public static function fromCharCode(code:Int):String {
+		return Global.mb_chr(code);
 	}
 }
 
@@ -723,13 +863,13 @@ private class HxString {
 @:dox(hide)
 @:keep
 private class HxDynamicStr extends HxClosure {
-	static var hxString : String = (cast HxString:HxClass).phpClassName;
+	static var hxString:String = (cast HxString : HxClass).phpClassName;
 
 	/**
 		Returns HxDynamicStr instance if `value` is a string.
 		Otherwise returns `value` as-is.
 	**/
-	static function wrap( value:Dynamic ) : Dynamic {
+	static function wrap(value:Dynamic):Dynamic {
 		if (value.is_string()) {
 			return new HxDynamicStr(value);
 		} else {
@@ -737,20 +877,20 @@ private class HxDynamicStr extends HxClosure {
 		}
 	}
 
-	static inline function invoke( str:String, method:String, args:NativeArray ) : Dynamic {
+	static inline function invoke(str:String, method:String, args:NativeArray):Dynamic {
 		Global.array_unshift(args, str);
 		return Global.call_user_func_array(hxString + '::' + method, args);
 	}
 
-	function new( str:String ) {
+	function new(str:String) {
 		super(str, null);
 	}
 
 	@:phpMagic
-	function __get( field:String ) : Dynamic {
+	function __get(field:String):Dynamic {
 		switch (field) {
 			case 'length':
-				return (target:String).length;
+				return (target : String).length;
 			case _:
 				func = field;
 				return this;
@@ -758,7 +898,7 @@ private class HxDynamicStr extends HxClosure {
 	}
 
 	@:phpMagic
-	function __call( method:String, args:NativeArray ) : Dynamic {
+	function __call(method:String, args:NativeArray):Dynamic {
 		return invoke(target, method, args);
 	}
 
@@ -773,17 +913,17 @@ private class HxDynamicStr extends HxClosure {
 	/**
 		Generates callable value for PHP
 	**/
-	override public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+	override public function getCallback(eThis:Dynamic = null):NativeIndexedArray<Dynamic> {
 		if (eThis == null) {
-			return Syntax.arrayDecl((this:Dynamic), func);
+			return Syntax.arrayDecl((this : Dynamic), func);
 		}
-		return Syntax.arrayDecl((new HxDynamicStr(eThis):Dynamic), func);
+		return Syntax.arrayDecl((new HxDynamicStr(eThis) : Dynamic), func);
 	}
 
 	/**
 		Invoke this closure with `newThis` instead of `this`
 	**/
-	override public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+	override public function callWith(newThis:Dynamic, args:NativeArray):Dynamic {
 		if (newThis == null) {
 			newThis = target;
 		}
@@ -791,15 +931,13 @@ private class HxDynamicStr extends HxClosure {
 	}
 }
 
-
 /**
 	Anonymous objects implementation
 **/
 @:keep
 @:dox(hide)
 private class HxAnon extends StdClass {
-
-	public function new( fields:NativeArray = null ) {
+	public function new(fields:NativeArray = null) {
 		super();
 		if (fields != null) {
 			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
@@ -807,15 +945,13 @@ private class HxAnon extends StdClass {
 	}
 
 	@:phpMagic
-	function __get( name:String ) {
+	function __get(name:String) {
 		return null;
 	}
 
 	@:phpMagic
-	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.getField(this, name);
-		Syntax.keepVar(method);
-		return method(Syntax.splat(args));
+	function __call(name:String, args:NativeArray):Dynamic {
+		return Syntax.code("($this->{0})(...{1})", name, args);
 	}
 }
 
@@ -826,17 +962,22 @@ private class HxAnon extends StdClass {
 @:dox(hide)
 private class HxClosure {
 	/** `this` for instance methods; php class name for static methods */
-	var target : Dynamic;
-	/** Method name for methods */
-	var func : String;
+	var target:Dynamic;
 
-	public function new( target:Dynamic, func:String ) : Void {
+	/** Method name for methods */
+	var func:String;
+
+	/** A callable value, which can be invoked by PHP */
+	var callable:Any;
+
+	public function new(target:Dynamic, func:String):Void {
 		this.target = target;
 		this.func = func;
-		//Force runtime error if trying to create a closure of an instance which happen to be `null`
+		// Force runtime error if trying to create a closure of an instance which happen to be `null`
 		if (target.is_null()) {
 			throw "Unable to create closure on `null`";
 		}
+		callable = Std.isOfType(target, HxAnon) ? Syntax.field(target, func) : Syntax.arrayDecl(target, func);
 	}
 
 	/**
@@ -844,20 +985,18 @@ private class HxClosure {
 	**/
 	@:phpMagic
 	public function __invoke() {
-		return Global.call_user_func_array(getCallback(), Global.func_get_args());
+		return Global.call_user_func_array(callable, Global.func_get_args());
 	}
 
 	/**
 		Generates callable value for PHP
 	**/
-	public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+	public function getCallback(eThis:Dynamic = null):NativeIndexedArray<Dynamic> {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (Std.is(eThis, StdClass)) {
-			if (Std.is(eThis, HxAnon)) {
-				return Syntax.getField(eThis, func);
-			}
+		if (Std.isOfType(eThis, HxAnon)) {
+			return Syntax.field(eThis, func);
 		}
 		return Syntax.arrayDecl(eThis, func);
 	}
@@ -865,14 +1004,14 @@ private class HxClosure {
 	/**
 		Check if this is the same closure
 	**/
-	public function equals( closure:HxClosure ) : Bool {
+	public function equals(closure:HxClosure):Bool {
 		return (target == closure.target && func == closure.func);
 	}
 
 	/**
 		Invoke this closure with `newThis` instead of `this`
 	**/
-	public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+	public function callWith(newThis:Dynamic, args:NativeArray):Dynamic {
 		return Global.call_user_func_array(getCallback(newThis), args);
 	}
 }
@@ -883,9 +1022,10 @@ private class HxClosure {
 @:keep
 @:dox(hide)
 private class HxException extends Exception {
-  var e : Dynamic;
-  public function new( e:Dynamic ) : Void {
-	  this.e = e;
-	  super(Boot.stringify(e));
-  }
+	var e:Dynamic;
+
+	public function new(e:Dynamic):Void {
+		this.e = e;
+		super(Boot.stringify(e));
+	}
 }

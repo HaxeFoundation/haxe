@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,14 @@
 
 package js.html;
 
-@:enum abstract XMLHttpRequestResponseType(String)
-{
+/**
+	The `XMLHttpRequestResponseType` type is an enumerated set of strings which are used to specify the type of data contained in the `response` of an `XMLHttpRequest`.
+
+	Documentation [XMLHttpRequestResponseType](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestResponseType) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestResponseType$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestResponseType>
+**/
+enum abstract XMLHttpRequestResponseType(String) {
 	var NONE = "";
 	var ARRAYBUFFER = "arraybuffer";
 	var BLOB = "blob";

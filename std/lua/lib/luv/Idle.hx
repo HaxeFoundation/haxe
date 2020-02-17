@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,8 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Idle extends Handle {
-  static function new_idle() : Idle;
-  @:native("new_idle") function new() : Void;
-  function start(cb : Void->Void) : Int;
-  function stop(cb : Void->Void) : Int;
+	static function new_idle():Idle;
+	@:native("new_idle") function new():Void;
+	function start(cb:Void->Void):Int;
+	function stop(cb:Void->Void):Int;
 }

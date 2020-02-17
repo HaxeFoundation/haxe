@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleDeclaration>
 **/
 @:native("CSSStyleDeclaration")
-extern class CSSStyleDeclaration implements ArrayAccess<String>
-{
+extern class CSSStyleDeclaration implements ArrayAccess<String> {
 	var cssText : String;
 	var length(default,null) : Int;
 	var parentRule(default,null) : CSSRule;
@@ -78,6 +77,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var background :String;
 	/** Shorthand for the "background-attachment" CSS property. */
 	var backgroundAttachment :String;
+	/** Shorthand for the "background-blend-mode" CSS property. */
+	var backgroundBlendMode :String;
 	/** Shorthand for the "background-clip" CSS property. */
 	var backgroundClip :String;
 	/** Shorthand for the "background-color" CSS property. */
@@ -88,8 +89,16 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var backgroundOrigin :String;
 	/** Shorthand for the "background-position" CSS property. */
 	var backgroundPosition :String;
+	/** Shorthand for the "background-position-x" CSS property. */
+	var backgroundPositionX :String;
+	/** Shorthand for the "background-position-y" CSS property. */
+	var backgroundPositionY :String;
 	/** Shorthand for the "background-repeat" CSS property. */
 	var backgroundRepeat :String;
+	/** Shorthand for the "background-repeat-x" CSS property. */
+	var backgroundRepeatX :String;
+	/** Shorthand for the "background-repeat-y" CSS property. */
+	var backgroundRepeatY :String;
 	/** Shorthand for the "background-size" CSS property. */
 	var backgroundSize :String;
 	/** Shorthand for the "baseline-shift" CSS property. */
@@ -98,6 +107,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var binding :String;
 	/** Shorthand for the "bleed" CSS property. */
 	var bleed :String;
+	/** Shorthand for the "block-size" CSS property. */
+	var blockSize :String;
 	/** Shorthand for the "bookmark-label" CSS property. */
 	var bookmarkLabel :String;
 	/** Shorthand for the "bookmark-level" CSS property. */
@@ -106,6 +117,22 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var bookmarkState :String;
 	/** Shorthand for the "border" CSS property. */
 	var border :String;
+	/** Shorthand for the "border-block-end" CSS property. */
+	var borderBlockEnd :String;
+	/** Shorthand for the "border-block-end-color" CSS property. */
+	var borderBlockEndColor :String;
+	/** Shorthand for the "border-block-end-style" CSS property. */
+	var borderBlockEndStyle :String;
+	/** Shorthand for the "border-block-end-width" CSS property. */
+	var borderBlockEndWidth :String;
+	/** Shorthand for the "border-block-start" CSS property. */
+	var borderBlockStart :String;
+	/** Shorthand for the "border-block-start-color" CSS property. */
+	var borderBlockStartColor :String;
+	/** Shorthand for the "border-block-start-style" CSS property. */
+	var borderBlockStartStyle :String;
+	/** Shorthand for the "border-block-start-width" CSS property. */
+	var borderBlockStartWidth :String;
 	/** Shorthand for the "border-bottom" CSS property. */
 	var borderBottom :String;
 	/** Shorthand for the "border-bottom-color" CSS property. */
@@ -134,6 +161,22 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var borderImageSource :String;
 	/** Shorthand for the "border-image-width" CSS property. */
 	var borderImageWidth :String;
+	/** Shorthand for the "border-inline-end" CSS property. */
+	var borderInlineEnd :String;
+	/** Shorthand for the "border-inline-end-color" CSS property. */
+	var borderInlineEndColor :String;
+	/** Shorthand for the "border-inline-end-style" CSS property. */
+	var borderInlineEndStyle :String;
+	/** Shorthand for the "border-inline-end-width" CSS property. */
+	var borderInlineEndWidth :String;
+	/** Shorthand for the "border-inline-start" CSS property. */
+	var borderInlineStart :String;
+	/** Shorthand for the "border-inline-start-color" CSS property. */
+	var borderInlineStartColor :String;
+	/** Shorthand for the "border-inline-start-style" CSS property. */
+	var borderInlineStartStyle :String;
+	/** Shorthand for the "border-inline-start-width" CSS property. */
+	var borderInlineStartWidth :String;
 	/** Shorthand for the "border-left" CSS property. */
 	var borderLeft :String;
 	/** Shorthand for the "border-left-color" CSS property. */
@@ -188,8 +231,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var breakBefore :String;
 	/** Shorthand for the "break-inside" CSS property. */
 	var breakInside :String;
+	/** Shorthand for the "buffered-rendering" CSS property. */
+	var bufferedRendering :String;
 	/** Shorthand for the "caption-side" CSS property. */
 	var captionSide :String;
+	/** Shorthand for the "caret-color" CSS property. */
+	var caretColor :String;
 	/** Shorthand for the "chains" CSS property. */
 	var chains :String;
 	/** Shorthand for the "clear" CSS property. */
@@ -202,8 +249,14 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var clipRule :String;
 	/** Shorthand for the "color" CSS property. */
 	var color :String;
+	/** Shorthand for the "color-adjust" CSS property. */
+	var colorAdjust :String;
+	/** Shorthand for the "color-interpolation" CSS property. */
+	var colorInterpolation :String;
 	/** Shorthand for the "color-interpolation-filters" CSS property. */
 	var colorInterpolationFilters :String;
+	/** Shorthand for the "color-rendering" CSS property. */
+	var colorRendering :String;
 	/** Shorthand for the "column-count" CSS property. */
 	var columnCount :String;
 	/** Shorthand for the "column-fill" CSS property. */
@@ -236,6 +289,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var counterSet :String;
 	/** Shorthand for the "crop" CSS property. */
 	var crop :String;
+	/** Shorthand for the "css-float" CSS property. */
+	var cssFloat :String;
 	/** Shorthand for the "cue" CSS property. */
 	var cue :String;
 	/** Shorthand for the "cue-after" CSS property. */
@@ -244,6 +299,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var cueBefore :String;
 	/** Shorthand for the "cursor" CSS property. */
 	var cursor :String;
+	/** Shorthand for the "cx" CSS property. */
+	var cx :String;
+	/** Shorthand for the "cy" CSS property. */
+	var cy :String;
+	/** Shorthand for the "d" CSS property. */
+	var d :String;
 	/** Shorthand for the "direction" CSS property. */
 	var direction :String;
 	/** Shorthand for the "display" CSS property. */
@@ -260,6 +321,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var elevation :String;
 	/** Shorthand for the "empty-cells" CSS property. */
 	var emptyCells :String;
+	/** Shorthand for the "fill" CSS property. */
+	var fill :String;
+	/** Shorthand for the "fill-opacity" CSS property. */
+	var fillOpacity :String;
+	/** Shorthand for the "fill-rule" CSS property. */
+	var fillRule :String;
 	/** Shorthand for the "filter" CSS property. */
 	var filter :String;
 	/** Shorthand for the "flex" CSS property. */
@@ -290,6 +357,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var flowInto :String;
 	/** Shorthand for the "font" CSS property. */
 	var font :String;
+	/** Shorthand for the "font-display" CSS property. */
+	var fontDisplay :String;
 	/** Shorthand for the "font-family" CSS property. */
 	var fontFamily :String;
 	/** Shorthand for the "font-feature-settings" CSS property. */
@@ -298,6 +367,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var fontKerning :String;
 	/** Shorthand for the "font-language-override" CSS property. */
 	var fontLanguageOverride :String;
+	/** Shorthand for the "font-optical-sizing" CSS property. */
+	var fontOpticalSizing :String;
 	/** Shorthand for the "font-size" CSS property. */
 	var fontSize :String;
 	/** Shorthand for the "font-size-adjust" CSS property. */
@@ -322,8 +393,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var fontVariantNumeric :String;
 	/** Shorthand for the "font-variant-position" CSS property. */
 	var fontVariantPosition :String;
+	/** Shorthand for the "font-variation-settings" CSS property. */
+	var fontVariationSettings :String;
 	/** Shorthand for the "font-weight" CSS property. */
 	var fontWeight :String;
+	/** Shorthand for the "gap" CSS property. */
+	var gap :String;
 	/** Shorthand for the "grid" CSS property. */
 	var grid :String;
 	/** Shorthand for the "grid-area" CSS property. */
@@ -338,12 +413,18 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var gridColumn :String;
 	/** Shorthand for the "grid-column-end" CSS property. */
 	var gridColumnEnd :String;
+	/** Shorthand for the "grid-column-gap" CSS property. */
+	var gridColumnGap :String;
 	/** Shorthand for the "grid-column-start" CSS property. */
 	var gridColumnStart :String;
+	/** Shorthand for the "grid-gap" CSS property. */
+	var gridGap :String;
 	/** Shorthand for the "grid-row" CSS property. */
 	var gridRow :String;
 	/** Shorthand for the "grid-row-end" CSS property. */
 	var gridRowEnd :String;
+	/** Shorthand for the "grid-row-gap" CSS property. */
+	var gridRowGap :String;
 	/** Shorthand for the "grid-row-start" CSS property. */
 	var gridRowStart :String;
 	/** Shorthand for the "grid-template" CSS property. */
@@ -364,6 +445,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var icon :String;
 	/** Shorthand for the "image-orientation" CSS property. */
 	var imageOrientation :String;
+	/** Shorthand for the "image-rendering" CSS property. */
+	var imageRendering :String;
 	/** Shorthand for the "image-resolution" CSS property. */
 	var imageResolution :String;
 	/** Shorthand for the "ime-mode" CSS property. */
@@ -372,6 +455,10 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var initialLetters :String;
 	/** Shorthand for the "inline-box-align" CSS property. */
 	var inlineBoxAlign :String;
+	/** Shorthand for the "inline-size" CSS property. */
+	var inlineSize :String;
+	/** Shorthand for the "isolation" CSS property. */
+	var isolation :String;
 	/** Shorthand for the "justify-content" CSS property. */
 	var justifyContent :String;
 	/** Shorthand for the "justify-items" CSS property. */
@@ -412,18 +499,34 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var listStyleType :String;
 	/** Shorthand for the "margin" CSS property. */
 	var margin :String;
+	/** Shorthand for the "margin-block-end" CSS property. */
+	var marginBlockEnd :String;
+	/** Shorthand for the "margin-block-start" CSS property. */
+	var marginBlockStart :String;
 	/** Shorthand for the "margin-bottom" CSS property. */
 	var marginBottom :String;
+	/** Shorthand for the "margin-inline-end" CSS property. */
+	var marginInlineEnd :String;
+	/** Shorthand for the "margin-inline-start" CSS property. */
+	var marginInlineStart :String;
 	/** Shorthand for the "margin-left" CSS property. */
 	var marginLeft :String;
 	/** Shorthand for the "margin-right" CSS property. */
 	var marginRight :String;
 	/** Shorthand for the "margin-top" CSS property. */
 	var marginTop :String;
+	/** Shorthand for the "marker" CSS property. */
+	var marker :String;
+	/** Shorthand for the "marker-end" CSS property. */
+	var markerEnd :String;
+	/** Shorthand for the "marker-mid" CSS property. */
+	var markerMid :String;
 	/** Shorthand for the "marker-offset" CSS property. */
 	var markerOffset :String;
 	/** Shorthand for the "marker-side" CSS property. */
 	var markerSide :String;
+	/** Shorthand for the "marker-start" CSS property. */
+	var markerStart :String;
 	/** Shorthand for the "marks" CSS property. */
 	var marks :String;
 	/** Shorthand for the "mask" CSS property. */
@@ -442,12 +545,20 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var maskBoxWidth :String;
 	/** Shorthand for the "mask-clip" CSS property. */
 	var maskClip :String;
+	/** Shorthand for the "mask-composite" CSS property. */
+	var maskComposite :String;
 	/** Shorthand for the "mask-image" CSS property. */
 	var maskImage :String;
+	/** Shorthand for the "mask-mode" CSS property. */
+	var maskMode :String;
 	/** Shorthand for the "mask-origin" CSS property. */
 	var maskOrigin :String;
 	/** Shorthand for the "mask-position" CSS property. */
 	var maskPosition :String;
+	/** Shorthand for the "mask-position-x" CSS property. */
+	var maskPositionX :String;
+	/** Shorthand for the "mask-position-y" CSS property. */
+	var maskPositionY :String;
 	/** Shorthand for the "mask-repeat" CSS property. */
 	var maskRepeat :String;
 	/** Shorthand for the "mask-size" CSS property. */
@@ -456,16 +567,30 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var maskSourceType :String;
 	/** Shorthand for the "mask-type" CSS property. */
 	var maskType :String;
+	/** Shorthand for the "max-block-size" CSS property. */
+	var maxBlockSize :String;
 	/** Shorthand for the "max-height" CSS property. */
 	var maxHeight :String;
+	/** Shorthand for the "max-inline-size" CSS property. */
+	var maxInlineSize :String;
 	/** Shorthand for the "max-lines" CSS property. */
 	var maxLines :String;
 	/** Shorthand for the "max-width" CSS property. */
 	var maxWidth :String;
+	/** Shorthand for the "max-zoom" CSS property. */
+	var maxZoom :String;
+	/** Shorthand for the "min-block-size" CSS property. */
+	var minBlockSize :String;
 	/** Shorthand for the "min-height" CSS property. */
 	var minHeight :String;
+	/** Shorthand for the "min-inline-size" CSS property. */
+	var minInlineSize :String;
 	/** Shorthand for the "min-width" CSS property. */
 	var minWidth :String;
+	/** Shorthand for the "min-zoom" CSS property. */
+	var minZoom :String;
+	/** Shorthand for the "mix-blend-mode" CSS property. */
+	var mixBlendMode :String;
 	/** Shorthand for the "move-to" CSS property. */
 	var moveTo :String;
 	/** Shorthand for the "nav-down" CSS property. */
@@ -482,10 +607,28 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var objectFit :String;
 	/** Shorthand for the "object-position" CSS property. */
 	var objectPosition :String;
+	/** Shorthand for the "offset" CSS property. */
+	var offset :String;
+	/** Shorthand for the "offset-block-end" CSS property. */
+	var offsetBlockEnd :String;
+	/** Shorthand for the "offset-block-start" CSS property. */
+	var offsetBlockStart :String;
+	/** Shorthand for the "offset-distance" CSS property. */
+	var offsetDistance :String;
+	/** Shorthand for the "offset-inline-end" CSS property. */
+	var offsetInlineEnd :String;
+	/** Shorthand for the "offset-inline-start" CSS property. */
+	var offsetInlineStart :String;
+	/** Shorthand for the "offset-path" CSS property. */
+	var offsetPath :String;
+	/** Shorthand for the "offset-rotate" CSS property. */
+	var offsetRotate :String;
 	/** Shorthand for the "opacity" CSS property. */
 	var opacity :String;
 	/** Shorthand for the "order" CSS property. */
 	var order :String;
+	/** Shorthand for the "orientation" CSS property. */
+	var orientation :String;
 	/** Shorthand for the "orphans" CSS property. */
 	var orphans :String;
 	/** Shorthand for the "outline" CSS property. */
@@ -500,16 +643,32 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var outlineWidth :String;
 	/** Shorthand for the "overflow" CSS property. */
 	var overflow :String;
+	/** Shorthand for the "overflow-anchor" CSS property. */
+	var overflowAnchor :String;
 	/** Shorthand for the "overflow-wrap" CSS property. */
 	var overflowWrap :String;
 	/** Shorthand for the "overflow-x" CSS property. */
 	var overflowX :String;
 	/** Shorthand for the "overflow-y" CSS property. */
 	var overflowY :String;
+	/** Shorthand for the "overscroll-behavior" CSS property. */
+	var overscrollBehavior :String;
+	/** Shorthand for the "overscroll-behavior-x" CSS property. */
+	var overscrollBehaviorX :String;
+	/** Shorthand for the "overscroll-behavior-y" CSS property. */
+	var overscrollBehaviorY :String;
 	/** Shorthand for the "padding" CSS property. */
 	var padding :String;
+	/** Shorthand for the "padding-block-end" CSS property. */
+	var paddingBlockEnd :String;
+	/** Shorthand for the "padding-block-start" CSS property. */
+	var paddingBlockStart :String;
 	/** Shorthand for the "padding-bottom" CSS property. */
 	var paddingBottom :String;
+	/** Shorthand for the "padding-inline-end" CSS property. */
+	var paddingInlineEnd :String;
+	/** Shorthand for the "padding-inline-start" CSS property. */
+	var paddingInlineStart :String;
 	/** Shorthand for the "padding-left" CSS property. */
 	var paddingLeft :String;
 	/** Shorthand for the "padding-right" CSS property. */
@@ -526,6 +685,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var pageBreakInside :String;
 	/** Shorthand for the "page-policy" CSS property. */
 	var pagePolicy :String;
+	/** Shorthand for the "paint-order" CSS property. */
+	var paintOrder :String;
 	/** Shorthand for the "pause" CSS property. */
 	var pause :String;
 	/** Shorthand for the "pause-after" CSS property. */
@@ -540,14 +701,24 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var pitch :String;
 	/** Shorthand for the "pitch-range" CSS property. */
 	var pitchRange :String;
+	/** Shorthand for the "place-content" CSS property. */
+	var placeContent :String;
+	/** Shorthand for the "place-items" CSS property. */
+	var placeItems :String;
+	/** Shorthand for the "place-self" CSS property. */
+	var placeSelf :String;
 	/** Shorthand for the "play-during" CSS property. */
 	var playDuring :String;
+	/** Shorthand for the "pointer-events" CSS property. */
+	var pointerEvents :String;
 	/** Shorthand for the "position" CSS property. */
 	var position :String;
 	/** Shorthand for the "presentation-level" CSS property. */
 	var presentationLevel :String;
 	/** Shorthand for the "quotes" CSS property. */
 	var quotes :String;
+	/** Shorthand for the "r" CSS property. */
+	var r :String;
 	/** Shorthand for the "region-fragment" CSS property. */
 	var regionFragment :String;
 	/** Shorthand for the "resize" CSS property. */
@@ -566,18 +737,42 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var rotation :String;
 	/** Shorthand for the "rotation-point" CSS property. */
 	var rotationPoint :String;
+	/** Shorthand for the "row-gap" CSS property. */
+	var rowGap :String;
 	/** Shorthand for the "ruby-align" CSS property. */
 	var rubyAlign :String;
 	/** Shorthand for the "ruby-merge" CSS property. */
 	var rubyMerge :String;
 	/** Shorthand for the "ruby-position" CSS property. */
 	var rubyPosition :String;
+	/** Shorthand for the "rx" CSS property. */
+	var rx :String;
+	/** Shorthand for the "ry" CSS property. */
+	var ry :String;
+	/** Shorthand for the "scroll-behavior" CSS property. */
+	var scrollBehavior :String;
+	/** Shorthand for the "scroll-snap-coordinate" CSS property. */
+	var scrollSnapCoordinate :String;
+	/** Shorthand for the "scroll-snap-destination" CSS property. */
+	var scrollSnapDestination :String;
+	/** Shorthand for the "scroll-snap-points-x" CSS property. */
+	var scrollSnapPointsX :String;
+	/** Shorthand for the "scroll-snap-points-y" CSS property. */
+	var scrollSnapPointsY :String;
+	/** Shorthand for the "scroll-snap-type" CSS property. */
+	var scrollSnapType :String;
+	/** Shorthand for the "scroll-snap-type-x" CSS property. */
+	var scrollSnapTypeX :String;
+	/** Shorthand for the "scroll-snap-type-y" CSS property. */
+	var scrollSnapTypeY :String;
 	/** Shorthand for the "shape-image-threshold" CSS property. */
 	var shapeImageThreshold :String;
-	/** Shorthand for the "shape-outside" CSS property. */
-	var shapeOutside :String;
 	/** Shorthand for the "shape-margin" CSS property. */
 	var shapeMargin :String;
+	/** Shorthand for the "shape-outside" CSS property. */
+	var shapeOutside :String;
+	/** Shorthand for the "shape-rendering" CSS property. */
+	var shapeRendering :String;
 	/** Shorthand for the "size" CSS property. */
 	var size :String;
 	/** Shorthand for the "speak" CSS property. */
@@ -592,10 +787,32 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var speakPunctuation :String;
 	/** Shorthand for the "speech-rate" CSS property. */
 	var speechRate :String;
+	/** Shorthand for the "src" CSS property. */
+	var src :String;
+	/** Shorthand for the "stop-color" CSS property. */
+	var stopColor :String;
+	/** Shorthand for the "stop-opacity" CSS property. */
+	var stopOpacity :String;
 	/** Shorthand for the "stress" CSS property. */
 	var stress :String;
 	/** Shorthand for the "string-set" CSS property. */
 	var stringSet :String;
+	/** Shorthand for the "stroke" CSS property. */
+	var stroke :String;
+	/** Shorthand for the "stroke-dasharray" CSS property. */
+	var strokeDasharray :String;
+	/** Shorthand for the "stroke-dashoffset" CSS property. */
+	var strokeDashoffset :String;
+	/** Shorthand for the "stroke-linecap" CSS property. */
+	var strokeLinecap :String;
+	/** Shorthand for the "stroke-linejoin" CSS property. */
+	var strokeLinejoin :String;
+	/** Shorthand for the "stroke-miterlimit" CSS property. */
+	var strokeMiterlimit :String;
+	/** Shorthand for the "stroke-opacity" CSS property. */
+	var strokeOpacity :String;
+	/** Shorthand for the "stroke-width" CSS property. */
+	var strokeWidth :String;
 	/** Shorthand for the "tab-size" CSS property. */
 	var tabSize :String;
 	/** Shorthand for the "table-layout" CSS property. */
@@ -604,6 +821,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var textAlign :String;
 	/** Shorthand for the "text-align-last" CSS property. */
 	var textAlignLast :String;
+	/** Shorthand for the "text-anchor" CSS property. */
+	var textAnchor :String;
 	/** Shorthand for the "text-combine-upright" CSS property. */
 	var textCombineUpright :String;
 	/** Shorthand for the "text-decoration" CSS property. */
@@ -614,6 +833,8 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var textDecorationLine :String;
 	/** Shorthand for the "text-decoration-skip" CSS property. */
 	var textDecorationSkip :String;
+	/** Shorthand for the "text-decoration-skip-ink" CSS property. */
+	var textDecorationSkipInk :String;
 	/** Shorthand for the "text-decoration-style" CSS property. */
 	var textDecorationStyle :String;
 	/** Shorthand for the "text-emphasis" CSS property. */
@@ -634,8 +855,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var textOrientation :String;
 	/** Shorthand for the "text-overflow" CSS property. */
 	var textOverflow :String;
+	/** Shorthand for the "text-rendering" CSS property. */
+	var textRendering :String;
 	/** Shorthand for the "text-shadow" CSS property. */
 	var textShadow :String;
+	/** Shorthand for the "text-size-adjust" CSS property. */
+	var textSizeAdjust :String;
 	/** Shorthand for the "text-space-collapse" CSS property. */
 	var textSpaceCollapse :String;
 	/** Shorthand for the "text-transform" CSS property. */
@@ -646,8 +871,12 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var textWrap :String;
 	/** Shorthand for the "top" CSS property. */
 	var top :String;
+	/** Shorthand for the "touch-action" CSS property. */
+	var touchAction :String;
 	/** Shorthand for the "transform" CSS property. */
 	var transform :String;
+	/** Shorthand for the "transform-box" CSS property. */
+	var transformBox :String;
 	/** Shorthand for the "transform-origin" CSS property. */
 	var transformOrigin :String;
 	/** Shorthand for the "transform-style" CSS property. */
@@ -664,6 +893,14 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var transitionTimingFunction :String;
 	/** Shorthand for the "unicode-bidi" CSS property. */
 	var unicodeBidi :String;
+	/** Shorthand for the "unicode-range" CSS property. */
+	var unicodeRange :String;
+	/** Shorthand for the "user-select" CSS property. */
+	var userSelect :String;
+	/** Shorthand for the "user-zoom" CSS property. */
+	var userZoom :String;
+	/** Shorthand for the "vector-effect" CSS property. */
+	var vectorEffect :String;
 	/** Shorthand for the "vertical-align" CSS property. */
 	var verticalAlign :String;
 	/** Shorthand for the "visibility" CSS property. */
@@ -706,17 +943,21 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var wrapThrough :String;
 	/** Shorthand for the "writing-mode" CSS property. */
 	var writingMode :String;
+	/** Shorthand for the "x" CSS property. */
+	var x :String;
+	/** Shorthand for the "y" CSS property. */
+	var y :String;
 	/** Shorthand for the "z-index" CSS property. */
 	var zIndex :String;
+	/** Shorthand for the "zoom" CSS property. */
+	var zoom :String;
 	
 	function item( index : Int ) : String;
 	/** @throws DOMError */
 	function getPropertyValue( property : String ) : String;
-	/** @throws DOMError */
-	function getPropertyCSSValue( property : String ) : CSSValue;
 	function getPropertyPriority( property : String ) : String;
 	/** @throws DOMError */
-	function setProperty( property : String, value : String, ?priority : String = "" ) : Void;
+	function setProperty( property : String, value : String, priority : String = "" ) : Void;
 	/** @throws DOMError */
 	function removeProperty( property : String ) : String;
 }

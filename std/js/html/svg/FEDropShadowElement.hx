@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,39 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEDropShadowElement` interface corresponds to the `feDropShadow` element.
+
+	Documentation [SVGFEDropShadowElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDropShadowElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDropShadowElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDropShadowElement>
+**/
 @:native("SVGFEDropShadowElement")
-extern class FEDropShadowElement extends Element
-{
+extern class FEDropShadowElement extends Element {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `dx` attribute of the given element.
+	**/
 	var dx(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `dy` attribute of the given element.
+	**/
 	var dy(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the (possibly automatically computed) X component of the `stdDeviationX` attribute of the given element.
+	**/
 	var stdDeviationX(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the (possibly automatically computed) Y component of the `stdDeviationY` attribute of the given element.
+	**/
 	var stdDeviationY(default,null) : AnimatedNumber;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;
@@ -38,5 +64,9 @@ extern class FEDropShadowElement extends Element
 	var height(default,null) : AnimatedLength;
 	var result(default,null) : AnimatedString;
 	
+	
+	/**
+		Sets the values for the `stdDeviation` attribute.
+	**/
 	function setStdDeviation( stdDeviationX : Float, stdDeviationY : Float ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLPropertiesCollection.webidl. Do not edit!
+// This file is generated from HTMLPropertiesCollection.webidl. Do not edit!
 
 package js.html;
 
 @:native("HTMLPropertiesCollection")
-extern class HTMLPropertiesCollection extends HTMLCollection
-{
+extern class HTMLPropertiesCollection extends HTMLCollection {
 	var names(default,null) : DOMStringList;
 	
+	function namedItem( name : String ) : PropertyNodeList;
 }

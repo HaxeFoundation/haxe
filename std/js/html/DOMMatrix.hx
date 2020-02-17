@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,14 +32,13 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix>
 **/
 @:native("DOMMatrix")
-extern class DOMMatrix extends DOMMatrixReadOnly
-{
+extern class DOMMatrix extends DOMMatrixReadOnly {
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	@:overload( function( transformList : String ) : Void {} )
 	@:overload( function( other : DOMMatrixReadOnly ) : Void {} )
-	@:overload( function( array32 : Float32Array ) : Void {} )
-	@:overload( function( array64 : Float64Array ) : Void {} )
+	@:overload( function( array32 : js.lib.Float32Array ) : Void {} )
+	@:overload( function( array64 : js.lib.Float64Array ) : Void {} )
 	function new( numberSequence : Array<Float> ) : Void;
 	function multiplySelf( other : DOMMatrix ) : DOMMatrix;
 	function preMultiplySelf( other : DOMMatrix ) : DOMMatrix;
@@ -47,27 +46,27 @@ extern class DOMMatrix extends DOMMatrixReadOnly
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix being translated by the given vector.
 	**/
-	function translateSelf( tx : Float, ty : Float, ?tz : Float = 0.0 ) : DOMMatrix;
+	function translateSelf( tx : Float, ty : Float, tz : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x and y dimensions being scaled by the given factor, centered on the origin given.
 	**/
-	function scaleSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function scaleSelf( scale : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor, centered on the origin given.
 	**/
-	function scale3dSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scale3dSelf( scale : Float, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor for each dimension, centered on the origin given.
 	**/
-	function scaleNonUniformSelf( scaleX : Float, ?scaleY : Float = 1.0, ?scaleZ : Float = 1.0, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scaleNonUniformSelf( scaleX : Float, scaleY : Float = 1.0, scaleZ : Float = 1.0, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the given angle, with the rotation centered on the origin given.
 	**/
-	function rotateSelf( angle : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function rotateSelf( angle : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the angle between the given vector and (1,0), centered on the origin given.
@@ -93,10 +92,10 @@ extern class DOMMatrix extends DOMMatrixReadOnly
 		Returns itself,  a `DOMMatrix`, with its new content being the result of the original matrix being inverted. If the matrix cannot be inverted, all its components are set to `NaN` and `is2D()` returns `false`.
 	**/
 	function invertSelf() : DOMMatrix;
-	/** @throws DOMError */
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its describing the matrix representing the same transformation as the CSS `transform` functions given in parameter.
+		@throws DOMError
 	**/
 	function setMatrixValue( transformList : String ) : DOMMatrix;
 }

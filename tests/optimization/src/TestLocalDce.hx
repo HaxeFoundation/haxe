@@ -10,8 +10,7 @@ private class InlineCtor {
 	}
 }
 
-@:enum
-private abstract MyEnum(String) to String {
+private enum abstract MyEnum(String) to String {
 	var A = "a";
 }
 
@@ -129,13 +128,13 @@ class TestLocalDce {
 		use(s);
 	}
 
-	//@:js('
-		//var s = TestLocalDce.keep(1);
-		//s += 0;
-		//s += 6;
-		//s += 8;
-		//TestJs.use(s);
-	//')
+	@:js('
+		var s = TestLocalDce.keep(1);
+		s += 0;
+		s += 6;
+		s += 8;
+		TestJs.use(s);
+	')
 	static function testLoopUnroll() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {
@@ -144,7 +143,7 @@ class TestLocalDce {
 		use(s);
 	}
 
-	//@:js('TestJs.use(5.);')
+	@:js('TestJs.use(5.);')
 	static function testLoopUnrollDavid() {
 		var s = 0.0;
 		inline function foo(r)
@@ -154,18 +153,18 @@ class TestLocalDce {
 		use(s);
 	}
 
-	//@:js('
-		//var s = TestLocalDce.keep(1);
-		//var _g = 0;
-		//var _g1 = [0,3,4];
-		//while(_g < _g1.length) {
-			//var i = _g1[_g];
-			//++_g;
-			//s += i * 2;
-			//continue;
-		//}
-		//TestJs.use(s);
-	//')
+	@:js('
+		var s = TestLocalDce.keep(1);
+		var _g = 0;
+		var _g1 = [0,3,4];
+		while(_g < _g1.length) {
+			var i = _g1[_g];
+			++_g;
+			s += i * 2;
+			continue;
+		}
+		TestJs.use(s);
+	')
 	static function testLoopUnrollContinue() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {
@@ -175,18 +174,16 @@ class TestLocalDce {
 		use(s);
 	}
 
-	//@:js('
-		//var s = TestLocalDce.keep(1);
-		//var _g = 0;
-		//var _g1 = [0,3,4];
-		//while(0 < _g1.length) {
-			//var i = _g1[0];
-			//++_g;
-			//s += i * 2;
-			//break;
-		//}
-		//TestJs.use(s);
-	//')
+	@:js('
+		var s = TestLocalDce.keep(1);
+		var _g1 = [0,3,4];
+		while(0 < _g1.length) {
+			var i = _g1[0];
+			s += i * 2;
+			break;
+		}
+		TestJs.use(s);
+	')
 	static function testLoopUnrollBreak() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {

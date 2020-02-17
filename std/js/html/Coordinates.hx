@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,9 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Coordinates>
 **/
-@:native("Coordinates")
-extern class Coordinates
-{
+typedef Coordinates = {
 	
 	/**
 		Returns a `double` representing the position's latitude in decimal degrees.
@@ -46,7 +44,7 @@ extern class Coordinates
 	var longitude(default,null) : Float;
 	
 	/**
-		Returns a `double` representing the position's altitude in metres, relative to sea level. This value can be `null` if the implementation cannot provide the data.
+		Returns a `double` representing the position's altitude in meters, relative to sea level. This value can be `null` if the implementation cannot provide the data.
 	**/
 	var altitude(default,null) : Float;
 	

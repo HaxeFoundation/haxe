@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html;
 
-@:enum abstract SpeechRecognitionErrorCode(String)
-{
+enum abstract SpeechRecognitionErrorCode(String) {
 	var NO_SPEECH = "no-speech";
 	var ABORTED = "aborted";
 	var AUDIO_CAPTURE = "audio-capture";

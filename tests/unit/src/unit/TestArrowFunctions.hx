@@ -35,11 +35,6 @@ class TestArrowFunctions extends Test {
 	var maybe : Void -> Bool;
 
 	function testSyntax(){
-
-		// skipping hl for now due to variance errors:
-		// Don't know how to cast ref(i32) to null(i32) see issue #6210
-		#if !(hl || as3)
-
 		maybe = () -> Math.random() > 0.5;
 
 		v0 = (123);
@@ -92,7 +87,7 @@ class TestArrowFunctions extends Test {
 		f3_1 = (?a:Int, b:String) -> a + b.length;
 		f3_2 = (a:Int, ?b:Int) -> a + b;
 
-		#if !flash
+		#if !(flash || hl) // Cannot skip not nullable argument
 		f3_1 = function (a=1, b:String) return a + b.length;
 		eq(f3_1("--"),3);
 
@@ -147,9 +142,5 @@ class TestArrowFunctions extends Test {
 		map = [1 => a -> a + a, 2 => a -> a + a, 3 => a -> a + a];
 
 		obj = { f : a -> a + a };
-
-		#end
-
 	}
-
 }

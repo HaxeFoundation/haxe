@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,14 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PluginArray>
 **/
 @:native("PluginArray")
-extern class PluginArray implements ArrayAccess<Plugin>
-{
+extern class PluginArray implements ArrayAccess<Plugin> {
+	
+	/**
+		The number of plugins in the array.
+	**/
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : Plugin;
 	function namedItem( name : String ) : Plugin;
-	function refresh( ?reloadDocuments : Bool = false ) : Void;
+	function refresh( reloadDocuments : Bool = false ) : Void;
 }

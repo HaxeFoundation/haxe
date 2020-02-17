@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `MouseEvent` interface represents events that occur due to the user interacting with a pointing device (such as a mouse). Common events using this interface include `click`, `dblclick`, `mouseup`, `mousedown`.
+	The `MouseEvent` interface represents events that occur due to the user interacting with a pointing device (such as a mouse). Common events using this interface include `click`, `dblclick`, `mouseup`, `mousedown`.
 
 	Documentation [MouseEvent](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent>
 **/
 @:native("MouseEvent")
-extern class MouseEvent extends UIEvent
-{
+extern class MouseEvent extends UIEvent {
 	
 	/**
 		The X coordinate of the mouse pointer in global (screen) coordinates.
@@ -54,6 +53,16 @@ extern class MouseEvent extends UIEvent
 		The Y coordinate of the mouse pointer in local (DOM content) coordinates.
 	**/
 	var clientY(default,null) : Int;
+	
+	/**
+		Alias for `MouseEvent.clientX`.
+	**/
+	var x(default,null) : Int;
+	
+	/**
+		Alias for `MouseEvent.clientY`
+	**/
+	var y(default,null) : Int;
 	
 	/**
 		The X coordinate of the mouse pointer relative to the position of the padding edge of the target node.
@@ -86,13 +95,13 @@ extern class MouseEvent extends UIEvent
 	var metaKey(default,null) : Bool;
 	
 	/**
-		The button number that was pressed when the mouse event was fired. 
+		The button number that was pressed (if applicable) when the mouse event was fired.
 	**/
 	var button(default,null) : Int;
 	
 	/**
 		
-		 The buttons being pressed when the mouse event was fired
+		 The buttons being depressed (if any) when the mouse event was fired.
 		 
 	**/
 	var buttons(default,null) : Int;
@@ -125,11 +134,11 @@ extern class MouseEvent extends UIEvent
 	/**
 		Initializes the value of a `MouseEvent` created. If the event has already being dispatched, this method does nothing.
 	**/
-	function initMouseEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, detailArg : Int, screenXArg : Int, screenYArg : Int, clientXArg : Int, clientYArg : Int, ctrlKeyArg : Bool, altKeyArg : Bool, shiftKeyArg : Bool, metaKeyArg : Bool, buttonArg : Int, relatedTargetArg : EventTarget ) : Void;
+	function initMouseEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, detailArg : Int = 0, screenXArg : Int = 0, screenYArg : Int = 0, clientXArg : Int = 0, clientYArg : Int = 0, ctrlKeyArg : Bool = false, altKeyArg : Bool = false, shiftKeyArg : Bool = false, metaKeyArg : Bool = false, buttonArg : Int = 0, ?relatedTargetArg : EventTarget ) : Void;
 	
 	/**
 		Returns the current state of the specified modifier key. See the `KeyboardEvent.getModifierState`() for details.
 	**/
 	function getModifierState( keyArg : String ) : Bool;
-	function initNSMouseEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, detailArg : Int, screenXArg : Int, screenYArg : Int, clientXArg : Int, clientYArg : Int, ctrlKeyArg : Bool, altKeyArg : Bool, shiftKeyArg : Bool, metaKeyArg : Bool, buttonArg : Int, relatedTargetArg : EventTarget, pressure : Float, inputSourceArg : Int ) : Void;
+	function initNSMouseEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, detailArg : Int = 0, screenXArg : Int = 0, screenYArg : Int = 0, clientXArg : Int = 0, clientYArg : Int = 0, ctrlKeyArg : Bool = false, altKeyArg : Bool = false, shiftKeyArg : Bool = false, metaKeyArg : Bool = false, buttonArg : Int = 0, ?relatedTargetArg : EventTarget, pressure : Float = 0.0, inputSourceArg : Int = 0 ) : Void;
 }

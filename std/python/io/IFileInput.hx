@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import python.io.IInput;
 import sys.io.FileSeek;
 
-
-
 interface IFileInput extends IInput {
-	public function seek( p : Int, pos : FileSeek ) : Void;
+	public function seek(p:Int, pos:FileSeek):Void;
 
-	public function tell() : Int;
-	public function eof() : Bool;
+	public function tell():Int;
+	public function eof():Bool;
 }

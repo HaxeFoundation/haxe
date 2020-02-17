@@ -8,7 +8,7 @@ private class A {
 	}
 
 	@:generic
-	@:extern // easy way of testing if things inline
+	extern // easy way of testing if things inline
 	public inline function inlineFoo<T>(x : T) {
 		return 'inline A ${x}';
 	}

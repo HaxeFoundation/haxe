@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -79,9 +79,9 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr) (unwrap_expr:texpr-
 			| _, (v, c) :: _ ->
 				let pos = c.epos in
 
-				let temp_var = alloc_var "catchallException" catchall_type pos in
+				let temp_var = alloc_var VGenerated "catchallException" catchall_type pos in
 				let temp_local = make_local temp_var pos in
-				let catchall_var = alloc_var "realException" t_dynamic pos in
+				let catchall_var = alloc_var VGenerated "realException" t_dynamic pos in
 				let catchall_local = make_local catchall_var pos in
 
 				(* if it is of type wrapper_type, unwrap it *)
@@ -150,7 +150,7 @@ let configure_cs com =
 	let gen_typecheck e t pos =
 		let std = make_static_this std_cl pos in
 		let e_type = make_typeexpr (module_type_of_type t) pos in
-		fcall std "is" [e; e_type] com.basic.tbool pos
+		fcall std "isOfType" [e; e_type] com.basic.tbool pos
 	in
 	init com should_wrap wrap_throw unwrap_expr rethrow_expr base_exception_t hx_exception_t catch_map gen_typecheck
 

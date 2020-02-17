@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,13 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php.net;
 
-class SslSocket extends sys.net.Socket {
-
-	public function new() : Void {
+class SslSocket extends php.net.Socket {
+	public function new():Void {
 		super();
 		protocol = "ssl";
 	}
-
 }

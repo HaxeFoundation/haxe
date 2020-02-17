@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,75 +19,72 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl.types;
 
 @:keep
 class ArrayAccess {
-
-	public function getDyn( pos : Int ) : Dynamic {
+	public function getDyn(pos:Int):Dynamic {
 		throw "Not implemented";
 		return 0;
 	}
 
-	public function setDyn( pos : Int, v : Dynamic ) {
+	public function setDyn(pos:Int, v:Dynamic) {
 		throw "Not implemented";
 	}
 
-	public function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+	public function blit(pos:Int, src:ArrayAccess, srcpos:Int, len:Int):Void {
 		throw "Not implemented";
 	}
-
 }
 
 @:keep
 class ArrayBase extends ArrayAccess {
+	public var length(default, null):Int;
 
-	public var length(default,null) : Int;
-
-
-	public function pushDyn( v : Dynamic ) : Int {
+	public function pushDyn(v:Dynamic):Int {
 		throw "Not implemented";
 		return 0;
 	}
 
-	public function popDyn() : Null<Dynamic> {
+	public function popDyn():Null<Dynamic> {
 		throw "Not implemented";
 		return null;
 	}
 
-	public function shiftDyn() : Null<Dynamic> {
+	public function shiftDyn():Null<Dynamic> {
 		throw "Not implemented";
 		return null;
 	}
 
-	public function unshiftDyn( v : Dynamic ) : Void {
+	public function unshiftDyn(v:Dynamic):Void {
 		throw "Not implemented";
 	}
 
-	public function insertDyn( pos : Int, v : Dynamic ) : Void {
+	public function insertDyn(pos:Int, v:Dynamic):Void {
 		throw "Not implemented";
 	}
 
-	public function removeDyn( v : Dynamic ) : Bool {
+	public function removeDyn(v:Dynamic):Bool {
 		throw "Not implemented";
 		return false;
 	}
 
-	public function sortDyn( f : Dynamic -> Dynamic -> Int ) : Void {
+	public function sortDyn(f:Dynamic->Dynamic->Int):Void {
 		throw "Not implemented";
 	}
 
-	public function slice( pos : Int, ?end : Int ) : ArrayBase{
-		throw "Not implemented";
-		return null;
-	}
-
-	public function splice( pos : Int, len : Int ) : ArrayBase{
+	public function slice(pos:Int, ?end:Int):ArrayBase {
 		throw "Not implemented";
 		return null;
 	}
 
-	public function join( sep : String ) : String {
+	public function splice(pos:Int, len:Int):ArrayBase {
+		throw "Not implemented";
+		return null;
+	}
+
+	public function join(sep:String):String {
 		throw "Not implemented";
 		return null;
 	}
@@ -96,13 +93,17 @@ class ArrayBase extends ArrayAccess {
 		throw "Not implemented";
 	}
 
-	public function toString() : String {
+	public function resize(len:Int) {
+		throw "Not implemented";
+	}
+
+	public function toString():String {
 		throw "Not implemented";
 		return null;
 	}
 
-	function __cast( t : Type ) : Dynamic {
-		if( t == Type.get(new ArrayDyn()) )
+	function __cast(t:Type):Dynamic {
+		if (t == Type.get((null : ArrayDyn)))
 			return ArrayDyn.alloc(this, false);
 		return null;
 	}
@@ -111,36 +112,35 @@ class ArrayBase extends ArrayAccess {
 		return false;
 	}
 
-	public static function allocI32( bytes : BytesAccess<Int>, length : Int ) @:privateAccess {
-		var a : ArrayBytes.ArrayI32 = untyped $new(ArrayBytes.ArrayI32);
+	public static function allocI32(bytes:BytesAccess<Int>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayI32 = untyped $new(ArrayBytes.ArrayI32);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
 		return a;
 	}
 
-	public static function allocUI16( bytes : BytesAccess<UI16>, length : Int ) @:privateAccess {
-		var a : ArrayBytes.ArrayUI16 = untyped $new(ArrayBytes.ArrayUI16);
+	public static function allocUI16(bytes:BytesAccess<UI16>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayUI16 = untyped $new(ArrayBytes.ArrayUI16);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
 		return a;
 	}
 
-	public static function allocF32( bytes : BytesAccess<F32>, length : Int ) @:privateAccess {
-		var a : ArrayBytes.ArrayF32 = untyped $new(ArrayBytes.ArrayF32);
+	public static function allocF32(bytes:BytesAccess<F32>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayF32 = untyped $new(ArrayBytes.ArrayF32);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
 		return a;
 	}
 
-	public static function allocF64( bytes : BytesAccess<Float>, length : Int ) @:privateAccess {
-		var a : ArrayBytes.ArrayF64 = untyped $new(ArrayBytes.ArrayF64);
+	public static function allocF64(bytes:BytesAccess<Float>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayF64 = untyped $new(ArrayBytes.ArrayF64);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
 		return a;
 	}
-
 }

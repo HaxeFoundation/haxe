@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,29 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi
-#if (!haxeJSON && !old_browser)
-@:native("JSON") extern
+#if !haxeJSON
+@:native("JSON")
+extern
 #end
 class Json {
-
-	#if haxeJSON inline #end
-	public static function parse( text : String ) : Dynamic {
-		return haxe.format.JsonParser.parse(text);
-	}
-
-	#if haxeJSON inline #end
-	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
-		return haxe.format.JsonPrinter.print(value, replacer, space);
-	}
-
-	#if (!haxeJSON && old_browser)
-	static function __init__():Void untyped {
-		if( __js__('typeof(JSON)') != 'undefined' )
-			Json = __js__('JSON');
-	}
+	#if haxeJSON
+	inline
 	#end
+	public static function parse(text:String):Dynamic
+		#if !haxeJSON; #else {
+			return haxe.format.JsonParser.parse(text);
+		} #end
 
+	#if haxeJSON
+	inline
+	#end
+	public static function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String
+		#if !haxeJSON; #else {
+			return haxe.format.JsonPrinter.print(value, replacer, space);
+		} #end
 }

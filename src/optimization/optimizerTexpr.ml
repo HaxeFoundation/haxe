@@ -3,63 +3,6 @@ open Type
 open Error
 open Globals
 
-(*
-	PurityState represents whether or not something has a side-effect. Unless otherwise stated
-	by using `@:pure` (equivalent to `@:pure(true)`) or `@:pure(false)`, fields are originally
-	supposed to be "maybe pure". Once all types and fields are known, this is refined by
-	AnalyzerTexpr.Purity.
-
-	There's a special case for fields that override a parent class field or implement an
-	interface field: If the overridden/implemented field is explicitly marked as pure,
-	the type loader marks the overriding/implementing as "expected pure". If during purity
-	inference this assumption does not hold, an error is shown.
-*)
-module PurityState = struct
-	type t =
-		| Pure
-		| Impure
-		| MaybePure
-		| ExpectPure of pos
-
-	let get_purity_from_meta meta =
-		try
-			begin match Meta.get Meta.Pure meta with
-			| (_,[EConst(Ident s),p],_) ->
-				begin match s with
-				| "true" -> Pure
-				| "false" -> Impure
-				| "expect" -> ExpectPure p
-				| _ -> error ("Unsupported purity value " ^ s ^ ", expected true or false") p
-				end
-			| (_,[],_) ->
-				Pure
-			| (_,_,p) ->
-				error "Unsupported purity value" p
-			end
-		with Not_found ->
-			MaybePure
-
-	let get_purity c cf = match get_purity_from_meta cf.cf_meta with
-		| Pure -> Pure
-		| Impure -> Impure
-		| ExpectPure p -> ExpectPure p
-		| _ -> get_purity_from_meta c.cl_meta
-
-	let is_pure c cf = get_purity c cf = Pure
-
-	let is_pure_field_access fa = match fa with
-		| FInstance(c,_,cf) | FClosure(Some(c,_),cf) | FStatic(c,cf) -> is_pure c cf
-		| FAnon cf | FClosure(None,cf) -> (get_purity_from_meta cf.cf_meta = Pure)
-		| FEnum _ -> true
-		| FDynamic _ -> false
-
-	let to_string = function
-		| Pure -> "pure"
-		| Impure -> "impure"
-		| MaybePure -> "maybe"
-		| ExpectPure _ -> "expect"
-end
-
 (* tells if an expression causes side effects. This does not account for potential null accesses (fields/arrays/ops) *)
 let has_side_effect e =
 	let rec loop e =
@@ -67,6 +10,7 @@ let has_side_effect e =
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
 		| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
 		| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) -> List.iter loop el
+		| TField(_,fa) when PurityState.is_explicitly_impure fa -> raise Exit
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
@@ -266,7 +210,7 @@ let optimize_binop e op e1 e2 =
 		(match op with
 		| OpAssign -> e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
 	| _ ->
 		e)
 

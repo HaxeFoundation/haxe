@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -98,7 +98,7 @@ let inline_constructors ctx e =
 			| IOKCtor(_,isextern,vars) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
 				if isextern then begin
-					display_error ctx "Extern constructor could not be inlined" io.io_pos;
+					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ctx "Cancellation happened here" p;
 				end
 			| _ -> ()
@@ -150,7 +150,7 @@ let inline_constructors ctx e =
 		PMap.find s io.io_fields
 	in
 	let alloc_io_field_full (io:inline_object) (fname:string) (constexpr_option:texpr option) (t:t) (p:pos) : inline_var =
-		let v = alloc_var fname t p in
+		let v = alloc_var VInlined fname t p in
 		let iv = add v (IVKField (io,fname,constexpr_option)) in
 		io.io_fields <- PMap.add fname iv io.io_fields;
 		iv
@@ -165,7 +165,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || Meta.has Meta.Extern cf.cf_meta in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
 		| [] -> mk (TBlock[]) ctx.t.tvoid p
 		| [e] -> e
@@ -174,7 +174,7 @@ let inline_constructors ctx e =
 	let make_expr_for_rev_list (el:texpr list) (t:t) (p:pos) : texpr = make_expr_for_list (List.rev el) t p in
 	let current_io_id = ref 0 in
 	let increment_io_id e = match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ -> incr current_io_id
+		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) -> incr current_io_id
 		| _ -> ()
 	in
 	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =
@@ -221,6 +221,7 @@ let inline_constructors ctx e =
 		in
 		match e.eexpr, e.etype with
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
+		| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_
 			when captured && not (List.memq cf seen_ctors) ->
 			begin
 				let io_id = !current_io_id in
@@ -229,7 +230,7 @@ let inline_constructors ctx e =
 						begin match e.eexpr with
 						| TConst _ -> loop (vs, decls, e::es) el
 						| _ ->
-							let v = alloc_var "arg" e.etype e.epos in
+							let v = alloc_var VGenerated "arg" e.etype e.epos in
 							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
 							let io_id_start = !current_io_id in
 							ignore(analyze_aliases true decle);
@@ -241,11 +242,12 @@ let inline_constructors ctx e =
 				in
 				let argvs, argvdecls, pl = loop ([],[],[]) pl in
 				let _, cname = c.cl_path in
-				let v = alloc_var ("inl"^cname) e.etype e.epos in
-				match Optimizer.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
+				let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
+				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+					let forced = is_extern_ctor c cf || (match e.eexpr with TMeta _ -> true | _ -> false) in
+					let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 					let rec loop (c:tclass) (tl:t list) =
 						let apply = apply_params c.cl_params tl in
 						List.iter (fun cf ->
@@ -273,7 +275,7 @@ let inline_constructors ctx e =
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 			error "Extern constructor could not be inlined" e.epos;
 		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
-			let v = alloc_var "inlobj" e.etype e.epos in
+			let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let el = List.map (fun ((s,_,_),e) ->
 				let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
@@ -290,7 +292,7 @@ let inline_constructors ctx e =
 			Some iv
 		| TArrayDecl el, TInst(_, [elemtype]) when captured ->
 			let len = List.length el in
-			let v = alloc_var "inlarr" e.etype e.epos in
+			let v = alloc_var VGenerated "inlarr" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let el = List.mapi (fun i e ->
 				let ef = mk (TArray(ev,(mk (TConst(TInt (Int32.of_int i))) e.etype e.epos))) elemtype e.epos in
@@ -387,7 +389,7 @@ let inline_constructors ctx e =
 			([Type.map_expr f e], None)
 		in
 		match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ ->
+		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) ->
 			begin try
 				let io = get_io !current_io_id in
 				if io.io_cancelled then begin
@@ -509,7 +511,7 @@ let inline_constructors ctx e =
 		let rec get_pretty_name iv = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
 				begin try
-					let is_user_variable iv = Meta.has Meta.UserVariable iv.iv_var.v_meta in
+					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
 					let iv = List.find is_user_variable io.io_aliases in
 					(get_pretty_name iv) ^ "_" ^ fname;
 				with Not_found ->

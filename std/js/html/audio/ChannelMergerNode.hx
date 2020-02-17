@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,7 @@
 package js.html.audio;
 
 @:native("ChannelMergerNode")
-extern class ChannelMergerNode extends AudioNode
-{
+extern class ChannelMergerNode extends AudioNode {
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : ChannelMergerOptions ) : Void;
 }

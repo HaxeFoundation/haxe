@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBMutableFile>
 **/
 @:native("IDBMutableFile")
-extern class MutableFile extends js.html.EventTarget
-{
+extern class MutableFile extends js.html.EventTarget {
 	var name(default,null) : String;
 	var type(default,null) : String;
 	var database(default,null) : Database;
@@ -41,7 +40,7 @@ extern class MutableFile extends js.html.EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function open( ?mode : js.html.FileMode = "readonly" ) : FileHandle;
+	function open( mode : js.html.FileMode = READONLY ) : FileHandle;
 	/** @throws DOMError */
 	function getFile() : js.html.DOMRequest;
 }

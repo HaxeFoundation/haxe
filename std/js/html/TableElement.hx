@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement>
 **/
 @:native("HTMLTableElement")
-extern class TableElement extends Element
-{
+extern class TableElement extends Element {
 	
 	/**
 		Is a `HTMLTableCaptionElement` representing the first `caption` that is a child of the element, or `null` if none is found. When set, if the object doesn't represent a `caption`, a `DOMException` with the `HierarchyRequestError` name is thrown. If a correct object is given, it is inserted in the tree as the first child of this element and the first `caption` that is a child of this element is removed from the tree, if any.
@@ -136,16 +135,16 @@ extern class TableElement extends Element
 	**/
 	function deleteTFoot() : Void;
 	function createTBody() : Element;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `HTMLTableRowElement` representing a new row of the table. It inserts it in the rows collection immediately before the `tr` element at the given `index` position. If necessary a `tbody` is created. If the `index` is `-1`, the new row is appended to the collection. If the `index` is smaller than `-1` or greater than the number of rows in the collection, a `DOMException` with the value `IndexSizeError` is raised.
+		@throws DOMError
 	**/
-	function insertRow( ?index : Int = -1 ) : Element;
-	/** @throws DOMError */
+	function insertRow( index : Int = -1 ) : Element;
 	
 	/**
 		Removes the row corresponding to the `index` given in parameter. If the `index` value is `-1` the last row is removed; if it smaller than `-1` or greater than the amount of rows in the collection, a `DOMException` with the value `IndexSizeError` is raised.
+		@throws DOMError
 	**/
 	function deleteRow( index : Int ) : Void;
 }

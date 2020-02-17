@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.lib.io.BufferedIOBase;
@@ -27,17 +28,16 @@ import python.Syntax;
 import python.KwArgs;
 
 typedef TextIOWrapperOptions = {
-	?encoding : String,
-	?errors : String,
-	?newline : String,
-	?line_buffering : Bool,
-	?write_through : Bool
+	?encoding:String,
+	?errors:String,
+	?newline:String,
+	?line_buffering:Bool,
+	?write_through:Bool
 };
 
 @:pythonImport("io", "TextIOWrapper")
-extern class TextIOWrapper extends TextIOBase
-{
-	public function new (buffer:BufferedIOBase, ?options:KwArgs<TextIOWrapperOptions>):Void;
+extern class TextIOWrapper extends TextIOBase {
+	public function new(buffer:BufferedIOBase, ?options:KwArgs<TextIOWrapperOptions>):Void;
 
-	public var line_buffering : Bool;
+	public var line_buffering:Bool;
 }

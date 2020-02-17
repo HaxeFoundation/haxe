@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `Response` interface of the Fetch API represents the response to a request.
 
@@ -32,61 +34,71 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
 @:native("Response")
-extern class Response
-{
-	static 
+extern class Response {
+
 	/**
 		Returns a new `Response` object associated with a network error.
 	**/
-	function error() : Response;
-	/** @throws DOMError */
-	static 
+	static function error() : Response;
+
 	/**
 		Creates a new response with a different URL.
+		@throws DOMError
 	**/
-	function redirect( url : String, ?status : Int = 302 ) : Response;
-	
+	static function redirect( url : String, status : Int = 302 ) : Response;
+
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).
 	**/
 	var type(default,null) : ResponseType;
-	
+
 	/**
 		Contains the URL of the response.
 	**/
 	var url(default,null) : String;
-	
+
+	/**
+		Indicates whether or not the response is the result of a redirect; that is, its URL list has more than one entry.
+	**/
+	var redirected(default,null) : Bool;
+
 	/**
 		Contains the status code of the response (e.g., `200` for a success).
 	**/
 	var status(default,null) : Int;
-	
+
 	/**
 		Contains a boolean stating whether the response was successful (status in the range 200-299) or not.
 	**/
 	var ok(default,null) : Bool;
-	
+
 	/**
 		Contains the status message corresponding to the status code (e.g., `OK` for `200`).
 	**/
 	var statusText(default,null) : String;
-	
+
 	/**
 		Contains the `Headers` object associated with the response.
 	**/
 	var headers(default,null) : Headers;
 	var bodyUsed(default,null) : Bool;
-	
+
 	/** @throws DOMError */
-	function new( ?body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>, ?init : ResponseInit ) : Void;
-	/** @throws DOMError */
-	
+	@:overload( function( ?body : js.lib.ArrayBufferView, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : js.lib.ArrayBuffer, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : FormData, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : URLSearchParams, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : Dynamic/*MISSING ReadableStream*/, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : String, ?init : ResponseInit) : Response {} )
+	function new( ?body : Blob, ?init : ResponseInit ) : Void;
+
 	/**
 		Creates a clone of a `Response` object.
+		@throws DOMError
 	**/
 	function clone() : Response;
 	/** @throws DOMError */
-	function arrayBuffer() : Promise<ArrayBuffer>;
+	function arrayBuffer() : Promise<js.lib.ArrayBuffer>;
 	/** @throws DOMError */
 	function blob() : Promise<Blob>;
 	/** @throws DOMError */

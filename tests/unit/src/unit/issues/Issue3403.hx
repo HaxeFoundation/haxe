@@ -3,29 +3,29 @@ package unit.issues;
 class Issue3403 extends Test  {
 	function test() {
 		var val = [1,2,3,4];
-		var x = Std.instance(val, Array);
+		var x = Std.downcast(val, Array);
 		eq(val,x);
 
 		var val:Dynamic = val;
-		x = Std.instance(val,Array);
+		x = Std.downcast(val,Array);
 		eq(val,x);
 		t(val != null);
 		t(x != null);
 
 		var g = new G([1,2,3,4]);
 		var g2:Dynamic = g;
-		var g3:G<Array<Int>> = Std.instance(g2,G);
+		var g3:G<Array<Int>> = Std.downcast(g2,G);
 		eq(g,g2);
 		eq(g,g3);
 		t(g3 != null);
 		t(g != null);
 
 		g2 = "Incorrect type";
-		g3 = Std.instance(g2,G);
+		g3 = Std.downcast(g2,G);
 		eq(g3,null);
 
 		g2 = 10;
-		g3 = Std.instance(g2,G);
+		g3 = Std.downcast(g2,G);
 		eq(g3,null);
 	}
 }

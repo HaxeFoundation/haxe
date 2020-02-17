@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,30 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import haxe.io.Output;
-
 import python.io.IoTools;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 
 class NativeTextOutput extends NativeOutput<TextIOBase> {
-
-	public function new (stream:TextIOBase) {
+	public function new(stream:TextIOBase) {
 		super(stream);
-		if (!stream.writable()) throw "Read only stream";
+		if (!stream.writable())
+			throw "Read only stream";
 	}
 
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
-	{
+	public function seek(p:Int, pos:sys.io.FileSeek):Void {
 		IoTools.seekInTextMode(stream, tell, p, pos);
 	}
 
-	override public function writeByte(c:Int):Void
-	{
-		stream.write(String.fromCharCode(c));
+	override public function writeBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int {
+		return stream.buffer.write(python.Syntax.arrayAccess(@:privateAccess s.b, pos, pos + len));
 	}
 
+	override public function writeByte(c:Int):Void {
+		stream.write(String.fromCharCode(c));
+	}
 }

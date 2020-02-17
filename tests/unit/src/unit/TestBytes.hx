@@ -85,12 +85,10 @@ class TestBytes extends Test {
 		for( s1 in strings )
 			for( s2 in strings ) {
 				var c = haxe.io.Bytes.ofString(s1).compare(haxe.io.Bytes.ofString(s2));
-				infos("compare "+s1+" and "+s2);
 				eq( c < 0, s1 < s2 );
 				eq( c > 0, s1 > s2 );
 				eq( c == 0, s1 == s2 );
 			}
-		infos(null);
 		// sub
 		var bs = haxe.io.Bytes.ofString("ABCDEFGH");
 		eq( bs.sub(1,3).compare(haxe.io.Bytes.ofString("BCD")), 0 );
@@ -136,5 +134,14 @@ class TestBytes extends Test {
 
 		eq(b1.getString(0,2), b2.getString(0,2));
 
+	}
+
+	function testHex() {
+		var strings = ["Increasing","impression","interested","expression","companions","instrument","Her"];
+		for(s in strings) {
+			var b = haxe.io.Bytes.ofString(s);
+			var bhx = haxe.io.Bytes.ofHex(b.toHex());
+			eq(b.toHex(),bhx.toHex());
+		}
 	}
 }

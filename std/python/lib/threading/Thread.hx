@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.threading;
 
 typedef ThreadOptions = {
-	@:optional var group : Dynamic;
-	@:optional var target : Dynamic;
-	@:optional var name : String;
-	@:optional var args : Tuple<Dynamic>;
-	@:optional var kwargs : Dict<String,Dynamic>;
-	@:optional var daemon : Dynamic;
+	var ?group:Dynamic;
+	var ?target:Dynamic;
+	var ?name:String;
+	var ?args:Tuple<Dynamic>;
+	var ?kwargs:Dict<String, Dynamic>;
+	var ?daemon:Dynamic;
 }
 
 @:pythonImport("threading", "Thread")
 extern class Thread {
-  public var name:String;
-  public var ident:Int;
-  public var daemon:Bool;
-  public function new (?options:KwArgs<ThreadOptions>):Void;
-  public function start():Void;
-  public function run():Void;
-  public function join(?timeout:Float):Void;
-  public function is_alive():Bool;
+	public var name:String;
+	public var ident:Int;
+	public var daemon:Bool;
+	public function new(?options:KwArgs<ThreadOptions>):Void;
+	public function start():Void;
+	public function run():Void;
+	public function join(?timeout:Float):Void;
+	public function is_alive():Bool;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement>
 **/
 @:native("HTMLStyleElement")
-extern class StyleElement extends Element
-{
+extern class StyleElement extends Element {
 	
 	/**
 		Is a `Boolean` value representing whether or not the stylesheet is disabled (true) or not (false).
@@ -49,11 +48,6 @@ extern class StyleElement extends Element
 		Is a `DOMString` representing the type of style being applied by this statement.
 	**/
 	var type : String;
-	
-	/**
-		Is a `Boolean` value indicating if the element applies to the whole document (`false`) or only to the parent's sub-tree (`true`).
-	**/
-	var scoped : Bool;
 	var sheet(default,null) : StyleSheet;
 	
 }

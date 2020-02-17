@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,31 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle>
 **/
 @:native("SVGAngle")
-extern class Angle
-{
+extern class Angle {
+	
+	/**
+		Some unknown type of value.
+	**/
 	static inline var SVG_ANGLETYPE_UNKNOWN : Int = 0;
+	
+	/**
+		A unitless `number` interpreted as a value in degrees.
+	**/
 	static inline var SVG_ANGLETYPE_UNSPECIFIED : Int = 1;
+	
+	/**
+		An `angle` with a `deg` unit.
+	**/
 	static inline var SVG_ANGLETYPE_DEG : Int = 2;
+	
+	/**
+		An `angle` with a `rad` unit.
+	**/
 	static inline var SVG_ANGLETYPE_RAD : Int = 3;
+	
+	/**
+		An `angle` with a `grad` unit.
+	**/
 	static inline var SVG_ANGLETYPE_GRAD : Int = 4;
 	
 	

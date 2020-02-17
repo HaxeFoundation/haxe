@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef ErrorEventInit =
-{
-	> EventInit,
-	@:optional var colno : Int;
-	@:optional var error : Dynamic;
-	@:optional var filename : String;
-	@:optional var lineno : Int;
-	@:optional var message : String;
+typedef ErrorEventInit = EventInit & {
+	var ?colno : Int;
+	var ?error : Dynamic;
+	var ?filename : String;
+	var ?lineno : Int;
+	var ?message : String;
 }

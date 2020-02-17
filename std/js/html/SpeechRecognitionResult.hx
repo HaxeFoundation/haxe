@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult>
 **/
 @:native("SpeechRecognitionResult")
-extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative>
-{
+extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative> {
 	
 	/**
 		Returns the length of the "array" — the number of `SpeechRecognitionAlternative` objects contained in the result (also referred to as "n-best alternatives".)

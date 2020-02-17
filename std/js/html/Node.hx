@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	A `Node` is an interface from which a number of DOM types inherit, and allows these various types to be treated (or tested) similarly.
+	`Node` is an interface from which a number of DOM API object types inherit. It allows those types to be treated similarly; for example, inheriting the same set of methods, or being tested in the same way.
 
 	Documentation [Node](https://developer.mozilla.org/en-US/docs/Web/API/Node) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Node$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Node>
 **/
 @:native("Node")
-extern class Node extends EventTarget
-{
+extern class Node extends EventTarget {
 	static inline var ELEMENT_NODE : Int = 1;
 	static inline var ATTRIBUTE_NODE : Int = 2;
 	static inline var TEXT_NODE : Int = 3;
@@ -117,7 +116,7 @@ extern class Node extends EventTarget
 	var nodeType(default,null) : Int;
 	
 	/**
-		Returns a `DOMString` containing the name of the `Node`. The structure of the name will differ with the name type. E.g. An `HTMLElement` will contain the name of the corresponding tag, like `'audio'` for an `HTMLAudioElement`, a `Text` node will have the `'#text'` string, or a `Document` node will have the `'#document'` string.
+		Returns a `DOMString` containing the name of the `Node`. The structure of the name will differ with the node type. E.g. An `HTMLElement` will contain the name of the corresponding tag, like `'audio'` for an `HTMLAudioElement`, a `Text` node will have the `'#text'` string, or a `Document` node will have the `'#document'` string.
 	**/
 	var nodeName(default,null) : String;
 	
@@ -127,7 +126,12 @@ extern class Node extends EventTarget
 	var baseURI(default,null) : String;
 	
 	/**
-		Returns the `Document` that this node belongs to. If no document is associated with it, returns `null`.
+		Returns a boolean indicating whether or not the Node is connected (directly or indirectly) to the context object, e.g. the `Document` object in the case of the normal DOM, or the `ShadowRoot` in the case of a shadow DOM.
+	**/
+	var isConnected(default,null) : Bool;
+	
+	/**
+		Returns the `Document` that this node belongs to. If the node is itself a document, returns `null`.
 	**/
 	var ownerDocument(default,null) : HTMLDocument;
 	
@@ -176,58 +180,42 @@ extern class Node extends EventTarget
 	**/
 	var textContent : String;
 	
-	/**
-		The namespace URI of this node, or `null` if it is no namespace.
-		 
-		 Note: In Firefox 3.5 and earlier, HTML elements are in no namespace. In later versions, HTML elements are in the `https://www.w3.org/1999/xhtml/` namespace in both HTML and XML trees. `1.9.2`
-		 
-		 
-	**/
-	var namespaceURI(default,null) : String;
 	
 	/**
-		Is a `DOMString` representing the namespace prefix of the node, or `null` if no prefix is specified.
+		Returns the context object's root which optionally includes the shadow root if it is available. 
 	**/
-	var prefix(default,null) : String;
-	
-	/**
-		Returns a `DOMString` representing the local part of the qualified name of an element.
-		 
-		 Note: In Firefox 3.5 and earlier, the property upper-cases the local name for HTML elements (but not XHTML elements). In later versions, this does not happen, so the property is in lower case for both HTML and XHTML. `1.9.2`
-		 
-		 
-	**/
-	var localName(default,null) : String;
-	
+	@:pure
+	function getRootNode( ?options : GetRootNodeOptions ) : Node;
 	
 	/**
 		Returns a `Boolean` indicating if the element has any child nodes, or not.
 	**/
+	@:pure
 	function hasChildNodes() : Bool;
-	/** @throws DOMError */
 	
 	/**
-		Inserts the first `Node` given in a parameter immediately before the second, child of this element, `Node`.
+		Inserts a `Node` before the reference node as a child of a specified parent node.
+		@throws DOMError
 	**/
 	function insertBefore( node : Node, child : Node ) : Node;
-	/** @throws DOMError */
 	
 	/**
 		Adds the specified childNode argument as the last child to the current node.
 		
 		 If the argument referenced an existing node on the DOM tree, the node will be detached from its current position and attached at the new position.
+		@throws DOMError
 	**/
 	function appendChild( node : Node ) : Node;
-	/** @throws DOMError */
 	
 	/**
 		Replaces one child `Node` of the current one with the second one given in parameter.
+		@throws DOMError
 	**/
 	function replaceChild( node : Node, child : Node ) : Node;
-	/** @throws DOMError */
 	
 	/**
 		Removes a child node from the current element, which must be a child of the current node.
+		@throws DOMError
 	**/
 	function removeChild( child : Node ) : Node;
 	
@@ -235,40 +223,52 @@ extern class Node extends EventTarget
 		Clean up all the text nodes under this element (merge adjacent, remove empty).
 	**/
 	function normalize() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Clone a `Node`, and optionally, all of its contents. By default, it clones the content of the node.
+		@throws DOMError
 	**/
-	function cloneNode( ?deep : Bool = false ) : Node;
+	function cloneNode( deep : Bool = false ) : Node;
+	
+	/**
+		Returns a `Boolean` value indicating whether or not the two nodes are the same (that is, they reference the same object).
+	**/
+	@:pure
+	function isSameNode( node : Node ) : Bool;
 	
 	/**
 		Returns a `Boolean` which indicates whether or not two nodes are of the same type and all their defining data points match.
 	**/
+	@:pure
 	function isEqualNode( node : Node ) : Bool;
 	
 	/**
-		Returns the context objects root which optionally includes the shadow root if it is available. 
+		Compares the position of the current node against another node in any other document.
 	**/
+	@:pure
 	function compareDocumentPosition( other : Node ) : Int;
 	
 	/**
-		Returns the context objects root which optionally includes the shadow root if it is available. 
+		Returns a `Boolean` value indicating whether a node is a descendant of a given node or not.
 	**/
+	@:pure
 	function contains( other : Node ) : Bool;
 	
 	/**
-		Clean up all the text nodes under this element (merge adjacent, remove empty).
+		Returns a `DOMString` containing the prefix for a given namespace URI, if present, and `null` if not. When multiple prefixes are possible, the result is implementation-dependent.
 	**/
-	function lookupPrefix( namespace_ : String ) : String;
+	@:pure
+	function lookupPrefix( namespace : String ) : String;
 	
 	/**
-		Clean up all the text nodes under this element (merge adjacent, remove empty).
+		Accepts a prefix and returns the namespace URI associated with it on the given node if found (and `null` if not). Supplying `null` for the prefix will return the default namespace.
 	**/
+	@:pure
 	function lookupNamespaceURI( prefix : String ) : String;
 	
 	/**
-		Returns a `Boolean` which indicates whether or not two nodes are of the same type and all their defining data points match.
+		Accepts a namespace URI as an argument and returns a `Boolean` with a value of `true` if the namespace is the default namespace on the given node or `false` if not.
 	**/
-	function isDefaultNamespace( namespace_ : String ) : Bool;
+	@:pure
+	function isDefaultNamespace( namespace : String ) : Bool;
 }

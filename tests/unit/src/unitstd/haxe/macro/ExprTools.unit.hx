@@ -71,7 +71,7 @@ function check(e, exp, ?pos) {
 iter(econst, fail);
 iter(econtinue, fail);
 iter(ebreak, fail);
-iter(efield, seq.bind("EConst(CString(foo))"));
+iter(efield, seq.bind("EConst(CString(foo,DoubleQuotes))"));
 iter(eparenthesis, seq.bind("EConst(CInt(1))"));
 iter(euntyped, seq.bind("EConst(CInt(1))"));
 iter(ethrow, seq.bind("EConst(CInt(1))"));
@@ -79,13 +79,13 @@ iter(eunop, seq.bind("EConst(CInt(1))"));
 iter(ecast, seq.bind("EConst(CInt(1))"));
 iter(emeta, seq.bind("EConst(CInt(1))"));
 check(earray, ["EConst(CInt(1))", "EConst(CInt(0))"]);
-check(ewhile1, ["EConst(CInt(1))", "EConst(CString(foo))"]);
-check(ewhile2, ["EConst(CInt(1))", "EConst(CString(foo))"]);
+check(ewhile1, ["EConst(CInt(1))", "EConst(CString(foo,DoubleQuotes))"]);
+check(ewhile2, ["EConst(CInt(1))", "EConst(CString(foo,DoubleQuotes))"]);
 check(ebinop, ["EConst(CInt(1))", "EConst(CInt(1))"]);
-check(efor, ["EConst(CInt(1))", "EConst(CString(foo))"]);
+check(efor, ["EConst(CInt(1))", "EConst(CString(foo,DoubleQuotes))"]);
 check(ein, ["EConst(CIdent(i))", "EConst(CInt(1))"]);
 check(evars, ["EConst(CInt(1))", "EConst(CInt(2))"]);
-check(etry, ["EConst(CInt(1))", "EConst(CString(foo))", "EConst(CString(bar))"]);
+check(etry, ["EConst(CInt(1))", "EConst(CString(foo,DoubleQuotes))", "EConst(CString(bar,DoubleQuotes))"]);
 check(eternary, ["EConst(CInt(1))", "EConst(CInt(2))", "EConst(CInt(3))"]);
 check(earraydecl, ["EConst(CInt(1))", "EConst(CInt(2))"]);
 check(enew, ["EConst(CInt(1))", "EConst(CInt(2))"]);
@@ -106,7 +106,7 @@ var map = haxe.macro.ExprTools.map;
 function check(e, ?pos) {
 	var e2 = map(e, wrap);
 	var e3 = map(e, unwrap);
-	eq(Std.string(e.expr), Std.string(e3.expr), pos);
+	eq(haxe.macro.ExprTools.toString(e), haxe.macro.ExprTools.toString(e3), pos);
 }
 map(econst, wrap).expr == econst.expr;
 map(econtinue, wrap).expr == econtinue.expr;

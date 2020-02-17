@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,21 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList>
 **/
 @:native("SourceBufferList")
-extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer>
-{
+extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer> {
 	
 	/**
 		Returns the number of `SourceBuffer` objects in the list.
 	**/
 	var length(default,null) : Int;
+	
+	/**
+		The event handler for the `addsourcebuffer` event.
+	**/
+	var onaddsourcebuffer : haxe.Constraints.Function;
+	
+	/**
+		The event handler for the `removesourcebuffer` event.
+	**/
+	var onremovesourcebuffer : haxe.Constraints.Function;
 	
 }

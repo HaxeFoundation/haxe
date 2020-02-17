@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.Float32Array;
-
-@:native("Float32Array")
-extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
-{
-	static inline var BYTES_PER_ELEMENT : Int = 4;
-	
-	var length(default,null) : Int;
-	
-	/** @throws DOMError */
-	@:overload( function( length : Int ) : Void {} )
-	@:overload( function( array : Float32Array ) : Void {} )
-	@:overload( function( array : Array<Float> ) : Void {} )
-	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
-	@:overload( function( array : Float32Array, ?offset : Int ) : Void {} )
-	function set( array : Array<Float>, ?offset : Int ) : Void;
-	function subarray( start : Int, ?end : Int ) : Float32Array;
-}
+@:deprecated typedef Float32Array = js.lib.Float32Array;

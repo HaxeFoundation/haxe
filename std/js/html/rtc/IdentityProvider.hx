@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,9 @@
 
 package js.html.rtc;
 
-@:native("RTCIdentityProvider")
-extern class IdentityProvider
-{
-	function generateAssertion( contents : String, origin : String, ?usernameHint : String ) : Promise<IdentityAssertionResult>;
-	function validateAssertion( assertion : String, origin : String ) : Promise<IdentityValidationResult>;
+import js.lib.Promise;
+
+typedef IdentityProvider = {
+	var generateAssertion : String -> String -> IdentityProviderOptions -> Promise<IdentityAssertionResult>;
+	var validateAssertion : String -> String -> Promise<IdentityValidationResult>;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,5 +29,4 @@
 
 	@see https://haxe.org/manual/types-enum-instance.html
 **/
-@:coreType @:runtimeValue abstract Enum<T> {
-}
+@:coreType @:runtimeValue abstract Enum<T> {}

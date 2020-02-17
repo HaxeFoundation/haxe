@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,19 +31,17 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Geolocation>
 **/
-@:native("Geolocation")
-extern class Geolocation
-{
-	/** @throws DOMError */
+typedef Geolocation = {
 	
 	/**
 		Determines the device's current location and gives back a `Position` object with the data.
+		@throws DOMError
 	**/
 	function getCurrentPosition( successCallback : Position -> Void, ?errorCallback : PositionError -> Void, ?options : PositionOptions ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `long` value representing the newly established callback function to be invoked whenever the device location changes.
+		@throws DOMError
 	**/
 	function watchPosition( successCallback : Position -> Void, ?errorCallback : PositionError -> Void, ?options : PositionOptions ) : Int;
 	

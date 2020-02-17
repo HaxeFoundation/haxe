@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.Uint8Array;
-
-@:native("Uint8Array")
-extern class Uint8Array extends ArrayBufferView implements ArrayAccess<Int>
-{
-	static inline var BYTES_PER_ELEMENT : Int = 1;
-	
-	var length(default,null) : Int;
-	
-	/** @throws DOMError */
-	@:overload( function( length : Int ) : Void {} )
-	@:overload( function( array : Uint8Array ) : Void {} )
-	@:overload( function( array : Array<Int> ) : Void {} )
-	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
-	@:overload( function( array : Uint8Array, ?offset : Int ) : Void {} )
-	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, ?end : Int ) : Uint8Array;
-}
+@:deprecated typedef Uint8Array = js.lib.Uint8Array;

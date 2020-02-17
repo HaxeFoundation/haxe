@@ -44,6 +44,13 @@ class RunSauceLabs {
 			!(b.browserName == "internet explorer" && Std.parseInt(b.version) <= 8);
 	}
 
+	static function isEs6(b:Dynamic):Bool {
+		return switch b.browserName {
+			case "internet explorer" | "safari": false;
+			case _: true;
+		}
+	}
+
 	static function main():Void {
 		var serveDomain = "localhost";
 		var servePort = "2000";
@@ -90,11 +97,6 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "safari",
-				"platform": "OS X 10.9",
-				"version": "7.0"
-			},
-			{
-				"browserName": "safari",
 				"platform": "OS X 10.10",
 				"version": "8.0"
 			},
@@ -136,6 +138,8 @@ class RunSauceLabs {
 		var tags = [];
 		if (Sys.getEnv("TRAVIS") != null)
 			tags.push("TravisCI");
+		if (Sys.getEnv("TF_BUILD") != null)
+			tags.push("AzurePipelines");
 
 		var maxDuration = 60 * 5; //5 min
 		var commandTimeout = 60;  //60s
@@ -153,6 +157,18 @@ class RunSauceLabs {
 			if (Sys.getEnv("TRAVIS") != null) {
 				caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
 				caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
+			}
+			switch (Sys.getEnv("SAUCE_TUNNEL_ID")) {
+				case null:
+					//pass
+				case id:
+					caps.setField("tunnel-identifier", id);
+			}
+			switch (Sys.getEnv("SAUCE_BUILD")) {
+				case null:
+					//pass
+				case build:
+					caps.setField("build", build);
 			}
 
 			trials--;
@@ -185,10 +201,12 @@ class RunSauceLabs {
 			}
 
 			var browserSuccess = true;
-			var urls = if (!isEs5(caps)) {
-				urls.filter(function(url:String) return url.indexOf("js-es=3") != -1);
-			} else {
-				urls;
+			var urls = urls; // localize captured var
+			if (!isEs5(caps)) {
+				urls = urls.filter(url -> url.indexOf(StringTools.urlEncode("js-es=3")) != -1);
+			}
+			if (!isEs6(caps)) {
+				urls = urls.filter(url -> url.indexOf(StringTools.urlEncode("js-es=6")) == -1);
 			}
 
 			return browser

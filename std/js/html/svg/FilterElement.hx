@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,17 +32,36 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFilterElement>
 **/
 @:native("SVGFilterElement")
-extern class FilterElement extends Element
-{
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
+extern class FilterElement extends Element {
 	
+	/**
+		An `SVGAnimatedEnumeration` that corresponds to the `filterUnits` attribute of the given `filter` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var filterUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` that corresponds to the `primitiveUnits` attribute of the given `filter` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var primitiveUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedLength` that corresponds to the `x` attribute on the given `filter` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` that corresponds to the `y` attribute of the given `filter` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` that corresponds to the `width` attribute of the given `filter` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` that corresponds to the `height` attribute of the given `filter` element.
+	**/
 	var height(default,null) : AnimatedLength;
 	var href(default,null) : AnimatedString;
 	

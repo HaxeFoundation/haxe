@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 class Tools {
-
-	public static function compress( f : Entry, level : Int ) {
-		if( f.compressed )
+	public static function compress(f:Entry, level:Int) {
+		if (f.compressed)
 			return;
 		// this should be optimized with a temp buffer
 		// that would discard the first two bytes
 		// (in order to prevent 2x mem usage for large files)
-		var data = haxe.zip.Compress.run( f.data, level );
+		var data = haxe.zip.Compress.run(f.data, level);
 		f.compressed = true;
-		f.data = data.sub(2,data.length-6);
+		f.data = data.sub(2, data.length - 6);
 		f.dataSize = f.data.length;
 	}
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,14 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.lib.io.IOBase;
 
 @:pythonImport("io")
 extern class Io {
-
 	public static var DEFAULT_BUFFER_SIZE:Int;
 
-	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):IOBase;
+	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors:String, ?newline:String, ?closefd:Bool,
+		?opener:String->Int->FileDescriptor):IOBase;
 }

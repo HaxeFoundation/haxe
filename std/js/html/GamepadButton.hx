@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,13 +32,13 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton>
 **/
 @:native("GamepadButton")
-extern class GamepadButton
-{
+extern class GamepadButton {
 	
 	/**
 		A boolean value indicating whether the button is currently pressed (`true`) or unpressed (`false`).
 	**/
 	var pressed(default,null) : Bool;
+	var touched(default,null) : Bool;
 	
 	/**
 		A double value used to represent the current state of analog buttons, such as the triggers on many modern gamepads. The values are normalized to the range 0.0 —1.0, with 0.0 representing a button that is not pressed, and 1.0 representing a button that is fully pressed.

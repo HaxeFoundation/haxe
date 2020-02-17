@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,16 +32,15 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement>
 **/
 @:native("HTMLTableCellElement")
-extern class TableCellElement extends Element
-{
+extern class TableCellElement extends Element {
 	
 	/**
-		Is a `unsigned` `long` that represents the number of columns this cell must span. It reflects the `colspan` attribute.
+		An unsigned long integer indicating the number of columns this cell must span; this lets the cell occupy space across multiple columns of the table. It reflects the `colspan` attribute.
 	**/
 	var colSpan : Int;
 	
 	/**
-		Is a `unsigned` `long` that represents the number of rows this cell must span. It reflects the `rowspan` attribute.
+		An unsigned long integer indicating the number of rows this cell must span; this lets a cell occupy space across multiple rows of the table. It reflects the `rowspan` attribute.
 	**/
 	var rowSpan : Int;
 	
@@ -51,55 +50,27 @@ extern class TableCellElement extends Element
 	var headers : String;
 	
 	/**
-		Is a `long` representing the cell position in the cells collection of the `tr` it belongs to. If the cell doesn't belong to a `tr`, it returns `-1`.
+		A long integer representing the cell's position in the `HTMLTableRowElement.cells` collection of the `tr` the cell is contained within. If the cell doesn't belong to a `tr`, it returns `-1`.
 	**/
 	var cellIndex(default,null) : Int;
+	
+	/**
+		A `DOMString` which can be used on `th` elements (not on `td`), specifying an alternative label for the header cell.. This alternate label can be used in other contexts, such as when describing the headers that apply to a data cell. This is used to offer a shorter term for use by screen readers in particular, and is a valuable accessibility tool. Usually the value of `abbr` is an abbreviation or acronym, but can be any text that's appropriate contextually.
+	**/
 	var abbr : String;
+	
+	/**
+		
+	**/
 	var scope : String;
-	
-	/**
-		Is a `DOMString` containing an enumerated value reflecting the `align` attribute. It indicates the alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, and `"center"`.
-	**/
 	var align : String;
-	
-	/**
-		Is a `DOMString` containing a name grouping cells in virtual. It reflects the obsolete `axis` attribute.
-	**/
 	var axis : String;
-	
-	/**
-		Is a `DOMString` containing a length of pixel of the hinted height of the cell. It reflects the obsolete `height` attribute.
-	**/
 	var height : String;
-	
-	/**
-		Is a `DOMString` containing a length of pixel of the hinted width of the cell. It reflects the obsolete `width` attribute.
-	**/
 	var width : String;
-	
-	/**
-		Is a `DOMString` containing one single chararcter. This character is the one to align all the cell of a column on. It reflects the `char` and default to the decimal points associated with the language, e.g. `'.'` for English, or `','` for French. This property was optional and was not very well supported.
-	**/
 	var ch : String;
-	
-	/**
-		Is a `DOMString` containing a integer indicating how many characters must be left at the right (for left-to-right scripts; or at the left for right-to-left scripts) of the character defined by `HTMLTableCellElement.ch`. This property was optional and was not very well supported.
-	**/
 	var chOff : String;
-	
-	/**
-		Is a `Boolean` value reflecting the `nowrap` attribute and indicating if cell content can be broken in several lines.
-	**/
 	var noWrap : Bool;
-	
-	/**
-		Is a `DOMString` representing an enumerated value indicating how the content of the cell must be vertically aligned. It reflects the `valign` attribute and can have one of the following values: `"top"`, `"middle"`, `"bottom"`, or `"baseline"`.
-	**/
 	var vAlign : String;
-	
-	/**
-		Is a `DOMString` containing the background color of the cells. It reflects the obsolete `bgColor` attribute.
-	**/
 	var bgColor : String;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `DocumentFragment` interface represents a minimal document object that has no parent. It is used as a light-weight version of `Document` to store well-formed or potentially non-well-formed fragments of XML.
+	The `DocumentFragment` interface represents a minimal document object that has no parent. It is used as a lightweight version of `Document` that stores a segment of a document structure comprised of nodes just like a standard document. The key difference is that because the document fragment isn't part of the active document tree structure, changes made to the fragment don't affect the document, cause reflow, or incur any performance impact that can occur when changes are made.
 
 	Documentation [DocumentFragment](https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment>
 **/
 @:native("DocumentFragment")
-extern class DocumentFragment extends Node
-{
+extern class DocumentFragment extends Node {
 	var children(default,null) : HTMLCollection;
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
@@ -46,16 +45,22 @@ extern class DocumentFragment extends Node
 		Returns the first `Element` node within the DocumentFragment`, in document order, that matches the specified ID.
 	**/
 	function getElementById( elementId : String ) : Element;
-	/** @throws DOMError */
 	
 	/**
 		Returns the first `Element` node within the `DocumentFragment`, in document order, that matches the specified selectors.
+		@throws DOMError
 	**/
 	function querySelector( selectors : String ) : Element;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `NodeList` of all the `Element` nodes within the `DocumentFragment` that match the specified selectors.
+		@throws DOMError
 	**/
 	function querySelectorAll( selectors : String ) : NodeList;
+	/** @throws DOMError */
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function prepend( nodes : haxe.extern.Rest<Node> ) : Void;
+	/** @throws DOMError */
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function append( nodes : haxe.extern.Rest<Node> ) : Void;
 }

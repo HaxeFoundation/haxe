@@ -13,5 +13,6 @@ private abstract A(String -> MyEnum) to String -> MyEnum {
 class Issue6609 extends unit.Test {
 	function test() {
 		MyEnumConstructor(new A(null));
+		noAssert();
 	}
 }

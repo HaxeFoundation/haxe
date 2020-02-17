@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -295,7 +295,7 @@ and gen_expr ctx e =
 				acc
 			in
 			match c with
-			| None | Some TNull -> acc
+			| None | Some {eexpr = TConst TNull} -> acc
 			| Some c ->	gen_expr ctx (Texpr.set_default ctx.com.basic a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in

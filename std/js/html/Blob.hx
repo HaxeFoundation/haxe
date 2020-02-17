@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,12 +46,11 @@ extern class Blob
 	var type(default,null) : String;
 	
 	/** @throws DOMError */
-	@:overload( function() : Void {} )
-	function new( blobParts : Array<haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, ?options : BlobPropertyBag ) : Void;
-	/** @throws DOMError */
+	function new( ?blobParts : Array<haxe.extern.EitherType<js.lib.ArrayBuffer,haxe.extern.EitherType<js.lib.ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, ?options : BlobPropertyBag ) : Void;
 	
 	/**
 		Returns a new `Blob` object containing the data in the specified range of bytes of the source `Blob`.
+		@throws DOMError
 	**/
-	function slice( ?start : Int, ?end : Int, ?contentType : String = "" ) : Blob;
+	function slice( ?start : Int, ?end : Int, ?contentType : String ) : Blob;
 }

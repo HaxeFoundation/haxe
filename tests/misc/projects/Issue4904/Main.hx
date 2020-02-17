@@ -4,7 +4,6 @@ class Main {
 	}
 }
 
-@:enum
-abstract TestAbstract(Int) {
+enum abstract TestAbstract(Int) {
 	private var f = 0;
 }

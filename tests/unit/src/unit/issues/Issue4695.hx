@@ -9,7 +9,7 @@ class Issue4695 extends unit.Test {
 	public function testNull() {
 		f("" == null);
 		f(eqCheck("", null));
-		#if !(cpp || flash9 || as3 || java || cs || hl)
+		#if !static
 		f(false == null);
 		f(eqCheck(false, null));
 		#end

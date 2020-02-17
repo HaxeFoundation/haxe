@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	Calling the `Selection.toString()` method returns the text contained in the selection, e.g.:
+	A `Selection` object represents the range of text selected by the user or the current position of the caret. To obtain a Selection object for examination or modification, call `window.getSelection()`.
 
 	Documentation [Selection](https://developer.mozilla.org/en-US/docs/Web/API/Selection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Selection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Selection>
 **/
 @:native("Selection")
-extern class Selection
-{
+extern class Selection {
 	
 	/**
 		Returns the `Node` in which the selection begins.
@@ -64,78 +63,93 @@ extern class Selection
 		Returns the number of ranges in the selection.
 	**/
 	var rangeCount(default,null) : Int;
+	
+	/**
+		Returns a `DOMString` describing the type of the current selection.
+	**/
+	var type(default,null) : String;
 	var caretBidiLevel : Int;
 	
-	/** @throws DOMError */
-	
-	/**
-		Collapses the current selection to a single point.
-	**/
-	function collapse( node : Node, offset : Int ) : Void;
-	/** @throws DOMError */
-	
-	/**
-		Collapses the selection to the start of the first range in the selection.
-	**/
-	function collapseToStart() : Void;
-	/** @throws DOMError */
-	
-	/**
-		Collapses the selection to the end of the last range in the selection.
-	**/
-	function collapseToEnd() : Void;
-	/** @throws DOMError */
-	
-	/**
-		Moves the focus of the selection to a specified point.
-	**/
-	function extend( node : Node, offset : Int ) : Void;
-	/** @throws DOMError */
-	
-	/**
-		Adds all the children of the specified node to the selection.
-	**/
-	function selectAllChildren( node : Node ) : Void;
-	/** @throws DOMError */
-	
-	/**
-		Deletes the selection's content from the document.
-	**/
-	function deleteFromDocument() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `Range` object representing one of the ranges currently selected.
+		@throws DOMError
 	**/
 	function getRangeAt( index : Int ) : Range;
-	/** @throws DOMError */
 	
 	/**
 		A `Range` object that will be added to the selection.
+		@throws DOMError
 	**/
 	function addRange( range : Range ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Removes a range from the selection.
+		@throws DOMError
 	**/
 	function removeRange( range : Range ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Removes all ranges from the selection.
+		@throws DOMError
 	**/
 	function removeAllRanges() : Void;
 	/** @throws DOMError */
+	function empty() : Void;
+	
+	/**
+		Collapses the current selection to a single point.
+		@throws DOMError
+	**/
+	function collapse( node : Node, offset : Int = 0 ) : Void;
+	/** @throws DOMError */
+	function setPosition( node : Node, offset : Int = 0 ) : Void;
+	
+	/**
+		Collapses the selection to the start of the first range in the selection.
+		@throws DOMError
+	**/
+	function collapseToStart() : Void;
+	
+	/**
+		Collapses the selection to the end of the last range in the selection.
+		@throws DOMError
+	**/
+	function collapseToEnd() : Void;
+	
+	/**
+		Moves the focus of the selection to a specified point.
+		@throws DOMError
+	**/
+	function extend( node : Node, offset : Int = 0 ) : Void;
+	
+	/**
+		Sets the selection to be a range including all or parts of two specified DOM nodes, and any content located between them.
+		@throws DOMError
+	**/
+	function setBaseAndExtent( anchorNode : Node, anchorOffset : Int, focusNode : Node, focusOffset : Int ) : Void;
+	
+	/**
+		Adds all the children of the specified node to the selection.
+		@throws DOMError
+	**/
+	function selectAllChildren( node : Node ) : Void;
+	
+	/**
+		Deletes the selection's content from the document.
+		@throws DOMError
+	**/
+	function deleteFromDocument() : Void;
 	
 	/**
 		Indicates if a certain node is part of the selection.
+		@throws DOMError
 	**/
-	function containsNode( node : Node, allowPartialContainment : Bool ) : Bool;
-	/** @throws DOMError */
+	function containsNode( node : Node, allowPartialContainment : Bool = false ) : Bool;
 	
 	/**
 		Changes the current selection.
+		@throws DOMError
 	**/
 	function modify( alter : String, direction : String, granularity : String ) : Void;
 }

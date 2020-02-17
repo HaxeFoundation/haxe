@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef DeviceOrientationEventInit =
-{
-	> EventInit,
-	@:optional var absolute : Bool;
-	@:optional var alpha : Float;
-	@:optional var beta : Float;
-	@:optional var gamma : Float;
+typedef DeviceOrientationEventInit = EventInit & {
+	var ?absolute : Bool;
+	var ?alpha : Float;
+	var ?beta : Float;
+	var ?gamma : Float;
 }

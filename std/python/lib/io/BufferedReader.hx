@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.Bytes;
@@ -26,15 +27,11 @@ import python.lib.io.BufferedIOBase;
 
 @:pythonImport("io", "BufferedReader")
 extern class BufferedReader extends BufferedIOBase implements IBufferedReader {
-
-	public function new (raw:RawIOBase):Void;
+	public function new(raw:RawIOBase):Void;
 
 	public function peek(?n:Int):Null<Bytes>;
-
-
 }
 
 @:remove extern interface IBufferedReader extends IBufferedIOBase {
 	public function peek(?n:Int):Null<Bytes>;
-
 }

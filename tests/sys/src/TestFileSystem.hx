@@ -1,7 +1,8 @@
 import sys.FileSystem;
 import utest.Assert;
+using StringTools;
 
-class TestFileSystem {
+class TestFileSystem extends utest.Test {
 	/**
 		Recursively remove a given directory.
 	*/
@@ -25,14 +26,12 @@ class TestFileSystem {
 		case _: ["", "/"];
 	}
 
-	public function new() { }
-
 	public function setup() {
 		removeDir(dir);
 		FileSystem.createDirectory(dir);
 	}
 
-	public function tearDown() {
+	public function teardown() {
 		removeDir(dir);
 	}
 
@@ -95,6 +94,11 @@ class TestFileSystem {
 		}
 	}
 
+	function testRootExists() {
+		Assert.isTrue(FileSystem.exists("/"));
+		Assert.isTrue(FileSystem.stat("/") != null);
+	}
+
 	function testWindowsSpecialCases() {
 		if (Sys.systemName() != "Windows" #if python || true #end) {
 			Assert.isTrue(true);
@@ -122,5 +126,29 @@ class TestFileSystem {
 		FileSystem.createDirectory(testDir);
 		FileSystem.createDirectory(testDir); // shouldn't throw
 		Assert.isTrue(FileSystem.isDirectory(testDir));
+	}
+
+	function testAbsolutePath() {
+		var paths = [
+			{ input: "c:\\nadako",   expected: "c:\\nadako" },
+			{ input: "nadako.js",    expected: haxe.io.Path.join([Sys.getCwd(), "nadako.js"]) },
+			{ input: "./nadako.js",  expected: haxe.io.Path.join([Sys.getCwd(), "/./nadako.js"]) },
+			{ input: "/nadako",      expected: "/nadako" }
+		];
+		for (path in paths) {
+			Assert.equals(normPath(path.expected), normPath(FileSystem.absolutePath(path.input)));
+		}
+	}
+
+	static function normPath(p:String, properCase = false):String {
+		if (Sys.systemName() == "Windows")
+		{
+			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
+			p = p.substr(0, 1).toUpperCase() + p.substr(1);
+			p = p.replace("/", "\\");
+			if (!properCase)
+				p = p.toLowerCase();
+		}
+		return p;
 	}
 }

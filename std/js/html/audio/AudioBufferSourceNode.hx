@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,61 +25,51 @@
 package js.html.audio;
 
 /**
-	The `AudioBufferSourceNode` interface represents an audio source consisting of in-memory audio data, stored in an `AudioBuffer`. It is an `AudioNode` that acts as an audio source`.`
+	The `AudioBufferSourceNode` interface is an `AudioScheduledSourceNode` which represents an audio source consisting of in-memory audio data, stored in an `AudioBuffer`. It's especially useful for playing back audio which has particularly stringent timing accuracy requirements, such as for sounds that must match a specific rhythm and can be kept in memory rather than being played from disk or the network.
 
 	Documentation [AudioBufferSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode>
 **/
 @:native("AudioBufferSourceNode")
-extern class AudioBufferSourceNode extends AudioNode
-{
+extern class AudioBufferSourceNode extends AudioScheduledSourceNode {
 	
 	/**
-		Is an `AudioBuffer` that defines the audio asset to be played, or when set to the value `null`, defines a single channel of silence. 
+		An `AudioBuffer` that defines the audio asset to be played, or when set to the value `null`, defines a single channel of silence (in which every sample is 0.0).
 	**/
 	var buffer : AudioBuffer;
 	
 	/**
-		Is an a-rate `AudioParam` that defines the speed factor at which the audio asset will be played. Since no pitch correction is applied on the output, this can be used to change the pitch of the sample.
+		An a-rate `AudioParam` that defines the speed factor at which the audio asset will be played, where a value of 1.0 is the sound's natural sampling rate. Since no pitch correction is applied on the output, this can be used to change the pitch of the sample. This value is compounded with `detune` to determine the final playback rate.
 	**/
 	var playbackRate(default,null) : AudioParam;
 	
 	/**
-		Is a `AudioParam` representing detuning of oscillation in cents. Its default value is `0`.
+		Is a k-rate `AudioParam` representing detuning of playback in cents. This value is compounded with `playbackRate` to determine the speed at which the sound is played. Its default value is `0` (meaning no detuning), and its nominal range is -∞ to ∞.
 	**/
 	var detune(default,null) : AudioParam;
 	
 	/**
-		Is a Boolean attribute indicating if the audio asset must be replayed when the end of the `AudioBuffer` is reached. Its default value is `false`.
+		A Boolean attribute indicating if the audio asset must be replayed when the end of the `AudioBuffer` is reached. Its default value is `false`.
 	**/
 	var loop : Bool;
 	
 	/**
-		Is a double value indicating, in seconds, where in the `AudioBuffer` the restart of the play must happen. Its default value is `0`.
+		A floating-point value indicating the time, in seconds, at which playback of the `AudioBuffer` must begin when `loop` is `true`. Its default value is `0` (meaning that at the beginning of each loop, playback begins at the start of the audio buffer).
 	**/
 	var loopStart : Float;
 	
 	/**
-		Is a double value indicating, in seconds, where in the `AudioBuffer` the replay of the play must stop (and eventually loop again). Its default value is `0`.
+		A floating-point number indicating the time, in seconds, at which playback of the `AudioBuffer` stops and loops back to the time indicated by `loopStart`, if `loop` is `true`. The default value is `0`.
 	**/
 	var loopEnd : Float;
 	
-	/**
-		Is an `EventHandler` containing the callback associated with the `ended_(Web_Audio)` event.
-	**/
-	var onended : haxe.Constraints.Function;
-	
 	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : AudioBufferSourceOptions ) : Void;
 	
 	/**
-		Schedules the start of the playback of the audio asset.
+		Used to schedule playback of the audio data contained in the buffer, or to begin playback immediately.
+		@throws DOMError
 	**/
-	function start( ?when : Float = 0.0, ?grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
-	/** @throws DOMError */
-	
-	/**
-		Schedules the end of the playback of an audio asset.
-	**/
-	function stop( ?when : Float = 0.0 ) : Void;
+	function start( when : Float = 0.0, grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
 }

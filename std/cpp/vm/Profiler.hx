@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,21 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-class Profiler
-{
+class Profiler {
+	static public function start(?inDumpFile:String):Void {
+		untyped __global__.__hxcpp_start_profiler(inDumpFile);
+	}
 
-   static public function start(?inDumpFile:String) : Void
-   {
-      untyped __global__.__hxcpp_start_profiler(inDumpFile);
-   }
-
-   static public function stop() : Void
-   {
-      untyped __global__.__hxcpp_stop_profiler();
-   }
-
+	static public function stop():Void {
+		untyped __global__.__hxcpp_stop_profiler();
+	}
 }
-
-

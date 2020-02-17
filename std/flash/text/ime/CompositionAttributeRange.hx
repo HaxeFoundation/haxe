@@ -1,6 +1,6 @@
 package flash.text.ime;
 
-@:final extern class CompositionAttributeRange {
+extern final class CompositionAttributeRange {
 	var converted : Bool;
 	var relativeEnd : Int;
 	var relativeStart : Int;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,50 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js;
 
-@:native("Error")
-extern class Error
-{
-	var message : String;
-	var name : String;
-	var stack(default,null) : String;
-
-	function new(?message : String) : Void;
-}
-
-@:native("EvalError")
-extern class EvalError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("RangeError")
-extern class RangeError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("ReferenceError")
-extern class ReferenceError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("SyntaxError")
-extern class SyntaxError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("TypeError")
-extern class TypeError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("URIError")
-extern class URIError extends Error
-{
-	function new(?message : String) : Void;
-}
+@:deprecated typedef Error = js.lib.Error;
+@:deprecated typedef EvalError = js.lib.Error.EvalError;
+@:deprecated typedef RangeError = js.lib.Error.RangeError;
+@:deprecated typedef ReferenceError = js.lib.Error.ReferenceError;
+@:deprecated typedef SyntaxError = js.lib.Error.SyntaxError;
+@:deprecated typedef TypeError = js.lib.Error.TypeError;
+@:deprecated typedef URIError = js.lib.Error.URIError;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,33 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 @:coreType abstract BytesAccess<T> from Bytes to Bytes {
+	public var sizeBits(get, never):Int;
+	public var nullValue(get, never):T;
 
-	public var sizeBits(get, never) : Int;
-	public var nullValue(get, never) : T;
-
-
-	@:extern inline function get_sizeBits() {
+	extern inline function get_sizeBits():Int {
 		return untyped $bytes_sizebits(this);
 	}
 
-	@:extern inline function get_nullValue() {
+	extern inline function get_nullValue():T {
 		return untyped $bytes_nullvalue(this);
 	}
 
-	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
-		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
+	extern public inline function blit(pos:Int, src:BytesAccess<T>, srcPos:Int, len:Int):Void {
+		(this : Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
 	}
 
-	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
-		return untyped $bget(this,pos);
+	@:arrayAccess extern public inline function get(pos:Int):T {
+		return untyped $bget(this, pos);
 	}
 
-	@:extern @:arrayAccess public inline function set( pos : Int, value : T ) : T {
-		untyped $bset(this,pos,value);
+	@:arrayAccess extern public inline function set(pos:Int, value:T):T {
+		untyped $bset(this, pos, value);
 		return value;
 	}
-
 }

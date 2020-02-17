@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,34 @@
 
 package js.html;
 
+/**
+	The `MimeType` interface provides contains information about a MIME type associated with a particular plugin. `NavigatorPlugins.mimeTypes` returns an array of this object.
+
+	Documentation [MimeType](https://developer.mozilla.org/en-US/docs/Web/API/MimeType) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MimeType$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MimeType>
+**/
 @:native("MimeType")
-extern class MimeType
-{
+extern class MimeType {
+	
+	/**
+		Returns a description of the associated plugin or an empty string if there is none.
+	**/
 	var description(default,null) : String;
+	
+	/**
+		Returns an instance of `Plugin` containing information about the plugin itself.
+	**/
 	var enabledPlugin(default,null) : Plugin;
+	
+	/**
+		A string containing valid file extensions for the data displayed by the plugin, or an empty string if an extension is not valid for the particular module. For example, a browser's content decryption module may appear in the plugin list, but support more file extenions than can be anticipated. It might therefore return an empty string.
+	**/
 	var suffixes(default,null) : String;
+	
+	/**
+		Returns the MIME type of the associated plugin.
+	**/
 	var type(default,null) : String;
 	
 }

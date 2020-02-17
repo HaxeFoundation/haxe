@@ -10,14 +10,17 @@ using StringTools;
 
 class Js {
 	static public function getJSDependencies() {
-		switch (systemName) {
-			case "Linux":
+		switch [ci, systemName] {
+			case [_, "Linux"]:
 				if (commandSucceed("node", ["-v"])) {
 					infoMsg('node has already been installed.');
 				} else {
 					Linux.requireAptPackages(["nodejs"]);
 				}
-			case "Mac":
+			case [AzurePipelines, "Mac"]:
+				runCommand("brew", ["install", "node@10"], true);
+				runCommand("brew", ["link", "--overwrite", "--force", "node@10"]);
+			case _:
 				//pass
 		}
 
@@ -28,12 +31,12 @@ class Js {
 		getJSDependencies();
 
 		var jsOutputs = [
-			for (es3 in       [[], ["-D", "js-es=3"]])
+			for (es_ver in    [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
-			for (enums_as_objects in [[], ["-D", "js-enums-as-objects"]])
+			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
 			{
-				var extras = args.concat(es3).concat(unflatten).concat(classic).concat(enums_as_objects);
+				var extras = args.concat(es_ver).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 				runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -48,47 +51,61 @@ class Js {
 				}
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.nodejsMain();"]);
+				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
 				output;
 			}
 		];
 
-		haxelibInstall("hxnodejs");
+		infoMsg("Test ES6:");
+		changeDirectory(miscDir + "es6");
+		runCommand("haxe", ["run.hxml"]);
+
+		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		var env = Sys.environment();
 		if (
 			env.exists("SAUCE") &&
 			env.exists("SAUCE_USERNAME") &&
 			env.exists("SAUCE_ACCESS_KEY")
 		) {
-			// sauce-connect should have been started
+			var sc = switch (ci) {
+				case AzurePipelines:
+					var scVersion = "sc-4.5.3-linux";
+					runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+					runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
 
-			// var scVersion = "sc-4.3-linux";
-			// runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
-			// runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+					//start sauce-connect
+					var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+					var p = new Process('${scVersion}/bin/sc', [
+						"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
+						"-f", scReadyFile
+					]);
+					while(!FileSystem.exists(scReadyFile)) {
+						Sys.sleep(0.5);
+					}
+					p;
+				case _:
+					// sauce-connect should have been started
+					null;
+			}
 
-			// //start sauce-connect
-			// var scReadyFile = "sauce-connect-ready-" + Std.random(100);
-			// var sc = new Process('${scVersion}/bin/sc', [
-			// 	"-i", Sys.getEnv("TRAVIS_JOB_NUMBER"),
-			// 	"-f", scReadyFile
-			// ]);
-			// while(!FileSystem.exists(scReadyFile)) {
-			// 	Sys.sleep(0.5);
-			// }
-
+			changeDirectory(unitDir);
 			runCommand("npm", ["install", "wd", "q"], true);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			var server = new Process("nekotools", ["server"]);
 			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 			server.close();
-			// sc.close();
+
+			if (sc != null)
+				sc.close();
 		}
 
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
-		haxelibInstall("utest");
+
+		runci.targets.Java.getJavaDependencies(); // this is awkward
+		haxelibInstallGit("Simn", "haxeserver");
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);

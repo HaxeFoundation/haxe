@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,17 +25,28 @@
 package js.html.svg;
 
 /**
-	The `SVGRect` represents a rectangle. Rectangles consist of codex/code and codey/code coordinate pair identifying a minimum X value, a minimum Y value, and a width and height, which are constrained to be non-negative.
+	The `SVGRect` represents a rectangle. Rectangles consist of an x and y coordinate pair identifying a minimum x value, a minimum y value, and a width and height, which are constrained to be non-negative.
 
 	Documentation [SVGRect](https://developer.mozilla.org/en-US/docs/Web/API/SVGRect) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGRect$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRect>
 **/
 @:native("SVGRect")
-extern class Rect
-{
+extern class Rect {
+	
+	/**
+		The exact effect of this coordinate depends on each element. If the attribute is not specified, the effect is as if a value of `0` were specified.
+	**/
 	var x : Float;
+	
+	/**
+		The exact effect of this coordinate depends on each element.If the attribute is not specified, the effect is as if a value of `0` were specified.
+	**/
 	var y : Float;
+	
+	/**
+		This represents the width of the rectangle.A value that is negative results to an error. A value of zero disables rendering of the element
+	**/
 	var width : Float;
 	var height : Float;
 	

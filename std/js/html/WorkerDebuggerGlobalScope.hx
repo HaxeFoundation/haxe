@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,12 +25,11 @@
 package js.html;
 
 @:native("WorkerDebuggerGlobalScope")
-extern class WorkerDebuggerGlobalScope extends EventTarget
-{
+extern class WorkerDebuggerGlobalScope extends EventTarget {
 	var global(default,null) : Dynamic;
 	var onmessage : haxe.Constraints.Function;
-	var console(default,null) : Console;
 	
+	/** @throws DOMError */
 	function createSandbox( name : String, prototype : Dynamic ) : Dynamic;
 	/** @throws DOMError */
 	function loadSubScript( url : String, ?sandbox : Dynamic ) : Void;
@@ -40,5 +39,9 @@ extern class WorkerDebuggerGlobalScope extends EventTarget
 	/** @throws DOMError */
 	function setImmediate( handler : haxe.Constraints.Function ) : Void;
 	function reportError( message : String ) : Void;
+	/** @throws DOMError */
+	function retrieveConsoleEvents() : Array<Dynamic>;
+	/** @throws DOMError */
+	function setConsoleEventHandler( handler : haxe.Constraints.Function ) : Void;
 	function dump( ?string : String ) : Void;
 }

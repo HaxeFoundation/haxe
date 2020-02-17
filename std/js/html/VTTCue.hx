@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,17 +24,23 @@
 
 package js.html;
 
+/**
+	VTTCues represent a cue in a text track.
+
+	Documentation [VTTCue](https://developer.mozilla.org/en-US/docs/Web/API/VTTCue) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/VTTCue$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/VTTCue>
+**/
 @:native("VTTCue")
-extern class VTTCue extends TextTrackCue
-{
+extern class VTTCue extends TextTrackCue {
 	var region : VTTRegion;
 	var vertical : DirectionSetting;
 	var snapToLines : Bool;
-	var line : haxe.extern.EitherType<Int,Dynamic/*MISSING AutoKeyword*/>;
-	var lineAlign : AlignSetting;
-	var position : Int;
-	var positionAlign : AlignSetting;
-	var size : Int;
+	var line : haxe.extern.EitherType<Float,AutoKeyword>;
+	var lineAlign : LineAlignSetting;
+	var position : haxe.extern.EitherType<Float,AutoKeyword>;
+	var positionAlign : PositionAlignSetting;
+	var size : Float;
 	var align : AlignSetting;
 	var text : String;
 	

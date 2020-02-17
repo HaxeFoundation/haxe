@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,18 +25,16 @@
 package js.html;
 
 /**
-	`DOMParser` can parse XML or HTML source stored in a string into a DOM Document. `DOMParser` is specified in DOM Parsing and Serialization.
+	The `DOMParser` interface provides the ability to parse XML or HTML source code from a string into a DOM `Document`.
 
 	Documentation [DOMParser](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMParser>
 **/
 @:native("DOMParser")
-extern class DOMParser
-{
+extern class DOMParser {
 	/** @throws DOMError */
-	@:overload( function() : Void {} )
-	function new( prin : Dynamic/*MISSING Principal*/, ?documentURI : Dynamic/*MISSING URI*/, ?baseURI : Dynamic/*MISSING URI*/ ) : Void;
+	function new() : Void;
 	/** @throws DOMError */
 	function parseFromString( str : String, type : SupportedType ) : HTMLDocument;
 }

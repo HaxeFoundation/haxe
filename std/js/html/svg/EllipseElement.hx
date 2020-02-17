@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,11 +32,26 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement>
 **/
 @:native("SVGEllipseElement")
-extern class EllipseElement extends GraphicsElement
-{
+extern class EllipseElement extends GeometryElement {
+	
+	/**
+		This property returns a `SVGAnimatedLength` reflecting the `cx` attribute of the given `ellipse` element.
+	**/
 	var cx(default,null) : AnimatedLength;
+	
+	/**
+		This property returns a `SVGAnimatedLength` reflecting the `cy` attribute of the given `ellipse` element.
+	**/
 	var cy(default,null) : AnimatedLength;
+	
+	/**
+		This property returns a `SVGAnimatedLength` reflecting the `rx` attribute of the given `ellipse` element.
+	**/
 	var rx(default,null) : AnimatedLength;
+	
+	/**
+		This property returns a `SVGAnimatedLength` reflecting the `ry` attribute of the given `ellipse` element.
+	**/
 	var ry(default,null) : AnimatedLength;
 	
 }

@@ -1,4 +1,4 @@
--cp src1
--cp src2
--main C
+-p src1
+-p src2
+--main C
 --interp

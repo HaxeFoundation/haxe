@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -68,8 +68,8 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 		(* class types *)
 		| TField(fexpr, f) when is_nondynamic_tparam fexpr f ->
 			(match follow fexpr.etype with
-				| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
-					let t = List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl in
+				| TInst( ({ cl_kind = KTypeParameter(tl) } as tp_cl), tp_tl) ->
+					let t = apply_params tp_cl.cl_params tp_tl (List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl) in
 					{ e with eexpr = TField(mk_cast t (run fexpr), f) }
 				| _ -> assert false)
 
@@ -89,7 +89,7 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 					assert false
 			with Not_found ->
 				match f with
-				| FStatic (cl, cf) when Meta.has Meta.Extern cf.cf_meta ->
+				| FStatic (cl, cf) when has_class_field_flag cf CfExtern ->
 					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
 				| _ ->
 					change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true)

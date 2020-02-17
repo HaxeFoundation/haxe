@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,24 +24,22 @@ package lua;
 
 /**
 	This abstract enables easy conversion from basic lua iterators
-	(i.e., a function that is called until it returns null), and 
+	(i.e., a function that is called until it returns null), and
 	Haxe iterators, which provide a next/hasNext interface.
 **/
-
 @:callable
 abstract NativeIterator<T>(Void->T) {
-	public function new(f : Void->T) {
-		this = f; 
+	public function new(f:Void->T) {
+		this = f;
 	}
 
 	@:from
-	public static function fromF<T>(f : Void->T){
+	public static function fromF<T>(f:Void->T) {
 		return new NativeIterator(f);
 	}
 
 	@:to
-	public function toIterator() : Iterator<T> {
+	public function toIterator():Iterator<T> {
 		return new HaxeIterator(this);
 	}
 }
-
