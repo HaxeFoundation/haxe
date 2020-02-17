@@ -2120,7 +2120,7 @@ and type_local_function ctx kind f with_type p =
 	match v with
 	| None -> e
 	| Some v ->
-		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
+		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 		let rec loop = function

@@ -1141,7 +1141,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			with Not_found ->
 				()
 	) parent;
-	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
+	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;

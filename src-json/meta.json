@@ -1213,6 +1213,12 @@
 		"targets": ["TClassField"]
 	},
 	{
+		"name": "Arguments",
+		"metadata": ":arguments",
+		"doc": "Used to store function arguments.",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "Void",
 		"metadata": ":void",
 		"doc": "Use Cpp native `void` return type.",
