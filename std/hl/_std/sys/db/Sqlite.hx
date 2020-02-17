@@ -214,9 +214,9 @@ private class SqliteResultSet implements ResultSet {
 			var v:Dynamic = a[i];
 			switch (hl.Type.getDynamic(v).kind) {
 				case hl.Type.TypeKind.HArray:
-					var pair : hl.NativeArray<Dynamic> = v;
-					var bytes : hl.Bytes = pair[0];
-					var len : Int = pair[1];
+					var pair:hl.NativeArray<Dynamic> = v;
+					var bytes:hl.Bytes = pair[0];
+					var len:Int = pair[1];
 					var data = new haxe.io.BytesData(bytes, len);
 					Reflect.setField(o, n, haxe.io.Bytes.ofData(data));
 
