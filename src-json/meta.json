@@ -1210,13 +1210,15 @@
 		"name": "Value",
 		"metadata": ":value",
 		"doc": "Used to store default values for fields and function arguments.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
-		"name": "Arguments",
-		"metadata": ":arguments",
+		"name": "HaxeArguments",
+		"metadata": ":haxe.arguments",
 		"doc": "Used to store function arguments.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
 		"name": "Void",

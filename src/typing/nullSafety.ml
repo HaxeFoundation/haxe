@@ -188,7 +188,7 @@ let get_arguments_meta callee expected_args_count =
 		| TField (_, FStatic (_, field))
 		| TField (_, FInstance (_, _, field)) ->
 			(try
-				match get_meta Meta.Arguments field.cf_meta with
+				match get_meta Meta.HaxeArguments field.cf_meta with
 				| _,[EFunction(_,{ f_args = args }),_],_ when expected_args_count = List.length args ->
 					List.map (fun (_,_,m,_,_) -> m) args
 				| _ ->
