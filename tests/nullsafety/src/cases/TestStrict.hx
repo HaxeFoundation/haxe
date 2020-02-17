@@ -910,6 +910,16 @@ class TestStrict {
 		}
 	}
 
+	function safetyOffArgument_shouldPass(?a:String) {
+		staticSafetyOffArgument(a);
+		instanceSafetyOffArgument(a);
+		inline instanceSafetyOffArgument(a);
+	}
+	static function staticSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {}
+	function instanceSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {
+		return staticSafetyOffArgument(b);
+	}
+
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();
