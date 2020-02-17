@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 @:headerClassCode("
@@ -50,61 +51,92 @@ package haxe.ds;
 
 ")
 @:coreApi
-class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	@:ifFeature("haxe.ds.ObjectMap.*")
-	private var h : Dynamic;
+	private var h:Dynamic;
 
-	public function new() : Void { }
+	public function new():Void {}
 
-	public function set( key : K, value : V ) : Void {
-		untyped __global__.__object_hash_set(__cpp__("HX_MAP_THIS"),key,value);
+	public function set(key:K, value:V):Void {
+		untyped __global__.__object_hash_set(__cpp__("HX_MAP_THIS"), key, value);
 	}
 
-	public function get( key : K ) : Null<V> {
-		return untyped __global__.__object_hash_get(h,key);
+	public function get(key:K):Null<V> {
+		return untyped __global__.__object_hash_get(h, key);
 	}
 
-	public function exists( key : K ) : Bool {
-		return untyped __global__.__object_hash_exists(h,key);
+	public function exists(key:K):Bool {
+		return untyped __global__.__object_hash_exists(h, key);
 	}
 
-	public function remove( key : K ) : Bool {
-		return untyped __global__.__object_hash_remove(h,key);
+	public function remove(key:K):Bool {
+		return untyped __global__.__object_hash_remove(h, key);
 	}
 
-	public function keys() : Iterator<K> {
+	public function keys():Iterator<K> {
 		var a:Array<K> = untyped __global__.__object_hash_keys(h);
 		return a.iterator();
 	}
 
-	public function iterator() : Iterator<V> {
+	public function iterator():Iterator<V> {
 		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
 		return a.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : ObjectMap<K,V> {
+	public function copy():ObjectMap<K, V> {
 		var copied = new ObjectMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return untyped __global__.__object_hash_to_string(h);
 	}
 
-   #if (scriptable)
-   private function setString(key:Dynamic,val:String) : Void { untyped __object_hash_set_string(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setInt(key:Dynamic,val:Int) : Void { untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setBool(key:Dynamic,val:Bool) : Void { untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setFloat(key:Dynamic,val:Float) : Void { untyped __object_hash_set_float(__cpp__("HX_MAP_THIS"),key,val); }
+	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
+		return untyped __global__.__object_hash_clear(h);
+		#else
+		h = null;
+		#end
+	}
 
-   private function getString(key:Dynamic) : String { return untyped __object_hash_get_string(h,key); }
-   private function getInt(key:Dynamic) : Int { return untyped __object_hash_get_int(h,key); }
-   private function getBool(key:Dynamic) : Bool { return untyped __object_hash_get_bool(h,key); }
-   private function getFloat(key:Dynamic) : Float { return untyped __object_hash_get_float(h,key); }
-   #end
+	#if (scriptable)
+	private function setString(key:Dynamic, val:String):Void {
+		untyped __object_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setInt(key:Dynamic, val:Int):Void {
+		untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setBool(key:Dynamic, val:Bool):Void {
+		untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setFloat(key:Dynamic, val:Float):Void {
+		untyped __object_hash_set_float(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function getString(key:Dynamic):String {
+		return untyped __object_hash_get_string(h, key);
+	}
+
+	private function getInt(key:Dynamic):Int {
+		return untyped __object_hash_get_int(h, key);
+	}
+
+	private function getBool(key:Dynamic):Bool {
+		return untyped __object_hash_get_bool(h, key);
+	}
+
+	private function getFloat(key:Dynamic):Float {
+		return untyped __object_hash_get_float(h, key);
+	}
+	#end
 }

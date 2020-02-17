@@ -24,39 +24,39 @@ import php.Global;
 import php.Syntax;
 
 @:coreApi class StringBuf {
-	private var b : String;
+	private var b:String;
 
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
-	public function new() : Void {
+	public function new():Void {
 		b = "";
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.length;
 	}
 
-	public function add<T>( x : T ) : Void {
-		if( x == null ) {
+	public function add<T>(x:T):Void {
+		if (x == null) {
 			b = Syntax.concat(b, 'null');
-		} else if( Global.is_bool(x) ) {
-			b = Syntax.concat(b, ((x:Dynamic) ? 'true' : 'false'));
-		} else if( Global.is_string(x) ) {
+		} else if (Global.is_bool(x)) {
+			b = Syntax.concat(b, ((x : Dynamic) ? 'true' : 'false'));
+		} else if (Global.is_string(x)) {
 			b = Syntax.concat(b, cast x);
 		} else {
 			b += x;
 		}
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
-		b += s.substr(pos,len);
+	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
+		b += s.substr(pos, len);
 	}
 
-	public inline function addChar( c : Int ) : Void {
+	public inline function addChar(c:Int):Void {
 		b += String.fromCharCode(c);
 	}
 
-	public inline function toString() : String {
+	public inline function toString():String {
 		return b;
 	}
 }

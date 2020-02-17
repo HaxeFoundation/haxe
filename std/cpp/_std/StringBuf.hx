@@ -19,79 +19,83 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cpp.NativeString;
+
 using cpp.NativeArray;
 
 @:coreApi
 class StringBuf {
-   private var b : Array<String>;
-   public var length(get,never) : Int;
-   var charBuf:Array<cpp.Char>;
+	private var b:Array<String>;
 
-   public function new() : Void {
-   }
+	public var length(get, never):Int;
 
-   private function charBufAsString() : String
-   {
-      var len = charBuf.length;
-      charBuf.push(0);
-      return NativeString.fromGcPointer( charBuf.address(0), len );
-   }
+	var charBuf:Array<cpp.Char>;
 
-   private function flush() : Void{
-      if (b==null)
-         b = [charBufAsString()];
-      else
-         b.push( charBufAsString() );
-      charBuf = null;
-   }
-   function get_length() : Int {
-      var len = 0;
-      if (charBuf!=null)
-         len = charBuf.length;
-      if (b!=null)
-         for(s in b)
-            len += s==null ? 4 : s.length;
-      return len;
-   }
+	public function new():Void {}
 
-   public inline function add<T>( x : T ) : Void {
-      if (charBuf!=null) flush();
-      if (b==null)
-         b = [Std.string(x)];
-      else
-         b.push(Std.string(x));
-   }
+	private function charBufAsString():String {
+		var len = charBuf.length;
+		charBuf.push(0);
+		return NativeString.fromGcPointer(charBuf.address(0), len);
+	}
 
-   public #if !cppia inline #end function addSub( s : String, pos : Int, ?len : Int ) : Void {
-      if (charBuf!=null) flush();
-      if (b==null)
-         b = [s.substr(pos,len)];
-      else
-         b.push(s.substr(pos,len));
-   }
+	private function flush():Void {
+		if (b == null)
+			b = [charBufAsString()];
+		else
+			b.push(charBufAsString());
+		charBuf = null;
+	}
 
-   public #if !cppia inline #end function addChar( c : Int ) : Void {
-      #if hxcpp_smart_strings
-      if (c>=127)
-         add(String.fromCharCode(c));
-      else
-      #end
-      {
-      if (charBuf==null)
-          charBuf = new Array<cpp.Char>();
-      charBuf.push(c);
-      }
-   }
+	function get_length():Int {
+		var len = 0;
+		if (charBuf != null)
+			len = charBuf.length;
+		if (b != null)
+			for (s in b)
+				len += s == null ? 4 : s.length;
+		return len;
+	}
 
-   public function toString() : String {
-      if (charBuf!=null)
-         flush();
-      if (b==null || b.length==0)
-         return "";
-      if (b.length==1)
-         return b[0];
-      return b.join("");
-   }
+	public inline function add<T>(x:T):Void {
+		if (charBuf != null)
+			flush();
+		if (b == null)
+			b = [Std.string(x)];
+		else
+			b.push(Std.string(x));
+	}
 
+	public #if !cppia inline #end function addSub(s:String, pos:Int, ?len:Int):Void {
+		if (charBuf != null)
+			flush();
+		if (b == null)
+			b = [s.substr(pos, len)];
+		else
+			b.push(s.substr(pos, len));
+	}
+
+	public #if !cppia inline #end function addChar(c:Int):Void {
+		#if hxcpp_smart_strings
+		if (c >= 127)
+			add(String.fromCharCode(c));
+		else
+		#end
+		{
+			if (charBuf == null)
+				charBuf = new Array<cpp.Char>();
+			charBuf.push(c);
+		}
+	}
+
+	public function toString():String {
+		if (charBuf != null)
+			flush();
+		if (b == null || b.length == 0)
+			return "";
+		if (b.length == 1)
+			return b[0];
+		return b.join("");
+	}
 }

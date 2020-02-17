@@ -62,7 +62,7 @@ open EvalJitContext
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
-		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
+		if var.v_capture then emit_capture_write (get_capture_slot jit var) exec
 		else emit_local_write (get_slot jit var.v_id e1.epos) exec
 	| TField(ef,fa) ->
 		let name = hash (field_name fa) in
@@ -111,7 +111,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
-		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
+		if var.v_capture then emit_capture_read_write (get_capture_slot jit var) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
 	| TField(ef,fa) ->
 		let name = hash (field_name fa) in
@@ -162,7 +162,14 @@ and unop jit op flag e1 p =
 		let exec = jit_expr jit false e1 in
 		emit_op_sub p (fun _ -> vint32 (Int32.minus_one)) exec
 	| Increment ->
-		op_incr jit e1 (flag = Prefix) p
+		begin match Texpr.skip e1 with
+		| {eexpr = TLocal v} when not v.v_capture ->
+			let slot = get_slot jit v.v_id e1.epos in
+			if flag = Prefix then emit_local_incr_prefix slot e1.epos
+			else emit_local_incr_postfix slot e1.epos
+		| _ ->
+			op_incr jit e1 (flag = Prefix) p
+		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
 
@@ -214,14 +221,20 @@ and jit_expr jit return e =
 		emit_type_expr proto
 	| TFunction tf ->
 		let jit_closure = EvalJitContext.create ctx in
-		jit_closure.captures <- jit.captures;
-		jit_closure.capture_infos <- jit.capture_infos;
 		jit.num_closures <- jit.num_closures + 1;
-		let exec = jit_tfunction jit_closure true e.epos tf in
-		let num_captures = Hashtbl.length jit.captures in
+		let fl,exec = jit_tfunction jit_closure true e.epos tf in
 		let hasret = jit_closure.has_nonfinal_return in
-		let get_env = get_env jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
-		emit_closure ctx num_captures get_env hasret exec
+		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
+		let captures = Hashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
+		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Pervasives.compare i1 i2) captures in
+		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
+		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
+		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
+			if declared then None
+			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.error "Something went wrong" e.epos))
+		) captures in
+		let mapping = Array.of_list captures in
+		emit_closure ctx mapping eci hasret exec fl
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr jit false e1 in
@@ -285,10 +298,17 @@ and jit_expr jit return e =
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
 	| TWhile(e1,e2,flag) ->
+		let rec has_continue e = match e.eexpr with
+			| TContinue -> true
+			| TWhile _ | TFor _ | TFunction _ -> false
+			| _ -> check_expr has_continue e
+		in
 		let exec_cond = jit_expr jit false e1 in
 		let exec_body = jit_expr jit false e2 in
 		begin match flag with
-			| NormalWhile -> emit_while_break_continue exec_cond exec_body
+			| NormalWhile ->
+				if has_continue e2 then emit_while_break_continue exec_cond exec_body
+				else emit_while_break exec_cond exec_body
 			| DoWhile -> emit_do_while_break_continue exec_cond exec_body
 		end
 	| TTry(e1,catches) ->
@@ -314,24 +334,42 @@ and jit_expr jit return e =
 		let exec = jit_expr jit return e1 in
 		pop_scope jit;
 		exec
-	| TBlock (e1 :: el) ->
-		let rec loop f el =
-			match el with
-				| [e] ->
-					let f' = jit_expr jit return e in
-					emit_seq f f'
-				| e1 :: el ->
-					let f' = jit_expr jit false e1 in
-					let f = emit_seq f f' in
-					loop f el
-				| [] ->
-					assert false
-		in
+	| TBlock el ->
 		push_scope jit e.epos;
-		let f0 = jit_expr jit false e1 in
-		let f = loop f0 el in
+		let rec loop acc el = match el with
+			| [e] ->
+				List.rev ((jit_expr jit return e) :: acc)
+			| e :: el ->
+				loop (jit_expr jit false e :: acc) el
+			| [] ->
+				assert false
+		in
+		let el = loop [] el in
 		pop_scope jit;
-		f
+		let rec step el =
+			let a = Array.of_list el in
+			let rec loop i acc =
+				if i >= 7 then begin
+					let f8 = emit_seq8 a.(i - 7) a.(i - 6) a.(i - 5) a.(i - 4) a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 8) (f8 :: acc)
+				end else if i >= 3 then begin
+					let f4 = emit_seq4 a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 4) (f4 :: acc)
+				end else if i >= 1 then begin
+					let f2 = emit_seq2 a.(i - 1) a.(i) in
+					loop (i - 2) (f2 :: acc)
+				end else if i = 0 then
+					((a.(i)) :: acc)
+				else
+					acc
+			in
+			let length = Array.length a in
+			match loop (length - 1) [] with
+			| [] -> assert false
+			| [f] -> f
+			| fl -> step fl
+		in
+		step el
 	| TReturn None ->
 		if return && not jit.ctx.debug.support_debugger then
 			emit_null
@@ -479,7 +517,7 @@ and jit_expr jit return e =
 		end
 	(* read *)
 	| TLocal var ->
-		if var.v_capture then emit_capture_read (get_capture_slot jit var.v_id)
+		if var.v_capture then emit_capture_read (get_capture_slot jit var)
 		else emit_local_read (get_slot jit var.v_id e.epos)
 	| TField(e1,fa) ->
 		let name = hash (field_name fa) in
@@ -619,10 +657,13 @@ and jit_tfunction jit static pos tf =
 	push_scope jit pos;
 	(* Declare `this` (if not static) and function arguments as local variables. *)
 	if not static then ignore(declare_local_this jit);
-	let varaccs = ExtList.List.filter_map (fun (var,_) ->
-		let slot = add_local jit var in
-		if var.v_capture then Some (slot,add_capture jit var) else None
+	let fl = List.map (fun (var,_) ->
+		let varacc = declare_local jit var in
+		match varacc with
+		| Env slot -> execute_set_capture slot
+		| Local slot -> execute_set_local slot
 	) tf.tf_args in
+	let fl = if static then fl else (execute_set_local 0) :: fl in
 	(* Add conditionals for default values. *)
 	let e = List.fold_left (fun e (v,cto) -> match cto with
 		| None -> e
@@ -640,33 +681,22 @@ and jit_tfunction jit static pos tf =
 	in
 	(* Jit the function expression. *)
 	let exec = jit_expr jit true e in
-	(* Deal with captured arguments, if necessary. *)
-	let exec = match varaccs with
-		| [] -> exec
-		| _ -> handle_capture_arguments exec varaccs
-	in
 	pop_scope jit;
-	exec
+	fl,exec
 
-and get_env jit static file info =
-	let ctx = jit.ctx in
-	let num_locals = jit.max_num_locals in
-	let num_captures = Hashtbl.length jit.captures in
-	let info = create_env_info static file info jit.capture_infos in
-	match info.kind with
-	| EKLocalFunction _ -> get_closure_env ctx info num_locals num_captures
-	| _ -> get_normal_env ctx info num_locals num_captures
+and get_env_creation jit static file info =
+	create_env_info static file info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
 	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
-	let exec = jit_tfunction jit static pos tf in
+	let fl,exec = jit_tfunction jit static pos tf in
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
-	let get_env = get_env jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
-	let f = create_function ctx get_env hasret empty_array exec in
+	let eci = get_env_creation jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
+	let f = if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl in
 	t();
 	f
 

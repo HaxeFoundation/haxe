@@ -22,6 +22,35 @@ open As3hl
 open Common
 open Globals
 open Ast
+open NativeLibraries
+
+let lowercase_pack pack =
+	let rec loop acc pack =
+		match pack with
+		| [] -> List.rev acc
+		| name :: rest ->
+			let name =
+				let fchar = String.get name 0 in
+				if fchar >= 'A' && fchar <= 'Z' then
+					(String.make 1 (Char.lowercase fchar)) ^ String.sub name 1 (String.length name - 1)
+				else
+					name
+			in
+			loop (name :: acc) rest
+	in
+	loop [] pack
+
+
+let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
+
+let ct_dyn = CTPath tp_dyn
+
+let ct_rest = CTPath {
+	tpackage = ["haxe"; "extern"];
+	tname = "Rest";
+	tparams = [TPType (ct_dyn,null_pos)];
+	tsub = None;
+}
 
 let rec make_tpath = function
 	| HMPath (pack,name) ->
@@ -42,12 +71,12 @@ let rec make_tpath = function
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
 			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
-			| _ -> pack, name
+			| _ -> lowercase_pack pack, name
 		in
 		{
 			tpackage = pack;
 			tname = name;
-			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos)] else[];
+			tparams = if !pdyn then [TPType (ct_dyn,null_pos)] else[];
 			tsub = None;
 		}
 	| HMName (id,ns) ->
@@ -89,7 +118,7 @@ let rec make_tpath = function
 		{ (make_tpath t) with tparams = params }
 
 let make_topt = function
-	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+	| None -> tp_dyn
 	| Some t -> make_tpath t
 
 let make_type t = CTPath (make_topt t)
@@ -103,10 +132,10 @@ let is_valid_path com pack name =
 	let rec loop = function
 		| [] ->
 			false
-		| load :: l ->
+		| (file,load) :: l ->
 			match load (pack,name) null_pos with
 			| None -> loop l
-			| Some (file,(_,a)) -> true
+			| Some (_,a) -> true
 	in
 	let file = Printf.sprintf "%s/%s.hx" (String.concat "/" pack) name in
 	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
@@ -122,7 +151,7 @@ let build_class com c file =
 			d_params = [];
 			d_meta = [];
 			d_flags = [];
-			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos;
+			d_data = ct_dyn,null_pos;
 		} in
 		(path.tpackage, [(ETypedef inf,pos)])
 	| _ ->
@@ -148,7 +177,7 @@ let build_class com c file =
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic")),null_pos) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (tp_dyn,null_pos) :: flags in
 	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -165,7 +194,10 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes)]) :: !meta;
+					[APublic,null_pos]
+				| HNInternal (Some ns) ->
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes); Ident "internal"]) :: !meta;
 					[APublic,null_pos]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic,null_pos]
@@ -184,16 +216,17 @@ let build_class com c file =
 			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = pos;
-			cff_meta = mk_meta();
+			cff_meta = [];
 			cff_access = flags;
 			cff_kind = FVar (None,None);
 		} in
 		match f.hlf_kind with
 		| HFVar v ->
-			if v.hlv_const then
-				cf.cff_kind <- FProp (("default",null_pos),("never",null_pos),Some (make_type v.hlv_type,null_pos),None)
-			else
-				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			cf.cff_meta <- mk_meta();
+			cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			if v.hlv_const then begin
+				cf.cff_access <- (AFinal,null_pos) :: cf.cff_access;
+			end;
 			cf :: acc
 		| HFMethod m when m.hlm_override ->
 			Hashtbl.add override (name,stat) ();
@@ -240,14 +273,14 @@ let build_class com c file =
 							match v with
 							| None -> None
 							| Some v ->
-								(* add for --gen-hx-classes generation *)
-								meta := (Meta.DefParam,[String aname;v]) :: !meta;
+								(* add for -D gen-hx-classes generation *)
+								meta := (Meta.DefParam,[String(aname,SDoubleQuotes);v]) :: !meta;
 								Some (EConst v,pos)
 					in
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
-					args @ List.map (fun _ -> incr pn; (("p" ^ string_of_int !pn,null_pos),true,[],Some (make_type None,null_pos),None)) [1;2;3;4;5]
+					args @ [("restArgs",null_pos),false,[],Some (ct_rest,null_pos),None]
 				else args in
 				let f = {
 					f_params = [];
@@ -259,10 +292,10 @@ let build_class com c file =
 				cf.cff_kind <- FFun f;
 				cf :: acc
 			| MK3Getter ->
-				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
+				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) (match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false);
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -281,78 +314,134 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field false) fields c.hlc_fields in
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
-		let get, set, t = (match tget, tset with
+		let get, set, t, meta = (match tget, tset with
 			| None, None -> assert false
-			| Some t, None -> true, false, t
-			| None, Some t -> false, true, t
-			| Some t1, Some t2 -> true, true, (if t1 <> t2 then None else t1)
+			| Some (t,meta), None -> true, false, t, meta
+			| None, Some (t,meta) -> false, true, t, meta
+			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
 		) in
 		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
-		let flags = [APublic,null_pos] in
-		let flags = if stat then (AStatic,null_pos) :: flags else flags in
+		let flags, accessor_flags = [APublic,null_pos], [APrivate,null_pos] in
+		let flags, accessor_flags = if stat then (AStatic,null_pos) :: flags, (AStatic,null_pos) :: accessor_flags else flags, accessor_flags in
+		let property_typehint = Some (make_dyn_type t,null_pos) in
+		let fields = [] in
+		let read_access, fields =
+			if get then
+				let getter = {
+					cff_name = "get_" ^ name,null_pos;
+					cff_pos = pos;
+					cff_doc = None;
+					cff_access = accessor_flags;
+					cff_meta = [];
+					cff_kind = FFun {
+						f_params = [];
+						f_args = [];
+						f_type = property_typehint;
+						f_expr = None;
+					};
+				} in
+				("get",null_pos), getter :: fields
+			else
+				("never",null_pos), fields
+		in
+		let write_access, fields =
+			if set then
+				let setter = {
+					cff_name = "set_" ^ name,null_pos;
+					cff_pos = pos;
+					cff_doc = None;
+					cff_access = accessor_flags;
+					cff_meta = [];
+					cff_kind = FFun {
+						f_params = [];
+						f_args = [(("value",null_pos),false,[],property_typehint,None)];
+						f_type = property_typehint;
+						f_expr = None;
+					};
+				} in
+				("set",null_pos), setter :: fields
+			else
+				("never",null_pos), fields
+		in
 		{
 			cff_name = name,null_pos;
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
-			cff_meta = [];
-			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp (((if get then "default" else "never"),null_pos),((if set then "default" else "never"),null_pos),Some (make_dyn_type t,null_pos),None);
-		}
+			cff_meta = (Meta.FlashProperty,[],pos) :: meta;
+			cff_kind = FProp (read_access,write_access,property_typehint,None);
+		} :: fields
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		if Hashtbl.mem override (name,stat) then acc else
-		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
+		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) @ acc
 	) getters fields in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		if Hashtbl.mem getters (name,stat) || Hashtbl.mem override (name,stat) then
 			acc
 		else
-			make_get_set name stat None (Some t) :: acc
+			make_get_set name stat None (Some t) @ acc
 	) setters fields in
 	try
 		(*
 			If the class only contains static String constants, make it an enum
 		*)
-		let real_type = ref "" in
+		let real_type = ref None in
 		let rec loop = function
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
-				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem_assoc AStatic f.cff_access ->
-					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
+				| FVar (Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")} as real_t),_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
+					(match !real_type with
+					| None ->
+						real_type := Some real_t
+					| Some t ->
+						if t <> real_t then raise Exit);
 					{
-						ec_name = f.cff_name;
-						ec_pos = pos;
-						ec_args = [];
-						ec_params = [];
-						ec_meta = [];
-						ec_doc = None;
-						ec_type = None;
+						cff_name = f.cff_name;
+						cff_doc = None;
+						cff_pos = pos;
+						cff_meta = [];
+						cff_access = [];
+						cff_kind = FVar (Some (real_t,null_pos), None);
 					} :: loop l
 				| FFun { f_args = [] } when fst f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
 		let constr = loop fields in
-		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
+		let name = "enumAbstract:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
-		let enum_data = {
+		let native_path = s_type_path (path.tpackage, path.tname) in
+		let real_type = Option.get !real_type in
+		let abstract_data = {
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
-			d_flags = [EExtern];
+			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
+			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
-		(path.tpackage, [(EEnum enum_data,pos)])
+		(path.tpackage, [(EAbstract abstract_data,pos)])
 	with Exit ->
 	let flags = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then HFinal :: flags else flags in
+
+	let meta =
+		(* if the package was lowercased, add @:native("Original.Path") meta *)
+		match c.hlc_name with
+		| HMPath (pack,name) when (pack <> [] && pack <> path.tpackage) ->
+			let native_path = (String.concat "." pack) ^ "." ^ name in
+			[(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)), pos)],pos)]
+		| _ ->
+			[]
+	in
+
 	let class_data = {
 		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = [];
+		d_meta = meta;
 		d_flags = flags;
 		d_data = fields;
 	} in
@@ -453,7 +542,6 @@ let remove_debug_infos as3 =
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
-	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try
@@ -484,39 +572,68 @@ let parse_swf com file =
 	t();
 	(h,tags)
 
-let add_swf_lib com file extern =
-	let swf_data = ref None in
-	let swf_classes = ref None in
-	let getSWF = (fun() ->
-		match !swf_data with
-		| None ->
-			let d = parse_swf com file in
-			swf_data := Some d;
-			d
-		| Some d -> d
-	) in
-	let extract = (fun() ->
-		match !swf_classes with
-		| None ->
-			let d = extract_data (getSWF()) in
-			swf_classes := Some d;
-			d
-		| Some d -> d
-	) in
-	let build cl p =
-		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
-		| None -> None
-		| Some c -> Some (file, build_class com c file)
-	in
-	com.load_extern_type <- com.load_extern_type @ [build];
-	if not extern then com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+class swf_library com name file_path = object(self)
+	inherit [swf_lib_type,Swf.swf] native_library name file_path
 
-let remove_classes toremove lib hcl =
-	let lib = lib() in
+	val mutable swf_data = None
+	val mutable swf_classes = None
+	val haxe_classes = Hashtbl.create 0
+
+	method load =
+		ignore(self#get_swf)
+
+	method get_swf = match swf_data with
+		| None ->
+			let d = parse_swf com file_path in
+			swf_data <- Some d;
+			d
+		| Some d ->
+			d
+
+	method extract = match swf_classes with
+		| None ->
+			let d = extract_data self#get_swf in
+			swf_classes <- Some d;
+			d
+		| Some d ->
+			d
+
+	method lookup path =
+		try Some (Hashtbl.find (self#extract) path)
+		with Not_found -> None
+
+	method list_modules =
+		Hashtbl.fold (fun path _ acc -> path :: acc) (self#extract) []
+
+	method close =
+		()
+
+	method build (path : path) (p : pos) : Ast.package option =
+		try
+			Some (Hashtbl.find haxe_classes path)
+		with Not_found -> try
+			let c = Hashtbl.find (self#extract) path in
+			let c = build_class com c file_path in
+			Hashtbl.add haxe_classes path c;
+			Some c
+		with Not_found ->
+			None
+
+	method get_data = self#get_swf
+end
+
+let add_swf_lib com file extern =
+	let real_file = (try Common.find_file com file with Not_found -> failwith (" Library not found : " ^ file)) in
+	let swf_lib = new swf_library com file real_file in
+	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs;
+	CommonCache.handle_native_lib com swf_lib
+
+let remove_classes toremove lib l =
 	match !toremove with
 	| [] -> lib
 	| _ ->
-		let hcl = hcl() in
+		let hcl = Hashtbl.create 0 in
+		List.iter (fun path -> Hashtbl.add hcl path ()) l;
 		match List.filter (fun c -> Hashtbl.mem hcl c) (!toremove) with
 		| [] -> lib
 		| classes ->

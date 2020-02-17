@@ -71,10 +71,14 @@ class TestMain {
 			new TestCasts(),
 			new TestSyntaxModule(),
 			new TestNull(),
+			new TestNumericCasts(),
+			new TestHashMap(),
+			#if (!no_http && (!azure || !(php && Windows)))
+			new TestHttp(),
+			#end
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
-			new TestSpecification(),
 			#if cs
 			new TestCSharp(),
 			#end
@@ -98,19 +102,20 @@ class TestMain {
 			#end
 			new TestInterface(),
 			new TestNaN(),
-			#if ((dce == "full") && !interp && !as3)
+			#if ((dce == "full") && !interp)
 			new TestDCE(),
 			#end
 			new TestMapComprehension(),
 			new TestMacro(),
 			new TestKeyValueIterator(),
-			// #if ( (java || neko) && !macro && !interp)
-			// new TestThreads(),
-			// #end
+			new TestFieldVariance()
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
 
+		for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
+			classes.push(specClass);
+		}
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 
@@ -121,12 +126,27 @@ class TestMain {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
-		#if js
-		if (js.Browser.supported) {
-			runner.onComplete.add(function(_) {
-				untyped js.Browser.window.success = true; // TODO: need utest success state for this
+		var success = true;
+		runner.onProgress.add(function(e) {
+			for(a in e.result.assertations) {
+				switch a {
+					case Success(pos):
+					case Warning(msg):
+					case Ignore(reason):
+					case _: success = false;
+				}
+			}
+			#if js
+			if (js.Browser.supported && e.totals == e.done) {
+				untyped js.Browser.window.success = success;
+			};
+			#end
+		});
+		#if sys
+		if (verbose)
+			runner.onTestStart.add(function(test) {
+				Sys.println(' $test...'); // TODO: need utest success state for this
 			});
-		};
 		#end
 		runner.run();
 	}

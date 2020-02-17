@@ -1,6 +1,5 @@
 package cases;
 
-import TestSafeFieldInUnsafeClass;
 import Validator.shouldFail;
 
 private enum DummyEnum {
@@ -146,6 +145,7 @@ class TestStrict {
 			initializedInAllBranchesOfConstructor = 'hello';
 		}
 		shouldFail(acceptThis(this));
+		@:nullSafety(Off) acceptThis(this);
 		var self = this;
 		shouldFail(acceptThis(self));
 		shouldFail(instanceMethod());
@@ -345,27 +345,35 @@ class TestStrict {
 		}
 	}
 
-	static function checkAgainstNull_checkAndFieldAccess(?a:String) {
-		var s:Null<String> = null;
+	static function checkAgainstNull_checkAndFieldAccess(?a:String, ?s:String) {
 		if(s != null && s.length == 0) {}
 		if(s == null || s.length == 0) {}
-		s != null && s.length == 0;
-		s == null || s.length == 0;
+		s != null
+			&& s.length == 0
+			&& s.length == 0;
+		s == null
+			|| s.length == 0
+			|| s.length == 0;
 		!(s == null || a == null) && s.length == a.length;
 
 		shouldFail(if(s != null || s.length == 0) {});
 		shouldFail(if(s == null && s.length == 0) {});
 		shouldFail(s != null || s.length == 0);
 		shouldFail(s == null && s.length == 0);
+	}
 
-		//checked against not-nullable value, so it's not null
-		var nullable:Null<String> = null;
+	static function checkedAgainstNotNullableValue(?a:String) {
 		var s = 'world';
-		if(nullable == s) {
-			s = nullable;
+		if(a == s) {
+			a.charAt(0);
 		} else {
-			shouldFail(s = nullable);
+			shouldFail(a.charAt(0));
 		}
+		// if(a != s) {
+		// 	shouldFail(a.charAt(0));
+		// } else {
+		// 	a.charAt(0);
+		// }
 	}
 
 	static function checkedAgainstNull_nullifiedAfterCheck_shouldFail(?a:String) {
@@ -816,11 +824,33 @@ class TestStrict {
 		a = b;
 	}
 
-	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+	function nonFinalField_immediatelyAfterCheck_shouldPass(o:{field:Null<String>}) {
 		if(o.field != null) {
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterLocalAssignment_shouldPass(o:{field:Null<String>}, b:{field:Null<String>}) {
+		if(o.field != null) {
+			b = {field:null};
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterFieldAssignment_shouldFail(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+		if(o.field != null) {
+			b.o = {field:null};
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function nonFinalField_afterSomeCall_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			someCall();
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+	function someCall() {}
 
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
@@ -851,6 +881,58 @@ class TestStrict {
 		shouldFail(a + b);
 		shouldFail(a += b);
 	}
+
+	static function anonFields_checkedForNull() {
+		var i:Null<Int> = null;
+		shouldFail(({a: i} : {a:Int}));
+		if (i != null) {
+			({a: i} : {a:Int});
+			({a: i} : {a:Null<Int>});
+			({a: 0, b: i} : {a:Int, b: Int});
+		}
+	}
+
+	static function immediateFunction_keepsSafety(?s:String) {
+		if (s != null) {
+			(function() s.length)();
+		}
+	}
+
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
+		}
+	}
+
+	static function issue8122_abstractOnTopOfNullable() {
+		var x:NullFloat = null;
+		var y:Float = x.val();
+		x += x;
+	}
+
+	static function issue8443_nullPassedToInline_shouldPass() {
+		inline function method(?map: (Int)->Int) {
+			return map != null ? map(0) : -1;
+		}
+
+		var x:Int = method();
+	}
+
+	static function issue7900_trace() {
+		var x:Null<()->String> = null;
+		trace(x);
+		trace("hi", x);
+		trace("hi", shouldFail(x()));
+	}
+
+	@:shouldFail @:nullSafety(InvalidArgument)
+	static function invalidMetaArgument_shouldFail() {}
 }
 
 private class FinalNullableFields {
@@ -884,4 +966,14 @@ private class Child extends Parent {
 	static var tmp:Any = '';
 	override public function execute(cb:()->Void) tmp = cb;
 	public function childExecute(cb:()->Void) cb();
+}
+
+abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
+	public inline function val(): Float {
+		return this != null ? this : 0.0;
+	}
+
+	@:op(A + B) static inline function addOp1(lhs: NullFloat, rhs: Float): Float {
+		return lhs != null ? lhs.val() + rhs : rhs;
+	}
 }

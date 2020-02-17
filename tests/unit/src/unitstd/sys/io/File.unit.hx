@@ -40,4 +40,6 @@ fu.close();
 sys.FileSystem.exists(filename) == true;
 
 sys.FileSystem.deleteFile(filename);
+#else
+1 == 1;
 #end

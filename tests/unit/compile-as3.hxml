@@ -1,4 +1,0 @@
-compile-each.hxml
---main unit.TestMain
--as3 bin/as3
--cmd mxmlc -static-link-runtime-shared-libraries=true -debug bin/as3/__main__.as --output bin/unit9_as3.swf

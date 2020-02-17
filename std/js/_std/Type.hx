@@ -33,7 +33,7 @@ enum ValueType {
 
 @:coreApi class Type {
 	public static inline function getClass<T>(o:T):Class<T> {
-		return if (o == null) null else @:privateAccess js.Boot.getClass(o);
+		return @:privateAccess js.Boot.getClass(o);
 	}
 
 	public static function getEnum(o:EnumValue):Enum<Dynamic>
@@ -86,6 +86,7 @@ enum ValueType {
 		return untyped __define_feature__("Type.resolveEnum", $hxEnums[name]);
 	}
 	#end
+
 	#if (js_es < 5)
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		switch (args.length) {
@@ -138,9 +139,10 @@ enum ValueType {
 		}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
-		return js.Object.create((cast cl).prototype);
+		return js.lib.Object.create((cast cl).prototype);
 	}
 	#end
+
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		var f:Dynamic = Reflect.field(e, constr);
 		if (f == null)
@@ -166,7 +168,7 @@ enum ValueType {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var result = [];
 		while (c != null) {
-			for (name in js.Object.getOwnPropertyNames((cast c).prototype)) {
+			for (name in js.lib.Object.getOwnPropertyNames((cast c).prototype)) {
 				switch name {
 					case "constructor" | "__class__" | "__properties__":
 					// skip special names
@@ -181,11 +183,12 @@ enum ValueType {
 	}
 
 	public static function getClassFields(c:Class<Dynamic>):Array<String> {
-		var a = js.Object.getOwnPropertyNames(cast c);
+		var a = js.lib.Object.getOwnPropertyNames(cast c);
 		a.remove("__id__");
 		a.remove("hx__closures__");
 		a.remove("__name__");
 		a.remove("__interfaces__");
+		a.remove("__isInterface__");
 		a.remove("__properties__");
 		a.remove("__instanceFields__");
 		a.remove("__super__");
@@ -215,8 +218,9 @@ enum ValueType {
 		return a;
 	}
 	#end
+
 	public static inline function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
-		return ((cast e).__constructs__:Array<String>).copy();
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	@:access(js.Boot)
@@ -310,6 +314,7 @@ enum ValueType {
 			return params != null ? [for (p in params) e[p]] : [];
 		}
 	#end
+
 	public inline static function enumIndex(e:EnumValue):Int {
 		#if !js_enums_as_arrays
 		return untyped e._hx_index;

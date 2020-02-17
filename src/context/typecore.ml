@@ -44,9 +44,15 @@ type macro_mode =
 	| MMacroType
 	| MDisplay
 
+type access_mode =
+	| MGet
+	| MSet
+	| MCall
+
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
 	| PBuildClass			(* build the class structure *)
+	| PConnectField			(* handle associated fields, which may affect each other. E.g. a property and its getter *)
 	| PTypeField			(* type the class field, allow access to types structures *)
 	| PCheckConstraint		(* perform late constraint checks with inferred types *)
 	| PForce				(* usually ensure that lazy have been evaluated *)
@@ -75,6 +81,9 @@ type typer_globals = {
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
+	(* Indicates that Typer.create() finished building this instance *)
+	mutable complete : bool;
+	mutable type_hints : (module_def_display * pos * t) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -94,6 +103,7 @@ and typer = {
 	com : context;
 	t : basic_types;
 	g : typer_globals;
+	mutable bypass_accessor : int;
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;
@@ -123,20 +133,25 @@ and typer = {
 	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
+	memory_marker : float array;
 }
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
+let memory_marker = [|Unix.time()|]
+
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
-let type_expr_ref : (typer -> expr -> WithType.t -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
 let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
+let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
 	| PBuildClass -> "build-class"
+	| PConnectField -> "connect-field"
 	| PTypeField -> "type-field"
 	| PCheckConstraint -> "check-constraint"
 	| PForce -> "force"
@@ -148,9 +163,10 @@ let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
-let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
+let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
+let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx el src
 
 let make_static_this c p =
 	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -196,18 +212,65 @@ let save_locals ctx =
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
-	if Define.defined ctx.com.defines Define.WarnVarShadowing then begin
+	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
 		try
 			let v' = PMap.find n ctx.locals in
-			ctx.com.warning "This variable shadows a previously declared variable" p;
-			ctx.com.warning "Previous variable was here" v'.v_pos
+			(* ignore std lib *)
+			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
+				ctx.com.warning "This variable shadows a previously declared variable" p;
+				ctx.com.warning "Previous variable was here" v'.v_pos
+			end
 		with Not_found ->
 			()
 	end;
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let check_identifier_name ctx name kind p =
+	if starts_with name '$' then
+		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
+	else if not (Lexer.is_valid_identifier name) then
+		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+
+let check_field_name ctx name p =
+	match name with
+	| "new" -> () (* the only keyword allowed in field names *)
+	| _ -> check_identifier_name ctx name "field" p
+
+let check_uppercase_identifier_name ctx name kind p =
+	if String.length name = 0 then
+		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty") p
+	else if Ast.is_lower_ident name then
+		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
+	else
+		check_identifier_name ctx name kind p
+
+let check_module_path ctx path p =
+	check_uppercase_identifier_name ctx (snd path) "module" p;
+	let pack = fst path in
+	try
+		List.iter (fun part -> Path.check_package_name part) pack;
+	with Failure msg ->
+		display_error ctx ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error ctx msg p
+
+let check_local_variable_name ctx name origin p =
+	match name with
+	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
+	| _ ->
+		let s_var_origin origin =
+			match origin with
+			| TVOLocalVariable -> "variable"
+			| TVOArgument -> "function argument"
+			| TVOForVariable -> "for variable"
+			| TVOPatternVariable -> "pattern variable"
+			| TVOCatchVariable -> "catch variable"
+			| TVOLocalFunction -> "function"
+		in
+		check_identifier_name ctx name (s_var_origin origin) p
+
 let add_local_with_origin ctx origin n t p =
+	check_local_variable_name ctx n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
@@ -319,8 +382,9 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
+	else if c == ctx.curclass then
+		true
 	else
-	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
 	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
@@ -334,13 +398,22 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
-	let rec chk_path psub pfull =
+	let rec chk_path psub pfull is_current_path =
 		match psub, pfull with
 		| [], _ -> true
-		| a :: l1, b :: l2 when a = b -> chk_path l1 l2
+		| a :: l1, b :: l2 when a = b ->
+			if
+				(* means it's a path of a superclass or implemented interface *)
+				not is_current_path &&
+				(* it's the last part of path in a meta && it denotes a package *)
+				l1 = [] && not (StringHelper.starts_uppercase_identifier a)
+			then
+				false
+			else
+				chk_path l1 l2 is_current_path
 		| _ -> false
 	in
-	let has m c f path =
+	let has m c f (path,is_current_path) =
 		let rec loop = function
 			| (m2,el,_) :: l when m = m2 ->
 				List.exists (fun e ->
@@ -351,7 +424,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 						(match path with [_;_] -> true | _ -> false)
 					| _ ->
 						let p = expr_path [] e in
-						(p <> [] && chk_path p path)
+						(p <> [] && chk_path p path is_current_path)
 				) el
 				|| loop l
 			| _ :: l -> loop l
@@ -360,25 +433,28 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		loop c.cl_meta || loop f.cf_meta
 	in
 	let cur_paths = ref [] in
-	let rec loop c =
-		cur_paths := make_path c ctx.curfield :: !cur_paths;
+	let rec loop c is_current_path =
+		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
-			| Some (csup,_) -> loop csup
+			| Some (csup,_) -> loop csup false
 			| None -> ()
 		end;
-		List.iter (fun (c,_) -> loop c) c.cl_implements;
+		List.iter (fun (c,_) -> loop c false) c.cl_implements;
 	in
-	loop ctx.curclass;
+	loop ctx.curclass true;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		try
-			has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
+			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
-					| Some cf -> if allowed cf then true else raise Not_found
+					| Some cf ->
+						if allowed cf then true
+						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
+						else raise Not_found
 					| _ -> false
 				)
 				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false
@@ -388,16 +464,13 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			| None -> false)
 		with Not_found -> false
 	in
-	let b = loop c
+	loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
 		| KTypeParameter tl ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
-	|| (Meta.has Meta.PrivateAccess ctx.meta) in
-	(* TODO: find out what this does and move it to genas3 *)
-	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
-	b
+	|| (Meta.has Meta.PrivateAccess ctx.meta)
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
@@ -429,7 +502,7 @@ let merge_core_doc ctx mt =
 			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
 			| _ -> ()
 		end
-	| _ -> ());
+	| _ -> ())
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
@@ -445,7 +518,12 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then begin
+		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match ctx.com.json_out with
+		| None -> print_endline s
+		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+	end
 
 let init_class_done ctx =
 	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);

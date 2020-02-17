@@ -1,5 +1,9 @@
 open Globals
-open Type
+open TType
+open TUnification
+open TFunctions
+open TPrinting
+open TOther
 
 type call_error =
 	| Not_enough_arguments of (string * bool * t) list
@@ -30,7 +34,7 @@ let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
 
-let unify_error_msg ctx = function
+let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Invalid_field_type s ->
@@ -85,8 +89,8 @@ module BetterErrors = struct
 
 	type access = {
 		acc_kind : access_kind;
-		mutable acc_expected : Type.t;
-		mutable acc_actual : Type.t;
+		mutable acc_expected : TType.t;
+		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
 		mutable acc_next : access option;
 	}
@@ -138,14 +142,14 @@ module BetterErrors = struct
 	let rec s_type ctx t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
 			| Some t -> s_type ctx t)
 		| TEnum (e,tl) ->
 			s_type_path e.e_path ^ s_type_params ctx tl
 		| TInst (c,tl) ->
 			(match c.cl_kind with
-			| KExpr e -> Ast.s_expr e
+			| KExpr e -> Ast.Printer.s_expr e
 			| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 		| TType (t,tl) ->
 			s_type_path t.t_path ^ s_type_params ctx tl
@@ -290,3 +294,5 @@ let error_require r p =
 		"'" ^ r ^ "' to be enabled"
 	in
 	error ("Accessing this field requires " ^ r) p
+
+let invalid_assign p = error "Invalid assign" p

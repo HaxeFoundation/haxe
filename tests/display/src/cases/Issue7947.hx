@@ -11,7 +11,7 @@ class Issue7947 extends DisplayTestCase {
 						trace('Some logic...');
 						trace('Some logic...');
 						true;
-					{-1-}case Right(_){-2-}:
+					{-1-}case Right(_):{-2-}
 				}
 			}
 		}

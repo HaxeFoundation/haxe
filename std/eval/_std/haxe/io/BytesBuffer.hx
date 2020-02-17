@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 @:coreApi
@@ -28,7 +29,7 @@ extern class BytesBuffer {
 	private function get_length():Int;
 	public function addByte(byte:Int):Void;
 	public function add(src:Bytes):Void;
-	public function addString(v:String,?encoding:Encoding):Void;
+	public function addString(v:String, ?encoding:Encoding):Void;
 	public function addInt32(v:Int):Void;
 	public function addInt64(v:haxe.Int64):Void;
 	public function addFloat(v:Float):Void;

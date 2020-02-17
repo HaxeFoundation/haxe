@@ -33,7 +33,7 @@ type ctx = {
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
     mutable current : tclass;
-    mutable statics : (tclass * string * texpr) list;
+    mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
     mutable tabs : string;
     mutable in_value : tvar option;
@@ -74,7 +74,7 @@ let flat_path (p,s) =
 let get_exposed ctx path meta = try
         let (_, args, pos) = Meta.get Meta.Expose meta in
         (match args with
-         | [ EConst (String s), _ ] -> [s]
+         | [ EConst (String(s,_)), _ ] -> [s]
          | [] -> [path]
          | _ -> error "Invalid @:expose parameters" pos)
     with Not_found -> []
@@ -406,6 +406,7 @@ and gen_call ctx e el =
          gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
+     | TField (_, FStatic ({ cl_path = (["_G"],"table")}, { cf_name = "create" })), el
      | TIdent "__lua_table__", el ->
          let count = ref 0 in
          spr ctx "({";
@@ -488,22 +489,33 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
-     | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
+     | TField (field_owner, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
              add_feature ctx "use._hx_apply_self";
              spr ctx "_hx_apply_self(";
-             gen_value ctx e;
+             gen_value ctx field_owner;
              print ctx ",\"%s\"" (field_name ef);
              if List.length(el) > 0 then spr ctx ",";
              concat ctx "," (gen_argument ctx) el;
              spr ctx ")";
          end else begin
-             gen_value ctx e;
-             if is_dot_access e ef then
-                 print ctx ".%s" (field_name ef)
-             else
-                 print ctx ":%s" (field_name ef);
+             let el =
+                if (match ef with FAnon _ | FDynamic _ -> true | _ -> false) && is_possible_string_field field_owner s then
+                    begin
+                        gen_expr ctx e;
+                        field_owner :: el
+                    end
+                else
+                    begin
+                        gen_value ctx field_owner;
+                        if is_dot_access field_owner ef then
+                            print ctx ".%s" (field_name ef)
+                        else
+                            print ctx ":%s" (field_name ef);
+                        el
+                    end
+             in
              gen_paren_arguments ctx el;
          end;
      | _ ->
@@ -676,7 +688,7 @@ and gen_expr ?(local=true) ctx e = begin
         (* field of a multireturn local var is actually just a local var *)
         let (_, args, pos) =  Meta.get (Meta.Custom ":lua_mr_id") v.v_meta  in
         (match args with
-         | [(EConst(String(id)), _)] ->
+         | [(EConst(String(id,_)), _)] ->
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
              assert false);
@@ -761,7 +773,7 @@ and gen_expr ?(local=true) ctx e = begin
                 | _ when Meta.has Meta.MultiReturn v.v_meta ->
                     (* multi-return var is generated as several vars for unpacking *)
                     let id = temp ctx in
-                    let temp_expr = (EConst(String(id)), Globals.null_pos) in
+                    let temp_expr = (EConst(String(id,SDoubleQuotes)), Globals.null_pos) in
                     v.v_meta <- (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos) :: v.v_meta;
                     let name = ident v.v_name in
                     let names =
@@ -801,7 +813,7 @@ and gen_expr ?(local=true) ctx e = begin
          | Some cf when Meta.has Meta.Native cf.cf_meta ->
              let _, args, mp = Meta.get Meta.Native cf.cf_meta in
              (match args with
-              | [( EConst(String s),_)] ->
+              | [( EConst(String(s,_)),_)] ->
                   print ctx "%s.%s" (ctx.type_accessor (TClassDecl c)) s;
               | _ ->
                   print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
@@ -905,8 +917,8 @@ and gen_expr ?(local=true) ctx e = begin
     | TWhile (cond,e,Ast.NormalWhile) ->
         gen_loop ctx "while" cond e
     | TWhile (cond,e,Ast.DoWhile) ->
-        println ctx "while true do ";
         gen_block_element ctx e;
+        newline ctx;
         gen_loop ctx "while" cond e
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
@@ -1530,7 +1542,7 @@ let gen_class_static_field ctx c f =
             newline ctx;
             (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; newline ctx) | _ -> ());
         | _ ->
-            ctx.statics <- (c,f.cf_name,e) :: ctx.statics
+            ctx.statics <- (c,f,e) :: ctx.statics
 
 let gen_class_field ctx c f =
     let p = s_path ctx c.cl_path in
@@ -1582,7 +1594,7 @@ let generate_class___name__ ctx c =
         let p = s_path ctx c.cl_path in
         print ctx "%s.__name__ = " p;
         if has_feature ctx "Type.getClassName" then
-            println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst c.cl_path @ [snd c.cl_path])))
+            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
         else
             println ctx "true";
     end
@@ -1693,7 +1705,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
     let p = s_path ctx e.e_path in
-    let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst e.e_path @ [snd e.e_path]) in
+    let ename = List.map s_escape_lua (fst e.e_path @ [snd e.e_path]) in
 
     (* TODO: Unify the _hxClasses declaration *)
     if has_feature ctx "Type.resolveEnum" then begin
@@ -1702,7 +1714,7 @@ let generate_enum ctx e =
     if has_feature ctx "lua.Boot.isEnum" then begin
         print ctx "_hxClasses[\"%s\"] = {" (dot_path e.e_path);
         if has_feature ctx "lua.Boot.isEnum" then  begin
-            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
+            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ String.concat "." ename ^ "\"" else "true");
         end;
         (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
         spr ctx " __constructs__ = _hx_tab_array({";
@@ -1758,9 +1770,13 @@ let generate_enum ctx e =
     end
 
 let generate_static ctx (c,f,e) =
-    print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
+    let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name)
+    and path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+    print ctx "%s = " path;
     gen_value ctx e;
     semicolon ctx;
+    newline ctx;
+    (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; semicolon ctx) | _ -> ());
     newline ctx
 
 let generate_enumMeta_fields ctx = function
@@ -1780,9 +1796,9 @@ let generate_require ctx path meta =
     let p = (s_path ctx path) in
 
     (match args with
-     | [(EConst(String(module_name)),_)] ->
+     | [(EConst(String(module_name,_)),_)] ->
          print ctx "%s = _G.require(\"%s\")" p module_name
-     | [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
+     | [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
          print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
      | _ ->
          error "Unsupported @:luaRequire format" mp);
@@ -2044,27 +2060,13 @@ let generate com =
     List.iter (transform_multireturn ctx) com.types;
     List.iter (generate_type ctx) com.types;
 
-    if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-        println ctx "_hx_bit_clamp = function(v) ";
-        println ctx "  if v <= 2147483647 and v >= -2147483648 then";
-        println ctx "    if v > 0 then return _G.math.floor(v)";
-        println ctx "    else return _G.math.ceil(v)";
-        println ctx "    end";
-        println ctx "  end";
-        println ctx "  if v > 2251798999999999 then v = v*2 end;";
-        println ctx "  if (v ~= v or math.abs(v) == _G.math.huge) then return nil end";
-        println ctx "  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))";
-        println ctx "end";
-        println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
-        println ctx "if bit then";
-        println ctx "  _hx_bit = bit";
-        println ctx "else";
-        println ctx "  local _hx_bit_raw = _G.require('bit32')";
-        println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
-        println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "end";
+    (* If bit ops are manually imported include the haxe wrapper for them *)
+    if has_feature ctx "use._bitop" then begin
+        print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
     end;
+
+    (* integer clamping is always required, and will use bit ops if available *)
+    print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
@@ -2084,110 +2086,42 @@ let generate com =
     newline ctx;
 
     if has_feature ctx "use._hx_bind" then begin
-        println ctx "_hx_bind = function(o,m)";
-        println ctx "  if m == nil then return nil end;";
-        println ctx "  local f;";
-        println ctx "  if o._hx__closures == nil then";
-        println ctx "    _G.rawset(o, '_hx__closures', {});";
-        println ctx "  else ";
-        println ctx "    f = o._hx__closures[m];";
-        println ctx "  end";
-        println ctx "  if (f == nil) then";
-        println ctx "    f = function(...) return m(o, ...) end;";
-        println ctx "    o._hx__closures[m] = f;";
-        println ctx "  end";
-        println ctx "  return f;";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_bind.lua");
     end;
 
     if has_feature ctx "use._hx_staticToInstance" then begin
-        println ctx "_hx_staticToInstance = function (tab)";
-        println ctx "  return setmetatable({}, {";
-        println ctx "    __index = function(t,k)";
-        println ctx "      if type(rawget(tab,k)) == 'function' then ";
-        println ctx "	return function(self,...)";
-        println ctx "	  return rawget(tab,k)(...)";
-        println ctx "	end";
-        println ctx "      else";
-        println ctx "	return rawget(tab,k)";
-        println ctx "      end";
-        println ctx "    end";
-        println ctx "  })";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_static_to_instance.lua");
     end;
 
     if has_feature ctx "use._hx_funcToField" then begin
-        println ctx "_hx_funcToField = function(f)";
-        println ctx "  if type(f) == 'function' then ";
-        println ctx "    return function(self,...) ";
-        println ctx "      return f(...) ";
-        println ctx "    end";
-        println ctx "  else ";
-        println ctx "    return f";
-        println ctx "  end";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_func_to_field.lua");
     end;
 
     if has_feature ctx "Math.random" then begin
-        println ctx "_G.math.randomseed(_G.os.time());"
+        print_file (Common.find_file com "lua/_lua/_hx_random_init.lua");
     end;
 
     if has_feature ctx "use._hx_print" then
-        println ctx "_hx_print = print or (function() end)";
+        print_file (Common.find_file com "lua/_lua/_hx_print.lua");
 
     if has_feature ctx "use._hx_apply_self" then begin
-        println ctx "_hx_apply_self = function(self, f, ...)";
-        println ctx "  return self[f](self,...)";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_apply_self.lua");
     end;
 
     if has_feature ctx "use._hx_box_mr" then begin
-        println ctx "_hx_box_mr = function(x,nt)";
-        println ctx "   res = _hx_o({__fields__={}})";
-        println ctx "   for i,v in ipairs(nt) do";
-        println ctx "     res[v] = x[i]";
-        println ctx "   end";
-        println ctx "   return res";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_box_mr.lua");
     end;
 
     if has_feature ctx "use._hx_table" then begin
-        println ctx "_hx_table = {}";
-        println ctx "_hx_table.pack = _G.table.pack or function(...)";
-        println ctx "    return {...}";
-        println ctx "end";
-        println ctx "_hx_table.unpack = _G.table.unpack or _G.unpack";
-        println ctx "_hx_table.maxn = _G.table.maxn or function(t)";
-        println ctx "  local maxn=0;";
-        println ctx "  for i in pairs(t) do";
-        println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
-        println ctx "  end";
-        println ctx "  return maxn";
-        println ctx "end;";
+        print_file (Common.find_file com "lua/_lua/_hx_table.lua");
     end;
 
     if has_feature ctx "use._hx_wrap_if_string_field" then begin
-        println ctx "_hx_wrap_if_string_field = function(o, fld)";
-        println ctx "  if _G.type(o) == 'string' then";
-        println ctx "    if fld == 'length' then";
-        println ctx "      return _G.string.len(o)";
-        println ctx "    else";
-        println ctx "      return String.prototype[fld]";
-        println ctx "    end";
-        println ctx "  else";
-        println ctx "    return o[fld]";
-        println ctx "  end";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_wrap_if_string_field.lua");
     end;
 
     if has_feature ctx "use._hx_dyn_add" then begin
-        println ctx "_hx_dyn_add = function(a,b)";
-        println ctx "  if (_G.type(a) == 'string' or _G.type(b) == 'string') then ";
-        println ctx "    return Std.string(a)..Std.string(b)";
-        println ctx "  else ";
-        println ctx "    return a + b;";
-        println ctx "  end;";
-        println ctx "end;";
+        print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
     println ctx "_hx_static_init();";

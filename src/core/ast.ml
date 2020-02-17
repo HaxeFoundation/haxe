@@ -99,10 +99,15 @@ type unop =
 	| Neg
 	| NegBits
 
+type string_literal_kind =
+	| SDoubleQuotes
+	| SSingleQuotes
+	(* | SMarkup *)
+
 type constant =
 	| Int of string
 	| Float of string
-	| String of string
+	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
 
@@ -177,6 +182,11 @@ and func = {
 
 and placed_name = string * pos
 
+and function_kind =
+	| FKAnonymous
+	| FKNamed of placed_name * bool (* bool for `inline` *)
+	| FKArrow
+
 and display_kind =
 	| DKCall
 	| DKDot
@@ -196,7 +206,7 @@ and expr_def =
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (placed_name * bool * type_hint option * expr option) list
-	| EFunction of placed_name option * func
+	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
@@ -224,7 +234,12 @@ and type_param = {
 	tp_meta : metadata;
 }
 
-and documentation = string option
+and doc_block = {
+	doc_own: string option;
+	mutable doc_inherited: (unit -> (string option)) list
+}
+
+and documentation = doc_block option
 
 and metadata_entry = (Meta.strict_meta * expr list * pos)
 and metadata = metadata_entry list
@@ -314,15 +329,33 @@ type type_decl = type_def * pos
 type package = string list * type_decl list
 
 let is_lower_ident i =
-	let rec loop p =
-		match String.unsafe_get i p with
-		| 'a'..'z' -> true
-		| '_' -> if p + 1 < String.length i then loop (p + 1) else true
-		| _ -> false
-	in
-	loop 0
+	if String.length i = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get i p with
+			| 'a'..'z' -> true
+			| '_' -> p + 1 >= String.length i || loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let pos = snd
+
+let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
+
+let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
+
+let gen_doc_text d =
+	let docs =
+		match d.doc_own with Some s -> [s] | None -> []
+	in
+	String.concat "\n" docs
+
+
+let gen_doc_text_opt = Option.map gen_doc_text
+
+let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
@@ -357,7 +390,11 @@ let parse_path s =
 let s_constant = function
 	| Int s -> s
 	| Float s -> s
-	| String s -> "\"" ^ StringHelper.s_escape s ^ "\""
+	| String(s,qs) ->
+		begin match qs with
+		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		| SSingleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		end
 	| Ident s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
@@ -479,7 +516,7 @@ let s_token = function
 	| At -> "@"
 	| Dollar v -> "$" ^ v
 
-exception Invalid_escape_sequence of char * int
+exception Invalid_escape_sequence of char * int * (string option)
 
 let unescape s =
 	let b = Buffer.create 0 in
@@ -488,7 +525,7 @@ let unescape s =
 			()
 		else
 			let c = s.[i] in
-			let fail () = raise (Invalid_escape_sequence(c,i)) in
+			let fail msg = raise (Invalid_escape_sequence(c,i,msg)) in
 			if esc then begin
 				let inext = ref (i + 1) in
 				(match c with
@@ -497,14 +534,21 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail()) in
-					Buffer.add_char b c;
+					let u = (try (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
+					if u > 127 then
+						fail (Some ("Values greater than \\177 are not allowed. Use \\u00" ^ (Printf.sprintf "%02x" u) ^ " instead."));
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'x' ->
-					let u = (try (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence.") in
+					let hex = try String.sub s (i+1) 2 with _ -> fail_no_hex () in
+					let u = (try (int_of_string ("0x" ^ hex)) with _ -> fail_no_hex ()) in
+					if u > 127 then
+						fail (Some ("Values greater than \\x7f are not allowed. Use \\u00" ^ hex ^ " instead."));
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
+					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence enclosed in curly brackets.") in
 					let (u, a) =
 						try
 							(int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
@@ -512,15 +556,19 @@ let unescape s =
 							assert (s.[i+1] = '{');
 							let l = String.index_from s (i+3) '}' - (i+2) in
 							let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
-							assert (u <= 0x10FFFF);
+							if u > 0x10FFFF then
+								fail (Some "Maximum allowed value for unicode escape sequence is \\u{10FFFF}");
 							(u, l+2)
-						with _ ->
-							fail()
+						with
+							| Invalid_escape_sequence (c,i,msg) as e -> raise e
+							| _ -> fail_no_hex ()
 					in
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					if u >= 0xD800 && u < 0xE000 then
+						fail (Some "UTF-16 surrogates are not allowed in strings.");
+					UTF8.add_uchar b (UCharExt.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
-					fail());
+					fail None);
 				loop false !inext;
 			end else
 				match c with
@@ -617,7 +665,7 @@ let map_expr loop (e,p) =
 			let eo = opt loop eo in
 			n,b,t,eo
 		) vl)
-	| EFunction (n,f) -> EFunction (n,func f)
+	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
 	| EFor (e1,e2) ->
 		let e1 = loop e1 in
@@ -709,7 +757,7 @@ let s_display_kind = function
 	| DKMarked -> "DKMarked"
 	| DKPattern _ -> "DKPattern"
 
-let s_expr e =
+module Printer = struct
 	let rec s_expr_inner tabs (e,_) =
 		match e with
 		| EConst c -> s_constant c
@@ -723,8 +771,9 @@ let s_expr e =
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (Some (n,_),f) -> "function " ^ n ^ s_func tabs f
-		| EFunction (None,f) -> "function" ^ s_func tabs f
+		| EFunction (FKNamed((n,_),inline),f) -> (if inline then "inline " else "") ^ "function " ^ n ^ s_func tabs f
+		| EFunction (FKAnonymous,f) -> "function" ^ s_func tabs f
+		| EFunction (FKArrow,f) -> "function" ^ s_func ~is_arrow:true tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
 		| EBlock el -> s_block tabs el "{" "\n" "}"
@@ -776,7 +825,7 @@ let s_expr e =
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
 		match f.cff_doc with
-		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
+		| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
 		| None -> "" ^
 		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
 		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
@@ -794,10 +843,11 @@ let s_expr e =
 		match t with
 		| Some(t,_) -> pre ^ s_complex_type tabs t
 		| None -> ""
-	and s_func tabs f =
+	and s_func ?(is_arrow=false) tabs f =
 		s_type_param_list tabs f.f_params ^
 		"(" ^ String.concat ", " (List.map (s_func_arg tabs) f.f_args) ^ ")" ^
 		s_opt_type_hint tabs f.f_type ":" ^
+		(if is_arrow then " -> " else "") ^
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
 		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
@@ -824,7 +874,9 @@ let s_expr e =
 		| (EBlock [],_) -> ""
 		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" "" ""
 		| _ -> s_expr_inner (tabs ^ "\t") e ^ ";"
-	in s_expr_inner "" e
+
+	let s_expr e = s_expr_inner "" e
+end
 
 let get_value_meta meta =
 	try
@@ -953,13 +1005,14 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,_,eo) -> match eo with
+				List.iter (fun ((n,p),_,cto,eo) ->
+					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
+					match eo with
 					| None -> ()
 					| Some e ->
-						add n;
-						loop' (Printf.sprintf "%s  " tabs) e
+						loop' (Printf.sprintf "%s      " tabs) e
 				) vl
-			| EFunction(so,f) ->
+			| EFunction(_,f) ->
 				add "EFunction";
 				Option.may loop f.f_expr;
 			| EBlock el ->

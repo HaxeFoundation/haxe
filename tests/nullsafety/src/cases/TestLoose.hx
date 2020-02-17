@@ -64,4 +64,39 @@ class TestLoose {
 		}
 		bar();
 	}
+
+	static var struct:Null<{foo:String}>;
+
+	static function checkAgainstNull_checkAndFieldAccess() {
+		struct == null
+			|| struct.foo != ""
+			|| struct.foo != "";
+		struct != null
+			&& struct.foo != ""
+			&& struct.foo != "";
+	}
+
+	static function safeNullable_capturedInLocalFunction_shouldPass(?a:String) {
+		if(a == null) {
+			return;
+		}
+		var fn = function():String {
+			return a;
+		}
+	}
+
+	static function testIssue8442() {
+		function from(array: Array<Float>) {
+			return array.length;
+		}
+
+		function create(?array: Array<Float>) {
+			return from(shouldFail(array));
+			// haxe seems to think this unused null check means array is non-nullable
+			if (array != null) {
+			} else {
+				return -1;
+			}
+		}
+	}
 }

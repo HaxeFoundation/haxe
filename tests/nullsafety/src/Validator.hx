@@ -23,7 +23,9 @@ class Validator {
 		for(field in Context.getBuildFields()) {
 			for(meta in field.meta) {
 				if(meta.name == ':shouldFail') {
-					expectedErrors.push({symbol: field.name, pos:field.pos});
+					var fieldPosInfos = Context.getPosInfos(field.pos);
+					fieldPosInfos.min = Context.getPosInfos(meta.pos).max + 1;
+					expectedErrors.push({symbol: field.name, pos:Context.makePosition(fieldPosInfos)});
 					break;
 				}
 			}

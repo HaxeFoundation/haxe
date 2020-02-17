@@ -1,7 +1,7 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum JustificationStyle {
-	PRIORITIZE_LEAST_ADJUSTMENT;
-	PUSH_IN_KINSOKU;
-	PUSH_OUT_ONLY;
+@:native("flash.text.engine.JustificationStyle") extern enum abstract JustificationStyle(String) {
+	var PRIORITIZE_LEAST_ADJUSTMENT;
+	var PUSH_IN_KINSOKU;
+	var PUSH_OUT_ONLY;
 }

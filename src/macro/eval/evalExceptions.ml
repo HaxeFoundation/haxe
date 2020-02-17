@@ -102,10 +102,10 @@ let get_exc_error_message ctx v stack p =
 		uncaught_exception_string v p ""
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
-		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
+		Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
 
 let build_exception_stack ctx env =
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	let rec loop acc env' =
 		let acc = env' :: acc in
 		if env == env' then
@@ -114,30 +114,37 @@ let build_exception_stack ctx env =
 			| Some env -> loop acc env
 			| None -> assert false
 	in
-	let d = loop [] eval.env in
+	let d = match eval.env with
+	| Some env -> loop [] env
+	| None -> []
+	in
 	ctx.exception_stack <- List.map (fun env ->
 		{pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
 
+let handle_stack_overflow eval f =
+	try f()
+	with Stack_overflow -> exc_string "Stack overflow"
+
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
-	let prev = !get_ctx_ref in
+	let prev = !GlobalState.get_ctx_ref in
 	select ctx;
 	let eval = get_eval ctx in
 	let env = eval.env in
 	let r = try
-		let v = f() in
-		get_ctx_ref := prev;
+		let v = handle_stack_overflow eval f in
+		GlobalState.get_ctx_ref := prev;
 		final();
 		Some v
 	with
 	| RunTimeException(v,stack,p') ->
-		ctx.debug.caught_exception <- vnull;
-		build_exception_stack ctx env;
+		eval.caught_exception <- vnull;
+		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_message in
 			let v2 = field v key_pos in
-			get_ctx_ref := prev;
+			GlobalState.get_ctx_ref := prev;
 			final();
 			match v1,v2 with
 				| VString s,VInstance {ikind = IPos p} ->
@@ -146,8 +153,13 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 					Error.error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
-			let msg = get_exc_error_message ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p') in
-			get_ctx_ref := prev;
+			let stack = match stack with
+				| [] -> []
+				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
+				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
+			in
+			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
+			GlobalState.get_ctx_ref := prev;
 			final();
 			Error.error msg null_pos
 		end
@@ -155,7 +167,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		final();
 		None
 	| exc ->
-		get_ctx_ref := prev;
+		GlobalState.get_ctx_ref := prev;
 		final();
 		raise exc
 	in

@@ -14,6 +14,32 @@ open EvalDebugMisc
 
 (* Printing *)
 
+
+let handle_in_temp_thread ctx env f =
+	let channel = Event.new_channel () in
+	let _ = EvalThread.spawn ctx (fun () ->
+		let eval = get_eval ctx in
+		eval.env <- Some env;
+		let v = try
+			f()
+		with
+		| RunTimeException(v,stack,p) ->
+			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
+			vnull
+		| exc ->
+			prerr_endline (Printexc.to_string exc);
+			vnull
+		in
+		Event.poll (Event.send channel v)
+	) in
+	Event.sync (Event.receive channel)
+
+let thread_safe_value_string env v =
+	let ctx = get_ctx() in
+	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
+	| VString s -> s.sstring
+	| _ -> assert false
+
 let var_to_json name value vio env =
 	let jv t v num_children =
 		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
@@ -85,7 +111,7 @@ let var_to_json name value vio env =
 		| VObject o ->
 			begin try
 				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
-				jv "Expr" (Ast.s_expr e) 2
+				jv "Expr" (Ast.Printer.s_expr e) 2
 			with _ ->
 				let fields = object_fields o in
 				jv "Anonymous" (fields_string fields) (List.length fields)
@@ -95,9 +121,23 @@ let var_to_json name value vio env =
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
-			let class_name = EvalDebugMisc.safe_call (get_ctx()) EvalPrinting.value_string v in
-			let fields = instance_fields vi in
-			jv class_name (class_name) (List.length fields)
+			let class_name () = thread_safe_value_string env v in
+			let num_children,class_name = match vi.ikind with
+			| IMutex _ -> 1,class_name()
+			| IThread _ -> 1,class_name()
+			| IBytes bytes ->
+				let max = 40 in
+				let s = Bytes.to_string bytes in
+				let s = (try String.sub s 0 max ^ "..." with Invalid_argument _ -> s) in
+				List.length (instance_fields vi),s
+			| _ -> List.length (instance_fields vi),class_name()
+			in
+			let num_children = match vi.ikind with
+			| IMutex _ -> 1
+			| IThread _ -> 1
+			| _ -> List.length (instance_fields vi)
+			in
+			jv class_name (class_name) num_children
 		| VPrototype proto ->
 			let fields = proto_fields proto in
 			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
@@ -106,32 +146,28 @@ let var_to_json name value vio env =
 	in
 	value_string value
 
-let get_call_stack_envs ctx kind p =
-	let envs = match call_stack ctx with
-		| _ :: envs -> envs
-		| [] -> []
-	in
+let get_call_stack_envs eval p =
+	let envs = call_stack eval in
 	let rec loop delta envs = match envs with
 		| _ :: envs when delta < 0 -> loop (delta + 1) envs
 		| _ -> envs
 	in
 	loop 0 envs
 
-let output_call_stack ctx kind p =
-	let envs = get_call_stack_envs ctx kind p in
-	let id = ref (-1) in
-	let stack_item kind p =
-		incr id;
+let output_call_stack ctx eval p =
+	let envs = get_call_stack_envs eval p in
+	let stack_item env p =
+		let id = ctx.debug.debug_context#add_stack_frame env in
+		let kind = env.env_info.kind in
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 		let path = Path.get_real_path p.pfile in
 		let artificial,name = match kind with
-			| EKMethod _ | EKLocalFunction _ -> false,kind_name (get_eval ctx) kind
+			| EKMethod _ | EKLocalFunction _ -> false,kind_name eval kind
 			| EKEntrypoint -> true,p.pfile
-			| EKToplevel -> true,kind_name (get_eval ctx) kind
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
-			"id",JInt !id;
+			"id",JInt id;
 			"name",JString name;
 			"source",source;
 			"line",JInt line1;
@@ -141,12 +177,21 @@ let output_call_stack ctx kind p =
 			"artificial",JBool artificial;
 		]
 	in
-	let l = [stack_item kind p] in
-	let stack = List.fold_left (fun acc env ->
-		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash env.env_info.pfile} in
-		(stack_item env.env_info.kind p) :: acc
-	) l envs in
+	let _,stack = List.fold_left (fun (first,acc) env ->
+		let p = if first then p else {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash env.env_info.pfile} in
+		false,((stack_item env p) :: acc)
+	) (true,[]) envs in
 	JArray (List.rev stack)
+
+let output_threads ctx =
+	let fold id eval acc =
+		(JObject [
+			"id",JInt id;
+			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
+		]) :: acc
+	in
+	let threads = IntMap.fold fold ctx.evals [] in
+	JArray threads
 
 let is_simn = false
 
@@ -180,8 +225,8 @@ let output_scopes ctx env =
 		scopes
 	else begin
 		let dbg = {
-			ds_expr = env.env_debug.expr;
-			ds_return = ctx.debug.last_return;
+			ds_expr = env.env_debug.debug_expr;
+			ds_return = env.env_eval.last_return;
 		} in
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
 	end in
@@ -191,20 +236,20 @@ let output_scopes ctx env =
 
 let output_capture_vars infos env =
 	let vars = Hashtbl.fold (fun slot vi acc ->
-		let value = !(env.env_captures.(slot)) in
+		let value = (env.env_captures.(slot)) in
 		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
 
 let output_debug_scope dbg env =
 	let ja = [
-		var_to_json "expr" (VString (EvalString.create_ascii (Type.s_expr_pretty true "" false (s_type (print_context())) env.env_debug.expr))) None env;
+		var_to_json "expr" (VString (EvalString.create_ascii env.env_debug.debug_expr)) None env;
 		var_to_json "last return" (match dbg.ds_return with None -> vnull | Some v -> v) None env;
 	] in
 	JArray ja
 
 let output_scope_vars env scope =
-	let p = env.env_debug.expr.epos in
+	let p = env.env_debug.debug_pos in
 	let vars = Hashtbl.fold (fun local_slot vi acc ->
 		if declared_before vi p then begin
 			let slot = local_slot + scope.local_offset in
@@ -235,10 +280,15 @@ let output_inner_vars v env =
 				let n = rev_hash n in
 				n, v
 			) fields
-		| VString s -> [
-			"length",vint s.slength;
-			"byteLength",vint (String.length s.sstring);
-		]
+		| VString s ->
+			let _,l = List.fold_left (fun (i,acc) (cr_index,br_offset) ->
+				(i + 1),(Printf.sprintf "index%i" i,vint !cr_index) ::
+				(Printf.sprintf "offset%i" i,vint !br_offset) ::
+				acc
+			) (0,[]) (List.rev s.soffsets) in
+			("length",vint s.slength) ::
+			("byteLength",vint (String.length s.sstring)) ::
+			l
 		| VArray va ->
 			let l = EvalArray.to_list va in
 			List.mapi (fun i v ->
@@ -255,6 +305,10 @@ let output_inner_vars v env =
 			StringHashtbl.fold (fun s (_,v) acc ->
 				(s,v) :: acc
 			) h []
+		| VInstance {ikind = IMutex mutex} ->
+			["owner",match mutex.mowner with None -> vnull | Some id -> vint id]
+		| VInstance {ikind = IThread thread} ->
+			["id",vint (Thread.id thread.tthread)]
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->
@@ -273,11 +327,6 @@ let output_inner_vars v env =
 	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
 
-type command_outcome =
-	| Loop of Json.t
-	| Run of Json.t * EvalContext.env
-	| Wait of Json.t * EvalContext.env
-
 module ValueCompletion = struct
 	let prototype_instance_fields proto =
 		let rec loop acc proto =
@@ -291,28 +340,34 @@ module ValueCompletion = struct
 		loop IntMap.empty proto
 
 	let prototype_static_fields proto =
-		IntMap.fold (fun name _ acc -> IntMap.add name (name,"field",None) acc) proto.pnames IntMap.empty
-
+		IntMap.fold (fun name offset acc ->
+			let v = proto.pfields.(offset) in
+			let kind = match v with
+				| VFunction _ -> "method"
+				| _ -> "field"
+			in
+			IntMap.add name (name,kind,None) acc
+		) proto.pnames IntMap.empty
 
 	let to_json l =
 		JArray (List.map (fun (n,k,column) ->
-			let fields = ["label",JString (rev_hash n);"kind",JString k] in
+			let fields = ["label",JString (rev_hash n);"type",JString k] in
 			let fields = match column with None -> fields | Some column -> ("start",JInt column) :: fields in
 			JObject fields
 		) l)
 
 	let collect_idents ctx env =
 		let acc = Hashtbl.create 0 in
-		let add key =
+		let add key kind =
 			if not (Hashtbl.mem acc key) then
-				Hashtbl.add acc key (key,"value",None)
+				Hashtbl.add acc key (key,kind,None)
 		in
 		(* 0. Extra locals *)
-		IntMap.iter (fun key _ -> add key) env.env_extra_locals;
+		IntMap.iter (fun key _ -> add key "variable") env.env_extra_locals;
 		(* 1. Variables *)
 		let rec loop scopes = match scopes with
 			| scope :: scopes ->
-				Hashtbl.iter (fun key _ -> add (hash key)) scope.local_ids;
+				Hashtbl.iter (fun key _ -> add (hash key) "variable") scope.local_ids;
 				loop scopes
 			| [] ->
 				()
@@ -320,7 +375,7 @@ module ValueCompletion = struct
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
 		Hashtbl.iter (fun slot vi ->
-			add (hash vi.vi_name)
+			add (hash vi.vi_name) "variable"
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
 		if not env.env_info.static then begin
@@ -328,7 +383,7 @@ module ValueCompletion = struct
 			begin match v with
 			| VInstance vi ->
 				let fields = prototype_instance_fields vi.iproto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				()
 			end
@@ -338,7 +393,7 @@ module ValueCompletion = struct
 			| EKMethod(i1,_) ->
 				let proto = get_static_prototype_raise ctx i1 in
 				let fields = prototype_static_fields proto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				raise Not_found
 		end;
@@ -346,7 +401,18 @@ module ValueCompletion = struct
 		begin match ctx.toplevel with
 		| VObject o ->
 			let fields = object_fields o in
-			List.iter (fun (n,_) -> add n) fields
+			List.iter (fun (n,v) ->
+				let kind = match v with
+					| VPrototype proto ->
+						begin match proto.pkind with
+						| PClass _ -> "class"
+						| PEnum _ -> "enum"
+						| _ -> "class" (* ? *)
+						end
+					| _ -> "module"
+				in
+				add n kind
+			) fields
 		| _ ->
 			()
 		end;
@@ -398,26 +464,26 @@ module ValueCompletion = struct
 	let get_completion ctx text column env =
 		let p = { pmin = 0; pmax = 0; pfile = "" } in
 		let save =
-			let old = !Parser.display_mode,!DisplayPosition.display_position in
+			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->
 				Parser.display_mode := fst old;
-				DisplayPosition.display_position := snd old;
+				DisplayPosition.display_position#set (snd old);
 			)
 		in
 		Parser.display_mode := DMDefault;
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
-		DisplayPosition.display_position := {p with pmin = offset; pmax = offset};
+		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx text p in
 			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->
-				let v = expr_to_value ctx env e1 in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e1) in
 				let json = output_completion ctx column v in
 				raise (JsonException json)
 			| EArray(e1,(EDisplay((EConst (Ident "null"),_),DKMarked),_)) ->
-				let v = expr_to_value ctx env e1 in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e1) in
 				begin match v with
 				| VArray va ->
 					let l = EvalArray.to_list va in
@@ -440,26 +506,31 @@ module ValueCompletion = struct
 				raise Exit
 			with
 			| JsonException json ->
-				Loop (json)
+				json
 			end
 		with _ ->
 			save();
 			raise Exit
-		end;
+		end
 
+	let get_completion ctx text column env =
+		if text = "" then
+			collect_idents ctx env
+		else
+			get_completion ctx text column env
 end
 
 type handler_context = {
 	ctx : context;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
-	env : env;
 	send_error : 'a . string -> 'a;
 }
 
+let expect_env hctx env = match env with
+	| Some env -> env
+	| None -> hctx.send_error "No frame found"
+
 let handler =
-	let get_real_env ctx =
-		(get_eval ctx).env
-	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
 		let obj = j#get_object "breakpoint" jo in
@@ -467,56 +538,68 @@ let handler =
 		let column = j#get_opt_param (fun () -> BPColumn (j#get_int_field "column" "column" obj)) BPAny in
 		let condition = j#get_opt_param (fun () ->
 			let s = j#get_string_field "condition" "condition" obj in
-			Some (parse_expr hctx.ctx s hctx.env.env_debug.expr.epos)
+			Some (parse_expr hctx.ctx s null_pos)
 		) None in
 		(line,column,condition)
 	in
-	let rec move_frame hctx offset =
-		let eval = get_eval hctx.ctx in
-		let rec loop env i =
-			if i = 0 then env
-			else match env.env_parent with
-			| None -> hctx.send_error "Frame out of bounds"
-			| Some env -> loop env (i - 1)
+	let select_frame hctx =
+		let frame_id = hctx.jsonrpc#get_int_param "frameId" in
+		let env = match hctx.ctx.debug.debug_context#get frame_id with
+			| StackFrame env -> env
+			| _ -> hctx.send_error (Printf.sprintf "Bad frame ID: %i" frame_id);
 		in
-		if offset < 0 then
-			hctx.send_error "Frame out of bounds"
-		else begin
-			loop eval.env offset
-		end
+		env
 	in
-	let update_frame hctx =
-		let frame = hctx.jsonrpc#get_int_param "frameId" in
-		move_frame hctx frame
+	let select_thread hctx =
+		let id = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "threadId") 0 in
+		let eval = try IntMap.find id hctx.ctx.evals with Not_found -> hctx.send_error "Invalid thread id" in
+		eval
 	in
 	let h = Hashtbl.create 0 in
 	let l = [
+		"pause",(fun hctx ->
+			let eval = select_thread hctx in
+			eval.debug_state <- DbgWaiting;
+			JNull
+		);
 		"continue",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- (if hctx.ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
-			Run (JNull,env)
+			let eval = select_thread hctx in
+			eval.debug_state <- DbgRunning;
+			ignore(Event.poll (Event.send eval.debug_channel ()));
+			JNull
 		);
 		"stepIn",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			Run (JNull,env)
+			let eval = select_thread hctx in
+			eval.debug_state <- DbgStep;
+			ignore(Event.poll (Event.send eval.debug_channel ()));
+			JNull
 		);
 		"next",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgNext(env,env.env_debug.expr.epos);
-			Run (JNull,env)
+			let eval = select_thread hctx in
+			let env = expect_env hctx eval.env in
+			eval.debug_state <- DbgNext(env,env.env_debug.debug_pos);
+			ignore(Event.poll (Event.send eval.debug_channel ()));
+			JNull
 		);
 		"stepOut",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			let penv = Option.get env.env_parent in
-			hctx.ctx.debug.debug_state <- DbgFinish penv;
-			Run (JNull,env)
+			let eval = select_thread hctx in
+			let env = expect_env hctx eval.env in
+			let penv = expect_env hctx env.env_parent in
+			eval.debug_state <- DbgFinish penv;
+			ignore(Event.poll (Event.send eval.debug_channel ()));
+			JNull
+		);
+		"getThreads",(fun hctx ->
+			output_threads hctx.ctx
 		);
 		"stackTrace",(fun hctx ->
-			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
+			let eval = select_thread hctx in
+			let env = expect_env hctx eval.env in
+			output_call_stack hctx.ctx eval env.env_debug.debug_pos
 		);
 		"getScopes",(fun hctx ->
-			let env = update_frame hctx in
-			Loop (output_scopes hctx.ctx env);
+			let env = select_frame hctx in
+			output_scopes hctx.ctx env
 		);
 		"getVariables",(fun hctx ->
 			let sid = hctx.jsonrpc#get_int_param "id" in
@@ -534,13 +617,13 @@ let handler =
 								output_debug_scope dbg env
 							| Value(value,env) ->
 								output_inner_vars value env
-							| Toplevel ->
-								hctx.send_error "Invalid scope id";
+							| Toplevel | StackFrame _ | NoSuchReference ->
+								hctx.send_error (Printf.sprintf "Bad ID: %i" sid);
 						end
 					with Exit ->
 						hctx.send_error "Invalid scope id"
 				in
-				Loop vars
+				vars
 			end
 		);
 		"setBreakpoints",(fun hctx ->
@@ -563,13 +646,13 @@ let handler =
 				Hashtbl.add h line bp;
 				JObject ["id",JInt bp.bpid]
 			) bps in
-			Loop (JArray bps)
+			JArray bps
 		);
 		"setBreakpoint",(fun hctx ->
 			let line,column,condition = parse_breakpoint hctx (hctx.jsonrpc#get_params) in
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let breakpoint = add_breakpoint hctx.ctx file line column condition in
-			Loop (JObject ["id",JInt breakpoint.bpid])
+			JObject ["id",JInt breakpoint.bpid]
 		);
 		"setFunctionBreakpoints",(fun hctx ->
 			Hashtbl.clear hctx.ctx.debug.function_breakpoints;
@@ -586,7 +669,7 @@ let handler =
 				Hashtbl.add hctx.ctx.debug.function_breakpoints (hash key_type,hash key_field) bp;
 				JObject ["id",JInt bp.fbpid]
 			) bps in
-			Loop (JArray bps)
+			JArray bps
 		);
 		"removeBreakpoint",(fun hctx ->
 			let id = hctx.jsonrpc#get_int_param "id" in
@@ -599,23 +682,23 @@ let handler =
 			with Not_found ->
 				hctx.send_error (Printf.sprintf "Unknown breakpoint: %d" id)
 			end;
-			Loop JNull
+			JNull
 		);
 		"setVariable",(fun hctx ->
-			let env = hctx.env in
 			let id = hctx.jsonrpc#get_int_param "id" in
 			let name = hctx.jsonrpc#get_string_param "name" in
 			let value = hctx.jsonrpc#get_string_param "value" in
-			let value = try
-				let e = parse_expr hctx.ctx value env.env_debug.expr.epos in
+			let get_value env = try
+				let e = parse_expr hctx.ctx value env.env_debug.debug_pos in
 				expr_to_value hctx.ctx env e
 			with Parse_expr_error e ->
 				hctx.send_error e
 			in
 			begin match hctx.ctx.debug.debug_context#get id with
-			| Toplevel ->
-				hctx.send_error "Invalid id";
+			| Toplevel | NoSuchReference ->
+				hctx.send_error (Printf.sprintf "Bad ID: %i" id);
 			| Value(v,env) ->
+				let value = get_value env in
 				let name_as_index () = try
 					(* The name is [1] so we have to extract the number. This is quite stupid but not really our fault... *)
 					int_of_string (String.sub name 1 (String.length name - 2))
@@ -628,18 +711,20 @@ let handler =
 				| _ ->
 					set_field v (hash name) value;
 				end;
-				Loop (var_to_json "" value None env)
+				var_to_json "" value None env
 			| Scope(scope,env) ->
+				let value = get_value env in
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				env.env_locals.(slot + scope.local_offset) <- value;
-				Loop (var_to_json "" value None env)
+				var_to_json "" value None env
 			| CaptureScope(infos,env) ->
+				let value = get_value env in
 				let slot = get_capture_slot_by_name infos name in
-				env.env_captures.(slot) := value;
-				Loop (var_to_json "" value None env)
-			| DebugScope(_,env) ->
-				Loop JNull
+				env.env_captures.(slot) <- value;
+				var_to_json "" value None env
+			| DebugScope _ | StackFrame _ ->
+				JNull
 			end
 		);
 		"setExceptionOptions",(fun hctx ->
@@ -648,15 +733,16 @@ let handler =
 			hctx.ctx.debug.exception_mode <- if List.mem "all" sl then CatchAll
 				else if List.mem "uncaught" sl then CatchUncaught
 				else CatchNone;
-			Loop(JNull)
+			JNull
 		);
 		"evaluate",(fun hctx ->
-			let env = update_frame hctx in
+			let ctx = hctx.ctx in
+			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
-				let v = expr_to_value hctx.ctx env e in
-				Loop (var_to_json "" v None env)
+				let e = parse_expr ctx s env.env_debug.debug_pos in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e) in
+				var_to_json "" v None env
 			with
 			| Parse_expr_error e ->
 				hctx.send_error e
@@ -665,7 +751,7 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
-			let env = hctx.env in
+			let env = expect_env hctx hctx.ctx.eval.env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try
@@ -678,34 +764,30 @@ let handler =
 	h
 
 let make_connection socket =
-	let output_breakpoint_stop ctx _ =
-		ctx.debug.debug_context <- new eval_debug_context;
-		send_event socket "breakpointStop" None
+	let output_thread_event thread_id reason =
+		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
 	in
-	let output_exception_stop ctx v _ =
-		ctx.debug.debug_context <- new eval_debug_context;
-		send_event socket "exceptionStop" (Some (JObject ["text",JString (value_string v)]))
+	let output_breakpoint_stop debug =
+		(* TODO: this isn't thread-safe. We should only creates these anew if all threads continued *)
+		debug.debug_context <- new eval_debug_context;
+		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
 	in
-	let rec wait ctx (run : env -> value) env =
+	let output_exception_stop debug v _ =
+		debug.debug_context <- new eval_debug_context;
+		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
+	in
+	let rec wait () : unit =
 		let rec process_outcome id outcome =
 			let output j = send_json socket (JsonRpc.result id j) in
-			match outcome with
-			| Loop result ->
-				output result;
-				loop ()
-			| Run (result,env) ->
-				output result;
-				run env
-			| Wait (result,env) ->
-				output result;
-				wait ctx run env;
+			output outcome;
+			loop ()
 		and send_output_and_continue json =
 			send_json socket json;
 			loop ()
 		and send_output_and_exit json =
 			send_json socket json;
 			raise Exit
-		and loop () : value =
+		and loop () =
 			let input = Socket.read_string socket in
 			let input =
 				JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_output_and_exit
@@ -716,9 +798,8 @@ let make_connection socket =
 				raise (JsonRpc_error (Custom (jsonrpc#get_id, 1, msg)))
 			in
 			let hctx = {
-				ctx = ctx;
+				ctx = get_ctx();
 				jsonrpc = jsonrpc;
-				env = env;
 				send_error = error;
 			} in
 			JsonRpc.handle_jsonrpc_error (fun () ->
@@ -736,8 +817,9 @@ let make_connection socket =
 		with Exit ->
 			loop ()
 	in
+	ignore(Thread.create wait ());
 	{
-		wait = wait;
 		bp_stop = output_breakpoint_stop;
 		exc_stop = output_exception_stop;
+		send_thread_event = output_thread_event;
 	}

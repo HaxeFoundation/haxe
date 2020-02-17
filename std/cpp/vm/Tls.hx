@@ -19,26 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-class Tls<T> {
-
-	static var sFreeSlot = 0;
-	var mTLSID : Int;
-	public var value(get,set) : T;
-
-	public function new() {
-		mTLSID = sFreeSlot++;
-	}
-
-	function get_value() : T {
-		return untyped __global__.__hxcpp_tls_get(mTLSID);
-	}
-
-	function set_value( v : T ) {
-		untyped __global__.__hxcpp_tls_set(mTLSID,v);
-		return v;
-	}
-
-}
-
+@:deprecated typedef Tls<T> = sys.thread.Tls<T>;

@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `FontFace` interface represents a single usable font face. It allows control of the source of the font face, being a URL to an external resource, or a buffer; it also allows control of when the font face is loaded and its current status.
 
@@ -33,57 +35,57 @@ package js.html;
 **/
 @:native("FontFace")
 extern class FontFace {
-	
+
 	/**
 		Is a `CSSOMString` that contains the family of the font. It is equivalent to the `@font-face/font-family` descriptor.
 	**/
 	var family : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains the style of the font. It is equivalent to the `@font-face/font-style` descriptor.
 	**/
 	var style : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains the weight of the font. It is equivalent to the `@font-face/font-weight` descriptor.
 	**/
 	var weight : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains how the font stretches. It is equivalent to the `@font-face/font-stretch` descriptor.
 	**/
 	var stretch : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
 	**/
 	var unicodeRange : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains the variant of the font. It is equivalent to the `@font-face/font-variant` descriptor.
 	**/
 	var variant : String;
-	
+
 	/**
 		Is a `CSSOMString` that contains the features of the font. It is equivalent to the `@font-face/font-feature-settings`descriptor.
 	**/
 	var featureSettings : String;
-	
+
 	/**
 		Returns an enumerated value indicating the status of the font. It can be one of the following: `"unloaded"`, `"loading"`, `"loaded"`, or `"error"`.
 	**/
 	var status(default,null) : FontFaceLoadStatus;
-	
+
 	/**
 		Returns a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
 	**/
 	var loaded(default,null) : Promise<FontFace>;
-	
+
 	/** @throws DOMError */
 	@:overload( function( family : String, source : js.lib.ArrayBuffer, ?descriptors : FontFaceDescriptors) : FontFace {} )
 	@:overload( function( family : String, source : js.lib.ArrayBufferView, ?descriptors : FontFaceDescriptors) : FontFace {} )
 	function new( family : String, source : String, ?descriptors : FontFaceDescriptors ) : Void;
-	
+
 	/**
 		Loads the font, returning a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
 		@throws DOMError

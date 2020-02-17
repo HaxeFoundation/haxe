@@ -23,7 +23,7 @@ open Typecore
 open Type
 open CompletionItem
 open ClassFieldOrigin
-open DisplayEmitter
+open Display
 
 let get_submodule_fields ctx path =
 	let m = Hashtbl.find ctx.g.modules path in
@@ -50,7 +50,7 @@ let collect_static_extensions ctx items e p =
 		| (c,_) :: l ->
 			let rec dup t = Type.map dup t in
 			let acc = List.fold_left (fun acc f ->
-				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name items then
+				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name acc then
 					acc
 				else begin
 					let f = { f with cf_type = opt_type f.cf_type } in
@@ -76,7 +76,7 @@ let collect_static_extensions ctx items e p =
 									| _ -> TClassDecl c
 								in
 								let origin = StaticExtension(decl) in
-								let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta f.cf_meta) f.cf_type in
+								let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta f.cf_meta) f.cf_type in
 								let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 								PMap.add f.cf_name item acc
 							end
@@ -115,7 +115,7 @@ let collect ctx e_ast e dk with_type p =
 			can_access ctx c cf stat
 	in
 	let make_class_field origin cf =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
+		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)
 	in
 	let rec loop items t =
@@ -127,7 +127,7 @@ let collect ctx e_ast e dk with_type p =
 		| TInst(c0,tl) ->
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
-			merge_core_doc ctx (TClassDecl c0);
+			Display.merge_core_doc ctx (TClassDecl c0);
 			PMap.foldi (fun k (c,cf) acc ->
 				if should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
@@ -151,7 +151,7 @@ let collect ctx e_ast e dk with_type p =
 				items
 			end;
 		| TAbstract({a_impl = Some c} as a,tl) ->
-			merge_core_doc ctx (TAbstractDecl a);
+			Display.merge_core_doc ctx (TAbstractDecl a);
 			(* Abstracts should show all their @:impl fields minus the constructor. *)
 			let items = List.fold_left (fun acc cf ->
 				if Meta.has Meta.Impl cf.cf_meta && not (Meta.has Meta.Enum cf.cf_meta) && should_access c cf false && is_new_item acc cf.cf_name then begin
@@ -171,8 +171,11 @@ let collect ctx e_ast e dk with_type p =
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
+				let abstract_has_own_field field_name =
+					PMap.mem field_name c.cl_fields || PMap.mem field_name c.cl_statics
+				in
 				PMap.foldi (fun name item acc ->
-					if sl = [] || List.mem name sl && is_new_item acc name then
+					if (sl = [] || List.mem name sl && is_new_item acc name) && not (abstract_has_own_field name) then
 						PMap.add name item acc
 					else
 						acc
@@ -181,14 +184,33 @@ let collect ctx e_ast e dk with_type p =
 				items
 			end
 		| TAnon an ->
-			(* Anons only have their own fields. *)
+			(* @:forwardStatics *)
+			let items = match !(an.a_status) with
+				| Statics { cl_kind = KAbstractImpl { a_meta = meta; a_this = TInst (c,_) }} when Meta.has Meta.ForwardStatics meta ->
+					let items = List.fold_left (fun acc cf ->
+						if should_access c cf true && is_new_item acc cf.cf_name then begin
+							let origin = Self(TClassDecl c) in
+							let item = make_class_field origin cf in
+							PMap.add cf.cf_name item acc
+						end else
+							acc
+					) items c.cl_ordered_statics in
+					PMap.foldi (fun name item acc ->
+						if is_new_item acc name then
+							PMap.add name item acc
+						else
+							acc
+					) PMap.empty items
+				| _ -> items
+			in
+			(* Anon own fields *)
 			PMap.foldi (fun name cf acc ->
 				if is_new_item acc name then begin
 					let allow_static_abstract_access c cf =
 						should_access c cf false &&
 						(not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Enum cf.cf_meta)
 					in
-					let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
+					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 					let add origin make_field =
 						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					in
@@ -204,13 +226,13 @@ let collect ctx e_ast e dk with_type p =
 							else
 								acc;
 						| Statics c ->
-							merge_core_doc ctx (TClassDecl c);
+							Display.merge_core_doc ctx (TClassDecl c);
 							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
 							let ef = PMap.find name en.e_constrs in
 							PMap.add name (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (cf.cf_type,ct)) acc
 						| AbstractStatics a ->
-							merge_core_doc ctx (TAbstractDecl a);
+							Display.merge_core_doc ctx (TAbstractDecl a);
 							let check = match a.a_impl with
 								| None -> true
 								| Some c -> allow_static_abstract_access c cf
@@ -231,7 +253,7 @@ let collect ctx e_ast e dk with_type p =
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p null_pos in
 				cf.cf_kind <- Method MethNormal;
-				let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) t in
+				let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
 				let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
 				PMap.add "bind" item items
 			end else
@@ -241,11 +263,11 @@ let collect ctx e_ast e dk with_type p =
 	in
 	(* Add special `.code` field if we have a string of length 1 *)
 	let items = match fst e_ast with
-		| EConst(String s) when String.length s = 1 ->
+		| EConst(String(s,_)) when String.length s = 1 ->
 			let cf = mk_field "code" ctx.t.tint e.epos null_pos in
-			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
+			cf.cf_doc <- doc_from_string "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
-			let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
+			let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 			let item = make_ci_class_field (CompletionClassField.make cf CFSMember BuiltIn true) (cf.cf_type,ct) in
 			PMap.add cf.cf_name item PMap.empty
 		| _ ->

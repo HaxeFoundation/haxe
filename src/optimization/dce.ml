@@ -97,6 +97,12 @@ let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
+let mk_used_meta pos =
+	Meta.Used,[],(mk_zero_range_pos pos)
+
+let mk_keep_meta pos =
+	Meta.Keep,[],(mk_zero_range_pos pos)
+
 (*
 	Check if a field is kept.
 	`keep_field` is checked to determine the DCE entry points, i.e. all fields that have `@:keep` or kept for other reasons.
@@ -113,6 +119,19 @@ let rec keep_field dce cf c is_static =
 			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
 			| _ -> false
 	)
+	|| begin
+		let check_accessor prefix =
+			try
+				let fields = if is_static then c.cl_statics else c.cl_fields in
+				let accessor = PMap.find (prefix ^ cf.cf_name) fields in
+				keep_field dce accessor c is_static
+			with Not_found -> false
+		in
+		match cf.cf_kind with
+		| Var { v_read = AccCall } -> check_accessor "get_"
+		| Var { v_write = AccCall } -> check_accessor "set_"
+		| _ -> false
+	end
 
 (* marking *)
 
@@ -135,7 +154,7 @@ and check_and_add_feature dce s =
 and mark_field dce c cf stat =
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
-			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
+			cf.cf_meta <- (mk_used_meta cf.cf_pos) :: cf.cf_meta;
 			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields;
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
@@ -182,25 +201,21 @@ let rec update_marked_class_fields dce c =
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
-	c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+	c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
-	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
-
-	(* do not generate has_enum feature for @:fakeEnum enums since they are not really enums *)
-	if not (Meta.has Meta.FakeEnum e.e_meta) then
-		check_and_add_feature dce "has_enum";
-
+	e.e_meta <- (mk_used_meta e.e_pos) :: e.e_meta;
+	check_and_add_feature dce "has_enum";
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
 and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
-	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
+	a.a_meta <- (mk_used_meta a.a_pos) :: a.a_meta
 end
 
 (* mark a type as kept *)
@@ -210,7 +225,7 @@ and mark_t dce p t =
 		begin match follow t with
 		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
-				c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
 				List.iter (mark_t dce p) tl;
 			end;
 			List.iter (mark_t dce p) pl
@@ -292,7 +307,7 @@ let rec to_string dce t = match t with
 		else
 			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> to_string dce t
 		| _ -> ())
 	| TLazy f ->
@@ -429,11 +444,12 @@ and expr_field dce e fa is_call_expr =
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
 			| _ -> ());
-			begin match follow e.etype with
-				| TInst(c,_) ->
+			begin match follow e.etype, fa with
+				| TInst(c,_), _
+				| _, FClosure (Some (c, _), _) ->
 					mark_class dce c;
 					field dce c n false;
-				| TAnon a ->
+				| TAnon a, _ ->
 					(match !(a.a_status) with
 					| Statics c ->
 						mark_class dce c;
@@ -769,7 +785,7 @@ let sweep dce com =
 				end;
 			in
 			(* add :keep so subsequent filter calls do not process class fields again *)
-			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
+			c.cl_meta <- (mk_keep_meta c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf c true in
 				if not b then begin
@@ -833,7 +849,7 @@ let run com main mode =
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
-			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
+			cf.cf_meta <- (mk_keep_meta cf.cf_pos) :: cf.cf_meta
 		| _ ->
 			()
 	end;

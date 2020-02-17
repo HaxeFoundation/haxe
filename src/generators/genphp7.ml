@@ -9,12 +9,6 @@ open Meta
 open Globals
 open Sourcemaps
 
-let debug = ref false
-(**
-	Do not add comments with Haxe positions before each line of generated php code
-*)
-let skip_line_directives = ref false
-
 (**
 	Escape string for constant strings generation.
 	Copy-pasted from genphp.
@@ -67,6 +61,18 @@ let copy_file src dst =
 type used_type = {
 	ut_alias : string;
 	ut_type_path : (string list * string)
+}
+
+type php_generator_context = {
+	pgc_common : Common.context;
+	(** Do not add comments with Haxe positions before each line of generated php code *)
+	pgc_skip_line_directives : bool;
+	(** The value of `-D php-prefix=value` split by dots *)
+	pgc_prefix : string list;
+	(** php.Boot *)
+	pgc_boot : tclass;
+	(** see type_name_used_in_namespace *)
+	pgc_namespaces_types_cache : (string list, string) Hashtbl.t
 }
 
 (**
@@ -150,37 +156,32 @@ let std_type_path = ([], "Std")
 *)
 let polyfills_file = "_polyfills.php"
 
+let php_keywords_list =
+	["__halt_compiler"; "abstract"; "and"; "array"; "as"; "break"; "callable"; "case"; "catch"; "class";
+	"clone"; "const"; "continue"; "declare"; "default"; "die"; "do"; "echo"; "else"; "elseif"; "empty";
+	"enddeclare"; "endfor"; "endforeach"; "endif"; "endswitch"; "endwhile"; "eval"; "exit"; "extends"; "final";
+	"finally"; "for"; "foreach"; "function"; "global"; "goto"; "if"; "implements"; "include"; "include_once";
+	"instanceof"; "insteadof"; "interface"; "isset"; "list"; "namespace"; "new"; "or"; "print"; "private";
+	"protected"; "public"; "require"; "require_once"; "return"; "static"; "switch"; "throw"; "trait"; "try";
+	"unset"; "use"; "var"; "while"; "xor"; "yield"; "__class__"; "__dir__"; "__file__"; "__function__"; "__line__";
+	"__method__"; "__trait__"; "__namespace__"; "int"; "float"; "bool"; "string"; "true"; "false"; "null"; "parent";
+	"void"; "iterable"; "object"; "fn"]
+
+let php_keywords_tbl = begin
+	let tbl = Hashtbl.create 100 in
+	List.iter (fun kwd -> Hashtbl.add tbl kwd ()) php_keywords_list;
+	tbl
+end
+
 (**
 	Check if specified string is a reserved word in PHP
 *)
-let is_keyword str =
-	match String.lowercase str with
-		| "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
-		| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
-		| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
-		| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
-		| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
-		| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
-		| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
-		| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-		| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object"
-			-> true
-		| _ -> false
-
-(**
-	Check if specified type is Void
-*)
-let is_void_type t = match follow t with TAbstract ({ a_path = void_type_path }, _) -> true | _ -> false
-
-(**
-	Check if specified type is Bool
-*)
-let is_bool_type t = match follow t with TAbstract ({ a_path = bool_type_path }, _) -> true | _ -> false
+let is_keyword str = Hashtbl.mem php_keywords_tbl (String.lowercase str)
 
 (**
 	Check if specified type is php.NativeArray
 *)
-let is_native_array_type t = match follow t with TAbstract ({ a_path = native_array_type_path }, _) -> true | _ -> false
+let is_native_array_type t = match follow t with TAbstract ({ a_path = tp }, _) -> tp = native_array_type_path | _ -> false
 
 (**
 	If `name` is not a reserved word in PHP then `name` is returned as-is.
@@ -198,34 +199,14 @@ let get_real_path path = List.map get_real_name path
 *)
 let rec follow = Abstract.follow_with_abstracts
 
-let prefix = ref None
 (**
-	Returns value of `--php-prefix` compiler flag
-*)
-let get_php_prefix ctx =
-	match !prefix with
-		| Some prefix -> prefix
-		| None ->
-			let lst =
-				match Common.defined_value_safe ctx Define.PhpPrefix with
-					| "" -> []
-					| str ->
-						if String.length str = 0 then
-							[]
-						else
-							Str.split (Str.regexp "\\.") str
-			in
-			prefix := Some lst;
-			lst
-
-(**
-	Adds packages specified by `--php-prefix` to `type_path`.
-	E.g. if `--php-prefix some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
+	Adds packages specified by `-D php-prefix` to `type_path`.
+	E.g. if `-D php-prefix=some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
 	will return `(["some", "sub", "pack"], "MyClass")`
 *)
 let add_php_prefix ctx type_path =
 	match type_path with
-		| (pack, name) -> ((get_php_prefix ctx) @ pack, name)
+		| (pack, name) -> (ctx.pgc_prefix @ pack, name)
 
 (**
 	If `expr` is a TCast or TMeta, then returns underlying expression (recursively bypassing nested casts).
@@ -307,17 +288,17 @@ let is_int expr = match follow expr.etype with TAbstract ({ a_path = ([], "Int")
 (**
 	Check if specified expression is of `Float` type
 *)
-let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
-
-(**
-	Check if specified type is String
-*)
-let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+let is_float expr = ExtType.is_float (follow expr.etype)
 
 (**
 	Check if specified expression is of String type
 *)
-let is_string expr = is_string_type expr.etype
+let is_string expr = ExtType.is_string (follow expr.etype)
+
+(**
+	Check if specified type is Array
+*)
+let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _) -> true | _ -> false
 
 (**
 	Check if specified type represents a function
@@ -344,42 +325,6 @@ let is_generic_parameter (target:Type.t) =
 	Check if `target` type cannot be clarified on compilation
 *)
 let is_unknown_type (target:Type.t) = is_dynamic_type target || is_generic_parameter target
-
-(**
-	@return `Type.t` instance for `Void`
-*)
-let void = ref None
-let get_void ctx : Type.t =
-	match !void with
-		| Some value -> value
-		| None ->
-			let find com_type =
-				match com_type with
-					| TAbstractDecl ({ a_path = ([], "Void") } as abstr) -> void := Some (TAbstract (abstr, []));
-					| _ -> ()
-			in
-			List.iter find ctx.types;
-			match !void with
-				| Some value -> value
-				| None -> fail null_pos __POS__
-
-(**
-	@return `tclass` instance for `php.Boot`
-*)
-let boot = ref None
-let get_boot ctx : tclass =
-	match !boot with
-		| Some value -> value
-		| None ->
-			let find com_type =
-				match com_type with
-					| TClassDecl ({ cl_path = path } as cls) when path = boot_type_path -> boot := Some cls;
-					| _ -> ()
-			in
-			List.iter find ctx.types;
-			match !boot with
-				| Some value -> value
-				| None -> fail null_pos __POS__
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -432,6 +377,17 @@ let needs_dereferencing for_assignment expr =
 		| TField (target_expr, _) -> is_create target_expr
 		| TArray (target_expr, _) -> is_create target_expr
 		| _ -> false
+
+(**
+	Check if the value of `expr` needs to be stored to a temporary variable to be
+	reused.
+*)
+let rec needs_temp_var expr =
+	match (reveal_expr_with_parenthesis expr).eexpr with
+		| TConst _ | TLocal _ -> false
+		| TField (target, FInstance _) | TField (target, FStatic _) -> needs_temp_var target
+		| TArray (target, index) -> needs_temp_var target || needs_temp_var index
+		| _ -> true
 
 (**
 	@return (arguments_list, return_type)
@@ -649,15 +605,15 @@ let is_inline_var (field:tclass_field) =
 (**
 	@return New TBlock expression which is composed of setting default values for optional arguments and function body.
 *)
-let inject_defaults (ctx:Common.context) (func:tfunc) =
+let inject_defaults (ctx:php_generator_context) (func:tfunc) =
 	let rec inject args body_exprs =
 		match args with
 			| [] -> body_exprs
 			| (_, None) :: rest -> inject rest body_exprs
 			| (_, Some {eexpr = TConst TNull}) :: rest -> inject rest body_exprs
 			| (var, Some const) :: rest ->
-				let expr = Texpr.set_default ctx.basic var const func.tf_expr.epos in
-			 	expr :: (inject rest body_exprs)
+				let expr = Texpr.set_default ctx.pgc_common.basic var const func.tf_expr.epos in
+				expr :: (inject rest body_exprs)
 	in
 	let exprs =
 		match func.tf_expr.eexpr with
@@ -839,7 +795,7 @@ let field_name field =
 *)
 let is_std_is expr =
 	match expr.eexpr with
-		| TField (_, FStatic ({ cl_path = path }, { cf_name = "is" })) -> path = boot_type_path || path = std_type_path
+		| TField (_, FStatic ({ cl_path = path }, { cf_name = ("is" | "isOfType") })) -> path = boot_type_path || path = std_type_path
 		| _ -> false
 
 (**
@@ -951,20 +907,18 @@ class class_wrapper (cls) =
 				match cls.cl_init with
 					| Some _ -> true
 					| None ->
-						let needs = ref false in
-						PMap.iter
-							(fun _ field ->
+						List.exists
+							(fun field ->
 								(* Skip `inline var` fields *)
-								if not (is_inline_var field) then begin
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static vars with non-constant expressions *)
-									if not !needs then needs := is_var_with_nonconstant_expr field;
-									(* Check static dynamic functions *)
-									if not !needs then needs := is_dynamic_method field
-								end
+								not (is_inline_var field)
+								&& match field.cf_kind, field.cf_expr with
+									| Var _, Some { eexpr = TConst (TInt value) } -> value = Int32.min_int
+									| Var _, Some { eexpr = TConst _ } -> false
+									| Var _, Some _ -> true
+									| Method MethDynamic, _ -> true
+									| _ -> false
 							)
-							cls.cl_statics;
-						!needs
+							cls.cl_ordered_statics
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -990,7 +944,7 @@ class class_wrapper (cls) =
 					| Some body ->
 						let path =
 							match cls.cl_path with
-								| (pack, name) -> (pack @ ["_" ^ name], ("_extern_" ^ name))
+								| (pack, name) -> (pack, ("_extern_" ^ name))
 						in
 						let additional_cls = {
 							cls with
@@ -1150,21 +1104,21 @@ let clear_wrappers () =
 (**
 	Check if specified type name is used in specified namespace
 *)
-let namespaces_types_cache = Hashtbl.create 512
-let type_name_used_in_namespace ctx name namespace =
-	let types = Hashtbl.find_all namespaces_types_cache namespace in
-	match types with
-		| [] ->
-			List.iter
-				(fun ctx_type ->
-					let wrapper = get_wrapper ctx_type in
-					Hashtbl.add namespaces_types_cache wrapper#get_namespace wrapper#get_name
-				)
-				ctx.types;
-			let types = Hashtbl.find_all namespaces_types_cache namespace in
-			List.mem name types
-		| _ ->
-			List.mem name types
+let type_name_used_in_namespace ctx type_path as_name namespace =
+	let types =
+		match Hashtbl.find_all ctx.pgc_namespaces_types_cache namespace with
+			| [] ->
+				List.iter
+					(fun ctx_type ->
+						let wrapper = get_wrapper ctx_type in
+						Hashtbl.add ctx.pgc_namespaces_types_cache wrapper#get_namespace wrapper#get_name
+					)
+					ctx.pgc_common.types;
+				Hashtbl.find_all ctx.pgc_namespaces_types_cache namespace
+			| types -> types
+	in
+	List.mem as_name types
+	&& (namespace, as_name) <> type_path
 
 (**
 	Simple list intersection implementation.
@@ -1265,7 +1219,7 @@ class local_vars =
 (**
 	Consumes expressions and generates php code to output buffer.
 *)
-class code_writer (ctx:Common.context) hx_type_path php_name =
+class code_writer (ctx:php_generator_context) hx_type_path php_name =
 	object (self)
 		(** Namespace path. E.g. ["some"; "pack"] for "some.pack.MyType" *)
 		val namespace = get_module_path hx_type_path
@@ -1347,7 +1301,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method use ?prefix (type_path:path) =
 			if type_path = hx_type_path then
 				php_name
-			else
+			else begin
+				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
 				let type_path =
 					match prefix with
@@ -1379,7 +1334,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							prepend_alias (get_alias_next_part ());
 						while not !added do
 							try
-								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx !alias namespace then
+								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx orig_type_path !alias namespace then
 									prepend_alias (get_alias_next_part ())
 								else
 									let used_type = Hashtbl.find use_table !alias_upper in
@@ -1394,6 +1349,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 								| _ -> fail self#pos __POS__
 						done;
 						!alias
+			end
 		(**
 			Extracts type path from Type.t value and execute self#use on it
 			@return Unique alias for specified type.
@@ -1415,7 +1371,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __POS__
 				| TMono mono ->
-					(match !mono with
+					(match mono.tm_type with
 						| None -> "mixed"
 						| Some t -> self#use_t t
 					)
@@ -1516,8 +1472,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			```
 		*)
 		method dereference expr =
-			let boot_cls = get_boot ctx in
-			let deref_field = PMap.find "deref" boot_cls.cl_statics in
+			let deref_field = PMap.find "deref" ctx.pgc_boot.cl_statics in
 			match expr.eexpr with
 				| TField (target_expr, access) ->
 					{
@@ -1527,9 +1482,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 									{
 										target_expr with eexpr = TField (
 											{
-												target_expr with eexpr = TTypeExpr (TClassDecl boot_cls)
+												target_expr with eexpr = TTypeExpr (TClassDecl ctx.pgc_boot)
 											},
-											FStatic (boot_cls, deref_field)
+											FStatic (ctx.pgc_boot, deref_field)
 										)
 									},
 									[ target_expr ]
@@ -1546,9 +1501,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 									{
 										target_expr with eexpr = TField (
 											{
-												target_expr with eexpr = TTypeExpr (TClassDecl boot_cls)
+												target_expr with eexpr = TTypeExpr (TClassDecl ctx.pgc_boot)
 											},
-											FStatic (boot_cls, deref_field)
+											FStatic (ctx.pgc_boot, deref_field)
 										)
 									},
 									[ target_expr ]
@@ -1585,6 +1540,12 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_indentation =
 			self#write indentation
 		(**
+			Writes current indentation followed by `str` to output buffer
+		*)
+		method write_with_indentation str =
+			self#write indentation;
+			self#write str
+		(**
 			Writes specified line to output buffer and appends \n
 		*)
 		method write_line line =
@@ -1600,6 +1561,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_use =
 			self#indent 0;
 			let write _ used_type =
+				let namespace =
+					if hx_type_path = ([],"") then namespace (* ([],"") is for index.php *)
+					else ctx.pgc_prefix @ namespace
+				in
 				if (get_module_path used_type.ut_type_path) <> namespace then
 					if get_type_name used_type.ut_type_path = used_type.ut_alias then
 						self#write_statement ("use " ^ (get_full_type_name used_type.ut_type_path))
@@ -1640,6 +1605,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					vars#used var.v_name;
 					self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
+				| TBinop (OpAssign, { eexpr = TArray (target, index) }, value) when is_array_type target.etype ->
+					self#write_expr_set_array_item target index value
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
@@ -1654,11 +1621,11 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
-				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_syntax_instanceof [arg1; arg2]
+				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
 				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
-					ctx.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
+					ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
 					self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
@@ -1736,8 +1703,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item ~separate_line:true expr) exprs;
 					self#indent_less;
-					self#write_indentation;
-					self#write "])"
+					self#write_with_indentation "])"
 		(**
 			Write associative array declaration
 		*)
@@ -1754,8 +1720,15 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					let write_field ((key,_,_), value) = self#write_array_item ~separate_line:true ~key:key value in
 					List.iter write_field fields;
 					self#indent_less;
-					self#write_indentation;
-					self#write "]"
+					self#write_with_indentation "]"
+		(**
+			Writes `target[index] = value` assuming `target` is of `Array` type
+		*)
+		method write_expr_set_array_item target index value =
+			self#write_expr target;
+			self#write "->offsetSet(";
+			write_args self#write self#write_expr [index; value];
+			self#write ")"
 		(**
 			Writes TArray to output buffer
 		*)
@@ -1862,11 +1835,14 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Emulates TBlock for parent expression and writes `expr` as inlined block
 		*)
 		method write_fake_block expr =
-			self#write_indentation;
-			let fake_block = { expr with eexpr = TBlock [expr] } in
-			expr_hierarchy <- fake_block :: expr_hierarchy;
-			self#write_as_block ~inline:true expr;
-			expr_hierarchy <- List.tl expr_hierarchy
+			match expr.eexpr with
+				| TBlock [] -> ()
+				| _ ->
+					self#write_indentation;
+					let fake_block = { expr with eexpr = TBlock [expr] } in
+					expr_hierarchy <- fake_block :: expr_hierarchy;
+					self#write_as_block ~inline:true expr;
+					expr_hierarchy <- List.tl expr_hierarchy
 		(**
 			Write position of specified expression to output buffer
 		*)
@@ -1887,7 +1863,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					if not !skip_line_directives && not (is_block expr) then
+					if not ctx.pgc_skip_line_directives && not (is_block expr) then
 						if self#write_pos expr then self#write_indentation;
 					self#write_expr expr;
 					match expr.eexpr with
@@ -1938,8 +1914,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							write_body ()
 					);
 					self#indent_less;
-					self#write_indentation;
-					self#write "}"
+					self#write_with_indentation "}"
 		(**
 			Writes TReturn to output buffer
 		*)
@@ -2001,8 +1976,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						self#write_indentation;
 						self#write_as_block ~inline:true expr;
 						self#indent_less;
-						self#write_indentation;
-						self#write "}";
+						self#write_with_indentation "}";
 					end;
 				if not !dynamic then self#write " else ";
 				first_catch := false;
@@ -2011,7 +1985,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			self#write_as_block try_expr;
 			self#write " catch (\\Throwable $__hx__caught_e) {\n";
 			self#indent_more;
-			if has_feature ctx "haxe.CallStack.exceptionStack"  then
+			if has_feature ctx.pgc_common "haxe.CallStack.exceptionStack"  then
 				self#write_statement ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace($__hx__caught_e)");
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
 			self#write_indentation;
@@ -2021,8 +1995,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			else
 				(match catches with [_] -> () | _ -> self#write "\n");
 			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+			self#write_with_indentation "}"
 		(**
 			Writes TCast to output buffer
 		*)
@@ -2048,7 +2021,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						| "__php__" ->
 							(match expr.eexpr with
 								| TConst (TString php) ->
-									Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
+									Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
 								| _ -> fail self#pos __POS__
 							)
 						| "__call__" ->
@@ -2118,13 +2091,21 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if ((is_constant expr) && not (is_constant_null expr)) || (is_concatenation expr) then
+				if ((is_constant expr) && not (is_constant_null expr))
+					|| (is_concatenation expr)
+					|| is_php_global expr
+					|| is_php_class_const expr
+				then
 					self#write_expr expr
-				else begin
-					self#write "(";
-					self#write_expr expr;
-					self#write "??'null')"
-				end
+				else
+					match (reveal_expr expr).eexpr with
+					| TConst TNull -> self#write "'null'"
+					| TBinop _ | TUnop _ -> self#write_expr (parenthesis expr)
+					| TParenthesis { eexpr = (TBinop _ | TUnop _) } -> self#write_expr expr
+					| _ ->
+						self#write "(";
+						self#write_expr expr;
+						self#write "??'null')"
 			and write_binop ?writer ?right_writer str =
 				let write_left = match writer with None -> self#write_expr | Some writer -> writer in
 				let write_right = match right_writer with None -> write_left | Some writer -> writer
@@ -2438,7 +2419,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "assocDecl" -> self#write_expr_syntax_assoc_decl args
 				| "suppress" -> self#write_expr_syntax_suppress args
 				| "keepVar" -> ()
-				| _ -> ctx.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
+				| _ -> ctx.pgc_common.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
 		(**
 			Writes plain php code (for `php.Syntax.code()`)
 		*)
@@ -2454,8 +2435,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						)
 						args
 					in
-					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
-				| _ -> ctx.error "First argument of php.Syntax.code() must be a constant string." self#pos
+					Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
+				| _ -> ctx.pgc_common.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
@@ -2479,7 +2460,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			match args with
 				| [] -> self#write_assoc_array_decl []
 				| { eexpr = TObjectDecl fields } :: [] -> self#write_assoc_array_decl fields
-				| _ -> ctx.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
+				| _ -> ctx.pgc_common.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
 		(**
 			Writes a call to instance method (for `php.Syntax.call()`)
 		*)
@@ -2655,6 +2636,44 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					write_args self#write self#write_expr args;
 					self#write ")"
 				end
+		(**
+			Writes `Std.isOfType(value, type)` to output buffer
+		*)
+		method write_expr_std_is target_expr value_expr type_expr =
+			if instanceof_compatible value_expr type_expr then
+				self#write_expr_syntax_instanceof [value_expr; type_expr]
+			else
+				let no_optimisation() =
+					self#write_expr_call target_expr [value_expr; type_expr]
+				in
+				match (reveal_expr type_expr).eexpr with
+					| TTypeExpr mtype ->
+						let t = follow (type_of_module_type mtype) in
+						if ExtType.is_string t then
+							begin
+								self#write "is_string(";
+								self#write_expr value_expr;
+								self#write ")"
+							end
+						else if ExtType.is_bool t then
+							begin
+								self#write "is_bool(";
+								self#write_expr value_expr;
+								self#write ")"
+							end
+						else if ExtType.is_float t && not (needs_temp_var value_expr) then
+							begin
+								self#write "(is_float(";
+								self#write_expr value_expr;
+								self#write ") || is_int(";
+								self#write_expr value_expr;
+								self#write "))"
+							end
+						else
+							no_optimisation()
+					| _ ->
+						no_optimisation()
+
 		(**
 			Writes a name of a function or a constant from global php namespace
 		*)
@@ -2884,7 +2903,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Get PHP namespace path
 		*)
 		method get_namespace =
-			match get_php_prefix ctx with
+			match ctx.pgc_prefix with
 				| [] -> get_real_path wrapper#get_namespace
 				| prefix -> get_real_path (prefix @ wrapper#get_namespace)
 		(**
@@ -2901,6 +2920,12 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Returns hx source file name where this type was declared
 		*)
 		method get_source_file : string = wrapper#get_source_file
+		(**
+			Get amount of arguments of a parent method.
+			Returns (mandatory_args_count * total_args_count)
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option = None
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -2982,8 +3007,8 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent 0;
 			writer#write_line "<?php";
 			writer#write_line "/**";
-			Codegen.map_source_header ctx (fun s -> writer#write_line (" * " ^ s));
-			if ctx.debug then writer#write_line (" * Haxe source file: " ^ self#get_source_file);
+			Codegen.map_source_header ctx.pgc_common (fun s -> writer#write_line (" * " ^ s));
+			if ctx.pgc_common.debug then writer#write_line (" * Haxe source file: " ^ self#get_source_file);
 			writer#write_line " */";
 			writer#write "\n";
 			let namespace = self#get_namespace in
@@ -3052,7 +3077,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Writes rtti meta to output buffer
 		*)
 		method write_rtti_meta =
-			match Texpr.build_metadata ctx.basic wrapper#get_module_type with
+			match Texpr.build_metadata ctx.pgc_common.basic wrapper#get_module_type with
 				| None -> ()
 				| Some meta_expr ->
 					let boot_class = writer#use boot_type_path in
@@ -3091,10 +3116,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		(**
 			Writes method to output buffer
 		*)
-		method private write_method name func =
+		method private write_method name func is_static =
 			match name with
 				| "__construct" -> self#write_constructor_declaration func
-				| _ -> self#write_method_declaration name func
+				| _ -> self#write_method_declaration name func is_static
 		(**
 			Writes constructor declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3106,22 +3131,87 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent_more;
 			self#write_instance_initialization;
 			let func = inject_defaults ctx func in
-			begin match func.eexpr with
-				| TBlock [] -> ()
-				| _ -> writer#write_fake_block func;
-			end;
+			writer#write_fake_block func;
 			writer#indent_less;
-			writer#write_indentation;
-			writer#write "}"
+			writer#write_with_indentation "}"
 		(**
-			Writes method declaration (except visibility and `static` keywords) to output buffer
+			Writes method declaration (except visibility keywords) to output buffer
 		*)
-		method private write_method_declaration name func =
+		method private write_method_declaration name func is_static =
+			if is_static then writer#write "static ";
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			writer#write ("function " ^ by_ref ^ name ^ " (");
-			write_args writer#write writer#write_function_arg func.tf_args;
+			let args =
+				if is_static then
+					self#align_args_to_parent_static_method func.tf_args name
+				else
+					func.tf_args
+			in
+			write_args writer#write writer#write_function_arg args;
 			writer#write ") ";
-			writer#write_expr (inject_defaults ctx func)
+			if not (self#write_body_if_special_method name) then
+				writer#write_expr (inject_defaults ctx func)
+		(**
+		*)
+		method private align_args_to_parent_static_method args method_name =
+			match self#get_parent_method_args_count method_name true with
+				| None -> args
+				| Some (mandatory, total) ->
+					let default_value() = Some (mk (TConst TNull) t_dynamic null_pos) in
+					let next value = max 0 (value - 1) in
+					let rec loop args mandatory total =
+						match args with
+							| [] when total = 0 -> []
+							| [] ->
+								let arg_var = alloc_var VGenerated ("_" ^ (string_of_int total)) t_dynamic null_pos in
+								(arg_var, default_value()) :: loop args (next mandatory) (next total)
+							| (arg_var, None) :: rest when mandatory = 0 ->
+								(arg_var, default_value()) :: loop rest 0 (next total)
+							| arg :: rest ->
+								arg :: loop rest (next mandatory) (next total)
+					in
+					loop args mandatory total
+		(**
+			Writes a body for a special method if `field` represents one.
+			Returns `true` if `field` is such a method.
+		*)
+		method private write_body_if_special_method name =
+			(* php.Boot.isPhpKeyword(str:String) *)
+			if self#get_type_path = boot_type_path && name = "isPhpKeyword" then
+				begin
+					writer#write "{\n";
+					writer#indent_more;
+					writer#write_line "switch(strtolower($str)) {";
+					writer#indent_more;
+					writer#write_indentation;
+					let cnt = ref 0 in
+					List.iter
+						(fun kwd ->
+							if !cnt <= 5 then incr cnt
+							else begin
+								cnt := 0;
+								writer#write "\n";
+								writer#write_indentation
+							end;
+							writer#write ("case '" ^ kwd ^ "': ")
+						)
+						php_keywords_list;
+					writer#write "\n";
+					writer#indent_more;
+					writer#write_statement "return true";
+					writer#indent_less;
+					writer#write_line "default:";
+					writer#indent_more;
+					writer#write_statement "return false";
+					writer#indent_less;
+					writer#indent_less;
+					writer#write_line "}";
+					writer#indent_less;
+					writer#write_with_indentation "}";
+					true
+				end
+			else
+				false
 		(**
 			Set sourcemap generator
 		*)
@@ -3143,7 +3233,7 @@ class enum_builder ctx (enm:tenum) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			self#write_doc (DocClass enm.e_doc);
+			self#write_doc (DocClass (gen_doc_text_opt enm.e_doc));
 			writer#write ("class " ^ self#get_name ^ " extends " ^ (writer#use hxenum_type_path))
 		(**
 			Writes type body to output buffer.
@@ -3172,9 +3262,8 @@ class enum_builder ctx (enm:tenum) =
 					| _ -> fail field.ef_pos __POS__
 			in
 			writer#indent 1;
-			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
-			writer#write_indentation;
-			writer#write ("static public function " ^ name ^ " (");
+			self#write_doc (DocMethod (args, TEnum (enm, []), (gen_doc_text_opt field.ef_doc)));
+			writer#write_with_indentation ("static public function " ^ name ^ " (");
 			write_args writer#write (writer#write_arg true) args;
 			writer#write ") {\n";
 			writer#indent_more;
@@ -3188,14 +3277,12 @@ class enum_builder ctx (enm:tenum) =
 				| [] ->
 					(* writer#write ((writer#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")") *)
 					writer#write_line "static $inst = null;";
-					writer#write_indentation;
-					writer#write "if (!$inst) $inst = ";
+					writer#write_with_indentation "if (!$inst) $inst = ";
 					write_construction [];
 					writer#write ";\n";
 					writer#write_line "return $inst;"
 				| args ->
-					writer#write_indentation;
-					writer#write "return ";
+					writer#write_with_indentation "return ";
 					write_construction args;
 					writer#write ";\n";
 			);
@@ -3273,6 +3360,11 @@ class class_builder ctx (cls:tclass) =
 	object (self)
 		inherit type_builder ctx (get_wrapper (TClassDecl cls)) as super
 		(**
+			List of methods names uppercased.
+			Used to check for methods with similar names because PHP function names are case-insensitive.
+		*)
+		val mutable used_method_names = []
+		(**
 			Indicates if type should be declared as `final`
 		*)
 		method is_final =
@@ -3288,9 +3380,34 @@ class class_builder ctx (cls:tclass) =
 									if self#extended_by tcls then hacked := Meta.has Meta.Hack tcls.cl_meta
 								| _ -> ()
 					)
-					ctx.types;
+					ctx.pgc_common.types;
 				not !hacked
 			end
+		(**
+			Get amount of arguments of a parent method.
+			Returns `None` if no such parent method exists.
+		*)
+		method private get_parent_method_args_count name is_static : (int * int) option =
+			match cls.cl_super with
+				| None -> None
+				| Some (cls, _) ->
+					let fields = if is_static then cls.cl_statics else cls.cl_fields in
+					try
+						match (PMap.find name fields).cf_type with
+							| TFun (args,_) ->
+								let rec count args mandatory total =
+									match args with
+										| [] ->
+											(mandatory, total)
+										| (_, true, _) :: rest ->
+											let left_count = List.length args in
+											(mandatory, total + left_count)
+										| (_, false, _) :: rest ->
+											count rest (mandatory + 1) (total + 1)
+								in
+								Some (count args 0 0)
+							| _ -> None
+					with Not_found -> None
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
@@ -3298,7 +3415,7 @@ class class_builder ctx (cls:tclass) =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
-			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
 		method private extends_no_constructor =
@@ -3336,8 +3453,8 @@ class class_builder ctx (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
+			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc));
 			if self#is_final then writer#write "final ";
-			self#write_doc (DocClass cls.cl_doc);
 			writer#write (if cls.cl_interface then "interface " else "class ");
 			writer#write self#get_name;
 			(
@@ -3382,16 +3499,16 @@ class class_builder ctx (cls:tclass) =
 						None
 					else
 						Some {
-							(mk_field "new" (TFun ([], get_void ctx)) cls.cl_pos cls.cl_pos) with
+							(mk_field "new" (TFun ([], ctx.pgc_common.basic.tvoid)) cls.cl_pos cls.cl_pos) with
 							cf_kind = Method MethNormal;
 							cf_expr = Some {
 								eexpr = TFunction {
 									tf_args = [];
-									tf_type = get_void ctx;
-									tf_expr = { eexpr = TBlock []; epos = cls.cl_pos; etype = get_void ctx; };
+									tf_type = ctx.pgc_common.basic.tvoid;
+									tf_expr = { eexpr = TBlock []; epos = cls.cl_pos; etype = ctx.pgc_common.basic.tvoid; };
 								};
 								epos = cls.cl_pos;
-								etype = get_void ctx;
+								etype = ctx.pgc_common.basic.tvoid;
 							};
 						}
 		(**
@@ -3469,7 +3586,7 @@ class class_builder ctx (cls:tclass) =
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
 		method private constructor_is_required =
-			if List.length self#get_namespace > 0 then
+			if cls.cl_interface || List.length self#get_namespace > 0 then
 				false
 			else begin
 				let required = ref false in
@@ -3482,10 +3599,10 @@ class class_builder ctx (cls:tclass) =
 				!required
 			end
 		(**
-			Writes `--php-prefix` value as class constant PHP_PREFIX
+			Writes `-D php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
-			let prefix = String.concat "\\" (get_php_prefix ctx) in
+			let prefix = String.concat "\\" ctx.pgc_prefix in
 			let indentation = writer#get_indentation in
 			writer#indent 1;
 			writer#write_statement ("const PHP_PREFIX = \"" ^ (String.escaped prefix) ^ "\"");
@@ -3497,34 +3614,32 @@ class class_builder ctx (cls:tclass) =
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
 				let field_access = "self::$" ^ (field_name field) in
-				writer#write_indentation;
-				writer#write (field_access ^ " = ");
+				writer#write_with_indentation (field_access ^ " = ");
 				(match field.cf_expr with
 					| Some expr -> writer#write_expr expr
 					| None -> fail field.cf_pos __POS__
 				);
 				writer#write ";\n"
 			in
-			PMap.iter
-				(fun _ field ->
+			List.iter
+				(fun field ->
 					match field.cf_kind with
 						| Method MethDynamic -> write_dynamic_method_initialization field
 						| _ -> ()
 				)
-				cls.cl_statics;
+				cls.cl_ordered_statics;
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
-					writer#write_indentation;
-					writer#write ("self::$" ^ (field_name field) ^ " = ");
+					writer#write_with_indentation ("self::$" ^ (field_name field) ^ " = ");
 					writer#write_expr expr
 				in
 				(*
 					Do not generate fields for RTTI meta, because this generator uses another way to store it.
 					Also skip initialization for `inline var` fields as those are generated as PHP class constants.
 				*)
-				let is_auto_meta_var = field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
-				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) && (not (is_inline_var field)) then begin
+				let is_auto_meta_var() = field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
+				if (is_var_with_nonconstant_expr field) && (not (is_auto_meta_var())) && (not (is_inline_var field)) then begin
 					(match field.cf_expr with
 						| None -> ()
 						(* There can be not-inlined blocks when compiling with `-debug` *)
@@ -3544,6 +3659,11 @@ class class_builder ctx (cls:tclass) =
 					);
 					writer#write ";\n"
 				end
+				else match field.cf_expr with
+					| Some ({ eexpr = TConst (TInt value) } as expr) when value = Int32.min_int ->
+						write_assign expr;
+						writer#write ";\n"
+					| _ -> ()
 			in
 			List.iter write_var_initialization cls.cl_ordered_statics
 		(**
@@ -3554,7 +3674,7 @@ class class_builder ctx (cls:tclass) =
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
 				| Var _ when is_physical_field field ->
 					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
-					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
+					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx.pgc_common wrapper#get_module_type) in
 					if not is_auto_meta_var then self#write_var field is_static;
 				| Var _ -> ()
 				| Method MethMacro -> ()
@@ -3566,13 +3686,16 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_var field is_static =
 			writer#indent 1;
-			self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
+			self#write_doc (DocVar (writer#use_t field.cf_type, (gen_doc_text_opt field.cf_doc)));
 			writer#write_indentation;
 			if is_static then writer#write "static ";
 			let visibility = get_visibility field.cf_meta in
 			writer#write (visibility ^ " $" ^ (field_name field));
 			match field.cf_expr with
-				| None -> writer#write ";\n"
+				| None ->
+					writer#write ";\n"
+				| Some { eexpr = TConst (TInt value) } when value = Int32.min_int ->
+					writer#write ";\n"
 				| Some expr ->
 					match expr.eexpr with
 						| TConst _ ->
@@ -3590,33 +3713,33 @@ class class_builder ctx (cls:tclass) =
 				| Some expr when not (is_constant expr) -> ()
 				| Some expr ->
 					writer#indent 1;
-					self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
-					writer#write_indentation;
-					writer#write ("const " ^ (field_name field) ^ " = ");
+					self#write_doc (DocVar (writer#use_t field.cf_type, (gen_doc_text_opt field.cf_doc)));
+					writer#write_with_indentation ("const " ^ (field_name field) ^ " = ");
 					writer#write_expr expr;
 					writer#write ";\n"
 		(**
 			Writes method to output buffer
 		*)
 		method private write_class_method field is_static =
+			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
-			self#write_doc (DocMethod (args, return_type, field.cf_doc));
+			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
 			writer#write_indentation;
 			if self#is_final_field field then writer#write "final ";
-			if is_static then writer#write "static ";
 			writer#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
+					if is_static then writer#write "static ";
 					writer#write ("function " ^ (field_name field) ^ " (");
 					write_args writer#write (writer#write_arg true) args;
 					writer#write ")";
 					writer#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
-					self#write_method name fn;
+					self#write_method name fn is_static;
 					writer#write "\n"
 				| _ -> fail field.cf_pos __POS__
 		(**
@@ -3624,13 +3747,13 @@ class class_builder ctx (cls:tclass) =
 			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
 		*)
 		method private write_dynamic_method field =
+			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
-			self#write_doc (DocMethod (args, return_type, field.cf_doc));
-			writer#write_indentation;
-			writer#write ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
+			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
+			writer#write_with_indentation ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
 					writer#write " (";
@@ -3653,6 +3776,15 @@ class class_builder ctx (cls:tclass) =
 					writer#write_statement ("protected $__hx__default__" ^ (field_name field))
 				| _ -> fail field.cf_pos __POS__
 			);
+		(**
+			Since PHP function names are case-insensitive we must check for method names clashes.
+		*)
+		method private validate_method_name field =
+			let uppercased_name = StringHelper.uppercase field.cf_name in
+			if List.exists (fun n -> n = uppercased_name) used_method_names then
+				ctx.pgc_common.error ("Methods names are case-insensitive in PHP runtime. Cannot redeclare \"" ^ field.cf_name ^ "\".") field.cf_name_pos
+			else
+				used_method_names <- uppercased_name :: used_method_names
 		(**
 			Writes initialization code for instances of this class
 		*)
@@ -3711,10 +3843,10 @@ class class_builder ctx (cls:tclass) =
 (**
 	Handles generation process
 *)
-class generator (ctx:context) =
+class generator (ctx:php_generator_context) =
 	object (self)
 		val mutable build_dir = ""
-		val root_dir = ctx.file
+		val root_dir = ctx.pgc_common.file
 		val mutable init_types = []
 		val mutable boot : (type_builder * string) option  = None
 		val mutable polyfills_source_path : string option = None
@@ -3732,12 +3864,12 @@ class generator (ctx:context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			if Common.defined ctx Define.SourceMap then
+			if Common.defined ctx.pgc_common Define.SourceMap then
 				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;
 			(match builder#get_sourcemap_generator with
-				| Some smap -> smap#generate ctx
+				| Some smap -> smap#generate ctx.pgc_common
 				| None -> ()
 			);
 			if builder#get_type_path = boot_type_path then
@@ -3781,7 +3913,7 @@ class generator (ctx:context) =
 			match self#get_entry_point with
 				| None -> ()
 				| Some (uses, entry_point) ->
-					let filename = Common.defined_value_safe ~default:"index.php" ctx Define.PhpFront in
+					let filename = Common.defined_value_safe ~default:"index.php" ctx.pgc_common Define.PhpFront in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
 					output_string channel uses;
@@ -3813,13 +3945,13 @@ class generator (ctx:context) =
 			Returns path from `index.php` to directory which will contain all generated classes
 		*)
 		method private get_lib_path : string list =
-			let path = Common.defined_value_safe ~default:"lib" ctx Define.PhpLib in
+			let path = Common.defined_value_safe ~default:"lib" ctx.pgc_common Define.PhpLib in
 			(Str.split (Str.regexp "/")  path)
 		(**
 			Returns PHP code for entry point
 		*)
 		method private get_entry_point : (string * string) option =
-			match ctx.main with
+			match ctx.pgc_common.main with
 				| None -> None
 				| Some expr ->
 					let writer = new code_writer ctx ([], "") "" in
@@ -3832,18 +3964,42 @@ class generator (ctx:context) =
 	end
 
 (**
+	@return `tclass` instance for `php.Boot`
+*)
+let get_boot com : tclass =
+	let find com_type =
+		match com_type with
+			| TClassDecl { cl_path = path } -> path = boot_type_path
+			| _ -> false
+	in
+	try
+		match List.find find com.types with
+			| TClassDecl cls -> cls
+			| _ -> raise Not_found
+	with
+		| Not_found -> fail ~msg:"php.Boot not found" null_pos __POS__
+
+(**
 	Entry point to Genphp7
 *)
 let generate (com:context) =
-	skip_line_directives := Common.defined com Define.RealPosition;
-	let gen = new generator com in
+	let ctx =
+		{
+			pgc_common = com;
+			pgc_skip_line_directives = Common.defined com Define.RealPosition;
+			pgc_prefix = Str.split (Str.regexp "\\.") (Common.defined_value_safe com Define.PhpPrefix);
+			pgc_boot = get_boot com;
+			pgc_namespaces_types_cache = Hashtbl.create 512
+		}
+	in
+	let gen = new generator ctx in
 	gen#initialize;
 	let rec generate com_type =
 		let wrapper = get_wrapper com_type in
 		if wrapper#needs_generation then
 			(match com_type with
-				| TClassDecl cls -> gen#generate (new class_builder com cls);
-				| TEnumDecl enm -> gen#generate (new enum_builder com enm);
+				| TClassDecl cls -> gen#generate (new class_builder ctx cls);
+				| TEnumDecl enm -> gen#generate (new enum_builder ctx enm);
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
 			);

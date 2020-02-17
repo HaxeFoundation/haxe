@@ -1,6 +1,6 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum GraphicsPathWinding {
-	EVEN_ODD;
-	NON_ZERO;
+@:native("flash.display.GraphicsPathWinding") extern enum abstract GraphicsPathWinding(String) {
+	var EVEN_ODD;
+	var NON_ZERO;
 }

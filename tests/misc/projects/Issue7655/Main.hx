@@ -1,4 +1,4 @@
-import js.Promise;
+import js.lib.Promise;
 
 class Main {
 	static function main() {

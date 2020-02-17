@@ -1,1 +1,1 @@
-Main.hx:9: characters 18-19 : Capture variables are not allowed in .match patterns
+Main.hx:9: characters 18-19 : Pattern variables are not allowed in .match patterns

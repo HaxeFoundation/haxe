@@ -19,67 +19,75 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	private var h:Dynamic;
 
-	private var h : Dynamic;
-
-	public function new() : Void {
+	public function new():Void {
 		h = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : Int, value : T ) : Void {
-		untyped __dollar__hset(h,key,value,null);
+	public inline function set(key:Int, value:T):Void {
+		untyped __dollar__hset(h, key, value, null);
 	}
 
-	public function get( key : Int ) : Null<T> {
-		return untyped __dollar__hget(h,key,null);
+	public function get(key:Int):Null<T> {
+		return untyped __dollar__hget(h, key, null);
 	}
 
-	public inline function exists( key : Int ) : Bool {
-		return untyped __dollar__hmem(h,key,null);
+	public inline function exists(key:Int):Bool {
+		return untyped __dollar__hmem(h, key, null);
 	}
 
-	public inline function remove( key : Int ) : Bool {
-		return untyped __dollar__hremove(h,key,null);
+	public inline function remove(key:Int):Bool {
+		return untyped __dollar__hremove(h, key, null);
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys():Iterator<Int> {
 		var l = new List<Int>();
-		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
+		untyped __dollar__hiter(h, function(k, _) {
+			l.push(k);
+		});
 		return l.iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		var l = new List<T>();
-		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
+		untyped __dollar__hiter(h, function(_, v) {
+			l.push(v);
+		});
 		return l.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
+	}
 }

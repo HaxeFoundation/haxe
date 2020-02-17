@@ -19,36 +19,39 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.net;
+
 import sys.net.Socket;
 import cpp.NativeSocket;
 
 class Poll {
+	var mPollHandle:Dynamic;
 
-	var mPollHandle : Dynamic;
-	public var readIndexes : Array<Int>;
-	public var writeIndexes : Array<Int>;
+	public var readIndexes:Array<Int>;
+	public var writeIndexes:Array<Int>;
 
-	public function new( n : Int ) {
+	public function new(n:Int) {
 		mPollHandle = NativeSocket.socket_poll_alloc(n);
 		readIndexes = [];
 		writeIndexes = [];
 	}
 
-	public function prepare( read : Array<Socket>, write : Array<Socket> ) {
-		var k = NativeSocket.socket_poll_prepare(mPollHandle,read,write);
+	public function prepare(read:Array<Socket>, write:Array<Socket>) {
+		var k = NativeSocket.socket_poll_prepare(mPollHandle, read, write);
 		readIndexes = k[0];
 		writeIndexes = k[1];
 	}
 
-	public function events( ?t : Float ) {
-		if (t==null) t=-1.0;
-		NativeSocket.socket_poll_events(mPollHandle,t);
+	public function events(?t:Float) {
+		if (t == null)
+			t = -1.0;
+		NativeSocket.socket_poll_events(mPollHandle, t);
 	}
 
-	public function poll( a : Array<Socket>, ?t : Float ) : Array<Socket> {
-		if (t==null) t=-1.0;
-		return NativeSocket.socket_poll(a,mPollHandle,t);
+	public function poll(a:Array<Socket>, ?t:Float):Array<Socket> {
+		if (t == null)
+			t = -1.0;
+		return NativeSocket.socket_poll(a, mPollHandle, t);
 	}
-
 }

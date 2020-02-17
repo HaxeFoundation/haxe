@@ -36,15 +36,10 @@ open MacroApi
 
 (* Create *)
 
-let sid = ref (-1)
-
-let stdlib = ref None
-let debug = ref None
-
 let create com api is_macro =
 	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
-	incr sid;
-	let builtins = match !stdlib with
+	incr GlobalState.sid;
+	let builtins = match !GlobalState.stdlib with
 		| None ->
 			let builtins = {
 				static_builtins = IntMap.empty;
@@ -53,12 +48,12 @@ let create com api is_macro =
 				empty_constructor_builtins = Hashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
-			stdlib := Some builtins;
+			GlobalState.stdlib := Some builtins;
 			builtins
 		| Some (builtins) ->
 			builtins
 	in
-	let debug = match !debug with
+	let debug = match !GlobalState.debug with
 		| None ->
 			let support_debugger = Common.defined com Define.EvalDebugger in
 			let socket =
@@ -87,27 +82,25 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				debug_state = DbgStart;
-				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
-				caught_types = Hashtbl.create 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
-				caught_exception = vnull;
-				last_return = None;
 				debug_context = new eval_debug_context;
 			} in
-			debug := Some debug';
+			GlobalState.debug := Some debug';
 			debug'
 		| Some debug ->
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let eval = {
-		env = null_env;
+	let thread = {
+		tthread = Thread.self();
+		tstorage = IntMap.empty;
+		tdeque = EvalThread.Deque.create();
 	} in
+	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
-		ctx_id = !sid;
+		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
 		debug = debug;
 		detail_times = detail_times;
@@ -120,11 +113,10 @@ let create com api is_macro =
 		string_prototype = fake_proto key_String;
 		array_prototype = fake_proto key_Array;
 		vector_prototype = fake_proto key_eval_Vector;
-		static_prototypes = IntMap.empty;
+		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
-		static_inits = IntMap.empty;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
@@ -133,7 +125,18 @@ let create com api is_macro =
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
+		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 	} in
+	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
+		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
+		   Note that configuration is shared between macro and interpreter contexts, which is why the check
+		   is governed by a global variable. *)
+		GlobalState.debugger_initialized := true;
+		 (* There's select_ctx in the json-rpc handling, so let's select this one. It's fine because it's the
+		    first context anyway. *)
+		select ctx;
+		ignore(Event.sync(Event.receive eval.debug_channel));
+	end;
 	t();
 	ctx
 
@@ -153,8 +156,8 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
-			let env = push_environment ctx info 0 0 in
+			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
 			let v = call_value_on vtype vfield vl in
@@ -357,21 +360,21 @@ let setup get_api =
 				exc_string "Invalid expression"
 			in
 			let v = VFunction (f,b) in
-			Hashtbl.replace EvalStdLib.macro_lib n v
+			Hashtbl.replace GlobalState.macro_lib n v
 		| _ -> assert false
 	) api;
 	Globals.macro_platform := Globals.Eval
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits
+	ctx.static_prototypes#reset
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
 	ctx.had_error <- b
 
 let add_types ctx types ready =
-	ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
+	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
 let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
@@ -403,11 +406,15 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString s -> (EConst (String s.sstring),p)
+	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
-	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
+	| VObject o -> (EObjectDecl (ExtList.List.filter_map (fun (k,v) ->
 			let n = rev_hash k in
-			((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			(* Workaround for #8261: Ignore generated pos fields *)
+			begin match v with
+			| VInstance {ikind = IPos _} when n = "pos" -> None
+			| _ -> Some ((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			end
 		) (object_fields o)),p)
 	| VEnumValue e ->
 		let epath =
@@ -426,7 +433,6 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
-
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s
@@ -437,7 +443,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx EKToplevel e
+let eval_expr ctx e = if ctx.had_error then None else eval_expr ctx EKEntrypoint e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
@@ -530,7 +536,7 @@ let handle_decoding_error f v t =
 			(* TODO: might need some more of these, not sure *)
 			assert false
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 				| None -> ()
 				| Some t -> loop tabs t v
 			end
@@ -544,7 +550,7 @@ let handle_decoding_error f v t =
 
 let get_api_call_pos () =
 	let eval = get_eval (get_ctx()) in
-	let env = eval.env in
+	let env = Option.get eval.env in
 	let env = match env.env_parent with
 		| None -> env
 		| Some env -> env

@@ -3,8 +3,6 @@ package runci.targets;
 import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
-import runci.targets.Cs.*;
-import runci.targets.Python.*;
 
 class Macro {
 	static public function run(args:Array<String>) {
@@ -24,12 +22,19 @@ class Macro {
 		runCommand("haxe", ["test-js-es6.hxml"]);
 
 		changeDirectory(miscDir);
-		getCsDependencies();
-		getPythonDependencies();
 		runCommand("haxe", ["compile.hxml"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-macro.hxml"]);
-		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
+		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+
+		switch Sys.systemName() {
+			case 'Linux':
+				changeDirectory(miscDir + 'compiler_loops');
+				runCommand("haxe", ["run.hxml"]);
+			case _: // TODO
+		}
+
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "--interp"]);
 	}
 }

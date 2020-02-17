@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 import php.*;
@@ -26,20 +27,19 @@ import haxe.format.JsonPrinter;
 
 @:coreApi
 class Json {
-
-	public static inline function parse( text : String ) : Dynamic {
+	public static inline function parse(text:String):Dynamic {
 		#if haxeJSON
-			return haxe.format.JsonParser.parse(text);
+		return haxe.format.JsonParser.parse(text);
 		#else
-			return phpJsonDecode(text);
+		return phpJsonDecode(text);
 		#end
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String {
+	public static inline function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
 		#if haxeJSON
-			return JsonPrinter.print(value, replacer, space);
+		return JsonPrinter.print(value, replacer, space);
 		#else
-			return phpJsonEncode(value, replacer, space);
+		return phpJsonEncode(value, replacer, space);
 		#end
 	}
 
@@ -75,7 +75,7 @@ class Json {
 	}
 
 	static function phpJsonEncode(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
-		if(null != replacer || null != space) {
+		if (null != replacer || null != space) {
 			return JsonPrinter.print(value, replacer, space);
 		}
 
@@ -87,7 +87,7 @@ class Json {
 	}
 
 	static function convertBeforeEncode(value:Dynamic):Dynamic {
-		if (Std.is(value, Array)) {
+		if (Std.isOfType(value, Array)) {
 			var result = new NativeIndexedArray();
 			Syntax.foreach(value.arr, function(index:Int, item:Dynamic) {
 				result[index] = convertBeforeEncode(item);

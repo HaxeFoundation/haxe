@@ -19,98 +19,81 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	private var h:flash.utils.Dictionary;
 
-	private var h : flash.utils.Dictionary;
-
-	public function new() : Void {
+	public function new():Void {
 		h = new flash.utils.Dictionary();
 	}
 
-	public inline function set( key : Int, value : T ) : Void {
+	public inline function set(key:Int, value:T):Void {
 		untyped h[key] = value;
 	}
 
-	public inline function get( key : Int ) : Null<T> {
+	public inline function get(key:Int):Null<T> {
 		return untyped h[key];
 	}
 
-	public inline function exists( key : Int ) : Bool {
-		return untyped __in__(key,h);
+	public inline function exists(key:Int):Bool {
+		return untyped __in__(key, h);
 	}
 
-	public function remove( key : Int ) : Bool {
-		if( !exists(key) ) return false;
-		untyped __delete__(h,key);
+	public function remove(key:Int):Bool {
+		if (!exists(key))
+			return false;
+		untyped __delete__(h, key);
 		return true;
 	}
 
-	#if as3
-
-	// unoptimized version
-	
-	public function keys() : Iterator<Int> {
-		return untyped (__keys__(h)).iterator();
-	}
-
-	@:analyzer(ignore) public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
-		};
-	}
-
-	#else
-
-	public inline function keys() : Iterator<Int> {
+	public inline function keys():Iterator<Int> {
 		return new IntMapKeysIterator(h);
 	}
 
-	public inline function iterator() : Iterator<T> {
+	public inline function iterator():Iterator<T> {
 		return new IntMapValuesIterator<T>(h);
 	}
 
-	#end
-
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
-	
-	public function toString() : String {
+
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
-}
 
-#if !as3
+	public inline function clear():Void {
+		h = new flash.utils.Dictionary();
+	}
+}
 
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
 @:allow(haxe.ds.IntMap)
 private class IntMapKeysIterator {
 	var h:flash.utils.Dictionary;
-	var index : Int;
-	var nextIndex : Int;
+	var index:Int;
+	var nextIndex:Int;
 
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
@@ -126,18 +109,17 @@ private class IntMapKeysIterator {
 	}
 
 	public inline function next():Int {
-		var r : Int = untyped __forin__(h, nextIndex);
+		var r:Int = untyped __forin__(h, nextIndex);
 		index = nextIndex;
 		return r;
 	}
-
 }
 
 @:allow(haxe.ds.IntMap)
 private class IntMapValuesIterator<T> {
 	var h:flash.utils.Dictionary;
-	var index : Int;
-	var nextIndex : Int;
+	var index:Int;
+	var nextIndex:Int;
 
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
@@ -157,6 +139,4 @@ private class IntMapValuesIterator<T> {
 		index = nextIndex;
 		return r;
 	}
-
 }
-#end

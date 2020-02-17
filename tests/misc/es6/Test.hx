@@ -49,6 +49,25 @@ class Child extends Base {
 	}
 }
 
+class RootNoArgs {
+	public function new() {}
+}
+
+class ChildOneArg extends RootNoArgs {
+	public var x:Int;
+	public function new(x) {
+		super();
+		this.x = x;
+	}
+}
+
+class GrandChildNoArgs extends ChildOneArg {
+	public function new() {
+		Test.use(this);
+		super(42);
+	}
+}
+
 class Test {
 	public static var calls:Array<String>;
 	@:pure(false) public static function use(v:Any) {}
@@ -127,6 +146,8 @@ class Test {
 		calls = [];
 		new Child();
 		assert(calls.join("|") == "CHILD|BASE");
+
+		assert(new ChildOneArg(42).x == 42); // #7988
 
 		// ---
 

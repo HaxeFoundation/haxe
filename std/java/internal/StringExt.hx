@@ -19,22 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.internal;
+
 import java.internal.Function;
 
 private typedef NativeString = String;
 
-@:keep @:nativeGen @:native("haxe.lang.StringExt") private class StringExt
-{
-
+@:keep @:nativeGen @:native("haxe.lang.StringExt") private class StringExt {
 	@:functionCode('
 			if ( index >= me.length() || index < 0 )
 				return "";
 			else
 				return java.lang.Character.toString(me.charAt(index));
 	')
-	public static function charAt(me:NativeString, index:Int):NativeString
-	{
+	public static function charAt(me:NativeString, index:Int):NativeString {
 		return null;
 	}
 
@@ -44,8 +43,7 @@ private typedef NativeString = String;
 			else
 				return (int) me.charAt(index);
 	')
-	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
-	{
+	public static function charCodeAt(me:NativeString, index:Int):Null<Int> {
 		return null;
 	}
 
@@ -55,8 +53,7 @@ private typedef NativeString = String;
 				return -1;
 			return me.indexOf(str, sIndex);
 	')
-	public static function indexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
-	{
+	public static function indexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int {
 		return -1;
 	}
 
@@ -68,8 +65,7 @@ private typedef NativeString = String;
 				return -1;
 			return me.lastIndexOf(str, sIndex);
 	')
-	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
-	{
+	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int {
 		return -1;
 	}
 
@@ -100,8 +96,7 @@ private typedef NativeString = String;
 			}
 			return ret;
 	')
-	public static function split(me:NativeString, delimiter:NativeString):Array<NativeString>
-	{
+	public static function split(me:NativeString, delimiter:NativeString):Array<NativeString> {
 		return null;
 	}
 
@@ -133,8 +128,7 @@ private typedef NativeString = String;
 
 			return me.substring(pos, pos + targetLen);
 	')
-	public static function substr(me:NativeString, pos:Int, ?len:Int):NativeString
-	{
+	public static function substr(me:NativeString, pos:Int, ?len:Int):NativeString {
 		return null;
 	}
 
@@ -164,52 +158,46 @@ private typedef NativeString = String;
 		return me.substring(startIndex, endIdx);
 
 	')
-	public static function substring(me:NativeString, startIndex:Int, ?endIndex:Int):NativeString
-	{
+	public static function substring(me:NativeString, startIndex:Int, ?endIndex:Int):NativeString {
 		return null;
 	}
 
-	public static function toString(me:NativeString):NativeString
-	{
+	public static function toString(me:NativeString):NativeString {
 		return me;
 	}
 
 	@:functionCode('
 			return me.toLowerCase();
 	')
-	public static function toLowerCase(me:NativeString):NativeString
-	{
+	public static function toLowerCase(me:NativeString):NativeString {
 		return null;
 	}
 
 	@:functionCode('
 			return me.toUpperCase();
 	')
-	public static function toUpperCase(me:NativeString):NativeString
-	{
+	public static function toUpperCase(me:NativeString):NativeString {
 		return null;
 	}
 
-	public static function toNativeString(me:NativeString):NativeString
-	{
+	public static function toNativeString(me:NativeString):NativeString {
 		return me;
 	}
 
-	public static function fromCharCode(code:Int):String
-	{
+	public static function fromCharCode(code:Int):String {
 		return new String(java.lang.Character.toChars(code));
 	}
 }
 
-@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl
-{
-	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
+@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl {
+	public static var fields = [
+		"length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"
+	];
 
-	public static function handleGetField(str:NativeString, f:NativeString, throwErrors:Bool):Dynamic
-	{
-		switch(f)
-		{
-			case "length": return str.length;
+	public static function handleGetField(str:NativeString, f:NativeString, throwErrors:Bool):Dynamic {
+		switch (f) {
+			case "length":
+				return str.length;
 			case "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring":
 				return new Closure(str, f);
 			default:
@@ -220,8 +208,7 @@ private typedef NativeString = String;
 		}
 	}
 
-	public static function handleCallField(str:NativeString, f:NativeString, args:java.NativeArray<Dynamic>):Dynamic
-	{
+	public static function handleCallField(str:NativeString, f:NativeString, args:java.NativeArray<Dynamic>):Dynamic {
 		var _args:java.NativeArray<Dynamic>;
 		if (args == null) {
 			_args = java.NativeArray.make(str);
@@ -235,16 +222,14 @@ private typedef NativeString = String;
 	}
 }
 
-@:keep @:native('haxe.lang.NativeString') private extern class JavaString
-{
-	//name collides with Haxe's
+@:keep @:native('haxe.lang.NativeString') private extern class JavaString {
+	// name collides with Haxe's
 	function _charAt(idx:Int):java.StdTypes.Char16;
 	function codePointAt(idx:Int):Int;
 	function codePointBefore(idx:Int):Int;
 	function codePointCount(begin:Int, end:Int):Int;
 	function offsetByCodePoints(index:Int, codePointOffset:Int):Int;
 	function getChars(srcBegin:Int, srcEnd:Int, dst:java.NativeArray<java.StdTypes.Char16>, dstBegin:Int):Void;
-
 
 	function startsWith(prefix:String):Bool;
 	function endsWith(suffix:String):Bool;

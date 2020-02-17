@@ -19,25 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.NativeIterable.NativeIterableRaw;
 
 /**
-    This type represents native Python iterators.
-    It supports automatic conversion to Haxe `Iterator` by creating wrapper object.
+	This type represents native Python iterators.
+	It supports automatic conversion to Haxe `Iterator` by creating wrapper object.
 **/
 abstract NativeIterator<T>(NativeIteratorRaw<T>) to NativeIteratorRaw<T> to NativeIterable<T> {
-	public inline function new(p:NativeIteratorRaw<T>) this = p;
+	public inline function new(p:NativeIteratorRaw<T>)
+		this = p;
 
-    /**
-        Return Haxe `Iterator` object by wrapping `this` native iterator.
-    **/
-	@:to public inline function toHaxeIterator():HaxeIterator<T> return new HaxeIterator(this);
+	/**
+		Return Haxe `Iterator` object by wrapping `this` native iterator.
+	**/
+	@:to public inline function toHaxeIterator():HaxeIterator<T>
+		return new HaxeIterator(this);
 }
 
 /**
-    Native Python iterator protocol.
+	Native Python iterator protocol.
 **/
 typedef NativeIteratorRaw<T> = NativeIterableRaw<T> & {
 	function __next__():T;

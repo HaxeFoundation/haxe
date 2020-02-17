@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `StorageManager` interface of the the Storage API provides an interface for managing persistance permissions and estimating available storage. You can get a reference to this interface using either `navigator.storage` or `WorkerNavigator.storage`.
 
@@ -33,19 +35,19 @@ package js.html;
 **/
 @:native("StorageManager")
 extern class StorageManager {
-	
+
 	/**
 		Returns a `Promise` that resolves to `true` if persistence has already been granted for your site's storage.
 		@throws DOMError
 	**/
 	function persisted() : Promise<Bool>;
-	
+
 	/**
 		Returns a `Promise` that resolves to `true` if the user agent is able to persist your site's storage.
 		@throws DOMError
 	**/
 	function persist() : Promise<Bool>;
-	
+
 	/**
 		Returns a `StorageEstimate` object containing usage and quota numbers for your origin.
 		@throws DOMError

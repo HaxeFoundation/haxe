@@ -73,7 +73,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a_v_0_b = 1;a_v_0_b;")
+	@:js("var a_v_0_b = 1;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -97,7 +97,7 @@ class TestJs {
 		var a = "";
 		var e = switch (a) {
 			case _.toLowerCase() => "e": 0;
-			default: throw new js.Error();
+			default: throw new js.lib.Error();
 		}
 	}
 
@@ -249,8 +249,8 @@ class TestJs {
 	}
 
 	@:js('
-		var map = new haxe_ds_StringMap();
-		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		var map_h = Object.create(null);
+		map_h["some"] = 2;
 		TestJs.use(2);
 	')
 	static function testIssue4731() {
@@ -547,8 +547,34 @@ class TestJs {
 	static function testIssue7874() {
 		if (v && v) {}
 	}
+
+	@:js('')
+	static function testIssue8751() {
+		(2:Issue8751Int) * 3;
+	}
+
+	@:js('var v = "hi";TestJs.use(typeof(v) == "string" ? v : null);')
+	static function testStdIsOptimizationSurvivesCast() {
+		var value = "hi";
+		use(as(value, String));
+	}
+
+	static inline function as<T>(v:Dynamic, c:Class<T>):Null<T> {
+		return if (Std.isOfType(v, c)) v else null;
+	}
+
 }
 
 extern class Extern {
 	static public function test(e:haxe.extern.AsVar<String>):Void;
+}
+
+abstract Issue8751Int(Int) from Int {
+	@:op(A * B) static public inline function add(a:Issue8751Int, b:Issue8751Int):Issue8751Int {
+		return a.toInt() * b.toInt();
+	}
+
+	inline public function toInt():Int {
+		return this;
+	}
 }

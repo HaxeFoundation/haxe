@@ -1,6 +1,6 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum TextFieldType {
-	DYNAMIC;
-	INPUT;
+@:native("flash.text.TextFieldType") extern enum abstract TextFieldType(String) {
+	var DYNAMIC;
+	var INPUT;
 }
