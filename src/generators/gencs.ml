@@ -2798,7 +2798,7 @@ let generate con =
 								| _,e,_ ->
 									(List.iter (fun e ->
 										match e with
-										| (EConst(String s)),_-> write w (Printf.sprintf "using %s;\n" s)
+										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
 										| _,p -> gen.gcon.error "One or several string constants expected" p
 									) e);
 									newline w
