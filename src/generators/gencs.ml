@@ -1880,7 +1880,7 @@ let generate con =
 
 		let gen_assembly_attributes w metadata =
 			List.iter (function
-				| Meta.AssemblyMeta, [EConst(String s), _], _ ->
+				| Meta.AssemblyMeta, [EConst(String(s,_)), _], _ ->
 					write w "[assembly:";
 					write w s;
 					write w "]";
