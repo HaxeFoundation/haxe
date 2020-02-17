@@ -23,7 +23,7 @@ class Issue5486 extends unit.Test {
 	}
 
 	static function broken(?input:Dynamic):Option<Int>{
-		if(Std.is(input, Int)){
+		if(Std.isOfType(input, Int)){
 			return Some(input);
 		} else {
 			return None;

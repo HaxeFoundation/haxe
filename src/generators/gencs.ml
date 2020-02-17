@@ -243,12 +243,12 @@ struct
 			match e.eexpr with
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" } | TAbstractDecl { a_path = [], "Dynamic" }) }]
 					) ->
 						Type.map_expr run e
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") }) ) },
 						[ obj; { eexpr = TTypeExpr(md) }]
 					) ->
 					let md = change_md md in
@@ -272,7 +272,7 @@ struct
 						match obj.eexpr with
 							| TLocal(v) -> f obj
 							| _ ->
-								let var = mk_temp "is" obj.etype in
+								let var = mk_temp "isOfType" obj.etype in
 								let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 								let local = mk_local var obj.epos in
 								{
@@ -2188,9 +2188,12 @@ let generate con =
 							| Some e ->
 								write w " = ";
 								expr_s true w e;
-							| None -> ()
+								write w ";"
+							| None when (Meta.has Meta.Property cf.cf_meta) ->
+								write w " { get; set; }";
+							| None ->
+								write w ";"
 						);
-						write w ";"
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
@@ -2789,6 +2792,20 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
+						(if (Meta.has Meta.CsUsing cl.cl_meta) then
+							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,_,p when not file_start ->
+									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
+								| _,[],p ->
+									gen.gcon.error "One or several string constants expected" p
+								| _,e,_ ->
+									(List.iter (fun e ->
+										match e with
+										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
+										| _,p -> gen.gcon.error "One or several string constants expected" p
+									) e);
+									newline w
+						);
 						gen_class w cl;
 						newline w;
 						newline w

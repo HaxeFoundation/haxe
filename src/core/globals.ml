@@ -71,6 +71,8 @@ let platform_list_help = function
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
+let mk_zero_range_pos p = { p with pmax = p.pmin }
+
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
 let starts_with s c =

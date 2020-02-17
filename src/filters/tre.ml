@@ -203,7 +203,13 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 let run ctx e =
 	match e.eexpr with
 	| TFunction fn ->
-		let is_tre_eligible = ctx.curfun = FunStatic || has_class_field_flag ctx.curfield CfFinal in
+		let is_tre_eligible =
+			match ctx.curfield.cf_kind with
+			| Method MethDynamic -> false
+			| Method MethInline -> true
+			| Method _ when ctx.curfun = FunStatic -> true
+			| _ -> has_class_field_flag ctx.curfield CfFinal
+			in
 		let is_recursive_call callee args =
 			is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
 		in

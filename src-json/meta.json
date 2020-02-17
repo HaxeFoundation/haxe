@@ -196,6 +196,13 @@
 		"internal": true
 	},
 	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
@@ -418,6 +425,12 @@
 		"doc": "Internally used to mark instances of `@:generic` methods.",
 		"targets": ["TClassField"],
 		"internal": true
+	},
+	{
+		"name": "GenericClassPerMethod",
+		"metadata": ":genericClassPerMethod",
+		"doc": "Makes compiler generate separate class per generic static method specialization",
+		"targets": ["TClass"]
 	},
 	{
 		"name": "Getter",
@@ -803,7 +816,7 @@
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
 		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
-		"params": ["Off | Loose | Strict"],
+		"params": ["Off | Loose | Strict | StrictThreaded"],
 		"targets": ["TClass", "TClassField", "TExpr"],
 		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
@@ -922,7 +935,7 @@
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property.",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},

@@ -1,3 +1,42 @@
+????-??-??: 4.1.0
+
+	General improvements:
+
+	js : use abstract type name for generating its implementation class (#9006)
+	js : improve haxe.ds.StringMap implementation (#8909)
+
+2019-12-17: 4.0.5
+
+	Bugfixes:
+
+	java : fix boolean arguments for `Type.createInstance(cls, args)` (#9025)
+	jvm : fix static overloads (#9034)
+	java/cs : fixed `Reflect.makeVarArgs(fn)` for calls of `fn` without arguments (#9037)
+	js : fix multiple appearances of the first object added to `ObjectMap` is passed to `ObjectMap.set(obj, v)` multiple times (#9026)
+	js : automatically wrap compound expressions with parentheses when passed to `js.Syntax.code()` (#9024)
+	windows : fix adding neko to PATH env var running windows installer (#9021)
+
+2019-11-29: 4.0.3
+
+	General improvements:
+
+	hl : profiler API
+
+	Bugfixes:
+
+	all : fixed EnumValue handling in constant propagation with analyzer enabled (#8959)
+	all : fixed compiler crash upon Void items in array declarations (#8972)
+	hl : fixed `sys.thread.Lock` implementation for Hashlink 1.11+ (#8699)
+	js/eval/java/jvm/cs/python/lua : fixed `Std.parseInt()` for hexadecimals with leading whitespaces (#8978)
+	java/cs : fixed `Reflect.callMethod(o, method, args)` for `args` not containing optional arguments (#8975)
+	cs : fixed Json.stringify for @:struct-annotated classes (#8979)
+	cs : fixed bitwise shifts for `cs.types.Int64` (#8978)
+	python : fixed invalid generation of some inlined code blocks (#8971)
+	std : fixed an exception from `haxe.zip.Huffman` on reading a zip (#8875)
+	windows : workaround windows installer being detected as a malware by some anti-virus software (#8951)
+	windows : fix PATH env var modification when running windows installer without admin privileges (#8870)
+	all : fixed null-safety checker for field access on a call to inlined function
+
 2019-11-11: 4.0.2
 
 	General improvements and optimizations:

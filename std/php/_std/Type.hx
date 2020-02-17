@@ -266,7 +266,7 @@ enum ValueType {
 		if (v.is_object()) {
 			if (Reflect.isFunction(v))
 				return TFunction;
-			if (Std.is(v, StdClass))
+			if (Std.isOfType(v, StdClass))
 				return TObject;
 			if (Boot.isClass(v))
 				return TObject;

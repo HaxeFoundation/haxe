@@ -149,14 +149,18 @@ let get_native_name meta =
 		error "String expected" mp
 
 let check_native_name_override ctx child base =
-	let error() =
-		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child.cf_pos;
-		display_error ctx ("Base field is defined here") base.cf_pos
+	let error base_pos child_pos =
+		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
+		display_error ctx ("Base field is defined here") base_pos
 	in
 	try
-		let native_name = fst (get_native_name child.cf_meta) in
-		try if fst (get_native_name base.cf_meta) <> native_name then error()
-		with Not_found -> error()
+		let child_name, child_pos = get_native_name child.cf_meta in
+		try
+			let base_name, base_pos = get_native_name base.cf_meta in
+			if base_name <> child_name then
+				error base_pos child_pos
+		with Not_found ->
+			error base.cf_name_pos child_pos
 	with Not_found -> ()
 
 let check_overriding ctx c f =
@@ -165,7 +169,7 @@ let check_overriding ctx c f =
 		if List.memq f c.cl_overrides then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
-		let p = f.cf_pos in
+		let p = f.cf_name_pos in
 		let i = f.cf_name in
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
@@ -197,7 +201,7 @@ let check_overriding ctx c f =
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx ("Base field is defined here") f2.cf_pos;
+					display_error ctx ("Base field is defined here") f2.cf_name_pos;
 					display_error ctx (error_msg (Unify l)) p;
 		with
 			Not_found ->
@@ -332,7 +336,7 @@ module Inheritance = struct
 		| _ -> error "Should extend by using a class" p
 
 	let rec check_interface ctx c intf params =
-		let p = c.cl_pos in
+		let p = c.cl_name_pos in
 		let rec check_field i f =
 			(if ctx.com.config.pf_overload then
 				List.iter (function
@@ -351,12 +355,8 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-				if ctx.com.display.dms_collect_data then begin
-						let h = ctx.com.display_information in
-						h.interface_field_implementations <- (intf,f,c,Some f2) :: h.interface_field_implementations;
-				end;
 				ignore(follow f2.cf_type); (* force evaluation *)
-				let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
+				let p = f2.cf_name_pos in
 				let mkind = function
 					| MethNormal | MethInline -> 0
 					| MethDynamic -> 1

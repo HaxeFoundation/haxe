@@ -78,10 +78,14 @@ enum ValueType {
 				return "Float";
 			case "Boolean":
 				return "Bool";
-			default:
+			case _:
+				var idx = str.lastIndexOf("::");
+				if (idx == -1) {
+					return str;
+				} else {
+					return str.substring(0, idx) + "." + str.substring(idx + 2);
+				}
 		}
-		var parts = str.split("::");
-		return parts.join(".");
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {

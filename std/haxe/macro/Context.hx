@@ -113,6 +113,13 @@ class Context {
 	}
 
 	/**
+		Check if current display position is within `pos`.
+	**/
+	public static function containsDisplayPosition(pos:Position):Bool {
+		return load("contains_display_position", 1)(pos);
+	}
+
+	/**
 		Returns the position at which the macro was called.
 	**/
 	public static function currentPos():Position {

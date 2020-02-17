@@ -21,7 +21,7 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					var pypyVersion = "pypy3-2.4.0-linux64";
+					var pypyVersion = "pypy3.6-v7.3.0-linux64";
 					var file = '${pypyVersion}.tar.bz2';
 					if(!FileSystem.exists(file)) {
 						runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/$file'], true);
