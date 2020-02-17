@@ -3,14 +3,17 @@ package runci.targets;
 import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
+import haxe.io.*;
 using StringTools;
 
 class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre3-dev"]);
+				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
+				var pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
+				addToPATH(Path.join([pyUserBase, "bin"]));
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
@@ -59,7 +62,7 @@ class Lua {
 			// Note: don't use a user config
 			// runCommand("luarocks", ["config", "--user-config"], false, true);
 
-			installLib("haxe-deps", "0.0.1-1");
+			installLib("haxe-deps", "0.0.1-2");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));

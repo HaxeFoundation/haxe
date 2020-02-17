@@ -87,6 +87,8 @@ let keywords =
 	"auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
 	"if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
 	"void";"volatile";"while";
+	(* Values *)
+	"NULL";"true";"false";
 	(* MS specific *)
 	"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
 	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
@@ -284,7 +286,7 @@ let expr ctx str =
 	output ctx str;
 	output ctx ";\n"
 
-let unamed_field fid = "$_f" ^ string_of_int fid
+let unamed_field fid = "f$" ^ string_of_int fid
 
 let obj_field fid name =
 	if name = "" then unamed_field fid else ident name
@@ -797,7 +799,7 @@ let generate_function ctx f =
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
-			define "extern vbyte %s;" ctx.bytes_names.(idx);
+			define "extern vbyte %s[];" ctx.bytes_names.(idx);
 			sexpr "%s = %s" (reg r) ctx.bytes_names.(idx)
 		| OString (r,idx) ->
 			sexpr "%s = (vbyte*)%s" (reg r) (string ctx idx)
@@ -1129,19 +1131,19 @@ let make_types_idents htypes =
 	let rec desc_string d =
 		match d with
 		| DSimple (HNull t) ->
-			"$t_nul_" ^ tstr t
+			"t$nul_" ^ tstr t
 		| DSimple (HRef t) ->
-			"$t_ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
+			"t$ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
 		| DSimple t ->
-			"$t_" ^ tstr t
+			"t$_" ^ tstr t
 		| DFun _ ->
-			"$t_fun_" ^ make_sign d
+			"t$fun_" ^ make_sign d
 		| DNamed n ->
-			"$t_" ^ (String.concat "_" (ExtString.String.nsplit n "."))
+			"t$" ^ (String.concat "_" (ExtString.String.nsplit n "."))
 		| DVirtual _ ->
-			"$t_vrt_" ^ (make_sign d)
+			"t$vrt_" ^ (make_sign d)
 		| DContext _ ->
-			"$t_ctx_" ^ (make_sign d)
+			"t$ctx_" ^ (make_sign d)
 	in
 	PMap.mapi (fun t _ -> desc_string (make_desc t)) htypes
 
@@ -1163,7 +1165,7 @@ let make_global_names code gnames =
 	let gnames_used = Hashtbl.create 0 in
 	let gnames = Hashtbl.create 0 in
 	Array.iter (fun (str,g) ->
-		let id = (if Hashtbl.mem is_cstr g then "$s_" else "$g_") ^ (if String.length str > 32 then short_digest str else let i = valid_ident str in if i = "_" || (try Hashtbl.find hstrings i with Not_found -> false) then short_digest str else i) in
+		let id = (if Hashtbl.mem is_cstr g then "s$" else "g$") ^ (if String.length str > 32 then short_digest str else let i = valid_ident str in if i = "_" || (try Hashtbl.find hstrings i with Not_found -> false) then short_digest str else i) in
 		let rec loop id k =
 			let rid = if k = 0 then id else id ^ "_" ^ string_of_int k in
 			if Hashtbl.mem gnames_used rid then loop id (k+1) else rid
@@ -1280,7 +1282,7 @@ let make_modules ctx all_types =
 	if ep >= 0 then begin
 		let m = get_module "hl/init" in
 		add m ep;
-		ctx.ftable.(ep).fe_name <- "$init";
+		ctx.ftable.(ep).fe_name <- "fun$init";
 	end;
 	List.iter (fun m ->
 		let rec get_deps acc = function

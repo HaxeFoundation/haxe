@@ -19,18 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 class BytesOutput extends Output {
-
 	#if flash
-	var b : flash.utils.ByteArray;
+	var b:flash.utils.ByteArray;
 	#else
-	var b : BytesBuffer;
+	var b:BytesBuffer;
 	#end
 
 	/** The length of the stream in bytes. **/
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
 	public function new() {
 		#if flash
@@ -44,7 +44,7 @@ class BytesOutput extends Output {
 		#end
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.length;
 	}
 
@@ -56,12 +56,13 @@ class BytesOutput extends Output {
 		#end
 	}
 
-	override function writeBytes( buf : Bytes, pos, len ) : Int {
+	override function writeBytes(buf:Bytes, pos, len):Int {
 		#if flash
-		if( pos < 0 || len < 0 || pos + len > buf.length ) throw Error.OutsideBounds;
-		b.writeBytes(buf.getData(),pos,len);
+		if (pos < 0 || len < 0 || pos + len > buf.length)
+			throw Error.OutsideBounds;
+		b.writeBytes(buf.getData(), pos, len);
 		#else
-		b.addBytes(buf,pos,len);
+		b.addBytes(buf, pos, len);
 		#end
 		return len;
 	}
@@ -77,52 +78,54 @@ class BytesOutput extends Output {
 	}
 
 	@:dox(hide)
-	override function writeFloat( f : Float ) {
+	override function writeFloat(f:Float) {
 		b.writeFloat(f);
 	}
 
 	@:dox(hide)
-	override function writeDouble( f : Float ) {
+	override function writeDouble(f:Float) {
 		b.writeDouble(f);
 	}
 
 	@:dox(hide)
-	override function writeInt8( x : Int ) {
-		if( x < -0x80 || x >= 0x80 )
+	override function writeInt8(x:Int) {
+		if (x < -0x80 || x >= 0x80)
 			throw Error.Overflow;
 		b.writeByte(x);
 	}
 
 	@:dox(hide)
-	override function writeInt16( x : Int ) {
-		if( x < -0x8000 || x >= 0x8000 ) throw Error.Overflow;
+	override function writeInt16(x:Int) {
+		if (x < -0x8000 || x >= 0x8000)
+			throw Error.Overflow;
 		b.writeShort(x);
 	}
 
 	@:dox(hide)
-	override function writeUInt16( x : Int ) {
-		if( x < 0 || x >= 0x10000 ) throw Error.Overflow;
+	override function writeUInt16(x:Int) {
+		if (x < 0 || x >= 0x10000)
+			throw Error.Overflow;
 		b.writeShort(x);
 	}
 
 	@:dox(hide)
-	override function writeInt32( x : Int ) {
+	override function writeInt32(x:Int) {
 		b.writeInt(x);
 	}
 
 	@:dox(hide)
-	override function prepare( size : Int ) {
-		if( size > 0 ) b[size-1] = b[size-1];
+	override function prepare(size:Int) {
+		if (size > 0)
+			b[size - 1] = b[size - 1];
 	}
 
 	@:dox(hide)
-	override function writeString( s : String, ?encoding : Encoding ) {
-		if( encoding == RawNative )
+	override function writeString(s:String, ?encoding:Encoding) {
+		if (encoding == RawNative)
 			b.writeMultiByte(s, "unicode");
 		else
 			b.writeUTFBytes(s);
 	}
-
 	#end
 
 	/**
@@ -131,14 +134,13 @@ class BytesOutput extends Output {
 		This function should not be called more than once on a given
 		`BytesOutput` instance.
 	**/
-	public function getBytes() : Bytes {
+	public function getBytes():Bytes {
 		#if flash
 		var bytes = b;
 		b = null;
-		return untyped new Bytes(bytes.length,bytes);
+		return untyped new Bytes(bytes.length, bytes);
 		#else
 		return b.getBytes();
 		#end
 	}
-
 }

@@ -9,13 +9,15 @@ let warned_positions = Hashtbl.create 0
 
 let warn_deprecation com s p_usage =
 	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage true;
-		com.warning s p_usage;
+		Hashtbl.replace warned_positions p_usage s;
+		match com.display.dms_kind with
+		| DMDiagnostics _ -> ()
+		| _ -> com.warning s p_usage;
 	end
 
 let print_deprecation_message com meta s p_usage =
 	let s = match meta with
-		| _,[EConst(String s),_],_ -> s
+		| _,[EConst(String(s,_)),_],_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
 	warn_deprecation com s p_usage
@@ -63,7 +65,11 @@ let run_on_expr com e =
 		| TNew(c,_,el) ->
 			List.iter expr el;
 			check_class com c e.epos;
-			(match c.cl_constructor with None -> () | Some cf -> check_cf com cf e.epos)
+			begin match c.cl_constructor with
+				(* The AST doesn't carry the correct overload for TNew, so let's ignore this case... (#8557). *)
+				| Some cf when cf.cf_overloads = [] -> check_cf com cf e.epos
+				| _ -> ()
+			end
 		| TTypeExpr(mt) | TCast(_,Some mt) ->
 			check_module_type com mt e.epos
 		| TMeta((Meta.Deprecated,_,_) as meta,e1) ->
@@ -84,6 +90,7 @@ let run com =
 			(match c.cl_init with None -> () | Some e -> run_on_expr com e);
 			List.iter (run_on_field com) c.cl_ordered_statics;
 			List.iter (run_on_field com) c.cl_ordered_fields;
+			curclass := null_class;
 		| _ ->
 			()
 	) com.types

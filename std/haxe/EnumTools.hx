@@ -25,10 +25,10 @@ package haxe;
 /**
 	This class provides advanced methods on enums. It is ideally used with
 	`using EnumTools` and then acts as an
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the
-  `enum` types.
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `enum` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumTools {
@@ -37,7 +37,9 @@ extern class EnumTools {
 
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
+		
 			pack1.pack2.(...).packN.EnumName
+
 		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
@@ -113,14 +115,13 @@ extern class EnumTools {
 /**
 	This class provides advanced methods on enum values. It is ideally used with
 	`using EnumValueTools` and then acts as an
-  [extension](https://haxe.org/manual/lf-static-extension.html) to the
-  `EnumValue` types.
+	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
+	  `EnumValue` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumValueTools {
-
 	/**
 		Recursively compares two enum instances `a` and `b` by value.
 

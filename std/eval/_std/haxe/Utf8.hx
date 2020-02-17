@@ -19,20 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi
 @:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 extern class Utf8 {
-	public function new( ?size : Int ):Void;
-	public function addChar( c : Int ) : Void;
-	public function toString() : String;
-	public static function iter( s : String, chars : Int -> Void ):Void;
-	public static function encode( s : String ) : String;
-	public static function decode( s : String ) : String;
-	public static function charCodeAt( s : String, index : Int ) : Int;
-	public static function validate( s : String ) : Bool;
-	public static function length( s : String ) : Int;
-	public static function compare( a : String, b : String ) : Int;
-	public static function sub( s : String, pos : Int, len : Int ) : String;
+	public function new(?size:Int):Void;
+	public function addChar(c:Int):Void;
+	public function toString():String;
+	public static function iter(s:String, chars:Int->Void):Void;
+	public static function encode(s:String):String;
+	public static function decode(s:String):String;
+	public static function charCodeAt(s:String, index:Int):Int;
+	public static function validate(s:String):Bool;
+	public static function length(s:String):Int;
+	public static function compare(a:String, b:String):Int;
+	public static function sub(s:String, pos:Int, len:Int):String;
 }

@@ -23,55 +23,55 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},T> implements haxe.Constraints.IMap<K,T> {
+class ObjectMap<K:{}, T> implements haxe.Constraints.IMap<K, T> {
+	var h:hl.types.ObjectMap;
 
-	var h : hl.types.ObjectMap;
-
-	public function new() : Void {
+	public function new():Void {
 		h = new hl.types.ObjectMap();
 	}
 
-	public function set( key : K, value : T ) : Void {
-		@:privateAccess h.set(key,value);
+	public function set(key:K, value:T):Void {
+		@:privateAccess h.set(key, value);
 	}
 
-	public function get( key : K ) : Null<T> {
+	public function get(key:K):Null<T> {
 		return @:privateAccess h.get(key);
 	}
 
-	public function exists( key : K ) : Bool {
+	public function exists(key:K):Bool {
 		return @:privateAccess h.exists(key);
 	}
 
-	public function remove( key : K ) : Bool {
+	public function remove(key:K):Bool {
 		return @:privateAccess h.remove(key);
 	}
 
-	public function keys() : Iterator<K> {
+	public function keys():Iterator<K> {
 		return new hl.NativeArray.NativeArrayIterator<K>(cast h.keysArray());
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return h.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : ObjectMap<K,T> {
+	public function copy():ObjectMap<K, T> {
 		var copied = new ObjectMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		var keys = h.keysArray();
 		var values = h.valuesArray();
 		s.addChar('{'.code);
-		for( i in 0...keys.length ) {
-			if( i > 0 )
+		for (i in 0...keys.length) {
+			if (i > 0)
 				s.add(", ");
 			s.add(keys[i]);
 			s.add(" => ");
@@ -81,4 +81,11 @@ class ObjectMap<K:{},T> implements haxe.Constraints.IMap<K,T> {
 		return s.toString();
 	}
 
+	public function clear():Void {
+		#if (hl_ver >= version("1.11.0"))
+		@:privateAccess h.clear();
+		#else
+		h = new hl.types.ObjectMap();
+		#end
+	}
 }

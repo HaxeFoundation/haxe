@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 import php.Global;
@@ -26,62 +27,61 @@ import php.Global;
 @:coreApi
 @:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8 {
+	var __b:String;
 
-	var __b : String;
-
-	public function new( ?size : Int ) : Void {
+	public function new(?size:Int):Void {
 		__b = '';
 	}
 
-	public function addChar( c : Int ) : Void {
+	public function addChar(c:Int):Void {
 		__b += uchr(c);
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return __b;
 	}
 
-	public static function encode( s : String ) : String {
+	public static function encode(s:String):String {
 		return Global.utf8_encode(s);
 	}
 
-	public static function decode( s : String ) : String {
+	public static function decode(s:String):String {
 		return Global.utf8_decode(s);
 	}
 
-	public static function iter(s : String, chars : Int -> Void ) : Void {
+	public static function iter(s:String, chars:Int->Void):Void {
 		var len = length(s);
-		for(i in 0...len) {
+		for (i in 0...len) {
 			chars(charCodeAt(s, i));
 		}
 	}
 
-	public static function charCodeAt( s : String, index : Int ) : Int {
+	public static function charCodeAt(s:String, index:Int):Int {
 		return uord(sub(s, index, 1));
 	}
 
-	static function uchr(i : Int) : String {
+	static function uchr(i:Int):String {
 		return Global.mb_convert_encoding(Global.pack('N', i), 'UTF-8', 'UCS-4BE');
 	}
 
-	static function uord(s : String) : Int {
+	static function uord(s:String):Int {
 		var c = Global.unpack('N', Global.mb_convert_encoding(s, 'UCS-4BE', 'UTF-8'));
 		return c[1];
 	}
 
-	public static function validate( s : String ) : Bool {
+	public static function validate(s:String):Bool {
 		return Global.mb_check_encoding(s, enc);
 	}
 
-	public static function length( s : String ) : Int {
+	public static function length(s:String):Int {
 		return Global.mb_strlen(s, enc);
 	}
 
-	public static function compare( a : String, b : String ) : Int {
+	public static function compare(a:String, b:String):Int {
 		return Global.strcmp(a, b);
 	}
 
-	public static function sub( s : String, pos : Int, len : Int ) : String {
+	public static function sub(s:String, pos:Int, len:Int):String {
 		return Global.mb_substr(s, pos, len, enc);
 	}
 

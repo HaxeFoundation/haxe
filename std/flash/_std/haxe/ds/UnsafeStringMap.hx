@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 /**
@@ -26,97 +27,78 @@ package haxe.ds;
 	As a result, it will be faster to access the map for reading, but it might fail
 	with some reserved keys such as `constructor` or `prototype`.
 **/
-class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
+class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
+	private var h:flash.utils.Dictionary;
 
-	private var h : flash.utils.Dictionary;
-
-	public function new() : Void {
+	public function new():Void {
 		h = new flash.utils.Dictionary();
 	}
 
-	public inline function set( key : String, value : T ) : Void {
+	public inline function set(key:String, value:T):Void {
 		untyped h[key] = value;
 	}
 
-	public inline function get( key : String ) : Null<T> {
+	public inline function get(key:String):Null<T> {
 		return untyped h[key];
 	}
 
-	public inline function exists( key : String ) : Bool {
-		return untyped __in__(key,h);
+	public inline function exists(key:String):Bool {
+		return untyped __in__(key, h);
 	}
 
-	public function remove( key : String ) : Bool {
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped __delete__(h,key);
+	public function remove(key:String):Bool {
+		if (untyped !h.hasOwnProperty(key))
+			return false;
+		untyped __delete__(h, key);
 		return true;
 	}
 
-	#if as3
-
-	// unoptimized version
-	
-	public function keys() : Iterator<String> {
-		return untyped (__keys__(h)).iterator();
-	}
-
-	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : __keys__(h).iterator(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
-		};
-	}
-
-	#else
-
-	public inline function keys() : Iterator<String> {
+	public inline function keys():Iterator<String> {
 		return new UnsafeStringMapKeysIterator(h);
 	}
 
-	public inline function iterator() : Iterator<T> {
+	public inline function iterator():Iterator<T> {
 		return new UnsafeStringMapValuesIterator<T>(h);
 	}
 
-	#end
-
-	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : UnsafeStringMap<T> {
+	public function copy():UnsafeStringMap<T> {
 		var copied = new UnsafeStringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = new flash.utils.Dictionary();
+	}
 }
-
-#if !as3
 
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
 @:allow(haxe.ds.UnsafeStringMap)
 private class UnsafeStringMapKeysIterator {
 	var h:flash.utils.Dictionary;
-	var index : Int;
-	var nextIndex : Int;
+	var index:Int;
+	var nextIndex:Int;
 
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
@@ -132,18 +114,17 @@ private class UnsafeStringMapKeysIterator {
 	}
 
 	public inline function next():String {
-		var r : String = untyped __forin__(h, nextIndex);
+		var r:String = untyped __forin__(h, nextIndex);
 		index = nextIndex;
 		return r;
 	}
-
 }
 
 @:allow(haxe.ds.UnsafeStringMap)
 private class UnsafeStringMapValuesIterator<T> {
 	var h:flash.utils.Dictionary;
-	var index : Int;
-	var nextIndex : Int;
+	var index:Int;
+	var nextIndex:Int;
 
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
@@ -163,6 +144,4 @@ private class UnsafeStringMapValuesIterator<T> {
 		index = nextIndex;
 		return r;
 	}
-
 }
-#end

@@ -19,7 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
+
+import haxe.iterators.HashMapKeyValueIterator;
 
 /**
 	HashMap allows mapping of hashable objects to arbitrary values.
@@ -28,7 +31,7 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
+abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 	/**
 		Creates a new HashMap.
 	**/
@@ -39,7 +42,7 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	/**
 		See `Map.set`
 	**/
-	public inline function set(k:K, v:V) {
+	@:arrayAccess public inline function set(k:K, v:V) {
 		this.keys.set(k.hashCode(), k);
 		this.values.set(k.hashCode(), v);
 	}
@@ -47,7 +50,7 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	/**
 		See `Map.get`
 	**/
-	public inline function get(k:K) {
+	@:arrayAccess public inline function get(k:K) {
 		return this.values.get(k.hashCode());
 	}
 
@@ -72,11 +75,11 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	public inline function keys() {
 		return this.keys.iterator();
 	}
-	
+
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : HashMap<K, V> {
+	public function copy():HashMap<K, V> {
 		var copied = new HashMapData();
 		copied.keys = this.keys.copy();
 		copied.values = this.values.copy();
@@ -89,11 +92,27 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	public inline function iterator() {
 		return this.values.iterator();
 	}
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+	public inline function keyValueIterator():HashMapKeyValueIterator<K, V> {
+		return new HashMapKeyValueIterator(cast this);
+	}
+
+	/**
+		See `Map.clear`
+	**/
+	public inline function clear():Void {
+		this.keys.clear();
+		this.values.clear();
+	}
 }
 
-private class HashMapData<K:{ function hashCode():Int; },V> {
+private class HashMapData<K:{function hashCode():Int;}, V> {
 	public var keys:IntMap<K>;
 	public var values:IntMap<V>;
+
 	public inline function new() {
 		keys = new IntMap();
 		values = new IntMap();

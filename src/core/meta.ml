@@ -41,10 +41,11 @@ let get_documentation d =
 			| Platforms fl -> pfs := fl @ !pfs
 			| UsedOn ul -> used := ul @ !used
 			| UsedInternally -> assert false
+			| Link _ -> ()
 		) flags;
 		let params = (match List.rev !params with
 			| [] -> ""
-			| l -> "(" ^ String.concat "," l ^ ")"
+			| l -> "(<" ^ String.concat ">, <" l ^ ">) "
 		) in
 		let pfs = platform_list_help (List.rev !pfs) in
 		let str = "@" ^ t in

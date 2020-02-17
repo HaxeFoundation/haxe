@@ -33,94 +33,113 @@ enum ValueType {
 	TBool;
 	TObject;
 	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
+	TClass(c:Class<Dynamic>);
+	TEnum(e:Enum<Dynamic>);
 	TUnknown;
 }
 
 @:coreApi class Type {
-
-	public static function getClass<T>( o : T ) : Class<T> {
-		if(Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
+	public static function getClass<T>(o:T):Class<T> {
+		if (Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
 			var cls = Boot.getClass(Global.get_class(cast o));
 			return (cls == Boot.getHxAnon() ? null : cast cls);
-		} else if(Global.is_string(o)) {
+		} else if (Global.is_string(o)) {
 			return cast String;
 		} else {
 			return null;
 		}
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
-		if(o == null) return null;
+	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+		if (o == null)
+			return null;
 		return cast Boot.getClass(Global.get_class(cast o));
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		if(c == null) return null;
+	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+		if (c == null)
+			return null;
 		var parentClass = Global.get_parent_class((cast c).phpClassName);
-		if(!parentClass) return null;
+		if (!parentClass)
+			return null;
 		return cast Boot.getClass(parentClass);
 	}
 
-	public static function getClassName( c : Class<Dynamic> ) : String {
-		if(c == null) return null;
+	public static function getClassName(c:Class<Dynamic>):String {
+		if (c == null)
+			return null;
 		return Boot.getHaxeName(cast c);
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String {
+	public static function getEnumName(e:Enum<Dynamic>):String {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> {
-		if (name == null) return null;
-		switch(name) {
-			case 'Dynamic': return cast Dynamic;
-			case 'Int': return cast Int;
-			case 'Float': return cast Float;
-			case 'Bool':  return cast Bool;
-			case 'String': return String;
-			case 'Class': return cast Class;
-			case 'Enum': return cast Enum;
+	public static function resolveClass(name:String):Class<Dynamic> {
+		if (name == null)
+			return null;
+		switch (name) {
+			case 'Dynamic':
+				return cast Dynamic;
+			case 'Int':
+				return cast Int;
+			case 'Float':
+				return cast Float;
+			case 'Bool':
+				return cast Bool;
+			case 'String':
+				return String;
+			case 'Class':
+				return cast Class;
+			case 'Enum':
+				return cast Enum;
 		}
 
 		var phpClass = Boot.getPhpName(name);
-		if (!Global.class_exists(phpClass) && !Global.interface_exists(phpClass)) return null;
+		if (!Global.class_exists(phpClass) && !Global.interface_exists(phpClass))
+			return null;
 
 		var hxClass = Boot.getClass(phpClass);
 
 		return cast hxClass;
 	}
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> {
-		if (name == null) return null;
-		if (name == 'Bool') return cast Bool;
+	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name == null)
+			return null;
+		if (name == 'Bool')
+			return cast Bool;
 
 		var phpClass = Boot.getPhpName(name);
-		if (!Global.class_exists(phpClass)) return null;
+		if (!Global.class_exists(phpClass))
+			return null;
 
 		var hxClass = Boot.getClass(phpClass);
 
 		return cast hxClass;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
-		if (String == cast cl) return args[0];
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		if (String == cast cl)
+			return args[0];
 
 		var nativeArgs:NativeArray = @:privateAccess args.arr;
 		return Syntax.construct(Syntax.nativeClassName(cl), Syntax.splat(nativeArgs));
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
-		if (String == cast cl) return cast '';
-		if (Array == cast cl) return cast [];
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
+		if (String == cast cl)
+			return cast '';
+		if (Array == cast cl)
+			return cast [];
 
 		var reflection = new ReflectionClass(Syntax.nativeClassName(cl));
 		return reflection.newInstanceWithoutConstructor();
 	}
 
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		if (e == null || constr == null) return null;
+	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		if (e == null || constr == null)
+			return null;
 
 		var phpName = Syntax.nativeClassName(e);
 
@@ -141,8 +160,9 @@ enum ValueType {
 		}
 	}
 
-	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		if (e == null || index == null) return null;
+	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		if (e == null || index == null)
+			return null;
 
 		var phpName = Syntax.nativeClassName(e);
 
@@ -165,13 +185,12 @@ enum ValueType {
 		}
 	}
 
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		if (c == null) return null;
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
+		if (c == null)
+			return null;
 		if (c == String) {
 			return [
-				'substr', 'charAt', 'charCodeAt', 'indexOf',
-				'lastIndexOf', 'split', 'toLowerCase',
-				'toUpperCase', 'toString', 'length'
+				'substr', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'toLowerCase', 'toUpperCase', 'toString', 'length'
 			];
 		}
 
@@ -203,9 +222,11 @@ enum ValueType {
 		return @:privateAccess Array.wrap(fields);
 	}
 
-	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		if (c == null) return null;
-		if (c == String) return ['fromCharCode'];
+	public static function getClassFields(c:Class<Dynamic>):Array<String> {
+		if (c == null)
+			return null;
+		if (c == String)
+			return ['fromCharCode'];
 
 		var phpName = Syntax.nativeClassName(c);
 
@@ -232,59 +253,64 @@ enum ValueType {
 		return @:privateAccess Array.wrap(fields);
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (e == null) return null;
-		return @:privateAccess Array.wrap(untyped e.__hx__list());
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
+		if (e == null)
+			return null;
+		return @:privateAccess Array.wrap(Syntax.call(e, '__hx__list'));
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType {
-		if (v == null) return TNull;
+	public static function typeof(v:Dynamic):ValueType {
+		if (v == null)
+			return TNull;
 
 		if (v.is_object()) {
-			if (Reflect.isFunction(v)) return TFunction;
-			if (Std.is(v, StdClass)) return TObject;
-			if (Boot.isClass(v)) return TObject;
+			if (Reflect.isFunction(v))
+				return TFunction;
+			if (Std.isOfType(v, StdClass))
+				return TObject;
+			if (Boot.isClass(v))
+				return TObject;
 
 			var hxClass = Boot.getClass(Global.get_class(v));
-			if (Boot.isEnumValue(v)) return TEnum(cast hxClass);
+			if (Boot.isEnumValue(v))
+				return TEnum(cast hxClass);
 			return TClass(cast hxClass);
 		}
 
-		if (v.is_bool()) return TBool;
-		if (v.is_int()) return TInt;
-		if (v.is_float()) return TFloat;
-		if (v.is_string()) return TClass(String);
+		if (v.is_bool())
+			return TBool;
+		if (v.is_int())
+			return TInt;
+		if (v.is_float())
+			return TFloat;
+		if (v.is_string())
+			return TClass(String);
 
 		return TUnknown;
 	}
 
-	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool {
-		if (a == b) return true;
-		if (a == null || b == null) return false;
+	public static function enumEq<T:EnumValue>(a:T, b:T):Bool {
+		if (Syntax.strictEqual(a, b))
+			return true;
+		if (a == null || b == null)
+			return false;
 
 		try {
-			if (Global.get_class(cast a) != Global.get_class(cast b)) return false;
-			if (enumIndex(a) != enumIndex(b)) return false;
+			if (!Syntax.instanceof(a, (Global.get_class(cast b):String)))
+				return false;
+			if (enumIndex(a) != enumIndex(b))
+				return false;
 
-			var aParams:NativeIndexedArray<Dynamic> = untyped a.params;
-			var bParams:NativeIndexedArray<Dynamic> = untyped b.params;
+			var aParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(a).params;
+			var bParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(b).params;
 			for (i in 0...Global.count(aParams)) {
-				//enums
+				// enums
 				if (Boot.isEnumValue(aParams[i])) {
 					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
 					}
-					continue;
-				}
-				//functions
-				if (Reflect.isFunction(aParams[i])) {
-					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
-						return false;
-					}
-					continue;
-				}
-				//everything else
-				if (aParams[i] != bParams[i]) {
+				// everything else
+				} else if (!inline Boot.equal(aParams[i], bParams[i])) {
 					return false;
 				}
 			}
@@ -295,20 +321,21 @@ enum ValueType {
 		}
 	}
 
-	public static function enumConstructor( e : EnumValue ) : String {
-		return untyped e.tag;
+	public inline static function enumConstructor(e:EnumValue):String {
+		return Boot.castEnumValue(e).tag;
 	}
 
-	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return @:privateAccess Array.wrap(untyped e.params);
+	public inline static function enumParameters(e:EnumValue):Array<Dynamic> {
+		return @:privateAccess Array.wrap(Boot.castEnumValue(e).params);
 	}
 
-	public inline static function enumIndex( e : EnumValue ) : Int {
-		return untyped e.index;
+	public inline static function enumIndex(e:EnumValue):Int {
+		return Boot.castEnumValue(e).index;
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		if (e == null) return null;
+	public static function allEnums<T>(e:Enum<T>):Array<T> {
+		if (e == null)
+			return null;
 
 		var phpName = Syntax.nativeClassName(e);
 
@@ -326,9 +353,8 @@ enum ValueType {
 
 	/**
 		check if specified `name` is a special field name generated by compiler.
-	 **/
-	static inline function isServiceFieldName(name:String) : Bool {
+	**/
+	static inline function isServiceFieldName(name:String):Bool {
 		return (name == '__construct' || name.indexOf('__hx_') == 0);
 	}
 }
-

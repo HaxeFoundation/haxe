@@ -72,7 +72,7 @@ let generate_expr_pos ctx p =
 	jtodo
 
 let generate_doc ctx d = match ctx.generation_mode with
-	| GMFull -> jopt jstring d
+	| GMFull -> jopt jstring (gen_doc_text_opt d)
 	| GMWithoutDoc | GMMinimum -> jnull
 
 (** return a range JSON structure for given position
@@ -188,7 +188,7 @@ let rec generate_ast_type_param ctx tp = jobject [
 let rec generate_type ctx t =
 	let rec loop t = match t with
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 			| None -> "TMono",None
 			| Some t -> loop t
 			end
@@ -519,7 +519,12 @@ and generate_class_field' ctx cfs cf =
 						None
 			in
 			begin match value with
-				| None -> jnull
+				| None ->
+					if Meta.has (Meta.Custom ":testHack") cf.cf_meta then begin match cf.cf_expr with
+						| Some e -> jobject ["testHack",jstring (s_expr_pretty false "" false (s_type (print_context())) e)] (* TODO: haha *)
+						| None -> jnull
+					end else
+						jnull
 				| Some e -> jobject ["string",jstring (Ast.Printer.s_expr e)]
 			end
 		| GMMinimum ->

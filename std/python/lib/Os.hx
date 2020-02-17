@@ -19,8 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
 
+package python.lib;
 
 import python.Exceptions.OSError;
 import python.Tuple;
@@ -53,41 +53,40 @@ extern class Stat {
 
 @:pythonImport("os")
 extern class Os {
+	public static var environ:Dict<String, String>;
 
-	public static var environ : Dict<String, String>;
+	public static function putenv(name:String, value:String):Void;
 
-	public static function putenv (name:String, value:String):Void;
+	public static function chdir(path:String):Void;
 
-	public static function chdir (path:String):Void;
-
-	public static function unlink (path:String):Void;
-	public static function remove (path:String):Void;
+	public static function unlink(path:String):Void;
+	public static function remove(path:String):Void;
 
 	public static function getcwd():String;
 
 	public static function getcwdb():Bytes;
 
-	public static function removedirs (path:String):Void;
+	public static function removedirs(path:String):Void;
 
-	public static function rename (src:String, dest:String):Void;
+	public static function rename(src:String, dest:String):Void;
 
-	public static function renames (oldName:String, newName:String):Void;
+	public static function renames(oldName:String, newName:String):Void;
 
-	public static function rmdir (path:String):Void;
+	public static function rmdir(path:String):Void;
 
+	public static function stat(path:String):Stat;
 
-	public static function stat (path:String):Stat;
+	public static function fchdir(fd:FileDescriptor):Void;
 
-	public static function fchdir (fd:FileDescriptor):Void;
+	public static function listdir(path:String = "."):Array<String>;
 
-	public static function listdir (path:String = "."):Array<String>;
+	public static function walk(top:String, topdown:Bool = true, onerror:OSError->Void = null,
+		followlinks:Bool = false):Tuple3<String, Array<String>, Array<String>>;
 
-	public static function walk (top:String, topdown:Bool = true, onerror:OSError->Void = null, followlinks:Bool = false):Tuple3<String, Array<String>, Array<String>>;
-
-	public static var sep(default, null) : String;
+	public static var sep(default, null):String;
 	public static var pathsep(default, null):String;
 
-	public static function makedirs (path:String, mode : Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
+	public static function makedirs(path:String, mode:Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
 
-	public static function mkdir (path:String, mode : Int = 511 /* Oktal 777 */):Void;
+	public static function mkdir(path:String, mode:Int = 511 /* Oktal 777 */):Void;
 }

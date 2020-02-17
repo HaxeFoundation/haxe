@@ -19,20 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 class Mysql {
-
-	public static function connect( params : {
-		host : String,
-		?port : Int,
-		user : String,
-		pass : String,
-		?socket : String,
-		?database : String
-	} ) : sys.db.Connection {
+	public static function connect(params:{
+		host:String,
+		?port:Int,
+		user:String,
+		pass:String,
+		?socket:String,
+		?database:String
+	}):sys.db.Connection {
 		throw "Not implemented for this platform";
 		return null;
 	}
-
 }
