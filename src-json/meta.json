@@ -54,14 +54,14 @@
 	},
 	{
 		"name": "AssemblyMeta",
-		"metadata": ":assemblyMeta",
+		"metadata": ":cs.assemblyMeta",
 		"doc": "Used to declare a native C# assembly attribute",
 		"platforms": ["cs"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "AssemblyStrict",
-		"metadata": ":assemblyStrict",
+		"metadata": ":cs.assemblyStrict",
 		"doc": "Used to declare a native C# assembly attribute; is type checked",
 		"platforms": ["cs"],
 		"targets": ["TClass"]

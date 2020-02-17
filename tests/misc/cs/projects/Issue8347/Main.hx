@@ -1,7 +1,7 @@
 import cs.system.reflection.AssemblyDelaySignAttribute;
 
-@:assemblyMeta(Test)
+@:cs.assemblyMeta(Test)
 class Main {}
 
-@:assemblyStrict(cs.system.reflection.AssemblyDelaySignAttribute(true))
+@:cs.assemblyStrict(cs.system.reflection.AssemblyDelaySignAttribute(true))
 class Main2 {}

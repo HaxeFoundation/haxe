@@ -2541,9 +2541,9 @@ let generate con =
 		let gen_class w cl is_first_type =
 			if (is_first_type == false) then begin
 				if Meta.has Meta.AssemblyStrict cl.cl_meta then
-					gen.gcon.error "@:assemblyStrict can only be used on the first class of a module" cl.cl_pos
+					gen.gcon.error "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
 				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
-					gen.gcon.error "@:assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+					gen.gcon.error "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
 			end;
 
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
@@ -2553,9 +2553,9 @@ let generate con =
 					(* Should the assembly annotations be added to the class in this case? *)
 
 					if Meta.has Meta.AssemblyStrict cl.cl_meta then
-						gen.gcon.error "@:assemblyStrict cannot be used on top level modules" cl.cl_pos
+						gen.gcon.error "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
 					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
-						gen.gcon.error "@:assemblyMeta cannot be used on top level modules" cl.cl_pos;
+						gen.gcon.error "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
 
 					false
 				| ns ->
