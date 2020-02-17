@@ -1907,10 +1907,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				)
 		| TSwitch(e1,cases,def) ->
 			self#switch ret e1 cases def
-		| TWhile(e1,e2,flag) -> (* TODO: do-while *)
+		| TWhile(e1,e2,flag) ->
 			(* TODO: could optimize a bit *)
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in
+			let fp_into = ref code#get_fp in
+			(* TODO: not sure if this is how the pros do it *)
+			if flag = DoWhile then code#goto fp_into;
 			jm#add_stack_frame;
 			let fp = code#get_fp in
 			let old_continue = continue in
@@ -1920,6 +1923,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let restore = jm#start_branch in
 			let jump_then = if not is_true_loop then self#apply_cmp (self#condition e1) () else ref 0 in
 			let pop_scope = jm#push_scope in
+			if flag = DoWhile then begin
+				jm#add_stack_frame;
+				fp_into := code#get_fp - !fp_into;
+			end;
 			self#texpr RVoid e2;
 			if not jm#is_terminated then code#goto (ref (fp - code#get_fp));
 			pop_scope();
