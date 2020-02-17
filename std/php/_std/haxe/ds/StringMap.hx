@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import php.Syntax;
@@ -27,26 +28,26 @@ import php.NativeArray;
 import php.NativeAssocArray;
 import haxe.Constraints;
 
-@:coreApi class StringMap<T> implements IMap<String,T> {
-	private var data : NativeAssocArray<T>;
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	private var data:NativeAssocArray<T>;
 
-	public inline function new() : Void {
+	public inline function new():Void {
 		data = new NativeAssocArray();
 	}
 
-	public inline function set( key : String, value : T ) : Void {
+	public inline function set(key:String, value:T):Void {
 		data[key] = value;
 	}
 
-	public inline function get( key : String ) : Null<T> {
+	public inline function get(key:String):Null<T> {
 		return Syntax.coalesce(data[key], null);
 	}
 
-	public inline function exists( key : String ) : Bool {
+	public inline function exists(key:String):Bool {
 		return Global.array_key_exists(key, data);
 	}
 
-	public function remove( key : String ) : Bool {
+	public function remove(key:String):Bool {
 		if (Global.array_key_exists(key, data)) {
 			Global.unset(data[key]);
 			return true;
@@ -55,28 +56,34 @@ import haxe.Constraints;
 		}
 	}
 
-	public inline function keys() : Iterator<String> {
+	public inline function keys():Iterator<String> {
 		return Global.array_map('strval', Global.array_keys(data)).iterator();
 	}
 
-	public inline function iterator() : Iterator<T> {
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():Iterator<T> {
 		return data.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public inline function copy() : StringMap<T> {
+	public inline function copy():StringMap<T> {
 		return Syntax.clone(this);
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var parts = new NativeArray();
 		Syntax.foreach(data, function(key:String, value:T) {
 			Global.array_push(parts, '$key => ' + Std.string(value));
 		});
 
 		return '{' + Global.implode(', ', parts) + '}';
+	}
+
+	public inline function clear():Void {
+		data = new NativeAssocArray();
 	}
 }

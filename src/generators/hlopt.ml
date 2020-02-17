@@ -502,12 +502,11 @@ type rctx = {
 	r_reg_map : int array;
 }
 
-let remap_fun ctx f dump get_str =
+let remap_fun ctx f dump get_str old_code =
 	let op index = Array.unsafe_get f.code index in
 	let nregs = Array.length f.regs in
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
-	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (Bytes.unsafe_of_string (str ^ "\n")) in
 	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
 
@@ -994,6 +993,7 @@ let opt_cache = ref PMap.empty
 let used_mark = ref 0
 
 let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
+	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	try
 		let c = PMap.find hxf (!opt_cache) in
 		c.c_last_used <- !used_mark;
@@ -1021,11 +1021,11 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| _ -> assert false) in
 			Array.unsafe_set code i op
 		) c.c_remap_indexes;
-		remap_fun c.c_rctx { f with code = code } dump get_str
+		remap_fun c.c_rctx { f with code = code } dump get_str old_code
 	with Not_found ->
 		let rctx = _optimize f in
-		let old_code = f.code in
-		let fopt = remap_fun rctx f dump get_str in
+		let old_ops = f.code in
+		let fopt = remap_fun rctx f dump get_str old_code in
 		Hashtbl.iter (fun _ b ->
 			b.bstate <- None;
 			if dump = None then begin
@@ -1041,9 +1041,9 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| OInstanceClosure _ | OGetGlobal _	| OSetGlobal _ | ODynGet _ | ODynSet _	| OType _ ->
 				DynArray.add idxs i
 			| _ -> ()
-		) old_code;
+		) old_ops;
 		(*opt_cache := PMap.add hxf {
-			c_code = old_code;
+			c_code = old_ops;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
 			c_remap_indexes = DynArray.to_array idxs;

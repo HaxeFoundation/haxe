@@ -23,9 +23,11 @@ package java;
 
 @:native("haxe.java.Init") @:keep class Init {
 	public static function init():Void {
+		#if std_encoding_utf8
 		try {
 			java.lang.System.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"));
 			java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"));
 		} catch (e:java.io.UnsupportedEncodingException) {}
+		#end
 	}
 }

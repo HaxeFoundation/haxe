@@ -68,11 +68,11 @@ let int_of_type_def_string = function
 
 let int_of_type_def_flags f =
 	int_of_type_def_vis f.tdf_vis
-		logor
+		lor
 	int_of_type_def_layout f.tdf_layout
-		logor
+		lor
 	int_of_type_def_semantics f.tdf_semantics
-		logor
+		lor
 	int_of_type_def_impl f.tdf_impl
-		logor
+		lor
 	int_of_type_def_string f.tdf_string

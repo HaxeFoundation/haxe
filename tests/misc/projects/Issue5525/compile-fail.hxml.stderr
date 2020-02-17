@@ -1,0 +1,3 @@
+Main.hx:4: characters 5-6 : Array access is not allowed on A
+Main.hx:6: characters 5-6 : Array access is not allowed on B
+Main.hx:22: lines 22-26 : Abstract underlying type cannot be recursive

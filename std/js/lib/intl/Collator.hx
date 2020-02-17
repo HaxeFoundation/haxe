@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
@@ -107,7 +108,6 @@ typedef CollatorResolvedOptions = {
 	final locale:String;
 
 	final usage:Usage;
-
 	final sensitivity:Sensitivity;
 
 	/**
@@ -142,7 +142,7 @@ enum abstract Sensitivity(String) {
 		Examples: a ≠ b, a = á, a = A.
 	**/
 	var Base = "base";
-	
+
 	/**
 		Only strings that differ in base letters or accents and other diacritic marks compare as unequal.
 		Examples: a ≠ b, a ≠ á, a = A.

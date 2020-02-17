@@ -290,6 +290,8 @@ class TestUnicode extends utest.Test {
 #end
 	}
 
+	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
+	#if (travis || appveyor || azure)
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
@@ -304,7 +306,7 @@ class TestUnicode extends utest.Test {
 
 		// stdin.readUntil
 		UnicodeSequences.normalBoth(str -> {
-				// make sure the 0x70 byte is not part of the test string 
+				// make sure the 0x70 byte is not part of the test string
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, str + endLine);
 			});
 
@@ -324,10 +326,8 @@ class TestUnicode extends utest.Test {
 #if (hl || cpp) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
-#if !lua // Lua disabled temporarily (#8216)
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
-#end
 #if (hl || cpp) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});
@@ -342,6 +342,7 @@ class TestUnicode extends utest.Test {
 		}
 		#end
 	}
+	#end
 
 	function testIO() {
 		// getBytes

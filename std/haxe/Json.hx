@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
@@ -29,7 +30,6 @@ package haxe;
 	@see https://haxe.org/manual/std-Json.html
 **/
 class Json {
-
 	/**
 		Parses given JSON-encoded `text` and returns the resulting object.
 
@@ -40,7 +40,7 @@ class Json {
 
 		@see https://haxe.org/manual/std-Json-parsing.html
 	**/
-	public static inline function parse( text : String ) : Dynamic {
+	public static inline function parse(text:String):Dynamic {
 		return haxe.format.JsonParser.parse(text);
 	}
 
@@ -50,14 +50,13 @@ class Json {
 		If `replacer` is given and is not null, it is used to retrieve the
 		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
-		
+
 		If `space` is given and is not null, the result will be pretty-printed.
 		Successive levels will be indented by this string.
 
 		@see https://haxe.org/manual/std-Json-encoding.html
 	**/
-	public static inline function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space : String ) : String {
+	public static inline function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
-
 }

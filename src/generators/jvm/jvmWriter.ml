@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open JvmGlobals
 open JvmData
 
@@ -48,6 +67,7 @@ let write_exception ch jvme =
 
 let write_opcode ch code =
   let w = write_byte ch in
+  let wr i32 = write_byte ch (Int32.to_int i32) in
   (* TODO: probably don't need these *)
   let bp i =
     w ((i lsr 8) land 0xFF);
@@ -58,6 +78,12 @@ let write_opcode ch code =
     w ((i lsr 16) land 0xFF);
     w ((i lsr 8) land 0xFF);
     w (i land 0xFF);
+  in
+  let b4r i32 =
+    wr (Int32.logand (Int32.shift_right_logical i32 24) i320xFF);
+    wr (Int32.logand (Int32.shift_right_logical i32 16) i320xFF);
+    wr (Int32.logand (Int32.shift_right_logical i32 8) i320xFF);
+    wr (Int32.logand i32 i320xFF);
   in
   let rec loop code = match code with
     (* double *)
@@ -280,15 +306,15 @@ let write_opcode ch code =
 		b4 !def;
 		b4 (Array.length pairs);
 		Array.iter (fun (i,offset) ->
-			b4 i;
+			b4r i;
 			b4 !offset
 		) pairs;
     | OpTableswitch(pad,def,low,high,offsets) ->
 		w 0xaa;
 		if pad > 0 then for i = 0 to pad -1 do w 0 done;
 		b4 !def;
-		b4 low;
-		b4 high;
+		b4r low;
+		b4r high;
 		Array.iter (fun offset ->
 			b4 !offset
 		) offsets;

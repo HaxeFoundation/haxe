@@ -18,7 +18,9 @@ class AsyncMacro {
 					});
 					switch (f.expr.expr) {
 						case EBlock(el):
-							el.push(macro async.done());
+							var posInfos = Context.getPosInfos(f.expr.pos);
+							var pos = Context.makePosition({min: posInfos.max, max: posInfos.max, file: posInfos.file});
+							el.push(macro @:pos(pos) async.done());
 							f.expr = transformHaxeCalls(el);
 						case _:
 							Context.error("Block expression expected", f.expr.pos);
@@ -37,7 +39,15 @@ class AsyncMacro {
 			case macro runHaxe($a{args}):
 				var e = transformHaxeCalls(el);
 				args.push(macro() -> $e);
-				macro runHaxe($a{args});
+				macro @:pos(e0.pos) runHaxe($a{args});
+			case macro runHaxeJson($a{args}):
+				var e = transformHaxeCalls(el);
+				args.push(macro() -> $e);
+				macro @:pos(e0.pos) runHaxeJson($a{args});
+			case macro complete($a{args}):
+				var e = transformHaxeCalls(el);
+				args.push(macro function(response, markers) $e);
+				macro @:pos(e0.pos) complete($a{args});
 			case _:
 				macro {$e0; ${transformHaxeCalls(el)}};
 		}

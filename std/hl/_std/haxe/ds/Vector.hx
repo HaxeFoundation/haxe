@@ -19,16 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 private typedef VectorData<T> = Array<T>
 
 @:coreApi
 abstract Vector<T>(VectorData<T>) {
-
 	public inline function new(length:Int) {
 		this = [];
-		if( length > 0 ) this[length-1] = cast null;
+		if (length > 0)
+			this[length - 1] = cast null;
 	}
 
 	@:op([]) public inline function get(index:Int):T {
@@ -46,7 +47,7 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
-		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos,(cast src : hl.types.ArrayBase.ArrayAccess),srcPos,len);
+		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos, (cast src : hl.types.ArrayBase.ArrayAccess), srcPos, len);
 	}
 
 	public inline function toArray():Array<T> {
@@ -80,7 +81,7 @@ abstract Vector<T>(VectorData<T>) {
 		var r = new Vector<S>(length);
 		var i = 0;
 		var len = length;
-		for(i in 0...len) {
+		for (i in 0...len) {
 			var v = f(get(i));
 			r.set(i, v);
 		}

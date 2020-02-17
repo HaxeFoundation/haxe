@@ -19,97 +19,102 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 enum Huffman {
-	Found( i : Int );
-	NeedBit( left : Huffman, right : Huffman );
-	NeedBits( n : Int, table : Array<Huffman> );
+	Found(i:Int);
+	NeedBit(left:Huffman, right:Huffman);
+	NeedBits(n:Int, table:Array<Huffman>);
 }
 
 class HuffTools {
-
-	public function new() {
-	}
+	public function new() {}
 
 	function treeDepth(t) {
-		return switch(t) {
-		case Found(_): 0;
-		case NeedBits(_,_): throw "assert";
-		case NeedBit(a,b):
-			var da = treeDepth(a);
-			var db = treeDepth(b);
-			1 + ((da < db) ? da : db);
+		return switch (t) {
+			case Found(_): 0;
+			case NeedBits(_, _): throw "assert";
+			case NeedBit(a, b):
+				var da = treeDepth(a);
+				var db = treeDepth(b);
+				1 + ((da < db) ? da : db);
 		}
 	}
 
 	function treeCompress(t) {
 		var d = treeDepth(t);
-		if( d == 0 )
+		if (d == 0)
 			return t;
-		if( d == 1 )
-			return switch( t ) {
-			case NeedBit(a,b): NeedBit(treeCompress(a),treeCompress(b));
-			default: throw "assert";
+		if (d == 1)
+			return switch (t) {
+				case NeedBit(a, b): NeedBit(treeCompress(a), treeCompress(b));
+				default: throw "assert";
 			}
 		var size = 1 << d;
 		var table = new Array();
-		for( i in 0...size )
+		for (i in 0...size)
 			table.push(Found(-1));
-		treeWalk(table,0,0,d,t);
-		return NeedBits(d,table);
+		treeWalk(table, 0, 0, d, t);
+		return NeedBits(d, table);
 	}
 
-	function treeWalk(table,p,cd,d,t) {
-		switch( t ) {
-		case NeedBit(a,b):
-			if( d > 0 ) {
-				treeWalk(table,p,cd+1,d-1,a);
-				treeWalk(table,p|(1<<cd),cd+1,d-1,b);
-			} else
+	function treeWalk(table, p, cd, d, t) {
+		switch (t) {
+			case NeedBit(a, b):
+				if (d > 0) {
+					treeWalk(table, p, cd + 1, d - 1, a);
+					treeWalk(table, p | (1 << cd), cd + 1, d - 1, b);
+				} else
+					table[p] = treeCompress(t);
+			default:
 				table[p] = treeCompress(t);
-		default:
-			table[p] = treeCompress(t);
 		}
 	}
 
-	function treeMake( bits : haxe.ds.IntMap<Int>, maxbits : Int, v : Int, len : Int ) {
-		if( len > maxbits ) throw "Invalid huffman";
+	function treeMake(bits:haxe.ds.IntMap<Int>, maxbits:Int, v:Int, len:Int) {
+		if (len > maxbits)
+			throw "Invalid huffman";
 		var idx = (v << 5) | len;
-		if( bits.exists(idx) )
+		if (bits.exists(idx))
 			return Found(bits.get(idx));
 		v <<= 1;
 		len += 1;
-		return NeedBit(treeMake(bits,maxbits,v,len),treeMake(bits,maxbits,v|1,len));
+		return NeedBit(treeMake(bits, maxbits, v, len), treeMake(bits, maxbits, v | 1, len));
 	}
 
-	public function make(lengths,pos,nlengths,maxbits) {
+	public function make(lengths, pos, nlengths, maxbits) {
+		if (nlengths == 1) {
+			return NeedBit(Found(0), Found(0));
+		}
 		var counts = new Array();
 		var tmp = new Array();
-		if( maxbits > 32 ) throw "Invalid huffman";
-		for( i in 0...maxbits ) {
+		if (maxbits > 32)
+			throw "Invalid huffman";
+		for (i in 0...maxbits) {
 			counts.push(0);
 			tmp.push(0);
 		}
-		for( i in 0...nlengths ) {
-			var p = lengths[i+pos];
-			if( p >= maxbits ) throw "Invalid huffman";
+		for (i in 0...nlengths) {
+			var p = lengths[i + pos];
+			if (p >= maxbits)
+				throw "Invalid huffman";
 			counts[p]++;
 		}
 		var code = 0;
-		for( i in 1...maxbits-1 ) {
+		for (i in 1...maxbits - 1) {
 			code = (code + counts[i]) << 1;
 			tmp[i] = code;
 		}
 		var bits = new haxe.ds.IntMap();
-		for( i in 0...nlengths ) {
+		for (i in 0...nlengths) {
 			var l = lengths[i + pos];
-			if( l != 0 ) {
-				var n = tmp[l-1];
-				tmp[l-1] = n + 1;
-				bits.set((n << 5) | l,i);
+			if (l != 0) {
+				var n = tmp[l - 1];
+				tmp[l - 1] = n + 1;
+				bits.set((n << 5) | l, i);
 			}
 		}
-		return treeCompress(NeedBit(treeMake(bits,maxbits,0,1),treeMake(bits,maxbits,1,1)));
+		return treeCompress(NeedBit(treeMake(bits, maxbits, 0, 1), treeMake(bits, maxbits, 1, 1)));
 	}
 }

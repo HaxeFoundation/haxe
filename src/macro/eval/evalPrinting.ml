@@ -25,7 +25,6 @@ open EvalField
 open EvalHash
 open EvalString
 
-let rempty = create_ascii ""
 let rbropen = create_ascii "{"
 let rbrclose = create_ascii "}"
 let rbkopen = create_ascii "["
@@ -64,14 +63,14 @@ let rec s_object depth o =
 	create_with_length s (try UTF8.length s with _ -> String.length s)
 
 and s_array depth va =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join va (s_value depth) rcomma;
 		rbkclose;
 	]
 
 and s_vector depth vv =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join (EvalArray.create vv) (s_value depth) rcomma;
 		rbkclose;
@@ -90,7 +89,7 @@ and s_enum_value depth ve =
 	match ve.eargs with
 	| [||] -> create_ascii name
 	| vl ->
-		join rempty [
+		join empty_string [
 			create_ascii name;
 			rpopen;
 			join rcomma (Array.to_list (Array.map (s_value (depth + 1)) vl));
@@ -98,8 +97,8 @@ and s_enum_value depth ve =
 		]
 
 and s_proto_kind proto = match proto.pkind with
-	| PClass _ -> join rempty [create_ascii "Class<"; s_hash proto.ppath; rgt]
-	| PEnum _ -> join rempty [create_ascii "Enum<"; s_hash proto.ppath; rgt]
+	| PClass _ -> join empty_string [create_ascii "Class<"; s_hash proto.ppath; rgt]
+	| PEnum _ -> join empty_string [create_ascii "Enum<"; s_hash proto.ppath; rgt]
 	| PInstance | PObject -> assert false
 
 and s_value depth v =

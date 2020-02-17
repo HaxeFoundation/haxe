@@ -19,13 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.rtti;
 
 private typedef MetaObject = {
 	?fields:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
 	?statics:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
-	?obj:Dynamic<Null<Array<Dynamic>>>,
-}
+	?obj:Dynamic<Null<Array<Dynamic>>>
+};
 
 /**
 	An API to access classes and enums metadata at runtime.
@@ -33,11 +34,10 @@ private typedef MetaObject = {
 	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
-
 	/**
 		Returns the metadata that were declared for the given type (class or enum)
 	**/
-	public static function getType( t : Dynamic ) : Dynamic<Array<Dynamic>> {
+	public static function getType(t:Dynamic):Dynamic<Array<Dynamic>> {
 		var meta = getMeta(t);
 		return (meta == null || meta.obj == null) ? {} : meta.obj;
 	}
@@ -45,44 +45,40 @@ class Meta {
 	// Could move this to Type.hx?
 	private static function isInterface(t:Dynamic):Bool {
 		#if java
-			return java.Lib.toNativeType(t).isInterface();
+		return java.Lib.toNativeType(t).isInterface();
 		#elseif cs
-			return cs.Lib.toNativeType(t).IsInterface;
-		#elseif (flash && as3)
-			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
+		return cs.Lib.toNativeType(t).IsInterface;
 		#else
-			throw "Something went wrong";
+		throw "Something went wrong";
 		#end
 	}
 
 	private static function getMeta(t:Dynamic):MetaObject {
 		#if php
-			return php.Boot.getMeta(t.phpClassName);
-		#elseif (java || cs || (flash && as3))
-			var ret = Reflect.field(t, "__meta__");
-			if (ret == null && Std.is(t,Class))
-			{
-				if (isInterface(t))
-				{
-					var name = Type.getClassName(t),
-						cls = Type.resolveClass(name + '_HxMeta');
-					if (cls != null)
-						return Reflect.field(cls, "__meta__");
-				}
+		return php.Boot.getMeta(t.phpClassName);
+		#elseif (java || cs)
+		var ret = Reflect.field(t, "__meta__");
+		if (ret == null && Std.isOfType(t, Class)) {
+			if (isInterface(t)) {
+				var name = Type.getClassName(t),
+					cls = Type.resolveClass(name + '_HxMeta');
+				if (cls != null)
+					return Reflect.field(cls, "__meta__");
 			}
-			return ret;
+		}
+		return ret;
 		#elseif hl
-			var t : hl.BaseType = t;
-			return t.__meta__;
+		var t:hl.BaseType = t;
+		return t.__meta__;
 		#else
-			return untyped t.__meta__;
+		return untyped t.__meta__;
 		#end
 	}
 
 	/**
 		Returns the metadata that were declared for the given class static fields
 	**/
-	public static function getStatics( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
+	public static function getStatics(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
 		return (meta == null || meta.statics == null) ? {} : meta.statics;
 	}
@@ -90,9 +86,8 @@ class Meta {
 	/**
 		Returns the metadata that were declared for the given class fields or enum constructors
 	**/
-	public static function getFields( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
+	public static function getFields(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
 		return (meta == null || meta.fields == null) ? {} : meta.fields;
 	}
-
 }

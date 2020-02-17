@@ -1,0 +1,4 @@
+Main.hx:7: characters 15-16 : Warning : Token
+Main.hx:8: characters 15-21 : Warning : String
+Main.hx:9: characters 23-35 : Int should be String
+Main.hx:9: characters 13-35 : String should be Bool

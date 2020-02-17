@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import Date in HaxeDate;
@@ -27,12 +28,11 @@ import Date in HaxeDate;
 	Creates a JavaScript Date instance that represents a single moment in time. Date objects are based on a time value that is the number of milliseconds since 1 January 1970 UTC.
 **/
 @:native("Date")
-extern class Date
-{
+extern class Date {
 	@:overload(function(value:Float):Void {})
 	@:overload(function(dateString:String):Void {})
 	@:overload(function(year:Int, month:Int, ?day:Int, ?hours:Int, ?minutes:Int, ?seconds:Int, ?milliseconds:Int):Void {})
-	function new() : Void;
+	function new():Void;
 
 	/**
 		Cast Haxe's Date to js.lib.Date.
@@ -51,235 +51,238 @@ extern class Date
 	/**
 		Returns the numeric value corresponding to the current time - the number of milliseconds elapsed since January 1, 1970 00:00:00 UTC, with leap seconds ignored
 	**/
-	static function now() : Float;
+	static function now():Float;
 
 	/**
 		Parses a string representation of a date and returns the number of milliseconds since 1 January, 1970, 00:00:00, UTC, with leap seconds ignored.
 	**/
-	static function parse( str:String ) : Float;
+	static function parse(str:String):Float;
 
 	/**
 		Returns the number of milliseconds since January 1, 1970, 00:00:00 UTC, with leap seconds ignored.
 	**/
-	static function UTC( year:Int, month:Int, ?day:Int, ?hours:Int, ?minutes:Int, ?seconds:Int, ?milliseconds:Int ) : Float;
+	static function UTC(year:Int, month:Int, ?day:Int, ?hours:Int, ?minutes:Int, ?seconds:Int, ?milliseconds:Int):Float;
 
 	/**
 		Returns the day of the month (1-31) for the specified date according to local time.
 	**/
-	function getDate() : Int;
+	function getDate():Int;
 
 	/**
 		Returns the day of the week (0-6) for the specified date according to local time.
 	**/
-	function getDay() : Int;
+	function getDay():Int;
 
 	/**
 		Returns the year (4 digits for 4-digit years) of the specified date according to local time.
 	**/
-	function getFullYear() : Int;
+	function getFullYear():Int;
 
 	/**
 		Returns the hour (0-23) in the specified date according to local time.
 	**/
-	function getHours() : Int;
+	function getHours():Int;
 
 	/**
 		Returns the milliseconds (0-999) in the specified date according to local time.
 	**/
-	function getMilliseconds() : Int;
+	function getMilliseconds():Int;
 
 	/**
 		Returns the minutes (0-59) in the specified date according to local time.
 	**/
-	function getMinutes() : Int;
+	function getMinutes():Int;
 
 	/**
 		Returns the month (0-11) in the specified date according to local time.
 	**/
-	function getMonth() : Int;
+	function getMonth():Int;
 
 	/**
 		Returns the seconds (0-59) in the specified date according to local time.
 	**/
-	function getSeconds() : Int;
+	function getSeconds():Int;
 
 	/**
 		Returns the numeric value of the specified date as the number of milliseconds since January 1, 1970, 00:00:00 UTC (negative for prior times).
 	**/
-	function getTime() : Float;
+	function getTime():Float;
 
 	/**
 		Returns the time-zone offset in minutes for the current locale.
 	**/
-	function getTimezoneOffset() : Int;
+	function getTimezoneOffset():Int;
 
 	/**
 		Returns the day (date) of the month (1-31) in the specified date according to universal time.
 	**/
-	function getUTCDate() : Int;
+	function getUTCDate():Int;
 
 	/**
 		Returns the day of the week (0-6) in the specified date according to universal time.
 	**/
-	function getUTCDay() : Int;
+	function getUTCDay():Int;
 
 	/**
 		Returns the year (4 digits for 4-digit years) in the specified date according to universal time.
 	**/
-	function getUTCFullYear() : Int;
+	function getUTCFullYear():Int;
 
 	/**
 		Returns the hours (0-23) in the specified date according to universal time.
 	**/
-	function getUTCHours() : Int;
+	function getUTCHours():Int;
 
 	/**
 		Returns the milliseconds (0-999) in the specified date according to universal time.
 	**/
-	function getUTCMilliseconds() : Int;
+	function getUTCMilliseconds():Int;
 
 	/**
 		Returns the minutes (0-59) in the specified date according to universal time.
 	**/
-	function getUTCMinutes() : Int;
+	function getUTCMinutes():Int;
 
 	/**
 		Returns the month (0-11) in the specified date according to universal time.
 	**/
-	function getUTCMonth() : Int;
+	function getUTCMonth():Int;
 
 	/**
 		Returns the seconds (0-59) in the specified date according to universal time.
 	**/
-	function getUTCSeconds() : Int;
+	function getUTCSeconds():Int;
 
 	/**
 		Sets the day of the month for a specified date according to local time.
 	**/
-	function setDate( value:Int ) : Void;
+	function setDate(value:Int):Void;
 
 	/**
 		Sets the full year (e.g. 4 digits for 4-digit years) for a specified date according to local time.
 	**/
-	function setFullYear( value:Int ) : Void;
+	function setFullYear(value:Int):Void;
 
 	/**
 		Sets the hours for a specified date according to local time.
 	**/
-	function setHours( value:Int ) : Void;
+	function setHours(value:Int):Void;
 
 	/**
 		Sets the milliseconds for a specified date according to local time.
 	**/
-	function setMilliseconds( value:Int ) : Void;
+	function setMilliseconds(value:Int):Void;
 
 	/**
 		Sets the minutes for a specified date according to local time.
 	**/
-	function setMinutes( value:Int ) : Void;
+	function setMinutes(value:Int):Void;
 
 	/**
 		Sets the month for a specified date according to local time.
 	**/
-	function setMonth( value:Int ) : Void;
+	function setMonth(value:Int):Void;
 
 	/**
 		Sets the seconds for a specified date according to local time.
 	**/
-	function setSeconds( value:Int ) : Void;
+	function setSeconds(value:Int):Void;
 
 	/**
 		Sets the Date object to the time represented by a number of milliseconds since January 1, 1970, 00:00:00 UTC, allowing for negative numbers for times prior.
 	**/
-	function setTime( value:Float ) : Void;
+	function setTime(value:Float):Void;
 
 	/**
 		Sets the day of the month for a specified date according to universal time.
 	**/
-	function setUTCDate( value:Int ) : Void;
+	function setUTCDate(value:Int):Void;
 
 	/**
 		Sets the full year (e.g. 4 digits for 4-digit years) for a specified date according to universal time.
 	**/
-	function setUTCFullYear( value:Int ) : Void;
+	function setUTCFullYear(value:Int):Void;
 
 	/**
 		Sets the hour for a specified date according to universal time.
 	**/
-	function setUTCHours( value:Int ) : Void;
+	function setUTCHours(value:Int):Void;
 
 	/**
 		Sets the milliseconds for a specified date according to universal time.
 	**/
-	function setUTCMilliseconds( value:Int ) : Void;
+	function setUTCMilliseconds(value:Int):Void;
 
 	/**
 		Sets the minutes for a specified date according to universal time.
 	**/
-	function setUTCMinutes( value:Int ) : Void;
+	function setUTCMinutes(value:Int):Void;
 
 	/**
 		Sets the month for a specified date according to universal time.
 	**/
-	function setUTCMonth( value:Int ) : Void;
+	function setUTCMonth(value:Int):Void;
 
 	/**
 		Sets the seconds for a specified date according to universal time.
 	**/
-	function setUTCSeconds( value:Int ) : Void;
+	function setUTCSeconds(value:Int):Void;
 
 	/**
 		Returns the "date" portion of the Date as a human-readable string.
 	**/
-	function toDateString() : String;
+	function toDateString():String;
 
 	/**
 		Converts a date to a string following the ISO 8601 Extended Format.
 	**/
-	function toISOString() : String;
+	function toISOString():String;
 
 	/**
 		Returns a string representing the Date using toISOString(). Intended for use by JSON.stringify().
 	**/
-	function toJSON() : String;
+	function toJSON():String;
 
 	/**
 		Returns a string with a locality sensitive representation of the date portion of this date based on system settings.
 	**/
-	function toLocaleDateString( ?locales:String, ?options:Dynamic<Dynamic> ) : String;
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
+	function toLocaleDateString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**
 		Converts a date to a string, using a format string.
 	**/
-	function toLocaleFormat( format:String ) : String;
+	function toLocaleFormat(format:String):String;
 
 	/**
 		Returns a string with a locality sensitive representation of this date. Overrides the Object.prototype.toLocaleString() method.
 	**/
-	function toLocaleString( ?locales:String, ?options:Dynamic<Dynamic> ) : String;
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
+	function toLocaleString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**
 		Returns a string with a locality sensitive representation of the time portion of this date based on system settings.
 	**/
-	function toLocaleTimeString( ?locales:String, ?options:Dynamic<Dynamic> ) : String;
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
+	function toLocaleTimeString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**
 		Returns a string representing the source for an equivalent Date object; you can use this value to create a new object. Overrides the Object.prototype.toSource() method.
 	**/
-	function toSource() : String;
+	function toSource():String;
 
 	/**
 		Returns a string representing the specified Date object. Overrides the Object.prototype.toString() method.
 	**/
-	function toString() : String;
+	function toString():String;
 
 	/**
 		Returns the "time" portion of the Date as a human-readable string.
 	**/
-	function toTimeString() : String;
+	function toTimeString():String;
 
 	/**
 		Converts a date to a string using the UTC timezone.
 	**/
-	function toUTCString() : String;
+	function toUTCString():String;
 }

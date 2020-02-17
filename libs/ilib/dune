@@ -1,0 +1,9 @@
+(include_subdirs no)
+
+(library
+	(name ilib)
+	(modules_without_implementation ilData ilMeta)
+	(modules (:standard \ dump))
+	(libraries extlib)
+	(wrapped false)
+)

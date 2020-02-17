@@ -19,16 +19,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
 	Cross platform UCS2 string API.
 **/
 abstract Ucs2(String) {
+	extern public var length(get, never):Int;
 
-	extern public var length(get,never) : Int;
-
-	extern inline function new(str:String) : Void {
+	extern inline function new(str:String):Void {
 		// this implementation only allows platforms which have native UCS2 String.
 		// other platforms should create a shadow class in their _std directory
 		#if !(flash || js)
@@ -46,7 +46,7 @@ abstract Ucs2(String) {
 
 		Affects the characters `a-z`. Other characters remain unchanged.
 	**/
-	extern public inline function toUpperCase() : Ucs2 {
+	extern public inline function toUpperCase():Ucs2 {
 		return new Ucs2(this.toUpperCase());
 	}
 
@@ -55,7 +55,7 @@ abstract Ucs2(String) {
 
 		Affects the characters `A-Z`. Other characters remain unchanged.
 	**/
-	extern public inline function toLowerCase() : Ucs2 {
+	extern public inline function toLowerCase():Ucs2 {
 		return new Ucs2(this.toLowerCase());
 	}
 
@@ -65,20 +65,20 @@ abstract Ucs2(String) {
 		If `index` is negative or exceeds `this.length`, the empty Ucs2 ""
 		is returned.
 	**/
-	extern public inline function charAt(index : Int) : Ucs2 {
+	extern public inline function charAt(index:Int):Ucs2 {
 		return new Ucs2(this.charAt(index));
 	}
 
 	/**
 		Returns the character code at position `index` of `this` Ucs2.
 
-		If `index` is negative or exceeds `this.length`, null is returned.
+		If `index` is negative or exceeds `this.length`, `null` is returned.
 
-		To obtain the character code of a single character, "x".code can be used
+		To obtain the character code of a single character, `"x".code` can be used
 		instead to extern public inline the character code at compile time. Note that this
 		only works on Ucs2 literals of length 1.
 	**/
-	extern public inline function charCodeAt( index : Int) : Null<Int> {
+	extern public inline function charCodeAt(index:Int):Null<Int> {
 		return this.charCodeAt(index);
 	}
 
@@ -93,8 +93,8 @@ abstract Ucs2(String) {
 
 		If `str` cannot be found, -1 is returned.
 	**/
-	extern public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		return this.indexOf(str.toNativeString(),startIndex);
+	extern public inline function indexOf(str:Ucs2, ?startIndex:Int):Int {
+		return this.indexOf(str.toNativeString(), startIndex);
 	}
 
 	/**
@@ -108,8 +108,8 @@ abstract Ucs2(String) {
 
 		If `str` cannot be found, -1 is returned.
 	**/
-	extern public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		return this.lastIndexOf(str.toNativeString(),startIndex);
+	extern public inline function lastIndexOf(str:Ucs2, ?startIndex:Int):Int {
+		return this.lastIndexOf(str.toNativeString(), startIndex);
 	}
 
 	/**
@@ -132,7 +132,7 @@ abstract Ucs2(String) {
 		result Array contains a leading (or trailing) empty Ucs2 "" element.
 		Two subsequent delimiters also result in an empty Ucs2 "" element.
 	**/
-	extern public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
+	extern public inline function split(delimiter:Ucs2):Array<Ucs2> {
 		return cast this.split(delimiter.toNativeString());
 	}
 
@@ -151,8 +151,8 @@ abstract Ucs2(String) {
 
 		If `len` is negative, the result is unspecified.
 	**/
-	extern public inline function substr( pos : Int, ?len : Int ) : Ucs2 {
-		return new Ucs2(this.substr(pos,len));
+	extern public inline function substr(pos:Int, ?len:Int):Ucs2 {
+		return new Ucs2(this.substr(pos, len));
 	}
 
 	/**
@@ -168,14 +168,14 @@ abstract Ucs2(String) {
 		If the (possibly swapped) `startIndex` exceeds `this.length`, the empty
 		Ucs2 "" is returned.
 	**/
-	extern public inline function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		return new Ucs2(this.substring(startIndex,endIndex));
+	extern public inline function substring(startIndex:Int, ?endIndex:Int):Ucs2 {
+		return new Ucs2(this.substring(startIndex, endIndex));
 	}
 
 	/**
 		Returns the native underlying String.
 	**/
-	extern public inline function toNativeString() : String {
+	extern public inline function toNativeString():String {
 		return this;
 	}
 
@@ -185,8 +185,7 @@ abstract Ucs2(String) {
 		If `code` is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	extern public static inline function fromCharCode( code : Int ) : Ucs2 {
+	extern public static inline function fromCharCode(code:Int):Ucs2 {
 		return new Ucs2(String.fromCharCode(code));
 	}
-
 }

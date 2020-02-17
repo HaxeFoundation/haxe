@@ -19,9 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
 @:objc
-typedef Protocol<T /*:interface*/ > = T;
-
-
+typedef Protocol<T /*:interface*/> = T;

@@ -19,69 +19,74 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.ds;
 
+package haxe.ds;
 
 import python.Syntax;
 import python.Dict;
 
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
-	private var h : Dict<String,T>;
+	private var h:Dict<String, T>;
 
-	public function new() : Void {
+	public function new():Void {
 		h = new Dict();
 	}
 
-	public inline function set( key : String, value : T ) : Void {
+	public inline function set(key:String, value:T):Void {
 		h.set(key, value);
 	}
 
-	public inline function get( key : String ) : Null<T> {
+	public inline function get(key:String):Null<T> {
 		return h.get(key, null);
 	}
 
-	public inline function exists( key : String ) : Bool {
+	public inline function exists(key:String):Bool {
 		return h.hasKey(key);
 	}
 
-	public function remove( key : String ) : Bool {
+	public function remove(key:String):Bool {
 		var has = h.hasKey(key);
-		if (has) h.remove(key);
+		if (has)
+			h.remove(key);
 		return has;
 	}
 
-	public function keys() : Iterator<String> {
+	public function keys():Iterator<String> {
 		return h.keys().iter();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return h.values().iter();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
-
+	public function toString():String {
 		var s = new StringBuf();
 
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	public inline function clear():Void {
+		h.clear();
 	}
 }

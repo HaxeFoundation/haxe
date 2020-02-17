@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.lib.threading.Thread;
 
 @:pythonImport("threading")
 extern class Threading {
-
 	public static function active_count():Int;
 	public static function current_thread():Thread;
 	public static function get_ident():Int;
@@ -36,5 +36,4 @@ extern class Threading {
 	public static function stack_size(?size:Int):Int;
 	public static function local():Dynamic;
 	public static var TIMEOUT_MAX:Float;
-	
 }

@@ -104,7 +104,7 @@ let rec like_i64 t =
 let follow_once t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> t
 		| _ -> t_dynamic) (* avoid infinite loop / should be the same in this context *)
 	| TLazy f ->
@@ -165,7 +165,7 @@ let anon_class t =
 			| AbstractStatics a -> TAbstractDecl a
 			| _ -> assert false)
 	| TLazy f -> t_to_md (lazy_type f)
-	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
+	| TMono r -> (match r.tm_type with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
 
@@ -656,7 +656,7 @@ let init_ctx gen =
 	let follow t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> follow_f t
 			| _ -> Some t)
 		| TLazy f ->
@@ -947,19 +947,19 @@ let dump_descriptor gen name path_s module_s =
 				file
 	in
 	if Common.platform gen.gcon Java then
-		List.iter (fun (s,std,_,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".jar");
+		List.iter (fun java_lib ->
+			if not (java_lib#has_flag NativeLibraries.FlagIsStd) && not (java_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path java_lib#get_file_path ".jar");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.java_libs
+		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
-		List.iter (fun (s,std,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".dll");
+		List.iter (fun net_lib ->
+			if not (net_lib#has_flag NativeLibraries.FlagIsStd) && not (net_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path net_lib#get_name ".dll");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.net_libs;
+		) gen.gcon.native_libs.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
 	let args = gen.gcon.c_args in
@@ -1068,8 +1068,8 @@ let add_constructor cl cf =
 let rec replace_mono t =
 	match t with
 	| TMono t ->
-		(match !t with
-		| None -> t := Some t_dynamic
+		(match t.tm_type with
+		| None -> Monomorph.bind t t_dynamic
 		| Some _ -> ())
 	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
 		List.iter replace_mono p
