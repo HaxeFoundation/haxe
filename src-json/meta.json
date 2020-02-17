@@ -197,7 +197,7 @@
 	},
 	{
 		"name": "CsUsing",
-		"metadata": ":csUsing",
+		"metadata": ":cs.using",
 		"doc": "Add using directives to your module",
 		"platforms": ["cs"],
 		"targets": ["TClass"]
