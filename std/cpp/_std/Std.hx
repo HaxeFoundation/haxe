@@ -21,11 +21,11 @@
  */
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
-	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
+	@:keep public static inline function is(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
 
-	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
+	public static function isOfType(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return untyped __global__.__instanceof(v, t);
 	}
 

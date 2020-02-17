@@ -49,11 +49,11 @@ class Std {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
-	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
 
-	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
+	public static function isOfType(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		var t:hl.BaseType = t;
 		if (t == null)
 			return false;

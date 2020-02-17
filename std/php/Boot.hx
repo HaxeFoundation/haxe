@@ -454,14 +454,14 @@ class Boot {
 	}
 
 	@:deprecated('php.Boot.is() is deprecated. Use php.Boot.isOfType() instead')
-	public static inline function is(value:Dynamic, type:HxClass):Bool {
+	public static inline function is(@:nullSafety(Off) value:Dynamic, type:HxClass):Bool {
 		return isOfType(value, type);
 	}
 
 	/**
 		`Std.isOfType()` implementation
 	**/
-	public static function isOfType(value:Dynamic, type:HxClass):Bool {
+	public static function isOfType(@:nullSafety(Off) value:Dynamic, type:HxClass):Bool {
 		if (type == null)
 			return false;
 

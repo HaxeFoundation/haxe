@@ -25,11 +25,11 @@ import lua.NativeStringTools;
 
 @:keepInit
 @:coreApi class Std {
-	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
 
-	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
+	public static inline function isOfType(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return untyped lua.Boot.__instanceof(v, t);
 	}
 

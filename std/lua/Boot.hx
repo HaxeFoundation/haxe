@@ -87,7 +87,7 @@ class Boot {
 		Indicates if the given object is an instance of the given Type
 	**/
 	@:ifFeature("typed_catch")
-	private static function __instanceof(o:Dynamic, cl:Dynamic) {
+	private static function __instanceof(@:nullSafety(Off) o:Dynamic, cl:Dynamic) {
 		if (cl == null)
 			return false;
 

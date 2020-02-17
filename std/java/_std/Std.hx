@@ -25,11 +25,11 @@ import java.Lib;
 import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
 
-	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
+	public static function isOfType(@:nullSafety(Off) v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
