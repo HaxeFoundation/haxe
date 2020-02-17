@@ -2188,9 +2188,12 @@ let generate con =
 							| Some e ->
 								write w " = ";
 								expr_s true w e;
-							| None -> ()
+								write w ";"
+							| None when (Meta.has Meta.Property cf.cf_meta) ->
+								write w " { get; set; }";
+							| None ->
+								write w ";"
 						);
-						write w ";"
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
