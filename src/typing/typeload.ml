@@ -210,7 +210,7 @@ let generate_args_meta com cls_opt add_meta args =
 	);
 	if List.exists (fun (_,_,m,_,_) -> m <> []) args then
 		let fn = { f_params = []; f_args = args; f_type = None; f_expr = None } in
-		add_meta (Meta.Arguments,[EFunction(FKAnonymous,fn),null_pos],null_pos)
+		add_meta (Meta.HaxeArguments,[EFunction(FKAnonymous,fn),null_pos],null_pos)
 
 let is_redefined ctx cf1 fields p =
 	try
