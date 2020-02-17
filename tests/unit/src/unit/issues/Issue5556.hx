@@ -5,6 +5,8 @@ class Issue5556 extends unit.Test {
 		var x = dynamicFunc(randomCall());
 		#if (!flash && !js)
 		eq(1, x);
+		#else
+		noAssert();
 		#end
 	}
 

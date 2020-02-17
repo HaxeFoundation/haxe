@@ -2,7 +2,7 @@ package flash.net;
 
 extern class NetGroupSendResult {
 	function new() : Void;
-	static var ERROR(default,never) : String;
-	static var NO_ROUTE(default,never) : String;
-	static var SENT(default,never) : String;
+	static final ERROR : String;
+	static final NO_ROUTE : String;
+	static final SENT : String;
 }

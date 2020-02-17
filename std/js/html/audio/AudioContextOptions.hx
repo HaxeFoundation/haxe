@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,11 +31,10 @@ package js.html.audio;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioContextOptions>
 **/
-typedef AudioContextOptions =
-{
+typedef AudioContextOptions = {
 	
 	/**
 		The `BaseAudioContext.sampleRate` to be used by the `AudioContext`, specified in samples per second. The value may be any value supported by `AudioBuffer`. If not specified, the preferred sample rate for the context's output device is used by default.
 	**/
-	@:optional var sampleRate : Float;
+	var ?sampleRate : Float;
 }

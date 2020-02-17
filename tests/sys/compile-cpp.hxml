@@ -11,3 +11,8 @@ compile-each.hxml
 compile-each.hxml
 --main ExitCode
 -cpp bin/cpp
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-cpp bin/cpp

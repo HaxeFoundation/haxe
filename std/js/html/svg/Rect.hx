@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRect>
 **/
 @:native("SVGRect")
-extern class Rect
-{
+extern class Rect {
 	
 	/**
 		The exact effect of this coordinate depends on each element. If the attribute is not specified, the effect is as if a value of `0` were specified.

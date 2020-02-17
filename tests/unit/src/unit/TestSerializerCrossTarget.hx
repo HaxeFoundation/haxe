@@ -11,8 +11,7 @@ class TestSerializerCrossTarget extends Test {
 			var valueString = Reflect.field(json, fieldName);
 			var func = Reflect.field(this, fieldName);
 			if (func == null) {
-				Test.report("Missing field: " + fieldName);
-				Test.success = false;
+				assert("Missing field: " + fieldName);
 			} else {
 				Reflect.callMethod(this, func, [Unserializer.run(valueString)]);
 			}

@@ -2,15 +2,15 @@ package cases;
 
 class Issue6275 extends DisplayTestCase {
 	/**
-	import haxe.ds.Option;
+		import haxe.ds.Option;
 
-	class Main {
-		static function main() {
-			{-1-}n{-2-}ew Main("foo"){-3-};
+		class Main {
+			static function main() {
+				{-1-}n{-2-}ew Main("foo"){-3-};
+			}
+
+			function {-4-}new{-5-}(s:String) {}
 		}
-
-		function {-4-}new{-5-}(s:String) {}
-	}
 	**/
 	function test() {
 		eq("(s : String) -> cases.Main", type(pos(2)));

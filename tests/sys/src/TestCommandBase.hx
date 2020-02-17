@@ -80,8 +80,17 @@ class TestCommandBase extends utest.Test {
 				if (exitCode != random)
 					trace(name);
 				Assert.equals(random, exitCode);
-				FileSystem.deleteFile(path);
 			}
+		}
+
+		// Try to avoid unlink(): Resource temporarily unavailable error
+		Sys.sleep(0.1);
+		#if php
+		php.Global.gc_collect_cycles();
+		#end
+		for (file in FileSystem.readDirectory("temp")) {
+			if (file == ".gitignore") continue;
+			FileSystem.deleteFile(Path.join(["temp", file]));
 		}
 	}
 

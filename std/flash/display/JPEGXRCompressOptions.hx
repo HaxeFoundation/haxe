@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class JPEGXRCompressOptions implements IBitmapCompressOptions {
+extern final class JPEGXRCompressOptions implements IBitmapCompressOptions {
 	var colorSpace : String;
 	var quantization : UInt;
 	var trimFlexBits : UInt;

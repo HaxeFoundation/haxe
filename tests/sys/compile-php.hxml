@@ -11,3 +11,8 @@ compile-each.hxml
 compile-each.hxml
 --main ExitCode
 -php bin/php/ExitCode
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-php bin/php/UtilityProcess

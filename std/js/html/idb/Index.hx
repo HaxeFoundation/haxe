@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex>
 **/
 @:native("IDBIndex")
-extern class Index
-{
+extern class Index {
 	
 	/**
 		The name of this index.
@@ -65,13 +64,13 @@ extern class Index
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range.
 		@throws DOMError
 	**/
-	function openCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
+	function openCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range, as arranged by this index.
 		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
+	function openKeyCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, finds either the value in the referenced object store that corresponds to the given key or the first corresponding value, if `key` is an `IDBKeyRange`.

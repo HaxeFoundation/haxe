@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("ImageCaptureError")
-extern class ImageCaptureError
-{
+extern class ImageCaptureError {
 	static inline var FRAME_GRAB_ERROR : Int = 1;
 	static inline var SETTINGS_ERROR : Int = 2;
 	static inline var PHOTO_ERROR : Int = 3;

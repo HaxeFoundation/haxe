@@ -5,32 +5,40 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = ref []
+let cast_stack = new_rec_stack()
 
-let make_static_call ctx c cf a pl args t p =
+let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e WithType.value
+					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
 			| _ -> assert false
 	end else
-		make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-let do_check_cast ctx tleft eright p =
+and do_check_cast ctx tleft eright p =
 	let recurse cf f =
-		if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
-		cast_stack := cf :: !cast_stack;
-		let r = f() in
-		cast_stack := List.tl !cast_stack;
-		r
+		(*
+			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
+			unlike non-macro @:from methods, which generate unification errors if no other @:from methods are involved.
+		*)
+		if cf.cf_kind = Method MethMacro then begin
+			match cast_stack.rec_stack with
+			| previous_from :: _ when previous_from == cf ->
+				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+			| _ -> ()
+		end;
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
+		rec_stack_loop cast_stack cf f ()
 	in
 	let find a tl f =
 		let tcf,cf = f() in
@@ -83,7 +91,7 @@ let do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-let cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx tleft eright p =
 	try
 		(* can't do that anymore because this might miss macro calls (#4315) *)
 		(* if ctx.com.display <> DMNone then raise Not_found; *)
@@ -92,7 +100,7 @@ let cast_or_unify_raise ctx tleft eright p =
 		unify_raise ctx eright.etype tleft p;
 		eright
 
-let cast_or_unify ctx tleft eright p =
+and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error (Unify l,p) ->
@@ -172,22 +180,23 @@ let find_multitype_specialization com a pl p =
 			) a.a_params pl in
 			if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
 				| t1 :: _ ->
-					let rec loop stack t =
-						if List.exists (fun t2 -> fast_eq t t2) stack then
+					let stack = ref [] in
+					let rec loop t =
+						if List.exists (fun t2 -> fast_eq t t2) !stack then
 							t
 						else begin
-							let stack = t :: stack in
+							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
 								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
-								PMap.iter (fun _ ef -> ignore(loop stack ef.ef_type)) en.e_constrs;
-								Type.map (loop stack) t
+								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
+								Type.map loop t
 							| t ->
-								Type.map (loop stack) t
+								Type.map loop t
 						end
 					in
-					ignore(loop [] t1)
+					ignore(loop t1)
 				| _ -> assert false
 			end;
 			tl
@@ -237,7 +246,7 @@ let handle_abstract_casts ctx e =
 				let rec find_abstract e t = match follow t,e.eexpr with
 					| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
 					| _,TCast(e1,None) -> find_abstract e1 e1.etype
-					| _,TLocal {v_extra = Some(_,e',true)} ->
+					| _,TLocal {v_extra = Some(_,Some e')} ->
 						begin match follow e'.etype with
 						| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
 						| _ -> raise Not_found

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,21 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a MD5 of a String.
-**/
 class Md5 {
-
-	public static inline function encode( s : String ) : String {
+	public static inline function encode(s:String):String {
 		return Global.md5(s);
 	}
 
-	public static inline function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-        return Bytes.ofData(Global.md5(b.getData(), true));
+	public static inline function make(b:haxe.io.Bytes):haxe.io.Bytes {
+		return Bytes.ofData(Global.md5(b.getData(), true));
 	}
 }

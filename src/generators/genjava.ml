@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -198,7 +198,6 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
-
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -255,7 +254,7 @@ struct
 
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(md) } ]
 					) ->
 					let mk_is is_basic obj md =
@@ -299,13 +298,18 @@ struct
 						| TClassDecl{ cl_path = (["haxe"], "Int64") } ->
 							mk_is true obj i64_md
 						| TAbstractDecl{ a_path = ([], "Dynamic") }
-						| TClassDecl{ cl_path = ([], "Dynamic") } ->
+						| TClassDecl{ cl_path = ([], "Dynamic") } when not (is_nullable obj.etype) ->
 							(match obj.eexpr with
 								| TLocal _ | TConst _ -> { e with eexpr = TConst(TBool true) }
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							mk_is false obj md
+							if not (is_java_basic_type obj.etype) then
+								try
+									Type.unify obj.etype (type_of_module_type md);
+									mk_is false obj md
+								with Unify_error _ -> e
+							else e
 					)
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
@@ -337,7 +341,7 @@ struct
 		(try
 			UTF8.validate s;
 			UTF8.iter (fun c ->
-				let c = (UChar.code c) in
+				let c = (UCharExt.code c) in
 				if c > 0xFFFF then
 					(h := Int32.add (Int32.mul thirtyone !h)
 						(Int32.of_int (high_surrogate c));
@@ -412,7 +416,7 @@ struct
 		and modify it to:
 		{
 			var execute_def = true;
-			switch(str.hashCode())
+			switch(str == null ? 0 : str.hashCode())
 			{
 				case (hashcode of a):
 					if (str == "a")
@@ -575,7 +579,9 @@ struct
 			(el, e)
 		in
 
-		let switch = { eswitch with
+		let is_not_null_check = mk (TBinop (OpNotEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
+		let if_not_null e = { e with eexpr = TIf (is_not_null_check, e, None) } in
+		let switch = if_not_null { eswitch with
 			eexpr = TSwitch(!local_hashcode, List.map change_case (reorder_cases ecases []), None);
 		} in
 		(if !has_case then begin
@@ -855,7 +861,7 @@ let rec handle_throws gen cf =
 	match cf.cf_expr with
 	| Some ({ eexpr = TFunction(tf) } as e)  ->
 		let rec collect_throws acc = function
-			| (Meta.Throws, [Ast.EConst (Ast.String path), _],_) :: meta -> (try
+			| (Meta.Throws, [Ast.EConst (Ast.String(path,_)), _],_) :: meta -> (try
 				collect_throws (get_cl ( get_type gen (parse_path path)) :: acc) meta
 			with | Not_found | TypeNotFound _ ->
 				collect_throws acc meta)
@@ -956,12 +962,12 @@ let rec get_fun_modifiers meta access modifiers =
 
 let generate con =
 	let exists = ref false in
-	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
-		if String.ends_with file "hxjava-std.jar" then begin
+	List.iter (fun java_lib ->
+		if String.ends_with java_lib#get_file_path "hxjava-std.jar" then begin
 			exists := true;
-			(file,true,close,la,gr)
-		end else
-			(file,std,close,la,gr)) con.java_libs;
+			java_lib#add_flag NativeLibraries.FlagIsStd;
+		end;
+	) con.native_libs.java_libs;
 	if not !exists then
 		failwith "Your version of hxjava is outdated. Please update it by running: `haxelib update hxjava`";
 	let gen = new_ctx con in
@@ -1087,7 +1093,7 @@ let generate con =
 
 	let path_s path meta = try
 		match Meta.get Meta.JavaCanonical meta with
-			| (Meta.JavaCanonical, [EConst(String pack), _; EConst(String name), _], _) ->
+			| (Meta.JavaCanonical, [EConst(String(pack,_)), _; EConst(String(name,_)), _], _) ->
 				if pack = "" then
 					name
 				else
@@ -1209,68 +1215,72 @@ let generate con =
 		| _ -> false
 	in
 
-	let rec t_s pos t =
-		match real_type t with
-			(* basic types *)
-			| TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
-			| TAbstract ({ a_path = ([], "Void") },[]) ->
-					path_s_import pos (["java";"lang"], "Object") []
-			| TAbstract ({ a_path = ([],"Float") },[]) -> "double"
-			| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-			| TType ({ t_path = ["java"], "Int64" },[])
-			| TAbstract ({ a_path = ["java"], "Int64" },[]) -> "long"
-			| TType ({ t_path = ["java"],"Int8" },[])
-			| TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
-			| TType ({ t_path = ["java"],"Int16" },[])
-			| TAbstract ({ a_path = ["java"],"Int16" },[]) -> "short"
-			| TType ({ t_path = ["java"],"Char16" },[])
-			| TAbstract ({ a_path = ["java"],"Char16" },[]) -> "char"
-			| TType ({ t_path = [],"Single" },[])
-			| TAbstract ({ a_path = [],"Single" },[]) -> "float"
-			| TInst ({ cl_path = ["haxe"],"Int32" },[])
-			| TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
-			| TInst ({ cl_path = ["haxe"],"Int64" },[])
-			| TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
-			| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
-				let rec check_t_s t =
-					match real_type t with
-						| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
-							(check_t_s param) ^ "[]"
-						| _ -> t_s pos (run_follow gen t)
-				in
-				(check_t_s param) ^ "[]"
-
-			(* end of basic types *)
-			| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
-			| TAbstract ({ a_path = [], "Dynamic" },[]) ->
-					path_s_import pos (["java";"lang"], "Object") []
-			| TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s pos (run_follow gen t))
-			| TInst ({ cl_path = [], "String" }, []) ->
-					path_s_import pos (["java";"lang"], "String") []
-			| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
-			| TInst ({ cl_path = [], "Class" }, [p]) | TInst ({ cl_path = [], "Enum" }, [p]) ->
-					path_param_s pos (TClassDecl cl_cl) (["java";"lang"], "Class") [p] []
-			| TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
-			| TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
-					path_s_import pos (["java";"lang"], "Class") []
-			| TEnum ({e_path = p; e_meta = meta}, _) ->
-					path_s_import pos p meta
-			| TInst (({cl_path = p; cl_meta = meta} as cl), _) when Meta.has Meta.Enum cl.cl_meta ->
-					path_s_import pos p meta
-			| TInst (({cl_path = p; cl_meta = meta} as cl), params) -> (path_param_s pos (TClassDecl cl) p params meta)
-			| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s pos (TTypeDecl t) p params meta)
-			| TAnon (anon) ->
-				(match !(anon.a_status) with
-					| Statics _ | EnumStatics _ | AbstractStatics _ ->
-							path_s_import pos (["java";"lang"], "Class") []
-					| _ ->
-							path_s_import pos (["java";"lang"], "Object") [])
-				| TDynamic _ ->
+	let rec t_s stack pos t =
+		if List.exists (fast_eq t) stack then
+			path_s_import pos (["java";"lang"], "Object") []
+		else begin
+			let stack = t :: stack in
+			match real_type t with
+				(* basic types *)
+				| TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
+				| TAbstract ({ a_path = ([], "Void") },[]) ->
 						path_s_import pos (["java";"lang"], "Object") []
-			(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
-			| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
+				| TAbstract ({ a_path = ([],"Float") },[]) -> "double"
+				| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+				| TType ({ t_path = ["java"], "Int64" },[])
+				| TAbstract ({ a_path = ["java"], "Int64" },[]) -> "long"
+				| TType ({ t_path = ["java"],"Int8" },[])
+				| TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
+				| TType ({ t_path = ["java"],"Int16" },[])
+				| TAbstract ({ a_path = ["java"],"Int16" },[]) -> "short"
+				| TType ({ t_path = ["java"],"Char16" },[])
+				| TAbstract ({ a_path = ["java"],"Char16" },[]) -> "char"
+				| TType ({ t_path = [],"Single" },[])
+				| TAbstract ({ a_path = [],"Single" },[]) -> "float"
+				| TInst ({ cl_path = ["haxe"],"Int32" },[])
+				| TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
+				| TInst ({ cl_path = ["haxe"],"Int64" },[])
+				| TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
+				| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
+					let rec check_t_s t =
+						match real_type t with
+							| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
+								(check_t_s param) ^ "[]"
+							| _ -> t_s stack pos (run_follow gen t)
+					in
+					(check_t_s param) ^ "[]"
 
-	and param_t_s pos t =
+				(* end of basic types *)
+				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
+				| TAbstract ({ a_path = [], "Dynamic" },[]) ->
+						path_s_import pos (["java";"lang"], "Object") []
+				| TMono r -> (match r.tm_type with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
+				| TInst ({ cl_path = [], "String" }, []) ->
+						path_s_import pos (["java";"lang"], "String") []
+				| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
+				| TInst ({ cl_path = [], "Class" }, [p]) | TInst ({ cl_path = [], "Enum" }, [p]) ->
+						path_param_s stack pos (TClassDecl cl_cl) (["java";"lang"], "Class") [p] []
+				| TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
+				| TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
+						path_s_import pos (["java";"lang"], "Class") []
+				| TEnum ({e_path = p; e_meta = meta}, _) ->
+						path_s_import pos p meta
+				| TInst (({cl_path = p; cl_meta = meta} as cl), _) when Meta.has Meta.Enum cl.cl_meta ->
+						path_s_import pos p meta
+				| TInst (({cl_path = p; cl_meta = meta} as cl), params) -> (path_param_s stack pos (TClassDecl cl) p params meta)
+				| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s stack pos (TTypeDecl t) p params meta)
+				| TAnon (anon) ->
+					(match !(anon.a_status) with
+						| Statics _ | EnumStatics _ | AbstractStatics _ ->
+								path_s_import pos (["java";"lang"], "Class") []
+						| _ ->
+								path_s_import pos (["java";"lang"], "Object") [])
+					| TDynamic _ ->
+							path_s_import pos (["java";"lang"], "Object") []
+				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
+				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
+		end
+	and param_t_s stack pos t =
 		match run_follow gen t with
 			| TAbstract ({ a_path = ([], "Bool") },[]) ->
 					path_s_import pos (["java";"lang"], "Boolean") []
@@ -1300,17 +1310,21 @@ let generate con =
 			| TAbstract ({ a_path = [],"Single" },[]) ->
 					path_s_import pos (["java";"lang"], "Float") []
 			| TDynamic _ -> "?"
-			| TInst (cl, params) -> t_s pos (TInst(cl, change_param_type (TClassDecl cl) params))
-			| TType (cl, params) -> t_s pos (TType(cl, change_param_type (TTypeDecl cl) params))
-			| TEnum (e, params) -> t_s pos (TEnum(e, change_param_type (TEnumDecl e) params))
-			| _ -> t_s pos t
+			| TInst (cl, params) -> t_s stack pos (TInst(cl, change_param_type (TClassDecl cl) params))
+			| TType (cl, params) -> t_s stack pos (TType(cl, change_param_type (TTypeDecl cl) params))
+			| TEnum (e, params) -> t_s stack pos (TEnum(e, change_param_type (TEnumDecl e) params))
+			| _ -> t_s stack pos t
 
-	and path_param_s pos md path params meta =
+	and path_param_s stack pos md path params meta =
 			match params with
 				| [] -> path_s_import pos path meta
 				| _ when has_tdynamic (change_param_type md params) -> path_s_import pos path meta
-				| _ -> sprintf "%s<%s>" (path_s_import pos path meta) (String.concat ", " (List.map (fun t -> param_t_s pos t) (change_param_type md params)))
+				| _ -> sprintf "%s<%s>" (path_s_import pos path meta) (String.concat ", " (List.map (fun t -> param_t_s stack pos t) (change_param_type md params)))
 	in
+
+	let t_s = t_s []
+	and param_t_s = param_t_s []
+	and path_param_s = path_param_s [] in
 
 	let rett_s pos t =
 		match t with
@@ -1338,7 +1352,7 @@ let generate con =
 		let b = Buffer.create 0 in
 		(try
 			UTF8.validate s;
-			UTF8.iter (fun c -> escape (UChar.code c) b) s
+			UTF8.iter (fun c -> escape (UCharExt.code c) b) s
 		with
 			UTF8.Malformed_code ->
 				String.iter (fun c -> escape (Char.code c) b) s
@@ -1396,7 +1410,7 @@ let generate con =
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
 			let file = Path.get_full_path p.pfile in
-			print w "//line %d \"%s\"" cur_line (Ast.s_escape file); newline w
+			print w "//line %d \"%s\"" cur_line (StringHelper.s_escape file); newline w
 	in
 
 	let extract_statements expr =
@@ -1490,7 +1504,7 @@ let generate con =
 					write w " )"
 				| TField (e, FStatic(_, cf)) when Meta.has Meta.Native cf.cf_meta ->
 					let rec loop meta = match meta with
-						| (Meta.Native, [EConst (String s), _],_) :: _ ->
+						| (Meta.Native, [EConst (String(s,_)), _],_) :: _ ->
 							expr_s w e; write w "."; write_field w s
 						| _ :: tl -> loop tl
 						| [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
@@ -1811,7 +1825,7 @@ let generate con =
 		| EConst c, p -> (match c with
 			| Int s | Float s | Ident s ->
 				write w s
-			| String s ->
+			| String(s,_) ->
 				write w "\"";
 				write w (escape s);
 				write w "\""
@@ -1863,7 +1877,7 @@ let generate con =
 					gen_annotations w ~add_newline:false tdef.t_meta;
 					run (follow_once t)
 				| TMono r ->
-					(match !r with
+					(match r.tm_type with
 					| Some t -> run t
 					| _ -> () (* avoid infinite loop / should be the same in this context *))
 				| TLazy f ->
@@ -1929,13 +1943,13 @@ let generate con =
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
-					gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+					gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
 					if cl.cl_interface || cf.cf_expr <> None then
-						gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
 				let is_override = match cf.cf_name with
@@ -2026,10 +2040,10 @@ let generate con =
 								end else begin
 									expr_s w expr;
 								end)
-							| (Meta.Throws, [Ast.EConst (Ast.String t), _], _) :: tl ->
+							| (Meta.Throws, [Ast.EConst (Ast.String(t,_)), _], _) :: tl ->
 								print w " throws %s" t;
 								loop tl
-							| (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+							| (Meta.FunctionCode, [Ast.EConst (Ast.String(contents,_)),_],_) :: tl ->
 								begin_block w;
 								write w contents;
 								end_block w
@@ -2057,7 +2071,7 @@ let generate con =
 
 		let rec loop_meta meta acc =
 			match meta with
-				| (Meta.SuppressWarnings, [Ast.EConst (Ast.String w),_],_) :: meta -> loop_meta meta (w :: acc)
+				| (Meta.SuppressWarnings, [Ast.EConst (Ast.String(w,_)),_],_) :: meta -> loop_meta meta (w :: acc)
 				| _ :: meta -> loop_meta meta acc
 				| _ -> acc
 		in
@@ -2131,7 +2145,7 @@ let generate con =
 		let rec loop meta =
 			match meta with
 				| [] -> ()
-				| (Meta.ClassCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+				| (Meta.ClassCode, [Ast.EConst (Ast.String(contents,_)),_],_) :: tl ->
 					write w contents
 				| _ :: tl -> loop tl
 		in
@@ -2149,6 +2163,8 @@ let generate con =
 								| _ -> ()
 				with | Not_found -> ()
 				);
+				write w "haxe.java.Init.init();";
+				newline w;
 				(match gen.gcon.main with
 					| Some(expr) ->
 						expr_s w (mk_block expr)
@@ -2423,7 +2439,7 @@ let generate con =
 	TArrayTransform.configure gen (
 	fun e _ ->
 		match e.eexpr with
-			| TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _, _) } }, _) -> (* captured transformation *)
+			| TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
 				false
 			| TArray(e1, e2) ->
 				( match run_follow gen (follow e1.etype) with
@@ -2585,7 +2601,7 @@ let generate con =
 
 	ExpressionUnwrap.configure gen;
 
-	UnnecessaryCastsRemoval.configure gen;
+	(* UnnecessaryCastsRemoval.configure gen; *)
 
 	IntDivisionSynf.configure gen;
 

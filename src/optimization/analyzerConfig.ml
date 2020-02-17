@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -64,7 +64,7 @@ let is_ignored meta =
 
 let get_base_config com =
 	{
-		optimize = Common.raw_defined com "analyzer-optimize";
+		optimize = Common.defined com Define.AnalyzerOptimize;
 		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 		copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
@@ -103,7 +103,7 @@ let update_config_from_meta com config meta =
 							config
 					end
 				| _ ->
-					let s = Ast.s_expr e in
+					let s = Ast.Printer.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el

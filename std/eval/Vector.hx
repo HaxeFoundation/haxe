@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,10 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package eval;
 
 extern class Vector<T> implements ArrayAccess<T> {
-	public function new(size:Int) : Void;
+	public function new(size:Int):Void;
 	public var length(default, null):Int;
 	public function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
 	public function toArray():Array<T>;

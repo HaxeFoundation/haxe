@@ -9,5 +9,6 @@ private abstract A({}) from {} {
 class Issue4843 extends Test {
 	function test() {
 		var a:A = {};
+		noAssert();
 	}
 }

@@ -1,9 +1,11 @@
+#if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.io.Path;
 
 using StringTools;
 using sys.FileSystem;
+#end
 
 class Macro {
 	static var singleCaseField = null;
@@ -50,6 +52,10 @@ class Macro {
 			}
 		}
 		loop(pack.split('.'));
+		if(cases.length == 0) {
+			Sys.stderr().writeString('${Context.definedValue("test")} not found.\n');
+			Sys.exit(1);
+		}
 		return macro $a{cases};
 	}
 }

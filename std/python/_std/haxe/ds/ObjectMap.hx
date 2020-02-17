@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import python.Dict;
 
-class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
+class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
+	var h:Dict<K, V>;
 
-	var h : Dict<K,V>;
-
-
-	public function new() : Void {
+	public function new():Void {
 		h = new Dict();
 	}
 
@@ -44,39 +43,48 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 		return h.hasKey(key);
 	}
 
-	public function remove( key : K ) : Bool
-	{
+	public function remove(key:K):Bool {
 		var r = h.hasKey(key);
-		if (r) h.remove(key);
+		if (r)
+			h.remove(key);
 		return r;
 	}
 
-	public function keys() : Iterator<K> {
+	public function keys():Iterator<K> {
 		return h.keys().iter();
 	}
 
-	public function iterator() : Iterator<V> {
+	public function iterator():Iterator<V> {
 		return h.values().iter();
 	}
-	
-	public function copy() : ObjectMap<K,V> {
+
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
+	public function copy():ObjectMap<K, V> {
 		var copied = new ObjectMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(Std.string(i));
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	public inline function clear():Void {
+		h.clear();
 	}
 }

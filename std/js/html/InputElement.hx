@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement>
 **/
 @:native("HTMLInputElement")
-extern class InputElement extends Element
-{
+extern class InputElement extends Element {
 	var accept : String;
 	var alt : String;
 	var autocomplete : String;
@@ -101,7 +100,7 @@ extern class InputElement extends Element
 		 
 		@throws DOMError
 	**/
-	function stepUp( ?n : Int = 1 ) : Void;
+	function stepUp( n : Int = 1 ) : Void;
 	
 	/**
 		Decrements the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
@@ -114,14 +113,14 @@ extern class InputElement extends Element
 		 
 		@throws DOMError
 	**/
-	function stepDown( ?n : Int = 1 ) : Void;
+	function stepDown( n : Int = 1 ) : Void;
 	function checkValidity() : Bool;
 	function reportValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
 	function select() : Void;
 	/** @throws DOMError */
 	@:overload( function( replacement : String ) : Void {} )
-	function setRangeText( replacement : String, start : Int, end : Int, ?selectionMode : SelectionMode = "preserve" ) : Void;
+	function setRangeText( replacement : String, start : Int, end : Int, selectionMode : SelectionMode = PRESERVE ) : Void;
 	/** @throws DOMError */
 	function setSelectionRange( start : Int, end : Int, ?direction : String ) : Void;
 }

@@ -1,0 +1,2 @@
+Main.hx:5: characters 9-18 : {+ field : Unknown<0> } should be {+ args : {+ field : Unknown<0> } }
+Main.hx:5: characters 9-18 : For function argument 'type'

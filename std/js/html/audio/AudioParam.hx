@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioParam>
 **/
 @:native("AudioParam")
-extern class AudioParam
-{
+extern class AudioParam {
 	
 	/**
 		Represents the parameter's current volume as a floating point value; initially set to the value of `AudioParam.defaultValue`. Though it can be set, any modifications happening while there are automation events scheduled — that is events scheduled using the methods of the `AudioParam` — are ignored, without raising any exception.

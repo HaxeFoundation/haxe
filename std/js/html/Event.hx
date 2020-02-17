@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Event>
 **/
 @:native("Event")
-extern class Event
-{
+extern class Event {
 	static inline var NONE : Int = 0;
 	static inline var CAPTURING_PHASE : Int = 1;
 	static inline var AT_TARGET : Int = 2;
@@ -140,5 +139,5 @@ extern class Event
 	/**
 		Initializes the value of an Event created. If the event has already being dispatched, this method does nothing.
 	**/
-	function initEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false ) : Void;
+	function initEvent( type : String, bubbles : Bool = false, cancelable : Bool = false ) : Void;
 }

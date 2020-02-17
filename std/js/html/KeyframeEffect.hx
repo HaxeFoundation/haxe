@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect>
 **/
 @:native("KeyframeEffect")
-extern class KeyframeEffect extends AnimationEffect
-{
+extern class KeyframeEffect extends AnimationEffect {
 	
 	/**
 		Gets and sets the element or pseudo-element being animated by this object. This may be `null` for animations that do not target a specific element.

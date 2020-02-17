@@ -1,8 +1,8 @@
 package flash.filters;
 
-@:fakeEnum(String) extern enum DisplacementMapFilterMode {
-	CLAMP;
-	COLOR;
-	IGNORE;
-	WRAP;
+@:native("flash.filters.DisplacementMapFilterMode") extern enum abstract DisplacementMapFilterMode(String) {
+	var CLAMP;
+	var COLOR;
+	var IGNORE;
+	var WRAP;
 }

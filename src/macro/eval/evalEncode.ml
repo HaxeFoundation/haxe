@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -157,6 +157,10 @@ let encode_enum i pos index pl =
 		| IAnonStatus -> key_haxe_macro_AnonStatus
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
+		| IDisplayKind -> key_haxe_macro_DisplayKind
+		| IMessage -> key_haxe_macro_Message
+		| IFunctionKind -> key_haxe_macro_FunctionKind
+		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind
 	in
 	encode_enum_value key index (Array.of_list pl) pos
 

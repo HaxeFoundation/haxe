@@ -1,8 +1,11 @@
+import haxe.io.Bytes;
+import haxe.io.BytesBuffer;
+
 using StringTools;
+
 import Types;
 
 class HaxeInvocationException {
-
 	public var message:String;
 	public var fieldName:String;
 	public var arguments:Array<String>;
@@ -14,14 +17,21 @@ class HaxeInvocationException {
 		this.arguments = arguments;
 		this.source = source;
 	}
+
+	public function toString() {
+		return 'HaxeInvocationException($message, $fieldName, $arguments, $source])';
+	}
 }
 
 class DisplayTestContext {
-	var source:File;
-	var markers:Map<Int,Int>;
+	static var haxeServer = haxeserver.HaxeServerSync.launch("haxe", []);
+
+	var markers:Map<Int, Int>;
 	var fieldName:String;
 
-	public function new(path:String, fieldName:String, source:String, markers:Map<Int,Int>) {
+	public final source:File;
+
+	public function new(path:String, fieldName:String, source:String, markers:Map<Int, Int>) {
 		this.fieldName = fieldName;
 		this.source = new File(path, source);
 		this.markers = markers;
@@ -29,12 +39,13 @@ class DisplayTestContext {
 
 	public function pos(id:Int):Position {
 		var r = markers[id];
-		if (r == null) throw "No such marker: " + id;
+		if (r == null)
+			throw "No such marker: " + id;
 		return new Position(r);
 	}
 
 	public function range(pos1:Int, pos2:Int) {
-		return normalizePath(source.formatPosition(pos(pos1), pos(pos2)));
+		return normalizePath(source.formatRange(pos(pos1), pos(pos2)));
 	}
 
 	public function fields(pos:Position):Array<FieldElement> {
@@ -77,36 +88,31 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
-	public function noCompletionPoint(f:Void -> Void):Bool {
+	public function diagnostics():Array<Diagnostic<Dynamic>> {
+		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
+		return if (result == null) [] else result.diagnostics;
+	}
+
+	public function hasErrorMessage(f:Void->Void, message:String) {
 		return try {
 			f();
 			false;
-		} catch(exc:HaxeInvocationException) {
-			return exc.message.indexOf("No completion point") != -1;
+		} catch (exc:HaxeInvocationException) {
+			return exc.message.indexOf(message) != -1;
 		}
 	}
 
-	function callHaxe(displayPart:String):String {
-		var args = [
-			"-cp", "src",
-			"-D", "display-stdin",
-			"--display",
-			source.path + "@" + displayPart,
-		];
-		var stdin = source.content;
-		var proc = new sys.io.Process("haxe", args);
-		proc.stdin.writeString(stdin);
-		proc.stdin.close();
-		var stderr = proc.stderr.readAll();
-		var stdout = proc.stdout.readAll();
-		var exit = proc.exitCode();
-		proc.close();
-		var success = exit == 0;
-		var s = stderr.toString();
-		if (!success || s == "") {
-			throw new HaxeInvocationException(s, fieldName, args, stdin);
+	function callHaxe(displayPart:String) {
+		var args = ["--display", source.path + "@" + displayPart];
+		var result = runHaxe(args, source.content);
+		if (result.hasError || result.stderr == "") {
+			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
 		}
-		return s;
+		return result.stderr;
+	}
+
+	static public function runHaxe(args:Array<String>, ?stdin:String) {
+		return haxeServer.rawRequest(args, stdin == null ? null : Bytes.ofString(stdin));
 	}
 
 	static function extractType(result:String) {
@@ -118,7 +124,7 @@ class DisplayTestContext {
 		return StringTools.trim(xml.firstChild().nodeValue);
 	}
 
-	static function  extractSignatures(result:String) {
+	static function extractSignatures(result:String) {
 		var xml = Xml.parse('<x>$result</x>');
 		xml = xml.firstElement();
 		var ret = [];

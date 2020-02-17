@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info>
 **/
 @:native("WEBGL_debug_renderer_info")
-extern class WEBGLDebugRendererInfo
-{
+extern class WEBGLDebugRendererInfo {
 	static inline var UNMASKED_VENDOR_WEBGL : Int = 37445;
 	static inline var UNMASKED_RENDERER_WEBGL : Int = 37446;
 	

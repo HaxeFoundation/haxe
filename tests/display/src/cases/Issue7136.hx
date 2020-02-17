@@ -2,18 +2,18 @@ package cases;
 
 class Issue7136 extends DisplayTestCase {
 	/**
-	@:structInit class Point<T> {
-		var x:Int;
-		var y:T;
-	}
+		@:structInit class Point<T> {
+			var x:Int;
+			var y:T;
+		}
 
-	class Main {
-		static function main() {
-			var p:Point<String> = {
-				{-1-}
+		class Main {
+			static function main() {
+				var p:Point<String> = {
+					{-1-}
+				}
 			}
 		}
-	}
 	**/
 	function test() {
 		var fields = fields(pos(1));

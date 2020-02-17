@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -191,29 +191,29 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				| None -> Type.map_expr run e
 				| Some tparam_anon_decl ->
 					(match (vv, ve) with
-						| ({ v_extra = Some( _ :: _, _,_) } as v), Some ({ eexpr = TFunction tf } as f)
-						| ({ v_extra = Some( _ :: _, _,_) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
+						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 							tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 							{ e with eexpr = TBlock([]) }
 						| _ ->
 							Type.map_expr run { e with eexpr = TVar(vv, ve) })
 					)
-			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _,_) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
+			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
 				(match tparam_anon_decl with
 					| None -> assert false
 					| Some tparam_anon_decl ->
 						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 						{ e with eexpr = TBlock([]) }
 				)
-			| TLocal ({ v_extra = Some( _ :: _, _, _) } as v) ->
+			| TLocal ({ v_extra = Some( _ :: _, _) } as v) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v e false)
-			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _, _) } as v) } as expr), _) -> (* captured transformation *)
+			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr), _) -> (* captured transformation *)
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v { expr with etype = e.etype } false)
-			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _, _) } as v) } as expr)) ->
+			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr)) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v expr true)
@@ -278,8 +278,9 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 
 let rec get_type_params acc t =
 	match t with
-		| TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
-			if List.memq cl acc then acc else cl :: acc
+		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
+			let params = List.fold_left get_type_params acc constraints in
+			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
 		| TDynamic t ->
@@ -304,7 +305,7 @@ let rec get_type_params acc t =
 		| TEnum(_, params)
 		| TInst(_, params) ->
 			List.fold_left get_type_params acc params
-		| TMono r -> (match !r with
+		| TMono r -> (match r.tm_type with
 			| Some t -> get_type_params acc t
 			| None -> acc)
 		| _ -> get_type_params acc (follow_once t)
@@ -333,12 +334,12 @@ let get_captured expr =
 				Type.iter traverse expr
 			| TVar (v, opt) ->
 				(match v.v_extra with
-					| Some(_ :: _, _, _) -> ()
+					| Some(_ :: _, _) -> ()
 					| _ ->
 						check_params v.v_type);
 				Hashtbl.add ignored v.v_id v;
 				ignore(Option.map traverse opt)
-			| TLocal { v_extra = Some( (_ :: _ ),_,_) } ->
+			| TLocal { v_extra = Some( (_ :: _ ),_) } ->
 				()
 			| TLocal(( { v_capture = true } ) as v) ->
 				(if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
@@ -413,6 +414,10 @@ let configure gen ft =
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
 
+		(* forward NativeGen meta for Cs target *)
+		if (Common.platform gen.gcon Cs) && not(is_hxgen (TClassDecl (get gen.gcurrent_class))) && Meta.has(Meta.NativeGen) (get gen.gcurrent_class).cl_meta then
+			cls.cl_meta <- (Meta.NativeGen,[],null_pos) :: cls.cl_meta;
+
 		if Common.defined gen.gcon Define.EraseGenerics then begin
 			cls.cl_meta <- (Meta.HaxeGeneric,[],null_pos) :: cls.cl_meta
 		end;
@@ -463,7 +468,7 @@ let configure gen ft =
 				let pos = cls.cl_pos in
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
-				cf.cf_final <- true;
+				add_class_field_flag cf CfFinal;
 				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
 				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
 				(* invoke function body: call Delegate function *)
@@ -523,7 +528,7 @@ let configure gen ft =
 
 		(match tvar with
 		| None -> ()
-		| Some ({ v_extra = Some(_ :: _, _, _) } as v) ->
+		| Some ({ v_extra = Some(_ :: _, _) } as v) ->
 			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
 		| _ -> ());
 
@@ -591,7 +596,7 @@ let configure gen ft =
 				| _ -> assert false) captured
 			in
 			let types = match v.v_extra with
-				| Some(t,_,_) -> t
+				| Some(t,_) -> t
 				| _ -> assert false
 			in
 			let monos = List.map (fun _ -> mk_mono()) types in
@@ -730,7 +735,7 @@ struct
 				| Some const ->
 					{ eexpr = TIf(
 						{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
-						{ elocal with eexpr = TConst(const); etype = const_type basic const t },
+						const,
 						Some ( mk_cast t elocal )
 					); etype = t; epos = elocal.epos }
 			in

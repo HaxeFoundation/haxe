@@ -2,15 +2,15 @@ package cases;
 
 class Issue7063 extends DisplayTestCase {
 	/**
-	class Main {
-		public static function main() {
-			call({
-				foo: 1,{-1-}
-			});
-		}
+		class Main {
+			public static function main() {
+				call({
+					foo: 1,{-1-}
+				});
+			}
 
-		static function call(arg1:Dynamic, arg2:Int) { }
-	}
+			static function call(arg1:Dynamic, arg2:Int) { }
+		}
 	**/
 	function test() {
 		// assumes wasAutoTriggered = false, update test for new protocol

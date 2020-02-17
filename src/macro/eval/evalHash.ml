@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -18,7 +18,6 @@
  *)
 
 let reverse_map = Hashtbl.create 0
-let file_map = Hashtbl.create 0
 
 let rev_hash i = Hashtbl.find reverse_map i
 
@@ -28,15 +27,6 @@ let hash f =
 	i
 
 let path_hash path = hash (Globals.s_type_path path)
-
-let file_hash file =
-	let unique_file = Path.unique_full_path file in
-	Hashtbl.replace file_map unique_file file;
-	hash unique_file
-
-let rev_file_hash i =
-	let s = rev_hash i in
-	try Hashtbl.find file_map s with Not_found -> s
 
 let key_length = hash "length"
 let key_toString = hash "toString"
@@ -113,12 +103,16 @@ let key_haxe_macro_FieldAccess = hash "haxe.macro.FieldAccess"
 let key_haxe_macro_AnonStatus = hash "haxe.macro.AnonStatus"
 let key_haxe_macro_ImportMode = hash "haxe.macro.ImportMode"
 let key_haxe_macro_QuoteStatus = hash "haxe.macro.QuoteStatus"
+let key_haxe_macro_DisplayKind = hash "haxe.macro.DisplayKind"
+let key_haxe_macro_Message = hash "haxe.macro.Message"
+let key_haxe_macro_FunctionKind = hash "haxe.macro.FunctionKind"
+let key_haxe_macro_StringLiteralKind = hash "haxe.macro.StringLiteralKind"
 let key_haxe_CallStack = hash "haxe.CallStack"
 let key___init__ = hash "__init__"
 let key_new = hash "new"
 let key_questionmark = hash "?"
 let key_haxe_StackItem = hash "haxe.StackItem"
-let key_sys_net__Socket_NativeSocket = hash "sys.net._Socket.NativeSocket"
+let key_eval_vm_NativeSocket = hash "eval.vm.NativeSocket"
 let key_ip = hash "ip"
 let key_port = hash "port"
 let key_sys_net_Socket = hash "sys.net.Socket"
@@ -126,8 +120,20 @@ let key_socket = hash "socket"
 let key_read = hash "read"
 let key_write = hash "write"
 let key_others = hash "others"
-let key_eval_vm_Thread = hash "eval.vm.Thread"
+let key_eval_vm_Thread = hash "eval.vm.NativeThread"
 let key_haxe_zip_Compress = hash "haxe.zip.Compress"
 let key_haxe_zip_Uncompress = hash "haxe.zip.Uncompress"
 let key_done = hash "done"
 let key_eval_toplevel = hash "eval-toplevel"
+let key_haxe_iterators_map_key_value_iterator = hash "haxe.iterators.MapKeyValueIterator"
+let key_sys_net_Mutex = hash "sys.thread.Mutex"
+let key_sys_net_Lock = hash "sys.thread.Lock"
+let key_sys_net_Tls = hash "sys.thread.Tls"
+let key_sys_net_Deque = hash "sys.thread.Deque"
+
+let key_mbedtls_Config = hash "mbedtls.Config"
+let key_mbedtls_CtrDrbg = hash "mbedtls.CtrDrbg"
+let key_mbedtls_Entropy = hash "mbedtls.Entropy"
+let key_mbedtls_PkContext = hash "mbedtls.PkContext"
+let key_mbedtls_Ssl = hash "mbedtls.Ssl"
+let key_mbedtls_X509Crt = hash "mbedtls.X509Crt"

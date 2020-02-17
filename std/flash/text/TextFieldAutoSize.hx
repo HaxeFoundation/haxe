@@ -1,8 +1,8 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum TextFieldAutoSize {
-	CENTER;
-	LEFT;
-	NONE;
-	RIGHT;
+@:native("flash.text.TextFieldAutoSize") extern enum abstract TextFieldAutoSize(String) {
+	var CENTER;
+	var LEFT;
+	var NONE;
+	var RIGHT;
 }

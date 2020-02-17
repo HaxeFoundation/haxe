@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class FontMetrics {
+extern final class FontMetrics {
 	var emBox : flash.geom.Rectangle;
 	var lineGap : Float;
 	var strikethroughOffset : Float;

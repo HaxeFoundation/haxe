@@ -5,5 +5,6 @@ class Issue6784 extends Test {
 		#if cs
 		cs.system.Console.BufferHeight;
 		#end
+		noAssert();
 	}
 }

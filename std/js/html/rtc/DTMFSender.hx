@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html.rtc;
 
 @:native("RTCDTMFSender")
-extern class DTMFSender extends js.html.EventTarget
-{
+extern class DTMFSender extends js.html.EventTarget {
 	
 	/**
 		An `EventHandler` to handle the `tonechange` event, which is sent each time an outbound tone starts or finishes playing.
@@ -38,5 +37,5 @@ extern class DTMFSender extends js.html.EventTarget
 	**/
 	var toneBuffer(default,null) : String;
 	
-	function insertDTMF( tones : String, ?duration : Int = 100, ?interToneGap : Int = 70 ) : Void;
+	function insertDTMF( tones : String, duration : Int = 100, interToneGap : Int = 70 ) : Void;
 }

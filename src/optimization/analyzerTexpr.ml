@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -154,14 +154,14 @@ let type_change_ok com t1 t2 =
 		true
 	else begin
 		let rec map t = match t with
-			| TMono r -> (match !r with None -> t_dynamic | Some t -> map t)
+			| TMono r -> (match r.tm_type with None -> t_dynamic | Some t -> map t)
 			| _ -> Type.map map t
 		in
 		let t1 = map t1 in
 		let t2 = map t2 in
 		let rec is_nullable_or_whatever = function
 			| TMono r ->
-				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
+				(match r.tm_type with None -> false | Some t -> is_nullable_or_whatever t)
 			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
@@ -386,40 +386,40 @@ end
 *)
 module InterferenceReport = struct
 	type interference_report = {
-		ir_var_reads : (int,bool) Hashtbl.t;
-		ir_var_writes : (int,bool) Hashtbl.t;
-		ir_field_reads : (string,bool) Hashtbl.t;
-		ir_field_writes : (string,bool) Hashtbl.t;
+		mutable ir_var_reads : bool IntMap.t;
+		mutable ir_var_writes : bool IntMap.t;
+		mutable ir_field_reads : bool StringMap.t;
+		mutable ir_field_writes : bool StringMap.t;
 		mutable ir_state_read : bool;
 		mutable ir_state_write : bool;
 	}
 
 	let create () = {
-		ir_var_reads = Hashtbl.create 0;
-		ir_var_writes = Hashtbl.create 0;
-		ir_field_reads = Hashtbl.create 0;
-		ir_field_writes = Hashtbl.create 0;
+		ir_var_reads = IntMap.empty;
+		ir_var_writes = IntMap.empty;
+		ir_field_reads = StringMap.empty;
+		ir_field_writes = StringMap.empty;
 		ir_state_read = false;
 		ir_state_write = false;
 	}
 
-	let set_var_read ir v = Hashtbl.replace ir.ir_var_reads v.v_id true
-	let set_var_write ir v = Hashtbl.replace ir.ir_var_writes v.v_id true
-	let set_field_read ir s = Hashtbl.replace ir.ir_field_reads s true
-	let set_field_write ir s = Hashtbl.replace ir.ir_field_writes s true
+	let set_var_read ir v = ir.ir_var_reads <- IntMap.add v.v_id true ir.ir_var_reads
+	let set_var_write ir v = ir.ir_var_writes <- IntMap.add v.v_id true ir.ir_var_writes
+	let set_field_read ir s = ir.ir_field_reads <- StringMap.add s true ir.ir_field_reads
+	let set_field_write ir s = ir.ir_field_writes <- StringMap.add s true ir.ir_field_writes
 	let set_state_read ir = ir.ir_state_read <- true
 	let set_state_write ir = ir.ir_state_write <- true
 
-	let has_var_read ir v = Hashtbl.mem ir.ir_var_reads v.v_id
-	let has_var_write ir v = Hashtbl.mem ir.ir_var_writes v.v_id
-	let has_field_read ir s = Hashtbl.mem ir.ir_field_reads s
-	let has_field_write ir s = Hashtbl.mem ir.ir_field_writes s
+	let has_var_read ir v = IntMap.mem v.v_id ir.ir_var_reads
+	let has_var_write ir v = IntMap.mem v.v_id ir.ir_var_writes
+	let has_field_read ir s = StringMap.mem s ir.ir_field_reads
+	let has_field_write ir s = StringMap.mem s ir.ir_field_writes
 	let has_state_read ir = ir.ir_state_read
 	let has_state_write ir = ir.ir_state_write
-	let has_any_field_read ir = Hashtbl.length ir.ir_field_reads > 0
-	let has_any_field_write ir = Hashtbl.length ir.ir_field_writes > 0
-	let has_any_var_read ir = Hashtbl.length ir.ir_var_reads > 0
-	let has_any_var_write ir = Hashtbl.length ir.ir_var_writes > 0
+	let has_any_field_read ir = not (StringMap.is_empty ir.ir_field_reads)
+	let has_any_field_write ir = not (StringMap.is_empty ir.ir_field_writes)
+	let has_any_var_read ir = not (IntMap.is_empty ir.ir_var_reads)
+	let has_any_var_write ir = not (IntMap.is_empty ir.ir_var_writes)
 
 	let from_texpr e =
 		let ir = create () in
@@ -525,14 +525,17 @@ module InterferenceReport = struct
 		ir
 
 	let to_string ir =
-		let s_hashtbl f h =
-			String.concat ", " (Hashtbl.fold (fun k _ acc -> (f k) :: acc) h [])
+		let s_intmap f h =
+			String.concat ", " (IntMap.fold (fun k _ acc -> (f k) :: acc) h [])
+		in
+		let s_stringmap f h =
+			String.concat ", " (StringMap.fold (fun k _ acc -> (f k) :: acc) h [])
 		in
 		Type.Printer.s_record_fields "" [
-			"ir_var_reads",s_hashtbl string_of_int ir.ir_var_reads;
-			"ir_var_writes",s_hashtbl string_of_int ir.ir_var_writes;
-			"ir_field_reads",s_hashtbl (fun x -> x) ir.ir_field_reads;
-			"ir_field_writes",s_hashtbl (fun x -> x) ir.ir_field_writes;
+			"ir_var_reads",s_intmap string_of_int ir.ir_var_reads;
+			"ir_var_writes",s_intmap string_of_int ir.ir_var_writes;
+			"ir_field_reads",s_stringmap (fun x -> x) ir.ir_field_reads;
+			"ir_field_writes",s_stringmap (fun x -> x) ir.ir_field_writes;
 			"ir_state_read",string_of_bool ir.ir_state_read;
 			"ir_state_write",string_of_bool ir.ir_state_write;
 		]
@@ -644,6 +647,8 @@ module Fusion = struct
 			| {eexpr = TLocal v} :: el ->
 				state#dec_reads v;
 				block_element acc el
+			| {eexpr = TField (_,fa)} as e1 :: el when PurityState.is_explicitly_impure fa ->
+				block_element (e1 :: acc) el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
@@ -671,7 +676,9 @@ module Fusion = struct
 				block_element acc (el1 @ el2)
 			| {eexpr = TObjectDecl fl} :: el ->
 				block_element acc ((List.map snd fl) @ el)
-			| {eexpr = TIf(e1,{eexpr = TBlock []},(Some {eexpr = TBlock []} | None))} :: el ->
+			| {eexpr = TIf(e1,e2,None)} :: el when not (has_side_effect e2) ->
+				block_element acc (e1 :: el)
+			| {eexpr = TIf(e1,e2,Some e3)} :: el when not (has_side_effect e2) && not (has_side_effect e3) ->
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock [e1]} :: el ->
 				block_element acc (e1 :: el)
@@ -687,7 +694,7 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
-			let has_type_params = match v.v_extra with Some (tl,_,_) when tl <> [] -> true | _ -> false in
+			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
@@ -789,7 +796,7 @@ module Fusion = struct
 						blocked := old;
 						e
 					in
-					let handle_el el =
+					let handle_el' el =
 						(* This mess deals with the fact that the order of evaluation is undefined for call
 							arguments on these targets. Even if we find a replacement, we pretend that we
 							didn't in order to find possible interferences in later call arguments. *)
@@ -804,7 +811,7 @@ module Fusion = struct
 						found := !really_found;
 						el
 					in
-					let handle_el = if not (target_handles_side_effect_order com) then handle_el else List.map replace in
+					let handle_el = if not (target_handles_side_effect_order com) then handle_el' else List.map replace in
 					let handle_call e2 el = match com.platform with
 						| Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
@@ -925,7 +932,8 @@ module Fusion = struct
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
 						| TObjectDecl fl ->
-							let el = handle_el (List.map snd fl) in
+							(* The C# generator has trouble with evaluation order in structures (#7531). *)
+							let el = (match com.platform with Cs -> handle_el' | _ -> handle_el) (List.map snd fl) in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 						| TArrayDecl el ->
@@ -988,7 +996,8 @@ module Fusion = struct
 				begin try
 					let e2,f = match e2.eexpr with
 						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
-						| TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)})
+						(* This is not sound if e21 contains the variable (issue #7704) *)
+						(* | TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)}) *)
 						| TVar(v,Some e2) -> e2,(fun e -> {e2 with eexpr = TVar(v,Some e)})
 						| _ -> raise Exit
 					in
@@ -1118,7 +1127,6 @@ module Cleanup = struct
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
-				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 				e
 			| TMeta((Meta.Ast,_,_),e1) when (match e1.eexpr with TSwitch _ -> false | _ -> true) ->
 				loop e1
@@ -1249,7 +1257,7 @@ module Purity = struct
 				| None ->
 					if not (is_pure c cf) then taint node
 				(* TODO: The function code check shouldn't be here I guess. *)
-				| Some _ when (cf.cf_extern || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
+				| Some _ when (has_class_field_flag cf CfExtern || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
 					if not (is_pure c cf) then taint node
 				| Some e ->
 					try
@@ -1278,12 +1286,10 @@ module Purity = struct
 				end
 			| _ -> ()
 		) com.types;
-		Hashtbl.fold (fun _ node acc ->
+		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
-			| Pure | MaybePure ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
-				node.pn_field :: acc
-			| _ ->
-				acc
-		) node_lut [];
+			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+			| _ -> ()
+		) node_lut;
 end
