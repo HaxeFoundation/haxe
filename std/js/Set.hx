@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js;
 
-import js.Map.MapEntry;
-
-@:native("Set")
-extern class Set<T> {
-	var size(default,null):Int;
-	@:pure function new(?iterable:Any);
-	@:pure function has(value:T):Bool;
-	function add(value:T):Set<T>;
-	function delete(value:T):Bool;
-	function clear():Void;
-	function forEach(callback:(value:T, key:T, set:Set<T>)->Void, ?thisArg:Any):Void;
-	function keys():JsIterator<T>;
-	function values():JsIterator<T>;
-	function entries():JsIterator<MapEntry<T,T>>;
-}
+@:deprecated typedef Set<T> = js.lib.Set<T>;

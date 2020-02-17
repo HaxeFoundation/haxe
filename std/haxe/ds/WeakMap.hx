@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,8 +31,7 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
-
+class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		Creates a new WeakMap.
 	**/
@@ -43,8 +42,7 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	/**
 		See `Map.set`
 	**/
-	public function set(key:K, value:V):Void {
-	}
+	public function set(key:K, value:V):Void {}
 
 	/**
 		See `Map.get`
@@ -80,11 +78,18 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	public function iterator():Iterator<V> {
 		return null;
 	}
-	
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return null;
+	}
+
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : WeakMap<K,V> {
+	public function copy():WeakMap<K, V> {
 		return null;
 	}
 
@@ -94,4 +99,9 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	public function toString():String {
 		return null;
 	}
+
+	/**
+		See `Map.clear`
+	**/
+	public function clear():Void {}
 }

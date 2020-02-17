@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule>
 **/
 @:native("CSSPageRule")
-extern class CSSPageRule extends CSSRule
-{
+extern class CSSPageRule extends CSSRule {
 	
 	/**
 		Returns the declaration block associated with the at-rule.

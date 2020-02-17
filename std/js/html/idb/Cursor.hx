@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor>
 **/
 @:native("IDBCursor")
-extern class Cursor
-{
+extern class Cursor {
 	
 	/**
 		Returns the `IDBObjectStore` or `IDBIndex` that the cursor is iterating. This function never returns null or throws an exception, even if the cursor is currently being iterated, has iterated past its end, or its transaction is not active.
@@ -67,7 +66,11 @@ extern class Cursor
 		@throws DOMError
 	**/
 	function advance( count : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Advances the cursor to the next position along its direction, to the item whose key matches the optional `key` parameter.
+		@throws DOMError
+	**/
 	@:native("continue")
 	function continue_( ?key : Dynamic ) : Void;
 	
@@ -76,7 +79,10 @@ extern class Cursor
 		@throws DOMError
 	**/
 	function continuePrimaryKey( key : Dynamic, primaryKey : Dynamic ) : Void;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_() : Request;
+	
+	/**
+		Returns an `IDBRequest` object, and, in a separate thread, deletes the record at the cursor's position, without changing the cursor's position. This can be used to delete specific records.
+		@throws DOMError
+	**/
+	function delete() : Request;
 }

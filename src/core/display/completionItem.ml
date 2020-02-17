@@ -49,6 +49,7 @@ module CompletionModuleType = struct
 
 	type not_bool =
 		| Yes
+		| YesButPrivate
 		| No
 		| Maybe
 
@@ -74,9 +75,14 @@ module CompletionModuleType = struct
 
 	let of_type_decl pack module_name (td,p) = match td with
 		| EClass d ->
-			let ctor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes
-				else if (List.exists (function HExtends _ -> true | _ -> false) d.d_flags) then Maybe
-				else No
+			let ctor =
+				try
+					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					if List.mem HExtern d.d_flags || List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes
+					else YesButPrivate
+				with Not_found ->
+					if (List.exists (function HExtends _ -> true | _ -> false) d.d_flags) then Maybe
+					else No
 			in
 			{
 				pack = pack;
@@ -125,7 +131,15 @@ module CompletionModuleType = struct
 				has_constructor = if kind = Struct then No else Maybe;
 				source = Syntax td;
 			}
-		| EAbstract d -> {
+		| EAbstract d ->
+			let ctor =
+				try
+					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					if List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes else YesButPrivate
+				with Not_found ->
+					No
+			in
+			{
 				pack = pack;
 				name = fst d.d_name;
 				module_name = module_name;
@@ -137,32 +151,44 @@ module CompletionModuleType = struct
 				is_extern = List.mem AbExtern d.d_flags;
 				is_final = false;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
-				has_constructor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes else No;
+				has_constructor = ctor;
 				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
 			raise Exit
 
 	let of_module_type mt =
-		let has_ctor a = match a.a_impl with
-			| None -> false
-			| Some c -> PMap.mem "_new" c.cl_statics
+		let actor a = match a.a_impl with
+			| None -> No
+			| Some c ->
+				try
+					let cf = PMap.find "_new" c.cl_statics in
+					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+				with Not_found ->
+					No
 		in
-		let is_extern,is_final,kind,has_ctor = match mt with
+		let ctor c =
+			try
+				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
+				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+			with Not_found ->
+				No
+		in
+		let is_extern,is_final,kind,ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),has_constructor c
+				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),ctor c
 			| TEnumDecl en ->
-				en.e_extern,false,Enum,false
+				en.e_extern,false,Enum,No
 			| TTypeDecl td ->
-				let kind,has_ctor = match follow td.t_type with
-					| TAnon _ -> Struct,false
-					| TInst(c,_) -> TypeAlias,has_constructor c
-					| TAbstract(a,_) -> TypeAlias,has_ctor a
-					| _ -> TypeAlias,false
+				let kind,ctor = match follow td.t_type with
+					| TAnon _ -> Struct,No
+					| TInst(c,_) -> TypeAlias,ctor c
+					| TAbstract(a,_) -> TypeAlias,actor a
+					| _ -> TypeAlias,No
 				in
-				false,false,kind,has_ctor
+				false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
+				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),actor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
@@ -187,7 +213,7 @@ module CompletionModuleType = struct
 			is_extern = is_extern;
 			is_final = is_final;
 			kind = kind;
-			has_constructor = if has_ctor then Yes else No;
+			has_constructor = ctor;
 			source = Typed mt;
 		}
 
@@ -204,14 +230,16 @@ module CompletionModuleType = struct
 			("kind",jint (to_int cm.kind)) ::
 			(match ctx.generation_mode with
 			| GMFull | GMWithoutDoc ->
+				("meta",generate_metadata ctx cm.meta) ::
 				("pos",generate_pos ctx cm.pos) ::
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
-				("meta",generate_metadata ctx cm.meta) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
-				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
+				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 			| GMMinimum ->
-				[]
+				match generate_minimum_metadata ctx cm.meta with
+					| None -> []
+					| Some meta -> [("meta",meta)]
 			)
 		in
 		jobject fields
@@ -343,7 +371,7 @@ module CompletionType = struct
 		"opt",jbool cfa.ct_optional;
 		"t",generate_type ctx cfa.ct_type;
 		"value",jopt (fun e -> jobject [
-			"string",jstring (Ast.s_expr e);
+			"string",jstring (Ast.Printer.s_expr e);
 		]) cfa.ct_value;
 	]
 
@@ -360,10 +388,15 @@ module CompletionType = struct
 		let fields = ("type",generate_type ctx af.ctf_type) :: fields in
 		jobject fields
 
-	and generate_anon ctx cta = jobject [
-		"status",generate_anon_status ctx cta.ct_status;
-		"fields",jlist (generate_anon_field ctx) cta.ct_fields;
-	]
+	and generate_anon ctx cta =
+		let fields = List.sort (fun ctf1 ctf2 ->
+			compare ctf1.ctf_field.cf_name_pos.pmin ctf2.ctf_field.cf_name_pos.pmin
+		) cta.ct_fields in
+		jobject [
+			"status",generate_anon_status ctx cta.ct_status;
+			"fields",jlist (generate_anon_field ctx) fields;
+		]
+
 	and generate_type ctx ct =
 		let name,args = match ct with
 			| CTMono -> "TMono",None
@@ -379,6 +412,69 @@ module CompletionType = struct
 
 	let to_json ctx ct =
 		generate_type ctx ct
+
+	let from_type get_import_status ?(values=PMap.empty) t =
+		let rec ppath mpath tpath tl = {
+			ct_pack = fst tpath;
+			ct_module_name = snd mpath;
+			ct_type_name = snd tpath;
+			ct_import_status = get_import_status tpath;
+			ct_params = List.map (from_type PMap.empty) tl;
+		}
+		and funarg value (name,opt,t) = {
+			ct_name = name;
+			ct_optional = opt;
+			ct_type = from_type PMap.empty t;
+			ct_value = value
+		}
+		and from_type values t = match t with
+			| TMono r ->
+				begin match r.tm_type with
+					| None -> CTMono
+					| Some t -> from_type values t
+				end
+			| TLazy r ->
+				from_type values (lazy_type r)
+			| TInst({cl_kind = KTypeParameter _} as c,_) ->
+				CTInst ({
+					ct_pack = fst c.cl_path;
+					ct_module_name = snd c.cl_module.m_path;
+					ct_type_name = snd c.cl_path;
+					ct_import_status = Imported;
+					ct_params = [];
+				})
+			| TInst(c,tl) ->
+				CTInst (ppath c.cl_module.m_path c.cl_path tl)
+			| TEnum(en,tl) ->
+				CTEnum (ppath en.e_module.m_path en.e_path tl)
+			| TType(td,tl) ->
+				CTTypedef (ppath td.t_module.m_path td.t_path tl)
+			| TAbstract(a,tl) ->
+				CTAbstract (ppath a.a_module.m_path a.a_path tl)
+			| TFun(tl,t) when not (PMap.is_empty values) ->
+				let get_arg n = try Some (PMap.find n values) with Not_found -> None in
+				CTFunction {
+					ct_args = List.map (fun (n,o,t) -> funarg (get_arg n) (n,o,t)) tl;
+					ct_return = from_type PMap.empty t;
+				}
+			| TFun(tl,t) ->
+				CTFunction {
+					ct_args = List.map (funarg None) tl;
+					ct_return = from_type PMap.empty t;
+				}
+			| TAnon an ->
+				let afield af = {
+					ctf_field = af;
+					ctf_type = from_type PMap.empty af.cf_type;
+				} in
+				CTAnonymous {
+					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
+					ct_status = !(an.a_status);
+				}
+			| TDynamic t ->
+				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+		in
+		from_type values t
 end
 
 open CompletionModuleType
@@ -395,11 +491,12 @@ type t_kind =
 	| ITModule of path
 	| ITLiteral of string
 	| ITTimer of string * string
-	| ITMetadata of string * documentation
+	| ITMetadata of Meta.strict_meta
 	| ITKeyword of keyword
 	| ITAnonymous of tanon
 	| ITExpression of texpr
 	| ITTypeParameter of tclass
+	| ITDefine of string * string option
 
 type t = {
 	ci_kind : t_kind;
@@ -420,11 +517,12 @@ let make_ci_package path l = make (ITPackage(path,l)) None
 let make_ci_module path = make (ITModule path) None
 let make_ci_literal lit t = make (ITLiteral lit) (Some t)
 let make_ci_timer name value = make (ITTimer(name,value)) None
-let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
+let make_ci_metadata meta = make (ITMetadata meta) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
 let make_ci_expr e t = make (ITExpression e) (Some t)
 let make_ci_type_param c t = make (ITTypeParameter c) (Some t)
+let make_ci_define n v t = make (ITDefine(n,v)) (Some t)
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -441,6 +539,7 @@ let get_index item = match item.ci_kind with
 	| ITAnonymous _ -> 11
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
+	| ITDefine _ -> 14
 
 let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITLocal v ->
@@ -490,7 +589,8 @@ let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITAnonymous _
 	| ITExpression _
 	| ITTimer _
-	| ITMetadata _ ->
+	| ITMetadata _
+	| ITDefine _ ->
 		500,""
 
 let legacy_sort item = match item.ci_kind with
@@ -508,7 +608,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITType(cm,_) -> 2,cm.name
 	| ITModule path -> 3,snd path
 	| ITPackage(path,_) -> 4,snd path
-	| ITMetadata(s,_) -> 5,s
+	| ITMetadata meta -> 5,Meta.to_string meta
 	| ITTimer(s,_) -> 6,s
 	| ITLocal v -> 7,v.v_name
 	| ITLiteral s -> 9,s
@@ -516,6 +616,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITAnonymous _ -> 11,""
 	| ITExpression _ -> 12,""
 	| ITTypeParameter _ -> 13,""
+	| ITDefine _ -> 14,""
 
 let get_name item = match item.ci_kind with
 	| ITLocal v -> v.v_name
@@ -526,13 +627,30 @@ let get_name item = match item.ci_kind with
 	| ITModule path -> snd path
 	| ITLiteral s -> s
 	| ITTimer(s,_) -> s
-	| ITMetadata(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
 	| ITKeyword kwd -> s_keyword kwd
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
 	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_type item = item.ci_type
+
+let get_filter_name item = match item.ci_kind with
+	| ITLocal v -> v.v_name
+	| ITClassField(cf) | ITEnumAbstractField(_,cf) -> cf.field.cf_name
+	| ITEnumField ef -> ef.efield.ef_name
+	| ITType(cm,_) -> s_type_path (cm.pack,cm.name)
+	| ITPackage(path,_) -> s_type_path path
+	| ITModule path -> s_type_path path
+	| ITLiteral s -> s
+	| ITTimer(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
+	| ITKeyword kwd -> s_keyword kwd
+	| ITAnonymous _ -> ""
+	| ITExpression _ -> ""
+	| ITTypeParameter c -> snd c.cl_path
+	| ITDefine(n,_) -> n
 
 let get_documentation item = match item.ci_kind with
 	| ITClassField cf | ITEnumAbstractField(_,cf) -> cf.field.cf_doc
@@ -540,7 +658,7 @@ let get_documentation item = match item.ci_kind with
 	| ITType(mt,_) -> mt.doc
 	| _ -> None
 
-let to_json ctx item =
+let to_json ctx index item =
 	let open ClassFieldOrigin in
 	let kind,data = match item.ci_kind with
 		| ITLocal v -> "Local",generate_tvar ctx v
@@ -604,10 +722,40 @@ let to_json ctx item =
 			"name",jstring s;
 			"value",jstring value;
 		]
-		| ITMetadata(s,doc) -> "Metadata",jobject [
-			"name",jstring s;
-			"doc",jopt jstring doc;
-		]
+		| ITMetadata meta ->
+			let open Meta in
+			let name,(doc,params) = Meta.get_info meta in
+			let name = "@" ^ name in
+			let usage_to_string = function
+				| TClass -> "TClass"
+				| TClassField -> "TClassField"
+				| TAbstract -> "TAbstract"
+				| TAbstractField -> "TAbstractField"
+				| TEnum -> "TEnum"
+				| TTypedef -> "TTypedef"
+				| TAnyField -> "TAnyField"
+				| TExpr -> "TExpr"
+				| TTypeParameter -> "TTypeParameter"
+				| TVariable -> "TVariable"
+			in
+			let rec loop internal params platforms targets links l = match l with
+				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
+				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
+				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) links l
+				| UsedInternally :: l -> loop true params platforms targets links l
+				| Link url :: l -> loop internal params platforms targets (url :: links) l
+				| [] -> internal,params,platforms,targets,links
+			in
+			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
+			"Metadata",jobject [
+				"name",jstring name;
+				"doc",jstring doc;
+				"parameters",jlist jstring params;
+				"platforms",jlist jstring platforms;
+				"targets",jlist jstring targets;
+				"internal",jbool internal;
+				"links",jlist jstring links;
+			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
 		]
@@ -623,9 +771,26 @@ let to_json ctx item =
 				]
 			| _ -> assert false
 			end
+		| ITDefine(n,v) -> "Define",jobject [
+			"name",jstring n;
+			"value",(match v with
+				| None -> jnull
+				| Some v -> jstring v
+			);
+			(* TODO: docs etc *)
+		]
+	in
+	let jindex = match index with
+		| None -> []
+		| Some index -> ["index",jint index]
 	in
 	jobject (
 		("kind",jstring kind) ::
 		("args",data) ::
-		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
+		(match item.ci_type with
+			| None ->
+				jindex
+			| Some t ->
+				("type",CompletionType.to_json ctx (snd t)) :: jindex
+		)
 	)

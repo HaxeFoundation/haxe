@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,35 +23,45 @@
 import php.Boot;
 import php.Syntax;
 import php.Closure;
+import php.Const;
+import php.NativeAssocArray;
 import haxe.Constraints;
 
 using php.Global;
 
 @:coreApi class Reflect {
-
-	public static function hasField( o : Dynamic, field : String ) : Bool {
-		if (!o.is_object()) return false;
-		if (o.property_exists(field)) return true;
+	public static function hasField(o:Dynamic, field:String):Bool {
+		if (!o.is_object())
+			return false;
+		if (o.property_exists(field))
+			return true;
 
 		if (Boot.isClass(o)) {
 			var phpClassName = Boot.castClass(o).phpClassName;
-			return Global.property_exists(phpClassName, field) || Global.method_exists(phpClassName, field) || Global.defined('$phpClassName::$field');
+			return Global.property_exists(phpClassName, field)
+				|| Global.method_exists(phpClassName, field)
+				|| Global.defined('$phpClassName::$field');
 		}
 
 		return false;
 	}
 
-	public static function field( o : Dynamic, field : String ) : Dynamic {
+	public static function field(o:Dynamic, field:String):Dynamic {
 		if (o.is_string()) {
 			return Syntax.field(Boot.dynamicString(o), field);
 		}
-		if (!o.is_object()) return null;
+		if (!o.is_object())
+			return null;
+
+		if (field == '' && Const.PHP_VERSION_ID < 70100) {
+			return Syntax.coalesce(Syntax.array(o)[field], null);
+		}
 
 		if (o.property_exists(field)) {
 			return Syntax.field(o, field);
 		}
 		if (o.method_exists(field)) {
-			return Boot.closure(o, field);
+			return Boot.getInstanceClosure(o, field);
 		}
 
 		if (Boot.isClass(o)) {
@@ -63,18 +73,18 @@ using php.Global;
 				return Syntax.field(o, field);
 			}
 			if (Global.method_exists(phpClassName, field)) {
-				return Boot.closure(phpClassName, field);
+				return Boot.getStaticClosure(phpClassName, field);
 			}
 		}
 
 		return null;
 	}
 
-	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		Syntax.setField(o, field, value);
 	}
 
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Dynamic {
 		if (o.is_object()) {
 			if (Boot.isClass(o)) {
 				var phpClassName = Boot.castClass(o).phpClassName;
@@ -89,7 +99,7 @@ using php.Global;
 		return Reflect.field(o, field);
 	}
 
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		if (o.is_object()) {
 			if (Boot.hasSetter(Global.get_class(o), field)) {
 				Syntax.call(o, 'set_$field', value);
@@ -99,39 +109,32 @@ using php.Global;
 		}
 	}
 
-	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		var callback:Any = func;
-		if(o != null && !Boot.isClass(o)) {
-			if (Std.is(func, Closure)) {
-				callback = (cast func:Closure).bindTo(o);
-			} else {
-				callback = Boot.castClosure(func).getCallback(o);
-			}
-		}
-		return Global.call_user_func_array(callback, @:privateAccess args.arr);
+	public static function callMethod(o:Dynamic, func:Function, args:Array<Dynamic>):Dynamic {
+		return Global.call_user_func_array(func, @:privateAccess args.arr);
 	}
 
-	public static function fields( o : Dynamic ) : Array<String> {
+	public static function fields(o:Dynamic):Array<String> {
 		if (Global.is_object(o)) {
 			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
 		}
 		return [];
 	}
 
-	public static inline function isFunction( f : Dynamic ) : Bool {
+	public static inline function isFunction(f:Dynamic):Bool {
 		return Boot.isFunction(f);
 	}
 
-	public static function compare<T>( a : T, b : T ) : Int {
-		if (a == b) return 0;
-		if (Global.is_string(a)){
+	public static function compare<T>(a:T, b:T):Int {
+		if (a == b)
+			return 0;
+		if (Global.is_string(a)) {
 			return Global.strcmp(cast a, cast b);
 		} else {
 			return ((cast a) > (cast b) ? 1 : -1);
 		}
 	}
 
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
+	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
 		if (Boot.isHxClosure(f1) && Boot.isHxClosure(f2)) {
 			return f1.equals(f2);
 		} else {
@@ -139,7 +142,7 @@ using php.Global;
 		}
 	}
 
-	public static function isObject( v : Dynamic ) : Bool {
+	public static function isObject(v:Dynamic):Bool {
 		if (Boot.isEnumValue(v)) {
 			return false;
 		} else {
@@ -147,11 +150,11 @@ using php.Global;
 		}
 	}
 
-	public static inline function isEnumValue( v : Dynamic ) : Bool {
+	public static inline function isEnumValue(v:Dynamic):Bool {
 		return Boot.isEnumValue(v);
 	}
 
-	public static function deleteField( o : Dynamic, field : String ) : Bool {
+	public static function deleteField(o:Dynamic, field:String):Bool {
 		if (hasField(o, field)) {
 			Global.unset(Syntax.field(o, field));
 			return true;
@@ -160,19 +163,17 @@ using php.Global;
 		}
 	}
 
-	public static function copy<T>( o : T ) : T {
-		if (Global.is_object(o)) {
-			var fields = Global.get_object_vars(cast o);
-			var hxAnon = Boot.getHxAnon().phpClassName;
-			return Syntax.construct(hxAnon, fields);
+	public static function copy<T>(o:Null<T>):Null<T> {
+		if (Boot.isAnon(o)) {
+			return Syntax.clone(o);
 		} else {
 			return null;
 		}
 	}
 
-	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
-	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return function () {
+	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
+	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+		return function() {
 			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
 		}
 	}

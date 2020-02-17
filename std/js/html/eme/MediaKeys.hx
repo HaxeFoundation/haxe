@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,8 @@
 
 package js.html.eme;
 
+import js.lib.Promise;
+
 /**
 	The `MediaKeys` interface of EncryptedMediaExtensions API the represents a set of keys that an associated `HTMLMediaElement` can use for decryption of media data during playback.
 
@@ -32,20 +34,19 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeys>
 **/
 @:native("MediaKeys")
-extern class MediaKeys
-{
+extern class MediaKeys {
 	var keySystem(default,null) : String;
-	
-	
+
+
 	/**
 		Returns a new `MediaKeySession` object, which represents a context for message exchange with a content decryption module (CDM).
 		@throws DOMError
 	**/
-	function createSession( ?sessionType : MediaKeySessionType = "temporary" ) : MediaKeySession;
-	
+	function createSession( sessionType : MediaKeySessionType = TEMPORARY ) : MediaKeySession;
+
 	/**
 		Returns a `Promise` to a server certificate to be used to encrypt messages to the license server.
 	**/
-	@:overload( function( serverCertificate : js.html.ArrayBuffer) : Promise<Void> {} )
-	function setServerCertificate( serverCertificate : js.html.ArrayBufferView ) : Promise<Void>;
+	@:overload( function( serverCertificate : js.lib.ArrayBuffer) : Promise<Void> {} )
+	function setServerCertificate( serverCertificate : js.lib.ArrayBufferView ) : Promise<Void>;
 }

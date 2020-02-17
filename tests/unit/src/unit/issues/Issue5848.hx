@@ -32,6 +32,7 @@ private class Vec2s {
 class Issue5848 extends unit.Test {
 	function test():Void {
 		ff(new Degree(90));
+		noAssert();
 	}
 
 	static public function ff(r:Radian) {

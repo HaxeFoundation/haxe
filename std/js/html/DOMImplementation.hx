@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation>
 **/
 @:native("DOMImplementation")
-extern class DOMImplementation
-{
+extern class DOMImplementation {
 	
 	/**
 		Returns a `Boolean` indicating if a given feature is supported or not. This function is unreliable and kept for compatibility purpose alone: except for SVG-related queries, it always returns `true`. Old browsers are very inconsistent in their behavior.
@@ -50,7 +49,7 @@ extern class DOMImplementation
 		Creates and returns an `XMLDocument`.
 		@throws DOMError
 	**/
-	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
+	function createDocument( namespace : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
 	
 	/**
 		Creates and returns an HTML `Document`.

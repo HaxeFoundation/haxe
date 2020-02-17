@@ -4,18 +4,13 @@ open Type
 open Typecore
 open Error
 
-type access_mode =
-	| MGet
-	| MSet
-	| MCall
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
 	| AKSet of texpr * t * tclass_field
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr
+	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 	| AKFieldSet of texpr * texpr * string * t
 
@@ -25,6 +20,7 @@ type object_decl_kind =
 	| ODKPlain
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -43,18 +39,18 @@ let relative_path ctx file =
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
-		(("fileName",null_pos,NoQuotes) , (EConst (String file) , p)) ::
+		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos,NoQuotes), (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
 	) ,p)
 
 let rec is_pos_infos = function
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->
@@ -92,6 +88,16 @@ let get_this ctx p =
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
+
+let assign_to_this_is_allowed ctx =
+	match ctx.curclass.cl_kind with
+		| KAbstractImpl _ ->
+			(match ctx.curfield.cf_kind with
+				| Method MethInline -> true
+				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| _ -> false
+			)
+		| _ -> false
 
 let rec type_module_type ctx t tparams p =
 	match t with
@@ -144,24 +150,37 @@ let s_access_kind acc =
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
 	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2) -> Printf.sprintf "AKMacro(%s, %s, %s, %s)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2)
+	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKFieldSet(_) -> ""
 
-let has_constructible_constraint ctx tl el p =
-	let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-	let rec loop t = match follow t with
-		| TAnon a ->
-			(try
-				unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
-				true
-			with Not_found ->
-					false)
-		| TAbstract({a_path = ["haxe"],"Constructible"},_) -> true
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
-		| _ -> false
+let get_constructible_constraint ctx tl p =
+	let extract_function t = match follow t with
+		| TFun(tl,tr) -> tl,tr
+		| _ -> error "Constructible type parameter should be function" p
 	in
-	List.exists loop tl
+	let rec loop tl = match tl with
+		| [] -> None
+		| t :: tl ->
+			begin match follow t with
+			| TAnon a ->
+				begin try
+					Some (extract_function (PMap.find "new" a.a_fields).cf_type);
+				with Not_found ->
+					loop tl
+				end;
+			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
+				Some (extract_function t1)
+			| TInst({cl_kind = KTypeParameter tl1},_) ->
+				begin match loop tl1 with
+				| None -> loop tl
+				| Some _ as t -> t
+				end
+			| _ ->
+				loop tl
+			end
+	in
+	loop tl
 
 let unify_static_extension ctx e t p =
 	let multitype_involed t1 t2 =
@@ -177,3 +196,17 @@ let unify_static_extension ctx e t p =
 		Type.unify e.etype t;
 		e
 	end
+
+let get_abstract_froms a pl =
+	let l = List.map (apply_params a.a_params pl) a.a_from in
+	List.fold_left (fun acc (t,f) ->
+		match follow (Type.field_type f) with
+		| TFun ([_,_,v],t) ->
+			(try
+				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
+				v :: acc
+			with Unify_error _ ->
+				acc)
+		| _ ->
+			acc
+	) l a.a_from_field

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,16 +31,15 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemFlags>
 **/
-typedef FileSystemFlags =
-{
+typedef FileSystemFlags = {
 	
 	/**
 		If this property is `true`, and the requested file or directory doesn't exist, the user agent should create it. The default is `false`. The parent directory must already exist.
 	**/
-	@:optional var create : Bool;
+	var ?create : Bool;
 	
 	/**
 		If `true`, and the `create` option is also `true`, the file must not exist prior to issuing the call. Instead, it must be possible for it to be created newly at call time. The default is `false`.
 	**/
-	@:optional var exclusive : Bool;
+	var ?exclusive : Bool;
 }

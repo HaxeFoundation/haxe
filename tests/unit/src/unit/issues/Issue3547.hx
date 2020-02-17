@@ -10,6 +10,7 @@ class Issue3547 extends Test {
 		var o = {foo:12, "x-bar":13};
 		assign(o);
 		assign({foo:12, "x-bar":13});
+		noAssert();
 	}
 
 	static function assign(o:Option) { }

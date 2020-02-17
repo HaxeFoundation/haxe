@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -23,10 +23,8 @@ open EvalValue
 open EvalContext
 open EvalField
 open EvalHash
-open Rope
 open EvalString
 
-let rempty = create_ascii ""
 let rbropen = create_ascii "{"
 let rbrclose = create_ascii "}"
 let rbkopen = create_ascii "["
@@ -48,28 +46,31 @@ let s_date d =
 	let t = localtime d in
 	create_ascii (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
 
-let s_hash key = create_ascii_of_rope (EvalHash.rev_hash key)
+let s_hash key = create_ascii (EvalHash.rev_hash key)
 
 let rec s_object depth o =
 	let fields = object_fields o in
-	let s,_ = List.fold_left (fun (s,sep) (key,value) ->
-		let s = concat s sep in
-		let s = concat s (s_hash key) in
-		let s = concat s rcolon in
-		let s = concat s (s_value depth value) in
-		(s,rcomma)
-	) (rempty,rbropen) fields in
-	concat s rbrclose
+	let buf = Buffer.create 0 in
+	Buffer.add_string buf "{";
+	List.iteri (fun i (k,v) ->
+		if i > 0 then Buffer.add_string buf ", ";
+		Buffer.add_string buf (rev_hash k);
+		Buffer.add_string buf ": ";
+		Buffer.add_string buf (s_value depth v).sstring;
+	) fields;
+	Buffer.add_string buf "}";
+	let s = Buffer.contents buf in
+	create_with_length s (try UTF8.length s with _ -> String.length s)
 
 and s_array depth va =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join va (s_value depth) rcomma;
 		rbkclose;
 	]
 
 and s_vector depth vv =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join (EvalArray.create vv) (s_value depth) rcomma;
 		rbkclose;
@@ -78,7 +79,7 @@ and s_vector depth vv =
 and s_enum_ctor_name ve =
 	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-			| PEnum names -> (try List.nth names ve.eindex with _ -> "#unknown")
+			| PEnum names -> (try fst (List.nth names ve.eindex) with _ -> "#unknown")
 			| _ -> raise Not_found
 		end
 	with Not_found -> "#unknown"
@@ -88,7 +89,7 @@ and s_enum_value depth ve =
 	match ve.eargs with
 	| [||] -> create_ascii name
 	| vl ->
-		join rempty [
+		join empty_string [
 			create_ascii name;
 			rpopen;
 			join rcomma (Array.to_list (Array.map (s_value (depth + 1)) vl));
@@ -96,8 +97,8 @@ and s_enum_value depth ve =
 		]
 
 and s_proto_kind proto = match proto.pkind with
-	| PClass _ -> join rempty [create_ascii "Class<"; s_hash proto.ppath; rgt]
-	| PEnum _ -> join rempty [create_ascii "Enum<"; s_hash proto.ppath; rgt]
+	| PClass _ -> join empty_string [create_ascii "Class<"; s_hash proto.ppath; rgt]
+	| PEnum _ -> join empty_string [create_ascii "Enum<"; s_hash proto.ppath; rgt]
 	| PInstance | PObject -> assert false
 
 and s_value depth v =
@@ -123,6 +124,7 @@ and s_value depth v =
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d
 	| VInstance {ikind=IPos p} -> create_ascii ("#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")") (* STODO: not ascii? *)
+	| VInstance {ikind=IRegex r} -> r.r_rex_string
 	| VInstance i -> (try call_to_string () with Not_found -> s_hash i.iproto.ppath)
 	| VObject o -> (try call_to_string () with Not_found -> s_object (depth + 1) o)
 	| VLazy f -> s_value depth (!f())
@@ -141,5 +143,4 @@ and call_value_on vthis v vl =
 	| _ -> exc_string ("Cannot call " ^ (value_string v))
 
 and value_string v =
-	let s = s_value 0 v in
-	EvalString.get s
+	(s_value 0 v).sstring

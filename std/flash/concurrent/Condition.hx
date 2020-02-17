@@ -1,10 +1,12 @@
 package flash.concurrent;
 
-@:final @:require(flash11_4) extern class Condition {
-	var mutex(default,never) : Mutex;
+@:require(flash11_4) extern final class Condition {
+	@:flash.property var mutex(get,never) : Mutex;
 	function new(mutex : Mutex) : Void;
+	private function get_mutex() : Mutex;
 	function notify() : Void;
 	function notifyAll() : Void;
 	function wait(timeout : Float = -1) : Bool;
-	static var isSupported(default,never) : Bool;
+	@:flash.property static var isSupported(get,never) : Bool;
+	private static function get_isSupported() : Bool;
 }

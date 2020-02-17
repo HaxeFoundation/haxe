@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Document>
 **/
 @:native("Document")
-extern class Document extends Node
-{
+extern class Document extends Node {
 	
 	/**
 		Returns the DOM implementation associated with the current document.
@@ -174,6 +173,11 @@ extern class Document extends Node
 		Represents the event handling code for the `afterscriptexecute` event.
 	**/
 	var onafterscriptexecute : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `selectionchange` event is raised.
+	**/
+	var onselectionchange : haxe.Constraints.Function;
 	var currentScript(default,null) : Element;
 	
 	/**
@@ -185,6 +189,22 @@ extern class Document extends Node
 		Returns an ordered list of the applets within a document.
 	**/
 	var applets(default,null) : HTMLCollection;
+	
+	/**
+		`true` when the document is in `Using_full-screen_mode`.
+	**/
+	var fullscreen(default,null) : Bool;
+	var fullscreenEnabled(default,null) : Bool;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `fullscreenchange` event is raised.
+	**/
+	var onfullscreenchange : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `fullscreenerror` event is raised.
+	**/
+	var onfullscreenerror : haxe.Constraints.Function;
 	
 	/**
 		Represents the event handling code for the `pointerlockchange` event.
@@ -259,6 +279,11 @@ extern class Document extends Node
 	var activeElement(default,null) : Element;
 	var styleSheets(default,null) : StyleSheetList;
 	var pointerLockElement(default,null) : Element;
+	
+	/**
+		The element that's currently in full screen mode for this document.
+	**/
+	var fullscreenElement(default,null) : Element;
 	var fonts(default,null) : FontFaceSet;
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
@@ -322,6 +347,7 @@ extern class Document extends Node
 	var ontimeupdate : haxe.Constraints.Function;
 	var onvolumechange : haxe.Constraints.Function;
 	var onwaiting : haxe.Constraints.Function;
+	var onselectstart : haxe.Constraints.Function;
 	var ontoggle : haxe.Constraints.Function;
 	var onpointercancel : haxe.Constraints.Function;
 	var onpointerdown : haxe.Constraints.Function;
@@ -369,7 +395,7 @@ extern class Document extends Node
 		@throws DOMError
 	**/
 	@:pure
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace : String, localName : String ) : HTMLCollection;
 	
 	/**
 		Returns a list of elements with the given class name.
@@ -390,8 +416,8 @@ extern class Document extends Node
 		Creates a new element with the given tag name and namespace URI.
 		@throws DOMError
 	**/
-	@:overload( function( namespace_ : String, qualifiedName : String, ?options : String) : Element {} )
-	function createElementNS( namespace_ : String, qualifiedName : String, ?options : ElementCreationOptions ) : Element;
+	@:overload( function( namespace : String, qualifiedName : String, ?options : String) : Element {} )
+	function createElementNS( namespace : String, qualifiedName : String, ?options : ElementCreationOptions ) : Element;
 	
 	/**
 		Creates a new document fragment.
@@ -418,7 +444,7 @@ extern class Document extends Node
 		Returns a clone of a node from an external document.
 		@throws DOMError
 	**/
-	function importNode( node : Node, ?deep : Bool = false ) : Node;
+	function importNode( node : Node, deep : Bool = false ) : Node;
 	
 	/**
 		Adopt node from an external document.
@@ -442,17 +468,17 @@ extern class Document extends Node
 		Creates a `NodeIterator` object.
 		@throws DOMError
 	**/
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : NodeIterator {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : NodeIterator {} )
-	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : NodeIterator {} )
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : NodeIterator {} )
+	function createNodeIterator( root : Node, whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
 	
 	/**
 		Creates a `TreeWalker` object.
 		@throws DOMError
 	**/
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : TreeWalker {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : TreeWalker {} )
-	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : TreeWalker {} )
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : TreeWalker {} )
+	function createTreeWalker( root : Node, whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
 	
 	/**
 		Creates a new CDATA node and returns it.
@@ -470,7 +496,7 @@ extern class Document extends Node
 		Creates a new attribute node in a given namespace and returns it.
 		@throws DOMError
 	**/
-	function createAttributeNS( namespace_ : String, name : String ) : Attr;
+	function createAttributeNS( namespace : String, name : String ) : Attr;
 	@:pure
 	function getElementsByName( elementName : String ) : NodeList;
 	
@@ -484,6 +510,7 @@ extern class Document extends Node
 		Releases the current mouse capture if it's on an element in this document.
 	**/
 	function releaseCapture() : Void;
+	function exitFullscreen() : Void;
 	
 	/**
 		Release the pointer lock.
@@ -510,7 +537,7 @@ extern class Document extends Node
 	/**
 		Creates a `Touch` object.
 	**/
-	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
+	function createTouch( ?view : Window, ?target : EventTarget, identifier : Int = 0, pageX : Int = 0, pageY : Int = 0, screenX : Int = 0, screenY : Int = 0, clientX : Int = 0, clientY : Int = 0, radiusX : Int = 0, radiusY : Int = 0, rotationAngle : Float = 0.0, force : Float = 0.0 ) : Touch;
 	
 	/**
 		Creates a `TouchList` object.
@@ -543,11 +570,11 @@ extern class Document extends Node
 	/** @throws DOMError */
 	@:overload( function( expression : String, ?resolver : haxe.Constraints.Function) : XPathExpression {} )
 	@:overload( function( expression : String, ?resolver : XPathNSResolver) : XPathExpression {} )
-	function createExpression( expression : String, ?resolver : String -> String ) : XPathExpression;
+	function createExpression( expression : String, ?resolver : String -> Null<String> ) : XPathExpression;
 	@:pure
 	function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	function evaluate( expression : String, contextNode : Node, ?resolver : String -> String, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
+	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FormData>
 **/
 @:native("FormData")
-extern class FormData
-{
+extern class FormData {
 	/** @throws DOMError */
 	function new( ?form : FormElement ) : Void;
 	
@@ -43,8 +42,11 @@ extern class FormData
 	**/
 	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function append( name : String, value : String ) : Void;
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes a key/value pair from a `FormData` object.
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated with a given key from within a `FormData` object.

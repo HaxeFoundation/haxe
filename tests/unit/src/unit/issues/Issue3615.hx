@@ -21,6 +21,6 @@ private class SubClassTwo extends BaseClass<String>
 
 class Issue3615 extends Test {
 	function test() {
-
+		noAssert();
 	}
 }

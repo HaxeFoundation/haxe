@@ -1,7 +1,254 @@
 open Globals
 open Ast
-open Type
+open TType
+open TFunctions
+open TUnification
+open TPrinting
 open Error
+
+let iter f e =
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TBreak
+	| TContinue
+	| TTypeExpr _
+	| TIdent _ ->
+		()
+	| TArray (e1,e2)
+	| TBinop (_,e1,e2)
+	| TFor (_,e1,e2)
+	| TWhile (e1,e2,_) ->
+		f e1;
+		f e2;
+	| TThrow e
+	| TField (e,_)
+	| TEnumParameter (e,_,_)
+	| TEnumIndex e
+	| TParenthesis e
+	| TCast (e,_)
+	| TUnop (_,_,e)
+	| TMeta(_,e) ->
+		f e
+	| TArrayDecl el
+	| TNew (_,_,el)
+	| TBlock el ->
+		List.iter f el
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> f e) fl
+	| TCall (e,el) ->
+		f e;
+		List.iter f el
+	| TVar (v,eo) ->
+		(match eo with None -> () | Some e -> f e)
+	| TFunction fu ->
+		f fu.tf_expr
+	| TIf (e,e1,e2) ->
+		f e;
+		f e1;
+		(match e2 with None -> () | Some e -> f e)
+	| TSwitch (e,cases,def) ->
+		f e;
+		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
+		(match def with None -> () | Some e -> f e)
+	| TTry (e,catches) ->
+		f e;
+		List.iter (fun (_,e) -> f e) catches
+	| TReturn eo ->
+		(match eo with None -> () | Some e -> f e)
+
+(**
+	Returns `true` if `predicate` is evaluated to `true` for at least one of sub-expressions.
+	Returns `false` otherwise.
+	Does not evaluate `predicate` for the `e` expression.
+*)
+let check_expr predicate e =
+	match e.eexpr with
+		| TConst _ | TLocal _ | TBreak | TContinue | TTypeExpr _ | TIdent _ ->
+			false
+		| TArray (e1,e2) | TBinop (_,e1,e2) | TFor (_,e1,e2) | TWhile (e1,e2,_) ->
+			predicate e1 || predicate e2;
+		| TThrow e | TField (e,_) | TEnumParameter (e,_,_) | TEnumIndex e | TParenthesis e
+		| TCast (e,_) | TUnop (_,_,e) | TMeta(_,e) ->
+			predicate e
+		| TArrayDecl el | TNew (_,_,el) | TBlock el ->
+			List.exists predicate el
+		| TObjectDecl fl ->
+			List.exists (fun (_,e) -> predicate e) fl
+		| TCall (e,el) ->
+			predicate e ||  List.exists predicate el
+		| TVar (_,eo) | TReturn eo ->
+			(match eo with None -> false | Some e -> predicate e)
+		| TFunction fu ->
+			predicate fu.tf_expr
+		| TIf (e,e1,e2) ->
+			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
+		| TSwitch (e,cases,def) ->
+			predicate e
+			|| List.exists (fun (el,e2) -> List.exists predicate el || predicate e2) cases
+			|| (match def with None -> false | Some e -> predicate e)
+		| TTry (e,catches) ->
+			predicate e || List.exists (fun (_,e) -> predicate e) catches
+
+let map_expr f e =
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TBreak
+	| TContinue
+	| TTypeExpr _
+	| TIdent _ ->
+		e
+	| TArray (e1,e2) ->
+		let e1 = f e1 in
+		{ e with eexpr = TArray (e1,f e2) }
+	| TBinop (op,e1,e2) ->
+		let e1 = f e1 in
+		{ e with eexpr = TBinop (op,e1,f e2) }
+	| TFor (v,e1,e2) ->
+		let e1 = f e1 in
+		{ e with eexpr = TFor (v,e1,f e2) }
+	| TWhile (e1,e2,flag) ->
+		let e1 = f e1 in
+		{ e with eexpr = TWhile (e1,f e2,flag) }
+	| TThrow e1 ->
+		{ e with eexpr = TThrow (f e1) }
+	| TEnumParameter (e1,ef,i) ->
+		{ e with eexpr = TEnumParameter(f e1,ef,i) }
+	| TEnumIndex e1 ->
+		{ e with eexpr = TEnumIndex (f e1) }
+	| TField (e1,v) ->
+		{ e with eexpr = TField (f e1,v) }
+	| TParenthesis e1 ->
+		{ e with eexpr = TParenthesis (f e1) }
+	| TUnop (op,pre,e1) ->
+		{ e with eexpr = TUnop (op,pre,f e1) }
+	| TArrayDecl el ->
+		{ e with eexpr = TArrayDecl (List.map f el) }
+	| TNew (t,pl,el) ->
+		{ e with eexpr = TNew (t,pl,List.map f el) }
+	| TBlock el ->
+		{ e with eexpr = TBlock (List.map f el) }
+	| TObjectDecl el ->
+		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
+	| TCall (e1,el) ->
+		let e1 = f e1 in
+		{ e with eexpr = TCall (e1, List.map f el) }
+	| TVar (v,eo) ->
+		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
+	| TFunction fu ->
+		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
+	| TIf (ec,e1,e2) ->
+		let ec = f ec in
+		let e1 = f e1 in
+		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)) }
+	| TSwitch (e1,cases,def) ->
+		let e1 = f e1 in
+		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
+		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)) }
+	| TTry (e1,catches) ->
+		let e1 = f e1 in
+		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
+	| TReturn eo ->
+		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
+	| TCast (e1,t) ->
+		{ e with eexpr = TCast (f e1,t) }
+	| TMeta (m,e1) ->
+		 {e with eexpr = TMeta(m,f e1)}
+
+let map_expr_type f ft fv e =
+	match e.eexpr with
+	| TConst _
+	| TBreak
+	| TContinue
+	| TTypeExpr _
+	| TIdent _ ->
+		{ e with etype = ft e.etype }
+	| TLocal v ->
+		{ e with eexpr = TLocal (fv v); etype = ft e.etype }
+	| TArray (e1,e2) ->
+		let e1 = f e1 in
+		{ e with eexpr = TArray (e1,f e2); etype = ft e.etype }
+	| TBinop (op,e1,e2) ->
+		let e1 = f e1 in
+		{ e with eexpr = TBinop (op,e1,f e2); etype = ft e.etype }
+	| TFor (v,e1,e2) ->
+		let v = fv v in
+		let e1 = f e1 in
+		{ e with eexpr = TFor (v,e1,f e2); etype = ft e.etype }
+	| TWhile (e1,e2,flag) ->
+		let e1 = f e1 in
+		{ e with eexpr = TWhile (e1,f e2,flag); etype = ft e.etype }
+	| TThrow e1 ->
+		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
+	| TEnumParameter (e1,ef,i) ->
+		{ e with eexpr = TEnumParameter (f e1,ef,i); etype = ft e.etype }
+	| TEnumIndex e1 ->
+		{ e with eexpr = TEnumIndex (f e1); etype = ft e.etype }
+	| TField (e1,v) ->
+		let e1 = f e1 in
+		let v = try
+			let n = match v with
+				| FClosure _ -> raise Not_found
+				| FAnon f | FInstance (_,_,f) | FStatic (_,f) -> f.cf_name
+				| FEnum (_,f) -> f.ef_name
+				| FDynamic n -> n
+			in
+			quick_field e1.etype n
+		with Not_found ->
+			v
+		in
+		{ e with eexpr = TField (e1,v); etype = ft e.etype }
+	| TParenthesis e1 ->
+		{ e with eexpr = TParenthesis (f e1); etype = ft e.etype }
+	| TUnop (op,pre,e1) ->
+		{ e with eexpr = TUnop (op,pre,f e1); etype = ft e.etype }
+	| TArrayDecl el ->
+		{ e with eexpr = TArrayDecl (List.map f el); etype = ft e.etype }
+	| TNew (c,pl,el) ->
+		let et = ft e.etype in
+		(* make sure that we use the class corresponding to the replaced type *)
+		let t = match c.cl_kind with
+			| KTypeParameter _ | KGeneric ->
+				et
+			| _ ->
+				ft (TInst(c,pl))
+		in
+		let c, pl = (match follow t with TInst (c,pl) -> (c,pl) | TAbstract({a_impl = Some c},pl) -> c,pl | t -> TUnification.error [has_no_field t "new"]) in
+		{ e with eexpr = TNew (c,pl,List.map f el); etype = et }
+	| TBlock el ->
+		{ e with eexpr = TBlock (List.map f el); etype = ft e.etype }
+	| TObjectDecl el ->
+		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el); etype = ft e.etype }
+	| TCall (e1,el) ->
+		let e1 = f e1 in
+		{ e with eexpr = TCall (e1, List.map f el); etype = ft e.etype }
+	| TVar (v,eo) ->
+		{ e with eexpr = TVar (fv v, match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TFunction fu ->
+		let fu = {
+			tf_expr = f fu.tf_expr;
+			tf_args = List.map (fun (v,o) -> fv v, o) fu.tf_args;
+			tf_type = ft fu.tf_type;
+		} in
+		{ e with eexpr = TFunction fu; etype = ft e.etype }
+	| TIf (ec,e1,e2) ->
+		let ec = f ec in
+		let e1 = f e1 in
+		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TSwitch (e1,cases,def) ->
+		let e1 = f e1 in
+		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
+		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TTry (e1,catches) ->
+		let e1 = f e1 in
+		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
+	| TReturn eo ->
+		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TCast (e1,t) ->
+		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
+	| TMeta (m,e1) ->
+		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
 let equal_fa fa1 fa2 = match fa1,fa2 with
 	| FStatic(c1,cf1),FStatic(c2,cf2) -> c1 == c2 && cf1.cf_name == cf2.cf_name
@@ -47,7 +294,7 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TThrow e1,TThrow e2 -> equal e1 e2
 	| TCast(e1,None),TCast(e2,None) -> equal e1 e2
 	| TCast(e1,Some mt1),TCast(e2,Some mt2) -> equal e1 e2 && mt1 == mt2
-	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.s_expr e1) = (Ast.s_expr e2)) el1 el2 && equal e1 e2
+	| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.Printer.s_expr e1) = (Ast.Printer.s_expr e2)) el1 el2 && equal e1 e2
 	| (TBreak,TBreak) | (TContinue,TContinue) -> true
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
@@ -219,7 +466,7 @@ module Builder = struct
 
 	let make_typeexpr mt pos =
 		let t =
-			match mt with
+			match resolve_typedef mt with
 			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
@@ -284,7 +531,7 @@ let set_default basic a c p =
 	let t = a.v_type in
 	let ve = mk (TLocal a) t p in
 	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) basic.tvoid p
+	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,c)) t p,None)) basic.tvoid p
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters
@@ -302,7 +549,7 @@ let rec constructor_side_effects e =
 	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
 	| TConst _ | TContinue | TBreak | TCast _ | TIdent _ ->
 		try
-			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
+			iter (fun e -> if constructor_side_effects e then raise Exit) e;
 			false;
 		with Exit ->
 			true
@@ -314,7 +561,7 @@ let type_constant basic c p =
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
-	| String s -> mk (TConst (TString s)) basic.tstring p
+	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
@@ -343,7 +590,7 @@ let for_remap basic v e1 e2 p =
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
 	let eassign = mk (TVar(v,Some enext)) basic.tvoid p in
-	let ebody = Type.concat eassign e2 in
+	let ebody = concat eassign e2 in
 	mk (TBlock [
 		mk (TVar (v',Some e1)) basic.tvoid e1.epos;
 		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) basic.tvoid e1.epos;
@@ -389,3 +636,170 @@ let build_metadata api t =
 		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
 		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
 		Some (mk (TObjectDecl meta_obj) t_dynamic p)
+
+let dump_with_pos tabs e =
+	let buf = Buffer.create 0 in
+	let add = Buffer.add_string buf in
+	let rec loop' tabs e =
+		let p = e.epos in
+		let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+		let loop e = loop' (tabs ^ "  ") e in
+		match e.eexpr with
+		| TConst ct -> add (s_const ct)
+		| TLocal v -> add ("TLocal " ^ v.v_name)
+		| TTypeExpr mt -> add ("TTypeExpr " ^ (s_type_path (t_infos mt).mt_path))
+		| TIdent s -> add ("TIdent " ^ s)
+		| TEnumParameter(e1,ef,_) ->
+			add ("TEnumParameter " ^ ef.ef_name);
+			loop e1
+		| TEnumIndex e1 ->
+			add "TEnumIndex";
+			loop e1
+		| TArray(e1,e2) ->
+			add "TArray";
+			loop e1;
+			loop e2;
+		| TBinop(op,e1,e2) ->
+			add ("TBinop " ^ (s_binop op));
+			loop e1;
+			loop e2;
+		| TField(e1,s) ->
+			add ("TField " ^ (field_name s));
+			loop e1
+		| TParenthesis e1 ->
+			add "TParenthesis";
+			loop e1
+		| TObjectDecl fl ->
+			add "TObjectDecl";
+			List.iter (fun ((n,p,_),e1) ->
+				Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+				loop e1
+			) fl;
+		| TArrayDecl el ->
+			add "TArrayDecl";
+			List.iter loop el
+		| TCall(e1,el) ->
+			add "TCall";
+			loop e1;
+			List.iter loop el
+		| TNew(c,_,el) ->
+			add ("TNew " ^ s_type_path c.cl_path);
+			List.iter loop el
+		| TUnop(op,_,e1) ->
+			add ("TUnop " ^ (s_unop op));
+			loop e1
+		| TVar(v,eo) ->
+			add ("TVar " ^ v.v_name);
+			begin match eo with
+				| None -> ()
+				| Some e ->
+					loop' (Printf.sprintf "%s  " tabs) e
+			end
+		| TFunction tf ->
+			add "TFunction";
+			loop tf.tf_expr;
+		| TBlock el ->
+			add "TBlock";
+			List.iter loop el
+		| TFor(v,e1,e2) ->
+			add ("TFor " ^ v.v_name);
+			loop e1;
+			loop e2;
+		| TIf(e1,e2,eo) ->
+			add "TIf";
+			loop e1;
+			loop e2;
+			Option.may loop eo;
+		| TWhile(e1,e2,_) ->
+			add "TWhile";
+			loop e1;
+			loop e2;
+		| TSwitch(e1,cases,def) ->
+			add "TSwitch";
+			loop e1;
+			List.iter (fun (el,e) ->
+				List.iter (loop' (tabs ^ "    ")) el;
+				loop' (tabs ^ "      ") e;
+			) cases;
+			Option.may (loop' (tabs ^ "      ")) def
+		| TTry(e1,catches) ->
+			add "TTry";
+			loop e1;
+			List.iter (fun (v,e) ->
+				loop' (tabs ^ "    ") e
+			) catches
+		| TReturn eo ->
+			add "TReturn";
+			Option.may loop eo;
+		| TBreak ->
+			add "TBreak";
+		| TContinue ->
+			add "TContinue"
+		| TThrow e1 ->
+			add "EThrow";
+			loop e1
+		| TCast(e1,_) ->
+			add "TCast";
+			loop e1;
+		| TMeta((m,_,_),e1) ->
+			add ("TMeta " ^ fst (Meta.get_info m));
+			loop e1
+	in
+	loop' tabs e;
+	Buffer.contents buf
+
+let collect_captured_vars e =
+	let known = Hashtbl.create 0 in
+	let unknown = ref [] in
+	let accesses_this = ref false in
+	let declare v = Hashtbl.add known v.v_id () in
+	let rec loop e = match e.eexpr with
+		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
+			Hashtbl.add known id ();
+			unknown := v :: !unknown
+		| TConst (TThis | TSuper) ->
+			accesses_this := true;
+		| TVar(v,eo) ->
+			Option.may loop eo;
+			declare v
+		| TFor(v,e1,e2) ->
+			declare v;
+			loop e1;
+			loop e2;
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			loop tf.tf_expr
+		| TTry(e1,catches) ->
+			loop e1;
+			List.iter (fun (v,e) ->
+				declare v;
+				loop e;
+			) catches
+		| _ ->
+			iter loop e
+	in
+	loop e;
+	List.rev !unknown,!accesses_this
+
+(**
+	If `e` contains a sequence of unsafe casts, then look if that sequence
+	already has casts to `t` and return the bottom-most of such casts.
+	If `require_cast` is `false` and the first non-cast expression has type `t`, then return that expression without any casts.
+	In other cases return `e` as-is.
+*)
+let reduce_unsafe_casts ?(require_cast=false) e t =
+	let same_type t1 t2 =
+		fast_eq (follow_without_null t1) (follow_without_null t2)
+	in
+	let rec loop e =
+		match e.eexpr with
+		| TCast(subject,None) ->
+			let result = loop subject in
+			if same_type e.etype subject.etype then result
+			else { e with eexpr = TCast(result,None) }
+		| _ -> e
+	in
+	match loop e with
+	| { eexpr = TCast _ } as result -> result
+	| result when require_cast -> { e with eexpr = TCast(result,None) }
+	| result -> result

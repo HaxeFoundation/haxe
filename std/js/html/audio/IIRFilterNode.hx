@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,8 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IIRFilterNode>
 **/
 @:native("IIRFilterNode")
-extern class IIRFilterNode extends AudioNode
-{
+extern class IIRFilterNode extends AudioNode {
 	/** @throws DOMError */
 	function new( context : BaseAudioContext, options : IIRFilterOptions ) : Void;
-	function getFrequencyResponse( frequencyHz : js.html.Float32Array, magResponse : js.html.Float32Array, phaseResponse : js.html.Float32Array ) : Void;
+	function getFrequencyResponse( frequencyHz : js.lib.Float32Array, magResponse : js.lib.Float32Array, phaseResponse : js.lib.Float32Array ) : Void;
 }

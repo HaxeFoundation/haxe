@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_blend_minmax>
 **/
 @:native("EXT_blend_minmax")
-extern class EXTBlendMinmax
-{
+extern class EXTBlendMinmax {
 	
 	/**
 		Produces the minimum color components of the source and destination colors.

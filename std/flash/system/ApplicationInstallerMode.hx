@@ -1,7 +1,7 @@
 package flash.system;
 
-@:fakeEnum(String) extern enum ApplicationInstallerMode {
-	INSTALL_ONLY;
-	INSTALL_WITH_SHORTCUTS;
-	SHORTCUTS_ONLY;
+@:native("flash.system.ApplicationInstallerMode") extern enum abstract ApplicationInstallerMode(String) {
+	var INSTALL_ONLY;
+	var INSTALL_WITH_SHORTCUTS;
+	var SHORTCUTS_ONLY;
 }

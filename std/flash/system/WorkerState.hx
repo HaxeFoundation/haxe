@@ -1,7 +1,7 @@
 package flash.system;
 
-@:fakeEnum(String) extern enum WorkerState {
-	NEW;
-	RUNNING;
-	TERMINATED;
+@:native("flash.system.WorkerState") extern enum abstract WorkerState(String) {
+	var NEW;
+	var RUNNING;
+	var TERMINATED;
 }

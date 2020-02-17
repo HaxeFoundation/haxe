@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent>
 **/
 @:native("HashChangeEvent")
-extern class HashChangeEvent extends Event
-{
+extern class HashChangeEvent extends Event {
 	
 	/**
 		The previous URL from which the window was navigated.
@@ -47,5 +46,5 @@ extern class HashChangeEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	function initHashChangeEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?oldURLArg : String = "", ?newURLArg : String = "" ) : Void;
+	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, oldURLArg : String = "", newURLArg : String = "" ) : Void;
 }

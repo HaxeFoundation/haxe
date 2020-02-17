@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,15 +24,14 @@
 
 package js.html.rtc;
 
-typedef RtpEncodingParameters =
-{
-	@:optional var active : Bool;
-	@:optional var degradationPreference : DegradationPreference;
-	@:optional var fec : FecParameters;
-	@:optional var maxBitrate : Int;
-	@:optional var priority : PriorityType;
-	@:optional var rid : String;
-	@:optional var rtx : RtxParameters;
-	@:optional var scaleResolutionDownBy : Float;
-	@:optional var ssrc : Int;
+typedef RtpEncodingParameters = {
+	var ?active : Bool;
+	var ?degradationPreference : DegradationPreference;
+	var ?fec : FecParameters;
+	var ?maxBitrate : Int;
+	var ?priority : PriorityType;
+	var ?rid : String;
+	var ?rtx : RtxParameters;
+	var ?scaleResolutionDownBy : Float;
+	var ?ssrc : Int;
 }

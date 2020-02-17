@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFECompositeElement>
 **/
 @:native("SVGFECompositeElement")
-extern class FECompositeElement extends Element
-{
+extern class FECompositeElement extends Element {
 	static inline var SVG_FECOMPOSITE_OPERATOR_UNKNOWN : Int = 0;
 	static inline var SVG_FECOMPOSITE_OPERATOR_OVER : Int = 1;
 	static inline var SVG_FECOMPOSITE_OPERATOR_IN : Int = 2;
@@ -48,7 +47,8 @@ extern class FECompositeElement extends Element
 	**/
 	var in1(default,null) : AnimatedString;
 	var in2(default,null) : AnimatedString;
-	var operator(default,null) : AnimatedEnumeration;
+	@:native("operator")
+	var operator_(default,null) : AnimatedEnumeration;
 	var k1(default,null) : AnimatedNumber;
 	var k2(default,null) : AnimatedNumber;
 	var k3(default,null) : AnimatedNumber;

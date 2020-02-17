@@ -1,6 +1,6 @@
 package flash.system;
 
-@:final extern class ConnexionsClient {
+extern final class ConnexionsClient {
 	function new() : Void;
 	function Connexions() : Dynamic;
 	function _init(topLocation : String, documentReferrer : String, windowLocation : String, movie : String, userAgent : String, timeout : UInt) : Void;

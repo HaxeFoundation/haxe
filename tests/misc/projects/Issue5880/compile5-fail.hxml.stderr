@@ -1,0 +1,2 @@
+Main5.hx:4: characters 10-13 : Array<{ v : fromV.T }> should be fromV.T
+Main5.hx:4: characters 3-13 : Recursive implicit cast

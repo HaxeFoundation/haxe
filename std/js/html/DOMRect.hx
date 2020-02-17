@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRect>
 **/
 @:native("DOMRect")
-extern class DOMRect extends DOMRectReadOnly
-{
+extern class DOMRect extends DOMRectReadOnly {
 	/** @throws DOMError */
-	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?width : Float = 0.0, ?height : Float = 0.0 ) : Void;
+	function new( x : Float = 0.0, y : Float = 0.0, width : Float = 0.0, height : Float = 0.0 ) : Void;
 }

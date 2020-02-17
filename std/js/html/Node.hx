@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Node>
 **/
 @:native("Node")
-extern class Node extends EventTarget
-{
+extern class Node extends EventTarget {
 	static inline var ELEMENT_NODE : Int = 1;
 	static inline var ATTRIBUTE_NODE : Int = 2;
 	static inline var TEXT_NODE : Int = 3;
@@ -229,7 +228,7 @@ extern class Node extends EventTarget
 		Clone a `Node`, and optionally, all of its contents. By default, it clones the content of the node.
 		@throws DOMError
 	**/
-	function cloneNode( ?deep : Bool = false ) : Node;
+	function cloneNode( deep : Bool = false ) : Node;
 	
 	/**
 		Returns a `Boolean` value indicating whether or not the two nodes are the same (that is, they reference the same object).
@@ -259,7 +258,7 @@ extern class Node extends EventTarget
 		Returns a `DOMString` containing the prefix for a given namespace URI, if present, and `null` if not. When multiple prefixes are possible, the result is implementation-dependent.
 	**/
 	@:pure
-	function lookupPrefix( namespace_ : String ) : String;
+	function lookupPrefix( namespace : String ) : String;
 	
 	/**
 		Accepts a prefix and returns the namespace URI associated with it on the given node if found (and `null` if not). Supplying `null` for the prefix will return the default namespace.
@@ -271,5 +270,5 @@ extern class Node extends EventTarget
 		Accepts a namespace URI as an argument and returns a `Boolean` with a value of `true` if the namespace is the default namespace on the given node or `false` if not.
 	**/
 	@:pure
-	function isDefaultNamespace( namespace_ : String ) : Bool;
+	function isDefaultNamespace( namespace : String ) : Bool;
 }

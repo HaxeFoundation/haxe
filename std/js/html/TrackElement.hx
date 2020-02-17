@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement>
 **/
 @:native("HTMLTrackElement")
-extern class TrackElement extends Element
-{
+extern class TrackElement extends Element {
 	static inline var NONE : Int = 0;
 	static inline var LOADING : Int = 1;
 	static inline var LOADED : Int = 2;
@@ -59,6 +58,10 @@ extern class TrackElement extends Element
 		Is a `DOMString` that reflects the `label` HTML attribute, indicating a user-readable title for the track.
 	**/
 	var label : String;
+	
+	/**
+		Is a `Boolean` reflects the `default` HTML attribute, indicating that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+	**/
 	@:native("default")
 	var default_ : Bool;
 	

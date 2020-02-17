@@ -18,5 +18,6 @@ class Issue4222 extends Test {
 	function test() {
 		var c = new Child();
 		var v = c.covariant();
+		noAssert();
 	}
 }

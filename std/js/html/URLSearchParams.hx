@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,19 +32,21 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams>
 **/
 @:native("URLSearchParams")
-extern class URLSearchParams
-{
+extern class URLSearchParams {
 	/** @throws DOMError */
-	@:overload( function( ?init : haxe.DynamicAccess<String> = "") : URLSearchParams {} )
-	@:overload( function( ?init : String = "") : URLSearchParams {} )
-	function new( ?init : Array<Array<String>> = "" ) : Void;
+	@:overload( function( ?init : haxe.DynamicAccess<String>) : URLSearchParams {} )
+	@:overload( function( init : String = "") : URLSearchParams {} )
+	function new( ?init : Array<Array<String>> ) : Void;
 	
 	/**
 		Appends a specified key/value pair as a new search parameter.
 	**/
 	function append( name : String, value : String ) : Void;
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes the given search parameter, and its associated value, from the list of all search parameters.
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated to the given search parameter.

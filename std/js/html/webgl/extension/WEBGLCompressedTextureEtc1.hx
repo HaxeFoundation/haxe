@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1>
 **/
 @:native("WEBGL_compressed_texture_etc1")
-extern class WEBGLCompressedTextureEtc1
-{
+extern class WEBGLCompressedTextureEtc1 {
 	
 	/**
 		Compresses 24-bit RGB data with no alpha channel.

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 
 open Globals
 open Ast
+open Filename
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
@@ -55,9 +56,9 @@ module StrictMeta = struct
 			| TAbstractDecl a -> a.a_path, a.a_meta
 		in
 		let rec loop acc = function
-			| (Meta.JavaCanonical,[EConst(String pack),_; EConst(String name),_],_) :: _ ->
+			| (Meta.JavaCanonical,[EConst(String(pack,_)),_; EConst(String(name,_)),_],_) :: _ ->
 				ExtString.String.nsplit pack ".", name
-			| (Meta.Native,[EConst(String name),_],_) :: meta ->
+			| (Meta.Native,[EConst(String(name,_)),_],_) :: meta ->
 				loop (Ast.parse_path name) meta
 			| _ :: meta ->
 				loop acc meta
@@ -85,7 +86,7 @@ module StrictMeta = struct
 		| TConst(TFloat f) ->
 			(EConst(Float f), expr.epos)
 		| TConst(TString s) ->
-			(EConst(String s), expr.epos)
+			(EConst(String(s,SDoubleQuotes)), expr.epos)
 		| TConst TNull ->
 			(EConst(Ident "null"), expr.epos)
 		| TConst(TBool b) ->
@@ -195,6 +196,10 @@ let module_pass_1 ctx m tdecls loadp =
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
+		let check_type_name type_name meta =
+			let module_name = snd m.m_path in
+			if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
 			(match !pt with
@@ -202,7 +207,6 @@ let module_pass_1 ctx m tdecls loadp =
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
@@ -213,14 +217,21 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			List.iter (function
+				| HExtern -> c.cl_extern <- true
+				| HInterface -> c.cl_interface <- true
+				| HFinal -> c.cl_final <- true
+				| _ -> ()
+			) d.d_flags;
+			if not c.cl_extern then check_type_name name d.d_meta;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
+			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
 				e_module = m;
@@ -229,17 +240,20 @@ let module_pass_1 ctx m tdecls loadp =
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
 				e_params = [];
+				e_using = [];
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
 				e_names = [];
 				e_type = enum_module_type m path p;
 			} in
+			if not e.e_extern then check_type_name name d.d_meta;
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
+			check_type_name name d.d_meta;
+			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -251,20 +265,21 @@ let module_pass_1 ctx m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
+				t_using = [];
 				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
 			(* failsafe in case the typedef is not initialized (see #3933) *)
 			delay ctx PBuildModule (fun () ->
 				match t.t_type with
-				| TMono r -> (match !r with None -> r := Some com.basic.tvoid | _ -> ())
+				| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 				| _ -> ()
 			);
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
+			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
@@ -275,6 +290,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
+				a_using = [];
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
@@ -311,7 +327,7 @@ let module_pass_1 ctx m tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal),_,_) ->
+						| ((Meta.Using | Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -328,30 +344,75 @@ let module_pass_1 ctx m tdecls loadp =
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
+let load_enum_field ctx e et is_flat index c =
+	let p = c.ec_pos in
+	let params = ref [] in
+	params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+	let params = !params in
+	let ctx = { ctx with type_params = params @ ctx.type_params } in
+	let rt = (match c.ec_type with
+		| None -> et
+		| Some (t,pt) ->
+			let t = load_complex_type ctx true (t,pt) in
+			(match follow t with
+			| TEnum (te,_) when te == e ->
+				()
+			| _ ->
+				error "Explicit enum type must be of the same enum type" pt);
+			t
+	) in
+	let t = (match c.ec_args with
+		| [] -> rt
+		| l ->
+			is_flat := false;
+			let pnames = ref PMap.empty in
+			TFun (List.map (fun (s,opt,(t,tp)) ->
+				(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
+				if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
+				pnames := PMap.add s () (!pnames);
+				s, opt, load_type_hint ~opt ctx p (Some (t,tp))
+			) l, rt)
+	) in
+	let f = {
+		ef_name = fst c.ec_name;
+		ef_type = t;
+		ef_pos = p;
+		ef_name_pos = snd c.ec_name;
+		ef_doc = c.ec_doc;
+		ef_index = !index;
+		ef_params = params;
+		ef_meta = c.ec_meta;
+	} in
+	let cf = {
+		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
+		cf_kind = (match follow f.ef_type with
+			| TFun _ -> Method MethNormal
+			| _ -> Var { v_read = AccNormal; v_write = AccNo }
+		);
+		cf_doc = f.ef_doc;
+		cf_params = f.ef_params;
+	} in
+	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
+		DisplayEmitter.display_enum_field ctx e f p;
+	f,cf
+
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
 	an expression into the context
 *)
-let init_module_type ctx context_init do_init (decl,p) =
+let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match ctx.com.display.dms_kind with
-		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
-			ImportHandling.add_import_position ctx.com p path;
-		| DMStatistics ->
-			ImportHandling.add_import_position ctx.com p path;
-		| DMUsage _ ->
-			ImportHandling.add_import_position ctx.com p path;
-			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
-		| _ ->
-			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
-	in
-	match decl with
-	| EImport (path,mode) ->
+	let commit_import path mode p =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
+		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
+	in
+	let check_path_display path p =
+		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
+	in
+	let init_import path mode =
 		check_path_display path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -365,7 +426,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport None;
+				(* p spans `import |` (to the display position), so we take the pmax here *)
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -394,9 +456,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 					t_doc = None;
 					t_meta = [];
 					t_params = (t_infos t).mt_params;
+					t_using = [];
 					t_type = f (List.map snd (t_infos t).mt_params);
 				} in
-				if ctx.is_display_file && DisplayPosition.encloses_display_position p then
+				if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
 					DisplayEmitter.display_module_type ctx mt p;
 				mt
 			in
@@ -432,23 +495,23 @@ let init_module_type ctx context_init do_init (decl,p) =
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
-						context_init := (fun() ->
+						context_init#add (fun() ->
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
-								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						) :: !context_init)
+								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+						))
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
 					| [] -> ()
 					| (n,p) :: _ -> error ("Unexpected " ^ n) p);
 					let tsub = get_type tsub in
-					context_init := (fun() ->
+					context_init#add (fun() ->
 						try
 							add_static_init tsub name fname
 						with Not_found ->
-							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
-					) :: !context_init;
+							display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+					);
 				)
 			| IAll ->
 				let t = (match rest with
@@ -456,7 +519,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| [tsub,_] -> get_type tsub
 					| _ :: (n,p) :: _ -> error ("Unexpected " ^ n) p
 				) in
-				context_init := (fun() ->
+				context_init#add (fun() ->
 					match resolve_typedef t with
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
@@ -466,58 +529,29 @@ let init_module_type ctx context_init do_init (decl,p) =
 						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 					| _ ->
 						error "No statics to import from this type" p
-				) :: !context_init
+				)
 			))
+	in
+	match decl with
+	| EImport (path,mode) ->
+		begin try
+			init_import path mode;
+			commit_import path mode p;
+		with Error(err,p) ->
+			display_error ctx (Error.error_msg err) p
+		end
 	| EUsing path ->
 		check_path_display path p;
-		let t = match List.rev path with
-			| (s1,_) :: (s2,_) :: sl ->
-				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
-				else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
-			| (s1,_) :: sl ->
-				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
-			| [] ->
-				DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
-		in
+		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
-		let types = (match t.tsub with
-			| None ->
-				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-				types
-			| Some _ ->
-				let t = load_type_def ctx p t in
-				ctx.m.module_types <- (t,p) :: ctx.m.module_types;
-				[t]
-		) in
-		(* delay the using since we need to resolve typedefs *)
-		let filter_classes types =
-			let rec loop acc types = match types with
-				| td :: l ->
-					(match resolve_typedef td with
-					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-						loop ((c,p) :: acc) l
-					| td ->
-						loop acc l)
-				| [] ->
-					acc
-			in
-			loop [] types
-		in
-		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
+		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
+		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		List.iter (function
-			| HExtern -> c.cl_extern <- true
-			| HInterface -> c.cl_interface <- true
-			| HFinal -> c.cl_final <- true
-			| _ -> ()
-		) herits;
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
 				c.cl_final <- true;
@@ -532,7 +566,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p do_init d.d_flags d.d_data;
+					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
 					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
@@ -581,7 +615,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EEnum d ->
 		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
@@ -606,8 +640,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				}
 			) (!constructs)
 		in
-		let init () = List.iter (fun f -> f()) !context_init in
-		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
 			match e with
 			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
@@ -637,56 +670,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
 		List.iter (fun c ->
-			let p = c.ec_pos in
-			let params = ref [] in
-			params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
-			let params = !params in
-			let ctx = { ctx with type_params = params @ ctx.type_params } in
-			let rt = (match c.ec_type with
-				| None -> et
-				| Some (t,pt) ->
-					let t = load_complex_type ctx true (t,pt) in
-					(match follow t with
-					| TEnum (te,_) when te == e ->
-						()
-					| _ ->
-						error "Explicit enum type must be of the same enum type" pt);
-					t
-			) in
-			let t = (match c.ec_args with
-				| [] -> rt
-				| l ->
-					is_flat := false;
-					let pnames = ref PMap.empty in
-					TFun (List.map (fun (s,opt,(t,tp)) ->
-						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
-						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ fst c.ec_name) p;
-						pnames := PMap.add s () (!pnames);
-						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
-					) l, rt)
-			) in
 			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-			let f = {
-				ef_name = fst c.ec_name;
-				ef_type = t;
-				ef_pos = p;
-				ef_name_pos = snd c.ec_name;
-				ef_doc = c.ec_doc;
-				ef_index = !index;
-				ef_params = params;
-				ef_meta = c.ec_meta;
-			} in
-			let cf = {
-				(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
-				cf_kind = (match follow f.ef_type with
-					| TFun _ -> Method MethNormal
-					| _ -> Var { v_read = AccNormal; v_write = AccNo }
-				);
-				cf_doc = f.ef_doc;
-				cf_params = f.ef_params;
-			} in
- 			if ctx.is_display_file && DisplayPosition.encloses_display_position f.ef_name_pos then
- 				DisplayEmitter.display_enum_field ctx e f p;
+			let f,cf = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
@@ -712,7 +697,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| ETypedef d ->
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
@@ -731,7 +716,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					if tt == t.t_type then error "Recursive typedef is not allowed" p;
 					match tt with
 					| TMono r ->
-						(match !r with
+						(match r.tm_type with
 						| None -> ()
 						| Some t -> check_rec t)
 					| TLazy f ->
@@ -752,8 +737,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		) in
 		(match t.t_type with
 		| TMono r ->
-			(match !r with
-			| None -> r := Some tt;
+			(match r.tm_type with
+			| None -> Monomorph.bind r tt;
 			| Some _ -> assert false);
 		| _ -> assert false);
 		if ctx.com.platform = Cs && t.t_meta <> [] then
@@ -763,19 +748,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EAbstract d ->
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
+			let _, pos = t in
 			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun() -> t);
-						let at = monomorphs a.a_params a.a_this in
-						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
+						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
 					TLazy r
@@ -796,10 +781,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
-					begin match follow at with
-						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
+					let rec loop stack t =
+						match follow t with
+						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
+							if List.memq a stack then
+								error "Abstract underlying type cannot be recursive" a.a_pos
+							else
+								loop (a :: stack) a.a_this
 						| _ -> ()
-					end;
+					in
+					loop [] at
 				);
 				a.a_this <- at;
 				is_type := true;
@@ -837,13 +828,10 @@ let module_pass_2 ctx m decls tdecls p =
 			assert false
 	) decls;
 	(* setup module types *)
-	let context_init = ref [] in
-	let do_init() =
-		match !context_init with
-		| [] -> ()
-		| l -> context_init := []; List.iter (fun f -> f()) (List.rev l)
-	in
-	List.iter (init_module_type ctx context_init do_init) tdecls
+	let context_init = new TypeloadFields.context_init in
+	List.iter (init_module_type ctx context_init) tdecls;
+	(* Make sure that we actually init the context at some point (issue #9012) *)
+	delay ctx PConnectField (fun () -> context_init#run)
 
 (*
 	Creates a module context for [m] and types [tdecls] using it.
@@ -866,12 +854,14 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.is_display_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
+		get_build_infos = (fun() -> None);
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = null_class;
@@ -888,6 +878,7 @@ let type_types_into_module ctx m tdecls p =
 		opened = [];
 		in_call_args = false;
 		vthis = None;
+		memory_marker = Typecore.memory_marker;
 	} in
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
@@ -925,7 +916,10 @@ let handle_import_hx ctx m decls p =
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let _,r = TypeloadParse.parse_file ctx.com path p in
+				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
+					| ParseSuccess(data,_,_) -> data
+					| ParseError(_,(msg,p),_) -> Parser.error msg p
+				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
 				add_dependency m (make_import_module path r);
 				r
@@ -942,15 +936,15 @@ let handle_import_hx ctx m decls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx mpath file ?(is_extern=false) tdecls p =
+let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern;
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->
 			()
 	end;
@@ -977,10 +971,10 @@ let load_module ctx m p =
 				let rec loop = function
 					| [] ->
 						raise (Error (Module_not_found m,p))
-					| load :: l ->
+					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (file,(_,a)) -> file, a
+						| Some (_,a) -> file, a
 				in
 				is_extern := true;
 				loop ctx.com.load_extern_type

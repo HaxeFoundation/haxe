@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -19,7 +19,6 @@
 
 open Globals
 open EvalValue
-open EvalString
 
 let create values = {
 	avalues = values;
@@ -29,7 +28,7 @@ let create values = {
 let array_join a f sep =
 	let l = Array.map f a in
 	let l = Array.to_list l in
-	join sep l
+	EvalString.join sep l
 
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 
@@ -115,6 +114,7 @@ let pop a =
 		vnull
 	else begin
 		let v = get a (a.alength - 1) in
+		unsafe_set a (a.alength - 1) vnull;
 		a.alength <- a.alength - 1;
 		v
 	end

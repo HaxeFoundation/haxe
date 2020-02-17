@@ -1,6 +1,7 @@
 open Globals
 open Json.Reader
 open JsonRpc
+open Jsonrpc_handler
 open Json
 open Common
 open DisplayTypes.DisplayMode
@@ -19,8 +20,8 @@ let json_of_times root =
 				"info",jstring node.info;
 				"time",jfloat node.time;
 				"calls",jint node.num_calls;
-				"percentTotal",jfloat (node.time *. 100. /. root.time);
-				"percentParent",jfloat (if node == root then 0. else node.time *. 100. /. node.parent.time);
+				"percentTotal",jfloat (if root.time = 0. then 0. else (node.time *. 100. /. root.time));
+				"percentParent",jfloat (if node == root || node.parent.time = 0. then 0. else node.time *. 100. /. node.parent.time);
 			] in
 			let fl = match children with
 				| [] -> fl
@@ -34,8 +35,8 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context may_resolve =
-	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let create_json_context jsonrpc may_resolve =
+	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string j =
 	raise (DisplayOutput.Completion j)
@@ -43,137 +44,29 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-type haxe_json_error =
-	| MissingField of string * string
-	| BadType of string * string
-
-class jsonrpc_handler report_times (id,name,params) = object(self)
-	val id = id
-	val method_name : string = name
-	val params = match params with
-		| Some (JObject fl) -> fl
-		| Some json -> raise_invalid_params json
-		| None -> []
-
-	method get_id = id
-	method get_method_name = method_name
-
-	method raise_haxe_json_error : 'a . haxe_json_error -> 'a = function
-		| MissingField(name,on) -> raise_custom id 1 (Printf.sprintf "Missing param \"%s\" on \"%s\"" name on)
-		| BadType(desc,expected) -> raise_custom id 2 (Printf.sprintf "Unexpected value for \"%s\", expected %s" desc expected)
-
-	method get_field desc fl name : Json.t =
-		try
-			List.assoc name fl
-		with Not_found ->
-			self#raise_haxe_json_error (MissingField(name,desc))
-
-	method get_string desc j = match j with
-		| JString s -> s
-		| _ -> self#raise_haxe_json_error (BadType(desc,"String"))
-
-	method get_int desc j = match j with
-		| JInt i -> i
-		| _ -> self#raise_haxe_json_error (BadType(desc,"String"))
-
-	method get_bool desc j = match j with
-		| JBool b -> b
-		| _ -> self#raise_haxe_json_error (BadType(desc,"Bool"))
-
-	method get_array desc j : Json.t list = match j with
-		| JArray a -> a
-		| _ -> self#raise_haxe_json_error (BadType(desc,"Array"))
-
-	method get_object desc j = match j with
-		| JObject o -> o
-		| _ -> self#raise_haxe_json_error (BadType(desc,"Object"))
-
-	method get_string_field desc name fl =
-		self#get_string desc (self#get_field desc fl name)
-
-	method get_int_field desc name fl =
-		self#get_int desc (self#get_field desc fl name)
-
-	method get_bool_field desc name fl =
-		self#get_bool desc (self#get_field desc fl name)
-
-	method get_array_field desc name fl =
-		self#get_array desc (self#get_field desc fl name)
-
-	method get_object_field desc name fl =
-		self#get_object desc (self#get_field desc fl name)
-
-	method get_string_param name =
-		self#get_string_field "params" name params
-
-	method get_int_param name =
-		self#get_int_field "params" name params
-
-	method get_bool_param name =
-		self#get_bool_field "params" name params
-
-	method get_array_param name =
-		self#get_array_field "params" name params
-
-	method get_object_param name =
-		self#get_object_field "params" name params
-
-	method get_opt_param : 'a . (unit -> 'a) -> 'a -> 'a = fun f def ->
-		try f() with JsonRpc_error _ -> def
-
-	method send_result json : unit =
-		let fl = [
-			"result",json;
-			"timestamp",jfloat (Unix.gettimeofday ());
-		] in
-		let fl = if !report_times then begin
-			close_times();
-			let _,_,root = Timer.build_times_tree () in
-			begin match json_of_times root with
-			| None -> fl
-			| Some jo -> ("timers",jo) :: fl
-			end
-		end else fl in
-		let jo = jobject fl in
-		send_json (JsonRpc.result id jo);
-
-	method send_error : 'a . Json.t list -> 'a  = fun jl ->
-		send_json (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
-end
-
-let debug_context_sign = ref None
-
-class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
+class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t) = object(self)
 	val cs = cs;
 
 	method get_cs = cs
 
-	method set_debug_context_sign sign =
-		debug_context_sign := sign
-
-	method get_sign = match !debug_context_sign with
-		| None -> Define.get_signature com.defines
-		| Some sign -> sign
-
 	method enable_display mode =
 		com.display <- create mode;
 		Parser.display_mode := mode;
-		Common.define_value com Define.Display "1";
-		Parser.use_doc := true;
+		Common.define_value com Define.Display "1"
 
 	method set_display_file was_auto_triggered requires_offset =
-		let file = jsonrpc#get_string_param "file" in
-		let file = Path.unique_full_path file in
+		let file = jsonrpc#get_opt_param (fun () ->
+			let file = jsonrpc#get_string_param "file" in
+			Path.unique_full_path file
+		) DisplayOutput.file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
-			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			CompilationServer.remove_files cs file;
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = file;
 			pmin = pos;
 			pmax = pos;
@@ -184,6 +77,8 @@ type handler_context = {
 	com : Common.context;
 	jsonrpc : jsonrpc_handler;
 	display : display_handler;
+	send_result : Json.t -> unit;
+	send_error : 'a . Json.t list -> 'a;
 }
 
 let handler =
@@ -192,8 +87,11 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
+			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
+			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> assert false) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
-			hctx.jsonrpc#send_result (JObject [
+			hctx.send_result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
 					"major",jint version_major;
@@ -204,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 1;
+					"minor",jint 4;
 					"patch",jint 0;
 				]
 			])
@@ -214,9 +112,9 @@ let handler =
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
 				let ctx = Genjson.create_context GMFull in
-				hctx.jsonrpc#send_result (jobject ["item",CompletionItem.to_json ctx item])
+				hctx.send_result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
-				hctx.jsonrpc#send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
+				hctx.send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
 			end
 		);
 		"display/completion", (fun hctx ->
@@ -227,6 +125,11 @@ let handler =
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+		);
+		"display/implementation", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display (DMImplementation);
 		);
 		"display/typeDefinition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
@@ -252,65 +155,70 @@ let handler =
 			hctx.display#enable_display DMSignature
 		);
 		"server/readClassPaths", (fun hctx ->
-			hctx.com.callbacks.after_init_macros <- (fun () ->
-				CompilationServer.set_initialized hctx.display#get_cs;
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
+				cc#set_initialized true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
-				hctx.jsonrpc#send_result (jstring "class paths read");
-			) :: hctx.com.callbacks.after_init_macros;
+				let files = hctx.display#get_cs#get_files in
+				hctx.send_result (jobject [
+					"files", jint (List.length files)
+				]);
+			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,(jo,_)) -> jobject [
-				"signature",jstring (Digest.to_hex sign);
-				"context",jo;
-			]) (CompilationServer.get_signs hctx.display#get_cs) in
-			hctx.jsonrpc#send_result (jarray l)
+			let l = List.map (fun cc -> cc#get_json) hctx.display#get_cs#get_contexts in
+			hctx.send_result (jarray l)
 		);
-		"server/select", (fun hctx ->
-			let i = hctx.jsonrpc#get_int_param "index" in
-			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs i
-			with Not_found ->
-				hctx.jsonrpc#send_error [jstring "No such context"]
-			in
-			hctx.display#set_debug_context_sign (Some sign);
-			hctx.jsonrpc#send_result (jstring (Printf.sprintf "Context %i selected" i))
-		 );
-		 "server/modules", (fun hctx ->
-			let sign = hctx.display#get_sign in
-			let l = Hashtbl.fold (fun (_,sign') m acc ->
-				if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
-			) hctx.display#get_cs.cache.c_modules [] in
-			hctx.jsonrpc#send_result (jarray l)
-		 );
+		"server/modules", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let cc = hctx.display#get_cs#get_context sign in
+			let l = Hashtbl.fold (fun _ m acc ->
+				if m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
+			) cc#get_modules [] in
+			hctx.send_result (jarray l)
+		);
 		"server/module", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
+			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				CompilationServer.find_module hctx.display#get_cs (path,sign)
+				cc#find_module path
 			with Not_found ->
-				hctx.jsonrpc#send_error [jstring "No such module"]
+				hctx.send_error [jstring "No such module"]
 			in
-			hctx.jsonrpc#send_result (generate_module () m)
+			hctx.send_result (generate_module () m)
+		);
+		"server/moduleCreated", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let file = Path.unique_full_path file in
+			let cs = hctx.display#get_cs in
+			List.iter (fun cc ->
+				Hashtbl.replace cc#get_removed_files file ()
+			) cs#get_contexts;
+			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
-			let sign = hctx.display#get_sign in
-			let files = CompilationServer.get_files hctx.display#get_cs in
-			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let cc = hctx.display#get_cs#get_context sign in
+			let files = Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files [] in
+			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
 			let files = List.map (fun (file,cfile) ->
 				jobject [
 					"file",jstring file;
 					"time",jfloat cfile.c_time;
-					"package",jstring (String.concat "." cfile.c_package);
+					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
 				]
 			) files in
-			hctx.jsonrpc#send_result (jarray files)
+			hctx.send_result (jarray files)
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			CompilationServer.taint_modules hctx.display#get_cs file;
-			hctx.jsonrpc#send_result jnull
+			let cs = hctx.display#get_cs in
+			cs#taint_modules file;
+			cs#remove_files file;
+			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->
 			let l = ref (List.map (fun (name,value) ->
@@ -319,7 +227,7 @@ let handler =
 					ServerMessage.set_by_name name value;
 					jstring (Printf.sprintf "Printing %s %s" name (if value then "enabled" else "disabled"))
 				with Not_found ->
-					hctx.jsonrpc#send_error [jstring ("Invalid print parame name: " ^ name)]
+					hctx.send_error [jstring ("Invalid print parame name: " ^ name)]
 			) (hctx.jsonrpc#get_opt_param (fun () -> (hctx.jsonrpc#get_object_param "print")) [])) in
 			hctx.jsonrpc#get_opt_param (fun () ->
 				let b = hctx.jsonrpc#get_bool_param "noModuleChecks" in
@@ -327,7 +235,36 @@ let handler =
 				l := jstring ("Module checks " ^ (if b then "disabled" else "enabled")) :: !l;
 				()
 			) ();
-			hctx.jsonrpc#send_result (jarray !l)
+			hctx.jsonrpc#get_opt_param (fun () ->
+				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
+				ServerConfig.legacy_completion := b;
+				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
+				()
+			) ();
+			hctx.send_result (jarray !l)
+		);
+		"server/memory",(fun hctx ->
+			let j = Memory.get_memory_json hctx.display#get_cs MCache in
+			hctx.send_result j
+		);
+		"server/memory/context",(fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let j = Memory.get_memory_json hctx.display#get_cs (MContext sign) in
+			hctx.send_result j
+		);
+		"server/memory/module",(fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
+			let j = Memory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
+			hctx.send_result j
+		);
+		(* TODO: wait till gama complains about the naming, then change it to something else *)
+		"typer/compiledTypes", (fun hctx ->
+			hctx.com.callbacks#add_after_filters (fun () ->
+				let ctx = create_context GMFull in
+				let l = List.map (generate_module_type ctx) hctx.com.types in
+				hctx.send_result (jarray l)
+			);
 		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
@@ -337,12 +274,43 @@ let parse_input com input report_times =
 	let input =
 		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
 	in
-	let jsonrpc = new jsonrpc_handler report_times input in
-	com.json_out <- Some(jsonrpc#send_result,jsonrpc#send_error);
+	let jsonrpc = new jsonrpc_handler input in
+
+	let send_result json =
+		let fl = [
+			"result",json;
+			"timestamp",jfloat (Unix.gettimeofday ());
+		] in
+		let fl = if !report_times then begin
+			close_times();
+			let _,_,root = Timer.build_times_tree () in
+			begin match json_of_times root with
+			| None -> fl
+			| Some jo -> ("timers",jo) :: fl
+			end
+		end else fl in
+		let fl = if DynArray.length com.pass_debug_messages > 0 then
+			("passMessages",jarray (List.map jstring (DynArray.to_list com.pass_debug_messages))) :: fl
+		else
+			fl
+		in
+		let jo = jobject fl in
+		send_json (JsonRpc.result jsonrpc#get_id  jo)
+	in
+
+	let send_error jl =
+		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
+	in
+
+	com.json_out <- Some({
+		send_result = send_result;
+		send_error = send_error;
+		jsonrpc = jsonrpc
+	});
 
 	let cs = match CompilationServer.get() with
 		| Some cs -> cs
-		| None -> jsonrpc#send_error [jstring "compilation server not running for some reason"];
+		| None -> send_error [jstring "compilation server not running for some reason"];
 	in
 
 	let display = new display_handler jsonrpc com cs in
@@ -351,6 +319,8 @@ let parse_input com input report_times =
 		com = com;
 		jsonrpc = jsonrpc;
 		display = display;
+		send_result = send_result;
+		send_error = send_error;
 	} in
 
 	JsonRpc.handle_jsonrpc_error (fun () ->

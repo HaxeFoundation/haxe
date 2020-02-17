@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -113,7 +113,7 @@ let vfun5 f = vstatic_function (fun vl -> match vl with
 
 (* Objects *)
 
-let encode_obj _ l =
+let encode_obj l =
 	let ctx = get_ctx() in
 	let proto,sorted = ctx.get_object_prototype ctx l in
 	vobject {
@@ -121,8 +121,8 @@ let encode_obj _ l =
 		oproto = proto;
 	}
 
-let encode_obj_s k l =
-	encode_obj k (List.map (fun (s,v) -> (hash_s s),v) l)
+let encode_obj_s l =
+	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
 
 (* Enum values *)
 
@@ -157,16 +157,20 @@ let encode_enum i pos index pl =
 		| IAnonStatus -> key_haxe_macro_AnonStatus
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
+		| IDisplayKind -> key_haxe_macro_DisplayKind
+		| IMessage -> key_haxe_macro_Message
+		| IFunctionKind -> key_haxe_macro_FunctionKind
+		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind
 	in
 	encode_enum_value key index (Array.of_list pl) pos
 
 (* Instances *)
 
-let create_instance_direct proto =
+let create_instance_direct proto kind =
 	vinstance {
 		ifields = if Array.length proto.pinstance_fields = 0 then proto.pinstance_fields else Array.copy proto.pinstance_fields;
 		iproto = proto;
-		ikind = INormal;
+		ikind = kind;
 	}
 
 let create_instance ?(kind=INormal) path =
@@ -190,28 +194,29 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	vstring (create_ascii s)
+	create_unknown s
 
-let encode_rope r =
-	vstring (create_ascii_of_rope r)
+(* Should only be used for std types that aren't expected to change while the compilation server is running *)
+let create_cached_instance path fkind =
+	let proto = lazy (get_instance_prototype (get_ctx()) path null_pos) in
+	(fun v ->
+		create_instance_direct (Lazy.force proto) (fkind v)
+	)
 
-let encode_rope_ucs2 r length =
-	vstring (create_ucs2_of_rope r length)
+let encode_bytes =
+	create_cached_instance key_haxe_io_Bytes (fun s -> IBytes s)
 
-let encode_bytes s =
-	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)
+let encode_int_map_direct =
+	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
 
-let encode_int_map_direct h =
-	encode_instance key_haxe_ds_IntMap ~kind:(IIntMap h)
+let encode_string_map_direct =
+	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
 
-let encode_string_map_direct h =
-	encode_instance key_haxe_ds_StringMap ~kind:(IStringMap h)
-
-let encode_object_map_direct h =
-	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
+let encode_object_map_direct =
+	create_cached_instance key_haxe_ds_ObjectMap (fun (s : value ValueHashtbl.t) -> IObjectMap (Obj.magic s))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create 0 in
+	let h = StringHashtbl.create () in
 	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 

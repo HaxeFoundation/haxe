@@ -38,3 +38,14 @@ l2.pop() == "33";
 var l3 = l.filter(function(i:String) return i != "2");
 l3.pop() == "1";
 l3.pop() == "3";
+
+// keyValueIterator
+var l4 = new List();
+l4.add(1);
+l4.add(2);
+l4.add(3);
+l4.add(5);
+l4.add(8);
+[for (k=>v in l4) k] == [0,1,2,3,4];
+[for (k=>v in l4) v] == [1,2,3,5,8];
+[for (k=>v in l4) k*v] == [0,2,6,15,32];

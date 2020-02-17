@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Headers>
 **/
 @:native("Headers")
-extern class Headers
-{
+extern class Headers {
 	/** @throws DOMError */
 	@:overload( function( ?init : Array<Array<String>>) : Headers {} )
 	@:overload( function( ?init : haxe.DynamicAccess<String>) : Headers {} )
@@ -44,9 +43,12 @@ extern class Headers
 		@throws DOMError
 	**/
 	function append( name : String, value : String ) : Void;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes a header from a `Headers` object.
+		@throws DOMError
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns a `ByteString` sequence of all the values of a header within a `Headers` object with a given name.

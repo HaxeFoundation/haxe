@@ -18,7 +18,7 @@ class TestResource extends Test {
 		eq( haxe.Resource.getString("re/s?!%[]))(\"'1.txt"), STR );
 		#if (neko || php ||  eval)
 		// allow binary strings
-		eq( haxe.Resource.getBytes("re/s?!%[]))(\"'1.bin").sub(0,9).toString(), "MZ\x90\x00\x03\x00\x00\x00\x04" );
+		eq( haxe.Resource.getBytes("re/s?!%[]))(\"'1.bin").sub(0,9).toHex(), "4d5a90000300000004" );
 		#else
 		// cut until first \0
 		eq( haxe.Resource.getString("re/s?!%[]))(\"'1.bin").substr(0,2), "MZ" );

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.internal.UBuiltins.list;
@@ -45,7 +46,7 @@ abstract VarArgs<T>(Dynamic) {
 	}
 
 	@:to public inline function toArray():Array<T> {
-		return if (!Std.is(raw(), Array)) list(raw()) else (raw() : Array<T>);
+		return if (!Std.isOfType(raw(), Array)) list(raw()) else (raw() : Array<T>);
 	}
 
 	@:from static inline function fromArray<T>(d:Array<T>):VarArgs<T> {

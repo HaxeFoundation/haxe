@@ -46,5 +46,6 @@ class Issue3639 extends Test {
 		hf(MyClass, "testMember_String");
 		hf(MyClass, "eachMember_IntIterator");
 		#end
+		noAssert();
 	}
 }

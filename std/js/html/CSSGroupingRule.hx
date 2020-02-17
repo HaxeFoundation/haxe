@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSGroupingRule>
 **/
 @:native("CSSGroupingRule")
-extern class CSSGroupingRule extends CSSRule
-{
+extern class CSSGroupingRule extends CSSRule {
 	var cssRules(default,null) : CSSRuleList;
 	
 	/** @throws DOMError */
-	function insertRule( rule : String, ?index : Int = 0 ) : Int;
+	function insertRule( rule : String, index : Int = 0 ) : Int;
 	/** @throws DOMError */
 	function deleteRule( index : Int ) : Void;
 }

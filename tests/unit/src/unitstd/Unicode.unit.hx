@@ -1,4 +1,4 @@
-#if !(neko || (cpp && !cppia && !hxcpp_smart_strings)) // these platforms will not be made unicode-compatible
+#if target.unicode // neko and cpp with -D disable_unicode_strings will not be made Unicode compatible
 
 
 var s = String.fromCharCode(0xE9);
@@ -10,6 +10,10 @@ var s = String.fromCharCode("あ".code);
 s == "あ";
 s.length == 1;
 s.charCodeAt(0) == "あ".code;
+
+//outside of BMP
+var s = String.fromCharCode("𠜎".code);
+s == "𠜎";
 
 var s = "aa😂éé";
 s.indexOf(String.fromCharCode(0x80))<0;
@@ -140,15 +144,9 @@ input.readString(2) == "é";
 input.readString(7) == "あ😂";
 input.readString(bytes.length - 9,RawNative) == "éあ😂";
 
-// Mixed encoding tests... mostly relevant for Eval which has both ASCII and UCS2 at run-time
-
 var s = "ée";
 var s1 = s.charAt(1);
 s1 == "e";
-#if eval
-(untyped s1.isAscii()) == true;
-(untyped s.charAt(0).isAscii()) == false;
-#end
 
 var s1 = s.substr(1, 1);
 var s2 = s.substr(1);
@@ -158,14 +156,6 @@ s1 == "e";
 s2 == "e";
 s3 == "e";
 s4 == "e";
-#if eval
-// We currently don't asciify anything we extract from UCS2 strings... not sure if this would
-// be worth it or not.
-(untyped s1.isAscii()) == false;
-(untyped s2.isAscii()) == false;
-(untyped s3.isAscii()) == false;
-(untyped s4.isAscii()) == false;
-#end
 
 var s1 = s.substring(1, 2);
 var s2 = s.substring(1);
@@ -175,12 +165,6 @@ s1 == "e";
 s2 == "e";
 s3 == "e";
 s4 == "e";
-#if eval
-(untyped s1.isAscii()) == false;
-(untyped s2.isAscii()) == false;
-(untyped s3.isAscii()) == false;
-(untyped s4.isAscii()) == false;
-#end
 
 Reflect.compare("ed", "éee".substr(1)) < 0;
 Reflect.compare("éed".substr(1), "éee".substr(1)) < 0;
@@ -188,8 +172,6 @@ Reflect.compare("éed".substr(1), "ee") < 0;
 Reflect.compare("ee", "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "ed") > 0;
-
-#if !cpp
 
 var s = "ä😂";
 s.toUpperCase() == "Ä😂";
@@ -210,8 +192,6 @@ s.toLowerCase() == "a😂";
 "σ".toUpperCase() == "Σ";
 "Σ".toLowerCase() == "σ";
 
-#end
-
 var map = new haxe.ds.StringMap();
 map.set("path", 1);
 map.get("äpath".substr(1)) == 1;
@@ -230,11 +210,18 @@ var b1 = haxe.io.Bytes.ofString(s1, RawNative);
 var s2 = b1.getString(0, b1.length, RawNative);
 s1 == s2;
 
-var obj:Dynamic = { };
+var obj:Dynamic = { abc: "ok" };
 var field = "äabc".substr(1);
-Reflect.setField(obj, field, "ok");
-obj.abc == "ok";
 Reflect.field(obj, field) == "ok";
+Reflect.hasField(obj, field) == true;
+Reflect.deleteField(obj, field) == true;
+Reflect.deleteField(obj, field) == false;
+Reflect.hasField(obj, field) == false;
+Reflect.field(obj, field) == null;
+
+var obj:Dynamic = { };
+Reflect.setField(obj, field, "still ok");
+Reflect.field(obj, field) == "still ok";
 Reflect.hasField(obj, field) == true;
 Reflect.deleteField(obj, field) == true;
 Reflect.deleteField(obj, field) == false;
@@ -243,9 +230,11 @@ Reflect.field(obj, field) == null;
 
 // EReg -_-
 
-function test(left:String, middle:String, right:String) {
+function test(left:String, middle:String, right:String, ?rex:EReg) {
 	var s = '$left:$middle:$right';
-	var rex = new EReg(':($middle):', "");
+	if (rex == null) {
+		rex = new EReg(':($middle):', "");
+	}
 	function check(rex:EReg) {
 		eq(rex.matchedLeft(), left);
 		eq(rex.matchedRight(), right);
@@ -277,7 +266,6 @@ function test(left:String, middle:String, right:String) {
 	}), '${left}ä$right');
 }
 
-#if !(lua || cpp || flash)
 test("äb", "ä", "bc");
 test("äb", "a", "bc");
 test("ab", "a", "bc");
@@ -293,10 +281,30 @@ test("あb", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "あbc", "bc");
 
+#if !flash
+// wontfix (cantfix?)
 test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
 #end
 
+#if (eval || lua || python)
+// unspecced?
+test("()", "ä", "[]", ~/:(\w):/);
+~/\bx/.match("äx") == false;
+~/x\b/.match("xä") == false;
 #end
+
+test("a", "É", "b", ~/:(é):/i);
+test("a", "é", "b", ~/:(É):/i);
+
+#else
+1 == 1;
+#end
+
+//Border values for surrogate pairs
+"𐀀".code == 65536; //D800,DC00 - U+10000
+"𐏿".code == 66559; //D800,DFFF - U+103FF
+"􏰀".code == 1113088; //DBFF,DC00 - U+10FC00
+"􏿿".code == 1114111; //DBFF,DFFF - U+10FFFF

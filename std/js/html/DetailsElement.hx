@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDetailsElement>
 **/
 @:native("HTMLDetailsElement")
-extern class DetailsElement extends Element
-{
+extern class DetailsElement extends Element {
 	
 	/**
 		Is a `boolean` reflecting the `open` HTML attribute, indicating whether or not the element’s contents (not counting the `summary`) is to be shown to the user.

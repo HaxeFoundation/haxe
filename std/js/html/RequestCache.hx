@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,8 @@
 
 package js.html;
 
-enum abstract RequestCache(String)
-{
-	var DEFAULT_ = "default";
+enum abstract RequestCache(String) {
+	var DEFAULT = "default";
 	var NO_STORE = "no-store";
 	var RELOAD = "reload";
 	var NO_CACHE = "no-cache";

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -22,6 +22,11 @@ open Common
 open Type
 open Globals
 
+type dce_mode =
+	| DceNo
+	| DceStd
+	| DceFull
+
 type dce = {
 	com : context;
 	full : bool;
@@ -37,6 +42,13 @@ type dce = {
 	mutable ts_stack : t list;
 	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 }
+
+let push_class dce c =
+	let old = dce.curclass in
+	dce.curclass <- c;
+	(fun () ->
+		dce.curclass <- old
+	)
 
 (* checking *)
 
@@ -66,9 +78,11 @@ let overrides_extern_field cf c =
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
 
+let keep_metas = [Meta.Keep;Meta.Expose]
+
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
-	Meta.has Meta.Keep c.cl_meta
+	Meta.has_one_of keep_metas c.cl_meta
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
@@ -80,8 +94,14 @@ let keep_whole_class dce c =
 		| _ -> false)
 
 let keep_whole_enum dce en =
-	Meta.has Meta.Keep en.e_meta
+	Meta.has_one_of keep_metas en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
+
+let mk_used_meta pos =
+	Meta.Used,[],(mk_zero_range_pos pos)
+
+let mk_keep_meta pos =
+	Meta.Keep,[],(mk_zero_range_pos pos)
 
 (*
 	Check if a field is kept.
@@ -89,8 +109,7 @@ let keep_whole_enum dce en =
 	And then it is used at the end to check which fields can be filtered from their classes.
 *)
 let rec keep_field dce cf c is_static =
-	Meta.has Meta.Keep cf.cf_meta
-	|| Meta.has Meta.Used cf.cf_meta
+	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
 	|| (not is_static && overrides_extern_field cf c)
@@ -100,6 +119,19 @@ let rec keep_field dce cf c is_static =
 			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
 			| _ -> false
 	)
+	|| begin
+		let check_accessor prefix =
+			try
+				let fields = if is_static then c.cl_statics else c.cl_fields in
+				let accessor = PMap.find (prefix ^ cf.cf_name) fields in
+				keep_field dce accessor c is_static
+			with Not_found -> false
+		in
+		match cf.cf_kind with
+		| Var { v_read = AccCall } -> check_accessor "get_"
+		| Var { v_write = AccCall } -> check_accessor "set_"
+		| _ -> false
+	end
 
 (* marking *)
 
@@ -115,13 +147,14 @@ let rec check_feature dce s =
 
 and check_and_add_feature dce s =
 	check_feature dce s;
+	assert (dce.curclass != null_class);
 	Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
 
 (* mark a field as kept *)
 and mark_field dce c cf stat =
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
-			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
+			cf.cf_meta <- (mk_used_meta cf.cf_pos) :: cf.cf_meta;
 			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields;
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
@@ -152,6 +185,7 @@ and mark_field dce c cf stat =
 	end
 
 let rec update_marked_class_fields dce c =
+	let pop = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf true
@@ -162,29 +196,26 @@ let rec update_marked_class_fields dce c =
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
-	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup)
+	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup);
+	pop()
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
-	c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+	c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
-	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
-
-	(* do not generate has_enum feature for @:fakeEnum enums since they are not really enums *)
-	if not (Meta.has Meta.FakeEnum e.e_meta) then
-		check_and_add_feature dce "has_enum";
-
+	e.e_meta <- (mk_used_meta e.e_pos) :: e.e_meta;
+	check_and_add_feature dce "has_enum";
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
 and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
-	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
+	a.a_meta <- (mk_used_meta a.a_pos) :: a.a_meta
 end
 
 (* mark a type as kept *)
@@ -194,7 +225,7 @@ and mark_t dce p t =
 		begin match follow t with
 		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
-				c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
 				List.iter (mark_t dce p) tl;
 			end;
 			List.iter (mark_t dce p) pl
@@ -276,7 +307,7 @@ let rec to_string dce t = match t with
 		else
 			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> to_string dce t
 		| _ -> ())
 	| TLazy f ->
@@ -413,11 +444,12 @@ and expr_field dce e fa is_call_expr =
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
 			| _ -> ());
-			begin match follow e.etype with
-				| TInst(c,_) ->
+			begin match follow e.etype, fa with
+				| TInst(c,_), _
+				| _, FClosure (Some (c, _), _) ->
 					mark_class dce c;
 					field dce c n false;
-				| TAnon a ->
+				| TAnon a, _ ->
 					(match !(a.a_status) with
 					| Statics c ->
 						mark_class dce c;
@@ -655,36 +687,11 @@ let fix_accessors com =
 		| _ -> ()
 	) com.types
 
-let run com main full =
-	let dce = {
-		com = com;
-		full = full;
-		dependent_types = Hashtbl.create 0;
-		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
-		debug = Common.defined com Define.DceDebug;
-		added_fields = [];
-		follow_expr = expr;
-		marked_fields = [];
-		marked_maybe_fields = [];
-		t_stack = [];
-		ts_stack = [];
-		features = Hashtbl.create 0;
-		curclass = null_class;
-	} in
-	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
-			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
-		| _ ->
-			()
-	end;
-	List.iter (fun m ->
-		List.iter (fun (s,v) ->
-			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
-			else Hashtbl.add dce.features s [v]
-		) m.m_extra.m_if_feature;
-	) com.modules;
-	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
-	List.iter (fun t -> match t with
+let collect_entry_points dce com =
+	List.iter (fun t ->
+		let mt = t_infos t in
+		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
+		match t with
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
 			let loop stat cf =
@@ -706,7 +713,9 @@ let run com main full =
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
-			mark_enum dce en
+			let pop = push_class dce {null_class with cl_module = en.e_module} in
+			mark_enum dce en;
+			pop()
 		| _ ->
 			()
 	) com.types;
@@ -715,8 +724,9 @@ let run com main full =
 			| None -> ()
 			| Some _ -> print_endline ("[DCE] Entry point: " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name)
 		) dce.added_fields;
-	end;
-	(* second step: initiate DCE passes and keep going until no new fields were added *)
+	end
+
+let mark dce =
 	let rec loop () =
 		match dce.added_fields with
 		| [] -> ()
@@ -726,21 +736,24 @@ let run com main full =
 			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
 			(* mark fields as used *)
 			List.iter (fun (c,cf,stat) ->
+				let pop = push_class dce c in
 				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
-				mark_t dce cf.cf_pos cf.cf_type
+				mark_t dce cf.cf_pos cf.cf_type;
+				pop()
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				dce.curclass <- c;
+				let pop = push_class dce c in
 				opt (expr dce) cf.cf_expr;
 				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-				dce.curclass <- null_class
+				pop();
 			) cfl;
 			loop ()
 	in
-	loop ();
-	(* third step: filter types *)
+	loop ()
+
+let sweep dce com =
 	let rec loop acc types =
 		match types with
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
@@ -772,7 +785,7 @@ let run com main full =
 				end;
 			in
 			(* add :keep so subsequent filter calls do not process class fields again *)
-			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
+			c.cl_meta <- (mk_keep_meta c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf c true in
 				if not b then begin
@@ -815,7 +828,46 @@ let run com main full =
 		| [] ->
 			acc
 	in
-	com.types <- loop [] (List.rev com.types);
+	com.types <- loop [] (List.rev com.types)
+
+let run com main mode =
+	let full = mode = DceFull in
+	let dce = {
+		com = com;
+		full = full;
+		dependent_types = Hashtbl.create 0;
+		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
+		debug = Common.defined com Define.DceDebug;
+		added_fields = [];
+		follow_expr = expr;
+		marked_fields = [];
+		marked_maybe_fields = [];
+		t_stack = [];
+		ts_stack = [];
+		features = Hashtbl.create 0;
+		curclass = null_class;
+	} in
+	begin match main with
+		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
+			cf.cf_meta <- (mk_keep_meta cf.cf_pos) :: cf.cf_meta
+		| _ ->
+			()
+	end;
+	List.iter (fun m ->
+		List.iter (fun (s,v) ->
+			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
+			else Hashtbl.add dce.features s [v]
+		) m.m_extra.m_if_feature;
+	) com.modules;
+
+	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
+	collect_entry_points dce com;
+
+	(* second step: initiate DCE passes and keep going until no new fields were added *)
+	mark dce;
+
+	(* third step: filter types *)
+	if mode <> DceNo then sweep dce com;
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	fix_accessors com;
@@ -847,10 +899,5 @@ let run com main full =
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	let rec remove_meta m = function
-		| [] -> []
-		| (m2,_,_) :: l when m = m2 -> l
-		| x :: l -> x :: remove_meta m l
-	in
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
+	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.Used cf.cf_meta) dce.marked_fields;
+	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
