@@ -455,7 +455,7 @@ let process_display_configuration ctx =
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
-				(fun msg p -> message ctx (CMWarning(msg,p)));
+				warning ctx;
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
