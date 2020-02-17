@@ -36,6 +36,9 @@ open JvmBuilder
 
 (* hacks *)
 
+let is_really_int t =
+	not (is_nullable t) && ExtType.is_int (follow t)
+
 let rec pow a b = match b with
 	| 0 -> Int32.one
 	| 1 -> a
@@ -1276,12 +1279,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| OpAssignOp op ->
 			let jsig1 = jsignature_of_type e1.etype in
 			begin match op,(Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
-			| OpAdd,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
+			| OpAdd,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
 				let slot,load,_ = self#get_local v in
 				let i = Int32.to_int i32 in
 				code#iinc slot i;
 				if ret <> RVoid then load();
-			| OpSub,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
+			| OpSub,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
 				let slot,load,_ = self#get_local v in
 				let i = -Int32.to_int i32 in
 				code#iinc slot i;
@@ -1299,7 +1302,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method unop ret op flag e =
 		match op,(Texpr.skip e).eexpr with
-		| (Increment | Decrement),TLocal v when ExtType.is_int v.v_type && self#var_slot_is_in_int8_range v ->
+		| (Increment | Decrement),TLocal v when is_really_int v.v_type && self#var_slot_is_in_int8_range v ->
 			let slot,load,_ = self#get_local v in
 			if flag = Postfix && ret <> RVoid then load();
 			code#iinc slot (if op = Increment then 1 else -1);
