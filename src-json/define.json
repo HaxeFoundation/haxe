@@ -11,15 +11,15 @@
 		"platforms": ["flash"]
 	},
 	{
+		"name": "AnalyzerOptimize",
+		"define": "analyzer_optimize",
+		"doc": "Perform advanced optimizations."
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate_source",
 		"doc": "Add additional comments to generated source code.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "As3",
-		"define": "as3",
-		"doc": "Defined when outputting flash9 as3 source code."
 	},
 	{
 		"name": "CheckXmlProxy",
@@ -112,6 +112,11 @@
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
+		"name": "DumpPath",
+		"define": "dump_path",
+		"doc": "Path to generate dumps to (default: \"dump\")."
+	},
+	{
 		"name": "DumpDependencies",
 		"define": "dump_dependencies",
 		"doc": "Dump the classes dependencies in a dump subdirectory."
@@ -157,6 +162,11 @@
 		"define": "eval_times",
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval_stack.",
 		"platforms": ["eval"]
+	},
+	{
+		"name": "FilterTimes",
+		"define": "filter_times",
+		"doc": "Record per-filter execution times upon --times."
 	},
 	{
 		"name": "FastCast",
@@ -299,20 +309,20 @@
 	{
 		"name": "JsSourceMap",
 		"define": "js_source_map",
-		"doc": "Generate JavaScript source map even in non-debug mode.",
+		"doc": "Generate JavaScript source map even in non-debug mode. Deprecated in favor of `-D source_map`.",
 		"platforms": ["js"]
+	},
+	{
+		"name": "SourceMap",
+		"define": "source_map",
+		"doc": "Generate source map for compiled files.",
+		"platforms": ["php", "js"]
 	},
 	{
 		"name": "Jvm",
 		"define": "jvm",
 		"doc": "Generate jvm directly.",
 		"platforms": ["java"]
-	},
-	{
-		"name": "SourceMap",
-		"define": "source_map",
-		"doc": "Generate source map for compiled files.",
-		"platforms": ["php"]
 	},
 	{
 		"name": "KeepOldOutput",
@@ -544,6 +554,12 @@
 		"name": "Static",
 		"define": "static",
 		"doc": "Defined if the current target is static."
+	},
+	{
+		"name": "StdEncodingUtf8",
+		"define": "std-encoding-utf8",
+		"doc": "Force utf8 encoding for stdin, stdout and stderr",
+		"platforms": ["java", "cs", "python"]
 	},
 	{
 		"name": "Swc",

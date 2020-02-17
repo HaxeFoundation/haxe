@@ -63,15 +63,19 @@ extern class Array<T> {
 	}
 
 	@:runtime inline function map<S>(f:T->S):Array<S> {
-		return [for (v in this) f(v)];
+		var result:Array<S> = js.Syntax.construct(Array, length);
+		for(i in 0...length) {
+			result[i] = f(this[i]);
+		}
+		return result;
 	}
 
 	@:runtime inline function filter(f:T->Bool):Array<T> {
 		return [for (v in this) if (f(v)) v];
 	}
 
-	@:runtime inline function iterator():Iterator<T> {
-		return @:privateAccess HxOverrides.iter(this);
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	inline function resize(len:Int):Void {

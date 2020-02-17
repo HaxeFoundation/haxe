@@ -34,6 +34,10 @@ let create_with_length s length = {
 	soffsets = [];
 }
 
+let empty_string = create_ascii ""
+
+let v_empty_string = VString empty_string
+
 let create_unknown s =
 	vstring (create_with_length s (try UTF8.length s with _ -> String.length s))
 
@@ -184,7 +188,7 @@ let char_at s c_index =
 	char
 
 let string_of_char_code i =
-	UTF8.init 1 (fun _ ->  UChar.uchar_of_int i)
+	UTF8.init 1 (fun _ ->  UCharExt.uchar_of_int i)
 
 let from_char_code i =
 	create_with_length (string_of_char_code i) 1
@@ -239,11 +243,11 @@ let case_map this upper =
 	let buf = UTF8.Buf.create 0 in
 	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
 	UTF8.iter (fun uc ->
-		let c = UChar.int_of_uchar uc in
+		let c = UCharExt.int_of_uchar uc in
 		let up = c lsr 6 in
 		let uc = if up < m then begin
 			let c = a.(up).(c land ((1 lsl 6) - 1)) in
-			if c <> 0 then UChar.uchar_of_int c
+			if c <> 0 then UCharExt.uchar_of_int c
 			else uc
 		end else
 			uc

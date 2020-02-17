@@ -30,17 +30,29 @@ import sys.io.FileOutput;
 import sys.net.Host;
 
 class Socket extends sys.net.Socket {
+	var connected = false;
+	var timeout:Null<Float> = null;
+
 	public function new():Void {
 		super();
 		protocol = "tcp";
 	}
 
-	override private function assignHandler():Void {
+	override function initSocket():Void {
+		// do not init socket with `socket_*` functions, because we will use streams instead.
+	}
+
+	override function assignHandler():Void {
 		@:privateAccess (cast input : FileInput).__f = __s;
 		@:privateAccess (cast output : FileOutput).__f = __s;
+		connected = true;
+		if (timeout != null) {
+			setTimeout(timeout);
+		}
 	}
 
 	override public function close():Void {
+		connected = false;
 		fclose(__s);
 		@:privateAccess (cast input : FileInput).__f = null;
 		@:privateAccess (cast output : FileOutput).__f = null;
@@ -123,6 +135,10 @@ class Socket extends sys.net.Socket {
 	}
 
 	override public function setTimeout(timeout:Float):Void {
+		if (!connected) {
+			this.timeout = timeout;
+			return;
+		}
 		var s = Std.int(timeout);
 		var ms = Std.int((timeout - s) * 1000000);
 		var r = stream_set_timeout(__s, s, ms);

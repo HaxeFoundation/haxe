@@ -237,7 +237,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TSwitch (e1,cases,def) ->
 		let e = match Texpr.skip e1 with
-			| {eexpr = TConst ct} as e1 ->
+			| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
 				let rec loop cases = match cases with
 					| (el,e) :: cases ->
 						if List.exists (Texpr.equal e1) el then e
@@ -264,6 +264,15 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| TEnumParameter({eexpr = TParenthesis {eexpr = TCall({eexpr = TField(_,FEnum(_,ef1))},el)}},ef2,i)
 		when ef1 == ef2 && check_enum_construction_args el i ->
 		(try List.nth el i with Failure _ -> e)
+	| TCast(e1,None) ->
+		(* TODO: figure out what's wrong with these targets *)
+		let require_cast = match ctx.com.platform with
+			| Cpp | Flash -> true
+			| Java -> defined ctx.com Define.Jvm
+			| Cs -> defined ctx.com Define.EraseGenerics || defined ctx.com Define.FastCast
+			| _ -> false
+		in
+		Texpr.reduce_unsafe_casts ~require_cast e e.etype
 	| _ ->
 		e
 
@@ -282,11 +291,12 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
+					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
-					let inl = (try type_inline ctx cf tf ef el rt None e.epos false with Error (Custom _,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_) -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
 					| Some e ->

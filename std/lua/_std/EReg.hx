@@ -24,7 +24,7 @@ import lua.Table;
 import lua.Lib;
 import lua.lib.lrexlib.Rex;
 // Note - lrexlib gives ascii-based offsets.  Use native string tools.
-import lua.NativeStringTools;
+import lua.NativeStringTools.*;
 
 @:coreApi
 class EReg {
@@ -61,9 +61,13 @@ class EReg {
 	}
 
 	public function match(s:String):Bool {
+		return matchFromByte(s, 1);
+	}
+
+	inline function matchFromByte(s:String, offset:Int):Bool {
 		if (s == null)
 			return false;
-		this.m = lua.TableTools.pack(r.exec(s));
+		this.m = lua.TableTools.pack(r.exec(s, offset));
 		this.s = s;
 		return m[1] != null;
 	}
@@ -72,13 +76,13 @@ class EReg {
 		if (m[1] == null || n < 0)
 			throw "EReg::matched";
 		else if (n == 0) {
-			var k = NativeStringTools.sub(s, m[1], m[2]).match;
+			var k = sub(s, m[1], m[2]).match;
 			return k;
-		} else if (Std.is(m[3], lua.Table)) {
+		} else if (Std.isOfType(m[3], lua.Table)) {
 			var mn = 2 * (n - 1);
-			if (Std.is(untyped m[3][mn + 1], Bool))
+			if (Std.isOfType(untyped m[3][mn + 1], Bool))
 				return null;
-			return NativeStringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]).match;
+			return sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]).match;
 		} else {
 			throw "EReg:matched";
 		}
@@ -87,13 +91,13 @@ class EReg {
 	public function matchedLeft():String {
 		if (m[1] == null)
 			throw "No string matched";
-		return NativeStringTools.sub(s, 1, m[1] - 1).match;
+		return sub(s, 1, m[1] - 1).match;
 	}
 
 	public function matchedRight():String {
 		if (m[1] == null)
 			throw "No string matched";
-		return NativeStringTools.sub(s, m[2] + 1).match;
+		return sub(s, m[2] + 1).match;
 	}
 
 	public function matchedPos():{pos:Int, len:Int} {
@@ -145,6 +149,33 @@ class EReg {
 	}
 
 	public function map(s:String, f:EReg->String):String {
+		var bytesOffset = 1;
+		var buf = new StringBuf();
+		do {
+			if (bytesOffset > len(s)) {
+				break;
+			} else if (!matchFromByte(s, bytesOffset)) {
+				buf.add(sub(s, bytesOffset).match);
+				break;
+			}
+			var pos = m[1];
+			var length = m[2] - m[1];
+			buf.add(sub(s, bytesOffset, pos - 1).match);
+			buf.add(f(this));
+			if (length < 0) {
+				var charBytes = len(sub(s, pos).match.charAt(0));
+				buf.add(sub(s, pos, pos + charBytes - 1).match);
+				bytesOffset = pos + charBytes;
+			} else {
+				bytesOffset = m[2] + 1;
+			}
+		} while (global);
+		if (!global && bytesOffset > 1 && bytesOffset - 1 < len(s))
+			buf.add(sub(s, bytesOffset).match);
+		return buf.toString();
+	}
+
+	function map_old(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {

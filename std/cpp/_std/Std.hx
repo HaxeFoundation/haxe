@@ -21,12 +21,16 @@
  */
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
-	@:keep public static function is(v:Dynamic, t:Dynamic):Bool {
+	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		return untyped __global__.__instanceof(v, t);
 	}
 
 	@:keep public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Std.is(value, c) ? cast value : null;
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')

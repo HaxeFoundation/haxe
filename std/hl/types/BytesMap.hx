@@ -61,6 +61,11 @@ abstract BytesMap(BytesMapData) {
 		return null;
 	}
 
+	#if (hl_ver >= version("1.11.0"))
+	@:hlNative("std", "hbclear")
+	public function clear():Void {}
+	#end
+
 	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}

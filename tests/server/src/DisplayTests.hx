@@ -1,3 +1,4 @@
+import haxe.display.Protocol;
 import haxe.PosInfos;
 import haxe.display.Server;
 import utest.Assert;
@@ -229,191 +230,168 @@ typedef Foo = {
 		});
 	}
 
-	function complete<S, T>(content:String, markerIndex:Int, cb:(response:CompletionResponse<S, T>, markers:Map<Int, Int>) -> Void) {
+	function testIssue8732() {
+		var content = "class Main { static function main() { var ident = \"foo\"; {-1-}i{-2-}dent.{-3-} } }";
+		vfs.putContent("Main.hx", content);
 		var transform = Marker.extractMarkers(content);
 		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[markerIndex], wasAutoTriggered: true}, function() {
-			var result = parseCompletion();
-			cb(result.result, transform.markers);
+		runHaxeJson([], Methods.Initialize, {maxCompletionItems: 50});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[2], wasAutoTriggered: true});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[3], wasAutoTriggered: true});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
+		var result = parseCompletion();
+		assertHasNoCompletion(result, item -> switch (item.kind) {
+			case ClassField: item.args.field.name == "charAt";
+			case _: false;
 		});
 	}
 
-	function checkReplaceRange<S, T>(markers:Map<Int, Int>, startIndex:Int, endIndex:Int, response:CompletionResponse<S, T>, ?p:PosInfos) {
-		equals(markers[startIndex], response.replaceRange.start.character, p);
-		equals(markers[endIndex], response.replaceRange.end.character, p);
+	function testIssue8805_gotoAbstractPropertyWithInlineGetter() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8805/Main.hx"));
+		var args = ["-main", "Main"];
+		runHaxeJson(args, DisplayMethods.GotoDefinition, {file: new FsPath("Main.hx"), offset: 56});
+		var result = parseGotoDefinition();
+		if(result.result.length == 0) {
+			Assert.fail('display/definition failed');
+		} else {
+			Assert.same({"start":{"line":7, "character":12}, "end":{"line":7, "character":15}}, result.result[0].range);
+		}
 	}
 
-	function testIssue8669_type() {
-		complete("{-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+	function testIssue8992() {
+		var mainHx = Marker.extractMarkers('class Main {
+	static func{-1-}tion main() {
+	}
+}');
+		vfs.putContent("Main.hx", mainHx.source);
 
-		complete("{-1-}cl{-2-}", 2);
-		equals("cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+		runHaxe(["--no-output", "-main", "Main"]);
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: mainHx.markers[1]});
+
+		var result = parseHover().result;
+		Assert.isNull(result);
 	}
 
-	function testIssue8669_modifier() {
-		complete("extern {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+	function testIssue8991() {
+		var mainHx = 'class Main {
+	static function main() {
+		C.inst{-1-}ance;
+	}
+}';
+		var cHx = 'class C {
+	public static var instance:Int;
+}';
+		var mainHx = Marker.extractMarkers(mainHx);
+		vfs.putContent("Main.hx", mainHx.source);
+		vfs.putContent("C.hx", cHx);
 
-		complete("extern {-1-}cl{-2-}", 2);
-		equals("cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+		runHaxe(["--no-output", "-main", "Main"]);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("C.hx")});
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: mainHx.markers[1]});
+
+		var result = parseHover().result;
+		Assert.equals(DisplayItemKind.ClassField, result.item.kind);
 	}
 
-	function testIssue8669_extends() {
-		complete("class C extends {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+	function testIssue9012() {
+		vfs.putContent("Some.hx", "class Some { public static function func():String return 'hello'; }");
 
-		complete("class C extends {-1-}Cl{-2-}", 2);
-		equals("Cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+		var content = "import Some.func; class Main { static function main() { fu{-1-}nc(); } }";
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
 
-		complete("class C {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+		runHaxe(["--no-output", "-main", "Main"]); // commenting this makes it work
+		runHaxeJson([], DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.markers[1]});
+		var result = parseHover().result;
 
-		complete("class C {-1-}ex{-2-}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("ex", response.filterString);
-
-		complete("class C {-1-}ext{-2-} {}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("ext", response.filterString);
+		Assert.equals(DisplayItemKind.ClassField, result.item.kind);
 	}
 
-	function testIssue8669_implements() {
-		complete("class C implements {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+	function testIssue9039() {
+		vfs.putContent("I.hx", "interface I { var prop(get,never):Int; }");
+		vfs.putContent("Main.hx", "class Main { static function main() { var i:I = null; } }");
 
-		complete("class C implements {-1-}Cl{-2-}", 2);
-		equals("Cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+		runHaxe(["--no-output", "-main", "Main"]);
 
-		complete("class C {-1-} {}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+		var content = "class Main { static function main() { var i:I = null; i.{-1-} } }";
+		var transform = Marker.extractMarkers(content);
 
-		complete("class C {-1-}impl{-2-} {}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("impl", response.filterString);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+
+		assertHasNoCompletion(parseCompletion(), function(item) {
+			return switch item.kind {
+				case ClassField: item.args.field.name == "get_prop";
+				case _: false;
+			}
+		});
 	}
 
-	function testIssue8669_import() {
-		complete("import {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("import {-1-}Cl{-2-}", 2);
-		// equals("Cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+	function testIssue9047() {
+		var transform = Marker.extractMarkers("interface Main { var field(never,s{-1-}et):Int; }");
+		vfs.putContent("Main.hx", transform.source);
+		var args = ["Main", "-js", "main.js"];
+		function parseGotoDefintion():GotoDefinitionResult {
+			return haxe.Json.parse(lastResult.stderr).result;
+		}
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
+		runHaxeJson(args, DisplayMethods.FindReferences, {file: new FsPath("Main.hx"), offset: transform.markers[1], contents: transform.source});
+		Assert.same([], parseGotoDefintion().result);
 	}
 
-	function testIssue8669_using() {
-		complete("using {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
+	function testIssue9082() {
+		var args = ["-cp", ".", "--interp"];
 
-		complete("using {-1-}Cl{-2-}", 2);
-		// equals("Cl", response.filterString);
-		checkReplaceRange(markers, 1, 2, response);
+		vfs.putContent("org/Thing.hx", "package org; class Thing {}");
+		vfs.putContent("AThing.hx", "class AThing {}");
+		vfs.putContent("ThingB.hx", "class ThingB {}");
+		runHaxeJson(args, Methods.Initialize, {maxCompletionItems: 2});
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+
+		var transform = Marker.extractMarkers("class C extends Thing{-1-}");
+		vfs.putContent("C.hx", transform.source);
+		runHaxeJson(args, DisplayMethods.Completion, {
+			file: new FsPath("C.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, function(item) {
+			return switch item {
+				case {kind: Type, args: {path: {pack: ["org"], typeName: "Thing"}}}: true;
+				case _: false;
+			}
+		});
 	}
 
-	function testIssue8669_to() {
-		complete("abstract A(String) to {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("abstract A(String) to {-1-} { }", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("abstract A(String) to {-1-}Cl{-2-}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-
-		complete("abstract A(String) to {-1-}Cl{-2-} { }", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-	}
-
-	function testIssue8669_from() {
-		complete("abstract A(String) from {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("abstract A(String) from {-1-} { }", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("abstract A(String) from {-1-}Cl{-2-}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-
-		complete("abstract A(String) from {-1-}Cl{-2-} { }", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-	}
-
-	function testIssue8669_structuralExtension() {
-		complete("typedef Main = { } & {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("typedef Main = { } & {-1-}Cl{-2-}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-
-		complete("typedef Main = { > {-1-}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete("typedef Main = { > {-1-}Cl{-2-}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-	}
-
-	function testIssue8669_fields() {
-		complete('class Main { static function main() "".{-1-}', 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete('class Main { static function main() "".{-1-}char', 1);
-		checkReplaceRange(markers, 1, 1, response);
-
-		complete('class Main { static function main() "".{-1-}char{-2-}', 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("char", response.filterString);
-	}
-
-	function testIssue8669_override() {
-		complete("import haxe.io.Bytes; class Main extends Bytes { static function main() { } override {-1-}}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-		equals("", response.filterString);
-
-		complete("import haxe.io.Bytes; class Main extends Bytes { static function main() { } override {-1-}get{-2-}}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("get", response.filterString);
-	}
-
-	function testIssue8669_typedef() {
-		complete("typedef Foo = {-1-}
-		", 1);
-		checkReplaceRange(markers, 1, 1, response);
-		equals("", response.filterString);
-
-		complete("typedef Foo = {-1-}Cl{-2-}
-		", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-	}
-
-	function testIssue8669_typehint() {
-		complete("class Main { static function main() { var t:{-1-} }}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-		equals("", response.filterString);
-
-		complete("class Main { static function main() { var t:{-1-}Cl{-2-} }}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
-	}
-
-	function testIssue8669_typeParameter() {
-		complete("class Main { static function main() { var t:{-1-} }}", 1);
-		checkReplaceRange(markers, 1, 1, response);
-		equals("", response.filterString);
-
-		complete("class Main { static function main() { var t:{-1-}Cl{-2-} }}", 2);
-		checkReplaceRange(markers, 1, 2, response);
-		equals("Cl", response.filterString);
+	function testIssue9087() {
+		var content = getTemplate("issues/Issue9087/A.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("A.hx", transform.source);
+		var args = ["A", "-js", "main.js"];
+		function parseGotoDefintion():GotoDefinitionResult {
+			return haxe.Json.parse(lastResult.stderr).result;
+		}
+		runHaxeJson(args, DisplayMethods.GotoImplementation, {file: new FsPath("A.hx"), offset: transform.markers[1], contents: transform.source});
+		var result = parseGotoDefintion().result;
+		// TODO: We should use the markers, but I forgot how to get lines and characters from offsets
+		// Also That Assert.same doesn't work
+		Assert.equals(9, result[0].range.start.line);
+		Assert.equals(19, result[0].range.start.character);
+		Assert.equals(9, result[0].range.end.line);
+		Assert.equals(23, result[0].range.end.character);
+		// Assert.same([
+		// 	{
+		// 		range: {
+		// 			start: {line: 9, character: 1},
+		// 			end: {line: 11, character: 2}
+		// 		}
+		// 	}
+		// ], result);
 	}
 }

@@ -33,7 +33,7 @@ type ctx = {
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
     mutable current : tclass;
-    mutable statics : (tclass * string * texpr) list;
+    mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
     mutable tabs : string;
     mutable in_value : tvar option;
@@ -406,6 +406,7 @@ and gen_call ctx e el =
          gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
+     | TField (_, FStatic ({ cl_path = (["_G"],"table")}, { cf_name = "create" })), el
      | TIdent "__lua_table__", el ->
          let count = ref 0 in
          spr ctx "({";
@@ -916,8 +917,8 @@ and gen_expr ?(local=true) ctx e = begin
     | TWhile (cond,e,Ast.NormalWhile) ->
         gen_loop ctx "while" cond e
     | TWhile (cond,e,Ast.DoWhile) ->
-        println ctx "while true do ";
         gen_block_element ctx e;
+        newline ctx;
         gen_loop ctx "while" cond e
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
@@ -1541,7 +1542,7 @@ let gen_class_static_field ctx c f =
             newline ctx;
             (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; newline ctx) | _ -> ());
         | _ ->
-            ctx.statics <- (c,f.cf_name,e) :: ctx.statics
+            ctx.statics <- (c,f,e) :: ctx.statics
 
 let gen_class_field ctx c f =
     let p = s_path ctx c.cl_path in
@@ -1769,9 +1770,13 @@ let generate_enum ctx e =
     end
 
 let generate_static ctx (c,f,e) =
-    print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
+    let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name)
+    and path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+    print ctx "%s = " path;
     gen_value ctx e;
     semicolon ctx;
+    newline ctx;
+    (match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; semicolon ctx) | _ -> ());
     newline ctx
 
 let generate_enumMeta_fields ctx = function
@@ -2055,10 +2060,13 @@ let generate com =
     List.iter (transform_multireturn ctx) com.types;
     List.iter (generate_type ctx) com.types;
 
-    if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-        print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
+    (* If bit ops are manually imported include the haxe wrapper for them *)
+    if has_feature ctx "use._bitop" then begin
         print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
     end;
+
+    (* integer clamping is always required, and will use bit ops if available *)
+    print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";

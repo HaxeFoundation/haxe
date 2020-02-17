@@ -234,7 +234,12 @@ and type_param = {
 	tp_meta : metadata;
 }
 
-and documentation = string option
+and doc_block = {
+	doc_own: string option;
+	mutable doc_inherited: (unit -> (string option)) list
+}
+
+and documentation = doc_block option
 
 and metadata_entry = (Meta.strict_meta * expr list * pos)
 and metadata = metadata_entry list
@@ -324,15 +329,33 @@ type type_decl = type_def * pos
 type package = string list * type_decl list
 
 let is_lower_ident i =
-	let rec loop p =
-		match String.unsafe_get i p with
-		| 'a'..'z' -> true
-		| '_' -> if p + 1 < String.length i then loop (p + 1) else true
-		| _ -> false
-	in
-	loop 0
+	if String.length i = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get i p with
+			| 'a'..'z' -> true
+			| '_' -> p + 1 >= String.length i || loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let pos = snd
+
+let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
+
+let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
+
+let gen_doc_text d =
+	let docs =
+		match d.doc_own with Some s -> [s] | None -> []
+	in
+	String.concat "\n" docs
+
+
+let gen_doc_text_opt = Option.map gen_doc_text
+
+let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
@@ -542,7 +565,7 @@ let unescape s =
 					in
 					if u >= 0xD800 && u < 0xE000 then
 						fail (Some "UTF-16 surrogates are not allowed in strings.");
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					UTF8.add_uchar b (UCharExt.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
 					fail None);
@@ -802,7 +825,7 @@ module Printer = struct
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
 		match f.cff_doc with
-		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
+		| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
 		| None -> "" ^
 		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
 		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^

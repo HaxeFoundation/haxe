@@ -6,8 +6,8 @@ import haxe.io.Path;
 using StringTools;
 
 typedef Result = {
-	count: Int,
-	failures: Int
+	count:Int,
+	failures:Int
 }
 
 class Main {
@@ -28,7 +28,7 @@ class Main {
 			for (file in dir) {
 				var path = Path.join([dirPath, file]);
 				if (FileSystem.isDirectory(path)) {
-					if(path.endsWith('.disabled')) {
+					if (path.endsWith('.disabled')) {
 						Sys.println('Skipping $path');
 					} else {
 						browse(path);
@@ -67,8 +67,7 @@ class Main {
 	}
 
 	static function normPath(_, p:String, properCase = false):String {
-		if (Sys.systemName() == "Windows")
-		{
+		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
@@ -94,7 +93,7 @@ class Main {
 		var exit = proc.exitCode();
 		var success = exit == 0;
 		// 124 - exit code of linux `timeout` command in case it actually timed out
-		if(exit == 124) {
+		if (exit == 124) {
 			Sys.println('Timeout. No response in ${Compiler.getDefine('timeout')} seconds.');
 		}
 		var result = switch [success, expectFailure] {
@@ -115,11 +114,9 @@ class Main {
 			Sys.println(stdout);
 		}
 
-		if (result && expectStderr != null)
-		{
+		if (result && expectStderr != null) {
 			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
-			if (stderr != expectStderr.trim())
-			{
+			if (stderr != expectStderr.trim()) {
 				Sys.println("Actual stderr output doesn't match the expected one");
 				Sys.println('Expected:\n"$expectStderr"');
 				Sys.println('Actual:\n"$stderr"');
@@ -128,6 +125,5 @@ class Main {
 		}
 		proc.close();
 		return result;
-
 	}
 }

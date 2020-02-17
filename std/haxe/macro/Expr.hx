@@ -393,7 +393,7 @@ enum FunctionKind {
 	/**
 		Named function
 	**/
-	FNamed(name:String, inlined:Bool);
+	FNamed(name:String, ?inlined:Bool);
 	/**
 		Arrow function
 	**/
@@ -470,7 +470,7 @@ enum ExprDef {
 	/**
 		A function declaration.
 	**/
-	EFunction(kind:FunctionKind, f:Function);
+	EFunction(kind:Null<FunctionKind>, f:Function);
 
 	/**
 		A block of expressions `{exprs}`.

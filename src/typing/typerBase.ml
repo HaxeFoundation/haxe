@@ -50,7 +50,7 @@ let mk_infos ctx p params =
 
 let rec is_pos_infos = function
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->

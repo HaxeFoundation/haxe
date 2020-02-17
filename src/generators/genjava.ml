@@ -254,7 +254,7 @@ struct
 
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(md) } ]
 					) ->
 					let mk_is is_basic obj md =
@@ -341,7 +341,7 @@ struct
 		(try
 			UTF8.validate s;
 			UTF8.iter (fun c ->
-				let c = (UChar.code c) in
+				let c = (UCharExt.code c) in
 				if c > 0xFFFF then
 					(h := Int32.add (Int32.mul thirtyone !h)
 						(Int32.of_int (high_surrogate c));
@@ -1254,7 +1254,7 @@ let generate con =
 				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
 				| TAbstract ({ a_path = [], "Dynamic" },[]) ->
 						path_s_import pos (["java";"lang"], "Object") []
-				| TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
+				| TMono r -> (match r.tm_type with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
 				| TInst ({ cl_path = [], "String" }, []) ->
 						path_s_import pos (["java";"lang"], "String") []
 				| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
@@ -1352,7 +1352,7 @@ let generate con =
 		let b = Buffer.create 0 in
 		(try
 			UTF8.validate s;
-			UTF8.iter (fun c -> escape (UChar.code c) b) s
+			UTF8.iter (fun c -> escape (UCharExt.code c) b) s
 		with
 			UTF8.Malformed_code ->
 				String.iter (fun c -> escape (Char.code c) b) s
@@ -1877,7 +1877,7 @@ let generate con =
 					gen_annotations w ~add_newline:false tdef.t_meta;
 					run (follow_once t)
 				| TMono r ->
-					(match !r with
+					(match r.tm_type with
 					| Some t -> run t
 					| _ -> () (* avoid infinite loop / should be the same in this context *))
 				| TLazy f ->

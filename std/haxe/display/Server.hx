@@ -37,6 +37,8 @@ class ServerMethods {
 	static inline var Invalidate = new HaxeRequestMethod<FileParams, Response<NoData>>("server/invalidate");
 	static inline var Contexts = new HaxeRequestMethod<NoData, Response<Array<HaxeServerContext>>>("server/contexts");
 	static inline var Memory = new HaxeRequestMethod<NoData, Response<HaxeMemoryResult>>("server/memory");
+	static inline var ContextMemory = new HaxeRequestMethod<ContextParams, Response<HaxeContextMemoryResult>>("server/memory/context");
+	static inline var ModuleMemory = new HaxeRequestMethod<ModuleParams, Response<HaxeModuleMemoryResult>>("server/memory/module");
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
 	static inline var Module = new HaxeRequestMethod<ModuleParams, Response<JsonModule>>("server/module");
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
@@ -70,6 +72,7 @@ typedef ConfigurePrintParams = {
 
 typedef ConfigureParams = {
 	final ?noModuleChecks:Bool;
+	final ?legacyCompletion:Bool;
 	final ?print:ConfigurePrintParams;
 }
 
@@ -105,32 +108,54 @@ typedef JsonServerFile = {
 }
 
 /* Memory */
+
 typedef HaxeMemoryResult = {
 	final contexts:Array<{
-		final context:Null<HaxeServerContext>;
+		final context:HaxeServerContext;
 		final size:Int;
-		final modules:Array<ModulesSizeResult>;
 	}>;
 	final memory:{
 		final totalCache:Int;
+		final contextCache:Int;
 		final haxelibCache:Int;
-		final parserCache:Int;
-		final moduleCache:Int;
+		final directoryCache:Int;
 		final nativeLibCache:Int;
+		final ?additionalSizes:Array<{name:String, size:Int}>;
 	}
 }
 
-typedef SizeResult = {
-	final path:String;
-	final size:Int;
+typedef HaxeContextMemoryResult = {
+	final moduleCache:{
+		final size:Int;
+		final list:Array<{
+			final path:String;
+			final size:Int;
+			final hasTypes:Bool;
+		}>;
+	};
+	final syntaxCache:{
+		final size:Int;
+	};
+	final ?leaks:Array<{
+		final path:String;
+		final leaks:Array<{
+			final path:String;
+		}>;
+	}>;
 }
 
-typedef ModuleTypeSizeResult = SizeResult & {
-	final fields:Array<SizeResult>;
-}
-
-typedef ModulesSizeResult = SizeResult & {
-	final types:Array<ModuleTypeSizeResult>;
+typedef HaxeModuleMemoryResult = {
+	final moduleExtra:Int;
+	final types:Array<{
+		final name:String;
+		final ?pos:Location;
+		final size:Int;
+		final fields:Array<{
+			final name:String;
+			final ?pos:Location;
+			final size:Int;
+		}>;
+	}>;
 }
 
 typedef ContextParams = {

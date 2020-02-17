@@ -91,4 +91,9 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		See `Map.toString`
 	**/
 	public function toString():String;
+
+	/**
+		See `Map.clear`
+	**/
+	public function clear():Void;
 }

@@ -113,6 +113,13 @@ class Context {
 	}
 
 	/**
+		Check if current display position is within `pos`.
+	**/
+	public static function containsDisplayPosition(pos:Position):Bool {
+		return load("contains_display_position", 1)(pos);
+	}
+
+	/**
 		Returns the position at which the macro was called.
 	**/
 	public static function currentPos():Position {
@@ -583,6 +590,24 @@ class Context {
 	**/
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
 		load("register_module_dependency", 2)(modulePath, externFile);
+	}
+
+	/**
+		Creates a timer which will be printed in the compilation report
+		if `--times` compilation argument is set.
+
+		Note that a timer may be omitted from the report if the amount of time
+		measured is too small.
+
+		This method immediately starts a timer and returns a function to stop it:
+		```
+		var stopTimer = haxe.macro.Context.timer("my heavy task");
+		runTask();
+		stopTimer();
+		```
+	**/
+	public static function timer(id:String):()->Void {
+		return load("timer", 1)(id);
 	}
 
 	@:deprecated

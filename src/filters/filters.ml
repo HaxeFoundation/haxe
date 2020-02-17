@@ -545,7 +545,6 @@ let add_rtti ctx t =
 
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits reserved ctx t =
-	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -553,28 +552,7 @@ let add_field_inits reserved ctx t =
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
-			| Var _, Some _ ->
-				if is_as3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-			| Method MethDynamic, Some e when is_as3 ->
-				(* TODO : this would have a better place in genSWF9 I think - NC *)
-				(* we move the initialization of dynamic functions to the constructor and also solve the
-				   'this' problem along the way *)
-				let rec use_this v e = match e.eexpr with
-					| TConst TThis ->
-						need_this := true;
-						mk (TLocal v) v.v_type e.epos
-					| _ -> Type.map_expr (use_this v) e
-				in
-				let e = Type.map_expr (use_this v) e in
-				let cf2 = {cf with cf_expr = Some e} in
-				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
-				let fields = if List.memq cf c.cl_overrides then begin
-					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
-					fields
-				end else
-					cf2 :: fields
-				in
-				(cf2 :: inits, fields)
+			| Var _, Some _ -> (cf :: inits, cf :: fields)
 			| _ -> (inits, cf :: fields)
 		) ([],[]) c.cl_ordered_fields in
 		c.cl_ordered_fields <- (List.rev fields);
@@ -587,12 +565,7 @@ let add_field_inits reserved ctx t =
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
-					if is_as3 then begin
-						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
-						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
-					end else
-						eassign;
+					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
@@ -643,7 +616,6 @@ let add_meta_field ctx t = match t with
 			let cf = mk_field "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
-				| Flash when Common.defined ctx.com Define.As3 -> false
 				| Cs | Java -> false
 				| _ -> true
 			in
@@ -699,7 +671,7 @@ let check_cs_events com t = match t with
 
 					(* add @:keep to event methods if the event is kept *)
 					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
-						m.cf_meta <- (Meta.Keep,[],f.cf_pos) :: m.cf_meta;
+						m.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: m.cf_meta;
 				in
 				process_event_method ("add_" ^ f.cf_name);
 				process_event_method ("remove_" ^ f.cf_name)
@@ -809,7 +781,7 @@ module ForRemap = struct
 end
 
 let run com tctx main =
-	let detail_times = Common.raw_defined com "filter-times" in
+	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached t in
 		begin match t with
@@ -837,7 +809,7 @@ let run com tctx main =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		(* ForRemap.apply tctx; *)
+		ForRemap.apply tctx;
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
 	] in
@@ -848,8 +820,9 @@ let run com tctx main =
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		check_abstract_as_value;
-		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
+		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
@@ -889,7 +862,9 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 1"] in
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
+	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+	com.stage <- CAnalyzerDone;
 	let reserved = collect_reserved_local_names com in
 	let filters = [
 		Optimizer.sanitize com;
@@ -906,9 +881,11 @@ let run com tctx main =
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	t();
+	com.stage <- CSaveStart;
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
 	t();
+	com.stage <- CSaveDone;
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	t();
@@ -922,13 +899,10 @@ let run com tctx main =
 		check_remove_metadata tctx t;
 	) com.types;
 	t();
+	com.stage <- CDceStart;
 	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
-	let dce_mode = if Common.defined com Define.As3 then
-		"no"
-	else
-		(try Common.defined_value com Define.Dce with _ -> "no")
-	in
+	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
 	let dce_mode = match dce_mode with
 		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
 		| "std" -> DceStd
@@ -937,6 +911,7 @@ let run com tctx main =
 	in
 	Dce.run com main dce_mode;
 	t();
+	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
 		check_private_path;
@@ -957,4 +932,5 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 	t();
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
+	com.stage <- CFilteringDone

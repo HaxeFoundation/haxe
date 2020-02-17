@@ -31,41 +31,33 @@ let make_call ctx e params t ?(force_inline=false) p =
 		if not force_inline then begin
 			if f.cf_kind <> Method MethInline then raise Exit;
 		end else begin
-			delay ctx PFinal (fun () ->
-				if has_class_field_flag f CfOverridden then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
-			);
+			match cl with
+			| None ->
+				()
+			| Some c ->
+				(* Delay this to filters because that's when cl_descendants is set. *)
+				ctx.com.callbacks#add_before_save (fun () ->
+					let rec has_override c =
+						List.exists (fun cf -> cf.cf_name = f.cf_name) c.cl_overrides
+						|| List.exists has_override c.cl_descendants
+					in
+					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
+				)
 		end;
-		let config = match cl with
-			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
-				let t = if f.cf_name = "_new" then
-					t
-				else if params = [] then
-					error "Invalid abstract implementation function" f.cf_pos
-				else
-					follow (List.hd params).etype
-				in
-				begin match t with
-					| TAbstract(a,pl) ->
-						let has_params = a.a_params <> [] || f.cf_params <> [] in
-						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
-						let map_type = fun t -> apply_params a.a_params pl (apply_params f.cf_params monos t) in
-						Some (has_params,map_type)
-					| _ ->
-						None
-				end
-			| _ ->
-				None
-		in
+		let config = Inline.inline_config cl f params t in
 		ignore(follow f.cf_type); (* force evaluation *)
 		(match cl, ctx.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
 				if
 					f.cf_name <> "_new"
 					&& has_meta Meta.This v_meta
-					&& not (assign_to_this_is_allowed ctx)
 					&& has_class_field_flag f CfModifiesThis
 				then
-					error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
+					if assign_to_this_is_allowed ctx then
+						(* Current method needs to infer CfModifiesThis flag, since we are calling a method, which modifies `this` *)
+						add_class_field_flag ctx.curfield CfModifiesThis
+					else
+						error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
 		let params = List.map (ctx.g.do_optimize ctx) params in
@@ -109,12 +101,41 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
 
+let rec needs_temp_var e =
+	match e.eexpr with
+	| TLocal _ | TTypeExpr _ | TConst _ -> false
+	| TField (e, _) | TParenthesis e -> needs_temp_var e
+	| _ -> true
+
 let call_to_string ctx ?(resume=false) e =
-	(* Ignore visibility of the toString field. *)
-	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
-	ctx.meta <- List.tl ctx.meta;
-	!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
+	let gen_to_string e =
+		(* Ignore visibility of the toString field. *)
+		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
+		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
+		ctx.meta <- List.tl ctx.meta;
+		!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
+	in
+	if ctx.com.config.pf_static && not (is_nullable e.etype) then
+		gen_to_string e
+	else begin (* generate `if(e == null) 'null' else e.toString()` *)
+		let string_null = mk (TConst (TString "null")) ctx.t.tstring e.epos in
+		if needs_temp_var e then
+			let tmp = alloc_var VGenerated "tmp" e.etype e.epos in
+			let tmp_local = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+			let check_null = mk (TBinop (OpEq, tmp_local, mk (TConst TNull) tmp.v_type tmp.v_pos)) ctx.t.tbool e.epos in
+			{
+				eexpr = TBlock([
+					mk (TVar (tmp, Some e)) tmp.v_type tmp.v_pos;
+					mk (TIf (check_null, string_null, Some (gen_to_string tmp_local))) ctx.t.tstring tmp.v_pos;
+
+				]);
+				etype = ctx.t.tstring;
+				epos = e.epos;
+			}
+		else
+			let check_null = mk (TBinop (OpEq, e, mk (TConst TNull) e.etype e.epos)) ctx.t.tbool e.epos in
+			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
+	end
 
 let rec unify_call_args' ctx el args r callp inline force_inline =
 	let in_call_args = ctx.in_call_args in
@@ -369,7 +390,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 			display_error ctx "Conflicting field was defined here" pcf;
 			raise err
 		in
-		let cf2 = try
+		let c, cf2 = try
 			let cf2 = if stat then
 				let cf2 = PMap.find name c.cl_statics in
 				unify_existing_field cf2.cf_type cf2.cf_pos;
@@ -379,7 +400,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			in
-			cf2
+			c, cf2
 			(*
 				java.Lib.array() relies on the ability to shadow @:generic function for certain types
 				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
@@ -389,43 +410,68 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 			else
 				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
 		with Not_found ->
-			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos in
-			if stat then begin
-				c.cl_statics <- PMap.add name cf2 c.cl_statics;
-				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
-			end else begin
-				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
-				c.cl_fields <- PMap.add name cf2 c.cl_fields;
-				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
-			end;
-			ignore(follow cf.cf_type);
-			let rec check e = match e.eexpr with
-				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
-					display_error ctx "Only generic type parameters can be constructed" e.epos;
-					display_error ctx "While specializing this call" p;
-				| _ ->
-					Type.iter check e
+			let finalize_field c cf2 =
+				ignore(follow cf.cf_type);
+				let rec check e = match e.eexpr with
+					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
+						display_error ctx "Only generic type parameters can be constructed" e.epos;
+						display_error ctx "While specializing this call" p;
+					| _ ->
+						Type.iter check e
+				in
+				cf2.cf_expr <- (match cf.cf_expr with
+					| None ->
+						display_error ctx "Recursive @:generic function" p; None;
+					| Some e ->
+						let e = Generic.generic_substitute_expr gctx e in
+						check e;
+						Some e
+				);
+				cf2.cf_kind <- cf.cf_kind;
+				if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
+				let metadata = List.filter (fun (m,_,_) -> match m with
+					| Meta.Generic -> false
+					| _ -> true
+				) cf.cf_meta in
+				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata
 			in
-			cf2.cf_expr <- (match cf.cf_expr with
-				| None ->
-					display_error ctx "Recursive @:generic function" p; None;
-				| Some e ->
-					let e = Generic.generic_substitute_expr gctx e in
-					check e;
-					Some e
-			);
-			cf2.cf_kind <- cf.cf_kind;
-			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-			let metadata = List.filter (fun (m,_,_) -> match m with
-				| Meta.Generic -> false
-				| _ -> true
-			) cf.cf_meta in
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata;
-			cf2
+			let mk_cf2 name =
+				mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
+			in
+			if stat then begin
+				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
+					let c = Generic.static_method_container gctx c cf p in
+					try
+						let cf2 = PMap.find cf.cf_name c.cl_statics in
+						unify_existing_field cf2.cf_type cf2.cf_pos;
+						c, cf2
+					with Not_found ->
+						let cf2 = mk_cf2 cf.cf_name in
+						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
+						finalize_field c cf2;
+						c, cf2
+				end else begin
+					let cf2 = mk_cf2 name in
+					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
+					finalize_field c cf2;
+					c, cf2
+				end
+			end else begin
+				let cf2 = mk_cf2 name in
+				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
+				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
+				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
+				finalize_field c cf2;
+				c, cf2
+			end
 		in
 		let e = match c.cl_kind with
 			| KAbstractImpl(a) ->
 				type_type ctx a.a_path p
+			| _ when stat ->
+				Builder.make_typeexpr (TClassDecl c) e.epos
 			| _ -> e
 		in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
@@ -475,7 +521,21 @@ let rec acc_get ctx g p =
 		| _ -> assert false)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
-		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
+		let cmode,apply_params = match fmode with
+			| FStatic(c,_) ->
+				let f = match c.cl_kind with
+					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
+						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
+						let monos = List.map (fun _ -> mk_mono()) a.a_params in
+						apply_params a.a_params monos;
+					| _ -> (fun t -> t)
+				in
+				fmode,f
+			| FInstance (c,tl,f) ->
+				(FClosure (Some (c,tl),f),(fun t -> t))
+			| _ ->
+				assert false
+		in
 		ignore(follow f.cf_type); (* force computing *)
 		begin match f.cf_kind,f.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
@@ -525,18 +585,26 @@ let rec acc_get ctx g p =
 				| _ -> e_def
 			end
 		| Var _,Some e ->
-			let rec loop e = Type.map_expr loop { e with epos = p } in
+			let rec loop e = Type.map_expr loop { e with epos = p; etype = apply_params e.etype } in
 			let e = loop e in
 			let e = Inline.inline_metadata e f.cf_meta in
-			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
+			let tf = apply_params f.cf_type in
+			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None when ctx.com.display.dms_display ->
 			 mk (TField (e,cmode)) t p
 		| Var _,None ->
 			error "Recursive inline is not supported" p
 		end
-	| AKMacro _ ->
-		assert false
+	| AKMacro(e,cf) ->
+		(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
+		if ctx.in_display then begin match e.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				mk (TField(e,FStatic(c,cf))) cf.cf_type e.epos
+			| _ ->
+				error "Invalid macro access" p
+		end else
+			error "Invalid macro access" p
 
 let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let check_assign () = if mode = MSet then invalid_assign p in

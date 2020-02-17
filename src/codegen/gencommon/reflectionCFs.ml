@@ -1169,6 +1169,8 @@ let implement_invokeField ctx slow_invoke cl =
 			has_method := true;
 			let i = ref 0 in
 			let dyn_arg_local = mk_local dynamic_arg pos in
+			let length_name = match ctx.rcf_gen.gcon.platform with Cs -> "Length" | _ -> "length" in
+			let dyn_arg_length = field dyn_arg_local length_name ctx.rcf_gen.gcon.basic.tint pos in
 			let cases = List.map (switch_case ctx pos) names in
 
 			let mk_this_call cf params =
@@ -1177,10 +1179,15 @@ let implement_invokeField ctx slow_invoke cl =
 			in
 			(cases,
 				mk_return (
-					mk_this_call cf (List.map (fun (name,_,t) ->
-						let ret = { eexpr = TArray(dyn_arg_local, make_int ctx.rcf_gen.gcon.basic !i pos); etype = t_dynamic; epos = pos } in
+					mk_this_call cf (List.map (fun (name,optional,t) ->
+						let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
+						let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
 						incr i;
-						ret
+						if optional then
+							let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in
+							mk (TIf (condition, ret, Some (make_null ret.etype pos))) ret.etype pos
+						else
+							ret
 					) (fst (get_fun (cf.cf_type))))
 				)
 			)

@@ -22,6 +22,25 @@
 
 package hl.types;
 
+import haxe.iterators.ArrayIterator;
+
+class ArrayObjIterator<T> extends ArrayIterator<T> {
+	var arr:ArrayObj<T>;
+
+	public inline function new(arr:ArrayObj<T>) {
+		super((null:Dynamic));
+		this.arr = arr;
+	}
+
+	override public function hasNext() {
+		return current < arr.length;
+	}
+
+	override public function next() {
+		return @:privateAccess arr.array[current++];
+	}
+}
+
 @:keep
 class ArrayObj<T> extends ArrayBase {
 	var array:hl.NativeArray<Dynamic>;
@@ -244,10 +263,8 @@ class ArrayObj<T> extends ArrayBase {
 		return alloc(n);
 	}
 
-	public function iterator():Iterator<T> {
-		var n = new NativeArray.NativeArrayIterator<T>(cast array);
-		@:privateAccess n.length = length;
-		return n;
+	public function iterator():ArrayIterator<T> {
+		return new ArrayObjIterator(this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn {

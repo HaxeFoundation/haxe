@@ -103,7 +103,7 @@ class DynamicObject extends HxObject {
 		} else {
 			var res = FieldLookup.findHash(field, this.__hx_fields_f, this.__hx_length_f);
 			if (res >= 0) {
-				if (Std.is(value, Float)) {
+				if (Std.isOfType(value, Float)) {
 					return this.__hx_dynamics_f[res] = value;
 				}
 
@@ -267,8 +267,8 @@ private class ParamEnum extends HxEnum {
 	public function equals(obj:Dynamic) {
 		if (obj == this) // we cannot use == as .Equals !
 			return true;
-		var obj:ParamEnum = Std.is(obj, ParamEnum) ? cast obj : null;
-		var ret = obj != null && Std.is(obj, StdType.getEnum(cast this)) && obj.index == this.index;
+		var obj:ParamEnum = Std.isOfType(obj, ParamEnum) ? cast obj : null;
+		var ret = obj != null && Std.isOfType(obj, StdType.getEnum(cast this)) && obj.index == this.index;
 		if (!ret)
 			return false;
 		if (obj.params == this.params)

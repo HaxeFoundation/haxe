@@ -22,7 +22,6 @@
 
 package lua;
 
-import haxe.Constraints.Function;
 import haxe.SysTools;
 
 @:dox(hide)
@@ -71,9 +70,9 @@ class Boot {
 		for the given class.
 	**/
 	static inline public function getClass(o:Dynamic):Class<Dynamic> {
-		if (Std.is(o, Array))
+		if (Std.isOfType(o, Array))
 			return Array;
-		else if (Std.is(o, String))
+		else if (Std.isOfType(o, String))
 			return String;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
@@ -302,17 +301,7 @@ class Boot {
 		A 32 bit clamp function for numbers
 	**/
 	public inline static function clampInt32(x:Float) {
-#if lua_vanilla
-		if (x < Min_Int32 ) {
-			return Min_Int32;
-		} else if (x > Max_Int32) {
-			return Max_Int32;
-		} else {
-			return Math.floor(x);
-		}
-#else
-		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
-#end
+        return untyped _hx_bit_clamp(x);
 	}
 
 	/**

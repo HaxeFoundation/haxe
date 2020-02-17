@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess data | ParseDisplayFile(data,_,_) -> data
+	| ParseSuccess(data,_,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)
@@ -93,7 +93,7 @@ let get_var_slot_by_name env is_read scopes name =
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				let vi = Hashtbl.find scope.local_infos slot in
-				if is_read && not (declared_before vi env.env_debug.expr.epos) then raise Not_found;
+				if is_read && not (declared_before vi env.env_debug.debug_pos) then raise Not_found;
 				slot + scope.local_offset
 			with Not_found ->
 				loop scopes

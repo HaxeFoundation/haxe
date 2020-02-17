@@ -1,8 +1,12 @@
-using StringTools;
-
+import haxe.io.Path;
+import sys.io.File;
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
+import utest.Assert;
+
+using StringTools;
+using Lambda;
 
 @:timeout(10000)
 class ServerTests extends HaxeServerTestCase {
@@ -20,10 +24,10 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
 		runHaxe(args);
-		vfs.touchFile("HelloWorld.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
 		assertSkipping("HelloWorld");
-		assertNotCacheModified("HelloWorld");
+		// assertNotCacheModified("HelloWorld");
 	}
 
 	function testDependency() {
@@ -31,10 +35,10 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = ["-main", "WithDependency.hx", "--no-output", "-js", "no.js"];
 		runHaxe(args);
-		vfs.touchFile("Dependency.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		assertSkipping("WithDependency", "Dependency");
-		assertNotCacheModified("Dependency");
+		// assertNotCacheModified("Dependency");
 		runHaxe(args);
 		assertReuse("Dependency");
 		assertReuse("WithDependency");
@@ -46,16 +50,17 @@ class ServerTests extends HaxeServerTestCase {
 		var args = ["-main", "MacroMain.hx", "--no-output", "-js", "no.js"];
 		runHaxe(args);
 		assertHasPrint("1");
-		vfs.touchFile("MacroMain.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MacroMain.hx")});
 		runHaxe(args);
 		assertHasPrint("1");
-		vfs.touchFile("Macro.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Macro.hx")});
 		runHaxe(args);
 		assertHasPrint("1");
 		vfs.putContent("Macro.hx", getTemplate("Macro.hx").replace("1", "2"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Macro.hx")});
 		runHaxe(args);
 		assertHasPrint("2");
-		vfs.touchFile("MacroMain.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MacroMain.hx")});
 		runHaxe(args);
 		assertHasPrint("2");
 	}
@@ -75,9 +80,9 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("BuiltClass");
-		vfs.touchFile("BuildMacro.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
-		assertNotCacheModified("BuildMacro");
+		// assertNotCacheModified("BuildMacro");
 		assertSkipping("BuiltClass", "BuildMacro");
 		assertSkipping("BuildMacro");
 	}
@@ -101,6 +106,7 @@ class ServerTests extends HaxeServerTestCase {
 		assertSuccess();
 	}
 
+	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -115,13 +121,15 @@ class ServerTests extends HaxeServerTestCase {
 		assertReuse("HelloWorld");
 
 		// make sure we still invalidate if the file does change
-		vfs.touchFile("HelloWorld.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args2);
 
 		runHaxe(args);
 		assertSkipping("HelloWorld");
 	}
+	#end
 
+	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
@@ -133,6 +141,7 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+	#end
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
@@ -184,7 +193,7 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("VectorInliner.hx", getTemplate("VectorInliner.hx"));
 		var args = ["-main", "VectorInliner", "--interp"];
 		runHaxe(args);
-		vfs.touchFile("VectorInliner.hx");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("VectorInliner.hx")});
 		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
 		var type = getStoredType("", "VectorInliner");
 		function moreHack(s:String) {
@@ -193,6 +202,8 @@ class ServerTests extends HaxeServerTestCase {
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
 	}
 
+	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
+	#if false
 	function testXRedefinedFromX() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8368/Main.hx"));
 		vfs.putContent("MyMacro.hx", getTemplate("issues/Issue8368/MyMacro.hx"));
@@ -203,11 +214,72 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+	#end
+
+	function testMacroStaticsReset() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8631/Main.hx"));
+		vfs.putContent("Init.hx", getTemplate("issues/Issue8631/Init.hx"));
+		vfs.putContent("Macro.hx", getTemplate("issues/Issue8631/Macro.hx"));
+		var hxml = ["-main", "Main", "--macro", "Init.callMacro()", "--interp"];
+		runHaxe(hxml);
+		runHaxe(hxml);
+		var counter = vfs.getContent("counter.txt");
+		utest.Assert.equals('2', counter);
+	}
+
+	function testIssue8738() {
+		vfs.putContent("Base.hx", getTemplate("issues/Issue8738/Base.hx"));
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main1.hx"));
+		var args = ["-main", "Main", "--interp"];
+		runHaxe(args);
+		assertSuccess();
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main2.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxe(args);
+		assertErrorMessage("Cannot force inline-call to test because it is overridden");
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8738/Main3.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	function testIssue8748() {
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
+		vfs.putContent("res/dep.dep", "");
+		var args = [
+			"-main",
+			"WithDependency",
+			"--interp",
+			"--macro",
+			"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"
+		];
+		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: true});
+		runHaxe(args);
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+		assertReuse("Dependency");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("res/dep.dep")});
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+		// check messages manually because module file contains awkward absolute path
+		var r = ~/skipping Dependency\(.*dep.dep\)/;
+		Assert.isTrue(messages.exists(message -> r.match(message)));
+	}
+
+	// function testIssue8616() {
+	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
+	// 	vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
+	// 	var args = ["-main", "Main", "-js", "out.js"];
+	// 	runHaxe(args);
+	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+	// 	runHaxe(args);
+	// 	var content = File.getContent(Path.join([testDir, "out.js"]));
+	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
+	// }
 }
 
 class Main {
 	static public function main() {
 		Vfs.removeDir("test/cases");
-		utest.UTest.run([new ServerTests(), new DisplayTests()]);
+		utest.UTest.run([new ServerTests(), new DisplayTests(), new ReplaceRanges()]);
 	}
 }

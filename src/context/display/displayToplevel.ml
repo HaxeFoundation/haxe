@@ -24,56 +24,70 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
-open DisplayEmitter
 open Genjson
 open Globals
 
 let exclude : string list ref = ref []
 
-let explore_class_paths com timer class_paths recusive f_pack f_module =
-	let rec loop dir pack =
+class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
+	inherit server_task ["explore";dir] 50
+
+	method private execute : unit =
 		let dot_path = (String.concat "." (List.rev pack)) in
-		begin
-			if (List.mem dot_path !exclude) then
-				()
-			else try
-				let entries = Sys.readdir dir in
-				Array.iter (fun file ->
-					match file with
-						| "." | ".." ->
-							()
-						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-							begin try
-								begin match PMap.find file com.package_rules with
-									| Forbidden | Remap _ -> ()
-									| _ -> raise Not_found
+		if (List.mem dot_path !exclude) then
+			()
+		else try
+			let entries = Sys.readdir dir in
+			Array.iter (fun file ->
+				match file with
+					| "." | ".." ->
+						()
+					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+						begin try
+							begin match PMap.find file com.package_rules with
+								| Forbidden | Remap _ -> ()
+								| _ -> raise Not_found
+							end
+						with Not_found ->
+							f_pack (List.rev pack,file);
+							if recursive then begin
+								let task = new explore_class_path_task cs com recursive f_pack f_module (dir ^ file ^ "/") (file :: pack) in
+								begin match cs with
+									| None -> task#run
+									| Some cs' -> cs'#add_task task
 								end
-							with Not_found ->
-								f_pack (List.rev pack,file);
-								if recusive then loop (dir ^ file ^ "/") (file :: pack)
 							end
-						| _ ->
-							let l = String.length file in
-							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-								try
-									let name = String.sub file 0 (l - 3) in
-									let path = (List.rev pack,name) in
-									let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
-									if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
-								with _ ->
-									()
-							end
-				) entries;
-			with Sys_error _ ->
-				()
-		end
-	in
+						end
+					| _ ->
+						let l = String.length file in
+						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+							try
+								let name = String.sub file 0 (l - 3) in
+								let path = (List.rev pack,name) in
+								let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
+								if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
+							with _ ->
+								()
+						end
+			) entries;
+		with Sys_error _ ->
+			()
+
+end
+
+let explore_class_paths com timer class_paths recursive f_pack f_module =
+	let cs = CompilationServer.get() in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
-	List.iter (fun dir -> loop dir []) class_paths;
+	let tasks = List.map (fun dir ->
+		new explore_class_path_task cs com recursive f_pack f_module dir []
+	) class_paths in
+	begin match cs with
+	| None -> List.iter (fun task -> task#run) tasks
+	| Some cs -> List.iter (fun task -> cs#add_task task) tasks
+	end;
 	t()
 
 let read_class_paths com timer =
-	let sign = Define.get_signature com.defines in
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file file) then begin
@@ -81,32 +95,35 @@ let read_class_paths com timer =
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
 				let file = Path.unique_full_path file in
-				CompilationServer.remove_file_for_real cs (file,sign)
+				(CommonCache.get_cache cs com)#remove_file_for_real file
 			| _ ->
 				()
 		end
 	)
 
 let init_or_update_server cs com timer_name =
-	let sign = Define.get_signature com.defines in
-	if not (CompilationServer.is_initialized cs sign) then begin
-		CompilationServer.set_initialized cs sign true;
+	let cc = CommonCache.get_cache cs com in
+	if not cc#is_initialized then begin
+		cc#set_initialized true;
 		read_class_paths com timer_name
 	end;
+	(* Force executing all "explore" tasks here because we need their information. *)
+	cs#run_tasks true (fun task -> match task#get_id with
+		| "explore" :: _ -> true
+		| _ -> false
+	);
 	(* Iterate all removed files of the current context. If they aren't part of the context again,
 		re-parse them and remove them from c_removed_files. *)
-	let sign = Define.get_signature com.defines in
+	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun (file,sign') () ->
-		if sign = sign' then begin
-			DynArray.add removed_removed_files (file,sign');
-			try
-				ignore(find_file cs (file,sign));
-			with Not_found ->
-				try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
-		end;
-	) cs.cache.c_removed_files;
-	DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files
+	Hashtbl.iter (fun file () ->
+		DynArray.add removed_removed_files file;
+		try
+			ignore(cc#find_file file);
+		with Not_found ->
+			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+	) removed_files;
+	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
 module CollectionContext = struct
 	open ImportStatus
@@ -172,10 +189,15 @@ let pack_contains pack1 pack2 =
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
-let collect ctx tk with_type =
+let collect ctx tk with_type sort =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
+	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
+	   `is_legacy_completion com` because the latter is always false for the old protocol, yet we have
+	   tests which assume advanced completion even in the old protocol. This means that we can only
+	   use "legacy mode" in the new protocol. *)
+	let is_legacy_completion = !ServerConfig.legacy_completion in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
@@ -233,7 +255,7 @@ let collect ctx tk with_type =
 	(* Collection starts here *)
 
 	let tpair ?(values=PMap.empty) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		let ct = CompletionType.from_type (Display.get_import_status ctx) ~values t in
 		(t,ct)
 	in
 	begin match tk with
@@ -359,15 +381,17 @@ let collect ctx tk with_type =
 				()
 		end;
 
-		(* keywords *)
-		let kwds = [
-			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast; Inline;
-		] in
-		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+		if not is_legacy_completion then begin
+			(* keywords *)
+			let kwds = [
+				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+				Try; New; Throw; Untyped; Cast; Inline;
+			] in
+			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
-		(* builtins *)
-		add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+			(* builtins *)
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+		end
 	end;
 
 	(* type params *)
@@ -398,12 +422,13 @@ let collect ctx tk with_type =
 	| Some cs ->
 		(* online: iter context files *)
 		init_or_update_server cs ctx.com ["display";"toplevel"];
-		let files = CompilationServer.get_file_list cs ctx.com in
+		let cc = CommonCache.get_cache cs ctx.com in
+		let files = cc#get_files in
 		(* Sort files by reverse distance of their package to our current package. *)
-		let files = List.map (fun (file,cfile) ->
+		let files = Hashtbl.fold (fun file cfile acc ->
 			let i = pack_similarity curpack cfile.c_package in
-			(file,cfile),i
-		) files in
+			((file,cfile),i) :: acc
+		) files [] in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
 		let check_package pack = match List.rev pack with
 			| [] -> ()
@@ -412,7 +437,13 @@ let collect ctx tk with_type =
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
-			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			(* In legacy mode we only show toplevel types. *)
+			if is_legacy_completion && cfile.c_package <> [] then begin
+				(* And only toplevel packages. *)
+				match cfile.c_package with
+				| [s] -> add_package ([],s)
+				| _ -> ()
+			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
 				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
@@ -420,12 +451,12 @@ let collect ctx tk with_type =
 			end
 		) files;
 		List.iter (fun file ->
-			try
-				let lib = Hashtbl.find cs.cache.c_native_libs file in
+			match cs#get_native_lib file with
+			| Some lib ->
 				Hashtbl.iter (fun path (pack,decls) ->
 					if process_decls pack (snd path) decls then check_package pack;
 				) lib.c_nl_files
-			with Not_found ->
+			| None ->
 				()
 		) ctx.com.native_libs.all_libs
 	end;
@@ -438,7 +469,13 @@ let collect ctx tk with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = sort_fields l with_type tk in
+	let l = if is_legacy_completion then
+		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
+	else if sort then
+		Display.sort_fields l with_type tk
+	else
+		l
+	in
 	t();
 	l
 
@@ -447,12 +484,12 @@ let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	| Some p' when pname.pmin = p'.pmin ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
-		collect ctx tk with_type
+		collect ctx tk with_type (name = "")
 	in
 	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
+	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue false in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in

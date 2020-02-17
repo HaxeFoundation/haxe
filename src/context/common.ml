@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open CompilationServer
 open Type
 open Globals
 open Define
@@ -152,14 +153,12 @@ class compiler_callbacks = object(self)
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
-	mutable dead_blocks : (string,pos list) Hashtbl.t;
+	mutable display_module_has_macro_defines : bool;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -173,7 +172,27 @@ type json_api = {
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
+type compiler_stage =
+	| CCreated          (* Context was just created *)
+	| CInitialized      (* Context was initialized (from CLI args and such). *)
+	| CTyperCreated     (* The typer context was just created. *)
+	| CInitMacrosStart  (* Init macros are about to run. *)
+	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
+	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
+	| CFilteringStart   (* Filtering just started (nothing changed yet). *)
+	| CAnalyzerStart    (* Some filters did run, the analyzer is about to run. *)
+	| CAnalyzerDone     (* The analyzer just finished. *)
+	| CSaveStart        (* The type state is about to be saved. *)
+	| CSaveDone         (* The type state has been saved - at this point we can destroy things. *)
+	| CDceStart         (* DCE is about to run - everything is still available. *)
+	| CDceDone          (* DCE just finished. *)
+	| CFilteringDone    (* Filtering just finished. *)
+	| CGenerationStart  (* Generation is about to begin. *)
+	| CGenerationDone   (* Generation just finished. *)
+
 type context = {
+	mutable stage : compiler_stage;
+	mutable cache : context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -333,14 +352,6 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
 		}
-	| Flash when defined Define.As3 ->
-		{
-			default_config with
-			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
-			pf_add_final_return = true;
-			pf_can_skip_non_nullable_argument = false;
-		}
 	| Flash ->
 		{
 			default_config with
@@ -415,18 +426,18 @@ let create version s_version args =
 		)
 	in
 	{
+		cache = None;
+		stage = CCreated;
 		version = version;
 		args = args;
 		shared = {
 			shared_display_information = {
-				import_positions = PMap.empty;
 				diagnostics_messages = [];
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
+			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
 		debug = false;
@@ -493,6 +504,7 @@ let log com str =
 let clone com =
 	let t = com.basic in
 	{ com with
+		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;
@@ -503,8 +515,7 @@ let clone com =
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
-			dead_blocks = Hashtbl.create 0;
+			display_module_has_macro_defines = false;
 		};
 		defines = {
 			values = com.defines.values;
@@ -750,12 +761,12 @@ let to_utf8 str p =
 		UTF8.Malformed_code ->
 			(* ISO to utf8 *)
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 	in
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
-		let c = UChar.code c in
+		let c = UCharExt.code c in
 		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
@@ -779,7 +790,7 @@ let utf16_add buf c =
 
 let utf8_to_utf16 str zt =
 	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	(try UTF8.iter (fun c -> utf16_add b (UCharExt.code c)) str with Invalid_argument _ | UCharExt.Out_of_range -> ()); (* if malformed *)
 	if zt then utf16_add b 0;
 	Buffer.contents b
 
@@ -822,3 +833,20 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let dump_path com =
+	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
+
+let adapt_defines_to_macro_context defines =
+	let values = ref defines.values in
+	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
+	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
+	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
+	values := PMap.add "macro" "1" !values;
+	values := PMap.add (platform_name !Globals.macro_platform) "1" !values;
+	{values = !values; defines_signature = None }
+
+let is_legacy_completion com = match com.json_out with
+	| None -> true
+	| Some api -> !ServerConfig.legacy_completion

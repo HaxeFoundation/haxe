@@ -44,16 +44,16 @@ enum ValueType {
 
 @:coreApi class Type {
 	public static function getClass<T>(o:T):Class<T> {
-		if (Object.ReferenceEquals(o, null) || Std.is(o, DynamicObject) || Std.is(o, cs.system.Type))
+		if (Object.ReferenceEquals(o, null) || Std.isOfType(o, DynamicObject) || Std.isOfType(o, cs.system.Type))
 			return null;
 
 		return cast cs.Lib.getNativeType(o);
 	}
 
 	public static function getEnum(o:EnumValue):Enum<Dynamic> {
-		if (Std.is(o, HxEnum))
+		if (Std.isOfType(o, HxEnum))
 			return cast cs.Lib.getNativeType(o).BaseType; // enum constructors are subclasses of an enum type
-		else if (Std.is(o, cs.system.Enum))
+		else if (Std.isOfType(o, cs.system.Enum))
 			return cast cs.Lib.getNativeType(o);
 		return null;
 	}
@@ -211,7 +211,7 @@ enum ValueType {
 		var mis = c.GetMembers(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 		for (i in 0...mis.Length) {
 			var i = mis[i];
-			if (Std.is(i, PropertyInfo))
+			if (Std.isOfType(i, PropertyInfo))
 				continue;
 			var n = i.Name;
 			if (!n.startsWith('__hx_') && n.fastCodeAt(0) != '.'.code) {
@@ -266,10 +266,10 @@ enum ValueType {
 		t = v.GetType();
 		if (t.IsEnum)
 			return ValueType.TEnum(cast t);
-		if (Std.is(v, HxEnum))
+		if (Std.isOfType(v, HxEnum))
 			return ValueType.TEnum(cast t.BaseType); // enum constructors are subclasses of an enum type
 		if (t.IsValueType) {
-			var vc:cs.system.IConvertible = cast v;
+			var vc = Std.downcast(v, cs.system.IConvertible);
 			if (vc != null) {
 				switch (vc.GetTypeCode()) {
 					case cs.system.TypeCode.Boolean:
@@ -290,11 +290,11 @@ enum ValueType {
 			}
 		}
 
-		if (Std.is(v, IHxObject)) {
-			if (Std.is(v, DynamicObject))
+		if (Std.isOfType(v, IHxObject)) {
+			if (Std.isOfType(v, DynamicObject))
 				return ValueType.TObject;
 			return ValueType.TClass(cast t);
-		} else if (Std.is(v, Function)) {
+		} else if (Std.isOfType(v, Function)) {
 			return ValueType.TFunction;
 		} else {
 			return ValueType.TClass(cast t);
@@ -312,17 +312,17 @@ enum ValueType {
 	}
 
 	public static function enumConstructor(e:EnumValue):String {
-		return Std.is(e, cs.system.Enum) ? cast(e, cs.system.Enum).ToString() : cast(e, HxEnum).getTag();
+		return Std.isOfType(e, cs.system.Enum) ? cast(e, cs.system.Enum).ToString() : cast(e, HxEnum).getTag();
 	}
 
 	public static function enumParameters(e:EnumValue):Array<Dynamic> {
-		return Std.is(e, cs.system.Enum) ? [] : cast(e, HxEnum).getParams();
+		return Std.isOfType(e, cs.system.Enum) ? [] : cast(e, HxEnum).getParams();
 	}
 
 	@:ifFeature("has_enum")
 	@:pure
 	public static function enumIndex(e:EnumValue):Int {
-		if (Std.is(e, cs.system.Enum)) {
+		if (Std.isOfType(e, cs.system.Enum)) {
 			var values = cs.system.Enum.GetValues(Lib.getNativeType(e));
 			return cs.system.Array.IndexOf(values, e);
 		} else {
@@ -335,7 +335,7 @@ enum ValueType {
 		var ret = [];
 		for (ctor in ctors) {
 			var v = Reflect.field(e, ctor);
-			if (Std.is(v, e))
+			if (Std.isOfType(v, e))
 				ret.push(v);
 		}
 

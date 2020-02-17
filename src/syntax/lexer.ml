@@ -97,17 +97,21 @@ let keywords =
 		Operator;Overload];
 	h
 
-let is_valid_identifier s = try
-	for i = 0 to String.length s - 1 do
-		match String.unsafe_get s i with
-		| 'a'..'z' | 'A'..'Z' | '_' -> ()
-		| '0'..'9' when i > 0 -> ()
-		| _ -> raise Exit
-	done;
-	if Hashtbl.mem keywords s then raise Exit;
-	true
-with Exit ->
-	false
+let is_valid_identifier s =
+	if String.length s = 0 then
+		false
+	else
+		try
+			for i = 0 to String.length s - 1 do
+				match String.unsafe_get s i with
+				| 'a'..'z' | 'A'..'Z' | '_' -> ()
+				| '0'..'9' when i > 0 -> ()
+				| _ -> raise Exit
+			done;
+			if Hashtbl.mem keywords s then raise Exit;
+			true
+		with Exit ->
+			false
 
 let init file =
 	let f = make_file file in
@@ -272,7 +276,7 @@ let mk_keyword lexbuf kwd =
 	mk lexbuf (Kwd kwd)
 
 let invalid_char lexbuf =
-	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
+	error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_start lexbuf)
 
 let ident = [%sedlex.regexp?
 	(
@@ -556,7 +560,7 @@ and regexp lexbuf =
 	| '\\', ('\\' | '$' | '.' | '*' | '+' | '^' | '|' | '{' | '}' | '[' | ']' | '(' | ')' | '?' | '-' | '0'..'9') -> add (lexeme lexbuf); regexp lexbuf
 	| '\\', ('w' | 'W' | 'b' | 'B' | 's' | 'S' | 'd' | 'D' | 'x') -> add (lexeme lexbuf); regexp lexbuf
 	| '\\', ('u' | 'U'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F'), ('0'..'9' | 'a'..'f' | 'A'..'F') -> add (lexeme lexbuf); regexp lexbuf
-	| '\\', Compl '\\' -> error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_end lexbuf - 1)
+	| '\\', Compl '\\' -> error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
 	| '/' -> regexp_options lexbuf, lexeme_end lexbuf
 	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store lexbuf; regexp lexbuf
 	| _ -> assert false

@@ -18,35 +18,41 @@ let get_path_parts f =
 	else
 		ExtString.String.nsplit f "."
 
+let check_invalid_char x =
+	for i = 1 to String.length x - 1 do
+		match x.[i] with
+		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
+		| c -> failwith ("Invalid character: " ^ (StringHelper.s_escape (String.make 1 c)))
+	done
+
+let check_package_name x =
+	if String.length x = 0 then
+		failwith "Package name must not be empty"
+	else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
+		failwith "Package name must start with a lowercase letter";
+	check_invalid_char x
+
 let parse_path f =
 	let cl = get_path_parts f in
 	let error msg =
 		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
 		failwith msg
 	in
-	let invalid_char x =
-		for i = 1 to String.length x - 1 do
-			match x.[i] with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
-			| c -> error ("invalid character: " ^ (String.make 1 c))
-		done
-	in
 	let rec loop = function
 		| [] ->
-			error "empty part"
+			error "Package name must not be empty"
 		| [x] ->
-			invalid_char x;
+			check_invalid_char x;
 			[],x
 		| x :: l ->
-			if String.length x = 0 then
-				error "empty part"
-			else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
-				error "Package name must start with a lower case character";
-			invalid_char x;
+			check_package_name x;
 			let path,name = loop l in
 			x :: path,name
 	in
-	loop cl
+	try
+		loop cl
+	with Failure msg ->
+		error msg
 
 let parse_type_path s =
 	let pack,name = parse_path s in
@@ -228,8 +234,8 @@ module FilePath = struct
 		| "." | ".." ->
 			create (Some path) None None false
 		| _ ->
-			let c1 = String.rindex path '/' in
-			let c2 = String.rindex path '\\' in
+			let c1 = try String.rindex path '/' with Not_found -> -1 in
+			let c2 = try String.rindex path '\\' with Not_found -> -1 in
 			let split s at = String.sub s 0 at,String.sub s (at + 1) (String.length s - at - 1) in
 			let dir,path,backslash = if c1 < c2 then begin
 				let dir,path = split path c2 in

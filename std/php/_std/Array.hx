@@ -21,11 +21,12 @@
  */
 
 import php.*;
+import php.ArrayIterator as NativeArrayIterator;
 
 using php.Global;
 
 @:coreApi
-final class Array<T> implements ArrayAccess<Int, T> {
+final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> implements JsonSerializable<NativeIndexedArray<T>> {
 	public var length(default, null):Int;
 
 	var arr:NativeIndexedArray<T>;
@@ -83,9 +84,9 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		Global.array_splice(arr, pos, 0, Syntax.arrayDecl(x));
 	}
 
-	@:keep
-	public function iterator():Iterator<T> {
-		return new ArrayIterator(this);
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	public function join(sep:String):String {
@@ -120,20 +121,20 @@ final class Array<T> implements ArrayAccess<Int, T> {
 	}
 
 	public inline function push(x:T):Int {
-		arr[length] = x;
-		return ++length;
+		arr[length++] = x;
+		return length;
 	}
 
 	public function remove(x:T):Bool {
 		var result = false;
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			if (value == x) {
+		for(index in 0...length) {
+			if (arr[index] == x) {
 				Global.array_splice(arr, index, 1);
 				length--;
 				result = true;
-				Syntax.code('break');
+				break;
 			}
-		});
+		}
 		return result;
 	}
 
@@ -211,8 +212,8 @@ final class Array<T> implements ArrayAccess<Int, T> {
 	@:noCompletion
 	function offsetSet(offset:Int, value:T):Void {
 		if (length <= offset) {
-			if (length < offset) {
-				arr = Global.array_pad(arr, offset + 1, null);
+			for(i in length...offset + 1) {
+				arr[i] = null;
 			}
 			length = offset + 1;
 		}
@@ -228,38 +229,21 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		}
 	}
 
+	@:noCompletion @:keep
+	private function getIterator():Traversable {
+		return new NativeArrayIterator(arr);
+	}
+
+	@:noCompletion @:keep
+	function jsonSerialize():NativeIndexedArray<T> {
+		return arr;
+	}
+
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
 		var a = new Array();
 		a.arr = arr;
 		a.length = Global.count(arr);
 		return a;
-	}
-}
-
-private class ArrayIterator<T> {
-	var idx:Int;
-	var arr:Array<T>;
-
-	public inline function new(arr:Array<T>) {
-		this.arr = arr;
-		idx = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return idx < arr.length;
-	}
-
-	public inline function next():T {
-		return arr[idx++];
-	}
-
-	@:keep
-	@:phpMagic
-	function __get(method:String) {
-		return switch (method) {
-			case 'hasNext', 'next': Boot.closure(this, method);
-			case _: null;
-		}
 	}
 }
 

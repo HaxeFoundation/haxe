@@ -30,8 +30,6 @@ open EvalHash
 open EvalString
 open EvalThread
 
-let macro_lib = Hashtbl.create 0
-
 let catch_unix_error f arg =
 	try
 		f arg
@@ -646,7 +644,7 @@ module StdContext = struct
 
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
-		Hashtbl.find macro_lib f
+		Hashtbl.find GlobalState.macro_lib f
 	)
 
 	let plugin_data = ref None
@@ -876,7 +874,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~rex:this.r s in
+			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
@@ -934,7 +932,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~rex:this.r ~pos str in
+			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -947,17 +945,17 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [encode_string ""]
+		if String.length s = 0 then encode_array [v_empty_string]
 		else begin
 			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~max ~rex:this.r s in
+			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
 			let rec loop split cur acc l = match l with
 				| Text s :: l ->
 					loop split (cur ^ s) acc l
@@ -1542,10 +1540,15 @@ module StdIntMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = IntHashtbl.fold (fun key vvalue acc ->
-			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		IntHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1596,10 +1599,15 @@ module StdStringMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
-			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		StringHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1649,10 +1657,15 @@ module StdObjectMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
-			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		ValueHashtbl.reset (this vthis);
+		vnull
 	)
 end
 
@@ -1986,7 +1999,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2132,11 +2145,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -2177,7 +2192,7 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_string ""
+		if i < 0 || i >= this.slength then v_empty_string
 		else vstring (from_char_code (char_at this i))
 	)
 
@@ -2275,7 +2290,7 @@ module StdString = struct
 		let cl_this = this.slength in
 		let c_pos = decode_int pos in
 		if c_pos >= cl_this then
-			encode_string ""
+			v_empty_string
 		else begin
 			let c_pos = if c_pos < 0 then begin
 				let c_pos = this.slength + c_pos in
@@ -2307,7 +2322,7 @@ module StdString = struct
 		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
 		let c_last = if c_last > cl_this then cl_this else c_last in
 		if c_first > cl_this || c_first = c_last then
-			encode_string ""
+			v_empty_string
 		else begin
 			begin
 				let b_offset1 = get_offset this c_first in
@@ -2995,7 +3010,7 @@ module StdUtf8 = struct
 		| v -> unexpected_value v "string"
 
 	let addChar = vifun1 (fun vthis c ->
-		UTF8.Buf.add_char (this vthis) (UChar.uchar_of_int (decode_int c));
+		UTF8.Buf.add_char (this vthis) (UCharExt.uchar_of_int (decode_int c));
 		vnull
 	)
 
@@ -3012,7 +3027,7 @@ module StdUtf8 = struct
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
-			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			Bytes.unsafe_set buf !i (UCharExt.char_of uc);
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
@@ -3021,12 +3036,12 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UCharExt.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
 		let s = decode_string s in
-		UTF8.iter (fun uc -> ignore(call_value f [vint (UChar.int_of_uchar uc)])) s;
+		UTF8.iter (fun uc -> ignore(call_value f [vint (UCharExt.int_of_uchar uc)])) s;
 		vnull
 	)
 
@@ -3069,6 +3084,7 @@ let init_maps builtins =
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
+		"clear",StdIntMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3080,6 +3096,7 @@ let init_maps builtins =
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
+		"clear",StdObjectMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3091,6 +3108,7 @@ let init_maps builtins =
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
+		"clear",StdStringMap.clear;
 	]
 
 let init_constructors builtins =
@@ -3159,9 +3177,9 @@ let init_constructors builtins =
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3212,7 +3230,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3220,7 +3239,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_string "");
+	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3508,7 +3527,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3532,6 +3551,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;
@@ -3644,4 +3664,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

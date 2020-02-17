@@ -326,10 +326,8 @@ class TestUnicode extends utest.Test {
 #if (hl || cpp) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
-#if !lua // Lua disabled temporarily (#8216)
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
-#end
 #if (hl || cpp) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});

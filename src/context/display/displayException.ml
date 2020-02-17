@@ -22,7 +22,7 @@ type signature_kind =
 	| SKArrayAccess
 
 type kind =
-	| Diagnostics of string
+	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
@@ -34,7 +34,7 @@ type kind =
 
 exception DisplayException of kind
 
-let raise_diagnostics s = raise (DisplayException(Diagnostics s))
+let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
@@ -50,86 +50,141 @@ let last_completion_pos = ref None
 let max_completion_items = ref 0
 
 let filter_somehow ctx items kind subj =
-	let ret = DynArray.create () in
-	let acc_types = DynArray.create () in
 	let subject = match subj.s_name with
 		| None -> ""
 		| Some name-> String.lowercase name
 	in
-	let subject_matches s =
-		let rec loop i o =
-			if i < String.length subject then begin
-				let o = String.index_from s o subject.[i] in
-				loop (i + 1) o
+	let subject_length = String.length subject in
+	let determine_cost s =
+		let get_initial_cost o =
+			if o = 0 then
+				0 (* Term starts with subject - perfect *)
+			else begin
+				(* Consider `.` as anchors and determine distance from closest one. Penalize starting distance by factor 2. *)
+				try
+					let last_anchor = String.rindex_from s o '.' in
+					(o - (last_anchor + 1)) * 2
+				with Not_found ->
+					o * 2
 			end
 		in
-		try
-			loop 0 0;
-			true
-		with Not_found ->
-			false
+		let index_from o c =
+			let rec loop o cost =
+				let c' = s.[o] in
+				if c' = c then
+					o,cost
+				else
+					loop (o + 1) (cost + 3) (* Holes are bad, penalize by 3. *)
+			in
+			loop o 0
+		in
+		let rec loop i o cost =
+			if i < subject_length then begin
+				let o',new_cost = index_from o subject.[i] in
+				loop (i + 1) o' (cost + new_cost)
+			end else
+				cost + (if o = String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
+		in
+		if subject_length = 0 then
+			0
+		else try
+			let o = String.index s subject.[0] in
+			loop 1 o (get_initial_cost o);
+		with Not_found | Invalid_argument _ ->
+			-1
 	in
-	let rec loop items index =
+	let rec loop acc items index =
 		match items with
-		| _ when DynArray.length ret >= !max_completion_items ->
-			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
-			if subject_matches name then begin
-				(* Treat types with lowest priority. The assumption is that they are the only kind
-				   which actually causes the limit to be hit, so we show everything else and then
-				   fill in types. *)
-				match item.ci_kind with
-				| ITType _ ->
-					if DynArray.length ret + DynArray.length acc_types < !max_completion_items then
-						DynArray.add acc_types (item,index);
-				| _ ->
-					DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
-			end;
-			loop items (index + 1)
+			let cost = determine_cost name in
+			let acc = if cost >= 0 then
+				(item,index,cost) :: acc
+			else
+				acc
+			in
+			loop acc items (index + 1)
 		| [] ->
+			acc
+	in
+	let acc = loop [] items 0 in
+	let acc = if subject_length = 0 then
+		List.rev acc
+	else
+		List.sort (fun (_,_,cost1) (_,_,cost2) ->
+			compare cost1 cost2
+		) acc
+	in
+	let ret = DynArray.create () in
+	let rec loop acc_types = match acc_types with
+		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
+			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
+			loop acc_types
+		| _ ->
 			()
 	in
-	loop items 0;
-	DynArray.iter (fun (item,index) ->
-		if DynArray.length ret < !max_completion_items then
-			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
-	) acc_types;
-	DynArray.to_list ret,DynArray.length ret = !max_completion_items
+	loop acc;
+	DynArray.to_list ret,DynArray.length ret
+
+let patch_completion_subject subj =
+	let p = Parser.cut_pos_at_display subj.s_insert_pos in
+	match subj.s_name with
+	| Some name ->
+		let delta = p.pmax - p.pmin in
+		let name = if delta > 0 && delta < String.length name then
+			String.sub name 0 delta
+		else
+			name
+		in
+		{subj with s_name = Some name;s_insert_pos = p}
+	| None ->
+		{subj with s_insert_pos = p}
 
 let fields_to_json ctx fields kind subj =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
-	let ja,did_filter = if needs_filtering then
+	(* let p_before = subj.s_insert_pos in *)
+	let subj = patch_completion_subject subj in
+	let ja,num_items = if needs_filtering then
 		filter_somehow ctx fields kind subj
 	else
-		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,false
+		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,Array.length !last_completion_result
  	in
-	if did_filter then last_completion_pos := Some subj.s_start_pos;
+	let did_filter = num_items = !max_completion_items in
+	last_completion_pos := if did_filter then Some subj.s_start_pos else None;
+	let filter_string = (match subj.s_name with None -> "" | Some name -> name) in
+	(* print_endline (Printf.sprintf "FIELDS OUTPUT:\n\tfilter_string: %s\n\t    num items: %i\n\t        start: %s\n\t     position: %s\n\t   before cut: %s"
+		filter_string
+		num_items
+		(Printer.s_pos subj.s_start_pos)
+		(Printer.s_pos subj.s_insert_pos)
+		(Printer.s_pos p_before)
+	); *)
 	let fl =
 		("items",jarray ja) ::
 		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		("filterString",(match subj.s_name with None -> jstring "" | Some name -> jstring name)) ::
-		("replaceRange",generate_pos_as_range (Parser.cut_pos_at_display subj.s_insert_pos)) ::
+		("filterString",jstring filter_string) ::
+		("replaceRange",generate_pos_as_range subj.s_insert_pos) ::
 		[]
 	in
 	jobject fl
 
 let to_json ctx de =
 	match de with
-	| Diagnostics _
 	| Statistics _
 	| ModuleSymbols _
 	| Metadata _ -> assert false
 	| DisplaySignatures None ->
 		jnull
+	| DisplayDiagnostics dctx ->
+		DiagnosticsPrinter.json_of_diagnostics dctx
 	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
 		let fsig ((_,signature),doc) =
 			let fl = CompletionType.generate_function' ctx signature in
-			let fl = (match doc with None -> fl | Some s -> ("documentation",jstring s) :: fl) in
+			let fl = (match doc with None -> fl | Some d -> ("documentation",jstring (gen_doc_text d)) :: fl) in
 			jobject fl
 		in
 		let sigkind = match kind with
@@ -171,7 +226,7 @@ let to_json ctx de =
 			| _ -> jnull
 		in
 		jobject [
-			"documentation",jopt jstring (CompletionItem.get_documentation hover.hitem);
+			"documentation",jopt jstring (gen_doc_text_opt (CompletionItem.get_documentation hover.hitem));
 			"range",generate_pos_as_range hover.hpos;
 			"item",CompletionItem.to_json ctx None hover.hitem;
 			"expected",expected;

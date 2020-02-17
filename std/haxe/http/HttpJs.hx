@@ -58,7 +58,7 @@ class HttpJs extends haxe.http.HttpBase {
 			if (r.readyState != 4)
 				return;
 			var s = try r.status catch (e:Dynamic) null;
-			if (s == 0 && js.Browser.supported) {
+			if (s == 0 && js.Browser.supported && js.Browser.location != null) {
 				// If the request is local and we have data: assume a success (jQuery approach):
 				var protocol = js.Browser.location.protocol.toLowerCase();
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
@@ -74,7 +74,7 @@ class HttpJs extends haxe.http.HttpBase {
 			if (s != null && s >= 200 && s < 400) {
 				req = null;
 				success(Bytes.ofData(r.response));
-			} else if (s == null) {
+			} else if (s == null || (s == 0 && r.response == null)) {
 				req = null;
 				onError("Failed to connect or resolve host");
 			} else
@@ -87,7 +87,7 @@ class HttpJs extends haxe.http.HttpBase {
 						onError("Unknown host");
 					default:
 						req = null;
-						responseBytes = Bytes.ofData(r.response);
+						responseBytes = r.response != null ? Bytes.ofData(r.response) : null;
 						onError("Http Error #" + r.status);
 				}
 		};
