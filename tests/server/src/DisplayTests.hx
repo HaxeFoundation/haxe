@@ -1,3 +1,4 @@
+import haxe.display.JsonModuleTypes;
 import haxe.display.Protocol;
 import haxe.PosInfos;
 import haxe.display.Server;
@@ -251,10 +252,10 @@ typedef Foo = {
 		var args = ["-main", "Main"];
 		runHaxeJson(args, DisplayMethods.GotoDefinition, {file: new FsPath("Main.hx"), offset: 56});
 		var result = parseGotoDefinition();
-		if(result.result.length == 0) {
+		if (result.result.length == 0) {
 			Assert.fail('display/definition failed');
 		} else {
-			Assert.same({"start":{"line":7, "character":12}, "end":{"line":7, "character":15}}, result.result[0].range);
+			Assert.same({"start": {"line": 7, "character": 12}, "end": {"line": 7, "character": 15}}, result.result[0].range);
 		}
 	}
 
@@ -393,5 +394,18 @@ typedef Foo = {
 		// 		}
 		// 	}
 		// ], result);
+	}
+
+	function testIssue9115() {
+		var content = getTemplate("issues/Issue9115/A.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("A.hx", transform.source);
+		runHaxe(["--no-output", "A"]);
+		runHaxeJson([], DisplayMethods.Hover, {
+			file: new FsPath("A.hx"),
+			offset: transform.markers[1]
+		});
+		var result = parseHover();
+		Assert.equals("A", result.result.item.type.args.path.typeName /* lol */);
 	}
 }
