@@ -8,30 +8,30 @@ class Issue7497 extends unit.Test {
 	static function pot(n) return Math.pow(2, n);
 	static function hexI32(b: Int) return StringTools.hex(b, 8);
 
-	static function i2f(i) return @:privateAccess FPHelper._i32ToFloat(i);
-	static function f2i(f) return @:privateAccess FPHelper._floatToI32(f);
+	static function emuI32ToFloat(i) return @:privateAccess FPHelper._i32ToFloat(i);
+	static function emuFloatToI32(f) return @:privateAccess FPHelper._floatToI32(f);
 
-	static function d2ii(d) return @:privateAccess FPHelper._doubleToI64(d);
-	static function ii2d(lo, hi) return @:privateAccess FPHelper._i64ToDouble(lo, hi);
+	static function emuDoubleToI64(d) return @:privateAccess FPHelper._doubleToI64(d);
+	static function emuI64ToDouble(lo, hi) return @:privateAccess FPHelper._i64ToDouble(lo, hi);
 
 	function rtsingle(i:Int, n:Float, name:String) {
-		var ai = f2i(n);
-		var af = i2f(ai);
+		var ai = emuFloatToI32(n);
+		var af = emuI32ToFloat(ai);
 		var bi = FPHelper.floatToI32(af);
 		var ci = FPHelper.floatToI32(n);
 		if (!(isNaN(n) && isNaN(af)))
-			eq(n, af);
+			feq(n, af);
 		eq(ai, bi);
 		eq(ai, ci);
 	}
 
 	function rtdouble(i:Int, n:Float, name:String){
-		var ai = d2ii(n);
-		var ad = ii2d(ai.low, ai.high);
+		var ai = emuDoubleToI64(n);
+		var ad = emuI64ToDouble(ai.low, ai.high);
 		var bi = FPHelper.doubleToI64(ad);
 		var ci = FPHelper.doubleToI64(n);
 		if (!(isNaN(n) && isNaN(ad)))
-			eq(n, ad);
+			feq(n, ad);
 		eq(ai, bi);
 		eq(ai, ci);
 	}
