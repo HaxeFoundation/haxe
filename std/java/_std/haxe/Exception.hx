@@ -87,17 +87,17 @@ class Exception extends NativeException {
 private extern class NativeException {
 	@:noCompletion private function new(?message:String, ?cause:Throwable):Void;
 
-	@:noCompletion private function addSuppressed (param1:Throwable):Void;
-	@:noCompletion private function fillInStackTrace ():Throwable;
-	@:noCompletion private function getCause ():Throwable;
-	@:noCompletion private function getLocalizedMessage ():String;
-	@:noCompletion private function getMessage ():String;
-	@:noCompletion private function getStackTrace ():NativeArray<StackTraceElement>;
-	@:noCompletion private function getSuppressed ():NativeArray<Throwable>;
-	@:noCompletion private function initCause (param1:Throwable):Throwable;
-	@:noCompletion @:overload private function printStackTrace (param1:PrintWriter):Void;
-	@:noCompletion @:overload private function printStackTrace ():Void;
-	@:noCompletion @:overload private function printStackTrace (param1:PrintStream):Void;
-	@:noCompletion private function setStackTrace (param1:NativeArray<StackTraceElement>):Void;
-	@:noCompletion private function toString ():String;
+	@:noCompletion @:skipReflection private function addSuppressed (param1:Throwable):Void;
+	@:noCompletion @:skipReflection private function fillInStackTrace ():Throwable;
+	@:noCompletion @:skipReflection private function getCause ():Throwable;
+	@:noCompletion @:skipReflection private function getLocalizedMessage ():String;
+	@:noCompletion @:skipReflection private function getMessage ():String;
+	@:noCompletion @:skipReflection private function getStackTrace ():NativeArray<StackTraceElement>;
+	@:noCompletion @:skipReflection private function getSuppressed ():NativeArray<Throwable>;
+	@:noCompletion @:skipReflection private function initCause (param1:Throwable):Throwable;
+	@:noCompletion @:skipReflection @:overload private function printStackTrace (param1:PrintWriter):Void;
+	@:noCompletion @:skipReflection @:overload private function printStackTrace ():Void;
+	@:noCompletion @:skipReflection @:overload private function printStackTrace (param1:PrintStream):Void;
+	@:noCompletion @:skipReflection private function setStackTrace (param1:NativeArray<StackTraceElement>):Void;
+	@:noCompletion @:skipReflection private function toString ():String;
 }
