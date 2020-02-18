@@ -86,6 +86,12 @@ type exceptions_config = {
 	ec_native_catches : path list;
 	(* Path of a native class or interface, which can be used for wildcard catches. *)
 	ec_wildcard_catch : path;
+	(*
+		Path of a native base class or interface, which can be thrown.
+		This type is used to cast `haxe.Exception.thrown(v)` calls to.
+		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
+	*)
+	ec_base_throw : path;
 }
 
 type platform_config = {
@@ -335,6 +341,7 @@ let default_config =
 			ec_native_throws = [];
 			ec_native_catches = [];
 			ec_wildcard_catch = ([],"Dynamic");
+			ec_base_throw = ([],"Dynamic");
 		}
 	}
 
@@ -358,6 +365,7 @@ let get_config com =
 				];
 				ec_native_catches = [];
 				ec_wildcard_catch = ([],"Dynamic");
+				ec_base_throw = ([],"Dynamic");
 			}
 		}
 	| Lua ->
@@ -399,6 +407,7 @@ let get_config com =
 					["haxe"],"Exception";
 				];
 				ec_wildcard_catch = (["php"],"Throwable");
+				ec_base_throw = (["php"],"Throwable");
 			}
 		}
 	| Cpp ->
@@ -427,6 +436,7 @@ let get_config com =
 					["haxe"],"Exception";
 				];
 				ec_wildcard_catch = (["cs";"system"],"Exception");
+				ec_base_throw = (["cs";"system"],"Exception");
 			}
 		}
 	| Java ->
@@ -447,6 +457,7 @@ let get_config com =
 					["haxe"],"Exception";
 				];
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
+				ec_base_throw = (["java";"lang"],"RuntimeException");
 			}
 		}
 	| Python ->

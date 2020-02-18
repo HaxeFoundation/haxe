@@ -1744,11 +1744,6 @@ let generate con =
 						write w "throw"
 					| TThrow e ->
 						write w "throw ";
-						(match e.eexpr with
-						| TCall({ eexpr = TField(_, FStatic({ cl_path = ["haxe"],"Exception" }, { cf_name = "thrown" })) }, [_]) ->
-							write w "(System.Exception)";
-						| _ -> ()
-						);
 						expr_s w e
 					| TCast (e1,md_t) ->
 						((*match gen.gfollow#run_f e.etype with

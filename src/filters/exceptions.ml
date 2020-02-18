@@ -14,6 +14,7 @@ type context = {
 	basic : basic_types;
 	config : exceptions_config;
 	wildcard_catch_type : Type.t;
+	base_throw_type : Type.t;
 	haxe_exception_class : tclass;
 	haxe_exception_type : Type.t;
 	haxe_call_stack_class : tclass;
@@ -158,15 +159,11 @@ let throw_native ctx e_thrown t p =
 		(* already a native exception *)
 		if is_native_throw ctx e_thrown.etype && not (is_direct_haxe_exception_stored()) then
 			e_thrown
-		(* (*
-			For `haxe.Exception` instances, which don't extend native throwables,
-			generate `e_thrown.get_native()`
-		*)
-		else if is_haxe_exception e_thrown.etype then
-			haxe_exception_instance_call ctx e_thrown "get_native" [] e_thrown.epos *)
 		(* Wrap everything else with `haxe.Exception.thrown` call *)
 		else
-			haxe_exception_static_call ctx "thrown" [e_thrown] p
+			let thrown = haxe_exception_static_call ctx "thrown" [e_thrown] p in
+			if ctx.base_throw_type == t_dynamic then thrown
+			else mk_cast thrown ctx.base_throw_type p
 	in
 	mk (TThrow e_native) t p
 
@@ -304,6 +301,8 @@ let filter tctx =
 		let tp (pack,name) = ({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos) in
 		let wildcard_catch_type =
 			Typeload.load_instance tctx (tp config.ec_wildcard_catch) true
+		and base_throw_type =
+			Typeload.load_instance tctx (tp config.ec_base_throw) true
 		and haxe_exception_type, haxe_exception_class =
 			match Typeload.load_instance tctx (tp haxe_exception_type_path) true with
 			| TInst(cls,_) as t -> t,cls
@@ -319,6 +318,7 @@ let filter tctx =
 			basic = tctx.t;
 			config = config;
 			wildcard_catch_type = wildcard_catch_type;
+			base_throw_type = base_throw_type;
 			haxe_exception_class = haxe_exception_class;
 			haxe_exception_type = haxe_exception_type;
 			haxe_call_stack_class = haxe_call_stack_class;
