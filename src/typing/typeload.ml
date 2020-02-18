@@ -117,55 +117,66 @@ let find_type_in_current_module_context ctx pack name =
 		ImportHandling.mark_import_position ctx pi;
 		t
 
+let load_unqualified_type_def ctx mname tname p =
+	try
+		let rec loop l =
+			match l with
+			| [] ->
+				raise Exit
+			| (pack,ppack) :: l ->
+				begin try
+					let mt = load_type ctx (pack,mname) tname p in
+					ImportHandling.mark_import_position ctx ppack;
+					mt
+				with Not_found ->
+					loop l
+				end
+		in
+		(* Check wildcard packages by using their package *)
+		loop ctx.m.wildcard_packages
+	with Exit ->
+		let rec loop l =
+			match l with
+			| [] ->
+				load_type_raise ctx ([],mname) tname p
+			| _ :: sl as l ->
+				try
+					load_type ctx (List.rev l,mname) tname p
+				with Not_found ->
+					loop sl
+		in
+		(* Check our current module's path and its parent paths *)
+		loop (List.rev (fst ctx.m.curmod.m_path))
+
+let load_qualified_type_def ctx pack mname tname p =
+	try
+		(* Try loading the fully qualified module *)
+		load_type_raise ctx (pack,mname) tname p
+	with Error((Module_not_found _ | Type_not_found _),_) as exc ->
+		match pack with
+		| "std" :: pack ->
+			load_type_raise ctx (pack,mname) tname p
+		| _ ->
+			raise exc
+
 (*
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
 	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
+
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
+	
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		find_type_in_current_module_context ctx t.tpackage tname
-	with
-	| Not_found when t.tpackage = [] ->
-		(* Unqualified *)
-		begin try
-			let rec loop l = match l with
-				| [] ->
-					raise Exit
-				| (pack,ppack) :: l ->
-					begin try
-						let mt = load_type ctx (pack,t.tname) tname p in
-						ImportHandling.mark_import_position ctx ppack;
-						mt
-					with Not_found ->
-						loop l
-					end
-			in
-			(* Check wildcard packages by using their package *)
-			loop ctx.m.wildcard_packages
-		with Exit ->
-			let rec loop l = match l with
-				| [] ->
-					load_type_raise ctx ([],t.tname) tname p
-				| _ :: sl as l ->
-					(try load_type ctx (List.rev l,t.tname) tname p with Not_found -> loop sl)
-			in
-			(* Check our current module's path and its parent paths *)
-			loop (List.rev (fst ctx.m.curmod.m_path))
-		end
-	| Not_found ->
-		(* Qualified *)
-		try
-			(* Try loading the fully qualified module *)
-			load_type_raise ctx (t.tpackage,t.tname) tname p
-		with Error((Module_not_found _ | Type_not_found _),_) as exc -> match t.tpackage with
-		| "std" :: l ->
-			load_type_raise ctx (l,t.tname) tname p
-		| _ ->
-			raise exc
+	with Not_found ->
+		if t.tpackage = [] then
+			load_unqualified_type_def ctx t.tname tname p
+		else
+			load_qualified_type_def ctx t.tpackage t.tname tname p
 
 (* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
