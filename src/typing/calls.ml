@@ -208,19 +208,24 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
-			begin try
-				let e = type_against name t e in
+			try
+				let e,submit_messages = hold_messages ctx.com (fun() -> type_against name t e) in
+				submit_messages();
 				(e,opt) :: loop el args
-			with
-				WithTypeError (ul,p)->
+			with HoldMessages (err,submit_messages) ->
+				match err with
+				| WithTypeError (ul,p)->
 					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						match List.rev !skipped with
+						(match List.rev !skipped with
 						| [] -> arg_error ul name opt p
 						| (s,ul,p) :: _ -> arg_error ul s true p
-			end
+						)
+				| _ ->
+					submit_messages();
+					raise err
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
 	ctx.in_call_args <- in_call_args;

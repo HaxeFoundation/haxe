@@ -212,6 +212,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
+	mutable pending_messages : ((unit->unit)->unit) option;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -496,7 +497,24 @@ let create version s_version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
+		pending_messages = None;
 	}
+
+exception HoldMessages of exn * (unit->unit)
+
+let hold_messages com action =
+	let old_pending = com.pending_messages in
+	let messages = ref [] in
+	com.pending_messages <- Some (fun submit -> messages := submit :: !messages);
+	let submit_all() = List.iter (fun f -> f()) (List.rev !messages) in
+	let restore() = com.pending_messages <- old_pending; in
+	try
+		let result = action() in
+		restore();
+		result,submit_all
+	with err ->
+		restore();
+		raise (HoldMessages (err,submit_all))
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
@@ -817,9 +835,12 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
-	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+let rec add_diagnostics_message com s p kind sev =
+	match com.pending_messages with
+	| Some add -> add (fun() -> add_diagnostics_message com s p kind sev)
+	| None ->
+		let di = com.shared.shared_display_information in
+		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 
