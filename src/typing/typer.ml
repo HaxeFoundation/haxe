@@ -33,10 +33,6 @@ open Calls
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
-let is_lower_ident s p =
-	try Ast.is_lower_ident s
-	with Invalid_argument msg -> error msg p
-
 let check_assign ctx e =
 	match e.eexpr with
 	| TLocal {v_final = true} ->
@@ -1254,170 +1250,51 @@ and type_ident ctx i p mode =
 			end
 
 (* MORDOR *)
-and handle_efield ctx e p mode =
-	let p0 = p in
-
+and handle_efield ctx e p0 mode =
+	let open TyperDotPath in 
 	(*
 		given a chain of identifiers (dot-path) represented as a list of (ident,starts_uppercase,pos) tuples,
 		resolve it into an `access_mode->access_kind` getter for the resolved expression
 	*)
-	let type_path path =
-		(*
-			this is an actual loop for processing a fully-qualified dot-path.
-			it relies on the fact that packages start with a lowercase letter, while modules and types
-			start with upper-case letters, so it processes path parts, accumulating lowercase package parts in `acc`,
-			until it encounters an upper-case part, which can mean either a module access or module's primary type access,
-			so it tries to figure out the type and and calls `fields` on it to resolve the rest of field access chain.
-		*)
-		let rec loop acc path =
-			match path with
-			| (_,false,_) as x :: path ->
-				(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
-				loop (x :: acc) path
-
-			| (name,true,p) as x :: path ->
-				(* part starts with uppercase - it either points to a module or its main type *)
-
-				(* acc is contains all the package parts now, so extract package from them *)
-				let pack = List.rev_map (fun (x,_,_) -> x) acc in
-
-				(* default behaviour: try loading module's primary type (with the same name as module)
-				   and resolve the rest of the field chain against its statics, or the type itself
-				   if the rest of chain is empty *)
-				let def() =
+	let type_path first pnext =
+		let name,_,p = first in
+		try
+			(*
+				first, try to resolve the first ident in the chain and access its fields.
+				this doesn't support untyped identifiers yet, because we want to check
+				fully-qualified dot paths first even in an untyped block.
+			*)
+			field_chain ctx pnext (fun _ -> type_ident_raise ctx name p MGet)
+		with Not_found ->
+			(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
+			let acc = (first :: pnext) in
+			let fallback () = 
+				try
+					field_chain ctx pnext (type_ident ctx name p)
+				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
-						let e = type_type ctx (pack,name) p in
-						field_chain ctx path (fun _ -> AKExpr e)
+						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
+						let path = ref [] in
+						let name , _ , _ = List.find (fun (name,case,p) ->
+							if case = PUppercase then
+								true
+							else begin
+								path := name :: !path;
+								false
+							end
+						) acc in
+						raise (Error (Module_not_found (List.rev !path,name),p))
 					with
-						Error (Module_not_found m,_) when m = (pack,name) ->
-							(* if it's not a module path after all, it could be an untyped field access that looks like
-							   a dot-path, e.g. `untyped __global__.String`, add the whole path to the accumulator and
-							   proceed to the untyped identifier resolution *)
-							loop ((List.rev path) @ x :: acc) []
-				in
-
-				(match path with
-				| (sname,true,p) :: path ->
-					(* next part starts with uppercase, meaning it can be either a module sub-type access
-					   or static field access for the primary module type, so we have to do some guessing here
-
-					   In this block, `name` is the first first-uppercase part (possibly a module name),
-					   and `sname` is the second first-uppsercase part (possibly a subtype name). *)
-
-					(* get static field by `sname` from a given type `t`, if `resume` is true - raise Not_found *)
-					let get_static resume t =
-						field_chain ctx ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
-					in
-
-					(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
-					let check_module m =
-						try
-							let md = TypeloadModule.load_module ctx m p in
-							(* first look for existing subtype *)
-							(try
-								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
-								Some (field_chain ctx path (fun _ -> AKExpr (type_module_type ctx t None p)))
-							with Not_found -> try
-							(* then look for main type statics *)
-								if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
-								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
-								Some (get_static false t)
-							with Not_found ->
-								None)
-						with Error (Module_not_found m2,_) when m = m2 ->
-							None
-					in
-
-					(match pack with
-					| [] ->
-						(* if there's no package specified... *)
-						(try
-							(* first try getting a type by `name` in current module types and current imports
-							   and try accessing its static field by `sname` *)
-							let path_match t = snd (t_infos t).mt_path = name in
-							let t =
-								try
-									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
-								with Not_found ->
-									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
-									ImportHandling.mark_import_position ctx p;
-									t
-							in
-							get_static true t
-						with Not_found ->
-							(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916
-							   look for subtypes/main-class-statics in modules of current package and its parent packages *)
-							let rec loop pack =
-								match check_module (pack,name) with
-								| Some r -> r
-								| None ->
-									match List.rev pack with
-									| [] -> def()
-									| _ :: l -> loop (List.rev l)
-							in
-							loop (fst ctx.m.curmod.m_path))
-					| _ ->
-						(* if package was specified, treat it as fully-qualified access to either
-						   a module subtype or a static field of module's primary type*)
-						match check_module (pack,name) with
-						| Some r -> r
-						| None -> def());
-				| _ ->
-					(* no more parts or next part starts with lowercase - it's surely not a type name,
-					   so do the default thing: resolve fields against primary module type *)
-					def())
-
-			| [] ->
-				(* If we get to here, it means that either there were no uppercase-first-letter parts,
-				   or we couldn't find the specified module, so it's not a qualified dot-path after all.
-				   And it's not a known identifier too, because otherwise `loop` wouldn't be called at all.
-				   So this must be an untyped access (or a typo). Try resolving the first identifier with support
-				   for untyped and resolve the rest of field chain against it.
-
-				   TODO: extract this into a separate function
-				*)
-				(match List.rev acc with
-				| [] -> assert false
-				| (name,flag,p) :: path ->
-					try
-						field_chain ctx path (type_ident ctx name p)
-					with
-						Error (Unknown_ident _,p2) as e when p = p2 ->
-							try
-								(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-								let path = ref [] in
-								let name , _ , _ = List.find (fun (name,flag,p) ->
-									if flag then
-										true
-									else begin
-										path := name :: !path;
-										false
-									end
-								) (List.rev acc) in
-								raise (Error (Module_not_found (List.rev !path,name),p))
-							with
-								Not_found ->
-									let sl = List.map (fun (n,_,_) -> n) (List.rev acc) in
-									(* if there was no module name part, last guess is that we're trying to get package completion *)
-									if ctx.in_display then begin
-										if is_legacy_completion ctx.com then raise (Parser.TypePath (sl,None,false,p))
-										else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
-									end;
-									raise e)
-		in
-		match path with
-		| [] -> assert false
-		| (name,_,p) :: pnext ->
-			try
-				(*
-					first, try to resolve the first ident in the chain and access its fields.
-					this doesn't support untyped identifiers yet, because we want to check
-					fully-qualified dot paths first even in an untyped block.
-				*)
-				field_chain ctx pnext (fun _ -> type_ident_raise ctx name p MGet)
-			with Not_found ->
-				(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
-				loop [] path
+						Not_found ->
+							let sl = List.map (fun (n,_,_) -> n) acc in
+							(* if there was no module name part, last guess is that we're trying to get package completion *)
+							if ctx.in_display then begin
+								if is_legacy_completion ctx.com then raise (Parser.TypePath (sl,None,false,p))
+								else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
+							end;
+							raise e
+			in 
+			resolve_dot_path ctx acc fallback
 	in
 
 	(*
@@ -1434,13 +1311,13 @@ and handle_efield ctx e p mode =
 	let rec loop acc (e,p) =
 		match e with
 		| EField (e,s) ->
-			loop ((s,not (is_lower_ident s p),p) :: acc) e
+			loop ((mk_dot_path_part s p) :: acc) e
 		| EConst (Ident i) ->
-			type_path ((i,not (is_lower_ident i p),p) :: acc)
+			type_path (mk_dot_path_part i p) acc
 		| _ ->
 			field_chain ctx acc (type_access ctx e p)
 	in
-	loop [] (e,p) mode
+	loop [] (e,p0) mode
 
 and type_access ctx e p mode =
 	match e with
