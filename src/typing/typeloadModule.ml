@@ -131,7 +131,7 @@ module StrictMeta = struct
 			| _ ->
 				display_error ctx "Unexpected expression" texpr.epos; assert false
 
-	let get_strict_meta ctx params pos =
+	let get_strict_meta ctx meta params pos =
 		let pf = ctx.com.platform in
 		let changed_expr, fields_to_check, ctype = match params with
 			| [ECall(ef, el),p] ->
@@ -166,7 +166,7 @@ module StrictMeta = struct
 		let texpr = type_expr ctx changed_expr NoValue in
 		let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 		let extra = handle_fields ctx fields_to_check with_type_expr in
-		Meta.Meta, [make_meta ctx texpr extra], pos
+		meta, [make_meta ctx texpr extra], pos
 
 	let check_strict_meta ctx metas =
 		let pf = ctx.com.platform in
@@ -174,8 +174,11 @@ module StrictMeta = struct
 			| Cs | Java ->
 				let ret = ref [] in
 				List.iter (function
+					| Meta.AssemblyStrict,params,pos -> (try
+						ret := get_strict_meta ctx Meta.AssemblyMeta params pos :: !ret
+					with | Exit -> ())
 					| Meta.Strict,params,pos -> (try
-						ret := get_strict_meta ctx params pos :: !ret
+						ret := get_strict_meta ctx Meta.Meta params pos :: !ret
 					with | Exit -> ())
 					| _ -> ()
 				) metas;
