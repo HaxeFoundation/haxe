@@ -64,6 +64,10 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
+let is_lower_ident s p =
+	try Ast.is_lower_ident s
+	with Invalid_argument msg -> error msg p
+
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
