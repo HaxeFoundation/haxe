@@ -202,11 +202,15 @@ let check_param_constraints ctx types t pl c p =
 
 		) ctl
 
-let generate_value_meta com co fadd args =
+let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
-	match values with
+	(match values with
 		| [] -> ()
-		| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
+		| _ -> add_meta (Meta.Value,[EObjectDecl values,null_pos],null_pos)
+	);
+	if List.exists (fun (_,_,m,_,_) -> m <> []) args then
+		let fn = { f_params = []; f_args = args; f_type = None; f_expr = None } in
+		add_meta (Meta.HaxeArguments,[EFunction(FKAnonymous,fn),null_pos],null_pos)
 
 let is_redefined ctx cf1 fields p =
 	try
@@ -573,7 +577,7 @@ and init_meta_overloads ctx co cf =
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
 			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
-			generate_value_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
+			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
 			ctx.type_params <- old;
 			false

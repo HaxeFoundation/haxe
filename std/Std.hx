@@ -28,11 +28,11 @@
 **/
 extern class Std {
 	/**
+		DEPRECATED. Use `Std.isOfType(v, t)` instead.
+
 		Tells if a value `v` is of the type `t`. Returns `false` if `v` or `t` are null.
 
 		If `t` is a class or interface with `@:generic` meta, the result is `false`.
-
-		DEPRECATED. Use `Std.isOfType(v, t)` instead.
 	**/
 	public static function is(v:Dynamic, t:Dynamic):Bool;
 

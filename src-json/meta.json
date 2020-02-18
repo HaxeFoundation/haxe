@@ -196,6 +196,13 @@
 		"internal": true
 	},
 	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
@@ -928,7 +935,7 @@
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property.",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
@@ -1203,7 +1210,15 @@
 		"name": "Value",
 		"metadata": ":value",
 		"doc": "Used to store default values for fields and function arguments.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"internal": true
+	},
+	{
+		"name": "HaxeArguments",
+		"metadata": ":haxe.arguments",
+		"doc": "Used to store function arguments.",
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
 		"name": "Void",
