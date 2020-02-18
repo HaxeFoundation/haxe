@@ -100,17 +100,9 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 				| [] ->
 					(* no package was specified - Unqualified access *)
 					(try
-						(* first try getting a type by `name` in current module types and current imports
-							and try accessing its static field by `sname` *)
-						let path_match t = snd (t_infos t).mt_path = name in
-						let t =
-							try
-								List.find path_match ctx.m.curmod.m_types (* types in this modules *)
-							with Not_found ->
-								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
-								ImportHandling.mark_import_position ctx p;
-								t
-						in
+						(* first try getting the type from the current module context
+						   and try accessing its static field by `sname` *)
+						let t = Typeload.find_type_in_current_module_context ctx pack name in
 						get_static true t
 					with Not_found ->
 						(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916

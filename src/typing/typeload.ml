@@ -101,31 +101,35 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
+let find_type_in_current_module_context ctx pack name =
+	let no_pack = pack = [] in
+	let path_matches t2 =
+		let tp = t_path t2 in
+		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
+		tp = (pack,name) || (no_pack && snd tp = name)
+	in
+	try
+		(* Check the types in our own module *)
+		List.find path_matches ctx.m.curmod.m_types
+	with Not_found ->
+		(* Check the local imports *)
+		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+		ImportHandling.mark_import_position ctx pi;
+		t
+
 (*
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
-	let no_pack = t.tpackage = [] in
 	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
-		let path_matches t2 =
-			let tp = t_path t2 in
-			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		in
-		try
-			(* Check the types in our own module *)
-			List.find path_matches ctx.m.curmod.m_types
-		with Not_found ->
-			(* Check the local imports *)
-			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			ImportHandling.mark_import_position ctx pi;
-			t
+		find_type_in_current_module_context ctx t.tpackage tname
 	with
-	| Not_found when no_pack ->
+	| Not_found when t.tpackage = [] ->
 		(* Unqualified *)
 		begin try
 			let rec loop l = match l with
