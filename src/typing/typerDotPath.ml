@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2019  Haxe Foundation
+	Copyright (C) 2005-2020 Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -32,37 +32,35 @@ let mk_dot_path_part s p : dot_path_part =
 	let case = if is_lower_ident s p then PLowercase else PUppercase in
 	(s,case,p)
 
+(* given a list of dot path parts, try to resolve it into access getter, raises Not_found on failure *)
 let resolve_dot_path ctx (path_parts : dot_path_part list) =
 	(*
-		this is an actual loop for processing a fully-qualified dot-path.
-		it relies on the fact that packages start with a lowercase letter, while modules and types
-		start with upper-case letters, so it processes path parts, accumulating lowercase package parts in `acc`,
-		until it encounters an upper-case part, which can mean either a module access or module's primary type access,
-		so it tries to figure out the type and and calls `fields` on it to resolve the rest of field access chain.
+		we rely on the fact that packages start with a lowercase letter, while modules and types start with uppercase letters,
+		so we processes path parts, accumulating lowercase parts in `pack_acc`, until we encounter an upper-case part,
+		which can mean either a module access or module's primary type access, so we try to figure out the type and
+		resolve the rest of the field access chain against it.
 	*)
-	let rec loop acc path =
+	let rec loop pack_acc path =
 		match path with
 		| (_,PLowercase,_) as x :: path ->
 			(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
-			loop (x :: acc) path
+			loop (x :: pack_acc) path
 
 		| (name,PUppercase,p) :: path ->
 			(* part starts with uppercase - it either points to a module or its main type *)
 
-			(* acc is contains all the package parts now, so extract package from them *)
-			let pack = List.rev_map (fun (x,_,_) -> x) acc in
+			let pack = List.rev_map (fun (x,_,_) -> x) pack_acc in
 
 			(* default behaviour: try loading module's primary type (with the same name as module)
-				and resolve the rest of the field chain against its statics, or the type itself
-				if the rest of chain is empty *)
-			let def() =
+				and resolve the rest of the field chain against its statics (or return the type itself
+				if the rest of chain is empty) *)
+			let def () =
 				try
 					let e = type_type ctx (pack,name) p in
 					field_chain ctx path (fun _ -> AKExpr e)
 				with
 					Error (Module_not_found m,_) when m = (pack,name) ->
-						(* if it's not a module path after all, it could be an untyped field access that looks like
-							a dot-path, e.g. `untyped __global__.String` *)
+						(* not a module path after all *)
 						raise Not_found
 			in
 
@@ -100,7 +98,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 
 				(match pack with
 				| [] ->
-					(* if there's no package specified... *)
+					(* no package was specified - Unqualified access *)
 					(try
 						(* first try getting a type by `name` in current module types and current imports
 							and try accessing its static field by `sname` *)
@@ -127,14 +125,12 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 						in
 						loop (fst ctx.m.curmod.m_path))
 				| _ ->
-					(* if package was specified, treat it as fully-qualified access to either
-						a module subtype or a static field of module's primary type*)
-					match check_module (pack,name) with
+					(* if package was specified - Qualified access *)
+					(match check_module (pack,name) with
 					| Some r -> r
-					| None -> def());
+					| None -> def ()));
 			| _ ->
-				(* no more parts or next part starts with lowercase - it's surely not a type name,
-					so do the default thing: resolve fields against primary module type *)
+				(* no more parts or next part starts with lowercase - it's surely not a type name, so do the default thing *)
 				def())
 
 		| [] ->

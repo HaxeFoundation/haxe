@@ -1249,74 +1249,67 @@ and type_ident ctx i p mode =
 				end
 			end
 
-(* MORDOR *)
 and handle_efield ctx e p0 mode =
 	let open TyperDotPath in 
-	(*
-		given a chain of identifiers (dot-path) represented as a list of (ident,starts_uppercase,pos) tuples,
-		resolve it into an `access_mode->access_kind` getter for the resolved expression
-	*)
-	let type_path first pnext =
+
+	let dot_path first pnext =
 		let name,_,p = first in
 		try
-			(*
-				first, try to resolve the first ident in the chain and access its fields.
-				this doesn't support untyped identifiers yet, because we want to check
-				fully-qualified dot paths first even in an untyped block.
-			*)
-			field_chain ctx pnext (fun _ -> type_ident_raise ctx name p MGet)
+			(* first, try to resolve the first ident in the chain and access its fields.
+			   this doesn't support untyped identifiers yet, because we want to check fully-qualified
+			   paths first (even in an untyped block) *)
+			field_chain ctx pnext (type_ident_raise ctx name p)
 		with Not_found ->
 			(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
 			let path = (first :: pnext) in
 			try
 				resolve_dot_path ctx path
 			with Not_found ->
+				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
 					field_chain ctx pnext (type_ident ctx name p)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-						let module_path = ref [] in
+						let pack_acc = ref [] in
 						let name , _ , _ = List.find (fun (name,case,p) ->
 							if case = PUppercase then
 								true
 							else begin
-								module_path := name :: !module_path;
+								pack_acc := name :: !pack_acc;
 								false
 							end
 						) path in
-						raise (Error (Module_not_found (List.rev !module_path,name),p))
+						let pack = List.rev !pack_acc in
+						raise (Error (Module_not_found (pack,name),p))
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
-						let sl = List.map (fun (n,_,_) -> n) path in
 						if ctx.in_display then begin
+							let sl = List.map (fun (n,_,_) -> n) path in
 							if is_legacy_completion ctx.com then
 								raise (Parser.TypePath (sl,None,false,p))
 							else
 								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
-						raise e
+						raise e						
 	in
 
-	(*
-		loop through the given EField expression and behave differently depending on whether it's a simple dot-path
-		or a more complex expression, accumulating field access parts in form of (ident,starts_uppercase,pos) tuples.
-
-		if it's a dot-path, then it might be either fully-qualified access (pack.Class.field) or normal field access of
-		a local/global/field identifier. we pass the accumulated path to `type_path` and let it figure out what it is.
-
-		if it's NOT a dot-path (anything other than indentifiers appears in EField chain), then we can be sure it's
-		normal field access, not fully-qualified access, so we pass the non-ident expr along with the accumulated
-		fields chain to the `fields` function and let it type the field access.
-	*)
-	let rec loop acc (e,p) =
+	(* loop through the given EField expression to figure out whether it's a dot-path that we have to resolve,
+	   or a simple field access chain *)
+	let rec loop dot_path_acc (e,p) =
 		match e with
 		| EField (e,s) ->
-			loop ((mk_dot_path_part s p) :: acc) e
+			(* field access - accumulate and check further *)
+			loop ((mk_dot_path_part s p) :: dot_path_acc) e
 		| EConst (Ident i) ->
-			type_path (mk_dot_path_part i p) acc
+			(* it's a dot-path, so it might be either fully-qualified access (pack.Class.field)
+			   or normal field access of a local/global/field identifier, proceed figuring this out *)
+			dot_path (mk_dot_path_part i p) dot_path_acc
 		| _ ->
-			field_chain ctx acc (type_access ctx e p)
+			(* non-ident expr occured: definitely NOT a fully-qualified access,
+			   resolve the field chain against this expression *)
+			let e = type_access ctx e p in
+			field_chain ctx dot_path_acc e
 	in
 	loop [] (e,p0) mode
 
