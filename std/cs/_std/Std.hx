@@ -22,7 +22,6 @@
 
 import cs.Boot;
 import cs.Lib;
-import cs.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {

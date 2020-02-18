@@ -299,7 +299,7 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java ->
+	| Php | Js | Java | Cs ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) = ({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos) in
 		let wildcard_catch_type =

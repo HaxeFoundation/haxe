@@ -305,6 +305,9 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 #else
 	#if java
 	static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
+	#elseif cs
+	@:meta(System.ThreadStaticAttribute)
+	static var exception:Null<cs.system.Exception>;
 	#end
 
 	/**
@@ -315,7 +318,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#if js
 			lastException = e;
 		#elseif cs
-			cs.internal.Exceptions.exception = e;
+			exception = e;
 		#elseif java
 			exception.set(e);
 		#end
@@ -480,7 +483,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				return makeStack(current.getStackTrace());
 		}
 		#elseif cs
-		return cs.internal.Exceptions.exception == null ? [] : makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
+		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#elseif python
 		var stack = [];
 		var exc = python.lib.Sys.exc_info();

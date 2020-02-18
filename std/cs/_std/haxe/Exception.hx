@@ -1,21 +1,7 @@
 package haxe;
 
 import cs.system.Exception as CsException;
-import php.NativeAssocArray;
-import php.NativeIndexedArray;
 
-class ValueException extends Exception {
-	public var value(default,null):Any;
-
-	public function new(value:Any, ?previous:Exception):Void {
-		super(inline Std.string(value), previous);
-		this.value = value;
-	}
-
-	override public function unwrap():Any {
-		return value;
-	}
-}
 
 @:coreApi
 class Exception extends NativeException {
@@ -28,17 +14,17 @@ class Exception extends NativeException {
 	@:noCompletion var __nativeException:CsException;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function wrap(value:Any):Exception {
+	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, CsException)) {
 			return new Exception((value:CsException).Message, null, value);
 		} else {
-			return new ValueException(value);
+			return new ValueException(value, null, value);
 		}
 	}
 
-	static public function wrapNative(value:Any):Any {
+	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else if(Std.isOfType(value, CsException)) {
@@ -51,7 +37,11 @@ class Exception extends NativeException {
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message, previous);
 		this.__previousException = previous;
-		this.__nativeException = native == null ? cast this : native;
+		if(native != null && Std.isOfType(native, CsException)) {
+			__nativeException = native;
+		} else {
+			__nativeException = cast this;
+		}
 	}
 
 	public function unwrap():Any {
@@ -63,7 +53,7 @@ class Exception extends NativeException {
 	}
 
 	function get_message():String {
-		return this.getMessage();
+		return this.Message;
 	}
 
 	function get_previous():Null<Exception> {
@@ -77,7 +67,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = new cs.system.diagnostics.StackTrace(native, true)
+				var nativeTrace = new cs.system.diagnostics.StackTrace(__nativeException, true);
 				__exceptionStack = CallStack.makeStack(nativeTrace);
 			case s: s;
 		}
@@ -85,19 +75,20 @@ class Exception extends NativeException {
 }
 
 @:dox(hide)
+@:nativeGen
 @:noCompletion
 @:native('System.Exception')
 private extern class NativeException {
 	@:noCompletion private function new(message:String, innerException:NativeException):Void;
-	@:noCompletion private final Data:cs.system.collections.IDictionary;
-	@:noCompletion private var HelpLink:String;
-	@:noCompletion private final InnerException:cs.system.Exception;
-	@:noCompletion private final Message:String;
-	@:noCompletion private var Source:String;
-	@:noCompletion private final StackTrace:String;
-	@:noCompletion private final TargetSite:cs.system.reflection.MethodBase;
-	@:overload @:noCompletion private function GetBaseException():cs.system.Exception;
-	@:overload @:noCompletion private function GetObjectData(incs.system.fo:SerializationInfo, context:StreamingContext):Void;
-	@:overload @:noCompletion private function GetType():cs.system.Type;
-	@:overload @:noCompletion private function ToString():cs.system.String;
+	@:noCompletion @:skipReflection private final Data:cs.system.collections.IDictionary;
+	@:noCompletion @:skipReflection private var HelpLink:String;
+	@:noCompletion @:skipReflection private final InnerException:cs.system.Exception;
+	@:noCompletion @:skipReflection private final Message:String;
+	@:noCompletion @:skipReflection private var Source:String;
+	@:noCompletion @:skipReflection private final StackTrace:String;
+	@:noCompletion @:skipReflection private final TargetSite:cs.system.reflection.MethodBase;
+	@:overload @:noCompletion @:skipReflection private function GetBaseException():cs.system.Exception;
+	@:overload @:noCompletion @:skipReflection private function GetObjectData(info:cs.system.runtime.serialization.SerializationInfo, context:cs.system.runtime.serialization.StreamingContext):Void;
+	@:overload @:noCompletion @:skipReflection private function GetType():cs.system.Type;
+	@:overload @:noCompletion @:skipReflection private function ToString():cs.system.String;
 }

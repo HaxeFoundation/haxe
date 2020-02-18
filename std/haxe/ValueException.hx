@@ -21,7 +21,7 @@ class ValueException extends Exception {
 	public var value(default,null):Any;
 
 	public function new(value:Any, ?previous:Exception, ?native:Any):Void {
-		super(inline Std.string(value), previous, native);
+		super(Std.string(value), previous, native);
 		this.value = value;
 	}
 

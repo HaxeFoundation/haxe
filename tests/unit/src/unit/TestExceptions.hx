@@ -18,6 +18,8 @@ private class CustomNativeException extends php.Exception {}
 private class CustomNativeException extends js.lib.Error {}
 #elseif java
 private class CustomNativeException extends java.lang.RuntimeException {}
+#elseif cs
+private class CustomNativeException extends cs.system.Exception {}
 #end
 
 class TestExceptions extends Test {
