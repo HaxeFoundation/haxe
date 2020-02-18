@@ -1267,34 +1267,35 @@ and handle_efield ctx e p0 mode =
 			field_chain ctx pnext (fun _ -> type_ident_raise ctx name p MGet)
 		with Not_found ->
 			(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
-			let acc = (first :: pnext) in
-			let fallback () = 
+			let path = (first :: pnext) in
+			try
+				resolve_dot_path ctx path
+			with Not_found ->
 				try
 					field_chain ctx pnext (type_ident ctx name p)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-						let path = ref [] in
+						let module_path = ref [] in
 						let name , _ , _ = List.find (fun (name,case,p) ->
 							if case = PUppercase then
 								true
 							else begin
-								path := name :: !path;
+								module_path := name :: !module_path;
 								false
 							end
-						) acc in
-						raise (Error (Module_not_found (List.rev !path,name),p))
-					with
-						Not_found ->
-							let sl = List.map (fun (n,_,_) -> n) acc in
-							(* if there was no module name part, last guess is that we're trying to get package completion *)
-							if ctx.in_display then begin
-								if is_legacy_completion ctx.com then raise (Parser.TypePath (sl,None,false,p))
-								else DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
-							end;
-							raise e
-			in 
-			resolve_dot_path ctx acc fallback
+						) path in
+						raise (Error (Module_not_found (List.rev !module_path,name),p))
+					with Not_found ->
+						(* if there was no module name part, last guess is that we're trying to get package completion *)
+						let sl = List.map (fun (n,_,_) -> n) path in
+						if ctx.in_display then begin
+							if is_legacy_completion ctx.com then
+								raise (Parser.TypePath (sl,None,false,p))
+							else
+								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
+						end;
+						raise e
 	in
 
 	(*

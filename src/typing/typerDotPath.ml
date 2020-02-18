@@ -32,7 +32,7 @@ let mk_dot_path_part s p : dot_path_part =
 	let case = if is_lower_ident s p then PLowercase else PUppercase in
 	(s,case,p)
 
-let resolve_dot_path ctx (path_parts : dot_path_part list) fallback =
+let resolve_dot_path ctx (path_parts : dot_path_part list) =
 	(*
 		this is an actual loop for processing a fully-qualified dot-path.
 		it relies on the fact that packages start with a lowercase letter, while modules and types
@@ -63,7 +63,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) fallback =
 					Error (Module_not_found m,_) when m = (pack,name) ->
 						(* if it's not a module path after all, it could be an untyped field access that looks like
 							a dot-path, e.g. `untyped __global__.String` *)
-						fallback ()
+						raise Not_found
 			in
 
 			(match path with
@@ -139,7 +139,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) fallback =
 
 		| [] ->
 			(* if we get to here, it means that there was no uppercase parts, so it's not a qualified dot-path *)
-			fallback ()
+			raise Not_found
 
 	in
 	loop [] path_parts
