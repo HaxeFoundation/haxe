@@ -244,10 +244,27 @@ module Pattern = struct
 		let display_mode () =
 			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 		in
+		let catch_errors () =
+			let old = ctx.on_error in
+			ctx.on_error <- (fun _ _ _ ->
+				raise Exit
+			);
+			(fun () ->
+				ctx.on_error <- old
+			)
+		in
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
-			let e = try type_expr ctx e (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
+			let restore = catch_errors () in
+			let e = try
+				type_expr ctx e (WithType.with_type t)
+			with exc ->
+				restore();
+				ctx.untyped <- old;
+				raise exc
+			in
+			restore();
 			ctx.untyped <- old;
 			let pat = check_expr e in
 			begin match pat with
@@ -261,15 +278,7 @@ module Pattern = struct
 				try_typing (EConst (Ident s),p)
 			with
 			| Exit | Bad_pattern _ ->
-				let restore =
-					let old = ctx.on_error in
-					ctx.on_error <- (fun _ _ _ ->
-						raise Exit
-					);
-					(fun () ->
-						ctx.on_error <- old
-					)
-				in
+				let restore = catch_errors () in
 				begin try
 					let mt = module_type_of_type t in
 					let e_mt = TyperBase.type_module_type ctx mt None p in
