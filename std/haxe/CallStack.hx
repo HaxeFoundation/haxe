@@ -25,15 +25,15 @@ package haxe;
 #if php
 import php.*;
 import haxe.Exception in Exception;
+#end
 
-private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
-#else
 private typedef NativeTrace =
 	#if java java.NativeArray<java.lang.StackTraceElement>
 	#elseif cs cs.system.diagnostics.StackTrace
+	#elseif php NativeIndexedArray<NativeAssocArray<Dynamic>>
+	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#else Dynamic
 	#end;
-#end
 
 /**
 	Elements return by `CallStack` methods.
@@ -324,6 +324,26 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#end
 	}
 
+	#if python
+	static inline function pythonExceptionStack():NativeTrace {
+		var exc = python.lib.Sys.exc_info();
+		if (exc._3 != null) {
+			var infos = python.lib.Traceback.extract_tb(exc._3);
+			infos.reverse();
+			return infos;
+		} else {
+			return [];
+		}
+	}
+
+	static inline function pythonCallStack():NativeTrace {
+		var infos = python.lib.Traceback.extract_stack();
+		infos.pop();
+		infos.reverse();
+		return infos;
+	}
+	#end
+
 	#if js
 	static var lastException:js.lib.Error;
 
@@ -404,13 +424,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cs
 		return makeStack(new cs.system.diagnostics.StackTrace(1, true));
 		#elseif python
-		var stack = [];
-		var infos = python.lib.Traceback.extract_stack();
-		infos.pop();
-		infos.reverse();
-		for (elem in infos)
-			stack.push(FilePos(Method(null, elem._3), elem._1, elem._2));
-		return stack;
+		return makeStack(pythonCallStack());
 		#elseif lua
 		var stack = [];
 		var infos = lua.Debug.traceback();
@@ -485,15 +499,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cs
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#elseif python
-		var stack = [];
-		var exc = python.lib.Sys.exc_info();
-		if (exc._3 != null) {
-			var infos = python.lib.Traceback.extract_tb(exc._3);
-			infos.reverse();
-			for (elem in infos)
-				stack.push(FilePos(Method(null, elem._3), elem._1, elem._2));
-		}
-		return stack;
+		return makeStack(pythonExceptionStack());
 		#elseif js
 		return getStack(lastException);
 		#elseif eval
@@ -506,7 +512,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#if cpp
 	@:noDebug /* Do not mess up the exception stack */
 	#end
-	private static function makeStack(s:NativeTrace) {
+	private static function makeStack(s:NativeTrace):Null<Array<StackItem>> {
 		#if neko
 		var a = new Array();
 		var l = untyped __dollar__asize(s);
@@ -630,6 +636,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(Module(str));
 		}
 		return stack;
+		#elseif python
+		return [for (elem in s) FilePos(Method(null, elem._3), elem._1, elem._2)];
 		#else
 		return null;
 		#end

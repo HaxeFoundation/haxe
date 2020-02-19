@@ -79,8 +79,9 @@ extern class Exception {
 	/**
 		Create a new Exception instance.
 
-		Upon extending `haxe.Exception` for custom exception classes there is no need to
-		keep `?native:Any` argument unless you know what you're doing.
+		The `native` argument is for internal usage only.
+		There is no need to provide `native` argument manually and no need to keep it
+		upon extending `haxe.Exception` unless you know what you're doing.
 	**/
 	public function new(message:String, ?previous:Exception, ?native:Any):Void;
 
@@ -99,12 +100,3 @@ extern class Exception {
 	**/
 	public function toString():String;
 }
-
-/**
-	This class is used to make `haxe.Exception` extend a native exception type
-	at runtime without exposing native exception API on `haxe.Exception` instances.
-**/
-@:dox(hide)
-@:noCompletion
-@:native('Exception')
-private extern class NativeException {}

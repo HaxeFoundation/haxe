@@ -466,6 +466,18 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["python";"Exceptions"],"BaseException";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["python";"Exceptions"],"BaseException";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
+				ec_base_throw = ["python";"Exceptions"],"BaseException";
+			}
 		}
 	| Hl ->
 		{

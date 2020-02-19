@@ -20,6 +20,8 @@ private class CustomNativeException extends js.lib.Error {}
 private class CustomNativeException extends java.lang.RuntimeException {}
 #elseif cs
 private class CustomNativeException extends cs.system.Exception {}
+#elseif python
+private class CustomNativeException extends python.Exceptions.Exception {}
 #end
 
 class TestExceptions extends Test {

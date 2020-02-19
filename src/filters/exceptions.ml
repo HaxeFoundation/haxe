@@ -296,9 +296,15 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs ->
+	| Php | Js | Java | Cs | Python ->
 		let config = tctx.com.config.pf_exceptions in
-		let tp (pack,name) = ({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos) in
+		let tp (pack,name) =
+			match List.rev pack with
+			| module_name :: pack_rev when not (is_lower_ident module_name) ->
+				({ tpackage = List.rev pack_rev; tname = module_name; tparams = []; tsub = Some name },null_pos)
+			| _ ->
+				({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos)
+		in
 		let wildcard_catch_type =
 			Typeload.load_instance tctx (tp config.ec_wildcard_catch) true
 		and base_throw_type =
