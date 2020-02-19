@@ -22,6 +22,8 @@ private class CustomNativeException extends java.lang.RuntimeException {}
 private class CustomNativeException extends cs.system.Exception {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
+#elseif lua
+private class CustomNativeException { public function new(m:String) {} }
 #end
 
 class TestExceptions extends Test {
@@ -69,6 +71,21 @@ class TestExceptions extends Test {
 			eq(thrown, e);
 			t(rethrown);
 		}
+	}
+
+	public function testSpecificCatch_propagatesUnrelatedExceptions() {
+		var propagated = false;
+		try {
+			try {
+				throw new ValueException('hello');
+			} catch(e:CustomHaxeException) {
+				assert();
+			}
+			assert();
+		} catch(e:ValueException) {
+			propagated = true;
+		}
+		t(propagated);
 	}
 
 	public function testCatchAbstract() {
