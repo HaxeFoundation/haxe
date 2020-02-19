@@ -86,10 +86,6 @@ let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
 let diff_lists list1 list2 = List.filter (fun x -> not (List.mem x list2)) list1
 
 (**
-	Type path for Haxe exceptions wrapper
-*)
-let hxexception_type_path = (["php"; "_Boot"], "HxException")
-(**
 	Type path of `php.Boot`
 *)
 let boot_type_path = (["php"], "Boot")
