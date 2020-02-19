@@ -80,7 +80,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 				(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
 				let check_module m =
 					try
-						let md = TypeloadModule.load_module ctx m p in
+						let md = Typeload.load_module ctx m p in
 						(* first look for existing subtype *)
 						(try
 							let t = Typeload.find_type_in_module md sname in
@@ -121,7 +121,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 					(match check_module (pack,name) with
 					| Some r -> r
 					| None -> def ()));
-			| _ ->
+			| _ -> 
 				(* no more parts or next part starts with lowercase - it's surely not a type name, so do the default thing *)
 				def())
 

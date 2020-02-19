@@ -85,13 +85,17 @@ let find_type_in_module m tname =
 		not infos.mt_private && snd infos.mt_path = tname
 	) m.m_types
 
-(* raises Module_not_found or Type_not_found *)
-let load_type_raise ctx mpath tname p =
-	let m = ctx.g.do_load_module ctx mpath p in
+(* raises Type_not_found *)
+let find_type_in_module_raise m tname p =
 	try
 		find_type_in_module m tname
 	with Not_found ->
-		raise_error (Type_not_found(mpath,tname)) p
+		raise_error (Type_not_found (m.m_path,tname)) p
+
+(* raises Module_not_found or Type_not_found *)
+let load_type_raise ctx mpath tname p =
+	let m = ctx.g.do_load_module ctx mpath p in
+	find_type_in_module_raise m tname p
 
 (* raises Not_found *)
 let load_type ctx mpath tname p = try
@@ -148,16 +152,19 @@ let load_unqualified_type_def ctx mname tname p =
 		(* Check our current module's path and its parent paths *)
 		loop (List.rev (fst ctx.m.curmod.m_path))
 
-let load_qualified_type_def ctx pack mname tname p =
+let load_module ctx path p =
 	try
-		(* Try loading the fully qualified module *)
-		load_type_raise ctx (pack,mname) tname p
-	with Error((Module_not_found _ | Type_not_found _),_) as exc ->
-		match pack with
-		| "std" :: pack ->
-			load_type_raise ctx (pack,mname) tname p
+		ctx.g.do_load_module ctx path p
+	with Error (Module_not_found mpath,_) as exc when mpath = path ->
+		match path with
+		| ("std" :: pack, name) ->
+			ctx.g.do_load_module ctx (pack,name) p
 		| _ ->
 			raise exc
+
+let load_qualified_type_def ctx pack mname tname p =
+	let m = load_module ctx (pack,mname) p in
+	find_type_in_module_raise m tname p
 
 (*
 	load a type or a subtype definition
