@@ -217,7 +217,11 @@ class TestExceptions extends Test {
 		try {
 			level1();
 		} catch(e:Exception) {
+			#if lua
+			t(e.stack != null);
+			#else
 			t(e.stack.length > 0);
+			#end
 		}
 	}
 }

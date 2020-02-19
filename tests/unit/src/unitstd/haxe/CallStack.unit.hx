@@ -15,7 +15,9 @@ try {
 } catch (_:Dynamic) {
 	var stack = haxe.CallStack.exceptionStack();
 	(stack is Array) == true;
+	#if !lua
 	stack.length > 0;
+	#end
 }
 #if js
 var old = @:privateAccess haxe.CallStack.lastException;

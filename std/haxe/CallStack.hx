@@ -32,6 +32,7 @@ private typedef NativeTrace =
 	#elseif cs cs.system.diagnostics.StackTrace
 	#elseif php NativeIndexedArray<NativeAssocArray<Dynamic>>
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
+	#elseif lua String
 	#else Dynamic
 	#end;
 
@@ -308,6 +309,9 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#elseif cs
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:Null<cs.system.Exception>;
+	#elseif lua
+	@:ifFeature("haxe.CallStack.exceptionStack")
+	static var exception:Null<NativeTrace>;
 	#end
 
 	/**
@@ -426,26 +430,10 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif python
 		return makeStack(pythonCallStack());
 		#elseif lua
-		var stack = [];
-		var infos = lua.Debug.traceback();
-		var luastack = infos.split("\n").slice(2, -1);
-		for (s in luastack) {
-			var parts = s.split(":");
-			var file = parts[0];
-			var line = parts[1];
-			var method = if(parts.length <= 2) {
-				null;
-			} else {
-				var methodPos = parts[2].indexOf("'");
-				if(methodPos < 0) {
-					null;
-				} else {
-					Method(null, parts[2].substring(methodPos + 1, parts[2].length - 1));
-				}
-			}
-			stack.push(FilePos(method, file, Std.parseInt(line)));
+		return switch lua.Debug.traceback(null, null, 2) {
+			case null: [];
+			case s: makeStack(s);
 		}
-		return stack;
 		#elseif hl
 		try {
 			throw null;
@@ -504,6 +492,11 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return getStack(lastException);
 		#elseif eval
 		return getExceptionStack();
+		#elseif lua
+		return switch exception {
+			case null: [];
+			case s: makeStack(s);
+		}
 		#else
 		return []; // Unsupported
 		#end
@@ -638,6 +631,25 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return stack;
 		#elseif python
 		return [for (elem in s) FilePos(Method(null, elem._3), elem._1, elem._2)];
+		#elseif lua
+		var stack = [];
+		for (item in s.split('\n')) {
+			var parts = item.split(":");
+			var file = parts[0];
+			var line = parts[1];
+			var method = if(parts.length <= 2) {
+				null;
+			} else {
+				var methodPos = parts[2].indexOf("'");
+				if(methodPos < 0) {
+					null;
+				} else {
+					Method(null, parts[2].substring(methodPos + 1, parts[2].length - 1));
+				}
+			}
+			stack.push(FilePos(method, file, Std.parseInt(line)));
+		}
+		return stack;
 		#else
 		return null;
 		#end
