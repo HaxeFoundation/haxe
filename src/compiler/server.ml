@@ -38,7 +38,7 @@ let s_version with_build =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics global->
+		| DMDiagnostics _->
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -47,7 +47,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				in
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com global))
+			raise (Completion (Diagnostics.print ctx.com))
 		| _ ->
 			f_otherwise ()
 		end
@@ -142,21 +142,28 @@ let parse_file cs com file p =
 			try
 				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com file p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseDisplayFile _ -> "not cached, is display file",true
-					| ParseSuccess data ->
-						begin try
+					| ParseSuccess(data,is_display_file,pdi) ->
+						if is_display_file then begin
+							if pdi.pd_errors <> [] then
+								"not cached, is display file with parse errors",true
+							else if com.display.dms_per_file then begin
+								cc#cache_file ffile ftime data pdi;
+								"cached, is intact display file",true
+							end else
+								"not cached, is display file",true
+						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if not com.display.dms_display then raise Not_found;
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data;
+							cc#cache_file ffile ftime data pdi;
 							"cached",false
 						end
 				in
@@ -498,14 +505,6 @@ let create sctx write params =
 		ServerMessage.defines ctx.com "";
 		ServerMessage.signature ctx.com "" sign;
 		ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-		(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
-			current file in order to run diagnostics on it again. *)
-		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
-			let file = (DisplayPosition.display_position#get).pfile in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files file;
-			cs#taint_modules file;
-		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
 				ServerMessage.class_paths_changed ctx.com "";

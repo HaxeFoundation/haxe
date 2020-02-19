@@ -414,8 +414,8 @@ import java.NativeArray;
 		return ofNative(newarr);
 	}
 
-	public inline function iterator():Iterator<T> {
-		return new ArrayIterator<T>(this);
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	public function resize(len:Int):Void {
@@ -483,22 +483,4 @@ import java.NativeArray;
 	private inline function __unsafe_set(idx:Int, val:T):T {
 		return __a[idx] = val;
 	}
-}
-
-private final class ArrayIterator<T> {
-	var arr:Array<T>;
-	var len:Int;
-	var i:Int;
-
-	public inline function new(a:Array<T>) {
-		arr = a;
-		len = a.length;
-		i = 0;
-	}
-
-	public inline function hasNext():Bool
-		return i < len;
-
-	public inline function next():T
-		return arr[i++];
 }

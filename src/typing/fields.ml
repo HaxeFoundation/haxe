@@ -192,7 +192,7 @@ let field_access ctx mode f fmode t e p =
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
-				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) ->
+				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) when Meta.has Meta.Impl f.cf_meta  ->
 					c == ctx.curclass
 				| _ ->
 					false
@@ -210,15 +210,14 @@ let field_access ctx mode f fmode t e p =
 					| _ -> false
 				)
 			in
-			if bypass_accessor then
-				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
+			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
 				if not (is_physical_field f) then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
-				AKExpr (mk (TField (e,if prefix = "" then fmode else FDynamic (prefix ^ f.cf_name))) t p)
-			else if is_abstract_this_access() then begin
+				AKExpr (mk (TField (e,fmode)) t p)
+			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if mode = MSet then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
@@ -281,7 +280,7 @@ let rec using_field ctx mode e i p =
 						| _ -> ()
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					ImportHandling.maybe_mark_import_position ctx pc;
+					ImportHandling.mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
 				| _ ->
 					raise Not_found
@@ -297,7 +296,7 @@ let rec using_field ctx mode e i p =
 		loop ctx.m.module_using
 	with Not_found -> try
 		(* type using from `@:using(Path)` *)
-		let mt = module_type_of_type e.etype in
+		let mt = module_type_of_type (follow e.etype) in
 		loop (t_infos mt).mt_using
 	with Not_found | Exit -> try
 		(* global using *)
@@ -524,6 +523,9 @@ let rec type_field cfg ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
+			| (MGet | MCall), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+				let ef = field_expr f (field_type f) in
+				AKExpr(ef)
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in

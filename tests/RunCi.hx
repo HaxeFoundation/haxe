@@ -98,8 +98,6 @@ class RunCi {
 						runci.targets.Cs.run(args);
 					case Flash9:
 						runci.targets.Flash.run(args);
-					case As3:
-						runci.targets.As3.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:

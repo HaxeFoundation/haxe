@@ -53,6 +53,20 @@
 		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
 	},
 	{
+		"name": "AssemblyMeta",
+		"metadata": ":cs.assemblyMeta",
+		"doc": "Used to declare a native C# assembly attribute",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
+		"name": "AssemblyStrict",
+		"metadata": ":cs.assemblyStrict",
+		"doc": "Used to declare a native C# assembly attribute; is type checked",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Ast",
 		"metadata": ":ast",
 		"doc": "Internally used to pass the AST source into the typed AST.",
@@ -194,6 +208,13 @@
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
+	},
+	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
 	},
 	{
 		"name": "Dce",
@@ -418,6 +439,12 @@
 		"doc": "Internally used to mark instances of `@:generic` methods.",
 		"targets": ["TClassField"],
 		"internal": true
+	},
+	{
+		"name": "GenericClassPerMethod",
+		"metadata": ":genericClassPerMethod",
+		"doc": "Makes compiler generate separate class per generic static method specialization",
+		"targets": ["TClass"]
 	},
 	{
 		"name": "Getter",
@@ -803,7 +830,7 @@
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
 		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
-		"params": ["Off | Loose | Strict"],
+		"params": ["Off | Loose | Strict | StrictThreaded"],
 		"targets": ["TClass", "TClassField", "TExpr"],
 		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
@@ -922,7 +949,7 @@
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property.",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
@@ -1102,6 +1129,12 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "TailRecursion",
+		"metadata": ":tailRecursion",
+		"doc": "Internally used for tail recursion elimination.",
+		"internal": true
+	},
+	{
 		"name": "TemplatedCall",
 		"metadata": ":templatedCall",
 		"doc": "Indicates that the first parameter of static call should be treated as a template argument.",
@@ -1191,7 +1224,15 @@
 		"name": "Value",
 		"metadata": ":value",
 		"doc": "Used to store default values for fields and function arguments.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"internal": true
+	},
+	{
+		"name": "HaxeArguments",
+		"metadata": ":haxe.arguments",
+		"doc": "Used to store function arguments.",
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
 		"name": "Void",

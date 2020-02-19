@@ -51,19 +51,8 @@
 		return new1(neko.NativeArray.sub(this.__a, 0, this.length), this.length);
 	}
 
-	public function iterator():Iterator<T> {
-		return untyped {
-			a: this,
-			p: 0,
-			hasNext: function() {
-				return __this__.p < __this__.a.length;
-			},
-			next: function() {
-				var i = __this__.a.__a[__this__.p];
-				__this__.p += 1;
-				return i;
-			}
-		};
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	public function insert(pos:Int, x:T):Void {

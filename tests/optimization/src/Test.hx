@@ -8,10 +8,19 @@ class InlineCtor {
 	}
 }
 
-class Set {
-	var amount:Int;
-	public inline function new(a:Int) amount = a;
+class Collection<V> {
+	public var amount:Int;
+	public inline function new(amount:Int) this.amount = amount;
 	public inline function count() return amount;
+	public inline function iterator() return new CollectionIterator(this);
+}
+
+class CollectionIterator<V> {
+	final set:Collection<V>;
+	var current:Int = 0;
+	public inline function new(set:Collection<V>) this.set = set;
+	public inline function hasNext() return current++ < set.amount;
+	public inline function next() return (null:V);
 }
 
 typedef Countable = {
@@ -100,10 +109,38 @@ class Test {
 		var a = 10;
 	')
 	static function testInlineCtor_passedToInlineMethodAsAnonConstraint() {
-		var a = count(new Set(10));
+		var a = count(new Collection(10));
 	}
 	static inline function count<T:Countable>(v:T) {
 		return v.count();
+	}
+
+	@:js('
+		var _g_set_amount = 10;
+		var _g_current = 0;
+		while(_g_current++ < 10) {
+			var i = null;
+		}
+	')
+	static function testIterator_passedToInlineMethodAsAnonConstraint() {
+		iterIterator(new Collection(10).iterator());
+	}
+	static inline function iterIterator<V,T:Iterator<V>>(it:T) {
+		for(i in it) {}
+	}
+
+	@:js('
+		var _g_set_amount = 10;
+		var _g_current = 0;
+		while(_g_current++ < 10) {
+			var i = null;
+		}
+	')
+	static function testIterable_passedToInlineMethodAsAnonConstraint() {
+		iterIterable(new Collection(10));
+	}
+	static inline function iterIterable<V,T:Iterable<V>>(it:T) {
+		for(i in it) {}
 	}
 
 	@:js('

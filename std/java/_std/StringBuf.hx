@@ -43,7 +43,7 @@ class StringBuf {
 	}
 	#else
 	public function add<T>(x:T):Void {
-		if (Std.is(x, Int)) {
+		if (Std.isOfType(x, Int)) {
 			var x:Int = cast x;
 			var xd:Dynamic = x;
 			b.append(xd);

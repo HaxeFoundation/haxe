@@ -233,7 +233,7 @@ extern class Math {
 	**/
 	static function random():Float;
 
-	#if ((flash && !as3) || cpp || eval)
+	#if (flash || cpp || eval)
 	/**
 		Returns the largest integer value that is not greater than `v`, as a `Float`.
 

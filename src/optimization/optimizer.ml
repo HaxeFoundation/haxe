@@ -291,11 +291,12 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
+					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
-					let inl = (try type_inline ctx cf tf ef el rt None e.epos false with Error (Custom _,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_) -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
 					| Some e ->

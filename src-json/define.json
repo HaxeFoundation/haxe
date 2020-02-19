@@ -11,15 +11,15 @@
 		"platforms": ["flash"]
 	},
 	{
+		"name": "AnalyzerOptimize",
+		"define": "analyzer_optimize",
+		"doc": "Perform advanced optimizations."
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate_source",
 		"doc": "Add additional comments to generated source code.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "As3",
-		"define": "as3",
-		"doc": "Defined when outputting flash9 as3 source code."
 	},
 	{
 		"name": "CheckXmlProxy",

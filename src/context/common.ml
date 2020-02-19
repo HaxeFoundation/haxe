@@ -153,14 +153,11 @@ class compiler_callbacks = object(self)
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 	mutable display_module_has_macro_defines : bool;
 }
 
@@ -215,6 +212,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
+	mutable pending_messages : ((unit->unit)->unit) option;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -355,14 +353,6 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
 		}
-	| Flash when defined Define.As3 ->
-		{
-			default_config with
-			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
-			pf_add_final_return = true;
-			pf_can_skip_non_nullable_argument = false;
-		}
 	| Flash ->
 		{
 			default_config with
@@ -443,14 +433,11 @@ let create version s_version args =
 		args = args;
 		shared = {
 			shared_display_information = {
-				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
@@ -510,7 +497,24 @@ let create version s_version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
+		pending_messages = None;
 	}
+
+exception HoldMessages of exn * (unit->unit)
+
+let hold_messages com action =
+	let old_pending = com.pending_messages in
+	let messages = ref [] in
+	com.pending_messages <- Some (fun submit -> messages := submit :: !messages);
+	let submit_all() = List.iter (fun f -> f()) (List.rev !messages) in
+	let restore() = com.pending_messages <- old_pending; in
+	try
+		let result = action() in
+		restore();
+		result,submit_all
+	with err ->
+		restore();
+		raise (HoldMessages (err,submit_all))
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
@@ -529,7 +533,6 @@ let clone com =
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
 		};
 		defines = {
@@ -832,9 +835,12 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
-	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+let rec add_diagnostics_message com s p kind sev =
+	match com.pending_messages with
+	| Some add -> add (fun() -> add_diagnostics_message com s p kind sev)
+	| None ->
+		let di = com.shared.shared_display_information in
+		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 

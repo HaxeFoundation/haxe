@@ -235,12 +235,8 @@ class Array<T> {
 		return [for (i in this) if (f(i)) i];
 	}
 
-	public inline function iterator():Iterator<T> {
-		var cur_length = 0;
-		return {
-			hasNext: function() return cur_length < length,
-			next: function() return this[cur_length++]
-		}
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
 	public function resize(len:Int):Void {

@@ -952,7 +952,7 @@ module StdEReg = struct
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [encode_string ""]
+		if String.length s = 0 then encode_array [v_empty_string]
 		else begin
 			let max = if this.r_global then -1 else 2 in
 			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
@@ -1540,9 +1540,9 @@ module StdIntMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = IntHashtbl.fold (fun key vvalue acc ->
-			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -1599,9 +1599,9 @@ module StdStringMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
-			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -1657,9 +1657,9 @@ module StdObjectMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
-			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
 	)
 
@@ -1999,7 +1999,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2145,11 +2145,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -2190,7 +2192,7 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_string ""
+		if i < 0 || i >= this.slength then v_empty_string
 		else vstring (from_char_code (char_at this i))
 	)
 
@@ -2288,7 +2290,7 @@ module StdString = struct
 		let cl_this = this.slength in
 		let c_pos = decode_int pos in
 		if c_pos >= cl_this then
-			encode_string ""
+			v_empty_string
 		else begin
 			let c_pos = if c_pos < 0 then begin
 				let c_pos = this.slength + c_pos in
@@ -2320,7 +2322,7 @@ module StdString = struct
 		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
 		let c_last = if c_last > cl_this then cl_this else c_last in
 		if c_first > cl_this || c_first = c_last then
-			encode_string ""
+			v_empty_string
 		else begin
 			begin
 				let b_offset1 = get_offset this c_first in
@@ -3175,9 +3177,9 @@ let init_constructors builtins =
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3228,7 +3230,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3236,7 +3239,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_string "");
+	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3524,7 +3527,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3548,6 +3551,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;
@@ -3660,4 +3664,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

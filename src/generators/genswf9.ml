@@ -1405,7 +1405,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (HOp A3OIs)
-	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "is" })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
+	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = ("is" | "isOfType") })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
 		(* fast inlining of Std.is with known values *)
 		gen_expr ctx true e;
 		gen_expr ctx true t;

@@ -36,6 +36,9 @@ open JvmBuilder
 
 (* hacks *)
 
+let is_really_int t =
+	not (is_nullable t) && ExtType.is_int (follow t)
+
 let rec pow a b = match b with
 	| 0 -> Int32.one
 	| 1 -> a
@@ -82,6 +85,18 @@ let find_overload map_type c cf el =
 	in
 	loop (cf :: cf.cf_overloads)
 
+let filter_overloads candidates =
+	match Overloads.Resolution.reduce_compatible candidates with
+	| [_,_,(c,cf)] -> Some(c,cf)
+	| [] -> None
+	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
+		(* let st = s_type (print_context()) in
+		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
+		List.iter (fun (_,t,(c,cf)) ->
+			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
+		) resolved; *)
+		Some(c,cf)
+
 let find_overload_rec' is_ctor map_type c name el =
 	let candidates = ref [] in
 	let has_function t1 (_,t2,_) =
@@ -114,16 +129,7 @@ let find_overload_rec' is_ctor map_type c name el =
 		end;
 	in
 	loop map_type c;
-	match Overloads.Resolution.reduce_compatible (List.rev !candidates) with
-	| [_,_,(c,cf)] -> Some(c,cf)
-	| [] -> None
-	| ((_,_,(c,cf)) :: _) (* as resolved *) ->
-		(* let st = s_type (print_context()) in
-		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
-		List.iter (fun (_,t,(c,cf)) ->
-			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
-		) resolved; *)
-		Some(c,cf)
+	filter_overloads (List.rev !candidates)
 
 let find_overload_rec is_ctor map_type c cf el =
 	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
@@ -203,6 +209,7 @@ let rec jsignature_of_type stack t =
 			| ["java"],"Char16" -> TChar
 			| [],"Single" -> TFloat
 			| [],"Float" -> TDouble
+			| [],"Void" -> void_sig
 			| [],"Null" ->
 				begin match tl with
 				| [t] -> get_boxed_type (jsignature_of_type t)
@@ -577,11 +584,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method expect_reference_type = jm#expect_reference_type
 
 	method cast t =
-		if follow t != t_dynamic then begin
-			let vt = self#vtype t in
-			jm#cast vt
-		end else
-			self#expect_reference_type
+		let vt = self#vtype t in
+		jm#cast vt
 
 	method cast_expect ret t = match ret with
 		| RValue (Some jsig) -> jm#cast jsig
@@ -1275,12 +1279,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| OpAssignOp op ->
 			let jsig1 = jsignature_of_type e1.etype in
 			begin match op,(Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
-			| OpAdd,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
+			| OpAdd,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
 				let slot,load,_ = self#get_local v in
 				let i = Int32.to_int i32 in
 				code#iinc slot i;
 				if ret <> RVoid then load();
-			| OpSub,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
+			| OpSub,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
 				let slot,load,_ = self#get_local v in
 				let i = -Int32.to_int i32 in
 				code#iinc slot i;
@@ -1298,7 +1302,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method unop ret op flag e =
 		match op,(Texpr.skip e).eexpr with
-		| (Increment | Decrement),TLocal v when ExtType.is_int v.v_type && self#var_slot_is_in_int8_range v ->
+		| (Increment | Decrement),TLocal v when is_really_int v.v_type && self#var_slot_is_in_int8_range v ->
 			let slot,load,_ = self#get_local v in
 			if flag = Postfix && ret <> RVoid then load();
 			code#iinc slot (if op = Increment then 1 else -1);
@@ -1510,6 +1514,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
+			let c,cf = match cf.cf_overloads with
+				| [] -> c,cf
+				| _ -> match filter_overloads (find_overload (fun t -> t) c cf el) with
+					| None ->
+						Error.error "Could not find overload" e1.epos
+					| Some(c,cf) ->
+						c,cf
+			in
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
@@ -1837,7 +1849,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let _,load,_ = self#get_local v in
 			load()
 		| TTypeExpr mt ->
-			self#type_expr (jsignature_of_type (type_of_module_type mt))
+			let t = type_of_module_type mt in
+			if ExtType.is_void (follow t) then self#basic_type_path "Void"
+			else self#type_expr (jsignature_of_type t)
 		| TUnop(op,flag,e1) ->
 			begin match op with
 			| Not | Neg | NegBits when ret = RVoid -> self#texpr ret e1
@@ -2761,7 +2775,9 @@ let debug_path path = match path with
 
 let is_extern_abstract a = match a.a_impl with
 	| Some {cl_extern = true} -> true
-	| _ -> false
+	| _ -> match a.a_path with
+		| ([],("Void" | "Float" | "Int" | "Single" | "Bool" | "Null")) -> true
+		| _ -> false
 
 let generate_module_type ctx mt =
 	failsafe (t_infos mt).mt_pos (fun () ->

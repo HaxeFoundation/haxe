@@ -58,7 +58,7 @@ class HttpJs extends haxe.http.HttpBase {
 			if (r.readyState != 4)
 				return;
 			var s = try r.status catch (e:Dynamic) null;
-			if (s == 0 && js.Browser.supported) {
+			if (s == 0 && js.Browser.supported && js.Browser.location != null) {
 				// If the request is local and we have data: assume a success (jQuery approach):
 				var protocol = js.Browser.location.protocol.toLowerCase();
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;

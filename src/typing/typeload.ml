@@ -101,67 +101,82 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
+let find_type_in_current_module_context ctx pack name =
+	let no_pack = pack = [] in
+	let path_matches t2 =
+		let tp = t_path t2 in
+		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
+		tp = (pack,name) || (no_pack && snd tp = name)
+	in
+	try
+		(* Check the types in our own module *)
+		List.find path_matches ctx.m.curmod.m_types
+	with Not_found ->
+		(* Check the local imports *)
+		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+		ImportHandling.mark_import_position ctx pi;
+		t
+
+let load_unqualified_type_def ctx mname tname p =
+	try
+		let rec loop l =
+			match l with
+			| [] ->
+				raise Exit
+			| (pack,ppack) :: l ->
+				begin try
+					let mt = load_type ctx (pack,mname) tname p in
+					ImportHandling.mark_import_position ctx ppack;
+					mt
+				with Not_found ->
+					loop l
+				end
+		in
+		(* Check wildcard packages by using their package *)
+		loop ctx.m.wildcard_packages
+	with Exit ->
+		let rec loop l =
+			match l with
+			| [] ->
+				load_type_raise ctx ([],mname) tname p
+			| _ :: sl as l ->
+				try
+					load_type ctx (List.rev l,mname) tname p
+				with Not_found ->
+					loop sl
+		in
+		(* Check our current module's path and its parent paths *)
+		loop (List.rev (fst ctx.m.curmod.m_path))
+
+let load_qualified_type_def ctx pack mname tname p =
+	try
+		(* Try loading the fully qualified module *)
+		load_type_raise ctx (pack,mname) tname p
+	with Error((Module_not_found _ | Type_not_found _),_) as exc ->
+		match pack with
+		| "std" :: pack ->
+			load_type_raise ctx (pack,mname) tname p
+		| _ ->
+			raise exc
+
 (*
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
-	let no_pack = t.tpackage = [] in
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (DisplayTypes.make_subject None p);
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
+
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
+
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
-		let path_matches t2 =
-			let tp = t_path t2 in
-			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		in
-		try
-			(* Check the types in our own module *)
-			List.find path_matches ctx.m.curmod.m_types
-		with Not_found ->
-			(* Check the local imports *)
-			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			ImportHandling.mark_import_position ctx.com pi;
-			t
-	with
-	| Not_found when no_pack ->
-		(* Unqualified *)
-		begin try
-			let rec loop l = match l with
-				| [] ->
-					raise Exit
-				| (pack,ppack) :: l ->
-					begin try
-						let mt = load_type ctx (pack,t.tname) tname p in
-						ImportHandling.mark_import_position ctx.com ppack;
-						mt
-					with Not_found ->
-						loop l
-					end
-			in
-			(* Check wildcard packages by using their package *)
-			loop ctx.m.wildcard_packages
-		with Exit ->
-			let rec loop l = match l with
-				| [] ->
-					load_type_raise ctx ([],t.tname) tname p
-				| _ :: sl as l ->
-					(try load_type ctx (List.rev l,t.tname) tname p with Not_found -> loop sl)
-			in
-			(* Check our current module's path and its parent paths *)
-			loop (List.rev (fst ctx.m.curmod.m_path))
-		end
-	| Not_found ->
-		(* Qualified *)
-		try
-			(* Try loading the fully qualified module *)
-			load_type_raise ctx (t.tpackage,t.tname) tname p
-		with Error((Module_not_found _ | Type_not_found _),_) as exc -> match t.tpackage with
-		| "std" :: l ->
-			load_type_raise ctx (l,t.tname) tname p
-		| _ ->
-			raise exc
+		find_type_in_current_module_context ctx t.tpackage tname
+	with Not_found ->
+		if t.tpackage = [] then
+			load_unqualified_type_def ctx t.tname tname p
+		else
+			load_qualified_type_def ctx t.tpackage t.tname tname p
 
 (* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
@@ -172,11 +187,45 @@ let resolve_position_by_path ctx path p =
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
 
-let generate_value_meta com co fadd args =
+let check_param_constraints ctx types t pl c p =
+	match follow t with
+	| TMono _ -> ()
+	| _ ->
+		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
+		List.iter (fun ti ->
+			let ti = apply_params types pl ti in
+			let ti = (match follow ti with
+				| TInst ({ cl_kind = KGeneric } as c,pl) ->
+					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
+					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
+					f pl
+				| _ -> ti
+			) in
+			try
+				unify_raise ctx t ti p
+			with Error(Unify l,p) ->
+				let fail() =
+					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+				in
+				match follow t with
+				| TInst({cl_kind = KExpr e},_) ->
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+					begin try unify_raise ctx e.etype ti p
+					with Error (Unify _,_) -> fail() end
+				| _ ->
+					fail()
+
+		) ctl
+
+let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
-	match values with
+	(match values with
 		| [] -> ()
-		| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
+		| _ -> add_meta (Meta.Value,[EObjectDecl values,null_pos],null_pos)
+	);
+	if List.exists (fun (_,_,m,_,_) -> m <> []) args then
+		let fn = { f_params = []; f_args = args; f_type = None; f_expr = None } in
+		add_meta (Meta.HaxeArguments,[EFunction(FKAnonymous,fn),null_pos],null_pos)
 
 let is_redefined ctx cf1 fields p =
 	try
@@ -547,7 +596,7 @@ and init_meta_overloads ctx co cf =
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
 			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
-			generate_value_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
+			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
 			ctx.type_params <- old;
 			false
@@ -816,7 +865,7 @@ let handle_using ctx path p =
 		| (s1,_) :: sl ->
 			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in
 	let types = (match t.tsub with
 		| None ->

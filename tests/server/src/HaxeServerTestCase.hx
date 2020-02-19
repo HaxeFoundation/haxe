@@ -120,6 +120,10 @@ class HaxeServerTestCase implements ITest {
 		return Json.parse(lastResult.stderr).result;
 	}
 
+	function parseGotoDefinition():GotoTypeDefinitionResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
 	function assertSuccess(?p:haxe.PosInfos) {
 		Assert.isTrue(0 == errorMessages.length, p);
 	}

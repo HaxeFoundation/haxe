@@ -43,8 +43,16 @@ extern class Syntax {
 		```haxe
 		console.log("hi", 42);
 		```
+
+		Emits a compilation error if the count of `args` does not match the count of placeholders in `code`.
 	**/
 	static function code(code:String, args:Rest<Dynamic>):Dynamic;
+
+	/**
+		Inject `code` directly into generated source.
+		The same as `js.Syntax.code` except this one does not provide code interpolation.
+	**/
+	static function plainCode(code:String):Dynamic;
 
 	/**
 		Generate `new cl(...args)` expression.

@@ -243,6 +243,7 @@ let rec func ctx bb tf t p =
 		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
+		no_void v.v_type p;
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
@@ -264,7 +265,6 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let generate bb e =
-			no_void v.v_type p;
 			let ev = mk (TLocal v) v.v_type p in
 			let was_assigned = ref false in
 			let assign e =

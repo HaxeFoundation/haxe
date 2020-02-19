@@ -1286,12 +1286,10 @@ module Purity = struct
 				end
 			| _ -> ()
 		) com.types;
-		Hashtbl.fold (fun _ node acc ->
+		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
-			| Pure | MaybePure ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
-				node.pn_field :: acc
-			| _ ->
-				acc
-		) node_lut [];
+			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+			| _ -> ()
+		) node_lut;
 end

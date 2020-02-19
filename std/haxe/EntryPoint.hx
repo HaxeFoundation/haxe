@@ -110,7 +110,7 @@ class EntryPoint {
 		var nextTick = processEvents();
 		inline function setTimeoutNextTick() {
 			if (nextTick >= 0) {
-				(untyped setTimeout)(run, nextTick);
+				(untyped setTimeout)(run, nextTick * 1000);
 			}
 		}
 		#if nodejs

@@ -254,7 +254,7 @@ struct
 
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(md) } ]
 					) ->
 					let mk_is is_basic obj md =

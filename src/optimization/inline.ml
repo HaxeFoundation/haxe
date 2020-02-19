@@ -124,7 +124,7 @@ let api_inline ctx c field params p =
 	let tint = ctx.com.basic.tint in
 
 	match c.cl_path, field, params with
-	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -243,6 +243,28 @@ let inline_default_config cf t =
 	let tmonos = snd tparams @ pmonos in
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
+
+let inline_config cls_opt cf call_args return_type =
+	match cls_opt with
+	| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl cf.cf_meta ->
+		let t = if cf.cf_name = "_new" then
+			return_type
+		else if call_args = [] then
+			error "Invalid abstract implementation function" cf.cf_pos
+		else
+			follow (List.hd call_args).etype
+		in
+		begin match t with
+			| TAbstract(a,pl) ->
+				let has_params = a.a_params <> [] || cf.cf_params <> [] in
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map_type = fun t -> apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				Some (has_params,map_type)
+			| _ ->
+				None
+		end
+	| _ ->
+		None
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
@@ -585,7 +607,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TVar (v, Some { eexpr = TConst _ }) ->
 				(try
 					let data = Hashtbl.find locals v.v_id in
-					if data.i_read = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					if data.i_read = 0 && data.i_called = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
 					else Type.map_expr drop_unused_vars e
 				with Not_found ->
 					Type.map_expr drop_unused_vars e

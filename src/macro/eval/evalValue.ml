@@ -60,18 +60,18 @@ module StringHashtbl = struct
 end
 
 module IntHashtbl = struct
-	type 'value t = 'value IntMap.t ref
+	type 'value t = (int, 'value) Hashtbl.t
 
-	let add this key v = this := IntMap.add key v !this
-	let copy this = ref !this
-	let create () = ref IntMap.empty
-	let find this key = IntMap.find key !this
-	let fold f this acc = IntMap.fold f !this acc
-	let is_empty this = IntMap.is_empty !this
-	let iter f this = IntMap.iter f !this
-	let mem this key = IntMap.mem key !this
-	let remove this key = this := IntMap.remove key !this
-	let clear this = this := IntMap.empty
+	let add this key v = Hashtbl.replace this key v
+	let copy this = Hashtbl.copy this
+	let create () = Hashtbl.create 0
+	let find this key = Hashtbl.find this key
+	let fold f this acc = Hashtbl.fold f this acc
+	let is_empty this = Hashtbl.length this = 0
+	let iter f this = Hashtbl.iter f this
+	let mem this key = Hashtbl.mem this key
+	let remove this key = Hashtbl.remove this key
+	let clear this = Hashtbl.clear this
 end
 
 type vregex = {
@@ -165,6 +165,13 @@ and vinstance_kind =
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
 	| IRef of Obj.t
+	(* SSL *)
+	| IMbedtlsConfig of Mbedtls.mbedtls_ssl_config
+	| IMbedtlsCtrDrbg of Mbedtls.mbedtls_ctr_drbg_context
+	| IMbedtlsEntropy of Mbedtls.mbedtls_entropy_context
+	| IMbedtlsPkContext of Mbedtls.mbedtls_pk_context
+	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
+	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
 
 and vinstance = {

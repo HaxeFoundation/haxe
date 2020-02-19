@@ -35,18 +35,15 @@ extern class Misc {
 	public static function get_free_memory():Int;
 	public static function getpid():Int;
 
-	// TODO Windows only?
-	public static function getuid():Int;
-	public static function setuid(from:Int, to:Int):String;
-	public static function getgid():Int;
-	public static function setgid(from:Int, to:Int):Void;
-
 	public static function getrusage():ResourceUsage;
 	public static function guess_handle(handle:Int):String;
 	public static function hrtime():Float;
 
+    public static function gettimeofday() : TimeOfDay;
+
 	// TODO: implement this
-	// public static function interface_addresses() : String;
+	public static function interface_addresses() : Dynamic;
+
 	public static function loadavg():Float;
 	public static function resident_set_memory():Int;
 	public static function set_process_title(title:String):Bool;
@@ -54,9 +51,16 @@ extern class Misc {
 	public static function version():Int;
 	public static function version_string():String;
 
-	// TODO : Windows only
+	// Windows only
+	public static function getuid():Int;
+	public static function setuid(from:Int, to:Int):String;
+	public static function getgid():Int;
+	public static function setgid(from:Int, to:Int):Void;
+
+	// Windows only
 	public static function print_all_handles():Table<Int, String>;
 	public static function print_active_handles():Table<Int, String>;
+
 }
 
 typedef CpuInfo = {
@@ -94,4 +98,10 @@ typedef ResourceUsage = {
 typedef MicroTimeStamp = {
 	usec:Int,
 	sec:Int
+}
+
+@:multiReturn
+extern class TimeOfDay {
+    var seconds : Int;
+    var microseconds : Int;
 }
