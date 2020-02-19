@@ -469,11 +469,9 @@ let get_config com =
 			pf_exceptions = {
 				ec_native_throws = [
 					["python";"Exceptions"],"BaseException";
-					["haxe"],"Exception";
 				];
 				ec_native_catches = [
 					["python";"Exceptions"],"BaseException";
-					["haxe"],"Exception";
 				];
 				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
 				ec_base_throw = ["python";"Exceptions"],"BaseException";
