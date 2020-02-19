@@ -20,6 +20,11 @@ type context = {
 	haxe_call_stack_class : tclass;
 }
 
+let is_dynamic t =
+	match Abstract.follow_with_abstracts t with
+	| TAbstract({ a_path = [],"Dynamic" }, _) -> true
+	| t -> t == t_dynamic
+
 (**
 	Generate `haxe.Exception.method_name(args)`
 *)
@@ -150,19 +155,23 @@ let throw_native ctx e_thrown t p =
 			In this case we delegate the decision to `haxe.Exception.thrown(e_thrown)`.
 			Because it could happen to be a wrapper for a wildcard catch.
 		*)
-		let is_direct_haxe_exception_stored() =
-			fast_eq ctx.haxe_exception_type (follow e_thrown.etype)
+		let is_stored_haxe_exception() =
+			is_haxe_exception ~check_parent:false e_thrown.etype
 			&& match e_thrown.eexpr with
 				| TNew(_,_,_) -> false
 				| _ -> true
 		in
-		(* already a native exception *)
-		if is_native_throw ctx e_thrown.etype && not (is_direct_haxe_exception_stored()) then
+		if
+			(* already a native exception *)
+			(is_native_throw ctx e_thrown.etype && not (is_stored_haxe_exception()))
+			(* current target does not have native exceptions and `e_thrown` is `haxe.Exception` *)
+			|| (is_dynamic ctx.base_throw_type && is_haxe_exception e_thrown.etype && not (is_stored_haxe_exception()))
+		then
 			e_thrown
 		(* Wrap everything else with `haxe.Exception.thrown` call *)
 		else
 			let thrown = haxe_exception_static_call ctx "thrown" [e_thrown] p in
-			if ctx.base_throw_type == t_dynamic then thrown
+			if is_dynamic ctx.base_throw_type then thrown
 			else mk_cast thrown ctx.base_throw_type p
 	in
 	mk (TThrow e_native) t p
@@ -296,7 +305,7 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs | Python ->
+	| Php | Js | Java | Cs | Python | Lua ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			match List.rev pack with
