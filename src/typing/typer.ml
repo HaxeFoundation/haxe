@@ -1250,7 +1250,7 @@ and type_ident ctx i p mode =
 			end
 
 and handle_efield ctx e p0 mode =
-	let open TyperDotPath in 
+	let open TyperDotPath in
 
 	let dot_path first pnext =
 		let name,_,p = first in
@@ -1291,7 +1291,7 @@ and handle_efield ctx e p0 mode =
 							else
 								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
-						raise e						
+						raise e
 	in
 
 	(* loop through the given EField expression to figure out whether it's a dot-path that we have to resolve,
@@ -2527,6 +2527,7 @@ let rec create com =
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
+			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
 			do_load_type_def = Typeload.load_type_def;
 			do_optimize = Optimizer.reduce_expression;

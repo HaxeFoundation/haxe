@@ -516,7 +516,7 @@ let load_macro_module ctx cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro ctx display cpath f p =
+let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with
@@ -552,6 +552,11 @@ let load_macro ctx display cpath f p =
 		meth
 	in
 	add_dependency ctx.m.curmod mloaded;
+	cpath,sub,meth
+
+let load_macro ctx display cpath f p =
+	let cpath,sub,meth = load_macro' ctx display cpath f p in
+	let api, mctx = get_macro_context ctx p in
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
