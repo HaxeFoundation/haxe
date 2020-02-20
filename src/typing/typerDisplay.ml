@@ -141,7 +141,7 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t ->
 			let from_type = CompletionType.from_type (get_import_status ctx) in
-			Some (from_type t,from_type (follow t))
+			Some (from_type t,from_type (Type.map follow (follow t)))
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in

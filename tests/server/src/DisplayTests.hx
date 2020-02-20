@@ -10,6 +10,23 @@ import haxe.display.FsPath;
 @:timeout(5000)
 // TODO: somebody has to clean this up
 class DisplayTests extends HaxeServerTestCase {
+	function testIssue7262() {
+		var content = 'class Main {
+			static public function main() {
+				var x:haxe.extern.EitherType<haxe.PosInfos, () -> Void> = {-1-}
+			}
+		}';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		equals("TAnonymous", result.mode.args.expectedTypeFollowed.args.params[0].kind);
+	}
+
 	function testIssue7305() {
 		var content = 'class Main {
 	static public function main() {
