@@ -26,6 +26,12 @@ import js.html.Storage;
 import js.html.XMLHttpRequest;
 
 class Browser {
+	/** The global scope with additional fields available only in a worker context. */
+	public static var self(get, never):js.html.DedicatedWorkerGlobalScope;
+
+	extern inline static function get_self()
+		return untyped __js__("self");
+
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
 
