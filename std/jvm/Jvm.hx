@@ -26,7 +26,6 @@ import haxe.extern.Rest;
 import haxe.Constraints;
 import Enum;
 import jvm.DynamicObject;
-import jvm.Exception;
 import jvm.EmptyConstructor;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
