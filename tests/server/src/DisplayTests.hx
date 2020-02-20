@@ -65,6 +65,23 @@ class DisplayTests extends HaxeServerTestCase {
 		Assert.equals("obj", result.result.mode.args.item.args.name);
 	}
 
+	function testIssue7923() {
+		vfs.putContent("TreeItem.hx", getTemplate("issues/Issue7923/TreeItem.hx"));
+		var content = getTemplate("issues/Issue7923/Main.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, item -> switch (item.kind) {
+			case EnumAbstractField: item.args.field.name == "Collapsed";
+			case _: false;
+		});
+	}
+
 	function testIssue8061() {
 		var content = 'class Main {
 	static function main() {

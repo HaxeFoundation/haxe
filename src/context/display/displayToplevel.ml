@@ -357,7 +357,7 @@ let collect ctx tk with_type sort =
 		(* enum constructors of expected type *)
 		begin match with_type with
 			| WithType.WithType(t,_) ->
-				(try enum_ctors (module_type_of_type t) with Exit -> ())
+				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
 			| _ -> ()
 		end;
 
