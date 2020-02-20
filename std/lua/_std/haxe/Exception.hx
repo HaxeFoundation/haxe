@@ -10,6 +10,7 @@ class Exception {
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Null<String>;
+	@:noCompletion var __skipStackItems:Int;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -25,7 +26,9 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__skipStackItems++;
+			return e;
 		}
 	}
 
@@ -35,9 +38,11 @@ class Exception {
 		if(native != null) {
 			__nativeException = native;
 			__nativeStack = CallStack.exception;
+			__skipStackItems = 0;
 		} else {
 			__nativeException = this;
-			__nativeStack = lua.Debug.traceback(null, null, 2);
+			__nativeStack = lua.Debug.traceback();
+			__skipStackItems = 3;
 		}
 	}
 
@@ -66,7 +71,7 @@ class Exception {
 			case null:
 				__exceptionStack = switch __nativeStack {
 					case null: [];
-					case s: CallStack.makeStack(s);
+					case s: CallStack.makeStack(s.split('\n').slice(__skipStackItems));
 				}
 			case s: s;
 		}

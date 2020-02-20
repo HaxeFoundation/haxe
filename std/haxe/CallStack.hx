@@ -27,12 +27,14 @@ import php.*;
 import haxe.Exception in Exception;
 #end
 
+using StringTools;
+
 private typedef NativeTrace =
 	#if java java.NativeArray<java.lang.StackTraceElement>
 	#elseif cs cs.system.diagnostics.StackTrace
 	#elseif php NativeIndexedArray<NativeAssocArray<Dynamic>>
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
-	#elseif lua String
+	#elseif lua Array<String>
 	#else Dynamic
 	#end;
 
@@ -310,8 +312,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:Null<cs.system.Exception>;
 	#elseif lua
-	@:ifFeature("haxe.CallStack.exceptionStack")
-	static var exception:Null<NativeTrace>;
+	static var exception:Null<String>;
 	#end
 
 	/**
@@ -430,9 +431,9 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif python
 		return makeStack(pythonCallStack());
 		#elseif lua
-		return switch lua.Debug.traceback(null, null, 2) {
+		return switch lua.Debug.traceback() {
 			case null: [];
-			case s: makeStack(s);
+			case s: makeStack(s.split('\n').slice(2));
 		}
 		#elseif hl
 		try {
@@ -495,7 +496,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif lua
 		return switch exception {
 			case null: [];
-			case s: makeStack(s);
+			case s: makeStack(s.split('\n'));
 		}
 		#else
 		return []; // Unsupported
@@ -633,9 +634,10 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return [for (elem in s) FilePos(Method(null, elem._3), elem._1, elem._2)];
 		#elseif lua
 		var stack = [];
-		for (item in s.split('\n')) {
-			var parts = item.split(":");
+		for (item in s) {
+			var parts = item.substr(1).split(":"); //`substr` to skip a tab at the beginning of a line
 			var file = parts[0];
+			if(file == '[C]') continue;
 			var line = parts[1];
 			var method = if(parts.length <= 2) {
 				null;
