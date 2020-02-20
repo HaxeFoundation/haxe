@@ -27,7 +27,7 @@ import js.html.XMLHttpRequest;
 
 class Browser {
 	/** The global scope with additional fields available only in a worker context. */
-	public static var self(get, never):js.html.DedicatedWorkerGlobalScope;
+	public static var self(get, never):js.html.WorkerGlobalScope;
 
 	extern inline static function get_self()
 		return untyped __js__("self");
