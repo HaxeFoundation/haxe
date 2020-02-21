@@ -1,0 +1,5 @@
+-cp src
+Main
+fail.NotFirstType
+-cs cs-fail
+-D no-compilation

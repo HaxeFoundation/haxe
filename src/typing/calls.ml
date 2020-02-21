@@ -208,19 +208,24 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
-			begin try
-				let e = type_against name t e in
+			try
+				let e,submit_messages = hold_messages ctx.com (fun() -> type_against name t e) in
+				submit_messages();
 				(e,opt) :: loop el args
-			with
-				WithTypeError (ul,p)->
+			with HoldMessages (err,submit_messages) ->
+				match err with
+				| WithTypeError (ul,p)->
 					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						match List.rev !skipped with
+						(match List.rev !skipped with
 						| [] -> arg_error ul name opt p
 						| (s,ul,p) :: _ -> arg_error ul s true p
-			end
+						)
+				| _ ->
+					submit_messages();
+					raise err
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
 	ctx.in_call_args <- in_call_args;
@@ -833,7 +838,7 @@ let array_access ctx e1 e2 mode p =
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
+		let base_ok = ref true in
 		let rec loop ?(skip_abstract=false) et =
 			match skip_abstract,follow et with
 			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
@@ -851,12 +856,42 @@ let array_access ctx e1 e2 mode p =
 			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
+				begin try
+					unify_raise ctx et t p
+				with Error(Unify _,_) ->
+					if not ctx.untyped then begin
+						let msg = if !has_abstract_array_access then
+							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
+						else
+							"Array access is not allowed on " ^ (s_type (print_context()) e1.etype)
+						in
+						base_ok := false;
+						raise_or_display_message ctx msg e1.epos;
+					end
+				end;
 				pt
 		in
 		let pt = loop e1.etype in
+		if !base_ok then unify ctx e2.etype ctx.t.tint e2.epos;
 		AKExpr (mk (TArray (e1,e2)) pt p)
+
+(*
+	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+	return a new `access_mode->access_kind` getter for the whole field access chain.
+
+	if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
+	cases, normal type errors will be raised if a field can't be accessed.
+*)
+let field_chain ?(resume=false) ctx path e =
+	let resume = ref resume in
+	let force = ref false in
+	let e = List.fold_left (fun e (f,_,p) ->
+		let e = acc_get ctx (e MGet) p in
+		let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
+		force := !resume;
+		resume := false;
+		f
+	) e path in
+	if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
+	e
+
