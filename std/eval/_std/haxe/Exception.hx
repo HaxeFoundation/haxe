@@ -34,7 +34,7 @@ class Exception {
 		__exceptionMessage = message;
 		__previousException = previous;
 		if(native != null) {
-			__exceptionStack = CallStack.exceptionStack();
+			__exceptionStack = CallStack.getExceptionStack();
 			__nativeException = native;
 		} else {
 			__exceptionStack = CallStack.getCallStack();
