@@ -22,7 +22,7 @@ private class CustomNativeException extends java.lang.RuntimeException {}
 private class CustomNativeException extends cs.system.Exception {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
-#elseif lua
+#elseif (lua || eval)
 private class CustomNativeException { public function new(m:String) {} }
 #end
 

@@ -3320,7 +3320,7 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"],"CallStack") [
+	init_fields builtins (["haxe"; "_CallStack"],"CallStack_Impl_") [
 		"getCallStack",StdCallStack.getCallStack;
 		"getExceptionStack",StdCallStack.getExceptionStack;
 	] [];
