@@ -305,7 +305,7 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs | Python | Lua | Eval ->
+	| Php | Js | Java | Cs | Python | Lua | Eval | Neko ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			match List.rev pack with
