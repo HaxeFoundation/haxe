@@ -309,7 +309,7 @@ let filter tctx =
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			match List.rev pack with
-			| module_name :: pack_rev when not (is_lower_ident module_name) ->
+			| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
 				({ tpackage = List.rev pack_rev; tname = module_name; tparams = []; tsub = Some name },null_pos)
 			| _ ->
 				({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos)
