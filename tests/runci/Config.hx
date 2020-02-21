@@ -16,6 +16,7 @@ class Config {
 	static public final sysDir = cwd + "sys/";
 	static public final optDir = cwd + "optimization/";
 	static public final miscDir = cwd + "misc/";
+	static public final resolutionDir = cwd + "resolution/";
 	static public final displayDir = cwd + "display/";
 	static public final serverDir = cwd + "server/";
 	static public final sourcemapsDir = cwd + "sourcemaps/";
