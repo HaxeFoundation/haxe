@@ -35,6 +35,7 @@ private typedef NativeTrace =
 	#elseif php NativeIndexedArray<NativeAssocArray<Dynamic>>
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#elseif lua Array<String>
+	#elseif flash String
 	#else Dynamic
 	#end;
 

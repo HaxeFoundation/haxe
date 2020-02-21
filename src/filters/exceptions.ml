@@ -305,7 +305,7 @@ and catch_native ctx catches t p =
 
 let filter tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Cs | Python | Lua | Eval | Neko ->
+	| Php | Js | Java | Cs | Python | Lua | Eval | Neko | Flash ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			match List.rev pack with
@@ -315,9 +315,13 @@ let filter tctx =
 				({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos)
 		in
 		let wildcard_catch_type =
-			Typeload.load_instance tctx (tp config.ec_wildcard_catch) true
+			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) true in
+			if is_dynamic t then t_dynamic
+			else t
 		and base_throw_type =
-			Typeload.load_instance tctx (tp config.ec_base_throw) true
+			let t = Typeload.load_instance tctx (tp config.ec_base_throw) true in
+			if is_dynamic t then t_dynamic
+			else t
 		and haxe_exception_type, haxe_exception_class =
 			match Typeload.load_instance tctx (tp haxe_exception_type_path) true with
 			| TInst(cls,_) as t -> t,cls

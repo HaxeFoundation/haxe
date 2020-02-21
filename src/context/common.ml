@@ -392,6 +392,15 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_exceptions = {
+				ec_native_throws = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [];
+				ec_wildcard_catch = ([],"Dynamic");
+				ec_base_throw = ([],"Dynamic");
+			}
 		}
 	| Php ->
 		{
