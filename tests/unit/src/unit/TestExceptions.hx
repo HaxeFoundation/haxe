@@ -24,11 +24,13 @@ private class CustomNativeException extends java.lang.RuntimeException {}
 private class CustomNativeException extends cs.system.Exception {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
-#elseif (lua || eval || neko)
+#elseif (lua || eval || neko || hl)
 private class CustomNativeException { public function new(m:String) {} }
 #end
 
 class TestExceptions extends Test {
+	/** Had to move to instance var because of https://github.com/HaxeFoundation/haxe/issues/9174 */
+	var rethrown:Bool = false;
 
 	public function testWildCardCatch() {
 		try {
@@ -47,7 +49,7 @@ class TestExceptions extends Test {
 
 	public function testWildCardCatch_rethrow() {
 		var thrown = new CustomHaxeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;
@@ -61,7 +63,7 @@ class TestExceptions extends Test {
 		}
 
 		var thrown = new CustomNativeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;
@@ -143,7 +145,7 @@ class TestExceptions extends Test {
 
 	public function testCustomNativeException() {
 		var thrown = new CustomNativeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;
@@ -160,7 +162,7 @@ class TestExceptions extends Test {
 
 	public function testCustomNativeException_thrownAsDynamic() {
 		var thrown:Any = new CustomNativeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;
@@ -177,7 +179,7 @@ class TestExceptions extends Test {
 
 	public function testCustomHaxeException() {
 		var thrown = new CustomHaxeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;
@@ -194,7 +196,7 @@ class TestExceptions extends Test {
 
 	public function testCustomHaxeException_thrownAsDynamic() {
 		var thrown:Any = new CustomHaxeException('');
-		var rethrown = false;
+		rethrown = false;
 		try {
 			try {
 				throw thrown;

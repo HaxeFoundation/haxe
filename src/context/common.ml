@@ -397,7 +397,10 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_native_catches = [];
+				ec_native_catches = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
 				ec_wildcard_catch = ([],"Dynamic");
 				ec_base_throw = ([],"Dynamic");
 			}
@@ -493,6 +496,16 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_exceptions = {
+				ec_native_throws = [
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = ([],"Dynamic");
+				ec_base_throw = ([],"Dynamic");
+			}
 		}
 	| Eval ->
 		{

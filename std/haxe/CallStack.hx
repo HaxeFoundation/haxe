@@ -36,6 +36,7 @@ private typedef NativeTrace =
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#elseif lua Array<String>
 	#elseif flash String
+	#elseif hl hl.NativeArray<hl.Bytes>
 	#else Dynamic
 	#end;
 
@@ -437,12 +438,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			case s: makeStack(s.split('\n').slice(2));
 		}
 		#elseif hl
-		try {
-			throw null;
-		} catch (e:Dynamic) {
-			var st = _getExceptionStack();
-			return makeStack(st.length > 2 ? st.sub(2, st.length - 2) : st);
-		}
+		var stack = _getCallStack();
+		return makeStack(stack.length > 3 ? stack.sub(3, stack.length - 3) : stack);
 		#elseif eval
 		return getCallStack();
 		#else
@@ -451,8 +448,17 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	}
 
 	#if hl
-	@:hlNative("std", "exception_stack") static function _getExceptionStack():hl.NativeArray<hl.Bytes> {
+	@:hlNative("std", "exception_stack") static function _getExceptionStack():NativeTrace {
 		return null;
+	}
+
+	static function _getCallStack():NativeTrace {
+		var stack:NativeTrace = try {
+			throw new Exception('', null, 'stack');
+		} catch (e:Exception) {
+			_getExceptionStack();
+		}
+		return stack;
 	}
 	#end
 
@@ -507,7 +513,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#if cpp
 	@:noDebug /* Do not mess up the exception stack */
 	#end
-	private static function makeStack(s:NativeTrace):Null<Array<StackItem>> {
+	private static function makeStack(s:NativeTrace):Array<StackItem> {
 		#if neko
 		var a = new Array();
 		var l = untyped __dollar__asize(s);
@@ -654,7 +660,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		}
 		return stack;
 		#else
-		return null;
+		return [];
 		#end
 	}
 #end
