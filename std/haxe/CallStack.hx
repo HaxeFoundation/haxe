@@ -204,110 +204,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 // All target specifics should stay beyond this line.
 
-#if php
-	/**
-		This method is used internally by some targets for non-haxe.Exception catches
-		to provide stack for `haxe.CallStack.exceptionStack()`
-	**/
-	static function saveExceptionStack(e:Throwable):Void {
-		var nativeTrace = e.getTrace();
-
-		// Reduce exception stack to the place where exception was caught
-		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
-		var count = Global.count(currentTrace);
-
-		for (i in -(count - 1)...1) {
-			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(nativeTrace);
-
-			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
-				Global.array_pop(nativeTrace);
-			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
-				Global.array_pop(nativeTrace);
-			} else {
-				break;
-			}
-		}
-
-		// Remove arguments from trace to avoid blocking some objects from GC
-		var count = Global.count(nativeTrace);
-		for (i in 0...count) {
-			nativeTrace[i]['args'] = new NativeArray();
-		}
-
-		lastExceptionTrace = complementTrace(nativeTrace, e);
-	}
-
-	/**
-		If defined this function will be used to transform call stack entries.
-		@param String - generated php file name.
-		@param Int - Line number in generated file.
-	**/
-	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
-
-	@:ifFeature("haxe.CallStack.exceptionStack")
-	static var lastExceptionTrace:NativeTrace;
-
-	inline static function callStackImpl():Array<StackItem> {
-		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
-	}
-
-	inline static function exceptionStackImpl():Array<StackItem> {
-		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
-	}
-
-	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
-		var thrownAt = new NativeAssocArray<Dynamic>();
-		thrownAt['function'] = '';
-		thrownAt['line'] = e.getLine();
-		thrownAt['file'] = e.getFile();
-		thrownAt['class'] = '';
-		thrownAt['args'] = new NativeArray();
-		Global.array_unshift(nativeTrace, thrownAt);
-		return nativeTrace;
-	}
-
-	static function makeStack(native:NativeTrace):Array<StackItem> {
-		var result = [];
-		var count = Global.count(native);
-
-		for (i in 0...count) {
-			var entry = native[i];
-			var item = null;
-
-			if (i + 1 < count) {
-				var next = native[i + 1];
-
-				if (!Global.isset(next['function']))
-					next['function'] = '';
-				if (!Global.isset(next['class']))
-					next['class'] = '';
-
-				if ((next['function'] : String).indexOf('{closure}') >= 0) {
-					item = LocalFunction();
-				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
-					var cls = Boot.getClassName(next['class']);
-					item = Method(cls, next['function']);
-				}
-			}
-			if (Global.isset(entry['file'])) {
-				if (mapPosition != null) {
-					var pos = mapPosition(entry['file'], entry['line']);
-					if (pos != null && pos.source != null && pos.originalLine != null) {
-						entry['file'] = pos.source;
-						entry['line'] = pos.originalLine;
-					}
-				}
-				result.push(FilePos(item, entry['file'], entry['line']));
-			} else if (item != null) {
-				result.push(item);
-			}
-		}
-
-		return result;
-	}
-
-// end of PHP implementation
-#else
 	#if java
 	static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
 	#elseif cs
@@ -315,6 +211,9 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	static var exception:Null<cs.system.Exception>;
 	#elseif lua
 	static var exception:Null<String>;
+	#elseif php
+	@:ifFeature("haxe.CallStack.exceptionStack")
+	static var lastExceptionTrace:NativeTrace;
 	#end
 
 	/**
@@ -328,79 +227,10 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			exception = e;
 		#elseif java
 			exception.set(e);
+		#elseif php
+			saveStack(e);
 		#end
 	}
-
-	#if python
-	static inline function pythonExceptionStack():NativeTrace {
-		var exc = python.lib.Sys.exc_info();
-		if (exc._3 != null) {
-			var infos = python.lib.Traceback.extract_tb(exc._3);
-			infos.reverse();
-			return infos;
-		} else {
-			return [];
-		}
-	}
-
-	static inline function pythonCallStack():NativeTrace {
-		var infos = python.lib.Traceback.extract_stack();
-		infos.pop();
-		infos.reverse();
-		return infos;
-	}
-	#end
-
-	#if js
-	static var lastException:js.lib.Error;
-
-	static function getStack(e:js.lib.Error):Array<StackItem> {
-		if (e == null)
-			return [];
-		// https://v8.dev/docs/stack-trace-api
-		var oldValue = V8Error.prepareStackTrace;
-		V8Error.prepareStackTrace = function(error, callsites) {
-			var stack = [];
-			for (site in callsites) {
-				if (wrapCallSite != null)
-					site = wrapCallSite(site);
-				var method = null;
-				var fullName = site.getFunctionName();
-				if (fullName != null) {
-					var idx = fullName.lastIndexOf(".");
-					if (idx >= 0) {
-						var className = fullName.substr(0, idx);
-						var methodName = fullName.substr(idx + 1);
-						method = Method(className, methodName);
-					}
-				}
-				var fileName = site.getFileName();
-				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
-				if (wrapCallSite != null && fileAddr > 0)
-					fileName = fileName.substr(fileAddr + 6);
-				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
-			}
-			return stack;
-		}
-		var a = makeStack(e.stack);
-		V8Error.prepareStackTrace = oldValue;
-		return a;
-	}
-
-	// support for source-map-support module
-	@:noCompletion
-	public static var wrapCallSite:V8CallSite->V8CallSite;
-	#end
-
-	#if eval
-	static function getCallStack() {
-		return [];
-	}
-
-	static function getExceptionStack() {
-		return [];
-	}
-	#end
 
 	inline static function callStackImpl():Array<StackItem> {
 		#if neko
@@ -442,25 +272,12 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(stack.length > 3 ? stack.sub(3, stack.length - 3) : stack);
 		#elseif eval
 		return getCallStack();
+		#elseif php
+		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
 		#else
 		return []; // Unsupported
 		#end
 	}
-
-	#if hl
-	@:hlNative("std", "exception_stack") static function _getExceptionStack():NativeTrace {
-		return null;
-	}
-
-	static function _getCallStack():NativeTrace {
-		var stack:NativeTrace = try {
-			throw new Exception('', null, 'stack');
-		} catch (e:Exception) {
-			_getExceptionStack();
-		}
-		return stack;
-	}
-	#end
 
 	inline static function exceptionStackImpl():Array<StackItem> {
 		#if neko
@@ -505,6 +322,8 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			case null: [];
 			case s: makeStack(s.split('\n'));
 		}
+		#elseif php
+		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
 		#else
 		return []; // Unsupported
 		#end
@@ -659,9 +478,181 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			stack.push(FilePos(method, file, Std.parseInt(line)));
 		}
 		return stack;
+		#elseif php
+		return makeStackImpl(s);
 		#else
 		return [];
 		#end
+	}
+
+#if hl
+	@:hlNative("std", "exception_stack") static function _getExceptionStack():NativeTrace {
+		return null;
+	}
+
+	//TODO: implement inside of hashlink the same ways as `_getExceptionStack`
+	static function _getCallStack():NativeTrace {
+		var stack:NativeTrace = try {
+			throw new Exception('', null, 'stack');
+		} catch (e:Exception) {
+			_getExceptionStack();
+		}
+		return stack;
+	}
+
+#elseif python
+	static inline function pythonExceptionStack():NativeTrace {
+		var exc = python.lib.Sys.exc_info();
+		if (exc._3 != null) {
+			var infos = python.lib.Traceback.extract_tb(exc._3);
+			infos.reverse();
+			return infos;
+		} else {
+			return [];
+		}
+	}
+
+	static inline function pythonCallStack():NativeTrace {
+		var infos = python.lib.Traceback.extract_stack();
+		infos.pop();
+		infos.reverse();
+		return infos;
+	}
+
+#elseif js
+	static var lastException:js.lib.Error;
+
+	static function getStack(e:js.lib.Error):Array<StackItem> {
+		if (e == null)
+			return [];
+		// https://v8.dev/docs/stack-trace-api
+		var oldValue = V8Error.prepareStackTrace;
+		V8Error.prepareStackTrace = function(error, callsites) {
+			var stack = [];
+			for (site in callsites) {
+				if (wrapCallSite != null)
+					site = wrapCallSite(site);
+				var method = null;
+				var fullName = site.getFunctionName();
+				if (fullName != null) {
+					var idx = fullName.lastIndexOf(".");
+					if (idx >= 0) {
+						var className = fullName.substr(0, idx);
+						var methodName = fullName.substr(idx + 1);
+						method = Method(className, methodName);
+					}
+				}
+				var fileName = site.getFileName();
+				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
+				if (wrapCallSite != null && fileAddr > 0)
+					fileName = fileName.substr(fileAddr + 6);
+				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
+			}
+			return stack;
+		}
+		var a = makeStack(e.stack);
+		V8Error.prepareStackTrace = oldValue;
+		return a;
+	}
+
+	// support for source-map-support module
+	@:noCompletion
+	public static var wrapCallSite:V8CallSite->V8CallSite;
+
+#elseif eval
+	static function getCallStack() {
+		return [];
+	}
+
+	static function getExceptionStack() {
+		return [];
+	}
+
+#elseif php
+	/**
+		If defined this function will be used to transform call stack entries.
+		@param String - generated php file name.
+		@param Int - Line number in generated file.
+	**/
+	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
+
+	static function saveStack(e:Throwable):Void {
+		var nativeTrace = e.getTrace();
+
+		// Reduce exception stack to the place where exception was caught
+		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
+		var count = Global.count(currentTrace);
+
+		for (i in -(count - 1)...1) {
+			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(nativeTrace);
+
+			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
+				Global.array_pop(nativeTrace);
+			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
+				Global.array_pop(nativeTrace);
+			} else {
+				break;
+			}
+		}
+
+		// Remove arguments from trace to avoid blocking some objects from GC
+		var count = Global.count(nativeTrace);
+		for (i in 0...count) {
+			nativeTrace[i]['args'] = new NativeArray();
+		}
+
+		lastExceptionTrace = complementTrace(nativeTrace, e);
+	}
+
+	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
+		var thrownAt = new NativeAssocArray<Dynamic>();
+		thrownAt['function'] = '';
+		thrownAt['line'] = e.getLine();
+		thrownAt['file'] = e.getFile();
+		thrownAt['class'] = '';
+		thrownAt['args'] = new NativeArray();
+		Global.array_unshift(nativeTrace, thrownAt);
+		return nativeTrace;
+	}
+
+	static inline function makeStackImpl(native:NativeTrace):Array<StackItem> {
+		var result = [];
+		var count = Global.count(native);
+
+		for (i in 0...count) {
+			var entry = native[i];
+			var item = null;
+
+			if (i + 1 < count) {
+				var next = native[i + 1];
+
+				if (!Global.isset(next['function']))
+					next['function'] = '';
+				if (!Global.isset(next['class']))
+					next['class'] = '';
+
+				if ((next['function'] : String).indexOf('{closure}') >= 0) {
+					item = LocalFunction();
+				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
+					var cls = Boot.getClassName(next['class']);
+					item = Method(cls, next['function']);
+				}
+			}
+			if (Global.isset(entry['file'])) {
+				if (mapPosition != null) {
+					var pos = mapPosition(entry['file'], entry['line']);
+					if (pos != null && pos.source != null && pos.originalLine != null) {
+						entry['file'] = pos.source;
+						entry['line'] = pos.originalLine;
+					}
+				}
+				result.push(FilePos(item, entry['file'], entry['line']));
+			} else if (item != null) {
+				result.push(item);
+			}
+		}
+
+		return result;
 	}
 #end
 }
