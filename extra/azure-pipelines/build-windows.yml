@@ -25,11 +25,10 @@ jobs:
     steps:
       - checkout: self
         submodules: recursive
-      - powershell: |
-          Set-PSDebug -Trace 1
-          choco install --no-progress nsis.portable --version 3.02 -y
-          choco install --no-progress curl wget 7zip.portable -y
-        displayName: Install dependencies
+      - powershell: choco install --no-progress nsis.portable --version 3.02 -y
+        displayName: choco install nsis
+      - powershell: choco install --no-progress curl wget 7zip.portable -y
+        displayName: choco install things
       - powershell: Write-Host "##vso[task.prependpath]C:\ProgramData\chocolatey\bin"
         displayName: Prepend Chocolatey path
       - template: install-neko-snapshot.yaml
