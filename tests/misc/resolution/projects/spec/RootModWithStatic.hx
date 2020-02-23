@@ -1,5 +1,5 @@
 class RootModWithStatic {
-    public static function TheStatic() utest.Assert.fail();
+    public static function TheStatic() return "RootModWithStatic.TheStatic function";
 }
 
 @:build(Macro.build()) class TheStatic {}

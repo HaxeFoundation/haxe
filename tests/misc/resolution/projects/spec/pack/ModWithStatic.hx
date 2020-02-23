@@ -1,7 +1,7 @@
 package pack;
 
 class ModWithStatic {
-    public static function TheStatic() utest.Assert.fail();
+    public static function TheStatic() return "pack.ModWithStatic.TheStatic function";
 }
 
 @:build(Macro.build())

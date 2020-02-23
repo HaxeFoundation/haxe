@@ -33,6 +33,7 @@ class Main extends utest.Test {
             new pack.inner.Test(),
             new Issue9150(),
             new Wildcard(),
+            new Imported(),
         ]);
 	}
 }
