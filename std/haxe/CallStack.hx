@@ -25,8 +25,7 @@ package haxe;
 using StringTools;
 
 private typedef NativeTrace =
-	#if cs cs.system.diagnostics.StackTrace
-	#elseif flash String
+	#if flash String
 	#elseif cpp Array<String>
 	#else Dynamic
 	#end;
@@ -195,21 +194,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 // All target specifics should stay beyond this line.
 
-	#if cs
-	@:meta(System.ThreadStaticAttribute)
-	static var exception:Null<cs.system.Exception>;
-	#end
-
-	/**
-		This method is used internally by some targets for non-haxe.Exception catches
-		to provide stack for `haxe.CallStack.exceptionStack()`
-	**/
-	static inline function saveExceptionStack(e:Any) {
-		#if cs
-			exception = e;
-		#end
-	}
-
 	inline static function callStackImpl():Array<StackItem> {
 		#if flash
 		var a = makeStack(new flash.errors.Error().getStackTrace());
@@ -218,8 +202,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 		return makeStack(s);
-		#elseif cs
-		return makeStack(new cs.system.diagnostics.StackTrace(1, true));
 		#else
 		return []; // Unsupported
 		#end
@@ -244,8 +226,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 		return makeStack(s);
-		#elseif cs
-		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#else
 		return []; // Unsupported
 		#end
@@ -289,26 +269,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				m.push(FilePos(Method(words[0], words[1]), words[2], Std.parseInt(words[3])));
 		}
 		return m;
-		#elseif cs
-		var stack = [];
-		for (i in 0...s.FrameCount) {
-			var frame = s.GetFrame(i);
-			var m = frame.GetMethod();
-
-			if (m == null) {
-				continue;
-			}
-			var method = StackItem.Method(m.ReflectedType.ToString(), m.Name);
-
-			var fileName = frame.GetFileName();
-			var lineNumber = frame.GetFileLineNumber();
-
-			if (fileName != null || lineNumber >= 0)
-				stack.push(FilePos(method, fileName, lineNumber));
-			else
-				stack.push(method);
-		}
-		return stack;
 		#else
 		return [];
 		#end

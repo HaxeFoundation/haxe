@@ -68,7 +68,7 @@ class Exception extends NativeException {
 		return switch __exceptionStack {
 			case null:
 				var nativeTrace = new cs.system.diagnostics.StackTrace(__nativeException, true);
-				__exceptionStack = CallStack.makeStack(nativeTrace);
+				__exceptionStack = NativeStackTrace.toHaxe(nativeTrace);
 			case s: s;
 		}
 	}
