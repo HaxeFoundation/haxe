@@ -37,6 +37,7 @@ private typedef NativeTrace =
 	#elseif lua Array<String>
 	#elseif flash String
 	#elseif hl hl.NativeArray<hl.Bytes>
+	#elseif cpp Array<String>
 	#else Dynamic
 	#end;
 
