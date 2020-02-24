@@ -26,7 +26,6 @@ using StringTools;
 
 private typedef NativeTrace =
 	#if cs cs.system.diagnostics.StackTrace
-	#elseif lua Array<String>
 	#elseif flash String
 	#elseif cpp Array<String>
 	#else Dynamic
@@ -199,8 +198,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	#if cs
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:Null<cs.system.Exception>;
-	#elseif lua
-	static var exception:Null<String>;
 	#end
 
 	/**
@@ -227,11 +224,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(s);
 		#elseif cs
 		return makeStack(new cs.system.diagnostics.StackTrace(1, true));
-		#elseif lua
-		return switch lua.Debug.traceback() {
-			case null: [];
-			case s: makeStack(s.split('\n').slice(2));
-		}
 		#else
 		return []; // Unsupported
 		#end
@@ -260,11 +252,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(s);
 		#elseif cs
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
-		#elseif lua
-		return switch exception {
-			case null: [];
-			case s: makeStack(s.split('\n'));
-		}
 		#else
 		return []; // Unsupported
 		#end
@@ -340,26 +327,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(FilePos(method, fileName, lineNumber));
 			else
 				stack.push(method);
-		}
-		return stack;
-		#elseif lua
-		var stack = [];
-		for (item in s) {
-			var parts = item.substr(1).split(":"); //`substr` to skip a tab at the beginning of a line
-			var file = parts[0];
-			if(file == '[C]') continue;
-			var line = parts[1];
-			var method = if(parts.length <= 2) {
-				null;
-			} else {
-				var methodPos = parts[2].indexOf("'");
-				if(methodPos < 0) {
-					null;
-				} else {
-					Method(null, parts[2].substring(methodPos + 1, parts[2].length - 1));
-				}
-			}
-			stack.push(FilePos(method, file, Std.parseInt(line)));
 		}
 		return stack;
 		#else

@@ -9,7 +9,7 @@ class Exception {
 
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
-	@:noCompletion var __nativeStack:Null<String>;
+	@:noCompletion var __nativeStack:Array<String>;
 	@:noCompletion var __skipStackItems:Int;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
@@ -37,11 +37,11 @@ class Exception {
 		__previousException = previous;
 		if(native != null) {
 			__nativeException = native;
-			__nativeStack = CallStack.exception;
+			__nativeStack = NativeStackTrace.exceptionStack();
 			__skipStackItems = 0;
 		} else {
 			__nativeException = this;
-			__nativeStack = lua.Debug.traceback();
+			__nativeStack = NativeStackTrace.callStack();
 			__skipStackItems = 3;
 		}
 	}
@@ -69,10 +69,7 @@ class Exception {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = switch __nativeStack {
-					case null: [];
-					case s: CallStack.makeStack(s.split('\n').slice(__skipStackItems));
-				}
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
 			case s: s;
 		}
 	}
