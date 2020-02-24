@@ -22,17 +22,11 @@
 
 package haxe;
 
-#if php
-import php.*;
-import haxe.Exception in Exception;
-#end
-
 using StringTools;
 
 private typedef NativeTrace =
 	#if java java.NativeArray<java.lang.StackTraceElement>
 	#elseif cs cs.system.diagnostics.StackTrace
-	#elseif php NativeIndexedArray<NativeAssocArray<Dynamic>>
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#elseif lua Array<String>
 	#elseif flash String
@@ -212,9 +206,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	static var exception:Null<cs.system.Exception>;
 	#elseif lua
 	static var exception:Null<String>;
-	#elseif php
-	@:ifFeature("haxe.CallStack.exceptionStack")
-	static var lastExceptionTrace:NativeTrace;
 	#end
 
 	/**
@@ -226,8 +217,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			exception = e;
 		#elseif java
 			exception.set(e);
-		#elseif php
-			saveStack(e);
 		#end
 	}
 
@@ -263,8 +252,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(stack.length > 3 ? stack.sub(3, stack.length - 3) : stack);
 		#elseif eval
 		return getCallStack();
-		#elseif php
-		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
 		#else
 		return []; // Unsupported
 		#end
@@ -311,8 +298,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			case null: [];
 			case s: makeStack(s.split('\n'));
 		}
-		#elseif php
-		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
 		#else
 		return []; // Unsupported
 		#end
@@ -441,8 +426,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			stack.push(FilePos(method, file, Std.parseInt(line)));
 		}
 		return stack;
-		#elseif php
-		return makeStackImpl(s);
 		#else
 		return [];
 		#end
@@ -489,93 +472,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 	static function getExceptionStack() {
 		return [];
-	}
-
-#elseif php
-	/**
-		If defined this function will be used to transform call stack entries.
-		@param String - generated php file name.
-		@param Int - Line number in generated file.
-	**/
-	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
-
-	static function saveStack(e:Throwable):Void {
-		var nativeTrace = e.getTrace();
-
-		// Reduce exception stack to the place where exception was caught
-		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
-		var count = Global.count(currentTrace);
-
-		for (i in -(count - 1)...1) {
-			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(nativeTrace);
-
-			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
-				Global.array_pop(nativeTrace);
-			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
-				Global.array_pop(nativeTrace);
-			} else {
-				break;
-			}
-		}
-
-		// Remove arguments from trace to avoid blocking some objects from GC
-		var count = Global.count(nativeTrace);
-		for (i in 0...count) {
-			nativeTrace[i]['args'] = new NativeArray();
-		}
-
-		lastExceptionTrace = complementTrace(nativeTrace, e);
-	}
-
-	static function complementTrace(nativeTrace:NativeTrace, e:Throwable):NativeTrace {
-		var thrownAt = new NativeAssocArray<Dynamic>();
-		thrownAt['function'] = '';
-		thrownAt['line'] = e.getLine();
-		thrownAt['file'] = e.getFile();
-		thrownAt['class'] = '';
-		thrownAt['args'] = new NativeArray();
-		Global.array_unshift(nativeTrace, thrownAt);
-		return nativeTrace;
-	}
-
-	static inline function makeStackImpl(native:NativeTrace):Array<StackItem> {
-		var result = [];
-		var count = Global.count(native);
-
-		for (i in 0...count) {
-			var entry = native[i];
-			var item = null;
-
-			if (i + 1 < count) {
-				var next = native[i + 1];
-
-				if (!Global.isset(next['function']))
-					next['function'] = '';
-				if (!Global.isset(next['class']))
-					next['class'] = '';
-
-				if ((next['function'] : String).indexOf('{closure}') >= 0) {
-					item = LocalFunction();
-				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
-					var cls = Boot.getClassName(next['class']);
-					item = Method(cls, next['function']);
-				}
-			}
-			if (Global.isset(entry['file'])) {
-				if (mapPosition != null) {
-					var pos = mapPosition(entry['file'], entry['line']);
-					if (pos != null && pos.source != null && pos.originalLine != null) {
-						entry['file'] = pos.source;
-						entry['line'] = pos.originalLine;
-					}
-				}
-				result.push(FilePos(item, entry['file'], entry['line']));
-			} else if (item != null) {
-				result.push(item);
-			}
-		}
-
-		return result;
 	}
 #end
 }

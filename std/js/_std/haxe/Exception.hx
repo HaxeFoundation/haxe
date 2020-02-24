@@ -3,7 +3,6 @@ package haxe;
 import js.lib.Error;
 
 @:coreApi
-@:access(haxe.NativeStackTrace)
 class Exception extends NativeException {
 	public var message(get,never):String;
 	public var stack(get,never):CallStack;

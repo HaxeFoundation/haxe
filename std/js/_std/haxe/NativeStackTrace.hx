@@ -21,6 +21,7 @@ typedef V8CallSite = {
 **/
 @:dox(hide)
 @:noCompletion
+@:allow(haxe.Exception)
 class NativeStackTrace {
 	static var lastError:Error;
 
