@@ -24,9 +24,7 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else {
-			var e = new ValueException(value);
-			e.__exceptionStack.asArray().shift();
-			return e;
+			return new ValueException(value);
 		}
 	}
 
@@ -34,10 +32,10 @@ class Exception {
 		__exceptionMessage = message;
 		__previousException = previous;
 		if(native != null) {
-			__exceptionStack = CallStack.getExceptionStack();
+			__exceptionStack = NativeStackTrace.exceptionStack();
 			__nativeException = native;
 		} else {
-			__exceptionStack = CallStack.getCallStack();
+			__exceptionStack = NativeStackTrace.callStack();
 			__nativeException = this;
 		}
 	}

@@ -250,8 +250,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif hl
 		var stack = _getCallStack();
 		return makeStack(stack.length > 3 ? stack.sub(3, stack.length - 3) : stack);
-		#elseif eval
-		return getCallStack();
 		#else
 		return []; // Unsupported
 		#end
@@ -291,8 +289,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#elseif python
 		return makeStack(pythonExceptionStack());
-		#elseif eval
-		return getExceptionStack();
 		#elseif lua
 		return switch exception {
 			case null: [];
@@ -463,15 +459,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		infos.pop();
 		infos.reverse();
 		return infos;
-	}
-
-#elseif eval
-	static function getCallStack() {
-		return [];
-	}
-
-	static function getExceptionStack() {
-		return [];
 	}
 #end
 }

@@ -532,7 +532,7 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdCallStack = struct
+module StdNativeStackTrace = struct
 	let make_stack envs =
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
@@ -3320,9 +3320,9 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"; "_CallStack"],"CallStack_Impl_") [
-		"getCallStack",StdCallStack.getCallStack;
-		"getExceptionStack",StdCallStack.getExceptionStack;
+	init_fields builtins (["haxe"],"NativeStackTrace") [
+		"callStack",StdNativeStackTrace.getCallStack;
+		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
