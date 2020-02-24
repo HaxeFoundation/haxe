@@ -165,8 +165,11 @@ class Boot {
 			return false;
 		if (cc == cl)
 			return true;
-		if (js.lib.Object.prototype.hasOwnProperty.call(cc, "__interfaces__")) {
-			var intf:Dynamic = cc.__interfaces__;
+		var intf:Dynamic = cc.__interfaces__;
+		if (intf != null
+			// ES6 classes inherit statics, so we want to avoid accessing inherited `__interfaces__`
+			#if (js_es >= 6) && (cc.__super__ == null || cc.__super__.__interfaces__ != intf) #end
+		) {
 			for (i in 0...intf.length) {
 				var i:Dynamic = intf[i];
 				if (i == cl || __interfLoop(i, cl))
