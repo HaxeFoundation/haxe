@@ -131,7 +131,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		Return the call stack elements, or an empty array if not available.
 	**/
 	public static function callStack():Array<StackItem> {
-		return callStackImpl();
+		return NativeStackTrace.toHaxe(NativeStackTrace.callStack(), 1);
 	}
 
 	/**
@@ -145,7 +145,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	@:noDebug /* Do not mess up the exception stack */
 	#end
 	public static function exceptionStack():Array<StackItem> {
-		return exceptionStackImpl();
+		return NativeStackTrace.toHaxe(NativeStackTrace.exceptionStack());
 	}
 
 	inline function asArray():Array<StackItem> {
@@ -222,9 +222,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		to provide stack for `haxe.CallStack.exceptionStack()`
 	**/
 	static inline function saveExceptionStack(e:Any) {
-		#if js
-			lastException = e;
-		#elseif cs
+		#if cs
 			exception = e;
 		#elseif java
 			exception.set(e);
@@ -245,14 +243,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 		return makeStack(s);
-		#elseif js
-		try {
-			throw new js.lib.Error();
-		} catch (e:Dynamic) {
-			var a = getStack(js.Lib.getOriginalException());
-			a.shift(); // remove Stack.callStack()
-			return a;
-		}
 		#elseif java
 		var stack = makeStack(java.lang.Thread.currentThread().getStackTrace());
 		stack.shift();
@@ -314,8 +304,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#elseif python
 		return makeStack(pythonExceptionStack());
-		#elseif js
-		return getStack(lastException);
 		#elseif eval
 		return getExceptionStack();
 		#elseif lua
@@ -382,32 +370,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				m.push(FilePos(Method(words[0], words[1]), words[2], Std.parseInt(words[3])));
 		}
 		return m;
-		#elseif js
-		if (s == null) {
-			return [];
-		} else if (js.Syntax.typeof(s) == "string") {
-			// Return the raw lines in browsers that don't support prepareStackTrace
-			var stack:Array<String> = s.split("\n");
-			if (stack[0] == "Error")
-				stack.shift();
-			var m = [];
-			var rie10 = ~/^    at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
-			for (line in stack) {
-				if (rie10.match(line)) {
-					var path = rie10.matched(1).split(".");
-					var meth = path.pop();
-					var file = rie10.matched(2);
-					var line = Std.parseInt(rie10.matched(3));
-					var column = Std.parseInt(rie10.matched(4));
-					m.push(FilePos(meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth), file, line,
-						column));
-				} else
-					m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
-			}
-			return m;
-		} else {
-			return cast s;
-		}
 		#elseif cs
 		var stack = [];
 		for (i in 0...s.FrameCount) {
@@ -520,46 +482,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return infos;
 	}
 
-#elseif js
-	static var lastException:js.lib.Error;
-
-	static function getStack(e:js.lib.Error):Array<StackItem> {
-		if (e == null)
-			return [];
-		// https://v8.dev/docs/stack-trace-api
-		var oldValue = V8Error.prepareStackTrace;
-		V8Error.prepareStackTrace = function(error, callsites) {
-			var stack = [];
-			for (site in callsites) {
-				if (wrapCallSite != null)
-					site = wrapCallSite(site);
-				var method = null;
-				var fullName = site.getFunctionName();
-				if (fullName != null) {
-					var idx = fullName.lastIndexOf(".");
-					if (idx >= 0) {
-						var className = fullName.substr(0, idx);
-						var methodName = fullName.substr(idx + 1);
-						method = Method(className, methodName);
-					}
-				}
-				var fileName = site.getFileName();
-				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
-				if (wrapCallSite != null && fileAddr > 0)
-					fileName = fileName.substr(fileAddr + 6);
-				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
-			}
-			return stack;
-		}
-		var a = makeStack(e.stack);
-		V8Error.prepareStackTrace = oldValue;
-		return a;
-	}
-
-	// support for source-map-support module
-	@:noCompletion
-	public static var wrapCallSite:V8CallSite->V8CallSite;
-
 #elseif eval
 	static function getCallStack() {
 		return [];
@@ -657,18 +579,3 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	}
 #end
 }
-
-#if js
-// https://v8.dev/docs/stack-trace-api
-@:native("Error")
-private extern class V8Error {
-	static var prepareStackTrace:(error:js.lib.Error, structuredStackTrace:Array<V8CallSite>)->Any;
-}
-
-typedef V8CallSite = {
-	function getFunctionName():String;
-	function getFileName():String;
-	function getLineNumber():Int;
-	function getColumnNumber():Int;
-}
-#end

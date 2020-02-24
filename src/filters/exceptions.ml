@@ -17,7 +17,7 @@ type context = {
 	base_throw_type : Type.t;
 	haxe_exception_class : tclass;
 	haxe_exception_type : Type.t;
-	haxe_call_stack_class : tclass;
+	haxe_native_stack_trace : tclass;
 }
 
 let is_dynamic t =
@@ -79,21 +79,21 @@ let std_is ctx e t p =
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
 (**
-	Generates `haxe.CallStack.saveExceptionStack(catch_local)` if needed
+	Generates `haxe.NativeStackTrace.saveStack(catch_local)` if needed
 *)
 let save_exception_stack ctx catch_local =
 	(* TODO: this `has_feature` always returns `true` if executed before DCE filters *)
-	if has_feature ctx.typer.com "haxe.CallStack.exceptionStack" then
+	if has_feature ctx.typer.com "haxe.NativeStackTrace.exceptionStack" then
 		let method_field =
-			try PMap.find "saveExceptionStack" ctx.haxe_call_stack_class.cl_statics
-			with Not_found -> error ("haxe.Exception has no field saveExceptionStack") null_pos
+			try PMap.find "saveStack" ctx.haxe_native_stack_trace.cl_statics
+			with Not_found -> error ("haxe.NativeStackTrace has no field saveStack") null_pos
 		in
 		let return_type =
 			match follow method_field.cf_type with
 			| TFun(_,t) -> t
-			| _ -> error ("haxe.CallStack." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
+			| _ -> error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 		in
-		make_static_call ctx.typer ctx.haxe_call_stack_class method_field (fun t -> t) [catch_local] return_type null_pos
+		make_static_call ctx.typer ctx.haxe_native_stack_trace method_field (fun t -> t) [catch_local] return_type null_pos
 	else
 		mk (TBlock[]) ctx.basic.tvoid null_pos
 
@@ -326,11 +326,11 @@ let filter tctx =
 			match Typeload.load_instance tctx (tp haxe_exception_type_path) true with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> error "haxe.Exception is expected to be a class" null_pos
-		and haxe_call_stack_class =
-			match Typeload.load_instance tctx (tp (["haxe"],"CallStack")) true with
+		and haxe_native_stack_trace =
+			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) true with
 			| TInst(cls,_) -> cls
 			| TAbstract({ a_impl = Some cls },_) -> cls
-			| _ -> error "haxe.CallStack is expected to be a class or an abstract" null_pos
+			| _ -> error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
 		in
 		let ctx = {
 			typer = tctx;
@@ -340,7 +340,7 @@ let filter tctx =
 			base_throw_type = base_throw_type;
 			haxe_exception_class = haxe_exception_class;
 			haxe_exception_type = haxe_exception_type;
-			haxe_call_stack_class = haxe_call_stack_class;
+			haxe_native_stack_trace = haxe_native_stack_trace;
 		} in
 		let rec run e =
 			match e.eexpr with

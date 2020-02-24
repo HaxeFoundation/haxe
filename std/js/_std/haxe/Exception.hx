@@ -3,6 +3,7 @@ package haxe;
 import js.lib.Error;
 
 @:coreApi
+@:access(haxe.NativeStackTrace)
 class Exception extends NativeException {
 	public var message(get,never):String;
 	public var stack(get,never):CallStack;
@@ -10,8 +11,8 @@ class Exception extends NativeException {
 	public var native(get,never):Any;
 
 	@:noCompletion var __errorStack(get,set):Null<CallStack>;
-	@:noCompletion var __nativeException:Any;
-	@:noCompletion var __previousException:Null<Exception>;
+	@:noCompletion var __nativeException(get,set):Any;
+	@:noCompletion var __previousException(get,set):Null<Exception>;
 
 	static public function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
@@ -36,24 +37,17 @@ class Exception extends NativeException {
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message);
 		(cast this).message = message;
-		this.__previousException = previous;
-
-		this.__nativeException = native != null ? native : this;
-		if(Std.isOfType(native, Error) ) {
-			(cast this).stack = (cast native).stack;
+		__previousException = previous;
+		__nativeException = native != null ? native : this;
+		var e:Error = if(Std.isOfType(native, Error)) {
+			native;
+		} else if ((cast Error).captureStackTrace) {
+			(cast Error).captureStackTrace(this, Exception);
+			cast this;
 		} else {
-			var stack:String = if ((cast Error).captureStackTrace) {
-				(cast Error).captureStackTrace(this, Exception);
-				(cast this).stack;
-			} else {
-				new Error().stack;
-			}
-			//remove the first line, which is a call to `new Error()`
-			(cast this).stack = switch stack.indexOf('\n') {
-				case p if(p >= 0): stack.substr(p + 1);
-				case _: stack;
-			}
+			new Error();
 		}
+		(cast this).stack = NativeStackTrace.getJsStack(e);
 	}
 
 	public function unwrap():Any {
@@ -78,8 +72,17 @@ class Exception extends NativeException {
 
 	function get_stack():CallStack {
 		return switch __errorStack {
-			case null: __errorStack = CallStack.getStack(cast this);
+			case null:
+				__errorStack = NativeStackTrace.toHaxe(NativeStackTrace.getJsStack(cast this));
 			case s: s;
+		}
+	}
+
+	function setProperty(name:String, value:Any):Void {
+		try {
+			js.lib.Object.defineProperty(this, name, {value:value});
+		} catch(e:Exception) {
+			js.Syntax.code('{0}[{1}] = {2}', this, name, value);
 		}
 	}
 
@@ -92,12 +95,22 @@ class Exception extends NativeException {
 		return value;
 	}
 
-	function setProperty(name:String, value:Any):Void {
-		try {
-			js.lib.Object.defineProperty(this, name, {value:value});
-		} catch(e:Exception) {
-			js.Syntax.code('{0}[{1}] = {2}', this, name, value);
-		}
+	inline function get___nativeException():Any {
+		return (cast this).__nativeException;
+	}
+
+	inline function set___nativeException(value:Any):Any {
+		setProperty('__nativeException', value);
+		return value;
+	}
+
+	inline function get___previousException():Null<Exception> {
+		return (cast this).__previousException;
+	}
+
+	inline function set___previousException(value:Null<Exception>):Null<Exception> {
+		setProperty('__previousException', value);
+		return value;
 	}
 }
 
