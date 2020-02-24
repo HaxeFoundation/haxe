@@ -25,8 +25,7 @@ package haxe;
 using StringTools;
 
 private typedef NativeTrace =
-	#if java java.NativeArray<java.lang.StackTraceElement>
-	#elseif cs cs.system.diagnostics.StackTrace
+	#if cs cs.system.diagnostics.StackTrace
 	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#elseif lua Array<String>
 	#elseif flash String
@@ -199,9 +198,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 // All target specifics should stay beyond this line.
 
-	#if java
-	static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
-	#elseif cs
+	#if cs
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:Null<cs.system.Exception>;
 	#elseif lua
@@ -215,8 +212,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	static inline function saveExceptionStack(e:Any) {
 		#if cs
 			exception = e;
-		#elseif java
-			exception.set(e);
 		#end
 	}
 
@@ -232,12 +227,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 		return makeStack(s);
-		#elseif java
-		var stack = makeStack(java.lang.Thread.currentThread().getStackTrace());
-		stack.shift();
-		stack.shift();
-		stack.pop();
-		return stack;
 		#elseif cs
 		return makeStack(new cs.system.diagnostics.StackTrace(1, true));
 		#elseif python
@@ -278,13 +267,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		#elseif cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 		return makeStack(s);
-		#elseif java
-		switch (exception.get()) {
-			case null:
-				return [];
-			case current:
-				return makeStack(current.getStackTrace());
-		}
 		#elseif cs
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
 		#elseif python
@@ -369,21 +351,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(FilePos(method, fileName, lineNumber));
 			else
 				stack.push(method);
-		}
-		return stack;
-		#elseif java
-		var stack = [];
-		for (el in s) {
-			var className = el.getClassName();
-			var methodName = el.getMethodName();
-			var fileName = el.getFileName();
-			var lineNumber = el.getLineNumber();
-			var method = Method(className, methodName);
-			if (fileName != null || lineNumber >= 0) {
-				stack.push(FilePos(method, fileName, lineNumber));
-			} else {
-				stack.push(method);
-			}
 		}
 		return stack;
 		#elseif hl

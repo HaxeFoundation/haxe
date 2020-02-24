@@ -75,7 +75,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = CallStack.makeStack(__nativeException.getStackTrace());
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeException.getStackTrace());
 			case s: s;
 		}
 	}
