@@ -1159,7 +1159,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx false e;
 		if flag = NormalWhile then jstart();
 		let continue_pos = ctx.infos.ipos in
-		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
+		let _j = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull
