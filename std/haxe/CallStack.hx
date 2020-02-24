@@ -211,11 +211,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	}
 
 	inline static function callStackImpl():Array<StackItem> {
-		#if neko
-		var a = makeStack(untyped __dollar__callstack());
-		a.shift(); // remove Stack.callStack()
-		return a;
-		#elseif flash
+		#if flash
 		var a = makeStack(new flash.errors.Error().getStackTrace());
 		a.shift(); // remove Stack.callStack()
 		return a;
@@ -230,9 +226,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	}
 
 	inline static function exceptionStackImpl():Array<StackItem> {
-		#if neko
-		return makeStack(untyped __dollar__excstack());
-		#elseif flash
+		#if flash
 		var err:flash.errors.Error = untyped flash.Boot.lastError;
 		if (err == null)
 			return new Array();
@@ -261,21 +255,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	@:noDebug /* Do not mess up the exception stack */
 	#end
 	private static function makeStack(s:NativeTrace):Array<StackItem> {
-		#if neko
-		var a = new Array();
-		var l = untyped __dollar__asize(s);
-		var i = 0;
-		while (i < l) {
-			var x = s[i++];
-			if (x == null)
-				a.unshift(CFunction);
-			else if (untyped __dollar__typeof(x) == __dollar__tstring)
-				a.unshift(Module(new String(x)));
-			else
-				a.unshift(FilePos(null, new String(untyped x[0]), untyped x[1]));
-		}
-		return a;
-		#elseif flash
+		#if flash
 		var a = new Array();
 		var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
 		var rlambda = ~/^MethodInfo-([0-9]+)$/g;
