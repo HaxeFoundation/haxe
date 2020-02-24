@@ -35,10 +35,7 @@ class Exception extends PyException {
 		} else if(Std.isOfType(value, BaseException)) {
 			return value;
 		} else {
-			var e = new ValueException(value);
-			e.__nativeStack.shift();
-			e.__nativeStack.shift();
-			return e;
+			return new ValueException(value);
 		}
 	}
 
@@ -47,10 +44,10 @@ class Exception extends PyException {
 		this.__previousException = previous;
 		if(native != null && Std.isOfType(native, BaseException)) {
 			__nativeException = native;
-			__nativeStack = CallStack.pythonExceptionStack();
+			__nativeStack = NativeStackTrace.exceptionStack();
 		} else {
 			__nativeException = cast this;
-			__nativeStack = CallStack.pythonCallStack();
+			__nativeStack = NativeStackTrace.callStack();
 		}
 	}
 
@@ -77,7 +74,7 @@ class Exception extends PyException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = CallStack.makeStack(__nativeStack);
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
 			case s: s;
 		}
 	}

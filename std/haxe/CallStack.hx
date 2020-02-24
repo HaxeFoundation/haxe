@@ -26,7 +26,6 @@ using StringTools;
 
 private typedef NativeTrace =
 	#if cs cs.system.diagnostics.StackTrace
-	#elseif python Array<python.Tuple.Tuple4<String, Int, String, String>>
 	#elseif lua Array<String>
 	#elseif flash String
 	#elseif hl hl.NativeArray<hl.Bytes>
@@ -229,8 +228,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(s);
 		#elseif cs
 		return makeStack(new cs.system.diagnostics.StackTrace(1, true));
-		#elseif python
-		return makeStack(pythonCallStack());
 		#elseif lua
 		return switch lua.Debug.traceback() {
 			case null: [];
@@ -269,8 +266,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return makeStack(s);
 		#elseif cs
 		return switch exception { case null: []; case e: makeStack(new cs.system.diagnostics.StackTrace(e, true)); }
-		#elseif python
-		return makeStack(pythonExceptionStack());
 		#elseif lua
 		return switch exception {
 			case null: [];
@@ -367,8 +362,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(Module(str));
 		}
 		return stack;
-		#elseif python
-		return [for (elem in s) FilePos(Method(null, elem._3), elem._1, elem._2)];
 		#elseif lua
 		var stack = [];
 		for (item in s) {
@@ -407,25 +400,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			_getExceptionStack();
 		}
 		return stack;
-	}
-
-#elseif python
-	static inline function pythonExceptionStack():NativeTrace {
-		var exc = python.lib.Sys.exc_info();
-		if (exc._3 != null) {
-			var infos = python.lib.Traceback.extract_tb(exc._3);
-			infos.reverse();
-			return infos;
-		} else {
-			return [];
-		}
-	}
-
-	static inline function pythonCallStack():NativeTrace {
-		var infos = python.lib.Traceback.extract_stack();
-		infos.pop();
-		infos.reverse();
-		return infos;
 	}
 #end
 }
