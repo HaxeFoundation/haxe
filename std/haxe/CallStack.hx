@@ -28,7 +28,6 @@ private typedef NativeTrace =
 	#if cs cs.system.diagnostics.StackTrace
 	#elseif lua Array<String>
 	#elseif flash String
-	#elseif hl hl.NativeArray<hl.Bytes>
 	#elseif cpp Array<String>
 	#else Dynamic
 	#end;
@@ -233,9 +232,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 			case null: [];
 			case s: makeStack(s.split('\n').slice(2));
 		}
-		#elseif hl
-		var stack = _getCallStack();
-		return makeStack(stack.length > 3 ? stack.sub(3, stack.length - 3) : stack);
 		#else
 		return []; // Unsupported
 		#end
@@ -244,8 +240,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	inline static function exceptionStackImpl():Array<StackItem> {
 		#if neko
 		return makeStack(untyped __dollar__excstack());
-		#elseif hl
-		return makeStack(_getExceptionStack());
 		#elseif flash
 		var err:flash.errors.Error = untyped flash.Boot.lastError;
 		if (err == null)
@@ -348,20 +342,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				stack.push(method);
 		}
 		return stack;
-		#elseif hl
-		var stack = [];
-		var r = ~/^([A-Za-z0-9.$_]+)\.([~A-Za-z0-9_]+(\.[0-9]+)?)\((.+):([0-9]+)\)$/;
-		var r_fun = ~/^fun\$([0-9]+)\((.+):([0-9]+)\)$/;
-		for (i in 0...s.length - 1) {
-			var str = @:privateAccess String.fromUCS2(s[i]);
-			if (r.match(str))
-				stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(4), Std.parseInt(r.matched(5))));
-			else if (r_fun.match(str))
-				stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
-			else
-				stack.push(Module(str));
-		}
-		return stack;
 		#elseif lua
 		var stack = [];
 		for (item in s) {
@@ -386,20 +366,4 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return [];
 		#end
 	}
-
-#if hl
-	@:hlNative("std", "exception_stack") static function _getExceptionStack():NativeTrace {
-		return null;
-	}
-
-	//TODO: implement inside of hashlink the same ways as `_getExceptionStack`
-	static function _getCallStack():NativeTrace {
-		var stack:NativeTrace = try {
-			throw new Exception('', null, 'stack');
-		} catch (e:Exception) {
-			_getExceptionStack();
-		}
-		return stack;
-	}
-#end
 }
