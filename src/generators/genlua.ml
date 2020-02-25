@@ -1674,7 +1674,7 @@ let generate_class ctx c =
     List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
     if (has_prototype ctx c) then begin
-        println ctx "%s.prototype = _hx_a();" p;
+        println ctx "%s.prototype = _hx_e();" p;
         let count = ref 0 in
         List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) c.cl_ordered_fields;
         if (has_class ctx c) then begin
