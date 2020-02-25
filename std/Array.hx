@@ -223,6 +223,15 @@ extern class Array<T> {
 	**/
 	function remove(x:T):Bool;
 
+
+	/**
+		Returns whether `this` Array contains `x`.
+
+		If `x` is found by checking standard equality, the function returns `true`, otherwise
+		the function returns `false`.
+	**/
+	@:pure function contains( x : T ) : Bool;
+
 	/**
 		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
 
