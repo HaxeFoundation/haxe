@@ -207,6 +207,9 @@ a == [i0, i1];
 [1,2].contains(1) == true;
 [1,2].contains(2) == true;
 [1,2].contains(3) == false;
+#if !js // see https://github.com/HaxeFoundation/haxe/issues/3330
+([1,2]:Dynamic).contains(2) == true;
+#end
 
 // indexOf
 [].indexOf(10) == -1;
