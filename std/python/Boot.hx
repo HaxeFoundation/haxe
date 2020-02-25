@@ -350,6 +350,8 @@ class Boot {
 					createClosure(o, ArrayImpl.indexOf);
 				case "lastIndexOf":
 					createClosure(o, ArrayImpl.lastIndexOf);
+				case "contains":
+					createClosure(o, ArrayImpl.contains);
 				case "remove":
 					createClosure(o, ArrayImpl.remove);
 				case "reverse":
