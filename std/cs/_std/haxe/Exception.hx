@@ -1,7 +1,7 @@
 package haxe;
 
 import cs.system.Exception as CsException;
-
+import cs.system.diagnostics.StackTrace;
 
 @:coreApi
 class Exception extends NativeException {
@@ -67,7 +67,10 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = new cs.system.diagnostics.StackTrace(__nativeException, true);
+				var nativeTrace = switch __nativeException.StackTrace {
+					case null: new StackTrace(1, true);
+					case _: new StackTrace(__nativeException, true);
+				}
 				__exceptionStack = NativeStackTrace.toHaxe(nativeTrace);
 			case s: s;
 		}
