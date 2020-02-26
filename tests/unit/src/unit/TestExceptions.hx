@@ -3,6 +3,7 @@
 import haxe.Exception;
 import haxe.ValueException;
 import haxe.CallStack;
+import utest.Assert;
 
 private enum EnumError {
 	EError;
@@ -223,32 +224,36 @@ class TestExceptions extends Test {
 	}
 
 	public function testExceptionStack() {
-		var stacks = stacksLevel1();
-		t(stacks.length > 1);
-
-		var expected = null;
-		var lineShift = 0;
-		for(s in stacks) {
-			if(expected == null) {
-				expected = stackItemData(s[0]);
-			} else {
-				var actual = stackItemData(s[0]);
-				if(expected.line != actual.line) {
-					if(lineShift == 0) {
-						lineShift = actual.line - expected.line;
+		var data = [
+			'_without_ throws' => stacksWithoutThrowLevel1(),
+			'_with_ throws' => stacksWithThrowLevel1()
+		];
+		for(label => stacks in data) {
+			Assert.isTrue(stacks.length > 1, '$label: wrong stacks.length');
+			var expected = null;
+			var lineShift = 0;
+			for(s in stacks) {
+				if(expected == null) {
+					expected = stackItemData(s[0]);
+				} else {
+					var actual = stackItemData(s[0]);
+					if(expected.line != actual.line) {
+						if(lineShift == 0) {
+							lineShift = actual.line - expected.line;
+						}
+						expected.line += lineShift;
 					}
-					expected.line += lineShift;
+					Assert.same(expected, actual, '$label: $expected is expected, but got $actual');
 				}
-				utest.Assert.same(expected, actual, '$expected is expected, but got $actual');
 			}
 		}
 	}
 
-	function stacksLevel1() {
-		return stacksLevel2();
+	function stacksWithoutThrowLevel1() {
+		return stacksWithoutThrowLevel2();
 	}
 
-	function stacksLevel2():Array<CallStack> {
+	function stacksWithoutThrowLevel2():Array<CallStack> {
 		var result:Array<CallStack> = [];
 		// It's critical for `testExceptionStack` test to keep the following lines
 		// order with no additional code in between.
@@ -258,6 +263,23 @@ class TestExceptions extends Test {
 		result.push(new WithConstructorValueException('').stack);
 		result.push(new NoConstructorValueException('').stack);
 		result.push((Exception.thrown(''):Exception).stack);
+		return result;
+	}
+
+	function stacksWithThrowLevel1() {
+		return stacksWithThrowLevel2();
+	}
+
+	function stacksWithThrowLevel2():Array<CallStack> {
+		var result:Array<CallStack> = [];
+		// It's critical for `testExceptionStack` test to keep the following lines
+		// order with no additional code in between.
+		result.push(CallStack.callStack());
+		result.push(try throw new Exception('') catch(e:Exception) e.stack);
+		result.push(try throw new ValueException('') catch(e:Exception) e.stack);
+		result.push(try throw new WithConstructorValueException('') catch(e:Exception) e.stack);
+		result.push(try throw new NoConstructorValueException('') catch(e:Exception) e.stack);
+		result.push(try throw (Exception.thrown(''):Exception) catch(e:Exception) e.stack);
 		return result;
 	}
 
