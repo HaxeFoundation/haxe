@@ -13,6 +13,7 @@ class Exception extends NativeException {
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeException:Throwable;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static public function caught(value:Any):Exception {
@@ -31,7 +32,9 @@ class Exception extends NativeException {
 		} else if(Std.isOfType(value, Throwable)) {
 			return value;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__skipStack = 1;
+			return e;
 		}
 	}
 
@@ -69,7 +72,7 @@ class Exception extends NativeException {
 		return switch __exceptionStack {
 			case null:
 				var nativeTrace = NativeStackTrace.complementTrace(__nativeException.getTrace(), native);
-				__exceptionStack = NativeStackTrace.toHaxe(nativeTrace);
+				__exceptionStack = NativeStackTrace.toHaxe(nativeTrace, __skipStack);
 			case s: s;
 		}
 	}
