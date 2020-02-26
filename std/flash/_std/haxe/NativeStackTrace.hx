@@ -25,7 +25,11 @@ class NativeStackTrace {
 		var a = new Array();
 		var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
 		var rlambda = ~/^MethodInfo-([0-9]+)$/g;
+		var cnt = 0;
 		while (r.match(native)) {
+			if(skip > cnt++) {
+				continue;
+			}
 			var cl = r.matched(1).split("::").join(".");
 			var meth = r.matched(2);
 			var item;

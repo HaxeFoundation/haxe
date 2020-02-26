@@ -34,10 +34,10 @@ class Exception {
 		__exceptionMessage = message;
 		__previousException = previous;
 		if(native != null) {
-			__nativeStack = untyped __global__.__hxcpp_get_exception_stack();
+			__nativeStack = NativeStackTrace.exceptionStack();
 			__nativeException = native;
 		} else {
-			__nativeStack = untyped __global__.__hxcpp_get_call_stack(true);
+			__nativeStack = NativeStackTrace.callStack();
 			__nativeException = this;
 		}
 	}
@@ -64,7 +64,7 @@ class Exception {
 
 	function get_stack():CallStack {
 		return switch __exceptionStack {
-			case null: __exceptionStack = CallStack.makeStack(__nativeStack);
+			case null: __exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
 			case s: s;
 		}
 	}

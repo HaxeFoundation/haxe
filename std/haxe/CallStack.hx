@@ -130,9 +130,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 		May not work if catch type was a derivative from `haxe.Exception`.
 	**/
-	#if cpp
-	@:noDebug /* Do not mess up the exception stack */
-	#end
 	public static function exceptionStack():Array<StackItem> {
 		return NativeStackTrace.toHaxe(NativeStackTrace.exceptionStack());
 	}
@@ -190,47 +187,5 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				b.add("local function #");
 				b.add(n);
 		}
-	}
-
-// All target specifics should stay beyond this line.
-
-	inline static function callStackImpl():Array<StackItem> {
-		#if cpp
-		var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
-		return makeStack(s);
-		#else
-		return []; // Unsupported
-		#end
-	}
-
-	inline static function exceptionStackImpl():Array<StackItem> {
-		#if cpp
-		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
-		return makeStack(s);
-		#else
-		return []; // Unsupported
-		#end
-	}
-
-	#if cpp
-	@:noDebug /* Do not mess up the exception stack */
-	#end
-	private static function makeStack(s:NativeTrace):Array<StackItem> {
-		#if cpp
-		var stack:Array<String> = s;
-		var m = new Array<StackItem>();
-		for (func in stack) {
-			var words = func.split("::");
-			if (words.length == 0)
-				m.push(CFunction)
-			else if (words.length == 2)
-				m.push(Method(words[0], words[1]));
-			else if (words.length == 4)
-				m.push(FilePos(Method(words[0], words[1]), words[2], Std.parseInt(words[3])));
-		}
-		return m;
-		#else
-		return [];
-		#end
 	}
 }
