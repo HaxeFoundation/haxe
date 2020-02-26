@@ -99,4 +99,12 @@ extern class Exception {
 		Includes message, stack and the previous exception (if set).
 	**/
 	public function toString():String;
+
+	/**
+		If this field is defined in a target implementation, then a call to this
+		field will be generated automatically in every constructor of derived classes
+		to make exception stacks point to derived constructor invocations instead of
+		`super` calls.
+	**/
+	// @:noCompletion private function __shiftStack():Void;
 }

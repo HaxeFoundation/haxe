@@ -2,6 +2,7 @@
 
 import haxe.Exception;
 import haxe.ValueException;
+import haxe.CallStack;
 
 private enum EnumError {
 	EError;
@@ -27,6 +28,16 @@ private class CustomNativeException extends python.Exceptions.Exception {}
 #elseif (lua || eval || neko || hl || cpp)
 private class CustomNativeException { public function new(m:String) {} }
 #end
+
+private class NoConstructorValueException extends ValueException {}
+
+private class WithConstructorValueException extends ValueException {
+	public function new(value:Any, ?previous:Exception, ?native:Any) {
+		super(value, previous, native);
+	}
+}
+
+private typedef ItemData = {?file:String, ?line:Int, ?method:String}
 
 class TestExceptions extends Test {
 	/** Had to move to instance var because of https://github.com/HaxeFoundation/haxe/issues/9174 */
@@ -212,20 +223,59 @@ class TestExceptions extends Test {
 	}
 
 	public function testExceptionStack() {
-		function level2() {
-			throw 'hello';
+		var stacks = stacksLevel1();
+		t(stacks.length > 1);
+
+		var expected = null;
+		var lineShift = 0;
+		for(s in stacks) {
+			if(expected == null) {
+				expected = stackItemData(s[0]);
+			} else {
+				var actual = stackItemData(s[0]);
+				if(expected.line != actual.line) {
+					if(lineShift == 0) {
+						lineShift = actual.line - expected.line;
+					}
+					expected.line += lineShift;
+				}
+				utest.Assert.same(expected, actual);
+			}
 		}
-		function level1() {
-			level2();
+	}
+
+	function stacksLevel1() {
+		return stacksLevel2();
+	}
+
+	var a:CallStack;
+	var b:CallStack;
+	var c:CallStack;
+	var d:CallStack;
+	var e:CallStack;
+	function stacksLevel2():Array<CallStack> {
+		//it's critical for a test to keep the following lines order
+		//with no additional code in between.
+		a = CallStack.callStack();
+		b = new Exception('').stack;
+		c = new ValueException('').stack;
+		d = new WithConstructorValueException('').stack;
+		e = new NoConstructorValueException('').stack;
+		return [a, b, c, d, e];
+	}
+
+	function stackItemData(item:StackItem):ItemData {
+		var result:ItemData = {};
+		switch item {
+			case FilePos(s, f, l, _):
+				result.file = f;
+				result.line = l;
+				switch s {
+					case Method(_, m): result.method = m;
+					case _:
+				}
+			case _:
 		}
-		try {
-			level1();
-		} catch(e:Exception) {
-			#if lua
-			t(e.stack != null);
-			#else
-			t(e.stack.length > 0);
-			#end
-		}
+		return result;
 	}
 }

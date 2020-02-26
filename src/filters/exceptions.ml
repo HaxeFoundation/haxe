@@ -130,18 +130,21 @@ let rec is_native_catch ctx t =
 	is_in_list t ctx.config.ec_native_catches
 
 (**
+	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
+*)
+let rec is_haxe_exception_class ?(check_parent=true) cls =
+	cls.cl_path = haxe_exception_type_path
+	|| (check_parent && match cls.cl_super with
+		| None -> false
+		| Some (cls, _) -> is_haxe_exception_class ~check_parent cls
+	)
+
+(**
 	Check if `t` is or extends `haxe.Exception`
 *)
-let rec is_haxe_exception ?(check_parent=true) (t:Type.t) =
-	let rec check cls =
-		cls.cl_path = haxe_exception_type_path
-		|| (check_parent && match cls.cl_super with
-			| None -> false
-			| Some (cls, _) -> check cls
-		)
-	in
+let is_haxe_exception ?(check_parent=true) (t:Type.t) =
 	match follow t with
-		| TInst (cls, _) -> check cls
+		| TInst (cls, _) -> is_haxe_exception_class ~check_parent cls
 		| _ -> false
 
 (**
@@ -357,3 +360,56 @@ let filter tctx =
 		in
 		run
 	| Cross -> (fun e -> e)
+
+(**
+	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
+*)
+let patch_constructors tctx =
+	let tp = ({ tpackage = fst haxe_exception_type_path; tname = snd haxe_exception_type_path; tparams = []; tsub = None },null_pos) in
+	match Typeload.load_instance tctx tp true with
+	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
+		(fun mt ->
+			match mt with
+			| TClassDecl cls when not cls.cl_extern && cls.cl_path <> haxe_exception_type_path && is_haxe_exception_class cls ->
+				let shift_stack p =
+					let t = type_of_module_type mt in
+					let this = { eexpr = TConst(TThis); etype = t; epos = p } in
+					let faccess =
+						try quick_field t "__shiftStack"
+						with Not_found -> error "haxe.Exception has no field __shiftStack" p
+					in
+					match faccess with
+					| FInstance (_,_,cf) ->
+						let efield = { eexpr = TField(this,faccess); etype = cf.cf_type; epos = p } in
+						let rt =
+							match follow cf.cf_type with
+							| TFun(_,t) -> t
+							| _ ->
+								error "haxe.Exception.__shiftStack is not a function and cannot be called" p
+						in
+						make_call tctx efield [] rt p
+					| _ -> error "haxe.Exception.__shiftStack is expected to be an instance method" p
+				in
+				(match cls.cl_constructor with
+				| Some ({ cf_expr = Some e_ctor } as ctor) ->
+					let rec add e =
+						match e.eexpr with
+						| TFunction _ -> e
+						| TReturn _ -> mk (TBlock [shift_stack e.epos; e]) e.etype e.epos
+						| _ -> map_expr add e
+					in
+					(ctor.cf_expr <- match e_ctor.eexpr with
+						| TFunction fn ->
+							Some { e_ctor with
+								eexpr = TFunction { fn with
+									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) tctx.t.tvoid fn.tf_expr.epos
+								}
+							}
+						| _ -> assert false
+					)
+				| None -> assert false
+				| _ -> ()
+				)
+			| _ -> ()
+		)
+	| _ -> (fun _ -> ())

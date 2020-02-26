@@ -12,8 +12,12 @@ class NativeStackTrace {
 	static public inline function saveStack(exception:Any):Void {
 	}
 
-	//implemented in the compiler
 	static public function callStack():Array<StackItem> {
+		return _callStack();
+	}
+
+	//implemented in the compiler
+	static function _callStack():Array<StackItem> {
 		return null;
 	}
 

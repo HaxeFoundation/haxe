@@ -48,6 +48,10 @@ class Exception {
 		return inline CallStack.exceptionToString(this);
 	}
 
+	@:noCompletion inline function __shiftStack():Void {
+		__exceptionStack.asArray().shift();
+	}
+
 	function get_message():String {
 		return __exceptionMessage;
 	}

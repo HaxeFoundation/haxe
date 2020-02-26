@@ -23,9 +23,6 @@ class ValueException extends Exception {
 	public function new(value:Any, ?previous:Exception, ?native:Any):Void {
 		super(Std.string(value), previous, native);
 		this.value = value;
-		#if lua
-		__skipStackItems++;
-		#end
 	}
 
 	/**

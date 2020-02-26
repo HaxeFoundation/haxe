@@ -3327,7 +3327,7 @@ let init_standard_library builtins =
 		"getBytes",StdBytesBuffer.getBytes;
 	];
 	init_fields builtins (["haxe"],"NativeStackTrace") [
-		"callStack",StdNativeStackTrace.getCallStack;
+		"_callStack",StdNativeStackTrace.getCallStack;
 		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [

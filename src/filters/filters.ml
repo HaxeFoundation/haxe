@@ -841,7 +841,8 @@ let run com tctx main =
 	t();
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
-		match com.platform with
+		Exceptions.patch_constructors tctx
+		:: match com.platform with
 		| Cs ->
 			[
 				check_cs_events tctx.com;

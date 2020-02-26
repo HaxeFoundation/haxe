@@ -22,14 +22,6 @@
 
 package haxe;
 
-using StringTools;
-
-private typedef NativeTrace =
-	#if flash String
-	#elseif cpp Array<String>
-	#else Dynamic
-	#end;
-
 /**
 	Elements return by `CallStack` methods.
 **/
@@ -53,15 +45,23 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	public var length(get,never):Int;
 	inline function get_length():Int return this.length;
 
-	@:arrayAccess public inline function get(index:Int):StackItem {
-		return this[index];
+	/**
+		Return the call stack elements, or an empty array if not available.
+	**/
+	public static function callStack():Array<StackItem> {
+		return NativeStackTrace.toHaxe(NativeStackTrace.callStack());
 	}
 
 	/**
-		Make a copy of the stack.
+		Return the exception stack : this is the stack elements between
+		the place the last exception was thrown and the place it was
+		caught, or an empty array if not available.
+
+		May not work if catch type was a derivative from `haxe.Exception`.
 	**/
-	public inline function copy():CallStack {
-		return this.copy();
+	public static function exceptionStack():Array<StackItem> {
+		var eStack:CallStack = NativeStackTrace.toHaxe(NativeStackTrace.exceptionStack());
+		return eStack.subtract(callStack()).asArray();
 	}
 
 	/**
@@ -100,6 +100,21 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		return startIndex >= 0 ? this.slice(0, startIndex) : this;
 	}
 
+	/**
+		Make a copy of the stack.
+	**/
+	public inline function copy():CallStack {
+		return this.copy();
+	}
+
+	@:arrayAccess public inline function get(index:Int):StackItem {
+		return this[index];
+	}
+
+	inline function asArray():Array<StackItem> {
+		return this;
+	}
+
 	static function equalItems(item1:Null<StackItem>, item2:Null<StackItem>):Bool {
 		return switch([item1, item2]) {
 			case [null, null]: true;
@@ -114,28 +129,6 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				v1 == v2;
 			case _: false;
 		}
-	}
-
-	/**
-		Return the call stack elements, or an empty array if not available.
-	**/
-	public static function callStack():Array<StackItem> {
-		return NativeStackTrace.toHaxe(NativeStackTrace.callStack(), 1);
-	}
-
-	/**
-		Return the exception stack : this is the stack elements between
-		the place the last exception was thrown and the place it was
-		caught, or an empty array if not available.
-
-		May not work if catch type was a derivative from `haxe.Exception`.
-	**/
-	public static function exceptionStack():Array<StackItem> {
-		return NativeStackTrace.toHaxe(NativeStackTrace.exceptionStack());
-	}
-
-	inline function asArray():Array<StackItem> {
-		return this;
 	}
 
 	static function exceptionToString(e:Exception):String {
