@@ -16,6 +16,7 @@ class Exception extends PyException {
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Array<PyStackItem>;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:BaseException;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -35,7 +36,9 @@ class Exception extends PyException {
 		} else if(Std.isOfType(value, BaseException)) {
 			return value;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__shiftStack();
+			return e;
 		}
 	}
 
@@ -59,6 +62,10 @@ class Exception extends PyException {
 		return inline CallStack.exceptionToString(this);
 	}
 
+	@:noCompletion inline function __shiftStack():Void {
+		__skipStack++;
+	}
+
 	function get_message():String {
 		return UBuiltins.str(this);
 	}
@@ -74,7 +81,7 @@ class Exception extends PyException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
 	}

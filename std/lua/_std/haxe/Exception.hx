@@ -10,7 +10,7 @@ class Exception {
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Array<String>;
-	@:noCompletion var __skipStackItems:Int;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -27,7 +27,7 @@ class Exception {
 			return (value:Exception).native;
 		} else {
 			var e = new ValueException(value);
-			e.__skipStackItems++;
+			e.__shiftStack();
 			return e;
 		}
 	}
@@ -38,11 +38,10 @@ class Exception {
 		if(native != null) {
 			__nativeException = native;
 			__nativeStack = NativeStackTrace.exceptionStack();
-			__skipStackItems = 0;
 		} else {
 			__nativeException = this;
 			__nativeStack = NativeStackTrace.callStack();
-			__skipStackItems = 3;
+			__skipStack = 1;
 		}
 	}
 
@@ -52,6 +51,10 @@ class Exception {
 
 	public function toString():String {
 		return inline CallStack.exceptionToString(this);
+	}
+
+	@:noCompletion inline function __shiftStack():Void {
+		__skipStack++;
 	}
 
 	function get_message():String {
@@ -69,7 +72,7 @@ class Exception {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
 	}

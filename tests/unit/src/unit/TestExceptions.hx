@@ -239,7 +239,7 @@ class TestExceptions extends Test {
 					}
 					expected.line += lineShift;
 				}
-				utest.Assert.same(expected, actual);
+				utest.Assert.same(expected, actual, '$expected is expected, but got $actual');
 			}
 		}
 	}
@@ -248,20 +248,17 @@ class TestExceptions extends Test {
 		return stacksLevel2();
 	}
 
-	var a:CallStack;
-	var b:CallStack;
-	var c:CallStack;
-	var d:CallStack;
-	var e:CallStack;
 	function stacksLevel2():Array<CallStack> {
-		//it's critical for a test to keep the following lines order
-		//with no additional code in between.
-		a = CallStack.callStack();
-		b = new Exception('').stack;
-		c = new ValueException('').stack;
-		d = new WithConstructorValueException('').stack;
-		e = new NoConstructorValueException('').stack;
-		return [a, b, c, d, e];
+		var result:Array<CallStack> = [];
+		// It's critical for `testExceptionStack` test to keep the following lines
+		// order with no additional code in between.
+		result.push(CallStack.callStack());
+		result.push(new Exception('').stack);
+		result.push(new ValueException('').stack);
+		result.push(new WithConstructorValueException('').stack);
+		result.push(new NoConstructorValueException('').stack);
+		result.push((Exception.thrown(''):Exception).stack);
+		return result;
 	}
 
 	function stackItemData(item:StackItem):ItemData {

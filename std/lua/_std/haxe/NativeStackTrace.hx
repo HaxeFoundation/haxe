@@ -14,7 +14,7 @@ class NativeStackTrace {
 	static public function callStack():Array<String> {
 		return switch lua.Debug.traceback() {
 			case null: [];
-			case s: s.split('\n').slice(2);
+			case s: s.split('\n').slice(3);
 		}
 	}
 
