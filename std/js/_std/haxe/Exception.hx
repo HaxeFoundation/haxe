@@ -9,6 +9,8 @@ class Exception extends NativeException {
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
+	@:noCompletion var __skipStack:Int = 0;
+	//following properties have "final" semantics
 	@:noCompletion var __errorStack(get,set):Null<CallStack>;
 	@:noCompletion var __nativeException(get,set):Any;
 	@:noCompletion var __previousException(get,set):Null<Exception>;
@@ -29,7 +31,9 @@ class Exception extends NativeException {
 		} else if(Std.isOfType(value, Error)) {
 			return value;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__shiftStack();
+			return e;
 		}
 	}
 
@@ -38,15 +42,17 @@ class Exception extends NativeException {
 		(cast this).message = message;
 		__previousException = previous;
 		__nativeException = native != null ? native : this;
-		var e:Error = if(Std.isOfType(native, Error)) {
-			native;
-		} else if ((cast Error).captureStackTrace) {
-			(cast Error).captureStackTrace(this, Exception);
-			cast this;
+		if(Std.isOfType(native, Error)) {
+			(cast this).stack = NativeStackTrace.getJsStack(native);
 		} else {
-			new Error();
+			var e:Error = if ((cast Error).captureStackTrace) {
+				(cast Error).captureStackTrace(this, Exception);
+				cast this;
+			} else {
+				new Error();
+			}
+			(cast this).stack = NativeStackTrace.normalize(NativeStackTrace.getJsStack(e));
 		}
-		(cast this).stack = NativeStackTrace.getJsStack(e);
 	}
 
 	public function unwrap():Any {
@@ -55,6 +61,10 @@ class Exception extends NativeException {
 
 	public function toString():String {
 		return inline CallStack.exceptionToString(this);
+	}
+
+	@:noCompletion inline function __shiftStack():Void {
+		__skipStack++;
 	}
 
 	function get_message():String {
@@ -72,7 +82,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __errorStack {
 			case null:
-				__errorStack = NativeStackTrace.toHaxe(NativeStackTrace.getJsStack(cast this));
+				__errorStack = NativeStackTrace.toHaxe((cast this).stack, __skipStack);
 			case s: s;
 		}
 	}
@@ -91,6 +101,15 @@ class Exception extends NativeException {
 
 	inline function set___errorStack(value:CallStack):CallStack {
 		setProperty('__errorStack', value);
+		return value;
+	}
+
+	inline function get___skipStack():Int {
+		return (cast this).__skipStack;
+	}
+
+	inline function set___skipStack(value:Int):Int {
+		setProperty('__skipStack', value);
 		return value;
 	}
 

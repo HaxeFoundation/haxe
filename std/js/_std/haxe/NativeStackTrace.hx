@@ -1,5 +1,6 @@
 package haxe;
 
+import js.Syntax;
 import js.lib.Error;
 import haxe.CallStack.StackItem;
 
@@ -33,18 +34,18 @@ class NativeStackTrace {
 		lastError = e;
 	}
 
-	static public inline function callStack():Any {
-		return tryHaxeStack(new Error());
+	static public function callStack():Any {
+		return normalize(tryHaxeStack(new Error()), 2);
 	}
 
-	static public function exceptionStack():Any {
-		return tryHaxeStack(lastError);
+	static public inline function exceptionStack():Any {
+		return normalize(tryHaxeStack(lastError));
 	}
 
 	static public function toHaxe(s:Null<Any>, skip:Int = 0):Array<StackItem> {
 		if (s == null) {
 			return [];
-		} else if (js.Syntax.typeof(s) == "string") {
+		} else if (Syntax.typeof(s) == "string") {
 			// Return the raw lines in browsers that don't support prepareStackTrace
 			var stack:Array<String> = (s:String).split("\n");
 			if (stack[0] == "Error")
@@ -66,7 +67,7 @@ class NativeStackTrace {
 					m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 			}
 			return m;
-		} else if(skip > 0 && js.Syntax.code('Array.isArray({0})', s)) {
+		} else if(skip > 0 && Syntax.code('Array.isArray({0})', s)) {
 			return (s:Array<StackItem>).slice(skip);
 		} else {
 			return cast s;
@@ -119,5 +120,29 @@ class NativeStackTrace {
 			stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
 		}
 		return stack;
+	}
+
+	static function normalize(stack:Any, skipItems:Int = 0):Any {
+		if(Syntax.code('Array.isArray({0})', stack) && skipItems > 0) {
+			return (stack:Array<StackItem>).slice(skipItems);
+		} else if(Syntax.typeof(stack) == "string") {
+			switch (stack:String).substr(0, 6) {
+				case 'Error:' | 'Error\n': skipItems += 1;
+				case _: stack;
+			}
+			return skipLines(stack, skipItems);
+		} else {
+			//nothing we can do
+			return stack;
+		}
+	}
+
+	static function skipLines(stack:String, skip:Int, pos:Int = 0):String {
+		return if(skip > 0) {
+			pos = stack.indexOf('\n', pos);
+			return pos < 0 ? '' : skipLines(stack, --skip, pos + 1);
+		} else {
+			return stack.substr(pos);
+		}
 	}
 }

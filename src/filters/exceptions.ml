@@ -367,6 +367,7 @@ let filter tctx =
 let patch_constructors tctx =
 	let tp = ({ tpackage = fst haxe_exception_type_path; tname = snd haxe_exception_type_path; tparams = []; tsub = None },null_pos) in
 	match Typeload.load_instance tctx tp true with
+	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->
 			match mt with
@@ -385,7 +386,7 @@ let patch_constructors tctx =
 							match follow cf.cf_type with
 							| TFun(_,t) -> t
 							| _ ->
-								error "haxe.Exception.__shiftStack is not a function and cannot be called" p
+								error "haxe.Exception.__shiftStack is not a function and cannot be called" cf.cf_name_pos
 						in
 						make_call tctx efield [] rt p
 					| _ -> error "haxe.Exception.__shiftStack is expected to be an instance method" p
