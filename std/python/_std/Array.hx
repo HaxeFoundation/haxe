@@ -80,6 +80,10 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.remove(this, x);
 	}
 
+	public inline function contains(x:T):Bool {
+		return ArrayImpl.contains(this,x);
+	}
+
 	public inline function reverse():Void {
 		ArrayImpl.reverse(this);
 	}

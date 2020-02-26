@@ -24,6 +24,9 @@ class Macro {
 		changeDirectory(miscDir);
 		runCommand("haxe", ["compile.hxml"]);
 
+		changeDirectory(miscDir + "resolution");
+		runCommand("haxe", ["run.hxml"]);
+
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
