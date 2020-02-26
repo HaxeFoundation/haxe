@@ -356,6 +356,4 @@ let filter tctx =
 				map_expr run e
 		in
 		run
-	| _ ->
-		(* missed a platform? *)
-		assert false
+	| Cross -> (fun e -> e)

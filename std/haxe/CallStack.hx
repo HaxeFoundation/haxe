@@ -195,11 +195,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 // All target specifics should stay beyond this line.
 
 	inline static function callStackImpl():Array<StackItem> {
-		#if flash
-		var a = makeStack(new flash.errors.Error().getStackTrace());
-		a.shift(); // remove Stack.callStack()
-		return a;
-		#elseif cpp
+		#if cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 		return makeStack(s);
 		#else
@@ -208,22 +204,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	}
 
 	inline static function exceptionStackImpl():Array<StackItem> {
-		#if flash
-		var err:flash.errors.Error = untyped flash.Boot.lastError;
-		if (err == null)
-			return new Array();
-		var a = makeStack(err.getStackTrace());
-		var c = callStack();
-		var i = c.length - 1;
-		while (i > 0) {
-			if (Std.string(a[a.length - 1]) == Std.string(c[i]))
-				a.pop();
-			else
-				break;
-			i--;
-		}
-		return a;
-		#elseif cpp
+		#if cpp
 		var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 		return makeStack(s);
 		#else
@@ -235,28 +216,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 	@:noDebug /* Do not mess up the exception stack */
 	#end
 	private static function makeStack(s:NativeTrace):Array<StackItem> {
-		#if flash
-		var a = new Array();
-		var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
-		var rlambda = ~/^MethodInfo-([0-9]+)$/g;
-		while (r.match(s)) {
-			var cl = r.matched(1).split("::").join(".");
-			var meth = r.matched(2);
-			var item;
-			if (meth == null) {
-				if (rlambda.match(cl))
-					item = LocalFunction(Std.parseInt(rlambda.matched(1)));
-				else
-					item = Method(cl, "new");
-			} else
-				item = Method(cl, meth.substr(1));
-			if (r.matched(3) != null)
-				item = FilePos(item, r.matched(4), Std.parseInt(r.matched(5)));
-			a.push(item);
-			s = r.matchedRight();
-		}
-		return a;
-		#elseif cpp
+		#if cpp
 		var stack:Array<String> = s;
 		var m = new Array<StackItem>();
 		for (func in stack) {
