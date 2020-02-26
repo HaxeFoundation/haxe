@@ -37,7 +37,12 @@ class Exception extends NativeException {
 		} else if(Std.isOfType(value, Throwable)) {
 			return new Exception((value:Throwable).getMessage(), null, value);
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			var stack = e.getStackTrace();
+			if(stack.length > 1) {
+				e.setStackTrace(java.util.Arrays.copyOfRange(stack, 1, stack.length));
+			}
+			return e;
 		}
 	}
 

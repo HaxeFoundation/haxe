@@ -19,8 +19,9 @@ class NativeStackTrace {
 		exception.set(e);
 	}
 
-	static public inline function callStack():NativeArray<StackTraceElement> {
-		return Thread.currentThread().getStackTrace();
+	static public function callStack():NativeArray<StackTraceElement> {
+		var stack = Thread.currentThread().getStackTrace();
+		return stack.length <= 3 ? stack : java.util.Arrays.copyOfRange(stack, 3, stack.length);
 	}
 
 	static public function exceptionStack():NativeArray<StackTraceElement> {
