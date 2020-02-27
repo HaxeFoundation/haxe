@@ -8,7 +8,9 @@ class Exception {
 	public var native(get,never):Any;
 
 	@:noCompletion var __exceptionMessage:String;
-	@:noCompletion var __exceptionStack:CallStack;
+	@:noCompletion var __exceptionStack:Null<CallStack>;
+	@:noCompletion var __nativeStack:CallStack;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -24,7 +26,9 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__shiftStack();
+			return e;
 		}
 	}
 
@@ -32,10 +36,10 @@ class Exception {
 		__exceptionMessage = message;
 		__previousException = previous;
 		if(native != null) {
-			__exceptionStack = NativeStackTrace.exceptionStack();
+			__nativeStack = NativeStackTrace.exceptionStack();
 			__nativeException = native;
 		} else {
-			__exceptionStack = NativeStackTrace.callStack();
+			__nativeStack = NativeStackTrace.callStack();
 			__nativeException = this;
 		}
 	}
@@ -49,7 +53,7 @@ class Exception {
 	}
 
 	@:noCompletion inline function __shiftStack():Void {
-		__exceptionStack.asArray().shift();
+		__skipStack++;
 	}
 
 	function get_message():String {
@@ -65,6 +69,14 @@ class Exception {
 	}
 
 	function get_stack():CallStack {
-		return __exceptionStack;
+		return switch __exceptionStack {
+			case null:
+				__exceptionStack = if(__skipStack > 0) {
+					__nativeStack.asArray().slice(__skipStack);
+				} else {
+					__nativeStack;
+				}
+			case s: s;
+		}
 	}
 }

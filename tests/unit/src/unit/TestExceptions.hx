@@ -274,7 +274,6 @@ class TestExceptions extends Test {
 		var result:Array<CallStack> = [];
 		// It's critical for `testExceptionStack` test to keep the following lines
 		// order with no additional code in between.
-		result.push(CallStack.callStack());
 		result.push(try throw new Exception('') catch(e:Exception) e.stack);
 		result.push(try throw new ValueException('') catch(e:Exception) e.stack);
 		result.push(try throw new WithConstructorValueException('') catch(e:Exception) e.stack);
