@@ -409,6 +409,14 @@ let patch_constructors tctx =
 						| _ -> assert false
 					)
 				| None -> assert false
+					(* let rec super_ctor cls =
+						match cls.cl_super with
+						| Some (cls, pl) ->
+							match cls.cl_super
+						| None -> assert false
+					in
+					let super_ctor = super_ctor cls in *)
+					(* let ctor = mk_field tctx.t *)
 				| _ -> ()
 				)
 			| _ -> ()
