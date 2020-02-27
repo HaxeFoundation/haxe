@@ -108,15 +108,15 @@ class NativeStackTrace {
 			if (fullName != null) {
 				var idx = fullName.lastIndexOf(".");
 				if (idx >= 0) {
-					var className = fullName.substr(0, idx);
-					var methodName = fullName.substr(idx + 1);
+					var className = fullName.substring(0, idx - 1);
+					var methodName = fullName.substring(idx + 1);
 					method = Method(className, methodName);
 				}
 			}
 			var fileName = site.getFileName();
 			var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
 			if (wrapCallSite != null && fileAddr > 0)
-				fileName = fileName.substr(fileAddr + 6);
+				fileName = fileName.substring(fileAddr + 6);
 			stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
 		}
 		return stack;
@@ -126,9 +126,9 @@ class NativeStackTrace {
 		if(Syntax.code('Array.isArray({0})', stack) && skipItems > 0) {
 			return (stack:Array<StackItem>).slice(skipItems);
 		} else if(Syntax.typeof(stack) == "string") {
-			switch (stack:String).substr(0, 6) {
+			switch (stack:String).substring(0, 6) {
 				case 'Error:' | 'Error\n': skipItems += 1;
-				case _: stack;
+				case _:
 			}
 			return skipLines(stack, skipItems);
 		} else {
@@ -142,7 +142,7 @@ class NativeStackTrace {
 			pos = stack.indexOf('\n', pos);
 			return pos < 0 ? '' : skipLines(stack, --skip, pos + 1);
 		} else {
-			return stack.substr(pos);
+			return stack.substring(pos);
 		}
 	}
 }
