@@ -10,6 +10,7 @@ class Exception {
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Any;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -25,7 +26,9 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__skipStack++;
+			return e;
 		}
 	}
 
@@ -37,6 +40,7 @@ class Exception {
 			__nativeException = native;
 		} else {
 			__nativeStack = NativeStackTrace.callStack();
+			__shiftStack();
 			__nativeException = this;
 		}
 	}
@@ -47,6 +51,10 @@ class Exception {
 
 	public function toString():String {
 		return inline CallStack.exceptionToString(this);
+	}
+
+	@:noCompletion inline function __shiftStack():Void {
+		__skipStack += 2;
 	}
 
 	function get_message():String {
@@ -63,7 +71,8 @@ class Exception {
 
 	function get_stack():CallStack {
 		return switch __exceptionStack {
-			case null: __exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
+			case null:
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
 	}
