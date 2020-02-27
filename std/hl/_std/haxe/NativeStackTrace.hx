@@ -18,13 +18,22 @@ class NativeStackTrace {
 		return null;
 	}
 
+	//TODO: implement in hashlink like `exceptionStack`
 	static public function callStack():NativeArray<Bytes> {
 		var stack:NativeArray<Bytes> = try {
 			throw new Exception('', null, 'stack');
 		} catch (e:Exception) {
 			exceptionStack();
 		}
-		return stack.length > 2 ? stack.sub(2, stack.length - 2) : stack;
+		var skip = 1;
+		for(i in 0...stack.length - 1) {
+			var s = @:privateAccess String.fromUCS2(stack[i]);
+			if(s.indexOf('NativeStackTrace.callStack') < 0) {
+				break;
+			}
+			skip++;
+		}
+		return skip < stack.length ? stack.sub(skip, stack.length - skip) : stack;
 	}
 
 	static public function toHaxe(native:NativeArray<Bytes>, skip:Int = 0):Array<StackItem> {
