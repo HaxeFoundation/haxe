@@ -1,5 +1,5 @@
 local function _hx_obj_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end
-local _hx_obj_mt = {__newindex=_hx_anon_newindex}
+local _hx_obj_mt = {__newindex=_hx_obj_newindex, __tostring=_hx_tostring}
 local function _hx_a(...)
   local __fields__ = {};
   local ret = {__fields__ = __fields__};
@@ -24,5 +24,5 @@ local function _hx_o(obj)
 end
 
 local function _hx_new(prototype)
-  return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex, __index=prototype})
+  return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex, __index=prototype, __tostring=_hx_tostring})
 end

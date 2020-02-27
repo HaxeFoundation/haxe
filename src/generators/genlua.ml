@@ -1965,13 +1965,16 @@ let generate com =
         print ctx "%s\n" file_content;
     in
 
-    (* table-to-array helper *)
+    (* base table-to-array helpers and metatables *)
     print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
 
-    (* lua workarounds for basic anonymous object functionality *)
+    (* base lua "toString" functionality for haxe objects*)
+    print_file (Common.find_file com "lua/_lua/_hx_tostring.lua");
+
+    (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
 
-    (* class reflection metadata *)
+    (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
 
     let include_files = List.rev com.include_files in
