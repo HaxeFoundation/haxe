@@ -391,6 +391,8 @@ let patch_constructors tctx =
 						make_call tctx efield [] rt p
 					| _ -> error "haxe.Exception.__shiftStack is expected to be an instance method" p
 				in
+				TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos;
+				Option.may (fun cf -> ignore(follow cf.cf_type)) cls.cl_constructor;
 				(match cls.cl_constructor with
 				| Some ({ cf_expr = Some e_ctor } as ctor) ->
 					let rec add e =
@@ -409,14 +411,6 @@ let patch_constructors tctx =
 						| _ -> assert false
 					)
 				| None -> assert false
-					(* let rec super_ctor cls =
-						match cls.cl_super with
-						| Some (cls, pl) ->
-							match cls.cl_super
-						| None -> assert false
-					in
-					let super_ctor = super_ctor cls in *)
-					(* let ctor = mk_field tctx.t *)
 				| _ -> ()
 				)
 			| _ -> ()

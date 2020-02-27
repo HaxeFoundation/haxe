@@ -11,6 +11,9 @@ class Exception extends NativeException {
 	public var native(get,never):Any;
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
+	@:noCompletion var __nativeStack:StackTrace;
+	@:noCompletion var __ownStack:Bool;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:CsException;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -30,17 +33,29 @@ class Exception extends NativeException {
 		} else if(Std.isOfType(value, CsException)) {
 			return value;
 		} else {
-			return new ValueException(value);
+			var e = new ValueException(value);
+			e.__shiftStack();
+			return e;
 		}
 	}
 
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message, previous);
 		this.__previousException = previous;
+
 		if(native != null && Std.isOfType(native, CsException)) {
 			__nativeException = native;
+			if(__nativeException.StackTrace == null) {
+				__nativeStack = new StackTrace(1, true);
+				__ownStack = true;
+			} else {
+				__nativeStack = new StackTrace(__nativeException, true);
+				__ownStack = false;
+			}
 		} else {
 			__nativeException = cast this;
+			__nativeStack = new StackTrace(1, true);
+			__ownStack = true;
 		}
 	}
 
@@ -50,6 +65,10 @@ class Exception extends NativeException {
 
 	public function toString():String {
 		return inline CallStack.exceptionToString(this);
+	}
+
+	@:noCompletion inline function __shiftStack():Void {
+		if(__ownStack) __skipStack++;
 	}
 
 	function get_message():String {
@@ -67,11 +86,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				var nativeTrace = switch __nativeException.StackTrace {
-					case null: new StackTrace(1, true);
-					case _: new StackTrace(__nativeException, true);
-				}
-				__exceptionStack = NativeStackTrace.toHaxe(nativeTrace);
+				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
 	}
