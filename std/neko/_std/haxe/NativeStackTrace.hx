@@ -20,7 +20,7 @@ class NativeStackTrace {
 		return { skip:1, stack:untyped __dollar__callstack() };
 	}
 
-	static public inline function exceptionStack():NativeTrace {
+	static public function exceptionStack():NativeTrace {
 		return { skip:0, stack:untyped __dollar__excstack() };
 	}
 

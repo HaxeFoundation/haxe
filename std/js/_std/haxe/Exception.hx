@@ -9,7 +9,7 @@ class Exception extends NativeException {
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion var __skipStack:Int = 0;
+	@:noCompletion var __skipStack:Int;
 	//following properties have "final" semantics
 	@:noCompletion var __errorStack(get,set):Null<CallStack>;
 	@:noCompletion var __nativeException(get,set):Any;
@@ -40,6 +40,7 @@ class Exception extends NativeException {
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message);
 		(cast this).message = message;
+		__skipStack = 0;
 		__previousException = previous;
 		__nativeException = native != null ? native : this;
 		if(Std.isOfType(native, Error)) {

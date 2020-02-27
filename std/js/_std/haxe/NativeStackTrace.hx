@@ -38,7 +38,7 @@ class NativeStackTrace {
 		return normalize(tryHaxeStack(new Error()), 2);
 	}
 
-	static public inline function exceptionStack():Any {
+	static public function exceptionStack():Any {
 		return normalize(tryHaxeStack(lastError));
 	}
 
