@@ -26,19 +26,25 @@ class NativeStackTrace {
 
 	static public function toHaxe(native:NativeTrace, skip:Int = 0):Array<StackItem> {
 		skip += native.skip;
-		trace(skip);
 		var a = new Array();
 		var l = untyped __dollar__asize(native.stack);
 		var i = 0;
 		while (i < l) {
-			var x = native.stack[i++];
+			var x = native.stack[l - i - 1];
+			//skip all CFunctions until we skip required amount of hx entries
+			if(x == null && skip > i) {
+				skip++;
+			}
+			if(skip > i++) {
+				continue;
+			}
 			if (x == null)
-				a.unshift(CFunction);
+				a.push(CFunction);
 			else if (untyped __dollar__typeof(x) == __dollar__tstring)
-				a.unshift(Module(new String(x)));
+				a.push(Module(new String(x)));
 			else
-				a.unshift(FilePos(null, new String(untyped x[0]), untyped x[1]));
+				a.push(FilePos(null, new String(untyped x[0]), untyped x[1]));
 		}
-		return skip > 0 ? a.slice(skip) : a;
+		return a;
 	}
 }

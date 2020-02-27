@@ -27,7 +27,7 @@ class Exception {
 			return (value:Exception).native;
 		} else {
 			var e = new ValueException(value);
-			e.__skipStack++;
+			e.__shiftStack();
 			return e;
 		}
 	}
@@ -54,7 +54,7 @@ class Exception {
 	}
 
 	@:noCompletion inline function __shiftStack():Void {
-		__skipStack += 2;
+		__skipStack++;
 	}
 
 	function get_message():String {
