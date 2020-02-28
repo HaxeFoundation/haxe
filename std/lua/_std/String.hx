@@ -24,7 +24,7 @@ import lua.Lua;
 import lua.Table;
 import lua.Boot;
 
-#if lua_vanilla
+#if disable_unicode_strings
 private typedef BaseString = lua.NativeStringTools;
 #else
 private typedef BaseString = lua.lib.luautf8.Utf8;

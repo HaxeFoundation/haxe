@@ -6,6 +6,7 @@
 	js : improve haxe.ds.StringMap implementation (#8909)
 	js : improve interface checking and make it more minifier-friendly (#9178)
     lua : improve error handling behavior when throwing objects/instances.
+    lua : drop lua_vanilla in favor of shared disable_unicode_strings flag
 
 	Standard Library:
 

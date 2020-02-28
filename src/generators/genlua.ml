@@ -47,8 +47,8 @@ type ctx = {
     mutable separator : bool;
     mutable found_expose : bool;
     mutable lua_jit : bool;
-    mutable lua_vanilla : bool;
     mutable lua_ver : float;
+    mutable disable_unicode_strings : bool;
 }
 
 type object_store = {
@@ -657,7 +657,7 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx x;
         print ctx "[1]"
     | TField (e, ef) when is_string_expr e && field_name ef = "length" ->
-        if ctx.lua_vanilla then (
+        if ctx.disable_unicode_strings then (
             spr ctx "#";
             gen_value ctx e;
         ) else (
@@ -1865,8 +1865,8 @@ let alloc_ctx com =
         type_accessor = (fun _ -> assert false);
         separator = false;
         found_expose = false;
+        disable_unicode_strings = Common.defined com Define.DisableUnicodeStrings;
         lua_jit = Common.defined com Define.LuaJit;
-        lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
                 float_of_string (PMap.find "lua_ver" com.defines.Define.values)
             with | Not_found -> 5.2;

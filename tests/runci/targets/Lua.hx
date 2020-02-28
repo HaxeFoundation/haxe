@@ -39,7 +39,7 @@ class Lua {
 
 		getLuaDependencies();
 
-		var variants = [[], ["-D", "lua-vanilla"]];
+		var variants = [[], ["-D", "disable_unicode_strings"]];
 		var luaFiles = [];
 
 		changeDirectory(unitDir);

@@ -343,6 +343,7 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_supports_unicode = not (defined Define.DisableUnicodeStrings);
 		}
 	| Neko ->
 		{

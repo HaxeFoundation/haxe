@@ -501,7 +501,7 @@ class StringTools {
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
 		#elseif lua
-		#if lua_vanilla
+		#if disable_unicode_strings
 		return lua.NativeStringTools.byte(s, index + 1);
 		#else
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);

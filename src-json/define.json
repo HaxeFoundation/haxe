@@ -75,7 +75,7 @@
 		"name": "DisableUnicodeStrings",
 		"define": "disable_unicode_strings",
 		"doc": "Disable Unicode support in `String` type.",
-		"platforms": ["cpp"]
+		"platforms": ["cpp", "lua"]
 	},
 	{
 		"name": "Display",
@@ -340,12 +340,6 @@
 		"name": "LuaJit",
 		"define": "lua_jit",
 		"doc": "Enable the jit compiler for lua (version 5.2 only).",
-		"platforms": ["lua"]
-	},
-	{
-		"name": "LuaVanilla",
-		"define": "lua_vanilla",
-		"doc": "Generate code lacking compiled extern lib support (e.g. utf8).",
 		"platforms": ["lua"]
 	},
 	{
