@@ -39,8 +39,7 @@ class Boot {
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function() {}), 7) > 0;
 
-	static var hiddenFields:Table<String,
-		Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
+	static var hiddenFields:Table<String, Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
 
 	static function __unhtml(s:String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -268,32 +267,6 @@ class Boot {
 				return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
 			default:
 				return Os.tmpname();
-		}
-	}
-
-	public static function fieldIterator(o:Table<String, Dynamic>):Iterator<String> {
-		if (Lua.type(o) != "table") {
-			return {
-				next: function() return null,
-				hasNext: function() return false
-			}
-		}
-		var tbl:Table<String, String> = cast(untyped o.__fields__ != null) ? o.__fields__ : o;
-		var cur = Lua.pairs(tbl).next;
-		var next_valid = function(tbl, val) {
-			while (hiddenFields[untyped val] != null) {
-				val = cur(tbl, val).index;
-			}
-			return val;
-		}
-		var cur_val = next_valid(tbl, cur(tbl, null).index);
-		return {
-			next: function() {
-				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
-				return ret;
-			},
-			hasNext: function() return cur_val != null
 		}
 	}
 
