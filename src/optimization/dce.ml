@@ -518,16 +518,11 @@ and expr dce e =
 		mark_directly_used_mt dce mt;
 	| TTry(e, vl) ->
 		expr dce e;
-		List.iter (fun ((v,e) as catch) ->
+		List.iter (fun (v,e) ->
 			if v.v_type != t_dynamic then begin
 				check_feature dce "typed_catch";
 				mark_directly_used_t dce v.v_pos v.v_type;
 			end;
-			let caught, unwrapped =
-				Exceptions.requires_wrapped_catch dce.com.config.pf_exceptions catch
-			in
-			if caught then check_and_add_feature dce "wrapped_catch";
-			if unwrapped then check_and_add_feature dce "unwrapped_catch";
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;
@@ -649,8 +644,6 @@ and expr dce e =
 		expr_field dce e fa false;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
-		if Exceptions.requires_wrapped_throw dce.com.config.pf_exceptions e then
-			check_and_add_feature dce "wrapped_throw";
 		expr dce e;
 		let rec loop e =
 			to_string dce e.etype;

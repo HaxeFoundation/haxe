@@ -106,5 +106,5 @@ extern class Exception {
 		to make exception stacks point to derived constructor invocations instead of
 		`super` calls.
 	**/
-	// @:noCompletion private function __shiftStack():Void;
+	// @:noCompletion @:ifFeature("haxe.Exception.stack") private function __shiftStack():Void;
 }
