@@ -20,7 +20,6 @@ class Exception extends PyException {
 	@:noCompletion var __nativeException:BaseException;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	@:ifFeature('wrapped_catch')
 	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
@@ -31,7 +30,6 @@ class Exception extends PyException {
 		}
 	}
 
-	@:ifFeature('wrapped_throw')
 	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
@@ -55,8 +53,7 @@ class Exception extends PyException {
 			__nativeStack = NativeStackTrace.callStack();
 		}
 	}
-	
-	@:ifFeature('wrapped_catch')
+
 	public function unwrap():Any {
 		return __nativeException;
 	}

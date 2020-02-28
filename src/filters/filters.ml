@@ -906,12 +906,8 @@ let run com tctx main =
 	Dce.run com main dce_mode;
 	t();
 	com.stage <- CDceDone;
-	let t = filter_timer detail_times ["exceptions"] in
-	List.iter (run_expression_filters tctx [Exceptions.filter tctx (rename_local_vars tctx reserved)]) new_types;
-	t();
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
-		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
@@ -921,6 +917,7 @@ let run com tctx main =
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
 		commit_features;
 		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths else (fun _ _ -> ()));
+		Exceptions.patch_constructors;
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
