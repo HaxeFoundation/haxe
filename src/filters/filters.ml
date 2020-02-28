@@ -823,6 +823,7 @@ let run com tctx main =
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
@@ -906,10 +907,8 @@ let run com tctx main =
 	Dce.run com main dce_mode;
 	t();
 	com.stage <- CDceDone;
-	let t = filter_timer detail_times ["exceptions"] in
-	List.iter (run_expression_filters tctx [Exceptions.filter tctx (rename_local_vars tctx reserved)]) new_types;
-	t();
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
 		Exceptions.patch_constructors;
 		check_private_path;
