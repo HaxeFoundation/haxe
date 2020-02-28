@@ -523,8 +523,11 @@ and expr dce e =
 				check_feature dce "typed_catch";
 				mark_directly_used_t dce v.v_pos v.v_type;
 			end;
-			if Exceptions.requires_wrapped_catch dce.com.config.pf_exceptions catch then
-				check_and_add_feature dce "wrapped_catch";
+			let caught, unwrapped =
+				Exceptions.requires_wrapped_catch dce.com.config.pf_exceptions catch
+			in
+			if caught then check_and_add_feature dce "wrapped_catch";
+			if unwrapped then check_and_add_feature dce "unwrapped_catch";
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;

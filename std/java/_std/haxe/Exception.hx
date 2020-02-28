@@ -59,6 +59,7 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:ifFeature('wrapped_catch')
 	public function unwrap():Any {
 		return __nativeException;
 	}

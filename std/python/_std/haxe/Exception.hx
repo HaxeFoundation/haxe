@@ -55,7 +55,8 @@ class Exception extends PyException {
 			__nativeStack = NativeStackTrace.callStack();
 		}
 	}
-
+	
+	@:ifFeature('wrapped_catch')
 	public function unwrap():Any {
 		return __nativeException;
 	}

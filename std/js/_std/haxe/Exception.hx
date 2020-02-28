@@ -58,13 +58,13 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:ifFeature('wrapped_catch')
 	public function unwrap():Any {
 		return __nativeException;
 	}
 
 	public function toString():String {
-		return message;
-		// return inline CallStack.exceptionToString(this);
+		return inline CallStack.exceptionToString(this);
 	}
 
 	@:noCompletion inline function __shiftStack():Void {

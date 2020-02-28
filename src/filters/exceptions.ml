@@ -184,11 +184,15 @@ let requires_wrapped_throw cfg e =
 	|| (not (is_native_throw cfg e.etype) && not (is_haxe_exception e.etype))
 
 (**
-	Check if `haxe.Exception.caught` would be required to handle this catch.
+	Check if `haxe.Exception.caught` and `haxe.Exception.unwrap` would be required
+	to handle this catch.
+	Returns `(requires_caught, requires_unwrap)`
 *)
 let requires_wrapped_catch cfg (catch_var,catch_expr) =
-	not (is_native_catch cfg catch_var.v_type)
-	&& not (is_var_used catch_var catch_expr)
+	if is_native_catch cfg catch_var.v_type then
+		false, false
+	else
+		true, (is_var_used catch_var catch_expr)
 
 (**
 	Generate a throw of a native exception.
@@ -233,6 +237,7 @@ let throw_native ctx e_thrown t p =
 *)
 and catch_native ctx catches t p =
 	let rec transform = function
+		| [] -> []
 		(* Keep catches for native exceptions intact *)
 		| (v,_) as current :: rest when (is_native_catch ctx.config v.v_type)
 			(*
@@ -241,7 +246,6 @@ and catch_native ctx catches t p =
 			*)
 			&& not (fast_eq ctx.haxe_exception_type (follow v.v_type)) ->
 			current :: (transform rest)
-		| [] -> []
 		(* Everything else falls into `if(Std.is(e, ExceptionType)`-fest *)
 		| rest ->
 			let catch_var = gen_local ctx.typer ctx.wildcard_catch_type null_pos in
