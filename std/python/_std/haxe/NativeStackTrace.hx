@@ -10,6 +10,7 @@ private typedef NativeTrace = Array<python.Tuple.Tuple4<String, Int, String, Str
 @:dox(hide)
 @:noCompletion
 class NativeStackTrace {
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(exception:Any):Void {
 	}
 

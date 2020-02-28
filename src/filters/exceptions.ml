@@ -120,14 +120,14 @@ let is_in_list t lst =
 (**
 	Check if `t` can be thrown without wrapping.
 *)
-let rec is_native_throw ctx t =
-	is_in_list t ctx.config.ec_native_throws
+let rec is_native_throw cfg t =
+	is_in_list t cfg.ec_native_throws
 
 (**
 	Check if `t` can be caught without wrapping.
 *)
-let rec is_native_catch ctx t =
-	is_in_list t ctx.config.ec_native_catches
+let rec is_native_catch cfg t =
+	is_in_list t cfg.ec_native_catches
 
 (**
 	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
@@ -143,39 +143,41 @@ let rec is_haxe_exception_class ?(check_parent=true) cls =
 	Check if `t` is or extends `haxe.Exception`
 *)
 let is_haxe_exception ?(check_parent=true) (t:Type.t) =
-	match follow t with
+	match Abstract.follow_with_abstracts t with
 		| TInst (cls, _) -> is_haxe_exception_class ~check_parent cls
 		| _ -> false
+
+(**
+	Returns `true` if `e` has to be wrapped with `haxe.Exception.thrown(e)`
+	to be thrown.
+*)
+let requires_wrapped_throw cfg e =
+	(*
+		Check if `e` is of `haxe.Exception` type directly (not a descendant),
+		but not a `new haxe.Exception(...)` expression.
+		In this case we delegate the decision to `haxe.Exception.thrown(e)`.
+		Because it could happen to be a wrapper for a wildcard catch.
+	*)
+	let is_stored_haxe_exception() =
+		is_haxe_exception ~check_parent:false e.etype
+		&& match e.eexpr with
+			| TNew(_,_,_) -> false
+			| _ -> true
+	in
+	is_stored_haxe_exception()
+	|| (not (is_native_throw cfg e.etype) && not (is_haxe_exception e.etype))
 
 (**
 	Generate a throw of a native exception.
 *)
 let throw_native ctx e_thrown t p =
 	let e_native =
-		(*
-			Check if `e_thrown` is of `haxe.Exception` type directly (not a descendant),
-			but not a `new haxe.Exception(...)` expression.
-			In this case we delegate the decision to `haxe.Exception.thrown(e_thrown)`.
-			Because it could happen to be a wrapper for a wildcard catch.
-		*)
-		let is_stored_haxe_exception() =
-			is_haxe_exception ~check_parent:false e_thrown.etype
-			&& match e_thrown.eexpr with
-				| TNew(_,_,_) -> false
-				| _ -> true
-		in
-		if
-			(* already a native exception *)
-			(is_native_throw ctx e_thrown.etype && not (is_stored_haxe_exception()))
-			(* current target does not have native exceptions and `e_thrown` is `haxe.Exception` *)
-			|| (is_dynamic ctx.base_throw_type && is_haxe_exception e_thrown.etype && not (is_stored_haxe_exception()))
-		then
-			e_thrown
-		(* Wrap everything else with `haxe.Exception.thrown` call *)
-		else
+		if requires_wrapped_throw ctx.config e_thrown then
 			let thrown = haxe_exception_static_call ctx "thrown" [e_thrown] p in
 			if is_dynamic ctx.base_throw_type then thrown
 			else mk_cast thrown ctx.base_throw_type p
+		else
+			e_thrown
 	in
 	mk (TThrow e_native) t p
 
@@ -209,7 +211,7 @@ let throw_native ctx e_thrown t p =
 and catch_native ctx catches t p =
 	let rec transform = function
 		(* Keep catches for native exceptions intact *)
-		| (v,_) as current :: rest when (is_native_catch ctx v.v_type)
+		| (v,_) as current :: rest when (is_native_catch ctx.config v.v_type)
 			(*
 				In case haxe.Exception extends native exception on current target.
 				We don't want it to be generated as a native catch.

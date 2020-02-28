@@ -644,6 +644,8 @@ and expr dce e =
 		expr_field dce e fa false;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
+		if Exceptions.requires_wrapped_throw dce.com.config.pf_exceptions e then
+			check_and_add_feature dce "wrapped_throw";
 		expr dce e;
 		let rec loop e =
 			to_string dce e.etype;

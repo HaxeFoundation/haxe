@@ -12,6 +12,7 @@ class NativeStackTrace {
 	@:meta(System.ThreadStaticAttribute)
 	static var exception:Null<cs.system.Exception>;
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(e:Any):Void {
 		exception = e;
 	}

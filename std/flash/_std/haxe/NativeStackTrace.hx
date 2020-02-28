@@ -10,6 +10,7 @@ import haxe.CallStack.StackItem;
 @:noCompletion
 @:allow(haxe.Exception)
 class NativeStackTrace {
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(e:Any):Void {
 	}
 

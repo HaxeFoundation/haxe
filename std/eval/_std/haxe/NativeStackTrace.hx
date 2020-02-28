@@ -8,7 +8,7 @@ import haxe.CallStack.StackItem;
 @:dox(hide)
 @:noCompletion
 class NativeStackTrace {
-	//not needed
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(exception:Any):Void {
 	}
 

@@ -30,6 +30,7 @@ class NativeStackTrace {
 	@:noCompletion
 	public static var wrapCallSite:V8CallSite->V8CallSite;
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(e:Error):Void {
 		lastError = e;
 	}

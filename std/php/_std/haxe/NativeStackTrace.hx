@@ -21,6 +21,7 @@ class NativeStackTrace {
 
 	static var lastExceptionTrace:Null<NativeTrace>;
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public function saveStack(e:Throwable) {
 		var nativeTrace = e.getTrace();
 

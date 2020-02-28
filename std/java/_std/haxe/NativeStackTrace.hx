@@ -15,6 +15,7 @@ import haxe.CallStack.StackItem;
 class NativeStackTrace {
 	static var exception = new ThreadLocal<Throwable>();
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(e:Throwable):Void {
 		exception.set(e);
 	}

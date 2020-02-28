@@ -30,6 +30,7 @@ class Exception extends PyException {
 		}
 	}
 
+	@:ifFeature('wrapped_throw')
 	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;

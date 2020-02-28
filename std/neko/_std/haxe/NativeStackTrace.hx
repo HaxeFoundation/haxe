@@ -13,6 +13,7 @@ private typedef NativeTrace = {
 @:dox(hide)
 @:noCompletion
 class NativeStackTrace {
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(exception:Any):Void {
 	}
 
