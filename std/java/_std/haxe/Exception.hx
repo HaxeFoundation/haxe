@@ -18,6 +18,7 @@ class Exception extends NativeException {
 	@:noCompletion var __nativeException:Throwable;
 	@:noCompletion var __previousException:Null<Exception>;
 
+	@:ifFeature('wrapped_catch')
 	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
@@ -28,6 +29,7 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:ifFeature('wrapped_throw')
 	static public function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			var native = (value:Exception).__nativeException;
@@ -57,6 +59,7 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:ifFeature('wrapped_catch')
 	public function unwrap():Any {
 		return __nativeException;
 	}

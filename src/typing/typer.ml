@@ -1828,9 +1828,7 @@ and type_try ctx e1 catches with_type p =
 			) catches in
 			e1,catches,t
 	in
-	let catches = Exceptions.catch_native ctx (List.rev catches) t p in
-	(* let catches = List.rev catches in *)
-	mk (TTry (e1,catches)) t p
+	mk (TTry (e1,List.rev catches)) t p
 
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
@@ -2469,8 +2467,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
-		(* mk (TThrow e) (mk_mono()) p *)
-		Exceptions.throw_native ctx e (mk_mono()) p
+		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
 		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
@@ -2642,6 +2639,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx
 
