@@ -15,6 +15,7 @@ class Exception {
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
+	@:ifFeature('wrapped_catch')
 	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;

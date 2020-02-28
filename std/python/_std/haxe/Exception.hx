@@ -20,6 +20,7 @@ class Exception extends PyException {
 	@:noCompletion var __nativeException:BaseException;
 	@:noCompletion var __previousException:Null<Exception>;
 
+	@:ifFeature('wrapped_catch')
 	static public function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;

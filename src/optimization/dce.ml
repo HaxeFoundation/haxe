@@ -518,11 +518,13 @@ and expr dce e =
 		mark_directly_used_mt dce mt;
 	| TTry(e, vl) ->
 		expr dce e;
-		List.iter (fun (v,e) ->
+		List.iter (fun ((v,e) as catch) ->
 			if v.v_type != t_dynamic then begin
 				check_feature dce "typed_catch";
 				mark_directly_used_t dce v.v_pos v.v_type;
 			end;
+			if Exceptions.requires_wrapped_catch dce.com.config.pf_exceptions catch then
+				check_and_add_feature dce "wrapped_catch";
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;

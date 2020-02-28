@@ -148,6 +148,22 @@ let is_haxe_exception ?(check_parent=true) (t:Type.t) =
 		| _ -> false
 
 (**
+	Check if `v` variable is used in `e` expression
+*)
+let rec is_var_used v e =
+	match e.eexpr with
+	| TLocal v2 -> v == v2
+	| _ -> check_expr (is_var_used v) e
+
+(**
+	Check if `e` contains any throws or try..catches.
+*)
+let rec contains_throw_or_try e =
+	match e.eexpr with
+	| TThrow _ | TTry _ -> true
+	| _ -> check_expr contains_throw_or_try e
+
+(**
 	Returns `true` if `e` has to be wrapped with `haxe.Exception.thrown(e)`
 	to be thrown.
 *)
@@ -166,6 +182,13 @@ let requires_wrapped_throw cfg e =
 	in
 	is_stored_haxe_exception()
 	|| (not (is_native_throw cfg e.etype) && not (is_haxe_exception e.etype))
+
+(**
+	Check if `haxe.Exception.caught` would be required to handle this catch.
+*)
+let requires_wrapped_catch cfg (catch_var,catch_expr) =
+	not (is_native_catch cfg catch_var.v_type)
+	&& not (is_var_used catch_var catch_expr)
 
 (**
 	Generate a throw of a native exception.
@@ -237,11 +260,6 @@ and catch_native ctx catches t p =
 					needs_haxe_exception := true;
 					needs_unwrap := true;
 					unwrapped_local;
-				in
-				let rec is_var_used v e =
-					match e.eexpr with
-					| TLocal v2 -> v == v2
-					| _ -> check_expr (is_var_used v) e
 				in
 				let catch_var_used = ref false in
 				let rec transform = function
@@ -335,7 +353,12 @@ and catch_native ctx catches t p =
 	in
 	transform catches
 
-let filter tctx =
+(**
+	Transform `throw` and `try..catch` expressions.
+	`rename_locals` is required to deal with the names of temp vars.
+*)
+let filter tctx rename_locals =
+	let stub e = e in
 	match tctx.com.platform with (* TODO: implement for all targets *)
 	| Php | Js | Java | Cs | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
@@ -387,8 +410,30 @@ let filter tctx =
 			| _ ->
 				map_expr run e
 		in
-		run
-	| Cross -> (fun e -> e)
+		let rec restore_parenthesis e =
+			match e.eexpr with
+			| TSwitch (e1, cases, ed) ->
+				let e1 = Builder.ensure_parent (restore_parenthesis e1)
+				and cases = List.map (fun (el,e) -> restore_list el, restore_parenthesis e) cases
+				and ed = Option.map restore_parenthesis ed in
+				{ e with eexpr = TSwitch (e1, cases, ed) }
+			| TIf (e1, e2, eo) ->
+				let e1 = Builder.ensure_parent (restore_parenthesis e1)
+				and e2 = restore_parenthesis e2
+				and eo = Option.map restore_parenthesis eo in
+				{ e with eexpr = TIf (e1, e2, eo) }
+			| _ ->
+				map_expr restore_parenthesis e
+		and restore_list el =
+			List.map restore_parenthesis el
+		in
+		(fun e ->
+			if contains_throw_or_try e then
+				restore_parenthesis (!analyzer_run_on_expr_ref tctx.com (rename_locals (run e)))
+			else
+				stub e
+		)
+	| Cross -> stub
 
 (**
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`

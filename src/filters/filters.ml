@@ -907,7 +907,7 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	let t = filter_timer detail_times ["exceptions"] in
-	List.iter (run_expression_filters tctx [Exceptions.filter tctx]) new_types;
+	List.iter (run_expression_filters tctx [Exceptions.filter tctx (rename_local_vars tctx reserved)]) new_types;
 	t();
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [

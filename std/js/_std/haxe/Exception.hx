@@ -11,10 +11,11 @@ class Exception extends NativeException {
 
 	@:noCompletion var __skipStack:Int;
 	//following properties have "final" semantics
-	@:noCompletion var __errorStack(get,set):Null<CallStack>;
+	@:noCompletion var __exceptionStack(get,set):Null<CallStack>;
 	@:noCompletion var __nativeException(get,set):Any;
 	@:noCompletion var __previousException(get,set):Null<Exception>;
 
+	@:ifFeature('wrapped_catch')
 	static public function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
 			return value;
@@ -62,7 +63,8 @@ class Exception extends NativeException {
 	}
 
 	public function toString():String {
-		return inline CallStack.exceptionToString(this);
+		return message;
+		// return inline CallStack.exceptionToString(this);
 	}
 
 	@:noCompletion inline function __shiftStack():Void {
@@ -82,9 +84,9 @@ class Exception extends NativeException {
 	}
 
 	function get_stack():CallStack {
-		return switch __errorStack {
+		return switch __exceptionStack {
 			case null:
-				__errorStack = NativeStackTrace.toHaxe((cast this).stack, __skipStack);
+				__exceptionStack = NativeStackTrace.toHaxe((cast this).stack, __skipStack);
 			case s: s;
 		}
 	}
@@ -97,12 +99,12 @@ class Exception extends NativeException {
 		}
 	}
 
-	inline function get___errorStack():CallStack {
-		return (cast this).__errorStack;
+	inline function get___exceptionStack():CallStack {
+		return (cast this).__exceptionStack;
 	}
 
-	inline function set___errorStack(value:CallStack):CallStack {
-		setProperty('__errorStack', value);
+	inline function set___exceptionStack(value:CallStack):CallStack {
+		setProperty('__exceptionStack', value);
 		return value;
 	}
 
