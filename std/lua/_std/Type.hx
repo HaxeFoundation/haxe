@@ -121,8 +121,9 @@ enum ValueType {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var p:Dynamic = untyped c.prototype;
 		var a:Array<String> = [];
+
 		while (p != null) {
-			for (f in lua.Boot.fieldIterator(p)) {
+			for (f in Reflect.fields(p)) {
 				if (!Lambda.has(a, f))
 					a.push(f);
 			}

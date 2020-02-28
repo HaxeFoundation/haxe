@@ -1,4 +1,3 @@
-local _hx_hidden = {__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}
 
 function _hx_print_class(obj, depth)
     local first = true
@@ -19,15 +18,15 @@ function _hx_print_enum(o, depth)
     if o.length == 2 then
         return o[0]
     else
-        local str = o[0] .. "(";
+        local str = o[0] .. "("
         for i = 2, (o.length-1) do
             if i ~= 2 then
-                str = str .. "," .. _hx_tostring(o[i], depth+1);
+                str = str .. "," .. _hx_tostring(o[i], depth+1)
             else
-                str = str .. _hx_tostring(o[i], depth+1);
+                str = str .. _hx_tostring(o[i], depth+1)
             end
         end
-        return str .. ")";
+        return str .. ")"
     end
 end
 
@@ -38,26 +37,26 @@ function _hx_tostring(obj, depth)
         return "<...>"
     end
 
-    local tstr = type(obj)
+    local tstr = _G.type(obj)
     if tstr == "string" then return obj
-    elseif tstr == "nil" then return "null";
+    elseif tstr == "nil" then return "null"
     elseif tstr == "number" then
-        if obj == _G.math.POSITIVE_INFINITY then return "Infinity";
-        elseif obj == _G.math.NEGATIVE_INFINITY then return "-Infinity";
-        elseif obj == 0 then return "0";
-        elseif obj ~= obj then return "NaN";
-        else return _G.tostring(obj);
+        if obj == _G.math.POSITIVE_INFINITY then return "Infinity"
+        elseif obj == _G.math.NEGATIVE_INFINITY then return "-Infinity"
+        elseif obj == 0 then return "0"
+        elseif obj ~= obj then return "NaN"
+        else return _G.tostring(obj)
         end
-    elseif tstr == "boolean" then return _G.tostring(obj);
+    elseif tstr == "boolean" then return _G.tostring(obj)
     elseif tstr == "userdata" then
-        local mt = _G.getmetatable(obj);
+        local mt = _G.getmetatable(obj)
         if mt ~= nil and mt.__tostring ~= nil then
-            return _G.tostring(obj);
+            return _G.tostring(obj)
         else
-            return "<userdata>";
+            return "<userdata>"
         end
-    elseif tstr == "function" then return "<function>";
-    elseif tstr == "thread" then return "<thread>";
+    elseif tstr == "function" then return "<function>"
+    elseif tstr == "thread" then return "<thread>"
     elseif tstr == "table" then
         if obj.__enum__ ~= nil then
             return _hx_print_enum(obj, depth)
@@ -69,9 +68,9 @@ function _hx_tostring(obj, depth)
                 str = ""
                 for i=0, (obj.length-1) do
                     if i == 0 then
-                        str = str .. _hx_tostring(obj[i])
+                        str = str .. _hx_tostring(obj[i], depth+1)
                     else
-                        str = str .. "," .. _hx_tostring(obj[i])
+                        str = str .. "," .. _hx_tostring(obj[i], depth+1)
                     end
                 end
                 return "[" .. str .. "]"
@@ -82,7 +81,9 @@ function _hx_tostring(obj, depth)
             first = true
             buffer = {}
             for k,v in pairs(obj) do
-                _G.table.insert(buffer, _hx_tostring(k, depth) .. ' : ' .. _hx_tostring(obj[k], depth))
+                if _hx_hidden[k] == nil then
+                    _G.table.insert(buffer, _hx_tostring(k, depth+1) .. ' : ' .. _hx_tostring(obj[k], depth+1))
+                end
             end
             return "{ " .. table.concat(buffer, ", ") .. " }"
         end

@@ -1,3 +1,5 @@
+local _hx_hidden = {__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true, __fields__=true, __name__=true}
+
 _hx_array_mt = {
     __newindex = function(t,k,v)
         local len = t.length
@@ -18,3 +20,4 @@ function _hx_tab_array(tab, length)
     tab.length = length
     return setmetatable(tab, _hx_array_mt)
 end
+
