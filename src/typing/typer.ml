@@ -1828,8 +1828,9 @@ and type_try ctx e1 catches with_type p =
 			) catches in
 			e1,catches,t
 	in
-	let catches = Exceptions.catch_native ctx catches t p in
-	mk (TTry (e1,List.rev catches)) t p
+	let catches = Exceptions.catch_native ctx (List.rev catches) t p in
+	(* let catches = List.rev catches in *)
+	mk (TTry (e1,catches)) t p
 
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
@@ -2468,6 +2469,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
+		(* mk (TThrow e) (mk_mono()) p *)
 		Exceptions.throw_native ctx e (mk_mono()) p
 	| ECall (e,el) ->
 		type_call ~mode ctx e el with_type false p
