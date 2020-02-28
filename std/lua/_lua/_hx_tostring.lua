@@ -3,15 +3,18 @@ function _hx_print_class(obj, depth)
     local first = true
     local result = ''
     for k,v in pairs(obj) do
-        if first then
-            result = result .. ','
-            first = false
-        end
         if _hx_hidden[k] == nil then
-            result = result .. k .. ':' .. _hx_tostring(v, depth+1)
+            if first then
+                first = false
+            else
+                result = result .. ', '
+            end
+            if _hx_hidden[k] == nil then
+                result = result .. k .. ':' .. _hx_tostring(v, depth+1)
+            end
         end
     end
-    return result
+    return '{ ' .. result .. ' }'
 end
 
 function _hx_print_enum(o, depth)
