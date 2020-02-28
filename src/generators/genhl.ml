@@ -610,7 +610,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let add_field name get_t =
 			let fid = DynArray.length fa + start_field in
-			let str = if name = "" then 0 else alloc_string ctx name in
+			let str = alloc_string ctx name in
 			p.pindex <- PMap.add name (fid, HVoid) p.pindex;
 			DynArray.add fa (name, str, HVoid);
 			ctx.ct_delayed <- (fun() ->
