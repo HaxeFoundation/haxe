@@ -1872,12 +1872,12 @@ module Generator = struct
 	(* Generating functions *)
 
 	let gen_py_metas ctx metas indent =
-		List.iter (fun (n,el,_) ->
+		List.iter (fun (n,el,p) ->
 			match el with
-				| [EConst(String(s,_)),_] ->
-					print ctx "%s@%s\n" indent s
-				| _ ->
-					assert false
+			| [EConst(String(s,_)),_] ->
+				print ctx "%s@%s\n" indent s
+			| _ ->
+				abort "@:python metadata must have a string literal argument" p
 		) metas
 
 	let gen_expr ctx e field indent =
@@ -2110,6 +2110,8 @@ module Generator = struct
 			newline ctx;
 			newline ctx;
 			newline ctx;
+			let py_metas = filter_py_metas c.cl_meta in
+			gen_py_metas ctx py_metas "";
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
 			spr ctx ":";
