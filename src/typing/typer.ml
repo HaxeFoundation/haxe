@@ -1267,6 +1267,7 @@ and handle_efield ctx e p0 mode =
 			with Not_found ->
 				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
+					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
 					field_chain ctx pnext (type_ident ctx name p)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try

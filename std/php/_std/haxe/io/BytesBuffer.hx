@@ -23,6 +23,7 @@
 package haxe.io;
 
 import php.*;
+import haxe.io.Error;
 
 class BytesBuffer {
 	var b:NativeString;
