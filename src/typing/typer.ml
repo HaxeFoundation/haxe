@@ -1272,17 +1272,31 @@ and handle_efield ctx e p0 mode =
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-						let pack_acc = ref [] in
-						let name , _ , _ = List.find (fun (name,case,p) ->
-							if case = PUppercase then
-								true
-							else begin
-								pack_acc := name :: !pack_acc;
-								false
-							end
-						) path in
-						let pack = List.rev !pack_acc in
-						raise (Error (Module_not_found (pack,name),p))
+						begin
+							(* TODO: we should pass the actual resolution error from resolve_dot_path instead of Not_found *)
+							let rec loop pack_acc first_uppercase path =
+								match path with
+								| (name,PLowercase,_) :: rest ->
+									(match first_uppercase with
+									| None -> loop (name :: pack_acc) None rest
+									| Some n -> List.rev pack_acc, n, None)
+								| (name,PUppercase,_) :: rest ->
+									(match first_uppercase with
+									| None -> loop pack_acc (Some name) rest
+									| Some n -> List.rev pack_acc, n, Some name)
+								| [] ->
+									(match first_uppercase with
+									| None -> raise Not_found
+									| Some n -> List.rev pack_acc, n, None)
+							in
+							let pack,name,sub = loop [] None path in
+							let mpath = (pack,name) in
+							if Hashtbl.mem ctx.g.modules mpath then
+								let tname = Option.default name sub in
+								raise (Error (Type_not_found (mpath,tname),p))
+							else
+								raise (Error (Module_not_found mpath,p))
+						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.in_display then begin
