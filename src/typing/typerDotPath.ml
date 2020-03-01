@@ -45,10 +45,10 @@ let resolve_module_type ctx m name p =
 let resolve_in_module ctx m path p =
 	let mname = snd m.m_path in
 	match path with
-	| (sname,PUppercase,p) :: path_rest ->
+	| (sname,PUppercase,sp) :: path_rest ->
 		begin
 		try
-			resolve_module_type ctx m sname p, path_rest
+			resolve_module_type ctx m sname sp, path_rest
 		with Not_found ->
 			resolve_module_type ctx m mname p, path
 		end
