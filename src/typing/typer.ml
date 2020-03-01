@@ -1279,17 +1279,17 @@ and handle_efield ctx e p0 mode =
 								| (name,PLowercase,_) :: rest ->
 									(match first_uppercase with
 									| None -> loop (name :: pack_acc) None rest
-									| Some n -> List.rev pack_acc, n, None)
-								| (name,PUppercase,_) :: rest ->
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
+								| (name,PUppercase,p) :: rest ->
 									(match first_uppercase with
-									| None -> loop pack_acc (Some name) rest
-									| Some n -> List.rev pack_acc, n, Some name)
+									| None -> loop pack_acc (Some (name,p)) rest
+									| Some (n,_) -> List.rev pack_acc, n, Some name, p)
 								| [] ->
 									(match first_uppercase with
 									| None -> raise Not_found
-									| Some n -> List.rev pack_acc, n, None)
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
 							in
-							let pack,name,sub = loop [] None path in
+							let pack,name,sub,p = loop [] None path in
 							let mpath = (pack,name) in
 							if Hashtbl.mem ctx.g.modules mpath then
 								let tname = Option.default name sub in
