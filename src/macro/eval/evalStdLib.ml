@@ -305,7 +305,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let value = decode_int value in
-		(try Bytes.fill this pos len (char_of_int value) with _ -> outside_bounds());
+		(try Bytes.fill this pos len (char_of_int (value land 0xFF)) with _ -> outside_bounds());
 		vnull
 	)
 
