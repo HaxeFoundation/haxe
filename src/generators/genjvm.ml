@@ -533,9 +533,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
 			cast();
 		in
-		begin match follow t with
-		| TAnon an ->
-			let path,_ = gctx.anon_identification#identify an.a_fields in
+		match gctx.anon_identification#identify true t with
+		| Some {t_path=path} ->
 			code#dup;
 			code#instanceof path;
 			jm#if_then_else
@@ -546,9 +545,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					cast();
 				)
 				(fun () -> default());
-		| _ ->
+		| None ->
 			default();
-		end
 
 	method read cast e1 fa =
 		match fa with
@@ -1420,14 +1418,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#invokestatic en.e_path ef.ef_name (method_sig tl (Some tr));
 			Some tr
 		| TField(e11,FAnon cf) ->
-			begin match follow e11.etype with
-			| TAnon an ->
-				let path,_ = gctx.anon_identification#identify an.a_fields in
-				begin match gctx.nadako#get_interface_path path with
-				| None ->
-					self#texpr rvalue_any e1;
-					invoke e1.etype
-				| Some {cl_path=path_inner} ->
+			begin match gctx.anon_identification#identify false e11.etype with
+			| Some {t_path=path_anon} ->
+				begin match gctx.nadako#get_interface_path path_anon with
+				| Some c ->
+					let cf = PMap.find cf.cf_name c.cl_fields in
+					let path_inner = c.cl_path in
 					self#texpr rvalue_any e11;
 					code#dup;
 					code#instanceof path_inner;
@@ -1436,19 +1432,23 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						(fun () -> code#if_ref CmpEq)
 						(fun () ->
 							jm#cast (object_path_sig path_inner);
-							let tl,tr = self#call_arguments e1.etype el in
-							jm#invokeinterface path_inner cf.cf_name (method_sig tl tr)
+							ignore(self#call_arguments cf.cf_type el);
+							jm#invokeinterface path_inner cf.cf_name (self#vtype cf.cf_type);
+							Option.may jm#cast tr;
 						)
 						(fun () ->
 							self#read_anon_field (fun () -> ()) e11.etype cf;
 							ignore(invoke e1.etype)
 						);
 					tr
-				end;
-			| _ ->
+				| None ->
+					self#texpr rvalue_any e1;
+					invoke e1.etype
+				end
+			| None ->
 				self#texpr rvalue_any e1;
 				invoke e1.etype
-			end;
+			end
 		| TConst TSuper ->
 			let c,cf = match gctx.current_field_info with
 				| Some ({super_call_fields = hd :: tl} as info) ->
@@ -2001,12 +2001,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#set_terminated true
 			end
 		| TObjectDecl fl ->
-			begin match follow e.etype with
+			let td = gctx.anon_identification#identify true e.etype in
+			begin match follow e.etype,td with
 			(* The guard is here because in the case of quoted fields like `"a-b"`, the field is not part of the
 			   type. In this case we have to do full dynamic construction. *)
-			| TAnon an when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
-				let path,fl' = gctx.anon_identification#identify an.a_fields in
-				jm#construct ConstructInit path (fun () ->
+			| TAnon an,Some td when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
+				let fl' = match follow td.t_type with
+					| TAnon an -> gctx.anon_identification#convert_fields an.a_fields
+					| _ -> assert false
+				in
+				jm#construct ConstructInit td.t_path (fun () ->
 					(* We have to respect declaration order, so let's temp var where necessary *)
 					let rec loop fl fl' ok acc = match fl,fl' with
 						| ((name,_,_),e) :: fl,(name',jsig) :: fl' ->
@@ -2695,7 +2699,7 @@ module Preprocessor = struct
 			| TEnumDecl en ->
 				if fst en.e_path = [] then en.e_path <- make_root en.e_path;
 			| TTypeDecl td ->
-				gctx.preprocessor#check_typedef td;
+				gctx.anon_identification#identify_typedef td;
 			| _ -> ()
 		) gctx.com.types;
 		List.iter (fun mt -> match mt with
@@ -2770,7 +2774,12 @@ let generate com =
 	) com.resources;
 	List.iter (generate_module_type gctx) com.types;
 	Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.nadako#get_interfaces;
-	Hashtbl.iter (fun fields (path,_) ->
+	Hashtbl.iter (fun path td ->
+		let fields = match follow td.t_type with
+			| TAnon an -> an.a_fields
+			| _ -> assert false
+		in
+		let fields = anon_identification#convert_fields fields in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin
@@ -2804,5 +2813,5 @@ let generate com =
 		end;
 		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
 		write_class gctx.jar path (jc#export_class gctx.default_export_config)
-	) gctx.anon_identification#get_lut;
+	) gctx.anon_identification#get_anons;
 	Zip.close_out gctx.jar
