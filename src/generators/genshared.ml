@@ -144,6 +144,10 @@ object(self)
 			end
 		| TMono {tm_type = Some t} ->
 			self#identify accept_anons t
+		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			self#identify accept_anons (Abstract.get_underlying_type a tl)
+		| TAbstract({a_path=([],"Null")},[t]) ->
+			self#identify accept_anons t
 		| TAnon an when accept_anons ->
 			let fields = self#convert_fields an.a_fields in
 			begin try
