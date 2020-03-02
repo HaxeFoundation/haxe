@@ -73,6 +73,7 @@ type generation_context = {
 	anon_identification : jsignature tanon_identification;
 	preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
+	nadako : jsignature nadako_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
 
@@ -526,6 +527,29 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method write_native_array vta vte =
 		NativeArray.write code vta vte
 
+	method read_anon_field cast t cf =
+		let default () =
+			jm#string cf.cf_name;
+			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
+			cast();
+		in
+		begin match follow t with
+		| TAnon an ->
+			let path,_ = gctx.anon_identification#identify an.a_fields in
+			code#dup;
+			code#instanceof path;
+			jm#if_then_else
+				(fun () -> code#if_ref CmpEq)
+				(fun () ->
+					jm#cast (object_path_sig path);
+					jm#getfield path cf.cf_name (self#vtype cf.cf_type);
+					cast();
+				)
+				(fun () -> default());
+		| _ ->
+			default();
+		end
+
 	method read cast e1 fa =
 		match fa with
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "NaN" | "POSITIVE_INFINITY" | "NEGATIVE_INFINITY"} as cf)) ->
@@ -555,29 +579,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let offset = pool#add_field en.e_path ef.ef_name jsig FKField in
 			code#getstatic offset jsig;
 			cast();
-		| FAnon ({cf_name = s} as cf) ->
+		| FAnon cf ->
 			self#texpr rvalue_any e1;
-			let default () =
-				jm#string s;
-				jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
-				cast();
-			in
-			begin match follow e1.etype with
-			| TAnon an ->
-				let path,_ = gctx.anon_identification#identify an.a_fields in
-				code#dup;
-				code#instanceof path;
-				jm#if_then_else
-					(fun () -> code#if_ref CmpEq)
-					(fun () ->
-						jm#cast (object_path_sig path);
-						jm#getfield path s (self#vtype cf.cf_type);
-						cast();
-					)
-					(fun () -> default());
-			| _ ->
-				default();
-			end
+			self#read_anon_field cast e1.etype cf;
 		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(Some({cl_interface = true},_),{cf_name = s}) | FClosure(None,{cf_name = s}) ->
 			self#texpr rvalue_any e1;
 			jm#string s;
@@ -1261,6 +1265,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method call ret tr e1 el =
 		let retype tr = match tr with None -> [] | Some t -> [t] in
+		let invoke t =
+			jm#cast method_handle_sig;
+			let tl,tr = self#call_arguments t el in
+			jm#invokevirtual method_handle_path "invoke" (method_sig tl tr);
+			tr
+		in
 		let tro = match (Texpr.skip e1).eexpr with
 		| TField(_,FStatic({cl_path = ["haxe";"jvm"],"Jvm"},({cf_name = "referenceEquals"} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
@@ -1409,6 +1419,35 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let tr = self#vtype tr in
 			jm#invokestatic en.e_path ef.ef_name (method_sig tl (Some tr));
 			Some tr
+		| TField(e11,FAnon cf) ->
+			begin match follow e11.etype with
+			| TAnon an ->
+				let path,_ = gctx.anon_identification#identify an.a_fields in
+				begin match gctx.nadako#get_interface_path path with
+				| None ->
+					self#texpr rvalue_any e1;
+					invoke e1.etype
+				| Some {cl_path=path_inner} ->
+					self#texpr rvalue_any e11;
+					code#dup;
+					code#instanceof path_inner;
+					let tl,tr = self#get_argument_signatures e1.etype el in
+					jm#if_then_else
+						(fun () -> code#if_ref CmpEq)
+						(fun () ->
+							jm#cast (object_path_sig path_inner);
+							let tl,tr = self#call_arguments e1.etype el in
+							jm#invokeinterface path_inner cf.cf_name (method_sig tl tr)
+						)
+						(fun () ->
+							self#read_anon_field (fun () -> ()) e11.etype cf;
+							ignore(invoke e1.etype)
+						);
+					tr
+				end;
+			| _ ->
+				invoke e1.etype
+			end;
 		| TConst TSuper ->
 			let c,cf = match gctx.current_field_info with
 				| Some ({super_call_fields = hd :: tl} as info) ->
@@ -1493,10 +1532,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Some object_sig
 			end else begin
 				self#texpr rvalue_any e1;
-				jm#cast method_handle_sig;
-				let tl,tr = self#call_arguments e1.etype el in
-				jm#invokevirtual method_handle_path "invoke" (method_sig tl tr);
-				tr
+				invoke e1.etype;
 			end
 		in
 		match ret = RVoid,tro with
@@ -2657,7 +2693,15 @@ module Preprocessor = struct
 				if debug_path c.cl_path && not c.cl_interface then gctx.preprocessor#preprocess_class c
 			| TEnumDecl en ->
 				if fst en.e_path = [] then en.e_path <- make_root en.e_path;
+			| TTypeDecl td ->
+				gctx.preprocessor#check_typedef td;
 			| _ -> ()
+		) gctx.com.types;
+		List.iter (fun mt -> match mt with
+			| TClassDecl c when debug_path c.cl_path && not c.cl_interface && not c.cl_extern ->
+				gctx.nadako#process_class c;
+			| _ ->
+				()
 		) gctx.com.types
 end
 
@@ -2689,6 +2733,7 @@ let generate com =
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
 		anon_identification = anon_identification;
 		preprocessor = new preprocessor com.basic anon_identification jsignature_of_type;
+		nadako = new nadako_interfaces anon_identification;
 		current_field_info = None;
 		default_export_config = {
 			export_debug = com.debug;
@@ -2723,7 +2768,8 @@ let generate com =
 		Zip.add_entry v gctx.jar filename;
 	) com.resources;
 	List.iter (generate_module_type gctx) com.types;
-	Hashtbl.iter (fun fields path ->
+	Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.nadako#get_interfaces;
+	Hashtbl.iter (fun fields (path,_) ->
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin
