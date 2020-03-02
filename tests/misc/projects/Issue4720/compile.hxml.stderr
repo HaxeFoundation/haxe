@@ -11,10 +11,8 @@ Main.hx:5: characters 9-20 : Warning : Usage of this class is deprecated
 Main.hx:6: characters 9-15 : Warning : Usage of this enum is deprecated
 Main.hx:15: characters 9-22 : Warning : Usage of this class is deprecated
 Main.hx:16: characters 9-15 : Warning : Usage of this enum is deprecated
-Main.hx:16: characters 9-20 : Warning : Usage of this enum is deprecated
 Main.hx:17: characters 9-29 : Warning : Usage of this class is deprecated
 Main.hx:18: characters 9-21 : Warning : Usage of this class is deprecated
-Main.hx:19: characters 9-19 : Warning : Usage of this enum is deprecated
 Main.hx:20: characters 9-28 : Warning : Usage of this class is deprecated
 Main.hx:23: characters 9-24 : Warning : Usage of this field is deprecated
 Main.hx:24: characters 9-23 : Warning : Usage of this field is deprecated
