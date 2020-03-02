@@ -1446,6 +1446,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					tr
 				end;
 			| _ ->
+				self#texpr rvalue_any e1;
 				invoke e1.etype
 			end;
 		| TConst TSuper ->
