@@ -73,7 +73,7 @@ type generation_context = {
 	mutable anon_identification : jsignature tanon_identification;
 	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
-	mutable nadako : jsignature nadako_interfaces;
+	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
 
@@ -162,7 +162,7 @@ let rec jsignature_of_type gctx stack t =
 	) tl) (if ExtType.is_void (follow tr) then None else Some (jsignature_of_type tr))
 	| TAnon an -> object_sig
 	| TType(td,tl) ->
-		begin match gctx.nadako#get_interface_class td.t_path with
+		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
 		| Some c -> TObject(c.cl_path,[])
 		| None -> jsignature_of_type (apply_params td.t_params tl td.t_type)
 		end
@@ -1453,7 +1453,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e11,FAnon cf) ->
 			begin match gctx.anon_identification#identify false e11.etype with
 			| Some {t_path=path_anon} ->
-				begin match gctx.nadako#get_interface_class path_anon with
+				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
 					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
 					let path_inner = match c with
@@ -2729,7 +2729,7 @@ module Preprocessor = struct
 		) gctx.com.types;
 		List.iter (fun mt -> match mt with
 			| TClassDecl c when debug_path c.cl_path && not c.cl_interface && not c.cl_extern ->
-				gctx.nadako#process_class c;
+				gctx.typedef_interfaces#process_class c;
 			| _ ->
 				()
 		) gctx.com.types
@@ -2762,7 +2762,7 @@ let generate com =
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
 		anon_identification = Obj.magic ();
 		preprocessor = Obj.magic ();
-		nadako = Obj.magic ();
+		typedef_interfaces = Obj.magic ();
 		current_field_info = None;
 		default_export_config = {
 			export_debug = com.debug;
@@ -2771,7 +2771,7 @@ let generate com =
 	let anon_identification = new tanon_identification haxe_dynamic_object_path (jsignature_of_type gctx) in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
-	gctx.nadako <- new nadako_interfaces anon_identification;
+	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
 	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd then None
@@ -2801,7 +2801,7 @@ let generate com =
 		Zip.add_entry v gctx.jar filename;
 	) com.resources;
 	List.iter (generate_module_type gctx) com.types;
-	Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.nadako#get_interfaces;
+	Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.typedef_interfaces#get_interfaces;
 	Hashtbl.iter (fun path td ->
 		let fields = match follow td.t_type with
 			| TAnon an -> an.a_fields
@@ -2840,7 +2840,7 @@ let generate com =
 			jm_fields#get_code#return_value string_map_sig
 		end;
 		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
-		begin match gctx.nadako#get_interface_class path with
+		begin match gctx.typedef_interfaces#get_interface_class path with
 		| None ->
 			()
 		| Some c ->

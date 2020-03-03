@@ -442,7 +442,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			List.iter field (cf :: cf.cf_overloads)
 end
 
-class ['a] nadako_interfaces (anon_identification : 'a tanon_identification) = object(self)
+class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = object(self)
 
 	val lut = Hashtbl.create 0
 	val interfaces = Hashtbl.create 0
