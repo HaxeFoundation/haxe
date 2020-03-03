@@ -29,7 +29,8 @@
 
 	Unlike String, an instance of StringBuf is not immutable in the sense that
 	it can be passed as argument to functions which modify it by appending more
-	values. However, the internal buffer cannot be modified.
+	values. However, in the cross-platform implementation the internal buffer is
+	a String and cannot be modified.
 **/
 class StringBuf {
 	var b:String;
