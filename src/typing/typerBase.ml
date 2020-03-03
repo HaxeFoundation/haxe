@@ -144,6 +144,10 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
+let mk_module_type_access ctx t p : access_mode -> access_kind =
+	let e = type_module_type ctx t None p in
+	(fun _ -> AKExpr e)
+
 let s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in

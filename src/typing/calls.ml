@@ -878,20 +878,9 @@ let array_access ctx e1 e2 mode p =
 (*
 	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
 	return a new `access_mode->access_kind` getter for the whole field access chain.
-
-	if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
-	cases, normal type errors will be raised if a field can't be accessed.
 *)
-let field_chain ?(resume=false) ctx path e =
-	let resume = ref resume in
-	let force = ref false in
-	let e = List.fold_left (fun e (f,_,p) ->
+let field_chain ctx path e =
+	List.fold_left (fun e (f,_,p) ->
 		let e = acc_get ctx (e MGet) p in
-		let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
-		force := !resume;
-		resume := false;
-		f
-	) e path in
-	if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
-	e
-
+		type_field_default_cfg ctx e f p
+	) e path

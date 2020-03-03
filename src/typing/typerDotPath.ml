@@ -17,8 +17,11 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
 open Globals
+open Type
+open TType
 open TyperBase
 open Calls
+open Fields
 open TFunctions
 open Error
 
@@ -32,14 +35,50 @@ let mk_dot_path_part s p : dot_path_part =
 	let case = if is_lower_ident s p then PLowercase else PUppercase in
 	(s,case,p)
 
-(* given a list of dot path parts, try to resolve it into access getter, raises Not_found on failure *)
+let s_dot_path parts =
+	String.concat "." (List.map (fun (s,_,_) -> s) parts)
+
+let resolve_module_type ctx m name p =
+	let t = Typeload.find_type_in_module m name in (* raises Not_found *)
+	mk_module_type_access ctx t p
+
+let resolve_in_module ctx m path p =
+	let mname = snd m.m_path in
+	match path with
+	| (sname,PUppercase,sp) :: path_rest ->
+		begin
+		try
+			resolve_module_type ctx m sname sp, path_rest
+		with Not_found ->
+			resolve_module_type ctx m mname p, path
+		end
+	| _ ->
+		resolve_module_type ctx m mname p, path
+
+(** resolve given qualified module pack+name (and possibly next path part) or raise Not_found *)
+let resolve_qualified ctx pack name next_path p =
+	try
+		let m = Typeload.load_module ctx (pack,name) p in
+		resolve_in_module ctx m next_path p
+	with Error (Module_not_found mpath,_) when mpath = (pack,name) ->
+		(* might be an instance of https://github.com/HaxeFoundation/haxe/issues/9150
+		   so let's also check (pack,name) of a TYPE in the current module context ¯\_(ツ)_/¯ *)
+		let t = Typeload.find_type_in_current_module_context ctx pack name in (* raises Not_found *)
+		mk_module_type_access ctx t p, next_path
+
+(** resolve the given unqualified name (and possibly next path part) or raise Not_found *)
+let resolve_unqualified ctx name next_path p =
+	try
+		(* if there's a type with this name in current module context - simply resolve against it *)
+		let t = Typeload.find_type_in_current_module_context ctx [] name in (* raises Not_found *)
+		mk_module_type_access ctx t p, next_path
+	with Not_found ->
+		(* otherwise run the unqualified module resolution mechanism and look into the modules  *)
+		let f m ~resume = resolve_in_module ctx m next_path p in
+		Typeload.find_in_unqualified_modules ctx name p f ~resume:true (* raise Not_found *)
+
+(** given a list of dot path parts, resolve it into access getter or raise Not_found *)
 let resolve_dot_path ctx (path_parts : dot_path_part list) =
-	(*
-		we rely on the fact that packages start with a lowercase letter, while modules and types start with uppercase letters,
-		so we processes path parts, accumulating lowercase parts in `pack_acc`, until we encounter an upper-case part,
-		which can mean either a module access or module's primary type access, so we try to figure out the type and
-		resolve the rest of the field access chain against it.
-	*)
 	let rec loop pack_acc path =
 		match path with
 		| (_,PLowercase,_) as x :: path ->
@@ -47,87 +86,19 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 			loop (x :: pack_acc) path
 
 		| (name,PUppercase,p) :: path ->
-			(* part starts with uppercase - it either points to a module or its main type *)
-
-			let pack = List.rev_map (fun (x,_,_) -> x) pack_acc in
-
-			(* default behaviour: try loading module's primary type (with the same name as module)
-				and resolve the rest of the field chain against its statics (or return the type itself
-				if the rest of chain is empty) *)
-			let def () =
-				try
-					let e = type_type ctx (pack,name) p in
-					field_chain ctx path (fun _ -> AKExpr e)
-				with
-					Error (Module_not_found m,_) when m = (pack,name) ->
-						(* not a module path after all *)
-						raise Not_found
+			(* part starts with uppercase - it's a module name - try resolving *)
+			let accessor, path_rest =
+				if pack_acc <> [] then
+					let pack = List.rev_map (fun (x,_,_) -> x) pack_acc in
+					resolve_qualified ctx pack name path p
+				else
+					resolve_unqualified ctx name path p
 			in
-
-			(match path with
-			| (sname,PUppercase,p) :: path ->
-				(* next part starts with uppercase, meaning it can be either a module sub-type access
-					or static field access for the primary module type, so we have to do some guessing here
-
-					In this block, `name` is the first first-uppercase part (possibly a module name),
-					and `sname` is the second first-uppsercase part (possibly a subtype name). *)
-
-				(* get static field by `sname` from a given type `t`, if `resume` is true - raise Not_found *)
-				let get_static resume t =
-					field_chain ctx ~resume ((sname,PUppercase,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
-				in
-
-				(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
-				let check_module m =
-					try
-						let md = Typeload.load_module ctx m p in
-						(* first look for existing subtype *)
-						(try
-							let t = Typeload.find_type_in_module md sname in
-							Some (field_chain ctx path (fun _ -> AKExpr (type_module_type ctx t None p)))
-						with Not_found -> try
-						(* then look for main type statics *)
-							if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
-							let t = Typeload.find_type_in_module md (snd m) in
-							Some (get_static false t)
-						with Not_found ->
-							None)
-					with Error (Module_not_found m2,_) when m = m2 ->
-						None
-				in
-
-				(match pack with
-				| [] ->
-					(* no package was specified - Unqualified access *)
-					(try
-						(* first try getting the type from the current module context
-						   and try accessing its static field by `sname` *)
-						let t = Typeload.find_type_in_current_module_context ctx pack name in
-						get_static true t
-					with Not_found ->
-						(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916
-							look for subtypes/main-class-statics in modules of current package and its parent packages *)
-						let rec loop pack =
-							match check_module (pack,name) with
-							| Some r -> r
-							| None ->
-								match List.rev pack with
-								| [] -> def()
-								| _ :: l -> loop (List.rev l)
-						in
-						loop (fst ctx.m.curmod.m_path))
-				| _ ->
-					(* if package was specified - Qualified access *)
-					(match check_module (pack,name) with
-					| Some r -> r
-					| None -> def ()));
-			| _ -> 
-				(* no more parts or next part starts with lowercase - it's surely not a type name, so do the default thing *)
-				def())
+			(* if we get here (that is, Not_found is not raised) - we have something to resolve against *)
+			field_chain ctx path_rest accessor
 
 		| [] ->
-			(* if we get to here, it means that there was no uppercase parts, so it's not a qualified dot-path *)
+			(* if we get to here, it means that there was no uppercase part, so it's not a qualified dot-path *)
 			raise Not_found
-
 	in
 	loop [] path_parts

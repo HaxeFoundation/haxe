@@ -121,36 +121,72 @@ let find_type_in_current_module_context ctx pack name =
 		ImportHandling.mark_import_position ctx pi;
 		t
 
-let load_unqualified_type_def ctx mname tname p =
-	try
-		let rec loop l =
-			match l with
-			| [] ->
-				raise Exit
-			| (pack,ppack) :: l ->
-				begin try
-					let mt = load_type ctx (pack,mname) tname p in
-					ImportHandling.mark_import_position ctx ppack;
-					mt
-				with Not_found ->
-					loop l
-				end
-		in
-		(* Check wildcard packages by using their package *)
-		loop ctx.m.wildcard_packages
-	with Exit ->
-		let rec loop l =
-			match l with
-			| [] ->
-				load_type_raise ctx ([],mname) tname p
-			| _ :: sl as l ->
+let find_in_wildcard_imports ctx mname p f =
+	let rec loop l =
+		match l with
+		| [] ->
+			raise Not_found
+		| (pack,ppack) :: l ->
+			begin
+			try
+				let path = (pack,mname) in
+				let m =
+					try
+						ctx.g.do_load_module ctx path p
+					with Error (Module_not_found mpath,_) when mpath = path ->
+						raise Not_found
+				in
+				let r = f m ~resume:true in
+				ImportHandling.mark_import_position ctx ppack;
+				r
+			with Not_found ->
+				loop l
+			end
+	in
+	loop ctx.m.wildcard_packages
+
+(* TODO: move these generic find functions into a separate module *)
+let find_in_modules_starting_from_current_package ~resume ctx mname p f =
+	let rec loop l =
+		let path = (List.rev l,mname) in
+		match l with
+		| [] ->
+			let m =
 				try
-					load_type ctx (List.rev l,mname) tname p
-				with Not_found ->
-					loop sl
-		in
-		(* Check our current module's path and its parent paths *)
-		loop (List.rev (fst ctx.m.curmod.m_path))
+					ctx.g.do_load_module ctx path p
+				with Error (Module_not_found mpath,_) when resume && mpath = path ->
+					raise Not_found
+			in
+			f m ~resume:resume
+		| _ :: sl ->
+			try
+				let m =
+					try
+						ctx.g.do_load_module ctx path p
+					with Error (Module_not_found mpath,_) when mpath = path ->
+						raise Not_found
+					in
+				f m ~resume:true;
+			with Not_found ->
+				loop sl
+	in
+	let pack = fst ctx.m.curmod.m_path in
+	loop (List.rev pack)
+
+let find_in_unqualified_modules ctx name p f ~resume =
+	try
+		find_in_wildcard_imports ctx name p f
+	with Not_found ->
+		find_in_modules_starting_from_current_package ctx name p f ~resume:resume
+
+let load_unqualified_type_def ctx mname tname p =
+	let find_type m ~resume =
+		if resume then
+			find_type_in_module m tname
+		else
+			find_type_in_module_raise m tname p
+	in
+	find_in_unqualified_modules ctx mname p find_type ~resume:false
 
 let load_module ctx path p =
 	try
