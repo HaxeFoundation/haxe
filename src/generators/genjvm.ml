@@ -601,6 +601,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			f();
 			if ret <> RVoid && ak <> AKPost then dup();
 		in
+		let default s t =
+			if ak <> AKNone then code#dup;
+			jm#string s;
+			if ak <> AKNone then begin
+				code#dup_x1;
+				jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
+				self#cast_expect ret t;
+			end;
+			apply (fun () -> code#dup_x2);
+			self#cast (self#mknull t);
+			jm#invokestatic haxe_jvm_path "writeField" (method_sig [object_sig;string_sig;object_sig] None)
+		in
 		match (Texpr.skip e).eexpr with
 		| TLocal v ->
 			let _,load,store = self#get_local v in
@@ -622,18 +634,35 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			apply (fun () -> code#dup_x1);
 			self#cast cf.cf_type;
 			jm#putfield c.cl_path cf.cf_name jsig_cf
-		| TField(e1,(FDynamic s | FAnon {cf_name = s} | FInstance(_,_,{cf_name = s}))) ->
+		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
-			if ak <> AKNone then code#dup;
-			jm#string s;
-			if ak <> AKNone then begin
-				code#dup_x1;
-				jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
-				self#cast_expect ret e.etype;
-			end;
-			apply (fun () -> code#dup_x2);
-			self#cast (self#mknull e.etype);
-			jm#invokestatic haxe_jvm_path "writeField" (method_sig [object_sig;string_sig;object_sig] None)
+			begin match gctx.anon_identification#identify true e1.etype with
+			| Some {t_path=path} ->
+				code#dup;
+				code#instanceof path;
+				let jsig_cf = self#vtype cf.cf_type in
+				jm#if_then_else
+					(fun () -> code#if_ref CmpEq)
+					(fun () ->
+						jm#cast (object_path_sig path);
+						if ak <> AKNone then begin
+							code#dup;
+							jm#getfield path cf.cf_name jsig_cf;
+						end;
+						apply (fun () -> code#dup_x1);
+						jm#cast jsig_cf;
+						jm#putfield path cf.cf_name jsig_cf;
+					)
+					(fun () ->
+						default cf.cf_name cf.cf_type;
+						if ret <> RVoid then jm#cast jsig_cf;
+					);
+			| None ->
+				default cf.cf_name cf.cf_type;
+			end
+		| TField(e1,(FDynamic s | FInstance(_,_,{cf_name = s}))) ->
+			self#texpr rvalue_any e1;
+			default s e.etype;
 		| TArray(e1,e2) ->
 			begin match follow e1.etype with
 				| TInst({cl_path = (["haxe";"root"],"Array")} as c,[t]) ->
