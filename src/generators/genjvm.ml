@@ -70,10 +70,10 @@ type generation_context = {
 	jar : Zip.out_file;
 	t_exception : Type.t;
 	t_throwable : Type.t;
-	anon_identification : jsignature tanon_identification;
-	preprocessor : jsignature preprocessor;
+	mutable anon_identification : jsignature tanon_identification;
+	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
-	nadako : jsignature nadako_interfaces;
+	mutable nadako : jsignature nadako_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
 
@@ -97,10 +97,10 @@ type block_exit =
 
 open NativeSignatures
 
-let rec jsignature_of_type stack t =
+let rec jsignature_of_type gctx stack t =
 	if List.exists (fast_eq t) stack then object_sig else
-	let jsignature_of_type = jsignature_of_type (t :: stack) in
-	let jtype_argument_of_type t = jtype_argument_of_type stack t in
+	let jsignature_of_type = jsignature_of_type gctx (t :: stack) in
+	let jtype_argument_of_type t = jtype_argument_of_type gctx stack t in
 	match t with
 	| TAbstract(a,tl) ->
 		begin match a.a_path with
@@ -164,11 +164,11 @@ let rec jsignature_of_type stack t =
 	| TType(td,tl) -> jsignature_of_type (apply_params td.t_params tl td.t_type)
 	| TLazy f -> jsignature_of_type (lazy_type f)
 
-and jtype_argument_of_type stack t =
-	TType(WNone,jsignature_of_type stack t)
+and jtype_argument_of_type gctx stack t =
+	TType(WNone,jsignature_of_type gctx stack t)
 
-let jsignature_of_type t =
-	jsignature_of_type [] t
+let jsignature_of_type gctx t =
+	jsignature_of_type gctx [] t
 
 module AnnotationHandler = struct
 	let generate_annotations builder meta =
@@ -288,7 +288,7 @@ class haxe_exception gctx (t : Type.t) = object(self)
 		if follow t == t_dynamic then
 			throwable_sig,false
 		else if type_unifies t gctx.t_exception then
-			jsignature_of_type t,true
+			jsignature_of_type gctx t,true
 		else
 			haxe_exception_sig,false
 
@@ -390,7 +390,7 @@ let create_context_class gctx jc jm name vl = match vl with
 
 let rvalue_any = RValue None
 let rvalue_sig jsig = RValue (Some jsig)
-let rvalue_type t = RValue (Some (jsignature_of_type t))
+let rvalue_type gctx t = RValue (Some (jsignature_of_type gctx t))
 
 class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return_type : Type.t) = object(self)
 	val com = gctx.com
@@ -407,7 +407,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	val mutable env = None
 
 	method vtype t =
-		jsignature_of_type t
+		jsignature_of_type gctx t
 
 	method mknull t = com.basic.tnull (follow t)
 
@@ -461,7 +461,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| [],false ->
 				None
 			| vl,accesses_this ->
-				let vl = List.map (fun v -> v.v_id,v.v_name,jsignature_of_type v.v_type) vl in
+				let vl = List.map (fun v -> v.v_id,v.v_name,jsignature_of_type gctx v.v_type) vl in
 				let vl = if accesses_this then (0,"this",jc#get_jsig) :: vl else vl in
 				let ctx_class = create_context_class gctx jc jm name vl in
 				Some ctx_class
@@ -553,11 +553,11 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "NaN" | "POSITIVE_INFINITY" | "NEGATIVE_INFINITY"} as cf)) ->
 			jm#getstatic double_path cf.cf_name TDouble
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "isNaN" | "isFinite"} as cf)) ->
-			jm#read_closure true double_path cf.cf_name (jsignature_of_type cf.cf_type);
+			jm#read_closure true double_path cf.cf_name (jsignature_of_type gctx cf.cf_type);
 		| FStatic({cl_path = (["java";"lang"],"String")},({cf_name = "fromCharCode"} as cf)) ->
-			jm#read_closure true (["haxe";"jvm"],"StringExt") cf.cf_name (jsignature_of_type cf.cf_type);
+			jm#read_closure true (["haxe";"jvm"],"StringExt") cf.cf_name (jsignature_of_type gctx cf.cf_type);
 		| FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf)) ->
-			jm#read_closure true c.cl_path cf.cf_name (jsignature_of_type cf.cf_type);
+			jm#read_closure true c.cl_path cf.cf_name (jsignature_of_type gctx cf.cf_type);
 		| FStatic(c,cf) ->
 			jm#getstatic c.cl_path cf.cf_name (self#vtype cf.cf_type);
 			cast();
@@ -799,7 +799,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			else
 				object_sig
 
-	method get_binop_type t1 t2 = self#get_binop_type_sig (jsignature_of_type t1) (jsignature_of_type t2)
+	method get_binop_type t1 t2 = self#get_binop_type_sig (jsignature_of_type gctx t1) (jsignature_of_type gctx t2)
 
 	method do_compare op =
 		match code#get_stack#get_stack_items 2 with
@@ -841,8 +841,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jerror (Printf.sprintf "Bad stack: %s" (String.concat ", " (List.map (generate_signature false) tl)));
 
 	method binop_compare op e1 e2 =
-		let sig1 = jsignature_of_type e1.etype in
-		let sig2 = jsignature_of_type e2.etype in
+		let sig1 = jsignature_of_type gctx e1.etype in
+		let sig2 = jsignature_of_type gctx e2.etype in
 		match (Texpr.skip e1),(Texpr.skip e2) with
 		| {eexpr = TConst TNull},_ when not (is_unboxed sig2) ->
 			self#texpr rvalue_any e2;
@@ -1137,12 +1137,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#boolop (self#binop_compare op e1 e2)
 		| OpAssign ->
 			let f () =
-				self#texpr (rvalue_type e1.etype) e2;
+				self#texpr (rvalue_type gctx e1.etype) e2;
 				self#cast e1.etype;
 			in
 			self#read_write ret AKNone e1 f
 		| OpAssignOp op ->
-			let jsig1 = jsignature_of_type e1.etype in
+			let jsig1 = jsignature_of_type gctx e1.etype in
 			begin match op,(Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
 			| OpAdd,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
 				let slot,load,_ = self#get_local v in
@@ -1193,7 +1193,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#read_write ret (if flag = Prefix then AKPre else AKPost) e f;
 		| Neg,_ ->
 			self#texpr rvalue_any e;
-			let jsig = jsignature_of_type (follow e.etype) in
+			let jsig = jsignature_of_type gctx (follow e.etype) in
 			jm#cast jsig;
 			begin match jsig with
 			| TLong -> code#lneg;
@@ -1208,7 +1208,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
 		| NegBits,_ ->
-			let jsig = jsignature_of_type (follow e.etype) in
+			let jsig = jsignature_of_type gctx (follow e.etype) in
 			self#texpr rvalue_any e;
 			jm#cast jsig;
 			begin match jsig with
@@ -1226,7 +1226,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	(* calls *)
 
 	method get_argument_signatures t el =
-		match jsignature_of_type t with
+		match jsignature_of_type gctx t with
 		| TMethod(jsigs,r) -> jsigs,r
 		| _ -> List.map (fun _ -> object_sig) el,(Some object_sig)
 
@@ -1235,7 +1235,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let varargs_type = match follow t with
 			| TFun(tl,_) ->
 				begin match List.rev tl with
-				| (_,_,(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t]))) :: _ -> Some (jsignature_of_type t)
+				| (_,_,(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t]))) :: _ -> Some (jsignature_of_type gctx t)
 				| _ -> None
 				end
 			| _ ->
@@ -1282,7 +1282,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				| [e1;{eexpr = TTypeExpr mt;epos = pe}] ->
 					self#texpr rvalue_any e1;
 					self#expect_reference_type;
-					let path = match jsignature_of_type (type_of_module_type mt) with
+					let path = match jsignature_of_type gctx (type_of_module_type mt) with
 						| TObject(path,_) -> path
 						| _ -> Error.error "Class expected" pe
 					in
@@ -1525,7 +1525,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					| TMethod(jsigs,_) -> List.exists has_unknown_args jsigs
 					| _ -> false
 			in
-			if has_unknown_args (jsignature_of_type e1.etype) then begin
+			if has_unknown_args (jsignature_of_type gctx e1.etype) then begin
 				self#texpr rvalue_any e1;
 				jm#cast method_handle_sig;
 				self#new_native_array object_sig el;
@@ -1737,7 +1737,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
-			self#texpr (rvalue_type v.v_type) e1;
+			self#texpr (rvalue_type gctx v.v_type) e1;
 			self#cast v.v_type;
 			let _,_,store = self#add_local v VarWillInit in
 			store()
@@ -1751,7 +1751,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TTypeExpr mt ->
 			let t = type_of_module_type mt in
 			if ExtType.is_void (follow t) then self#basic_type_path "Void"
-			else self#type_expr (jsignature_of_type t)
+			else self#type_expr (jsignature_of_type gctx t)
 		| TUnop(op,flag,e1) ->
 			begin match op with
 			| Not | Neg | NegBits when ret = RVoid -> self#texpr ret e1
@@ -1859,7 +1859,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TNew({cl_path = (["java"],"NativeArray")},[t],[e1]) ->
 			self#texpr (match ret with RVoid -> RVoid | _ -> rvalue_any) e1;
 			(* Technically this could throw... but whatever *)
-			if ret <> RVoid then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type t))
+			if ret <> RVoid then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type gctx t))
 		| TNew(c,tl,el) ->
 			begin match get_constructor (fun cf -> cf.cf_type) c with
 			|_,cf ->
@@ -1914,7 +1914,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TArrayDecl el ->
 			begin match follow e.etype with
 			| TInst({cl_path = (["haxe";"root"],"Array")},[t]) ->
-				self#new_native_array (jsignature_of_type (self#mknull t)) el;
+				self#new_native_array (jsignature_of_type gctx (self#mknull t)) el;
 				jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
 				self#cast e.etype
 			| _ ->
@@ -1965,7 +1965,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			if ret <> RVoid then self#cast e.etype
 		| TCast(e1,Some mt) ->
 			self#texpr rvalue_any e1;
-			let jsig = jsignature_of_type (type_of_module_type mt) in
+			let jsig = jsignature_of_type gctx (type_of_module_type mt) in
 			if is_unboxed jsig || is_unboxed jm#get_code#get_stack#top then jm#cast jsig
 			else code#checkcast (t_infos mt).mt_path;
 			if ret = RVoid then code#pop;
@@ -2210,21 +2210,21 @@ class tclass_to_jvm gctx c = object(self)
 			if !has_type_param then Some t else None
 		in
 		let make_bridge cf_impl t =
-			let jsig = jsignature_of_type t in
+			let jsig = jsignature_of_type gctx t in
 			if not (jc#has_method cf_impl.cf_name jsig) then begin
 				begin match follow t with
 				| TFun(tl,tr) ->
 					let jm = jc#spawn_method cf_impl.cf_name jsig [MPublic;MSynthetic;MBridge] in
 					jm#load_this;
-					let jsig_impl = jsignature_of_type cf_impl.cf_type in
+					let jsig_impl = jsignature_of_type gctx cf_impl.cf_type in
 					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> assert false in
 					List.iter2 (fun (n,_,t) jsig ->
-						let _,load,_ = jm#add_local n (jsignature_of_type t) VarArgument in
+						let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 						load();
 						jm#cast jsig;
 					) tl jsigs;
 					jm#invokevirtual c.cl_path cf_impl.cf_name jsig_impl;
-					if not (ExtType.is_void (follow tr)) then jm#cast (jsignature_of_type tr);
+					if not (ExtType.is_void (follow tr)) then jm#cast (jsignature_of_type gctx tr);
 					jm#return;
 				| _ ->
 					()
@@ -2320,7 +2320,7 @@ class tclass_to_jvm gctx c = object(self)
 			let sm = gctx.preprocessor#get_implicit_ctor c.cl_path in
 			PMap.iter (fun _ (c,cf) ->
 				let cmode = get_construction_mode c cf in
-				let jm = jc#spawn_method (if cmode = ConstructInit then "<init>" else "new") (jsignature_of_type cf.cf_type) [MPublic] in
+				let jm = jc#spawn_method (if cmode = ConstructInit then "<init>" else "new") (jsignature_of_type gctx cf.cf_type) [MPublic] in
 				let handler = new texpr_to_jvm gctx jc jm gctx.com.basic.tvoid in
 				jm#load_this;
 				DynArray.iter (fun e ->
@@ -2328,7 +2328,7 @@ class tclass_to_jvm gctx c = object(self)
 				) field_inits;
 				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> assert false in
 				List.iter (fun (n,_,t) ->
-					let _,load,_ = jm#add_local n (jsignature_of_type t) VarArgument in
+					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
 				) tl;
 				jm#call_super_ctor cmode jm#get_jsig;
@@ -2377,7 +2377,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate_method gctx jc c mtype cf =
 		gctx.current_field_info <- gctx.preprocessor#get_field_info cf.cf_meta;
-		let jsig = jsignature_of_type cf.cf_type in
+		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = [MPublic] in
 		let flags = if c.cl_interface then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
@@ -2406,7 +2406,7 @@ class tclass_to_jvm gctx c = object(self)
 				let stl = String.concat "" (List.map (fun (n,_) ->
 					Printf.sprintf "%s:Ljava/lang/Object;" n
 				) cf.cf_params) in
-				let ssig = generate_method_signature true (jsignature_of_type cf.cf_type) in
+				let ssig = generate_method_signature true (jsignature_of_type gctx cf.cf_type) in
 				let s = if cf.cf_params = [] then ssig else Printf.sprintf "<%s>%s" stl ssig in
 				let offset = jc#get_pool#add_string s in
 				jm#add_attribute (AttributeSignature offset);
@@ -2414,7 +2414,7 @@ class tclass_to_jvm gctx c = object(self)
 		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
 
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
-		let jsig = jsignature_of_type cf.cf_type in
+		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = [FdPublic] in
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
 		let jm = jc#spawn_field cf.cf_name jsig flags in
@@ -2458,7 +2458,7 @@ class tclass_to_jvm gctx c = object(self)
 				| _ ->
 					default e;
 		end;
-		let ssig = generate_signature true (jsignature_of_type cf.cf_type) in
+		let ssig = generate_signature true (jsignature_of_type gctx cf.cf_type) in
 		let offset = jc#get_pool#add_string ssig in
 		jm#add_attribute (AttributeSignature offset)
 
@@ -2517,11 +2517,11 @@ class tclass_to_jvm gctx c = object(self)
 					Printf.sprintf "<%s>" stl
 			in
 			let ssuper = match c.cl_super with
-				| Some(c,tl) -> generate_method_signature true (jsignature_of_type (TInst(c,tl)))
+				| Some(c,tl) -> generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
 				| None -> generate_method_signature true object_sig
 			in
 			let sinterfaces = String.concat "" (List.map (fun(c,tl) ->
-				generate_method_signature true (jsignature_of_type (TInst(c,tl)))
+				generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
 			) c.cl_implements) in
 			let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
 			let offset = jc#get_pool#add_string s in
@@ -2542,7 +2542,7 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		self#generate_signature;
 		if not (Meta.has Meta.NativeGen c.cl_meta) then
-			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
+			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
 		jc#add_attribute (AttributeSourceFile (jc#get_pool#add_string c.cl_pos.pfile));
 		let jc = jc#export_class gctx.default_export_config in
@@ -2580,7 +2580,7 @@ let generate_enum gctx en =
 	let names = List.map (fun name ->
 		let ef = PMap.find name en.e_constrs in
 		let args = match follow ef.ef_type with
-			| TFun(tl,_) -> List.map (fun (n,_,t) -> n,jsignature_of_type t) tl
+			| TFun(tl,_) -> List.map (fun (n,_,t) -> n,jsignature_of_type gctx t) tl
 			| _ -> []
 		in
 		let jsigs = List.map snd args in
@@ -2730,20 +2730,23 @@ let generate com =
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
 	let jar_dir = add_trailing_slash com.file in
 	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path jsignature_of_type in
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
-		anon_identification = anon_identification;
-		preprocessor = new preprocessor com.basic anon_identification jsignature_of_type;
-		nadako = new nadako_interfaces anon_identification;
+		anon_identification = Obj.magic ();
+		preprocessor = Obj.magic ();
+		nadako = Obj.magic ();
 		current_field_info = None;
 		default_export_config = {
 			export_debug = com.debug;
 		}
 	} in
+	let anon_identification = new tanon_identification haxe_dynamic_object_path (jsignature_of_type gctx) in
+	gctx.anon_identification <- anon_identification;
+	gctx.preprocessor <- new preprocessor com.basic anon_identification (jsignature_of_type gctx);
+	gctx.nadako <- new nadako_interfaces anon_identification;
 	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd then None
