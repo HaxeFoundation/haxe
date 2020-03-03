@@ -108,6 +108,8 @@ let find_overload_rec is_ctor map_type c cf el =
 		| Some (_,_,(c,cf,tl)) -> Some (c,cf,tl)
 		| None -> Some(c,cf,List.map snd cf.cf_params)
 
+exception Typedef_result of tdef
+
 class ['a] tanon_identification (empty_path : string list * string) (convert : Type.t -> 'a) =
 	let is_normal_anon an = match !(an.a_status) with
 		| Closed | Const | Opened -> true
@@ -121,18 +123,62 @@ object(self)
 
 	method get_anons = td_anons
 
+	method unify (tc : Type.t) (td : tdef) =
+		let monos = List.map (fun _ -> mk_mono()) td.t_params in
+		let ta = apply_params td.t_params monos td.t_type in
+		begin match follow tc,follow ta with
+		| TInst(c,tl) as t1,(TAnon an as t2) ->
+			Type.unify t1 t2
+		| TAnon an1,TAnon an2 ->
+			Type.type_eq EqDoNotFollowNull tc ta;
+		| _ ->
+			raise (Unify_error [])
+		end;
+		(* Check if we applied Void to a return type parameter... (#3463) *)
+		List.iter (fun t -> match follow t with
+			| TMono r ->
+				Monomorph.bind r t_dynamic
+			| t ->
+				if Type.ExtType.is_void t then raise(Unify_error [])
+		) monos;
+
+	method find_compatible (tc : Type.t) =
+		try
+			Hashtbl.iter (fun _ td ->
+				try
+					self#unify tc td;
+					raise (Typedef_result td)
+				with Unify_error _ ->
+					()
+			) td_anons;
+			raise Not_found
+		with Typedef_result td ->
+			td
+
 	method convert_fields (fields : (string,tclass_field) PMap.t) =
 		let l = PMap.foldi (fun s cf acc -> (s,cf) :: acc) fields [] in
 		let l = List.sort (fun (s1,_) (s2,_) -> compare s1 s2) l in
 		List.map (fun (s,cf) -> s,convert cf.cf_type) l
 
-	method identify_typedef (td : tdef) = match follow td.t_type with
-		| TAnon an when is_normal_anon an && not (PMap.is_empty an.a_fields) ->
-			Hashtbl.replace td_anons td.t_path td;
-			let fields = self#convert_fields an.a_fields in
-			Hashtbl.replace field_lut fields td;
-		| _ ->
-			()
+	method identify_typedef (td : tdef) =
+		let rec loop t = match t with
+			| TAnon an when is_normal_anon an && not (PMap.is_empty an.a_fields) ->
+				let fields = self#convert_fields an.a_fields in
+				begin try
+					ignore(Hashtbl.find field_lut fields)
+				with Not_found ->
+					Hashtbl.replace td_anons td.t_path td;
+					let fields = self#convert_fields an.a_fields in
+					Hashtbl.replace field_lut fields td;
+				end
+			| TMono {tm_type = Some t} ->
+				loop t
+			| TLazy f ->
+				loop (lazy_type f)
+			| t ->
+				()
+		in
+		loop td.t_type
 
 	method identify (accept_anons : bool) (t : Type.t) =
 		match t with
@@ -149,9 +195,11 @@ object(self)
 		| TAbstract({a_path=([],"Null")},[t]) ->
 			self#identify accept_anons t
 		| TAnon an when accept_anons ->
-			let fields = self#convert_fields an.a_fields in
+			PMap.iter (fun _ cf ->
+				Gencommon.replace_mono cf.cf_type
+			) an.a_fields;
 			begin try
-				Some (Hashtbl.find field_lut fields)
+				Some (self#find_compatible t)
 			with Not_found ->
 				let id = num in
 				num <- num + 1;
@@ -168,6 +216,7 @@ object(self)
 					t_type = t;
 					t_meta = [];
 				} in
+				let fields = self#convert_fields an.a_fields in
 				Hashtbl.add field_lut fields td;
 				Hashtbl.replace td_anons td.t_path td;
 				Some td
@@ -184,7 +233,7 @@ type field_generation_info = {
 	mutable super_call_fields : (tclass * tclass_field) list;
 }
 
-class ['a] preprocessor (basic : basic_types) (anon_identification : 'a tanon_identification) (convert : Type.t -> 'a) =
+class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 	let make_native cf =
 		cf.cf_meta <- (Meta.NativeGen,[],null_pos) :: cf.cf_meta
 	in
@@ -268,7 +317,6 @@ class ['a] preprocessor (basic : basic_types) (anon_identification : 'a tanon_id
 				end
 		in
 		let rec loop e =
-			(* self#check_anon e.etype; *)
 			begin match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},FInstance(_,_,cf))},e2) when is_on_current_class cf->
 				(* Assigning this.field = value is fine if field is declared on our current class *)
@@ -295,15 +343,8 @@ class ['a] preprocessor (basic : basic_types) (anon_identification : 'a tanon_id
 			super_call_fields = DynArray.to_list super_call_fields;
 		}
 
-	method preprocess_expr e =
-		let rec loop e =
-			(* self#check_anon e.etype; *)
-			Type.iter loop e
-		in
-		loop e
-
 	method check_overrides c = match c.cl_overrides with
-		| []->
+		| [] ->
 			()
 		| fields ->
 			let csup,map_type = match c.cl_super with
@@ -339,16 +380,9 @@ class ['a] preprocessor (basic : basic_types) (anon_identification : 'a tanon_id
 			) fields
 
 	method preprocess_class (c : tclass) =
-		let field cf = match cf.cf_expr with
-			| None ->
-				()
-			| Some e ->
-				self#preprocess_expr e
-		in
 		let has_dynamic_instance_method = ref false in
 		let has_field_init = ref false in
 		let field mtype cf =
-			List.iter field (cf :: cf.cf_overloads);
 			match mtype with
 			| MConstructor ->
 				()
@@ -411,7 +445,7 @@ class ['a] nadako_interfaces (anon_identification : 'a tanon_identification) = o
 	val lut = Hashtbl.create 0
 	val interfaces = Hashtbl.create 0
 
-	method get_interface_path (path : path) =
+	method get_interface_class (path : path) =
 		try Some (Hashtbl.find interfaces path)
 		with Not_found -> None
 
@@ -441,8 +475,15 @@ class ['a] nadako_interfaces (anon_identification : 'a tanon_identification) = o
 			let c = mk_class null_module path_inner null_pos null_pos in
 			c.cl_interface <- true;
 			let fields = match follow td.t_type with
-				| TAnon an -> an.a_fields
-				| _ -> assert false
+				| TAnon an ->
+					PMap.foldi (fun name cf acc -> match cf.cf_kind with
+						| Method (MethNormal | MethInline) ->
+							PMap.add name cf acc
+						| _ ->
+							acc
+					) an.a_fields PMap.empty
+				| _ ->
+					assert false
 			in
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
@@ -460,14 +501,10 @@ class ['a] nadako_interfaces (anon_identification : 'a tanon_identification) = o
 			let path_inner = (fst path,snd path ^ "$Interface") in
 			try
 				if self#implements_recursively c path_inner then raise (Unify_error []);
-				let monos = List.map (fun _ -> mk_mono()) td.t_params in
-				let ta = apply_params td.t_params monos td.t_type in
-				Type.unify tc ta;
-				(* Check if we applied Void to a return type parameter... (#3463) *)
-				List.iter (fun t -> if Type.ExtType.is_void (follow t) then raise(Unify_error [])) monos;
+				anon_identification#unify tc td;
 				let ci = self#make_interface_class td in
 				c.cl_implements <- (ci,[]) :: c.cl_implements;
-				print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner));
+				(* print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner)); *)
 				(ci :: acc)
 			with Unify_error _ ->
 				acc

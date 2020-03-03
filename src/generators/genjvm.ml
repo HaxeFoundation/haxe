@@ -161,7 +161,11 @@ let rec jsignature_of_type gctx stack t =
 		jsig
 	) tl) (if ExtType.is_void (follow tr) then None else Some (jsignature_of_type tr))
 	| TAnon an -> object_sig
-	| TType(td,tl) -> jsignature_of_type (apply_params td.t_params tl td.t_type)
+	| TType(td,tl) ->
+		begin match gctx.nadako#get_interface_class td.t_path with
+		| Some c -> TObject(c.cl_path,[])
+		| None -> jsignature_of_type (apply_params td.t_params tl td.t_type)
+		end
 	| TLazy f -> jsignature_of_type (lazy_type f)
 
 and jtype_argument_of_type gctx stack t =
@@ -1420,26 +1424,17 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e11,FAnon cf) ->
 			begin match gctx.anon_identification#identify false e11.etype with
 			| Some {t_path=path_anon} ->
-				begin match gctx.nadako#get_interface_path path_anon with
+				begin match gctx.nadako#get_interface_class path_anon with
 				| Some c ->
-					let cf = PMap.find cf.cf_name c.cl_fields in
-					let path_inner = c.cl_path in
+					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
+					let path_inner = match c with
+						| Some(c,_) -> c.cl_path
+						| _ -> assert false
+					in
 					self#texpr rvalue_any e11;
-					code#dup;
-					code#instanceof path_inner;
-					let tl,tr = self#get_argument_signatures e1.etype el in
-					jm#if_then_else
-						(fun () -> code#if_ref CmpEq)
-						(fun () ->
-							jm#cast (object_path_sig path_inner);
-							ignore(self#call_arguments cf.cf_type el);
-							jm#invokeinterface path_inner cf.cf_name (self#vtype cf.cf_type);
-							Option.may jm#cast tr;
-						)
-						(fun () ->
-							self#read_anon_field (fun () -> ()) e11.etype cf;
-							ignore(invoke e1.etype)
-						);
+					let tl,tr = self#call_arguments cf.cf_type el in
+					jm#invokeinterface path_inner cf.cf_name (self#vtype cf.cf_type);
+					Option.may jm#cast tr;
 					tr
 				| None ->
 					self#texpr rvalue_any e1;
@@ -2041,8 +2036,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					in
 					let vars = loop fl fl' true [] in
 					let vars = List.sort (fun (name1,_) (name2,_) -> compare name1 name2) vars in
-					List.iter (fun (_,load) ->
+					List.iter (fun (name,load) ->
 						load();
+						if List.mem_assoc name fl' then jm#cast (List.assoc name fl')
 					) vars;
 					List.map snd fl';
 				)
@@ -2745,7 +2741,7 @@ let generate com =
 	} in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path (jsignature_of_type gctx) in
 	gctx.anon_identification <- anon_identification;
-	gctx.preprocessor <- new preprocessor com.basic anon_identification (jsignature_of_type gctx);
+	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.nadako <- new nadako_interfaces anon_identification;
 	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
@@ -2815,6 +2811,33 @@ let generate com =
 			jm_fields#get_code#return_value string_map_sig
 		end;
 		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
+		begin match gctx.nadako#get_interface_class path with
+		| None ->
+			()
+		| Some c ->
+			jc#add_interface c.cl_path;
+			List.iter (fun cf ->
+				let jsig_cf = jsignature_of_type gctx cf.cf_type in
+				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
+				let tl,tr = match follow cf.cf_type with
+					| TFun(tl,tr) -> tl,tr
+					| _ -> assert false
+				in
+				let locals = List.map (fun (n,_,t) ->
+					let jsig = jsignature_of_type gctx t in
+					jm#add_local n jsig VarArgument,jsig
+				) tl in
+				jm#finalize_arguments;
+				jm#load_this;
+				jm#getfield path cf.cf_name jsig_cf;
+				List.iter (fun ((_,load,_),_) ->
+					load();
+				) locals;
+				let jr = if ExtType.is_void (follow tr) then None else Some (jsignature_of_type gctx tr) in
+				jm#invokevirtual method_handle_path "invoke" (method_sig (List.map snd locals) jr);
+				jm#return
+			) c.cl_ordered_fields
+		end;
 		write_class gctx.jar path (jc#export_class gctx.default_export_config)
 	) gctx.anon_identification#get_anons;
 	Zip.close_out gctx.jar
