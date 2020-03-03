@@ -194,6 +194,8 @@ object(self)
 			self#identify accept_anons (Abstract.get_underlying_type a tl)
 		| TAbstract({a_path=([],"Null")},[t]) ->
 			self#identify accept_anons t
+		| TLazy f ->
+			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons ->
 			PMap.iter (fun _ cf ->
 				Gencommon.replace_mono cf.cf_type
