@@ -52,16 +52,16 @@ class NativeStackTrace {
 			if (stack[0] == "Error")
 				stack.shift();
 			var m = [];
-			var rie10 = ~/^    at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 			for (i in 0...stack.length) {
 				if(skip > i) continue;
 				var line = stack[i];
-				if (rie10.match(line)) {
-					var path = rie10.matched(1).split(".");
+				var matched:Null<Array<String>> = Syntax.code('{0}.match(/^    at ([A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$/)', line);
+				if (matched != null) {
+					var path = matched[1].split(".");
 					var meth = path.pop();
-					var file = rie10.matched(2);
-					var line = Std.parseInt(rie10.matched(3));
-					var column = Std.parseInt(rie10.matched(4));
+					var file = matched[2];
+					var line = Std.parseInt(matched[3]);
+					var column = Std.parseInt(matched[4]);
 					m.push(FilePos(meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth), file, line,
 						column));
 				} else
@@ -73,18 +73,6 @@ class NativeStackTrace {
 		} else {
 			return cast s;
 		}
-	}
-
-	static function getJsStack(e:Error):String {
-		var old = V8Error.prepareStackTrace;
-		V8Error.prepareStackTrace = prepareJsStackTrace;
-		var stack = e.stack;
-		V8Error.prepareStackTrace = old;
-		return stack;
-	}
-
-	static function prepareJsStackTrace(error:Error, callsites:Array<V8CallSite>):Any {
-		return error.stack;
 	}
 
 	static function tryHaxeStack(e:Null<Error>):Any {
@@ -99,7 +87,7 @@ class NativeStackTrace {
 		return stack;
 	}
 
-	static function prepareHxStackTrace(error:Error, callsites:Array<V8CallSite>):Any {
+	static function prepareHxStackTrace(e:Error, callsites:Array<V8CallSite>):Any {
 		var stack = [];
 		for (site in callsites) {
 			if (wrapCallSite != null)

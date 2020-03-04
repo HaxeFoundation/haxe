@@ -9,11 +9,10 @@ class Exception extends NativeException {
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion var __skipStack:Int;
-	//following properties have "final" semantics
+	@:noCompletion @:ifFeature("haxe.Exception.stack") var __skipStack:Int;
 	@:noCompletion var __exceptionStack(get,set):Null<CallStack>;
-	@:noCompletion var __nativeException(get,set):Any;
-	@:noCompletion var __previousException(get,set):Null<Exception>;
+	@:noCompletion var __nativeException:Any;
+	@:noCompletion var __previousException:Null<Exception>;
 
 	static public function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
@@ -32,7 +31,7 @@ class Exception extends NativeException {
 			return value;
 		} else {
 			var e = new ValueException(value);
-			e.__shiftStack();
+			untyped __feature__('haxe.Exception.stack', e.__shiftStack());
 			return e;
 		}
 	}
@@ -40,20 +39,25 @@ class Exception extends NativeException {
 	public function new(message:String, ?previous:Exception, ?native:Any) {
 		super(message);
 		(cast this).message = message;
-		__skipStack = 0;
 		__previousException = previous;
 		__nativeException = native != null ? native : this;
-		if(Std.isOfType(native, Error)) {
-			(cast this).stack = NativeStackTrace.getJsStack(native);
-		} else {
-			var e:Error = if ((cast Error).captureStackTrace) {
-				(cast Error).captureStackTrace(this, Exception);
-				cast this;
+		untyped __feature__('haxe.Exception.stack', {
+			__skipStack = 0;
+			var old = Syntax.code('Error.prepareStackTrace');
+			Syntax.code('Error.prepareStackTrace = function(e) { return e.stack; }');
+			if(Std.isOfType(native, Error)) {
+				(cast this).stack = NativeStackTrace.normalize(native.stack);
 			} else {
-				new Error();
+				var e:Error = if ((cast Error).captureStackTrace) {
+					(cast Error).captureStackTrace(this, Exception);
+					cast this;
+				} else {
+					new Error();
+				}
+				(cast this).stack = NativeStackTrace.normalize(e.stack);
 			}
-			(cast this).stack = NativeStackTrace.normalize(NativeStackTrace.getJsStack(e));
-		}
+			Syntax.code('Error.prepareStackTrace = {0}', old);
+		});
 	}
 
 	public function unwrap():Any {

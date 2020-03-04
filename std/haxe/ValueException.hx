@@ -21,7 +21,7 @@ class ValueException extends Exception {
 	public var value(default,null):Any;
 
 	public function new(value:Any, ?previous:Exception, ?native:Any):Void {
-		super(Std.string(value), previous, native);
+		super(#if js js.Syntax.code('String({0})', value) #else Std.string(value) #end, previous, native);
 		this.value = value;
 	}
 
