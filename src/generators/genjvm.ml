@@ -543,7 +543,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			cast();
 		in
 		match gctx.anon_identification#identify true t with
-		| Some {t_path=path} ->
+		| Some td ->
+			let cf = match follow td.t_type with
+				| TAnon an -> PMap.find cf.cf_name an.a_fields
+				| _ -> assert false
+			in
+			let path = td.t_path in
 			code#dup;
 			code#instanceof path;
 			jm#if_then_else
@@ -642,7 +647,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
 			begin match gctx.anon_identification#identify true e1.etype with
-			| Some {t_path=path} ->
+			| Some td ->
+				let cf = match follow td.t_type with
+					| TAnon an -> PMap.find cf.cf_name an.a_fields
+					| _ -> assert false
+				in
+				let path = td.t_path in
 				code#dup;
 				code#instanceof path;
 				let jsig_cf = self#vtype cf.cf_type in
