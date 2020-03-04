@@ -139,8 +139,11 @@ and write_signature full ch jsig = match jsig with
 			write_byte ch (Char.code ';')
 		end else
 			write_string ch "Ljava/lang/Object;"
-	| TUninitialized _ ->
-		()
+	| TUninitialized io ->
+		write_string ch "uninitialized";
+		match io with
+		| None -> write_string ch " this"
+		| Some i -> write_string ch (Printf.sprintf "(%i)" i)
 
 let generate_signature full jsig =
 	let ch = IO.output_bytes () in

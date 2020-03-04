@@ -43,8 +43,8 @@ import lua.NativeStringTools;
 	}
 
 	@:keep
-	public static function string(s:Dynamic):String {
-		return untyped lua.Boot.__string_rec(s);
+	public static function string(s:Dynamic) : String {
+		return untyped _hx_tostring(s, 0);
 	}
 
 	public static function int(x:Float):Int {

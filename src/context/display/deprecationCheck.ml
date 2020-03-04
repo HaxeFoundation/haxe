@@ -8,8 +8,9 @@ let curclass = ref null_class
 let warned_positions = Hashtbl.create 0
 
 let warn_deprecation com s p_usage =
-	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage s;
+	let pkey p = (p.pfile,p.pmin) in
+	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
+		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
 		match com.display.dms_kind with
 		| DMDiagnostics _ -> ()
 		| _ -> com.warning s p_usage;

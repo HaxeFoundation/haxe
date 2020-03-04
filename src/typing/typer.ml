@@ -1267,21 +1267,36 @@ and handle_efield ctx e p0 mode =
 			with Not_found ->
 				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
+					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
 					field_chain ctx pnext (type_ident ctx name p)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-						let pack_acc = ref [] in
-						let name , _ , _ = List.find (fun (name,case,p) ->
-							if case = PUppercase then
-								true
-							else begin
-								pack_acc := name :: !pack_acc;
-								false
-							end
-						) path in
-						let pack = List.rev !pack_acc in
-						raise (Error (Module_not_found (pack,name),p))
+						begin
+							(* TODO: we should pass the actual resolution error from resolve_dot_path instead of Not_found *)
+							let rec loop pack_acc first_uppercase path =
+								match path with
+								| (name,PLowercase,_) :: rest ->
+									(match first_uppercase with
+									| None -> loop (name :: pack_acc) None rest
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
+								| (name,PUppercase,p) :: rest ->
+									(match first_uppercase with
+									| None -> loop pack_acc (Some (name,p)) rest
+									| Some (n,_) -> List.rev pack_acc, n, Some name, p)
+								| [] ->
+									(match first_uppercase with
+									| None -> raise Not_found
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
+							in
+							let pack,name,sub,p = loop [] None path in
+							let mpath = (pack,name) in
+							if Hashtbl.mem ctx.g.modules mpath then
+								let tname = Option.default name sub in
+								raise (Error (Type_not_found (mpath,tname),p))
+							else
+								raise (Error (Module_not_found mpath,p))
+						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.in_display then begin
