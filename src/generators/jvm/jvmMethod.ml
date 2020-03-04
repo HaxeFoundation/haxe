@@ -676,13 +676,14 @@ class builder jc name jsig = object(self)
 		let flat_cases = DynArray.create () in
 		let case_lut = ref Int32Map.empty in
 		let fp = code#get_fp in
-		let imin = ref Int32.max_int in
-		let imax = ref Int32.min_int in
+		let imin = ref Int64.max_int in
+		let imax = ref Int64.min_int in
 		let cases = List.map (fun (il,f) ->
 			let rl = List.map (fun i32 ->
 				let r = ref fp in
-				if i32 < !imin then imin := i32;
-				if i32 > !imax then imax := i32;
+				let i64 = Int64.of_int32 i32 in
+				if i64 < !imin then imin := i64;
+				if i64 > !imax then imax := i64;
 				DynArray.add flat_cases (i32,r);
 				case_lut := Int32Map.add i32 r !case_lut;
 				r
@@ -691,14 +692,19 @@ class builder jc name jsig = object(self)
 		) cases in
 		let offset_def = ref fp in
 		(* No idea what's a good heuristic here... *)
-		let diff = Int32.sub !imax !imin in
-		let use_tableswitch = diff < (Int32.of_int (DynArray.length flat_cases + 10)) && diff >= Int32.zero (* #8388 *) in
+		let diff = Int64.sub !imax !imin in
+		let use_tableswitch =
+			diff < (Int64.of_int (DynArray.length flat_cases + 10)) &&
+			diff >= Int64.zero (* #8388 *)
+		in
 		if use_tableswitch then begin
-			let offsets = Array.init (Int32.to_int (Int32.sub !imax !imin) + 1) (fun i ->
-				try Int32Map.find (Int32.add (Int32.of_int i) !imin) !case_lut
+			let imin = Int64.to_int32 !imin in
+			let imax = Int64.to_int32 !imax in
+			let offsets = Array.init (Int32.to_int (Int32.sub imax imin) + 1) (fun i ->
+				try Int32Map.find (Int32.add (Int32.of_int i) imin) !case_lut
 				with Not_found -> offset_def
 			) in
-			code#tableswitch offset_def !imin !imax offsets
+			code#tableswitch offset_def imin imax offsets
 		end else begin
 			let a = DynArray.to_array flat_cases in
 			Array.sort (fun (i1,_) (i2,_) -> compare i1 i2) a;
