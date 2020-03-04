@@ -137,21 +137,17 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
-let static_field ctx c s =
-		match s with
-		| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta->
-			let with_dollar = ".$" ^ s in
-			if get_es_version ctx.com >= 6 then
-				try
-					let f = PMap.find s c.cl_statics in
-					match f.cf_kind with
-					| Method _ -> "." ^ s
-					| _ -> with_dollar
-				with Not_found ->
-					with_dollar
-			else
-				with_dollar
-		| s -> field s
+let static_field ctx c f =
+	let s = f.cf_name in
+	match s with
+	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta ->
+		(match f.cf_kind with
+		| Method _ when ctx.es_version >= 6 ->
+			"." ^ s
+		| _ ->
+			".$" ^ s)
+	| s ->
+		field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -572,8 +568,7 @@ and gen_expr ctx e =
 		in
 		let x = skip x in
 		gen_value ctx x;
-		let name = field_name f in
-		spr ctx (match f with FStatic(c,_) -> static_field ctx c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic(c,f) -> static_field ctx c f | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field (field_name f))
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -1054,13 +1049,13 @@ let gen_class_static_field ctx c cl_path f =
 	| None when not (is_physical_field f) ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx cl_path) (static_field ctx c f.cf_name);
+		print ctx "%s%s = null" (s_path ctx cl_path) (static_field ctx c f);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx cl_path) ^ (static_field ctx c f.cf_name) in
-			let dot_path = (dot_path cl_path) ^ (static_field ctx c f.cf_name) in
+			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
+			let dot_path = (dot_path cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
@@ -1285,7 +1280,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				(match get_exposed ctx (dotp ^ (static_field ctx c cf.cf_name)) cf.cf_meta with
+				(match get_exposed ctx (dotp ^ (static_field ctx c cf)) cf.cf_meta with
 				| [s] -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods;
 				| _ -> ());
 
@@ -1505,9 +1500,9 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	let cl_path = get_generated_class_path c in
-	let dot_path = (dot_path cl_path) ^ (static_field ctx c f.cf_name) in
+	let dot_path = (dot_path cl_path) ^ (static_field ctx c f) in
 	(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
-	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f.cf_name);
+	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
 	gen_value ctx e;
 	newline ctx
 
@@ -1651,7 +1646,7 @@ let generate com =
 				let path = dot_path c.cl_path in
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
-					get_exposed ctx (path ^ static_field ctx c f.cf_name) f.cf_meta
+					get_exposed ctx (path ^ static_field ctx c f) f.cf_meta
 				) c.cl_ordered_statics in
 				List.concat (class_exposed :: static_exposed)
 			| _ -> []
