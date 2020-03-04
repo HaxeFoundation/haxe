@@ -46,7 +46,7 @@ class Exception extends NativeException {
 			var old = Syntax.code('Error.prepareStackTrace');
 			Syntax.code('Error.prepareStackTrace = function(e) { return e.stack; }');
 			if(Std.isOfType(native, Error)) {
-				(cast this).stack = NativeStackTrace.normalize(native.stack);
+				(cast this).stack = native.stack;
 			} else {
 				var e:Error = if ((cast Error).captureStackTrace) {
 					(cast Error).captureStackTrace(this, Exception);
@@ -54,7 +54,7 @@ class Exception extends NativeException {
 				} else {
 					new Error();
 				}
-				(cast this).stack = NativeStackTrace.normalize(e.stack);
+				(cast this).stack = e.stack;
 			}
 			Syntax.code('Error.prepareStackTrace = {0}', old);
 		});
@@ -89,7 +89,7 @@ class Exception extends NativeException {
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
-				__exceptionStack = NativeStackTrace.toHaxe((cast this).stack, __skipStack);
+				__exceptionStack = NativeStackTrace.toHaxe(NativeStackTrace.normalize((cast this).stack), __skipStack);
 			case s: s;
 		}
 	}
