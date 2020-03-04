@@ -10,7 +10,7 @@ class Exception {
 	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Any;
-	@:noCompletion var __skipStack:Int = 0;
+	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -54,7 +54,7 @@ class Exception {
 	}
 
 	@:noCompletion
-	@:ifFeature("haxe.Exception.stack")
+	@:ifFeature("haxe.Exception.get_stack")
 	inline function __shiftStack():Void {
 		__skipStack++;
 	}

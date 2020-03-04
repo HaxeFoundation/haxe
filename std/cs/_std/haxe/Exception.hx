@@ -13,7 +13,7 @@ class Exception extends NativeException {
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:StackTrace;
 	@:noCompletion var __ownStack:Bool;
-	@:noCompletion var __skipStack:Int = 0;
+	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:CsException;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -68,7 +68,7 @@ class Exception extends NativeException {
 	}
 
 	@:noCompletion
-	@:ifFeature("haxe.Exception.stack")
+	@:ifFeature("haxe.Exception.get_stack")
 	inline function __shiftStack():Void {
 		if(__ownStack) __skipStack++;
 	}

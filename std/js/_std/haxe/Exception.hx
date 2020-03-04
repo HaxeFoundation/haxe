@@ -9,7 +9,8 @@ class Exception extends NativeException {
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
-	@:noCompletion @:ifFeature("haxe.Exception.stack") var __skipStack:Int;
+	@:ifFeature("haxe.Exception.get_stack")
+	@:noCompletion var __skipStack:Int;
 	@:noCompletion var __exceptionStack(get,set):Null<CallStack>;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
@@ -31,7 +32,7 @@ class Exception extends NativeException {
 			return value;
 		} else {
 			var e = new ValueException(value);
-			untyped __feature__('haxe.Exception.stack', e.__shiftStack());
+			untyped __feature__("haxe.Exception.get_stack", e.__shiftStack());
 			return e;
 		}
 	}
@@ -43,20 +44,21 @@ class Exception extends NativeException {
 		__nativeException = native != null ? native : this;
 		untyped __feature__('haxe.Exception.stack', {
 			__skipStack = 0;
-			var old = Syntax.code('Error.prepareStackTrace');
-			Syntax.code('Error.prepareStackTrace = function(e) { return e.stack; }');
+			var old = js.Syntax.code('Error.prepareStackTrace');
+			js.Syntax.code('Error.prepareStackTrace = function(e) { return e.stack; }');
 			if(Std.isOfType(native, Error)) {
 				(cast this).stack = native.stack;
 			} else {
-				var e:Error = if ((cast Error).captureStackTrace) {
+				var e:Error = null;
+				if ((cast Error).captureStackTrace) {
 					(cast Error).captureStackTrace(this, Exception);
-					cast this;
+					e = cast this;
 				} else {
-					new Error();
+					e = new Error();
 				}
 				(cast this).stack = e.stack;
 			}
-			Syntax.code('Error.prepareStackTrace = {0}', old);
+			js.Syntax.code('Error.prepareStackTrace = {0}', old);
 		});
 	}
 
@@ -69,7 +71,7 @@ class Exception extends NativeException {
 	}
 
 	@:noCompletion
-	@:ifFeature("haxe.Exception.stack")
+	@:ifFeature("haxe.Exception.get_stack")
 	inline function __shiftStack():Void {
 		__skipStack++;
 	}

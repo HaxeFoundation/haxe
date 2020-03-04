@@ -16,7 +16,7 @@ class Exception extends PyException {
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:Array<PyStackItem>;
-	@:noCompletion var __skipStack:Int = 0;
+	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:BaseException;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -63,7 +63,7 @@ class Exception extends PyException {
 	}
 
 	@:noCompletion
-	@:ifFeature("haxe.Exception.stack")
+	@:ifFeature("haxe.Exception.get_stack")
 	inline function __shiftStack():Void {
 		__skipStack++;
 	}
