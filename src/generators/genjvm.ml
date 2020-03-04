@@ -2583,6 +2583,69 @@ let generate_class gctx c =
 	let conv = new tclass_to_jvm gctx c in
 	conv#generate
 
+let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
+	let jm_equals = jc_ctor#spawn_method "equals" (method_sig [haxe_enum_sig object_sig] (Some TBool)) [MPublic] in
+	let code = jm_equals#get_code in
+	let jm_equals_handler = new texpr_to_jvm gctx jc_ctor jm_equals t_dynamic in
+	let _,load,_ = jm_equals#add_local "other" (haxe_enum_sig object_sig) VarArgument in
+	jm_equals#finalize_arguments;
+	load();
+	code#instanceof jc_ctor#get_this_path;
+	jm_equals#if_then
+		(fun () -> code#if_ref CmpNe)
+		(fun () ->
+			code#bconst false;
+			jm_equals#return;
+		);
+	load();
+	let _,load,save = jm_equals#add_local "otherEnum" jc_ctor#get_jsig VarWillInit in
+	jm_equals#cast jc_ctor#get_jsig;
+	save();
+	let is_maybe_enum jsig = match jsig with
+		| TObject _ | TTypeParameter _ -> true
+		| _ -> false
+	in
+	let compare jsig =
+		if is_maybe_enum jsig then begin
+			jm_equals#if_then_else
+				(fun () -> jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe) ())
+				(fun () ->
+					jm_equals#invokestatic haxe_jvm_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
+					jm_equals#if_then
+						(fun () -> code#if_ref CmpNe)
+						(fun () ->
+							code#bconst false;
+							jm_equals#return;
+						)
+				)
+				(fun () ->
+					code#pop;
+					code#pop;
+				)
+		end else
+			jm_equals#if_then
+				(fun () -> jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe) ())
+				(fun () ->
+					code#bconst false;
+					jm_equals#return;
+				);
+	in
+	load();
+	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
+	jm_equals#load_this;
+	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
+	compare TInt;
+	let compare_field n jsig =
+		load();
+		jm_equals#getfield jc_ctor#get_this_path n jsig;
+		if is_maybe_enum jsig then code#dup;
+		jm_equals#load_this;
+		jm_equals#getfield jc_ctor#get_this_path n jsig;
+		if is_maybe_enum jsig then code#dup_x1;
+		compare jsig;
+	in
+	jm_equals,compare_field
+
 let generate_enum gctx en =
 	let jc_enum = new JvmClass.builder en.e_path haxe_enum_path in
 	jc_enum#add_access_flag 0x1; (* public *)
@@ -2632,13 +2695,17 @@ let generate_enum gctx en =
 			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]);
 			if args <> [] then begin
 				let jm_params = jc_ctor#spawn_method "_hx_getParameters" (method_sig [] (Some (array_sig object_sig))) [MPublic] in
+				let jm_equals,compare_field = generate_enum_equals gctx jc_ctor in
 				let fl = List.map (fun (n,jsig) ->
+					compare_field n jsig;
 					(fun () ->
 						jm_params#load_this;
 						jm_params#getfield jc_ctor#get_this_path n jsig;
 						jm_params#cast object_sig;
 					)
 				) args in
+				jm_equals#get_code#bconst true;
+				jm_equals#return;
 				jm_params#new_native_array object_sig fl;
 				jm_params#return
 			end;
@@ -2780,7 +2847,7 @@ let generate com =
 		typedef_interfaces = Obj.magic ();
 		current_field_info = None;
 		default_export_config = {
-			export_debug = com.debug;
+			export_debug = true;
 		}
 	} in
 	gctx.anon_identification <- anon_identification;

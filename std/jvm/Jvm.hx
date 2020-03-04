@@ -22,21 +22,21 @@
 
 package jvm;
 
-import haxe.extern.Rest;
-import haxe.Constraints;
 import Enum;
+import haxe.Constraints;
+import haxe.ds.Option;
+import haxe.ds.Vector;
+import haxe.extern.Rest;
+import java.Init;
+import java.NativeArray;
+import java.lang.invoke.*;
 import jvm.DynamicObject;
-import jvm.Exception;
 import jvm.EmptyConstructor;
+import jvm.Exception;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
 import jvm.annotation.EnumReflectionInformation;
 import jvm.annotation.EnumValueReflectionInformation;
-import java.lang.invoke.*;
-import java.NativeArray;
-import java.Init;
-import haxe.ds.Vector;
-import haxe.ds.Option;
 
 @:keep
 @:native('haxe.jvm.Jvm')
@@ -59,6 +59,16 @@ class Jvm {
 
 	static public function compare<T>(v1:T, v2:T):Int {
 		return Reflect.compare(v1, v2);
+	}
+
+	static public function enumEq(v1:Dynamic, v2:Dynamic) {
+		if (!instanceof(v1, jvm.Enum)) {
+			return false;
+		}
+		if (!instanceof(v2, jvm.Enum)) {
+			return false;
+		}
+		return Type.enumEq(v1, v2);
 	}
 
 	// calls
@@ -144,7 +154,6 @@ class Jvm {
 	}
 
 	// casts
-
 	// TODO: add other dynamicToType methods
 
 	static public function dynamicToByte<T>(d:T):Null<java.lang.Byte> {
