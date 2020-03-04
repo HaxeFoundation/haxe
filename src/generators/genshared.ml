@@ -110,7 +110,7 @@ let find_overload_rec is_ctor map_type c cf el =
 
 exception Typedef_result of tdef
 
-class ['a] tanon_identification (empty_path : string list * string) (convert : Type.t -> 'a) =
+class ['a] tanon_identification (empty_path : string list * string) =
 	let is_normal_anon an = match !(an.a_status) with
 		| Closed | Const | Opened -> true
 		| _ -> false
@@ -118,7 +118,6 @@ class ['a] tanon_identification (empty_path : string list * string) (convert : T
 object(self)
 
 	val td_anons = Hashtbl.create 0
-	val field_lut = Hashtbl.create 0
 	val mutable num = 0
 
 	method get_anons = td_anons
@@ -155,22 +154,10 @@ object(self)
 		with Typedef_result td ->
 			td
 
-	method convert_fields (fields : (string,tclass_field) PMap.t) =
-		let l = PMap.foldi (fun s cf acc -> (s,cf) :: acc) fields [] in
-		let l = List.sort (fun (s1,_) (s2,_) -> compare s1 s2) l in
-		List.map (fun (s,cf) -> s,convert cf.cf_type) l
-
 	method identify_typedef (td : tdef) =
 		let rec loop t = match t with
 			| TAnon an when is_normal_anon an && not (PMap.is_empty an.a_fields) ->
-				let fields = self#convert_fields an.a_fields in
-				begin try
-					ignore(Hashtbl.find field_lut fields)
-				with Not_found ->
-					Hashtbl.replace td_anons td.t_path td;
-					let fields = self#convert_fields an.a_fields in
-					Hashtbl.replace field_lut fields td;
-				end
+				Hashtbl.replace td_anons td.t_path td;
 			| TMono {tm_type = Some t} ->
 				loop t
 			| TLazy f ->
@@ -218,8 +205,6 @@ object(self)
 					t_type = t;
 					t_meta = [];
 				} in
-				let fields = self#convert_fields an.a_fields in
-				Hashtbl.add field_lut fields td;
 				Hashtbl.replace td_anons td.t_path td;
 				Some td
 			end;
@@ -474,8 +459,6 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 		try
 			Hashtbl.find interfaces path_inner
 		with Not_found ->
-			let c = mk_class null_module path_inner null_pos null_pos in
-			c.cl_interface <- true;
 			let fields = match follow td.t_type with
 				| TAnon an ->
 					PMap.foldi (fun name cf acc -> match cf.cf_kind with
@@ -487,6 +470,9 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 				| _ ->
 					assert false
 			in
+			if PMap.is_empty fields then raise (Unify_error []);
+			let c = mk_class null_module path_inner null_pos null_pos in
+			c.cl_interface <- true;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
 			Hashtbl.replace interfaces td.t_path c;

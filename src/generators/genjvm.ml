@@ -174,6 +174,11 @@ and jtype_argument_of_type gctx stack t =
 let jsignature_of_type gctx t =
 	jsignature_of_type gctx [] t
 
+let convert_fields gctx fields =
+	let l = PMap.foldi (fun s cf acc -> (s,cf) :: acc) fields [] in
+	let l = List.sort (fun (s1,_) (s2,_) -> compare s1 s2) l in
+	List.map (fun (s,cf) -> s,jsignature_of_type gctx cf.cf_type) l
+
 module AnnotationHandler = struct
 	let generate_annotations builder meta =
 		let parse_path e =
@@ -2031,7 +2036,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			   type. In this case we have to do full dynamic construction. *)
 			| TAnon an,Some td when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
 				let fl' = match follow td.t_type with
-					| TAnon an -> gctx.anon_identification#convert_fields an.a_fields
+					| TAnon an -> convert_fields gctx an.a_fields
 					| _ -> assert false
 				in
 				jm#construct ConstructInit td.t_path (fun () ->
@@ -2716,6 +2721,16 @@ module Preprocessor = struct
 		["haxe";"root"],snd path
 
 	let preprocess gctx =
+		(* go through com.modules so we can also pick up private typedefs *)
+		List.iter (fun m ->
+			List.iter (fun mt -> match mt with
+				| TTypeDecl td ->
+					gctx.anon_identification#identify_typedef td
+				| _ ->
+					()
+			) m.m_types
+		) gctx.com.modules;
+		(* preprocess classes *)
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
@@ -2723,10 +2738,9 @@ module Preprocessor = struct
 				if debug_path c.cl_path && not c.cl_interface then gctx.preprocessor#preprocess_class c
 			| TEnumDecl en ->
 				if fst en.e_path = [] then en.e_path <- make_root en.e_path;
-			| TTypeDecl td ->
-				gctx.anon_identification#identify_typedef td;
 			| _ -> ()
 		) gctx.com.types;
+		(* find typedef-interface implementations *)
 		List.iter (fun mt -> match mt with
 			| TClassDecl c when debug_path c.cl_path && not c.cl_interface && not c.cl_extern ->
 				gctx.typedef_interfaces#process_class c;
@@ -2755,12 +2769,13 @@ let generate com =
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
 	let jar_dir = add_trailing_slash com.file in
 	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
-		anon_identification = Obj.magic ();
+		anon_identification = anon_identification;
 		preprocessor = Obj.magic ();
 		typedef_interfaces = Obj.magic ();
 		current_field_info = None;
@@ -2768,7 +2783,6 @@ let generate com =
 			export_debug = com.debug;
 		}
 	} in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path (jsignature_of_type gctx) in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
@@ -2807,7 +2821,7 @@ let generate com =
 			| TAnon an -> an.a_fields
 			| _ -> assert false
 		in
-		let fields = anon_identification#convert_fields fields in
+		let fields = convert_fields gctx fields in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin
