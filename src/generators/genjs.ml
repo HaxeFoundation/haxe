@@ -1058,7 +1058,7 @@ let gen_class_static_field ctx c cl_path f =
 			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ (static_field ctx c f)) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -1278,7 +1278,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				process_expose cf.cf_meta (fun () -> dotp ^ (static_field ctx c cf)) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
+				process_expose cf.cf_meta (fun () -> dotp  ^ "." ^ cf.cf_name) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
 
 				false
 			| _ -> true
@@ -1496,7 +1496,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	let cl_path = get_generated_class_path c in
-	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ (static_field ctx c f)) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
 	gen_value ctx e;
 	newline ctx
@@ -1644,7 +1644,7 @@ let generate com =
 				let add s = r := s :: !r in
 				process_expose c.cl_meta (fun () -> path) add;
 				List.iter (fun f ->
-					process_expose f.cf_meta (fun () -> path ^ static_field ctx c f) add
+					process_expose f.cf_meta (fun () -> path ^ "." ^ f.cf_name) add
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
