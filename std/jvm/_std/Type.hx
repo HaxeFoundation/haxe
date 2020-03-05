@@ -1,7 +1,7 @@
-import java.lang.invoke.*;
 import java.lang.NoSuchMethodException;
-import jvm.annotation.*;
+import java.lang.invoke.*;
 import jvm.Jvm;
+import jvm.annotation.*;
 
 using jvm.NativeTools.NativeClassTools;
 using jvm.NativeTools.NativeEnumTools;
@@ -278,31 +278,9 @@ class Type {
 		if (a == null) {
 			return b == null;
 		}
-		if (b == null) {
-			return false;
-		}
 		var a:jvm.Enum<Dynamic> = cast a;
 		var b:jvm.Enum<Dynamic> = cast b;
-		if (a.ordinal() != b.ordinal()) {
-			return false;
-		}
-		var params1 = a._hx_getParameters();
-		var params2 = b._hx_getParameters();
-		if (params1.length != params2.length) {
-			return false;
-		}
-		for (i in 0...params1.length) {
-			if (params1[i] != params2[i]) {
-				if (Jvm.instanceof(params1[i], jvm.Enum)) {
-					if (!enumEq(params1[i], params2[i])) {
-						return false;
-					}
-				} else {
-					return false;
-				}
-			}
-		}
-		return true;
+		return a.equals(b);
 	}
 
 	public static function enumConstructor(e:EnumValue):String {

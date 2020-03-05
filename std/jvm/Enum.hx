@@ -31,6 +31,10 @@ class Enum<T> extends java.lang.Enum<T> {
 		super(name, index);
 	}
 
+	@:overload public function equals<T>(other:Enum<T>) {
+		return super.equals(other);
+	}
+
 	public function _hx_getParameters() {
 		return new java.NativeArray(0);
 	}
