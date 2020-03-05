@@ -32,7 +32,6 @@ import java.NativeArray;
 import java.lang.invoke.*;
 import jvm.DynamicObject;
 import jvm.EmptyConstructor;
-import jvm.Exception;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
 import jvm.annotation.EnumReflectionInformation;
