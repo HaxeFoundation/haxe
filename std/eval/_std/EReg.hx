@@ -23,15 +23,15 @@
 // don't get optimized away.
 @:coreApi
 extern class EReg {
-	public function new(r:String, opt:String):Void;
-	public function match(s:String):Bool;
-	public function matched(n:Int):String;
-	public function matchedLeft():String;
-	public function matchedRight():String;
-	public function matchedPos():{pos:Int, len:Int};
-	public function matchSub(s:String, pos:Int, len:Int = -1):Bool;
-	public function split(s:String):Array<String>;
-	public function replace(s:String, by:String):String;
-	public function map(s:String, f:EReg->String):String;
-	public static function escape(s:String):String;
+	function new(r:String, opt:String):Void;
+	function match(s:String):Bool;
+	function matched(n:Int):String;
+	function matchedLeft():String;
+	function matchedRight():String;
+	function matchedPos():{pos:Int, len:Int};
+	function matchSub(s:String, pos:Int, len:Int = -1):Bool;
+	function split(s:String):Array<String>;
+	function replace(s:String, by:String):String;
+	function map(s:String, f:EReg->String):String;
+	static function escape(s:String):String;
 }

@@ -28,10 +28,10 @@ using cpp.NativeString;
 @:include("hx/StdString.h")
 @:structAccess
 extern class StdStringRef {
-	public function c_str():ConstPointer<Char>;
-	public function size():Int;
-	public function find(s:String):Int;
-	public function substr(pos:Int, len:Int):StdString;
-	public function toString():String;
-	public function toStdString():StdString;
+	function c_str():ConstPointer<Char>;
+	function size():Int;
+	function find(s:String):Int;
+	function substr(pos:Int, len:Int):StdString;
+	function toString():String;
+	function toStdString():StdString;
 }

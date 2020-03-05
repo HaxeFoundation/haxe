@@ -61,19 +61,19 @@ extern class Syntax {
 	extern static function _newInstance(c:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function isIn(a:Dynamic, b:Dynamic):Bool;
+	extern static function isIn(a:Dynamic, b:Dynamic):Bool;
 
 	@:noUsing
-	extern public static function delete(a:Dynamic):Void;
+	extern static function delete(a:Dynamic):Void;
 
 	@:noUsing
-	extern public static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic;
+	extern static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic;
 
 	@:noUsing
-	extern public static function assign(a:Dynamic, b:Dynamic):Void;
+	extern static function assign(a:Dynamic, b:Dynamic):Void;
 
 	#if !macro
-	public static function code(code:String, args:Rest<Dynamic>):Dynamic;
+	static function code(code:String, args:Rest<Dynamic>):Dynamic;
 	#end
 
 	@:noUsing
@@ -86,7 +86,7 @@ extern class Syntax {
 
 	#if !macro
 	@:noUsing
-	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T;
+	static function _pythonCode<T>(b:String, args:Array<Dynamic>):T;
 	#end
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
@@ -101,7 +101,7 @@ extern class Syntax {
 	extern static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic;
 
 	@:noUsing
-	extern public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
+	extern static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
 
 	extern static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic;
 
@@ -142,7 +142,7 @@ extern class Syntax {
 	extern static function call(e:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function field(o:Dynamic, field:String):Dynamic;
+	extern static function field(o:Dynamic, field:String):Dynamic;
 
 	@:noUsing
 	macro public static function tuple(args:Array<Expr>):Dynamic {
@@ -153,7 +153,7 @@ extern class Syntax {
 	extern static function _tuple(args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function varArgs(args:Array<Dynamic>):Dynamic;
+	extern static function varArgs(args:Array<Dynamic>):Dynamic;
 
 	macro public static function callNamedUntyped(e:Expr, args:Expr):Expr {
 		return macro @:pos(e.pos) $self._callNamedUntyped($e, $args);
@@ -161,5 +161,5 @@ extern class Syntax {
 
 	extern static function _callNamedUntyped(e:Dynamic, args:Dynamic):Dynamic;
 
-	extern public static function opPow(a:Int, b:Int):Int;
+	extern static function opPow(a:Int, b:Int):Int;
 }
