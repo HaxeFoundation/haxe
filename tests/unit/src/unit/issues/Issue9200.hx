@@ -1,7 +1,7 @@
 package unit.issues;
 
 private enum Foo {
-	Bar(_:Int);
+	Bar(i:Int);
 }
 
 class Issue9200 extends unit.Test {
