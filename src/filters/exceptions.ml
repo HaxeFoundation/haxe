@@ -265,24 +265,6 @@ let catch_native ctx catches t p =
 									body
 							in
 							compose condition body rest
-						(* catch(e:NativeWildcardException) *)
-						else if fast_eq ctx.wildcard_catch_type current_t then
-							begin
-								set_needs_exception_stack catch_var;
-								(* this is a wildcard catch *)
-								let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
-								let body =
-									mk (TBlock [
-										(* var v:NativeWildcardException = catch_var; *)
-										if var_used then
-											mk (TVar (v, Some catch_local)) ctx.basic.tvoid null_pos
-										else
-											mk (TBlock[]) ctx.basic.tvoid null_pos;
-										body
-									]) body.etype body.epos
-								in
-								compose condition body rest
-							end
 						(* catch(e:Dynamic) *)
 						else if current_t == t_dynamic then
 							begin
@@ -294,6 +276,24 @@ let catch_native ctx catches t p =
 										(* var v:Dynamic = haxe_exception_local.unwrap(); *)
 										if var_used then
 											mk (TVar (v, Some (unwrap()))) ctx.basic.tvoid null_pos
+										else
+											mk (TBlock[]) ctx.basic.tvoid null_pos;
+										body
+									]) body.etype body.epos
+								in
+								compose condition body rest
+							end
+						(* catch(e:NativeWildcardException) *)
+						else if fast_eq ctx.wildcard_catch_type current_t then
+							begin
+								set_needs_exception_stack catch_var;
+								(* this is a wildcard catch *)
+								let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
+								let body =
+									mk (TBlock [
+										(* var v:NativeWildcardException = catch_var; *)
+										if var_used then
+											mk (TVar (v, Some catch_local)) ctx.basic.tvoid null_pos
 										else
 											mk (TBlock[]) ctx.basic.tvoid null_pos;
 										body
