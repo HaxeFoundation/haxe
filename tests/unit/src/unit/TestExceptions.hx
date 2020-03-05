@@ -30,6 +30,12 @@ private class CustomNativeException extends python.Exceptions.Exception {}
 private class CustomNativeException { public function new(m:String) {} }
 #end
 
+#if java
+private class NativeExceptionBase extends java.lang.RuntimeException {}
+private class NativeExceptionChild extends NativeExceptionBase {}
+private class NativeExceptionOther extends java.lang.RuntimeException {}
+#end
+
 private class NoConstructorValueException extends ValueException {}
 
 private class WithConstructorValueException extends ValueException {
@@ -296,4 +302,35 @@ class TestExceptions extends Test {
 		}
 		return result;
 	}
+
+#if java
+	function testCatchChain() {
+		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
+		eq("caught NativeExceptionBase: msg", raise(() -> throw new NativeExceptionBase("msg")));
+		eq("caught String: msg", raise(() -> throw "msg"));
+		eq("caught NativeExceptionOther: msg", raise(() -> throw new NativeExceptionOther("msg")));
+		eq("caught Int: 12", raise(() -> throw 12));
+		eq("caught Throwable: 12.1", raise(() -> throw 12.1));
+		eq("caught Throwable: false", raise(() -> throw false));
+		eq("caught Throwable: msg", raise(() -> throw new java.lang.Exception("msg")));
+	}
+
+	function raise<T>(f:Void -> String) {
+		return try {
+			f();
+		} catch(e:NativeExceptionChild) {
+			'caught NativeExceptionChild: ${e.getMessage()}';
+		} catch(e:NativeExceptionBase) {
+			'caught NativeExceptionBase: ${e.getMessage()}';
+		} catch(e:String) {
+			'caught String: $e';
+		} catch(e:NativeExceptionOther) {
+			'caught NativeExceptionOther: ${e.getMessage()}';
+		} catch(e:Int) {
+			'caught Int: $e';
+ 		} catch(e:java.lang.Throwable) {
+			'caught Throwable: ${e.getMessage()}';
+		}
+	}
+#end
 }

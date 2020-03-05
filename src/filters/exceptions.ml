@@ -242,12 +242,13 @@ let catch_native ctx catches t p =
 				let catch_var_used = ref false in
 				let rec transform = function
 					| (v, body) :: rest ->
+						let current_t = Abstract.follow_with_abstracts v.v_type in
 						let var_used = is_var_used v body in
 						(* catch(e:ExtendsHaxeError) *)
-						if is_haxe_exception v.v_type then
+						if is_haxe_exception current_t then
 							let condition =
 								(* catch(e:haxe.Exception) is a wildcard catch *)
-								if fast_eq ctx.haxe_exception_type (follow v.v_type) then
+								if fast_eq ctx.haxe_exception_type current_t then
 									mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
 								else begin
 									std_is ctx (get_haxe_exception()) v.v_type v.v_pos
@@ -264,11 +265,29 @@ let catch_native ctx catches t p =
 									body
 							in
 							compose condition body rest
-						(* catch(e:Dynamic) *)
-						else if (follow v.v_type) == t_dynamic then
+						(* catch(e:NativeWildcardException) *)
+						else if fast_eq ctx.wildcard_catch_type current_t then
 							begin
 								set_needs_exception_stack catch_var;
-								(* catch(e:Dynamic) is a wildcard catch *)
+								(* this is a wildcard catch *)
+								let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
+								let body =
+									mk (TBlock [
+										(* var v:NativeWildcardException = catch_var; *)
+										if var_used then
+											mk (TVar (v, Some catch_local)) ctx.basic.tvoid null_pos
+										else
+											mk (TBlock[]) ctx.basic.tvoid null_pos;
+										body
+									]) body.etype body.epos
+								in
+								compose condition body rest
+							end
+						(* catch(e:Dynamic) *)
+						else if current_t == t_dynamic then
+							begin
+								set_needs_exception_stack catch_var;
+								(* this is a wildcard catch *)
 								let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
 								let body =
 									mk (TBlock [
