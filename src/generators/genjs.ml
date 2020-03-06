@@ -365,8 +365,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert (ctx.es_version >= 6); spr ctx "super"
 
-let print_deprecation_message com msg p =
-	com.warning msg p
+let print_deprecation_message = DeprecationCheck.warn_deprecation
 
 let is_code_injection_function e =
 	match e.eexpr with
@@ -408,7 +407,7 @@ let rec gen_call ctx e el in_value =
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
 		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
@@ -1648,14 +1647,14 @@ let generate com =
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
-		!r 
+		!r
 	end in
 	let anyExposed = exposed <> [] in
 	let exposedObject = { os_name = ""; os_fields = [] } in
 	let toplevelExposed = ref [] in
 	if anyExposed then begin
 		let exportMap = Hashtbl.create 0 in
-		List.iter (fun path -> 
+		List.iter (fun path ->
 			let parts = ExtString.String.nsplit path "." in
 			let rec loop p pre =
 				match p with

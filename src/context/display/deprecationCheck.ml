@@ -95,3 +95,30 @@ let run com =
 		| _ ->
 			()
 	) com.types
+
+let if_enabled ?(force=false) com fn =
+	if force || not (defined com Define.NoDeprecationWarnings) then fn()
+
+let warn_deprecation ?(force=false) com s p_usage = if_enabled ~force com (fun() -> warn_deprecation com s p_usage)
+
+let print_deprecation_message ?(force=false) com meta s p_usage = if_enabled ~force com (fun() -> print_deprecation_message com meta s p_usage)
+
+let check_meta ?(force=false) com meta s p_usage = if_enabled ~force com (fun() -> check_meta com meta s p_usage)
+
+let check_cf ?(force=false) com cf p = if_enabled ~force com (fun() -> check_cf com cf p)
+
+let check_class ?(force=false) com c p = if_enabled ~force com (fun() -> check_class com c p)
+
+let check_enum ?(force=false) com en p = if_enabled ~force com (fun() -> check_enum com en p)
+
+let check_ef ?(force=false) com ef p = if_enabled ~force com (fun() -> check_ef com ef p)
+
+let check_typedef ?(force=false) com t p = if_enabled ~force com (fun() -> check_typedef com t p)
+
+let check_module_type ?(force=false) com mt p = if_enabled ~force com (fun() -> check_module_type com mt p)
+
+let run_on_expr ?(force=false) com e = if_enabled ~force com (fun() -> run_on_expr com e)
+
+let run_on_field ?(force=false) com cf = if_enabled ~force com (fun() -> run_on_field com cf)
+
+let run ?(force=false) com = if_enabled ~force com (fun() -> run com)

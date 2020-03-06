@@ -609,8 +609,7 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		DeprecationCheck.run com;
+	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
 
