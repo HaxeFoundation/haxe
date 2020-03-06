@@ -2501,63 +2501,63 @@ class tclass_to_jvm gctx c = object(self)
 		let offset = jc#get_pool#add_string ssig in
 		jm#add_attribute (AttributeSignature offset)
 
-		method generate_main =
-			let jsig = method_sig [array_sig string_sig] None in
-			let jm = jc#spawn_method "main" jsig [MPublic;MStatic] in
-			let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
-			if has_feature gctx.com "haxe.root.Sys.args" then begin
-				load();
-				jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
-			end;
-			jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
-			jm#invokestatic jc#get_this_path "main" (method_sig [] None);
-			jm#return
+	method generate_main =
+		let jsig = method_sig [array_sig string_sig] None in
+		let jm = jc#spawn_method "main" jsig [MPublic;MStatic] in
+		let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
+		if has_feature gctx.com "haxe.root.Sys.args" then begin
+			load();
+			jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
+		end;
+		jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
+		jm#invokestatic jc#get_this_path "main" (method_sig [] None);
+		jm#return
 
-		method private generate_fields =
-			let field mtype cf = match cf.cf_kind with
-				| Method (MethNormal | MethInline) ->
-					List.iter (fun cf ->
-						failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
-						if cf.cf_name = "main" then self#generate_main;
-					) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
-				| _ ->
-					if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
-			in
-			List.iter (field MStatic) c.cl_ordered_statics;
-			List.iter (field MInstance) c.cl_ordered_fields;
-			begin match c.cl_constructor,c.cl_super with
-				| Some cf,Some _ -> field MConstructor cf
-				| Some cf,None -> field MConstructor cf
-				| None,_ -> ()
-			end;
-			begin match c.cl_init with
-				| None ->
-					()
-				| Some e ->
-					let jm = jc#get_static_init_method in
-					let handler = new texpr_to_jvm gctx jc jm None in
-					handler#texpr RReturn (mk_block e);
-			end
+	method private generate_fields =
+		let field mtype cf = match cf.cf_kind with
+			| Method (MethNormal | MethInline) ->
+				List.iter (fun cf ->
+					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
+					if cf.cf_name = "main" then self#generate_main;
+				) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
+			| _ ->
+				if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
+		in
+		List.iter (field MStatic) c.cl_ordered_statics;
+		List.iter (field MInstance) c.cl_ordered_fields;
+		begin match c.cl_constructor,c.cl_super with
+			| Some cf,Some _ -> field MConstructor cf
+			| Some cf,None -> field MConstructor cf
+			| None,_ -> ()
+		end;
+		begin match c.cl_init with
+			| None ->
+				()
+			| Some e ->
+				let jm = jc#get_static_init_method in
+				let handler = new texpr_to_jvm gctx jc jm None in
+				handler#texpr RReturn (mk_block e);
+		end
 
 	method private generate_signature =
-			let stl = match c.cl_params with
-				| [] -> ""
-				| params ->
-					let stl = String.concat "" (List.map (fun (n,_) ->
-						Printf.sprintf "%s:Ljava/lang/Object;" n
-					) c.cl_params) in
-					Printf.sprintf "<%s>" stl
-			in
-			let ssuper = match c.cl_super with
-				| Some(c,tl) -> generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
-				| None -> generate_method_signature true object_sig
-			in
-			let sinterfaces = String.concat "" (List.map (fun(c,tl) ->
-				generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
-			) c.cl_implements) in
-			let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
-			let offset = jc#get_pool#add_string s in
-			jc#add_attribute (AttributeSignature offset)
+		let stl = match c.cl_params with
+			| [] -> ""
+			| params ->
+				let stl = String.concat "" (List.map (fun (n,_) ->
+					Printf.sprintf "%s:Ljava/lang/Object;" n
+				) c.cl_params) in
+				Printf.sprintf "<%s>" stl
+		in
+		let ssuper = match c.cl_super with
+			| Some(c,tl) -> generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
+			| None -> generate_method_signature true object_sig
+		in
+		let sinterfaces = String.concat "" (List.map (fun(c,tl) ->
+			generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
+		) c.cl_implements) in
+		let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
+		let offset = jc#get_pool#add_string s in
+		jc#add_attribute (AttributeSignature offset)
 
 	method generate_annotations =
 		AnnotationHandler.generate_annotations (jc :> JvmBuilder.base_builder) c.cl_meta;
@@ -2767,7 +2767,6 @@ let generate_module_type ctx mt =
 		match mt with
 		| TClassDecl c when not c.cl_extern && debug_path c.cl_path -> generate_class ctx c
 		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
-		| TAbstractDecl a when not (is_extern_abstract a) && Meta.has Meta.CoreType a.a_meta -> generate_abstract ctx a
 		| _ -> ()
 	)
 
@@ -2780,6 +2779,7 @@ module Preprocessor = struct
 		List.iter (fun m ->
 			List.iter (fun mt -> match mt with
 				| TTypeDecl td ->
+					if fst td.t_path = [] then td.t_path <- make_root td.t_path;
 					gctx.anon_identification#identify_typedef td
 				| _ ->
 					()
