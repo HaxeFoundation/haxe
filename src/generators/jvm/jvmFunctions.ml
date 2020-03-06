@@ -62,7 +62,7 @@ let declassify = function
 	| CBool -> TBool
 	| CObject -> object_path_sig object_path
 
-class waneck_functions = object(self)
+class typed_functions = object(self)
 	val signatures = Hashtbl.create 0
 	val mutable max_arity = 0
 
@@ -271,8 +271,8 @@ class waneck_functions = object(self)
 end
 
 
-class waneck_function
-	(waneck : waneck_functions)
+class typed_function
+	(functions : typed_functions)
 	(host_class : JvmClass.builder)
 	(host_method : JvmMethod.builder)
 	(context : (string * jsignature) list)
@@ -299,14 +299,14 @@ class waneck_function
 
 	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option)=
 		let arg_sigs = List.map snd args in
-		let meth = waneck#register_signature arg_sigs ret in
+		let meth = functions#register_signature arg_sigs ret in
 		let jsig_invoke = method_sig arg_sigs ret in
 		let jm_invoke = jc_closure#spawn_method meth.name jsig_invoke [MPublic] in
 		let rec loop meth =
 			begin match meth.next with
 			| Some meth_next ->
 				let jm_invoke_next = jc_closure#spawn_method meth_next.name (method_sig meth_next.dargs meth_next.dret) [MPublic] in
-				waneck#make_forward_method jc_closure jm_invoke_next meth_next meth;
+				functions#make_forward_method jc_closure jm_invoke_next meth_next meth;
 				loop meth_next;
 			| None ->
 				()

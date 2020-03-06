@@ -73,7 +73,7 @@ type generation_context = {
 	mutable anon_identification : jsignature tanon_identification;
 	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
-	waneck : JvmFunctions.waneck_functions;
+	typed_functions : JvmFunctions.typed_functions;
 	closure_paths : (path * string * jsignature,path) Hashtbl.t;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
@@ -368,7 +368,7 @@ let generate_equals_function (jc : JvmClass.builder) jsig_arg =
 let create_field_closure gctx jc path_this jm name jsig =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
-	let wf = new JvmFunctions.waneck_function gctx.waneck jc jm context in
+	let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
 	let jc_closure = wf#get_class in
 	ignore(wf#generate_constructor true);
 	let args,ret = match jsig with
@@ -513,7 +513,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		) outside in
 		let env = if accesses_this then ((0,("this",jc#get_jsig)) :: env) else env in
 		let context = List.map snd env in
-		let wf = new JvmFunctions.waneck_function gctx.waneck jc jm context in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
 		let args,ret =
@@ -601,7 +601,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let closure_path = try
 			Hashtbl.find gctx.closure_paths (path,name,jsig)
 		with Not_found ->
-			let wf = new JvmFunctions.waneck_function gctx.waneck jc jm [] in
+			let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm [] in
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
 			let jm_invoke = wf#generate_invoke args ret in
@@ -1382,7 +1382,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let invoke t =
 			jm#cast haxe_function_sig;
 			let tl,tr = self#call_arguments t el in
-			let meth = gctx.waneck#register_signature tl tr in
+			let meth = gctx.typed_functions#register_signature tl tr in
 			jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 			tr
 		in
@@ -2833,7 +2833,7 @@ let generate com =
 		anon_identification = anon_identification;
 		preprocessor = Obj.magic ();
 		typedef_interfaces = Obj.magic ();
-		waneck = new JvmFunctions.waneck_functions;
+		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
 		current_field_info = None;
 		default_export_config = {
@@ -2934,7 +2934,7 @@ let generate com =
 					load();
 				) locals;
 				let jret = return_of_type gctx tr in
-				let meth = gctx.waneck#register_signature (List.map snd locals) jret in
+				let meth = gctx.typed_functions#register_signature (List.map snd locals) jret in
 				jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 				Option.may jm#cast jret;
 				jm#return
@@ -2942,10 +2942,10 @@ let generate com =
 		end;
 		write_class gctx.jar path (jc#export_class gctx.default_export_config)
 	) gctx.anon_identification#get_anons;
-	let jc_waneck = gctx.waneck#generate in
-	write_class gctx.jar jc_waneck#get_this_path (jc_waneck#export_class gctx.default_export_config);
-	let jc_varargs = gctx.waneck#generate_var_args in
+	let jc_function = gctx.typed_functions#generate in
+	write_class gctx.jar jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
+	let jc_varargs = gctx.typed_functions#generate_var_args in
 	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
-	let jc_closure_dispatch = gctx.waneck#generate_closure_dispatch in
+	let jc_closure_dispatch = gctx.typed_functions#generate_closure_dispatch in
 	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config);
 	Zip.close_out gctx.jar
