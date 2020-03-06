@@ -167,10 +167,10 @@ class waneck_functions = object(self)
 		jm#finalize_arguments;
 		load();
 		jm#get_code#arraylength array_sig;
-		let cases = List.init max_arity (fun i ->
+		let cases = ExtList.List.init max_arity (fun i ->
 			[Int32.of_int i],(fun () ->
 				jm#load_this;
-				let args = List.init i (fun index ->
+				let args = ExtList.List.init i (fun index ->
 					load();
 					jm#get_code#iconst (Int32.of_int index);
 					jm#get_code#aaload array_sig object_sig;
