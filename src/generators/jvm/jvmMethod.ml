@@ -884,6 +884,13 @@ class builder jc name jsig = object(self)
 		if Array.length stack_map_table > 0 then
 			DynArray.add attributes (AttributeStackMapTable stack_map_table);
 		let exceptions = Array.of_list (List.rev exceptions) in
+		if config.export_debug then begin match debug_locals with
+		| [] ->
+			()
+		| _ ->
+			let a = Array.of_list debug_locals in
+			DynArray.add attributes (AttributeLocalVariableTable a);
+		end;
 		let attributes = List.map (JvmAttribute.write_attribute jc#get_pool) (DynArray.to_list attributes) in
 		{
 			code_max_stack = code#get_max_stack_size;
@@ -904,13 +911,6 @@ class builder jc name jsig = object(self)
 		end;
 		if Hashtbl.length thrown_exceptions > 0 then
 			self#add_attribute (AttributeExceptions (Array.of_list (Hashtbl.fold (fun k _ c -> k :: c) thrown_exceptions [])));
-		if config.export_debug then begin match debug_locals with
-		| [] ->
-			()
-		| _ ->
-			let a = Array.of_list debug_locals in
-			self#add_attribute (AttributeLocalVariableTable a);
-		end;
 		let attributes = self#export_attributes jc#get_pool in
 		let offset_name = jc#get_pool#add_string name in
 		let jsig = generate_method_signature false jsig in
