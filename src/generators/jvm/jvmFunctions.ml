@@ -148,7 +148,16 @@ class waneck_functions = object(self)
 		in
 		loop args meth_to.dargs;
 		jm#invokevirtual jc#get_this_path meth_to.name (method_sig meth_to.dargs meth_to.dret);
-		Option.may jm#cast meth_from.dret;
+		begin match meth_from.dret,meth_to.dret with
+		| None,None ->
+			()
+		| Some jsig,Some _ ->
+			jm#cast jsig;
+		| None,Some jsig ->
+			jm#get_code#pop
+		| Some jsig,None ->
+			jm#load_default_value jsig;
+		end;
 		jm#return;
 
 	method generate_invoke_dynamic (jc : JvmClass.builder) =
@@ -247,14 +256,9 @@ class waneck_function
 		let rec loop meth =
 			begin match meth.next with
 			| Some meth_next ->
-				begin match meth.dret,meth_next.dret with
-				| None,Some _ ->
-					()
-				| _ ->
-					let jm_invoke_next = jc_closure#spawn_method meth_next.name (method_sig meth_next.dargs meth_next.dret) [MPublic] in
-					waneck#make_forward_method jc_closure jm_invoke_next meth_next meth;
-					loop meth_next;
-				end
+				let jm_invoke_next = jc_closure#spawn_method meth_next.name (method_sig meth_next.dargs meth_next.dret) [MPublic] in
+				waneck#make_forward_method jc_closure jm_invoke_next meth_next meth;
+				loop meth_next;
 			| None ->
 				()
 			end;

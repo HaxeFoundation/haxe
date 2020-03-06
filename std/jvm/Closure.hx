@@ -65,3 +65,29 @@ class Closure extends Function {
 		return invokeDynamic(NativeArray.make(arg1, arg2));
 	}
 }
+
+@:keep
+class VarArgs extends Function {
+	var func:Function;
+
+	public function new(func:Function) {
+		super();
+		this.func = func;
+	}
+
+	@:overload public function invokeObject():Dynamic {
+		return func.invokeObject(cast []);
+	}
+
+	@:overload public function invokeObject(arg1:Dynamic):Dynamic {
+		return func.invokeObject(cast [arg1]);
+	}
+
+	@:overload public function invokeObject(arg1:Dynamic, arg2:Dynamic):Dynamic {
+		return func.invokeObject(cast [arg1, arg2]);
+	}
+
+	@:overload public function invokeObject(arg1:Dynamic, arg2:Dynamic, arg3:Dynamic):Dynamic {
+		return func.invokeObject(cast [arg1, arg2, arg3]);
+	}
+}
