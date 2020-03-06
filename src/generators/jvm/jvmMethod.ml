@@ -320,7 +320,8 @@ class builder jc name jsig = object(self)
 				code#return_void
 			| Some jsig ->
 				code#return_value jsig
-			end
+			end;
+			self#set_terminated true;
 		| _ ->
 			assert false
 
@@ -375,20 +376,6 @@ class builder jc name jsig = object(self)
 			| TBool -> unwrap_null "Boolean" "toBoolean"
 			| _ -> ()
 		end
-
-	method adapt_method jsig =
-		()
-		(* let offset = code#get_pool#add_string (generate_method_signature false jsig) in
-		let offset = code#get_pool#add (ConstMethodType offset) in
-		self#get_code#dup;
-		self#if_then
-			(fun () -> self#get_code#if_null_ref jsig)
-			(fun () ->
-				code#ldc offset method_type_sig;
-				self#invokevirtual method_handle_path "asType" (method_sig [method_type_sig] (Some method_handle_sig))
-			);
-		ignore(code#get_stack#pop);
-		code#get_stack#push jsig; *)
 
 	(** Casts the top of the stack to [jsig]. If [allow_to_string] is true, Jvm.toString is called. **)
 	method cast ?(not_null=false) ?(allow_to_string=false) jsig =
@@ -570,12 +557,6 @@ class builder jc name jsig = object(self)
 				code#checkcast path1;
 		| TObject(path,_),TTypeParameter _ ->
 			code#checkcast path
-		| TMethod _,TMethod _ ->
-			if jsig <> jsig' then self#adapt_method jsig;
-		| TMethod _,TObject((["java";"lang";"invoke"],"MethodHandle"),_) ->
-			self#adapt_method jsig;
-		| TObject((["java";"lang";"invoke"],"MethodHandle"),_),TMethod _ ->
-			()
 		| TMethod _,_ ->
 			code#checkcast (["java";"lang";"invoke"],"MethodHandle");
 		| TArray(jsig1,_),TArray(jsig2,_) when jsig1 = jsig2 ->
@@ -666,12 +647,17 @@ class builder jc name jsig = object(self)
 
 		If [is_exhaustive] is true and [def] is None, the first case is used as the default case.
 	**)
-	method int_switch (is_exhaustive : bool) (cases : (Int32.t list * (unit -> unit)) list) (def : (unit -> unit) option) =
-		let def,cases = match def,cases with
-			| None,(_,ec) :: cases when is_exhaustive ->
-				Some ec,cases
+	method int_switch (need_val : bool) (cases : (Int32.t list * (unit -> unit)) list) (def : (unit -> unit) option) =
+		let def = match def with
+			| None when need_val ->
+				Some (fun () ->
+					self#string "Match failure";
+					self#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+					self#get_code#athrow;
+					self#set_terminated true;
+				)
 			| _ ->
-				def,cases
+				def
 		in
 		let flat_cases = DynArray.create () in
 		let case_lut = ref Int32Map.empty in

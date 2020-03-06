@@ -45,8 +45,6 @@ class Jvm {
 
 	extern static public function referenceEquals<T>(v1:T, v2:T):Bool;
 
-	extern static public function invokedynamic<T>(bootstrapMethod:Function, fieldName:String, staticArguments:Array<Dynamic>, rest:Rest<Dynamic>):T;
-
 	static public function stringCompare(v1:String, v2:String):Int {
 		if (v1 == null) {
 			return v2 == null ? 0 : 1;
@@ -285,11 +283,6 @@ class Jvm {
 			return;
 		}
 		throw 'Cannot array-write on $obj';
-	}
-
-	static public function bootstrap(caller:MethodHandles.MethodHandles_Lookup, name:String, type:MethodType):CallSite {
-		var handle = caller.findStatic(caller.lookupClass(), name, type);
-		return new ConstantCallSite(handle);
 	}
 
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
