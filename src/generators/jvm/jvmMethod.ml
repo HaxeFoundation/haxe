@@ -125,12 +125,16 @@ class builder jc name jsig = object(self)
 							| None -> failwith ("Uninitialized local " ^ name);
 							| Some fp -> fp
 						in
+						let t = match t with
+							| TUninitialized None -> TObject(jc#get_this_path,[])
+							| _ -> t
+						in
 						let ld = {
 							ld_start_pc = fp;
 							ld_length = fp_end - fp;
 							ld_name_index = jc#get_pool#add_string name;
 							ld_descriptor_index = jc#get_pool#add_string (generate_signature false t);
-							ld_index = old_offset + i - 1;
+							ld_index = old_offset + i - (signature_size t);
 						} in
 						debug_locals <- ld :: debug_locals;
 						loop (i - (signature_size t)) l
