@@ -49,6 +49,12 @@ and jsignature =
 (* ( jsignature list ) ReturnDescriptor (| V | jsignature) *)
 and jmethod_signature = jsignature list * jsignature option
 
+let rec has_type_parameter = function
+	| TTypeParameter _ -> true
+	| TArray(jsig,_) -> has_type_parameter jsig
+	| TObject(_,jsigs) -> List.exists (function TType(_,jsig) -> has_type_parameter jsig | _ -> false) jsigs
+	| _ -> false
+
 module NativeSignatures = struct
 	let object_path = ["java";"lang"],"Object"
 	let object_sig = TObject(object_path,[])

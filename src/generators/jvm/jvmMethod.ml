@@ -129,13 +129,7 @@ class builder jc name jsig = object(self)
 							| TUninitialized None -> TObject(jc#get_this_path,[])
 							| _ -> t
 						in
-						let ld = {
-							ld_start_pc = fp;
-							ld_length = fp_end - fp;
-							ld_name_index = jc#get_pool#add_string name;
-							ld_descriptor_index = jc#get_pool#add_string (generate_signature false t);
-							ld_index = old_offset + i - (signature_size t);
-						} in
+						let ld = (fp,fp_end - fp,name,t,old_offset + i - (signature_size t)) in
 						debug_locals <- ld :: debug_locals;
 						loop (i - (signature_size t)) l
 					| [] ->
@@ -892,8 +886,24 @@ class builder jc name jsig = object(self)
 		| [] ->
 			()
 		| _ ->
-			let a = Array.of_list debug_locals in
-			DynArray.add attributes (AttributeLocalVariableTable a);
+			let type_locals = DynArray.create () in
+			let map (fp,length,name,jsig,index) =
+				let ld = {
+					ld_start_pc = fp;
+					ld_length = length;
+					ld_name_index = jc#get_pool#add_string name;
+					ld_descriptor_index = jc#get_pool#add_string (generate_signature false jsig);
+					ld_index = index;
+				} in
+				if has_type_parameter jsig then DynArray.add type_locals {ld with ld_descriptor_index = jc#get_pool#add_string (generate_signature true jsig)};
+				ld
+			in
+			let locals = Array.of_list (List.map map debug_locals) in
+			DynArray.add attributes (AttributeLocalVariableTable locals);
+			if DynArray.length type_locals > 0 then begin
+				let locals = DynArray.to_array type_locals in
+				DynArray.add attributes (AttributeLocalVariableTypeTable locals);
+			end
 		end;
 		let attributes = List.map (JvmAttribute.write_attribute jc#get_pool) (DynArray.to_list attributes) in
 		{
