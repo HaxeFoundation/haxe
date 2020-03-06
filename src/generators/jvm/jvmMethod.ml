@@ -301,15 +301,6 @@ class builder jc name jsig = object(self)
 			NativeArray.write code jasig jsig
 		) fl
 
-	(** Adds a closure to method [name] ob [path] with signature [jsig_method] to the constant pool.
-
-	    Also emits an instruction to load the closure.
-	**)
-	method read_closure is_static path name jsig_method =
-		let offset = code#get_pool#add_field path name jsig_method FKMethod in
-		let offset = code#get_pool#add (ConstMethodHandle((if is_static then 6 else 5), offset)) in
-		code#ldc offset jsig_method
-
 	(**
 		Emits a return instruction.
 	**)
