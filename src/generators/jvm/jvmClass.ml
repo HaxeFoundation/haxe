@@ -38,30 +38,14 @@ class builder path_this path_super = object(self)
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
 	val mutable closure_count = 0
-	val mutable bootstrap_methods = []
-	val mutable num_bootstrap_methods = 0
 	val mutable spawned_methods = []
-	val mutable field_init_method = None
+	val mutable static_init_method = None
 
 	method add_interface path =
 		interface_offsets <- (pool#add_path path) :: interface_offsets
 
 	method add_field (f : jvm_field) =
 		DynArray.add fields f
-
-	method get_bootstrap_method path name jsig (consts : jvm_constant_pool_index list) =
-		try
-			fst (List.assoc (path,name,consts) bootstrap_methods)
-		with Not_found ->
-			let offset = pool#add_field path name jsig FKMethod in
-			let offset = pool#add (ConstMethodHandle(6, offset)) in
-			let bm = {
-				bm_method_ref = offset;
-				bm_arguments = Array.of_list consts;
-			} in
-			bootstrap_methods <- ((path,name,consts),(offset,bm)) :: bootstrap_methods;
-			num_bootstrap_methods <- num_bootstrap_methods + 1;
-			num_bootstrap_methods - 1
 
 	method get_pool = pool
 
@@ -71,8 +55,15 @@ class builder path_this path_super = object(self)
 	method get_offset_this = offset_this
 	method get_access_flags = access_flags
 
+	method get_static_init_method = match static_init_method with
+		| Some jm -> jm
+		| None ->
+			let jm = self#spawn_method "<clinit>" (method_sig [] None) [MethodAccessFlags.MStatic] in
+			static_init_method <- Some jm;
+			jm
+
 	method get_next_closure_name =
-		let name = Printf.sprintf "hx_closure$%i" closure_count in
+		let name = Printf.sprintf "Closure$%i" closure_count in
 		closure_count <- closure_count + 1;
 		name
 
@@ -144,16 +135,14 @@ class builder path_this path_super = object(self)
 			self#add_attribute (AttributeInnerClasses a)
 		end
 
-	method private commit_bootstrap_methods =
-		match bootstrap_methods with
-		| [] ->
-			()
-		| _ ->
-			let l = List.fold_left (fun acc (_,(_,bm)) -> bm :: acc) [] bootstrap_methods in
-			self#add_attribute (AttributeBootstrapMethods (Array.of_list l))
-
 	method export_class (config : export_config) =
 		assert (not was_exported);
+		begin match static_init_method with
+		| None ->
+			()
+		| Some jm ->
+			if not jm#is_terminated then jm#return;
+		end;
 		was_exported <- true;
 		List.iter (fun (jm,pop_scope) ->
 			begin match pop_scope with
@@ -164,7 +153,6 @@ class builder path_this path_super = object(self)
 				self#add_field jm#export_field
 			end;
 		) (List.rev spawned_methods);
-		self#commit_bootstrap_methods;
 		self#commit_inner_classes;
 		self#commit_annotations pool;
 		let attributes = self#export_attributes pool in

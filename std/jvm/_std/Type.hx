@@ -260,7 +260,7 @@ class Type {
 		if (Jvm.instanceof(v, jvm.DynamicObject)) {
 			return TObject;
 		}
-		if (Jvm.instanceof(v, java.lang.invoke.MethodHandle)) {
+		if (Jvm.instanceof(v, jvm.Function)) {
 			return TFunction;
 		}
 		var c = (cast v : java.lang.Object).getClass();

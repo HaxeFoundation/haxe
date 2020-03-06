@@ -133,7 +133,7 @@ class builder pool = object(self)
 			match js,js' with
 			| (TObject _ | TTypeParameter _),(TObject _ | TTypeParameter _ | TArray _) -> () (* TODO ??? *)
 			| TMethod _,TMethod _ -> ()
-			| TMethod _,TObject((["java";"lang";"invoke"],"MethodHandle"),[]) -> ()
+			| TMethod _,TObject(path,[]) when path = NativeSignatures.haxe_function_path -> ()
 			| TTypeParameter _,TMethod _ -> ()
 			| TObject _,TMethod _ -> ()
 			| TMethod _,TObject _ -> ()

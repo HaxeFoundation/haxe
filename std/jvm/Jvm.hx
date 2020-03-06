@@ -45,8 +45,6 @@ class Jvm {
 
 	extern static public function referenceEquals<T>(v1:T, v2:T):Bool;
 
-	extern static public function invokedynamic<T>(bootstrapMethod:Function, fieldName:String, staticArguments:Array<Dynamic>, rest:Rest<Dynamic>):T;
-
 	static public function stringCompare(v1:String, v2:String):Int {
 		if (v1 == null) {
 			return v2 == null ? 0 : 1;
@@ -145,12 +143,8 @@ class Jvm {
 		return Some(callArgs);
 	}
 
-	static public function call(mh:java.lang.invoke.MethodHandle, args:NativeArray<Dynamic>) {
-		var params = mh.type().parameterArray();
-		return switch (unifyCallArguments(args, params, true)) {
-			case Some(args): mh.invokeWithArguments(args);
-			case None: mh.invokeWithArguments(args);
-		}
+	static public function call(func:jvm.Function, args:NativeArray<Dynamic>) {
+		return func.invokeDynamic(args);
 	}
 
 	// casts
@@ -287,11 +281,6 @@ class Jvm {
 		throw 'Cannot array-write on $obj';
 	}
 
-	static public function bootstrap(caller:MethodHandles.MethodHandles_Lookup, name:String, type:MethodType):CallSite {
-		var handle = caller.findStatic(caller.lookupClass(), name, type);
-		return new ConstantCallSite(handle);
-	}
-
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
 		var isStatic = instanceof(obj, java.lang.Class);
 		var cl = isStatic ? obj : (obj : java.lang.Object).getClass();
@@ -304,11 +293,11 @@ class Jvm {
 				var methods = cl.getMethods();
 				for (m in methods) {
 					if (m.getName() == name) {
-						var method = java.lang.invoke.MethodHandles.lookup().unreflect(m);
+						var context = null;
 						if (!isStatic || cl == cast java.lang.Class) {
-							method = method.bindTo(obj);
+							context = obj;
 						}
-						return method;
+						return new jvm.Closure(context, m);
 					}
 				}
 				if (isStatic) {
@@ -336,27 +325,27 @@ class Jvm {
 				case "length":
 					return (obj : String).length;
 				case "charAt":
-					return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "charAt") : Closure).bindTo(obj);
 				case "charCodeAt":
-					return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "charCodeAt") : Closure).bindTo(obj);
 				case "indexOf":
-					return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "indexOf") : Closure).bindTo(obj);
 				case "iterator":
 					return function() return new haxe.iterators.StringIterator(obj);
 				case "keyValueIterator":
 					return function() return new haxe.iterators.StringKeyValueIterator(obj);
 				case "lastIndexOf":
-					return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "lastIndexOf") : Closure).bindTo(obj);
 				case "split":
-					return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "split") : Closure).bindTo(obj);
 				case "substr":
-					return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "substr") : Closure).bindTo(obj);
 				case "substring":
-					return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "substring") : Closure).bindTo(obj);
 				case "toLowerCase":
-					return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "toLowerCase") : Closure).bindTo(obj);
 				case "toUpperCase":
-					return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "toUpperCase") : Closure).bindTo(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);

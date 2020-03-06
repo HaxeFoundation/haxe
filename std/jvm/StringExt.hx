@@ -25,6 +25,7 @@ package jvm;
 import java.NativeString;
 
 @:native("haxe.jvm.StringExt")
+@:keep
 class StringExt {
 	public static function fromCharCode(code:Int):String {
 		var a = new java.NativeArray(1);
