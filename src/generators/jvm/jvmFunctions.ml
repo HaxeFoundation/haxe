@@ -188,6 +188,55 @@ class waneck_functions = object(self)
 		) in
 		ignore(jm#int_switch true cases (Some def));
 
+	method generate_closure_dispatch =
+		let jc = new JvmClass.builder (["haxe";"jvm"],"ClosureDispatch") haxe_function_path in
+		jc#add_access_flag 1; (* public *)
+		let jm_ctor = jc#spawn_method "<init>" (method_sig [] None) [MPublic] in
+		jm_ctor#finalize_arguments;
+		jm_ctor#load_this;
+		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
+		jm_ctor#return;
+		let rec loop args i =
+			let jsig = method_sig args (Some object_sig) in
+			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let vars = ExtList.List.init i (fun i ->
+				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
+			) in
+			jm#load_this;
+			jm#new_native_array object_sig (List.map (fun (_,load,_) () -> load()) vars);
+			jm#invokevirtual haxe_function_path "invokeDynamic" (method_sig [array_sig object_sig] (Some object_sig));
+			jm#return;
+			if i < max_arity then loop (object_sig :: args) (i + 1)
+		in
+		loop [] 0;
+		jc
+
+	method generate_var_args =
+		let jc = new JvmClass.builder (["haxe";"jvm"],"VarArgs") haxe_function_path in
+		jc#add_access_flag 1; (* public *)
+		let jm_ctor = jc#spawn_method "<init>" (method_sig [haxe_function_sig] None) [MPublic] in
+		jm_ctor#add_argument_and_field "func" haxe_function_sig;
+		jm_ctor#finalize_arguments;
+		jm_ctor#load_this;
+		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
+		jm_ctor#return;
+		let rec loop args i =
+			let jsig = method_sig args (Some object_sig) in
+			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let vars = ExtList.List.init i (fun i ->
+				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
+			) in
+			jm#load_this;
+			jm#getfield jc#get_this_path "func" haxe_function_sig;
+			jm#new_native_array object_sig (List.map (fun (_,load,_) () -> load()) vars);
+			jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
+			jm#invokevirtual haxe_function_path "invokeObject" (method_sig [object_sig] (Some object_sig));
+			jm#return;
+			if i < max_arity then loop (object_sig :: args) (i + 1)
+		in
+		loop [] 0;
+		jc
+
 	method generate =
 		let l = Hashtbl.fold (fun _ v acc -> v :: acc) signatures [] in
 		let l = List.sort (fun meth1 meth2 -> compare (meth1.arity,meth1.sort_string) (meth2.arity,meth2.sort_string)) l in

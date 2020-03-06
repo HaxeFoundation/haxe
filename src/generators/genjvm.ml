@@ -2944,4 +2944,8 @@ let generate com =
 	) gctx.anon_identification#get_anons;
 	let jc_waneck = gctx.waneck#generate in
 	write_class gctx.jar jc_waneck#get_this_path (jc_waneck#export_class gctx.default_export_config);
+	let jc_varargs = gctx.waneck#generate_var_args in
+	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
+	let jc_closure_dispatch = gctx.waneck#generate_closure_dispatch in
+	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config);
 	Zip.close_out gctx.jar

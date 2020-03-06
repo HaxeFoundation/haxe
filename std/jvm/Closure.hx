@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 @:native("haxe.jvm.Closure")
 @:nativeGen
 @:keep
-class Closure extends Function {
+class Closure extends ClosureDispatch {
 	public var context:Dynamic;
 	public var method:Method;
 
@@ -52,42 +52,14 @@ class Closure extends Function {
 			throw e.getCause();
 		}
 	}
-
-	@:overload public function invokeObject():Dynamic {
-		return invokeDynamic(new NativeArray(0));
-	}
-
-	@:overload public function invokeObject(arg1:Dynamic):Dynamic {
-		return invokeDynamic(NativeArray.make(arg1));
-	}
-
-	@:overload public function invokeObject(arg1:Dynamic, arg2:Dynamic):Dynamic {
-		return invokeDynamic(NativeArray.make(arg1, arg2));
-	}
 }
 
-@:keep
-class VarArgs extends Function {
+@:native("haxe.jvm.ClosureDispatch")
+extern class ClosureDispatch extends Function {}
+
+@:native("haxe.jvm.VarArgs")
+extern class VarArgs extends Function {
 	var func:Function;
 
-	public function new(func:Function) {
-		super();
-		this.func = func;
-	}
-
-	@:overload public function invokeObject():Dynamic {
-		return func.invokeObject(cast []);
-	}
-
-	@:overload public function invokeObject(arg1:Dynamic):Dynamic {
-		return func.invokeObject(cast [arg1]);
-	}
-
-	@:overload public function invokeObject(arg1:Dynamic, arg2:Dynamic):Dynamic {
-		return func.invokeObject(cast [arg1, arg2]);
-	}
-
-	@:overload public function invokeObject(arg1:Dynamic, arg2:Dynamic, arg3:Dynamic):Dynamic {
-		return func.invokeObject(cast [arg1, arg2, arg3]);
-	}
+	public function new(func:Function):Void;
 }
