@@ -2223,8 +2223,7 @@ class tclass_to_jvm gctx c = object(self)
 			jc#add_interface (["java";"lang";"annotation"],"Annotation");
 			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
 			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
-		end;
-		if c.cl_path = (["haxe";"jvm"],"Enum") then jc#add_access_flag 0x4000; (* enum *)
+		end
 
 	method private handle_relation_type_params =
 		let map_type_params t =
@@ -2638,7 +2637,6 @@ let generate_enum gctx en =
 	let jc_enum = new JvmClass.builder en.e_path haxe_enum_path in
 	jc_enum#add_access_flag 0x1; (* public *)
 	jc_enum#add_access_flag 0x400; (* abstract *)
-	jc_enum#add_access_flag 0x4000; (* enum *)
 	begin
 		let jsig = haxe_enum_sig (object_path_sig en.e_path) in
 		let s = generate_signature true jsig in
@@ -2669,7 +2667,6 @@ let generate_enum gctx en =
 		let jc_ctor = begin
 			let jc_ctor = jc_enum#spawn_inner_class None jc_enum#get_this_path (Some ef.ef_name) in
 			jc_ctor#add_access_flag 0x10; (* final *)
-			jc_ctor#add_access_flag 0x4000; (* enum *)
 			let jsig_method = method_sig jsigs None in
 			let jm_ctor = jc_ctor#spawn_method "<init>" jsig_method [MPublic] in
 			jm_ctor#load_this;
