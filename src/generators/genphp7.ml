@@ -1624,7 +1624,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
-				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
+				| TCall ({ eexpr = TIdent name}, args) when is_magic expr && not (defined ctx.pgc_common Define.NoDeprecationWarnings) ->
 					ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
 					self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
