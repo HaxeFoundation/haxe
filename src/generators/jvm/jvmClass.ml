@@ -63,7 +63,7 @@ class builder path_this path_super = object(self)
 			jm
 
 	method get_next_closure_name =
-		let name = Printf.sprintf "hx_closure$%i" closure_count in
+		let name = Printf.sprintf "Closure$%i" closure_count in
 		closure_count <- closure_count + 1;
 		name
 

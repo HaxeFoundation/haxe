@@ -73,6 +73,8 @@ type generation_context = {
 	mutable anon_identification : jsignature tanon_identification;
 	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
+	typed_functions : JvmFunctions.typed_functions;
+	closure_paths : (path * string * jsignature,path) Hashtbl.t;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
@@ -363,68 +365,63 @@ let generate_equals_function (jc : JvmClass.builder) jsig_arg =
 	save();
 	jm_equals,load
 
-class closure_context (jsig : jsignature) = object(self)
-	val lut = Hashtbl.create 0
-	val sigs = DynArray.create()
-
-	method add (var_id : int) (var_name : string) (var_sig : jsignature) =
-		DynArray.add sigs ((var_id,var_name),var_sig);
-		Hashtbl.add lut var_id (var_sig,var_name)
-
-	method get (code : JvmCode.builder) (var_id : int) =
-		let var_sig,var_name = Hashtbl.find lut var_id in
-		if DynArray.length sigs > 1 then begin
-			(-1),
+let create_field_closure gctx jc path_this jm name jsig =
+	let jsig_this = object_path_sig path_this in
+	let context = ["this",jsig_this] in
+	let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
+	let jc_closure = wf#get_class in
+	ignore(wf#generate_constructor true);
+	let args,ret = match jsig with
+		| TMethod(args,ret) ->
+			List.mapi (fun i jsig -> (Printf.sprintf "arg%i" i,jsig)) args,ret
+		| _ ->
+			assert false
+	in
+	let jm_invoke = wf#generate_invoke args ret in
+	let vars = List.map (fun (name,jsig) ->
+		jm_invoke#add_local name jsig VarArgument
+	) args in
+	jm_invoke#finalize_arguments;
+	jm_invoke#load_this;
+	jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
+	List.iter (fun (_,load,_) ->
+		load();
+	) vars;
+	jm_invoke#invokevirtual path_this name (method_sig (List.map snd args) ret);
+	jm_invoke#return;
+	(* equals *)
+	begin
+		let jm_equals,load = generate_equals_function jc_closure object_sig in
+		let code = jm_equals#get_code in
+		jm_equals#load_this;
+		jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
+		load();
+		jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
+		jm_equals#if_then
+			(fun () -> code#if_acmp_eq_ref jc_closure#get_jsig jc_closure#get_jsig)
 			(fun () ->
-				code#aload jsig 0;
-				let offset = code#get_pool#add_field self#get_path var_name var_sig FKField in
-				code#getfield offset jsig var_sig
-			),
-			(fun () ->
-				code#aload jsig 0;
-				let offset = code#get_pool#add_field self#get_path var_name var_sig FKField in
-				code#putfield offset jsig var_sig
-			)
-		end else begin
-			(-1),
-			(fun () ->
-				code#aload jsig 0;
-			),
-			(fun () ->
-				code#aload jsig 0;
-			)
-		end
+				code#bconst false;
+				jm_equals#return;
+			);
+		code#bconst true;
+		jm_equals#return;
+	end;
+	write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+	jc_closure#get_this_path
 
-	method get_constructor_sig =
-		method_sig (List.map snd (DynArray.to_list sigs)) None
-
-	method get_jsig = jsig
-	method get_path = match jsig with TObject(path,_) -> path | _ -> assert false
-
-	method get_args = DynArray.to_list sigs
-end
-
-let create_context_class gctx jc jm name vl = match vl with
-	| [(vid,vname,vsig)] ->
-		let jsig = get_boxed_type vsig in
-		let ctx_class = new closure_context jsig in
-		ctx_class#add vid vname jsig;
-		ctx_class
-	| _ ->
-		let jc = jc#spawn_inner_class (Some jm) object_path None in
-		let path = jc#get_this_path in
-		let ctx_class = new closure_context (object_path_sig path) in
-		let jsigs = List.map (fun (_,_,vsig) -> vsig) vl in
-		let jm_ctor = jc#spawn_method "<init>" (method_sig jsigs None) [MPublic] in
-		jm_ctor#load_this;
-		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
-		List.iter2 (fun (vid,vname,vtype) jsig ->
-			jm_ctor#add_argument_and_field vname jsig;
-			ctx_class#add vid vname jsig;
-		) vl jsigs;
-		jm_ctor#get_code#return_void;
-		write_class gctx.jar path (jc#export_class gctx.default_export_config);
-		ctx_class
+let create_field_closure gctx jc path_this jm name jsig f =
+	let jsig_this = object_path_sig path_this in
+	let closure_path = try
+		Hashtbl.find gctx.closure_paths (path_this,name,jsig)
+	with Not_found ->
+		let closure_path = create_field_closure gctx jc path_this jm name jsig in
+		Hashtbl.add gctx.closure_paths (path_this,name,jsig) closure_path;
+		closure_path
+	in
+	jm#construct ConstructInit closure_path (fun () ->
+		f();
+		[jsig_this]
+	)
 
 let rvalue_any = RValue None
 let rvalue_sig jsig = RValue (Some jsig)
@@ -461,14 +458,24 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		slot,load,store
 
 	method get_local_by_id (vid,vname) =
-		if vid = 0 then
+		if vid = 0 && env = None then
 			(0,(fun () -> jm#load_this),(fun () -> assert false))
 		else try
 			Hashtbl.find local_lookup vid
 		with Not_found -> try
 			begin match env with
 			| Some env ->
-				env#get code vid
+				let name,jsig = List.assoc vid env in
+				(-1,
+					(fun () ->
+						jm#load_this;
+						jm#getfield jc#get_this_path name jsig
+					),
+					(fun () ->
+						jm#load_this;
+						jm#putfield jc#get_this_path name jsig
+					)
+				)
 			| None ->
 				raise Not_found
 			end
@@ -478,8 +485,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method get_local v =
 		self#get_local_by_id (v.v_id,v.v_name)
 
-	method set_context (ctx : closure_context) =
-		env <- Some ctx
+	method set_env (env' : (int * (string * jsignature)) list) =
+		env <- Some env'
 
 	(* casting *)
 
@@ -493,69 +500,67 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| RValue (Some jsig) -> jm#cast jsig
 		| _ -> self#cast t
 
+	method make_static_closure_field (name : string) (jc_closure : JvmClass.builder) =
+		let jm_init = jc_closure#get_static_init_method in
+		let jf_closure = jc_closure#spawn_field name jc_closure#get_jsig [FdStatic;FdPublic] in
+		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
+		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
+
 	method tfunction e tf =
-		let name = jc#get_next_closure_name in
-		let outside = match Texpr.collect_captured_vars e with
-			| [],false ->
-				None
-			| vl,accesses_this ->
-				let vl = List.map (fun v -> v.v_id,v.v_name,jsignature_of_type gctx v.v_type) vl in
-				let vl = if accesses_this then (0,"this",jc#get_jsig) :: vl else vl in
-				let ctx_class = create_context_class gctx jc jm name vl in
-				Some ctx_class
-		in
-		let jsig =
-			let args = List.map (fun (v,cto) ->
-				if cto <> None then v.v_type <- self#mknull v.v_type;
-				self#vtype v.v_type
+		let outside,accesses_this = Texpr.collect_captured_vars e in
+		let env = List.map (fun v ->
+			v.v_id,(v.v_name,self#vtype v.v_type)
+		) outside in
+		let env = if accesses_this then ((0,("this",jc#get_jsig)) :: env) else env in
+		let context = List.map snd env in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
+		let jc_closure = wf#get_class in
+		ignore(wf#generate_constructor (env <> []));
+		let args,ret =
+			let args = List.map (fun (v,eo) ->
+				(* TODO: Can we do this differently? *)
+				if eo <> None then v.v_type <- self#mknull v.v_type;
+				v.v_name,self#vtype v.v_type
 			) tf.tf_args in
-			let args = match outside with
-				| None -> args
-				| Some ctx_class -> ctx_class#get_jsig :: args
-			in
-			method_sig args (if ExtType.is_void (follow tf.tf_type) then None else Some (self#vtype tf.tf_type))
+			args,(return_of_type gctx tf.tf_type)
 		in
-		begin
-			let jm = jc#spawn_method name jsig [MPublic;MStatic] in
-			let handler = new texpr_to_jvm gctx jc jm (return_of_type gctx tf.tf_type) in
-			begin match outside with
-			| None -> ()
-			| Some ctx_class ->
-				handler#set_context ctx_class;
-				let name = match ctx_class#get_args with
-					| [(_,name),_] -> name
-					| _ -> "_hx_ctx"
-				in
-				ignore(handler#add_named_local name ctx_class#get_jsig)
-			end;
-			let inits = List.map (fun (v,cto) ->
-				let _,load,save = handler#add_local v VarArgument in
-				match cto with
-				| Some e when (match e.eexpr with TConst TNull -> false | _ -> true) ->
-					let f () =
-						load();
-						let jsig = self#vtype v.v_type in
-						jm#if_then
-							(fun () -> jm#get_code#if_nonnull_ref jsig)
-							(fun () ->
-								handler#texpr (rvalue_sig jsig) e;
-								jm#cast jsig;
-								save();
-							)
-					in
-					Some f
-				| _ ->
-					None
-			) tf.tf_args in
-			jm#finalize_arguments;
-			List.iter (function
-				| None -> ()
-				| Some f -> f()
-			) inits;
-			handler#texpr RReturn tf.tf_expr;
+		let jm_invoke = wf#generate_invoke args ret in
+		let handler = new texpr_to_jvm gctx jc_closure jm_invoke ret in
+		handler#set_env env;
+		let args = List.map (fun (v,eo) ->
+			handler#add_local v VarArgument,v,eo
+		) tf.tf_args in
+		jm_invoke#finalize_arguments;
+		List.iter (fun ((_,load,save),v,eo) -> match eo with
+			| Some e when (match e.eexpr with TConst TNull -> false | _ -> true) ->
+				load();
+				let jsig = self#vtype v.v_type in
+				jm_invoke#if_then
+					(fun () -> jm_invoke#get_code#if_nonnull_ref jsig)
+					(fun () ->
+						handler#texpr (rvalue_sig jsig) e;
+						jm_invoke#cast jsig;
+						save();
+					)
+			| _ ->
+				()
+		) args;
+		handler#texpr RReturn tf.tf_expr;
+		begin match env with
+		| [] ->
+			let name = snd jc_closure#get_this_path in
+			self#make_static_closure_field name jc_closure;
+			jm#getstatic jc_closure#get_this_path name (object_path_sig jc_closure#get_this_path);
+		| _ ->
+			jm#construct ConstructInit jc_closure#get_this_path (fun () ->
+				(List.map (fun (id,(name,jsig)) ->
+					let _,load,_ = self#get_local_by_id (id,name) in
+					load();
+					jsig
+				) env);
+			);
 		end;
-		jm#read_closure true jc#get_this_path name jsig;
-		outside
+		write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
 
 	(* access *)
 
@@ -591,16 +596,49 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| None ->
 			default();
 
+	method read_static_closure (path : path) (name : string) (args : (string * jsignature) list) (ret : jsignature option) =
+		let jsig = method_sig (List.map snd args) ret in
+		let closure_path = try
+			Hashtbl.find gctx.closure_paths (path,name,jsig)
+		with Not_found ->
+			let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm [] in
+			let jc_closure = wf#get_class in
+			ignore(wf#generate_constructor false);
+			let jm_invoke = wf#generate_invoke args ret in
+			let vars = List.map (fun (name,jsig) ->
+				jm_invoke#add_local name jsig VarArgument
+			) args in
+			jm_invoke#finalize_arguments;
+			List.iter (fun (_,load,_) ->
+				load();
+			) vars;
+			jm_invoke#invokestatic path name (method_sig (List.map snd args) ret);
+			jm_invoke#return;
+			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
+			(* Static init *)
+			self#make_static_closure_field name jc_closure;
+			write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+			jc_closure#get_this_path;
+		in
+		jm#getstatic closure_path name (object_path_sig closure_path);
+
 	method read cast e1 fa =
+		let read_static_closure path cf =
+			let args,ret = match follow cf.cf_type with
+				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+				| _ -> assert false
+			in
+			self#read_static_closure path cf.cf_name args ret
+		in
 		match fa with
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "NaN" | "POSITIVE_INFINITY" | "NEGATIVE_INFINITY"} as cf)) ->
 			jm#getstatic double_path cf.cf_name TDouble
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "isNaN" | "isFinite"} as cf)) ->
-			jm#read_closure true double_path cf.cf_name (jsignature_of_type gctx cf.cf_type);
+			read_static_closure double_path cf;
 		| FStatic({cl_path = (["java";"lang"],"String")},({cf_name = "fromCharCode"} as cf)) ->
-			jm#read_closure true (["haxe";"jvm"],"StringExt") cf.cf_name (jsignature_of_type gctx cf.cf_type);
+			read_static_closure (["haxe";"jvm"],"StringExt") cf
 		| FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf)) ->
-			jm#read_closure true c.cl_path cf.cf_name (jsignature_of_type gctx cf.cf_type);
+			read_static_closure c.cl_path cf
 		| FStatic(c,cf) ->
 			jm#getstatic c.cl_path cf.cf_name (self#vtype cf.cf_type);
 			cast();
@@ -629,10 +667,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
 			cast();
 		| FClosure((Some(c,_)),cf) ->
-			let jsig = self#vtype cf.cf_type in
-			jm#read_closure false c.cl_path cf.cf_name jsig;
-			self#texpr rvalue_any e1;
-			jm#invokevirtual method_handle_path "bindTo" (method_sig [object_sig] (Some method_handle_sig));
+			create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
+				self#texpr rvalue_any e1;
+			)
 
 	method read_write ret ak e (f : unit -> unit) =
 		let apply dup =
@@ -1343,9 +1380,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method call ret tr e1 el =
 		let invoke t =
-			jm#cast method_handle_sig;
+			jm#cast haxe_function_sig;
 			let tl,tr = self#call_arguments t el in
-			jm#invokevirtual method_handle_path "invoke" (method_sig tl tr);
+			let meth = gctx.typed_functions#register_signature tl tr in
+			jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 			tr
 		in
 		let tro = match (Texpr.skip e1).eexpr with
@@ -1555,21 +1593,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				| _ -> assert false
 			end
 		| _ ->
-			let rec has_unknown_args jsig =
-				is_dynamic_at_runtime jsig || match jsig with
-					| TMethod(jsigs,_) -> List.exists has_unknown_args jsigs
-					| _ -> false
-			in
-			if has_unknown_args (jsignature_of_type gctx e1.etype) then begin
-				self#texpr rvalue_any e1;
-				jm#cast method_handle_sig;
-				self#new_native_array object_sig el;
-				jm#invokestatic haxe_jvm_path "call" (method_sig [method_handle_sig;array_sig object_sig] (Some object_sig));
-				Some object_sig
-			end else begin
-				self#texpr rvalue_any e1;
-				invoke e1.etype;
-			end
+			self#texpr rvalue_any e1;
+			invoke e1.etype;
 		in
 		match need_val ret,tro with
 		| false,Some _ -> code#pop
@@ -1749,8 +1774,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let t = object_path_sig path in
 			code#ldc offset (TObject(java_class_path,[TType(WNone,t)]))
 		| TMethod _ ->
-			let offset = pool#add_path method_handle_path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,method_handle_sig)]))
+			assert false
+			(* let offset = pool#add_path method_handle_path in
+			code#ldc offset (TObject(java_class_path,[TType(WNone,method_handle_sig)])) *)
 		| TTypeParameter _ ->
 			let offset = pool#add_path object_path in
 			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
@@ -1920,30 +1946,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#return;
 			jm#set_terminated true;
 		| TFunction tf ->
-			begin match self#tfunction e tf with
-			| None ->
-				()
-			| Some ctx_class ->
-				begin match ctx_class#get_args with
-				| [(arg,jsig)] ->
-					let _,load,_ = self#get_local_by_id arg in
-					load();
-					self#expect_reference_type;
-					jm#invokevirtual method_handle_path "bindTo" (method_sig [object_sig] (Some method_handle_sig));
-				| args ->
-					let f () =
-						let tl = List.map (fun (arg,jsig) ->
-							let _,load,_ = self#get_local_by_id arg in
-							load();
-							jm#cast jsig;
-							jsig
-						) args in
-						tl
-					in
-					jm#construct ConstructInit ctx_class#get_path f;
-					jm#invokevirtual method_handle_path "bindTo" (method_sig [object_sig] (Some method_handle_sig));
-				end
-			end
+			self#tfunction e tf
 		| TArrayDecl el when not (need_val ret) ->
 			List.iter (self#texpr ret) el
 		| TArrayDecl el ->
@@ -2132,9 +2135,9 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 			[hash],(fun () ->
 				begin match kind with
 					| Method (MethNormal | MethInline) ->
-						jm#read_closure false jc#get_this_path name jsig;
-						jm#load_this;
-						jm#invokevirtual method_handle_path "bindTo" (method_sig [object_sig] (Some method_handle_sig));
+						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () ->
+							jm#load_this
+						)
 					| _ ->
 						jm#load_this;
 						jm#getfield jc#get_this_path name jsig;
@@ -2570,7 +2573,7 @@ class tclass_to_jvm gctx c = object(self)
 			self#handle_relation_type_params;
 		end;
 		self#generate_signature;
-		if not (Meta.has Meta.NativeGen c.cl_meta) then
+		if not (Meta.has Meta.NativeGen c.cl_meta) && not c.cl_interface then
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
 		jc#add_attribute (AttributeSourceFile (jc#get_pool#add_string c.cl_pos.pfile));
@@ -2830,6 +2833,8 @@ let generate com =
 		anon_identification = anon_identification;
 		preprocessor = Obj.magic ();
 		typedef_interfaces = Obj.magic ();
+		typed_functions = new JvmFunctions.typed_functions;
+		closure_paths = Hashtbl.create 0;
 		current_field_info = None;
 		default_export_config = {
 			export_debug = true;
@@ -2928,11 +2933,19 @@ let generate com =
 				List.iter (fun ((_,load,_),_) ->
 					load();
 				) locals;
-				let jr = if ExtType.is_void (follow tr) then None else Some (jsignature_of_type gctx tr) in
-				jm#invokevirtual method_handle_path "invoke" (method_sig (List.map snd locals) jr);
+				let jret = return_of_type gctx tr in
+				let meth = gctx.typed_functions#register_signature (List.map snd locals) jret in
+				jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
+				Option.may jm#cast jret;
 				jm#return
 			) c.cl_ordered_fields
 		end;
 		write_class gctx.jar path (jc#export_class gctx.default_export_config)
 	) gctx.anon_identification#get_anons;
+	let jc_function = gctx.typed_functions#generate in
+	write_class gctx.jar jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
+	let jc_varargs = gctx.typed_functions#generate_var_args in
+	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
+	let jc_closure_dispatch = gctx.typed_functions#generate_closure_dispatch in
+	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config);
 	Zip.close_out gctx.jar

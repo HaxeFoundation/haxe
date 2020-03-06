@@ -78,7 +78,7 @@ module NativeArray = struct
 		| TInt -> primitive 10
 		| TLong -> primitive 11
 		| TObject(path,_) -> reference path
-		| TMethod _ -> reference NativeSignatures.method_handle_path
+		| TMethod _ -> reference NativeSignatures.haxe_function_path
 		| TTypeParameter _ -> reference NativeSignatures.object_path
 		| TArray _ ->
 			let offset = pool#add_type (generate_signature false je) in
@@ -300,15 +300,6 @@ class builder jc name jsig = object(self)
 			self#cast jsig;
 			NativeArray.write code jasig jsig
 		) fl
-
-	(** Adds a closure to method [name] ob [path] with signature [jsig_method] to the constant pool.
-
-	    Also emits an instruction to load the closure.
-	**)
-	method read_closure is_static path name jsig_method =
-		let offset = code#get_pool#add_field path name jsig_method FKMethod in
-		let offset = code#get_pool#add (ConstMethodHandle((if is_static then 6 else 5), offset)) in
-		code#ldc offset jsig_method
 
 	(**
 		Emits a return instruction.
@@ -558,7 +549,7 @@ class builder jc name jsig = object(self)
 		| TObject(path,_),TTypeParameter _ ->
 			code#checkcast path
 		| TMethod _,_ ->
-			code#checkcast (["java";"lang";"invoke"],"MethodHandle");
+			code#checkcast NativeSignatures.haxe_function_path;
 		| TArray(jsig1,_),TArray(jsig2,_) when jsig1 = jsig2 ->
 			()
 		| TArray _,_ ->
