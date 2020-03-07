@@ -29,7 +29,6 @@ import haxe.ds.Vector;
 import haxe.extern.Rest;
 import java.Init;
 import java.NativeArray;
-import java.lang.invoke.*;
 import jvm.DynamicObject;
 import jvm.EmptyConstructor;
 import jvm.Exception;

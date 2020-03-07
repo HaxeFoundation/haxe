@@ -1,5 +1,4 @@
 import java.lang.NoSuchMethodException;
-import java.lang.invoke.*;
 import jvm.Jvm;
 import jvm.annotation.*;
 
@@ -133,43 +132,40 @@ class Type {
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var args = @:privateAccess args.getNative();
 		var cl = cl.native();
-		var argTypes = Jvm.getArgumentTypes(args);
-		var methodType = MethodType.methodType(cast Void, argTypes);
-		// 1. attempt: direct constructor lookup
-		try {
-			var ctor = MethodHandles.lookup().findConstructor(cl, methodType);
-			return ctor.invokeWithArguments(args);
-		} catch (_:NoSuchMethodException) {}
-
-		// 2. attempt direct new lookup
-		try {
-			var ctor = MethodHandles.lookup().findVirtual(cl, "new", methodType);
-			var obj = cl.getConstructor(emptyClass).newInstance(emptyArg);
-			ctor.bindTo(obj).invokeWithArguments(args);
-			return obj;
-		} catch (_:NoSuchMethodException) {}
-
-		// 3. attempt: unify actual constructor
-		for (ctor in cl.getDeclaredConstructors()) {
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
-				case Some(args):
-					return MethodHandles.lookup().unreflectConstructor(ctor).invokeWithArguments(args);
-				case None:
-			}
-		}
-
-		// 4. attempt: unify new
-		for (ctor in cl.getDeclaredMethods()) {
-			if (ctor.getName() != "new") {
+		var ctors = cl.getConstructors();
+		var emptyCtor:Null<java.lang.reflect.Constructor<T>> = null;
+		// 1. Look for real constructor. If we find the EmptyConstructor constructor, store it
+		for (ctor in ctors) {
+			var params = ctor.getParameterTypes();
+			if (params.length == 1 && params[0] == jvm.EmptyConstructor.native()) {
+				emptyCtor = cast ctor;
 				continue;
 			}
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
+			switch (Jvm.unifyCallArguments(args, params, true)) {
 				case Some(args):
-					return MethodHandles.lookup().unreflect(ctor).invokeWithArguments(args);
+					ctor.setAccessible(true);
+					return ctor.newInstance(args);
 				case None:
 			}
 		}
-
+		// 2. If there was the EmptyConstructor constructor, look for a matching new method
+		if (emptyCtor != null) {
+			var methods = cl.getMethods();
+			for (method in methods) {
+				if (method.getName() != "new") {
+					continue;
+				}
+				var params = method.getParameterTypes();
+				switch (Jvm.unifyCallArguments(args, params, true)) {
+					case Some(args):
+						var obj = emptyCtor.newInstance(emptyArg);
+						method.setAccessible(true);
+						method.invoke(obj, args);
+						return obj;
+					case None:
+				}
+			}
+		}
 		return null;
 	}
 
