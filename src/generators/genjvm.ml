@@ -2286,7 +2286,8 @@ class tclass_to_jvm gctx c = object(self)
 		in
 		let rec loop map_type c_int =
 			List.iter (fun (c_int,tl) ->
-				let map_type t = apply_params c_int.cl_params tl (map_type t) in
+				(* Note: We have to apply parent params before child params (#9219). *)
+				let map_type t = map_type (apply_params c_int.cl_params tl t) in
 				List.iter (fun cf ->
 					match cf.cf_kind,raw_class_field (fun cf -> map_type cf.cf_type) c (List.map snd c.cl_params) cf.cf_name with
 					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c ->
