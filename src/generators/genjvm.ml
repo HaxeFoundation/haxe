@@ -694,11 +694,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let _,load,store = self#get_local v in
 			if ak <> AKNone then load();
 			apply (fun () -> code#dup);
+			self#cast v.v_type;
 			store();
 		| TField(_,FStatic(c,cf)) ->
 			let jsig_cf = self#vtype cf.cf_type in
 			if ak <> AKNone then jm#getstatic c.cl_path cf.cf_name jsig_cf;
 			apply (fun () -> code#dup);
+			jm#cast jsig_cf;
 			jm#putstatic c.cl_path cf.cf_name jsig_cf;
 		| TField(e1,FInstance(c,tl,cf)) when not (is_interface_var_access c cf) ->
 			self#texpr rvalue_any e1;
