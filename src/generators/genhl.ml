@@ -2055,6 +2055,8 @@ and eval_expr ctx e =
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
+	| TCall ({ eexpr = TField (ef,FStatic ({ cl_path = [],"Reflect" } as c,{ cf_name = "makeVarArgs" })) } as e1,[v]) ->
+		eval_expr ctx {e with eexpr = TCall({e1 with eexpr = TField(ef,FStatic(c, PMap.find "_makeVarArgs" c.cl_statics))},[v])}
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt])
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "downcast" })) },[v;vt]) ->
 		let r = eval_expr ctx v in
