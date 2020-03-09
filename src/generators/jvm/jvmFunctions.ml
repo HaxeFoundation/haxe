@@ -270,9 +270,14 @@ class typed_functions = object(self)
 		jc
 end
 
+type typed_function_kind =
+	| FuncLocal
+	| FuncMember of jpath * string
+	| FuncStatic of jpath * string
 
 class typed_function
 	(functions : typed_functions)
+	(kind : typed_function_kind)
 	(host_class : JvmClass.builder)
 	(host_method : JvmMethod.builder)
 	(context : (string * jsignature) list)
@@ -280,7 +285,15 @@ class typed_function
 = object(self)
 
 	val jc_closure =
-		let jc = host_class#spawn_inner_class None haxe_function_path (Some host_class#get_next_closure_name) in
+		let name = match kind with
+			| FuncLocal ->
+				Printf.sprintf "Closure_%s_%i" host_method#get_name host_method#get_next_closure_id
+			| FuncStatic(path,name) ->
+				Printf.sprintf "%s_%s" (snd path) name
+			| FuncMember(path,name) ->
+				Printf.sprintf "%s_%s" (snd path) name
+		in
+		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_access_flag 0x10; (* final *)
 		jc
 

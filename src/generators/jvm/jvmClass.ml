@@ -37,7 +37,6 @@ class builder path_this path_super = object(self)
 	val methods = DynArray.create ()
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
-	val mutable closure_count = 0
 	val mutable spawned_methods = []
 	val mutable static_init_method = None
 
@@ -61,11 +60,6 @@ class builder path_this path_super = object(self)
 			let jm = self#spawn_method "<clinit>" (method_sig [] None) [MethodAccessFlags.MStatic] in
 			static_init_method <- Some jm;
 			jm
-
-	method get_next_closure_name =
-		let name = Printf.sprintf "Closure$%i" closure_count in
-		closure_count <- closure_count + 1;
-		name
 
 	method has_method (name : string) (jsig : jsignature) =
 		Hashtbl.mem method_sigs (name,generate_method_signature false jsig)

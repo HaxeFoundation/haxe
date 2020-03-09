@@ -351,7 +351,7 @@ let generate_equals_function (jc : JvmClass.builder) jsig_arg =
 let create_field_closure gctx jc path_this jm name jsig =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
-	let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
+	let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncMember(path_this,name)) jc jm context in
 	let jc_closure = wf#get_class in
 	ignore(wf#generate_constructor true);
 	let args,ret = match jsig with
@@ -496,7 +496,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		) outside in
 		let env = if accesses_this then ((0,("this",jc#get_jsig)) :: env) else env in
 		let context = List.map snd env in
-		let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm context in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions FuncLocal jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
 		let args,ret =
@@ -584,7 +584,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let closure_path = try
 			Hashtbl.find gctx.closure_paths (path,name,jsig)
 		with Not_found ->
-			let wf = new JvmFunctions.typed_function gctx.typed_functions jc jm [] in
+			let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
 			let jm_invoke = wf#generate_invoke args ret in

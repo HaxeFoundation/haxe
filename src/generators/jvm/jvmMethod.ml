@@ -142,6 +142,7 @@ class builder jc name jsig = object(self)
 	val mutable exceptions = []
 	val mutable argument_locals = []
 	val mutable thrown_exceptions = Hashtbl.create 0
+	val mutable closure_count = 0
 
 	(* per-frame *)
 	val mutable locals = []
@@ -188,6 +189,11 @@ class builder jc name jsig = object(self)
 			| None -> JvmVerificationTypeInfo.VTop
 			| _ -> JvmVerificationTypeInfo.of_signature jc#get_pool t
 		) locals
+
+	method get_next_closure_id =
+		let id = closure_count in
+		closure_count <- closure_count + 1;
+		id
 
 	(** Adds the current state of locals and stack as a stack frame. This has to be called on every branch target. **)
 	method add_stack_frame =
