@@ -785,7 +785,19 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method condition (flip : bool) (e : texpr) (label_then : label) (label_else : label) =
 		let stack = jm#get_code#get_stack in
 		let (_,before) = stack#save in
-		self#texpr (rvalue_sig TBool) e;
+		begin match (Texpr.skip e).eexpr with
+		| TBinop((OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte) as op,e1,e2) ->
+			let op = convert_cmp_op op in
+			let op = if flip then flip_cmp_op op else op in
+			(if flip then label_then else label_else)#apply (self#apply_cmp (self#binop_compare op e1 e2))
+		| TBinop(OpBoolAnd,e1,e2) ->
+			let label_then2 = jm#spawn_label "then2" in
+			self#condition false e1 label_then2 label_else;
+			label_then2#here;
+			self#condition false e2 label_then label_else;
+		| _ ->
+			self#texpr (rvalue_sig TBool) e;
+		end;
 		let (_,after) = stack#save in
 		if after > before then begin
 			jm#cast TBool;

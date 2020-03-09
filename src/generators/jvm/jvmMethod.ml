@@ -586,6 +586,8 @@ class builder jc name jsig = object(self)
 				code#checkcast path1;
 		| TObject(path,_),TTypeParameter _ ->
 			code#checkcast path
+		| TMethod _,TMethod _ ->
+			()
 		| TMethod _,_ ->
 			code#checkcast NativeSignatures.haxe_function_path;
 		| TArray(jsig1,_),TArray(jsig2,_) when jsig1 = jsig2 ->
