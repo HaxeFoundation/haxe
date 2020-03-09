@@ -1,3 +1,4 @@
 Main.hx:9: characters 35-48 : Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>
+Main.hx:9: characters 35-48 : Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>
 Main.hx:9: characters 35-48 : String should be Int
 Main.hx:9: characters 35-48 : For optional function argument 'arr'

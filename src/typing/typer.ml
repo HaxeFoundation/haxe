@@ -2067,8 +2067,8 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
 				t_dynamic
 			else begin
-				let msg = "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" in
-				raise (Error (Stack (Custom msg, Unify l), p))
+				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
+				raise (Error (Unify l, p))
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
