@@ -872,20 +872,22 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				List.iter (fun (s,i) ->
 					restore();
 					let pop_scope = jm#push_scope in
-					let (e,num_jumps),r = exprs.(i) in
+					let (e,num_jumps),label_expr = exprs.(i) in
 					load();
 					jm#string s;
 					jm#invokevirtual string_path "equals" (method_sig [object_sig] (Some TBool));
-					jm#if_then
-						(code#if_ CmpEq)
-						(fun () ->
-							self#texpr ret e;
-							if not jm#is_terminated then label_exit#goto;
-						);
+					if num_jumps = 1 then begin
+						jm#if_then
+							(code#if_ CmpEq)
+							(fun () ->
+								self#texpr ret e;
+								if not jm#is_terminated then label_exit#goto;
+							)
+					end else
+						label_expr#apply (code#if_ CmpNe);
 					pop_scope();
 				) l;
-				(* For the last case we can just fall through *)
-				if cases <> [] then label_def#goto;
+				label_def#goto;
 				loop cases jumps
 			| [],[] ->
 				()
@@ -893,6 +895,17 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				assert false
 		in
 		loop cases jump_table;
+		(* exprs *)
+		Array.iter (fun ((e,num_jumps),label_expr) ->
+			if num_jumps <> 1 then begin
+				restore();
+				label_expr#here;
+				let pop_scope = jm#push_scope in
+				self#texpr ret e;
+				pop_scope();
+				if not jm#is_terminated then label_exit#goto;
+			end;
+		) exprs;
 		(* default *)
 		begin match def with
 			| None ->
@@ -941,10 +954,11 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let buckets = HashtblList.create () in
 			let exprs = DynArray.create () in
 			List.iter (fun (el,e) ->
+				let index = DynArray.length exprs in
+				DynArray.add exprs (e,List.length el);
 				List.iter (fun e' -> match e'.eexpr with
 					| TConst (TString s) ->
-						HashtblList.add buckets (java_hash s) (s,DynArray.length exprs);
-						DynArray.add exprs (e,List.length el);
+						HashtblList.add buckets (java_hash s) (s,index);
 					| _ -> assert false
 				) el
 			) cases;
