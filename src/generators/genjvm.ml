@@ -855,9 +855,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		(* all strings can be null and we're not supposed to cause NPEs here... *)
 		load();
 		label_def#apply (jm#get_code#if_null string_sig);
+		(* switch *)
 		load();
 		jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
-		(* switch *)
 		let exprs = Array.map (fun e -> e,jm#spawn_label "case-expr") exprs in
 		let jump_table = List.map (fun (hash,l) -> hash,jm#spawn_label "hash-match") cases in
 		let sorted_jump_table = List.map (fun (hash,label) -> hash,label#mk_offset) jump_table in
@@ -865,24 +865,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		Array.sort (fun (i1,_) (i2,_) -> compare i1 i2) sorted_jump_table;
 		code#lookupswitch label_def#mk_offset sorted_jump_table;
 		let restore = jm#start_branch in
-		(* default *)
-		begin match def with
-			| None ->
-				()
-			| Some f ->
-				label_def#here;
-				let pop_scope = jm#push_scope in
-				f();
-				pop_scope();
-				if not jm#is_terminated then label_exit#goto;
-		end;
 		(* cases *)
 		let rec loop cases jumps = match cases,jumps with
 			| (_,l) :: cases,(_,label) :: jumps ->
 				label#here;
 				List.iter (fun (s,i) ->
 					restore();
-					jm#add_stack_frame;
 					let pop_scope = jm#push_scope in
 					let (e,num_jumps),r = exprs.(i) in
 					load();
@@ -896,7 +884,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						);
 					pop_scope();
 				) l;
-				label_def#goto;
+				(* For the last case we can just fall through *)
+				if cases <> [] then label_def#goto;
 				loop cases jumps
 			| [],[] ->
 				()
@@ -904,6 +893,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				assert false
 		in
 		loop cases jump_table;
+		(* default *)
+		begin match def with
+			| None ->
+				()
+			| Some f ->
+				restore();
+				label_def#here;
+				let pop_scope = jm#push_scope in
+				f();
+				pop_scope();
+				if not jm#is_terminated then label_exit#goto;
+		end;
 		if label_exit#was_jumped_to then label_exit#here;
 		if def = None then begin
 			jm#set_terminated false;
