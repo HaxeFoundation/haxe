@@ -2114,18 +2114,15 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let jm = jc#spawn_method "_hx_getField" jsig [MPublic;MSynthetic] in
 		let _,load,_ = jm#add_local "name" string_sig VarArgument in
 		jm#finalize_arguments;
+		let fields = List.filter (fun (_,_,kind) -> match kind with
+			| Method (MethNormal | MethInline) -> false
+			| _ -> true
+		) fields in
 		let cases = List.map (fun (name,jsig,kind) ->
 			[name],(fun () ->
-				begin match kind with
-					| Method (MethNormal | MethInline) ->
-						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () ->
-							jm#load_this
-						)
-					| _ ->
-						jm#load_this;
-						jm#getfield jc#get_this_path name jsig;
-						jm#expect_reference_type;
-				end;
+				jm#load_this;
+				jm#getfield jc#get_this_path name jsig;
+				jm#expect_reference_type;
 				ignore(jm#get_code#get_stack#pop);
 				jm#get_code#get_stack#push object_sig;
 			)
