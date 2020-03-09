@@ -3,6 +3,7 @@ package unit.issues;
 import unit.Test;
 
 class Issue9217 extends Test {
+	#if (!java || jvm) // doesn't work on genjava
 	function test() {
 		eq("default", switch(Ea) {
 			case "FB": "FB";
@@ -38,4 +39,5 @@ class Issue9217 extends Test {
 
 	var Ea = "Ea";
 	var FB = "FB";
+	#end
 }
