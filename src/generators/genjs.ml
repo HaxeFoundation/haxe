@@ -407,7 +407,7 @@ let rec gen_call ctx e el in_value =
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		(* print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos; *)
+		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
 		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
