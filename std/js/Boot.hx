@@ -129,7 +129,7 @@ class Boot {
 						// strange error on IE
 						return "???";
 					}
-					if (tostr != null && tostr != __js__("Object.toString") && js.Syntax.typeof(tostr) == "function") {
+					if (tostr != null && tostr != js.Syntax.code("Object.toString") && js.Syntax.typeof(tostr) == "function") {
 						var s2 = o.toString();
 						if (s2 != "[object Object]")
 							return s2;
@@ -138,15 +138,15 @@ class Boot {
 					s += "\t";
 					var hasp = (o.hasOwnProperty != null);
 					var k:String = null;
-					__js__("for( {0} in {1} ) {", k, o);
+					js.Syntax.code("for( {0} in {1} ) {", k, o);
 					if (hasp && !o.hasOwnProperty(k))
-						__js__("continue");
+						js.Syntax.code("continue");
 					if (k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__")
-						__js__("continue");
+						js.Syntax.code("continue");
 					if (str.length != 2)
 						str += ", \n";
 					str += s + k + " : " + __string_rec(o[k], s);
-					__js__("}");
+					js.Syntax.code("}");
 					s = s.substring(1);
 					str += "\n" + s + "}";
 					return str;

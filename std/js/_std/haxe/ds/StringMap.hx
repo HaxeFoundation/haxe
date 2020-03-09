@@ -152,7 +152,7 @@ private class StringMapIterator<T> {
 	}
 
 	inline function isReserved(key:String):Bool {
-		return untyped __js__("__map_reserved")[key] != null;
+		return js.Syntax.code("__map_reserved[{0}]", key) != null;
 	}
 
 	public inline function set(key:String, value:T):Void {
@@ -212,17 +212,17 @@ private class StringMapIterator<T> {
 	function arrayKeys():Array<String> {
 		var out = [];
 		untyped {
-			__js__("for( var key in this.h ) {");
+			js.Syntax.code("for( var key in this.h ) {");
 			if (h.hasOwnProperty(key))
 				out.push(key);
-			__js__("}");
+			js.Syntax.code("}");
 		}
 		if (rh != null)
 			untyped {
-				__js__("for( var key in this.rh ) {");
+				js.Syntax.code("for( var key in this.rh ) {");
 				if (key.charCodeAt(0) == "$".code)
 					out.push(key.substr(1));
-				__js__("}");
+				js.Syntax.code("}");
 			}
 		return out;
 	}
@@ -264,7 +264,7 @@ private class StringMapIterator<T> {
 	}
 
 	static function __init__():Void {
-		untyped __js__("var __map_reserved = {};");
+		js.Syntax.code("var __map_reserved = {};");
 	}
 }
 #end

@@ -8,7 +8,7 @@ class Issue6449 extends unit.Test {
 	}
 
 	static function doTest(isNaN:Float):Bool {
-		return untyped __js__("isNaN")(isNaN);
+		return js.Syntax.code("isNaN")(isNaN);
 	}
 	#end
 }
