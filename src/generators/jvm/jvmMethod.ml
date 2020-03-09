@@ -25,6 +25,46 @@ open JvmSignature
 open JvmSignature.NativeSignatures
 open JvmBuilder
 
+let rec pow a b = match b with
+	| 0 -> Int32.one
+	| 1 -> a
+	| _ -> Int32.mul a (pow a (b - 1))
+
+let java_hash s =
+	let h = ref Int32.zero in
+	let l = UTF8.length s in
+	let i31 = Int32.of_int 31 in
+	let i = ref 0 in
+	UTF8.iter (fun char ->
+		let char = Int32.of_int (UCharExt.uint_code char) in
+		h := Int32.add !h (Int32.mul char (pow i31 (l - (!i + 1))));
+		incr i;
+	) s;
+	!h
+
+module HashtblList = struct
+	type ('a,'b) t = {
+		values : ('a,'b) Hashtbl.t;
+		mutable keys : 'a list;
+	}
+
+	let create () = {
+		values = Hashtbl.create 0;
+		keys = []
+	}
+
+	let add htl key value =
+		if not (Hashtbl.mem htl.values key) then begin
+			htl.keys <- key :: htl.keys
+		end;
+		Hashtbl.add htl.values key value
+
+	let as_list htl =
+		List.map (fun key ->
+			(key,Hashtbl.find_all htl.values key)
+		) htl.keys
+end
+
 (* High-level method builder. *)
 
 type var_init_state =
@@ -643,6 +683,110 @@ class builder jc name jsig = object(self)
 		let term = is_exhaustive && term in
 		self#set_terminated term;
 		if not term then self#add_stack_frame;
+
+
+	method string_switch
+		(need_val : bool)
+		(load : (unit -> unit))
+		(cases : (string list * (unit -> unit)) list)
+		(def : (unit -> unit) option)
+	=
+		let buckets = HashtblList.create () in
+		let exprs = List.mapi (fun index (sl,f) ->
+			List.iter (fun s ->
+				HashtblList.add buckets (java_hash s) (s,index);
+			) sl;
+			(f,List.length sl)
+		) cases in
+		let cases = HashtblList.as_list buckets in
+		let exprs = Array.of_list exprs in
+		let def = match def with
+			| None when need_val ->
+				Some (fun () ->
+					self#string "Match failure";
+					self#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+					self#get_code#athrow;
+				)
+			| _ ->
+				def
+		in
+		let label_def = self#spawn_label "default" in
+		let label_exit = self#spawn_label "exit" in
+		(* all strings can be null and we're not supposed to cause NPEs here... *)
+		load();
+		label_def#apply (self#get_code#if_null string_sig);
+		(* switch *)
+		load();
+		self#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
+		let exprs = Array.map (fun e -> e,self#spawn_label "case-expr") exprs in
+		let jump_table = List.map (fun (hash,l) -> hash,self#spawn_label "hash-match") cases in
+		let sorted_jump_table = List.map (fun (hash,label) -> hash,label#mk_offset) jump_table in
+		let sorted_jump_table = Array.of_list sorted_jump_table in
+		Array.sort (fun (i1,_) (i2,_) -> compare i1 i2) sorted_jump_table;
+		code#lookupswitch label_def#mk_offset sorted_jump_table;
+		let restore = self#start_branch in
+		(* cases *)
+		let rec loop cases jumps = match cases,jumps with
+			| (_,l) :: cases,(_,label) :: jumps ->
+				label#here;
+				List.iter (fun (s,i) ->
+					restore();
+					let pop_scope = self#push_scope in
+					let (f,num_jumps),label_expr = exprs.(i) in
+					load();
+					self#string s;
+					self#invokevirtual string_path "equals" (method_sig [object_sig] (Some TBool));
+					if num_jumps = 1 then begin
+						self#if_then
+							(code#if_ CmpEq)
+							(fun () ->
+								f();
+								if not self#is_terminated then label_exit#goto;
+							)
+					end else
+						label_expr#apply (code#if_ CmpNe);
+					pop_scope();
+				) l;
+				label_def#goto;
+				loop cases jumps
+			| [],[] ->
+				()
+			| _ ->
+				assert false
+		in
+		loop cases jump_table;
+		(* exprs *)
+		Array.iter (fun ((f,num_jumps),label_expr) ->
+			if num_jumps <> 1 then begin
+				restore();
+				label_expr#here;
+				let pop_scope = self#push_scope in
+				f();
+				pop_scope();
+				if not self#is_terminated then label_exit#goto;
+			end;
+		) exprs;
+		(* default *)
+		begin match def with
+			| None ->
+				()
+			| Some f ->
+				restore();
+				label_def#here;
+				let pop_scope = self#push_scope in
+				f();
+				pop_scope();
+				if not self#is_terminated then label_exit#goto;
+		end;
+		if label_exit#was_jumped_to then label_exit#here;
+		if def = None then begin
+			self#set_terminated false;
+			label_def#here;
+		end else if label_exit#was_jumped_to then
+			self#set_terminated false
+		else
+			self#set_terminated true
+
 
 	(**
 		Emits a tableswitch or lookupswitch instruction, depending on which one makes more sense.
