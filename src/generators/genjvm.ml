@@ -846,19 +846,19 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			in
 			self#texpr rvalue_any e1;
 			jm#cast string_sig;
-			let r = ref 0 in
 			(* all strings can be null and we're not supposed to cause NPEs here... *)
+			let label_exit = jm#spawn_label "exit" in
 			code#dup;
 			jm#if_then
 				(jm#get_code#if_nonnull string_sig)
 				(fun () ->
 					code#pop;
-					r := code#get_fp;
-					code#goto r
+					label_exit#goto;
 				);
 			jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
-			let r_default = jm#int_switch need_val cases def in
-			r := r_default - !r;
+			let label_out = jm#int_switch need_val cases def in
+			if not label_out#was_jumped_to then label_out#here;
+			label_exit#at label_out#get_offset
 		end else begin
 			(* TODO: rewriting this is stupid *)
 			let pop_scope = jm#push_scope in

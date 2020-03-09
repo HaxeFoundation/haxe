@@ -670,22 +670,21 @@ class builder jc name jsig = object(self)
 		in
 		let flat_cases = DynArray.create () in
 		let case_lut = ref Int32Map.empty in
-		let fp = code#get_fp in
 		let imin = ref Int64.max_int in
 		let imax = ref Int64.min_int in
 		let cases = List.map (fun (il,f) ->
 			let rl = List.map (fun i32 ->
-				let r = ref fp in
+				let r = new label (self :> builder) "case" in
 				let i64 = Int64.of_int32 i32 in
 				if i64 < !imin then imin := i64;
 				if i64 > !imax then imax := i64;
-				DynArray.add flat_cases (i32,r);
+				DynArray.add flat_cases (i32,r#mk_offset);
 				case_lut := Int32Map.add i32 r !case_lut;
 				r
 			) il in
 			(rl,f)
 		) cases in
-		let offset_def = ref fp in
+		let label_def = new label (self :> builder) "default" in
 		(* No idea what's a good heuristic here... *)
 		let diff = Int64.sub !imax !imin in
 		let use_tableswitch =
@@ -697,43 +696,46 @@ class builder jc name jsig = object(self)
 			let imax = Int64.to_int32 !imax in
 			let offsets = Array.init (Int32.to_int (Int32.sub imax imin) + 1) (fun i ->
 				try Int32Map.find (Int32.add (Int32.of_int i) imin) !case_lut
-				with Not_found -> offset_def
+				with Not_found -> label_def
 			) in
-			code#tableswitch offset_def imin imax offsets
+			code#tableswitch label_def#mk_offset imin imax (Array.map (fun label -> label#mk_offset) offsets)
 		end else begin
 			let a = DynArray.to_array flat_cases in
 			Array.sort (fun (i1,_) (i2,_) -> compare i1 i2) a;
-			code#lookupswitch offset_def a;
+			code#lookupswitch label_def#mk_offset a;
 		end;
 		let restore = self#start_branch in
-		let offset_exit = ref code#get_fp in
-		let def_term,r_def = match def with
+		let label_exit = new label (self :> builder) "exit" in
+		begin match def with
 			| None ->
-				true,ref 0
+				()
 			| Some f ->
-				offset_def := code#get_fp - !offset_def;
-				self#add_stack_frame;
+				label_def#here;
 				let pop_scope = self#push_scope in
 				f();
 				pop_scope();
-				self#is_terminated,self#maybe_make_jump
-		in
-		let rec loop acc cases = match cases with
+				if not self#is_terminated then label_exit#goto;
+		end;
+		let rec loop cases = match cases with
 		| (rl,f) :: cases ->
 			restore();
-			self#add_stack_frame;
-			List.iter (fun r -> r := code#get_fp - !r) rl;
+			List.iter (fun label -> label#here) rl;
 			let pop_scope = self#push_scope in
 			f();
 			pop_scope();
-			let r = if cases = [] then ref 0 else self#maybe_make_jump in
-			loop ((self#is_terminated,r) :: acc) cases
+			if cases <> [] && not self#is_terminated then label_exit#goto;
+			loop cases
 		| [] ->
-			List.rev acc
+			()
 		in
-		let rl = loop [] cases in
-		self#close_jumps (def <> None) ((def_term,if def = None then offset_def else r_def) :: rl);
-		if def = None then code#get_fp else !offset_exit
+		loop cases;
+		if label_exit#was_jumped_to then label_exit#here;
+		if def = None then begin
+			self#set_terminated false;
+			label_def#here;
+		end else if label_exit#was_jumped_to then
+			self#set_terminated false;
+		if def = None then label_exit else label_def
 
 	(** Adds a local with a given [name], signature [jsig] and an [init_state].
 	    This function returns a tuple consisting of:
@@ -982,7 +984,11 @@ and label (jm : builder) (name : string) = object(self)
 
 	method was_jumped_to = was_jumped_to
 
-	method private mk_offset =
+	method get_offset = match state with
+		| LabelSet fp -> fp
+		| LabelNotSet _ -> failwith (Printf.sprintf "Trying to get offset of unset label %s" name)
+
+	method mk_offset =
 		let r = ref code#get_fp in
 		was_jumped_to <- true;
 		begin match state with
@@ -1008,14 +1014,17 @@ and label (jm : builder) (name : string) = object(self)
 	method goto =
 		code#goto self#mk_offset
 
-	method here = match state with
+	method at fp = match state with
 		| LabelNotSet l ->
-			jm#add_stack_frame;
-			let fp = code#get_fp in
+			if fp = code#get_fp then jm#add_stack_frame;
 			List.iter (fun r ->
 				r := fp - !r
 			) !l;
 			state <- LabelSet fp
 		| LabelSet _ ->
-			failwith (Printf.sprintf "Trying to instantiate label %s again" name)
+			if fp <> self#get_offset then
+				failwith (Printf.sprintf "Trying to instantiate label %s again" name)
+
+	method here =
+		self#at code#get_fp
 end
