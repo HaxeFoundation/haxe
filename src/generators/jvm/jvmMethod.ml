@@ -36,6 +36,10 @@ type construction_kind =
 	| ConstructInitPlusNew
 	| ConstructInit
 
+type label_state =
+	| LabelSet of jbranchoffset
+	| LabelNotSet of jbranchoffset ref list ref
+
 module NativeArray = struct
 	let read code ja je = match je with
 		| TBool -> code#baload TBool ja
@@ -575,35 +579,51 @@ class builder jc name jsig = object(self)
 		)
 
 	(** Generates code which executes [f_if()] and then branches into [f_then()] and [f_else()]. **)
-	method if_then_else (f_if : unit -> jbranchoffset ref) (f_then : unit -> unit) (f_else : unit -> unit) =
-		let jump_then = f_if () in
+	method if_then_else (f_if : jbranchoffset ref -> unit) (f_then : unit -> unit) (f_else : unit -> unit) =
+		self#if_then_else2 (fun label_then label_else ->
+			label_else#apply f_if
+		) f_then f_else
+
+	method if_then_else2 (f_if : label -> label -> unit) (f_then : unit -> unit) (f_else : unit -> unit) =
+		let label_then = self#spawn_label "then" in
+		let label_else = self#spawn_label "else" in
+		let label_exit = self#spawn_label "exit" in
+		f_if label_then label_else;
+		label_then#here;
 		let restore = self#start_branch in
 		let pop = self#push_scope in
 		f_then();
 		pop();
-		let r_then = ref code#get_fp in
 		let term_then = self#is_terminated in
-		if not term_then then code#goto r_then;
-		jump_then := code#get_fp - !jump_then;
+		if not self#is_terminated then label_exit#goto;
 		restore();
-		self#add_stack_frame;
-		let pop = self#push_scope in
+		label_else#here;
 		f_else();
-		pop();
-		self#set_terminated (term_then && self#is_terminated);
-		r_then := code#get_fp - !r_then;
-		if not self#is_terminated then self#add_stack_frame
+		if term_then && self#is_terminated then
+			self#set_terminated true
+		else begin
+			self#set_terminated false;
+			label_exit#here
+		end
 
 	(** Generates code which executes [f_if()] and then branches into [f_then()], if the condition holds. **)
-	method if_then (f_if : unit -> jbranchoffset ref) (f_then : unit -> unit) =
-		let jump_then = f_if () in
+	method if_then (f_if : jbranchoffset ref -> unit) (f_then : unit -> unit) =
+		self#if_then2 (fun _ label_else -> label_else#apply f_if) f_then
+
+	method if_then2 (f_if : label -> label -> unit) (f_then : unit -> unit) =
+		let label_then = self#spawn_label "then" in
+		let label_else = self#spawn_label "else" in
+		f_if label_then label_else;
+		label_then#here;
 		let restore = self#start_branch in
 		let pop = self#push_scope in
 		f_then();
 		pop();
 		restore();
-		jump_then := code#get_fp - !jump_then;
-		self#add_stack_frame
+		label_else#here
+
+	method spawn_label (name : string) =
+		new label (self :> builder) name
 
 	(**
 		Returns an instruction offset and emits a goto instruction to it if this method isn't terminated.
@@ -951,4 +971,51 @@ class builder jc name jsig = object(self)
 			field_descriptor_index = offset_desc;
 			field_attributes = attributes;
 		}
+end
+
+and label (jm : builder) (name : string) = object(self)
+
+	val code = jm#get_code
+
+	val mutable state = LabelNotSet (ref [])
+	val mutable was_jumped_to = false
+
+	method was_jumped_to = was_jumped_to
+
+	method private mk_offset =
+		let r = ref code#get_fp in
+		was_jumped_to <- true;
+		begin match state with
+		| LabelNotSet l ->
+			l := r :: !l
+		| LabelSet fp' ->
+			r := fp' - !r
+		end;
+		r
+
+	method apply (f : jbranchoffset ref -> unit) =
+		f self#mk_offset
+
+	method if_ (cmp : jcmp) =
+		code#if_ cmp self#mk_offset
+
+	method if_null jsig =
+		code#if_null jsig self#mk_offset
+
+	method if_nonnull jsig =
+		code#if_nonnull jsig self#mk_offset
+
+	method goto =
+		code#goto self#mk_offset
+
+	method here = match state with
+		| LabelNotSet l ->
+			jm#add_stack_frame;
+			let fp = code#get_fp in
+			List.iter (fun r ->
+				r := fp - !r
+			) !l;
+			state <- LabelSet fp
+		| LabelSet _ ->
+			failwith (Printf.sprintf "Trying to instantiate label %s again" name)
 end

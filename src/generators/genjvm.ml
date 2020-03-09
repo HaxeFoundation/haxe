@@ -91,7 +91,7 @@ type access_kind =
 
 type compare_kind =
 	| CmpNormal of jcmp * jsignature
-	| CmpSpecial of (unit -> jbranchoffset ref)
+	| CmpSpecial of (jbranchoffset ref -> unit)
 
 type block_exit =
 	| ExitExecute of (unit -> unit)
@@ -354,7 +354,7 @@ let generate_equals_function (jc : JvmClass.builder) jsig_arg =
 	load();
 	code#instanceof jc#get_this_path;
 	jm_equals#if_then
-		(fun () -> code#if_ref CmpNe)
+		(code#if_ CmpNe)
 		(fun () ->
 			code#bconst false;
 			jm_equals#return;
@@ -398,7 +398,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		load();
 		jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
 		jm_equals#if_then
-			(fun () -> code#if_acmp_eq_ref jc_closure#get_jsig jc_closure#get_jsig)
+			(code#if_acmp_eq jc_closure#get_jsig jc_closure#get_jsig)
 			(fun () ->
 				code#bconst false;
 				jm_equals#return;
@@ -435,8 +435,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	val mutable local_lookup = Hashtbl.create 0;
 	val mutable last_line = 0
 
-	val mutable breaks = []
-	val mutable continue = 0
+	val mutable break = None
+	val mutable continue = None
 	val mutable caught_exceptions = []
 	val mutable block_exits = []
 	val mutable env = None
@@ -536,7 +536,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				load();
 				let jsig = self#vtype v.v_type in
 				jm_invoke#if_then
-					(fun () -> jm_invoke#get_code#if_nonnull_ref jsig)
+					(jm_invoke#get_code#if_nonnull jsig)
 					(fun () ->
 						handler#texpr (rvalue_sig jsig) e;
 						jm_invoke#cast jsig;
@@ -586,7 +586,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			code#dup;
 			code#instanceof path;
 			jm#if_then_else
-				(fun () -> code#if_ref CmpEq)
+				(code#if_ CmpEq)
 				(fun () ->
 					jm#cast (object_path_sig path);
 					jm#getfield path cf.cf_name (self#vtype cf.cf_type);
@@ -725,7 +725,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				code#instanceof path;
 				let jsig_cf = self#vtype cf.cf_type in
 				jm#if_then_else
-					(fun () -> code#if_ref CmpEq)
+					(code#if_ CmpEq)
 					(fun () ->
 						jm#cast (object_path_sig path);
 						if ak <> AKNone then begin
@@ -796,23 +796,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	(* branching *)
 
 	method apply_cmp = function
-		| CmpNormal(op,_) -> (fun () -> code#if_ref op)
+		| CmpNormal(op,_) -> code#if_ op
 		| CmpSpecial f -> f
 
-	method if_null t =
-		(fun () -> code#if_null_ref t)
-
-	method if_not_null t =
-		(fun () -> code#if_nonnull_ref t)
-
-	method condition e = match (Texpr.skip e).eexpr with
-		| TBinop((OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte) as op,e1,e2) ->
-			let op = convert_cmp_op op in
-			self#binop_compare op e1 e2
-		| _ ->
-			self#texpr rvalue_any e;
+	method condition (flip : bool) (e : texpr) (label_then : label) (label_else : label) =
+		let stack = jm#get_code#get_stack in
+		let (_,before) = stack#save in
+		self#texpr (rvalue_sig TBool) e;
+		let (_,after) = stack#save in
+		if after > before then begin
 			jm#cast TBool;
-			CmpNormal(CmpEq,TBool)
+			(if flip then label_then else label_else)#if_ (if flip then CmpNe else CmpEq)
+		end;
 
 	method switch ret e1 cases def =
 		let need_val = match ret with
@@ -855,7 +850,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			(* all strings can be null and we're not supposed to cause NPEs here... *)
 			code#dup;
 			jm#if_then
-				(fun () -> jm#get_code#if_nonnull_ref string_sig)
+				(jm#get_code#if_nonnull string_sig)
 				(fun () ->
 					code#pop;
 					r := code#get_fp;
@@ -924,7 +919,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		match code#get_stack#get_stack_items 2 with
 		| [TInt | TByte | TChar | TBool;TInt | TByte | TChar | TBool] ->
 			let op = flip_cmp_op op in
-			CmpSpecial (fun () -> code#if_icmp_ref op)
+			CmpSpecial (code#if_icmp op)
 		| [TObject((["java";"lang"],"String"),[]);TObject((["java";"lang"],"String"),[])] ->
 			jm#invokestatic haxe_jvm_path "stringCompare" (method_sig [string_sig;string_sig] (Some TInt));
 			let op = flip_cmp_op op in
@@ -935,7 +930,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let op = flip_cmp_op op in
 			CmpNormal(op,TBool)
 		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
-			CmpSpecial (fun () -> (if op = CmpEq then code#if_acmp_ne_ref else code#if_acmp_eq_ref) t1 t2)
+			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
 			begin match op with
@@ -965,10 +960,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		match (Texpr.skip e1),(Texpr.skip e2) with
 		| {eexpr = TConst TNull},_ when not (is_unboxed sig2) ->
 			self#texpr rvalue_any e2;
-			CmpSpecial ((if op = CmpEq then self#if_not_null else self#if_null) sig2)
+			CmpSpecial ((if op = CmpEq then jm#get_code#if_nonnull else jm#get_code#if_null) sig2)
 		| _,{eexpr = TConst TNull} when not (is_unboxed sig1) ->
 			self#texpr rvalue_any e1;
-			CmpSpecial ((if op = CmpEq then self#if_not_null else self#if_null) sig1)
+			CmpSpecial ((if op = CmpEq then jm#get_code#if_nonnull else jm#get_code#if_null) sig1)
 		| {eexpr = TConst (TInt i32);etype = t2},e1 when Int32.to_int i32 = 0 && sig2 = TInt ->
 			let op = match op with
 				| CmpGt -> CmpGe
@@ -1006,18 +1001,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					self#texpr rvalue_any e1;
 					jm#get_code#dup;
 					jm#if_then_else
-						(self#if_not_null sig1)
+						(jm#get_code#if_nonnull sig1)
 						(fun () ->
 							jm#get_code#pop;
 							self#texpr rvalue_any e2;
-							self#boolop (CmpSpecial (self#if_not_null sig2))
+							self#boolop (CmpSpecial (jm#get_code#if_nonnull sig2))
 						)
 						(fun () ->
 							jm#cast ~not_null:true cast_type;
 							self#texpr rvalue_any e2;
 							jm#get_code#dup;
 							jm#if_then_else
-								(self#if_not_null sig2)
+								(jm#get_code#if_nonnull sig2)
 								(fun () ->
 									jm#get_code#pop;
 									jm#get_code#pop;
@@ -1034,7 +1029,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				self#texpr rvalue_any e1;
 				jm#get_code#dup;
 				jm#if_then_else
-					(self#if_not_null sig1)
+					(jm#get_code#if_nonnull sig1)
 					(fun () ->
 						jm#get_code#pop;
 						jm#get_code#bconst (op = CmpNe)
@@ -1066,7 +1061,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				in
 				jm#get_code#dup;
 				jm#if_then_else
-					(self#if_not_null sig2)
+					(jm#get_code#if_nonnull sig2)
 					(fun () ->
 						jm#get_code#pop;
 						jm#get_code#pop;
@@ -1210,7 +1205,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					in
 					operand f1;
 					jm#if_then_else
-						(fun () -> code#if_ref CmpEq)
+						(code#if_ CmpEq)
 						(fun () -> operand f2)
 						(fun () -> code#bconst false)
 				| OpBoolOr ->
@@ -1220,7 +1215,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					in
 					operand f1;
 					jm#if_then_else
-						(fun () -> code#if_ref CmpEq)
+						(code#if_ CmpEq)
 						(fun () -> code#bconst true)
 						(fun () -> operand f2)
 				| _ ->
@@ -1250,17 +1245,17 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let slot,_,_ = self#get_local v in
 		in_range true Int8Range slot
 
-	method binop ret op e1 e2 = match op with
-		| OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte ->
+	method binop ret op e1 e2 = match op,ret with
+		| (OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte),_ ->
 			let op = convert_cmp_op op in
 			self#boolop (self#binop_compare op e1 e2)
-		| OpAssign ->
+		| OpAssign,_ ->
 			let f () =
 				self#texpr (rvalue_type gctx e1.etype) e2;
 				self#cast e1.etype;
 			in
 			self#read_write ret AKNone e1 f
-		| OpAssignOp op ->
+		| OpAssignOp op,_ ->
 			let jsig1 = jsignature_of_type gctx e1.etype in
 			begin match op,(Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
 			| OpAdd,TLocal v,TConst (TInt i32) when is_really_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
@@ -1322,8 +1317,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			end;
 			self#cast e.etype;
 		| Not,_ ->
-			jm#if_then_else
-				(self#apply_cmp (self#condition e))
+			jm#if_then_else2
+				(self#condition false e)
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
 		| NegBits,_ ->
@@ -1392,7 +1387,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(_,FStatic({cl_path = ["haxe";"jvm"],"Jvm"},({cf_name = "referenceEquals"} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
 			begin match tl with
-				| [t1;t2] -> self#boolop (CmpSpecial (fun () -> code#if_acmp_ne_ref t1 t2))
+				| [t1;t2] -> self#boolop (CmpSpecial (code#if_acmp_ne t1 t2))
 				| _ -> assert false
 			end;
 			tr
@@ -1630,7 +1625,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			code#dup;
 			code#instanceof haxe_exception_path;
 			jm#if_then_else
-				(fun () -> code#if_ref CmpEq)
+				(code#if_ CmpEq)
 				(fun () ->
 					jm#cast haxe_exception_sig;
 					jm#getfield (["haxe";"jvm"],"Exception") "value" object_sig;
@@ -1696,7 +1691,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					end else begin
 						code#instanceof path;
 						jm#if_then_else
-							(fun () -> code#if_ref CmpEq)
+							(code#if_ CmpEq)
 							(fun () ->
 								restore();
 								self#cast v.v_type;
@@ -1740,7 +1735,11 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	(* texpr *)
 
 	method const ret t ct = match ct with
-		| Type.TInt i32 -> code#iconst i32
+		| Type.TInt i32 ->
+			begin match ret with
+			| RValue (Some (TDouble | TObject((["java";"lang"],"Double"),_))) -> code#lconst (Int64.of_int32 i32)
+			| _ -> code#iconst i32
+			end
 		| TFloat f ->
 			begin match ret with
 			| RValue (Some (TFloat | TObject((["java";"lang"],"Float"),_))) -> code#fconst (float_of_string f)
@@ -1859,12 +1858,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TConst ct ->
 			self#const ret e.etype ct
 		| TIf(e1,e2,None) ->
-			jm#if_then
-				(self#apply_cmp (self#condition e1))
-				(fun () -> self#texpr RVoid (mk_block e2))
+			jm#if_then2
+				(self#condition false e1)
+				(fun () -> self#texpr RVoid (mk_block e2));
 		| TIf(e1,e2,Some e3) ->
-			jm#if_then_else
-				(self#apply_cmp (self#condition e1))
+			jm#if_then_else2
+				(self#condition false e1)
 				(fun () ->
 					self#texpr ret (mk_block e2);
 					if need_val ret then self#cast e.etype
@@ -1876,41 +1875,48 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TSwitch(e1,cases,def) ->
 			self#switch ret e1 cases def
 		| TWhile(e1,e2,flag) -> (* TODO: do-while *)
-			(* TODO: could optimize a bit *)
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in
-			jm#add_stack_frame;
-			let fp = code#get_fp in
+			let continue_label = jm#spawn_label "continue" in
+			let break_label = jm#spawn_label "break" in
+			let body_label = jm#spawn_label "body" in
 			let old_continue = continue in
-			continue <- fp;
-			let old_breaks = breaks in
-			breaks <- [];
+			continue <- Some continue_label;
+			let old_break = break in
+			break <- Some break_label;
+			continue_label#here;
 			let restore = jm#start_branch in
-			let jump_then = if not is_true_loop then self#apply_cmp (self#condition e1) () else ref 0 in
+			if not is_true_loop then self#condition false e1 body_label break_label;
 			let pop_scope = jm#push_scope in
+			body_label#here;
 			self#texpr RVoid e2;
-			if not jm#is_terminated then code#goto (ref (fp - code#get_fp));
+			if not jm#is_terminated then continue_label#goto;
 			pop_scope();
 			restore();
-			if not is_true_loop || breaks <> [] then begin
-				jump_then := code#get_fp - !jump_then;
-				let fp' = code#get_fp in
-				List.iter (fun r -> r := fp' - !r) breaks;
-				jm#add_stack_frame
-			end else
+			if break_label#was_jumped_to || not is_true_loop then
+				break_label#here
+			else
 				jm#set_terminated true;
 			continue <- old_continue;
-			breaks <- old_breaks;
+			break <- old_break;
 			block_exits <- List.tl block_exits;
 		| TBreak ->
 			self#emit_block_exits true;
-			let r = ref (code#get_fp) in
-			code#goto r;
-			breaks <- r :: breaks;
+			begin match break with
+			| None ->
+				jerror "break outside loop"
+			| Some label ->
+				label#goto;
+			end;
 			jm#set_terminated true;
 		| TContinue ->
 			self#emit_block_exits true;
-			code#goto (ref (continue - code#get_fp));
+			begin match continue with
+			| None ->
+				jerror "continue outside loop"
+			| Some label ->
+				label#goto;
+			end;
 			jm#set_terminated true;
 		| TTry(e1,catches) ->
 			self#try_catch ret e1 catches
@@ -2191,7 +2197,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 					jm#load_this;
 					jm#getfield jc#get_this_path "_hx_deletedAField" boolean_sig;
 					jm#if_then
-						(fun () -> jm#get_code#if_null_ref boolean_sig)
+						(jm#get_code#if_null boolean_sig)
 						(fun () ->
 							def();
 						)
@@ -2598,11 +2604,11 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let compare jsig =
 		if is_maybe_enum jsig then begin
 			jm_equals#if_then_else
-				(fun () -> jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe) ())
+				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
 				(fun () ->
 					jm_equals#invokestatic haxe_jvm_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
 					jm_equals#if_then
-						(fun () -> code#if_ref CmpNe)
+						(code#if_ CmpNe)
 						(fun () ->
 							code#bconst false;
 							jm_equals#return;
@@ -2614,7 +2620,7 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 				)
 		end else
 			jm_equals#if_then
-				(fun () -> jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe) ())
+				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
 				(fun () ->
 					code#bconst false;
 					jm_equals#return;

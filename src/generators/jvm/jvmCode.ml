@@ -342,22 +342,16 @@ class builder pool = object(self)
 	(* control flow *)
 
 	method if_ cmp r = self#op (OpIf(cmp,r)) 3 [TBool] []
-	method if_ref cmp = let r = ref fp in self#if_ cmp r; r
 
 	method if_icmp cmp r = self#op (OpIf_icmp(cmp,r)) 3 [TInt;TInt] []
-	method if_icmp_ref cmp = let r = ref fp in self#if_icmp cmp r; r
 
 	method if_acmp_eq t1 t2 r = self#op (OpIf_acmpeq r) 3 [t1;t2] []
-	method if_acmp_eq_ref t1 t2 = let r = ref fp in self#if_acmp_eq t1 t2 r; r
 
 	method if_acmp_ne t1 t2 r = self#op (OpIf_acmpne r) 3 [t1;t2] []
-	method if_acmp_ne_ref t1 t2 = let r = ref fp in self#if_acmp_ne t1 t2 r; r
 
 	method if_null t r = self#op (OpIfnull r) 3 [t] []
-	method if_null_ref t = let r = ref fp in self#if_null t r; r
 
 	method if_nonnull t r = self#op (OpIfnonnull r) 3 [t] []
-	method if_nonnull_ref t = let r = ref fp in self#if_nonnull t r; r
 
 	method goto r = self#op (OpGoto r) 3 [] []
 
