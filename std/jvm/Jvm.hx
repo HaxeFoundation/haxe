@@ -291,7 +291,7 @@ class Jvm {
 			while (cl != null) {
 				var methods = cl.getMethods();
 				for (m in methods) {
-					if (m.getName() == name) {
+					if (m.getName() == name && !m.isSynthetic()) {
 						var context = null;
 						if (!isStatic || cl == cast java.lang.Class) {
 							context = obj;
