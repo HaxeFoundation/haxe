@@ -576,11 +576,11 @@ class builder jc name jsig = object(self)
 
 	(** Generates code which executes [f_if()] and then branches into [f_then()] and [f_else()]. **)
 	method if_then_else (f_if : jbranchoffset ref -> unit) (f_then : unit -> unit) (f_else : unit -> unit) =
-		self#if_then_else2 (fun label_then label_else ->
+		self#if_then_else_labeled (fun label_then label_else ->
 			label_else#apply f_if
 		) f_then f_else
 
-	method if_then_else2 (f_if : label -> label -> unit) (f_then : unit -> unit) (f_else : unit -> unit) =
+	method if_then_else_labeled (f_if : label -> label -> unit) (f_then : unit -> unit) (f_else : unit -> unit) =
 		let label_then = self#spawn_label "then" in
 		let label_else = self#spawn_label "else" in
 		let label_exit = self#spawn_label "exit" in
@@ -604,9 +604,9 @@ class builder jc name jsig = object(self)
 
 	(** Generates code which executes [f_if()] and then branches into [f_then()], if the condition holds. **)
 	method if_then (f_if : jbranchoffset ref -> unit) (f_then : unit -> unit) =
-		self#if_then2 (fun _ label_else -> label_else#apply f_if) f_then
+		self#if_then_labeled (fun _ label_else -> label_else#apply f_if) f_then
 
-	method if_then2 (f_if : label -> label -> unit) (f_then : unit -> unit) =
+	method if_then_labeled (f_if : label -> label -> unit) (f_then : unit -> unit) =
 		let label_then = self#spawn_label "then" in
 		let label_else = self#spawn_label "else" in
 		f_if label_then label_else;
@@ -668,7 +668,7 @@ class builder jc name jsig = object(self)
 		let imax = ref Int64.min_int in
 		let cases = List.map (fun (il,f) ->
 			let rl = List.map (fun i32 ->
-				let r = new label (self :> builder) "case" in
+				let r = self#spawn_label "case" in
 				let i64 = Int64.of_int32 i32 in
 				if i64 < !imin then imin := i64;
 				if i64 > !imax then imax := i64;
@@ -678,7 +678,7 @@ class builder jc name jsig = object(self)
 			) il in
 			(rl,f)
 		) cases in
-		let label_def = new label (self :> builder) "default" in
+		let label_def = self#spawn_label "default" in
 		(* No idea what's a good heuristic here... *)
 		let diff = Int64.sub !imax !imin in
 		let use_tableswitch =
@@ -699,7 +699,7 @@ class builder jc name jsig = object(self)
 			code#lookupswitch label_def#mk_offset a;
 		end;
 		let restore = self#start_branch in
-		let label_exit = new label (self :> builder) "exit" in
+		let label_exit = self#spawn_label "exit" in
 		begin match def with
 			| None ->
 				()

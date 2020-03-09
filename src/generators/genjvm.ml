@@ -1317,7 +1317,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			end;
 			self#cast e.etype;
 		| Not,_ ->
-			jm#if_then_else2
+			jm#if_then_else_labeled
 				(self#condition false e)
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
@@ -1856,11 +1856,11 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TConst ct ->
 			self#const ret e.etype ct
 		| TIf(e1,e2,None) ->
-			jm#if_then2
+			jm#if_then_labeled
 				(self#condition false e1)
 				(fun () -> self#texpr RVoid (mk_block e2));
 		| TIf(e1,e2,Some e3) ->
-			jm#if_then_else2
+			jm#if_then_else_labeled
 				(self#condition false e1)
 				(fun () ->
 					self#texpr ret (mk_block e2);
