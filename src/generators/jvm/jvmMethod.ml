@@ -103,9 +103,6 @@ class builder jc name jsig = object(self)
 	val mutable argument_locals = []
 	val mutable thrown_exceptions = Hashtbl.create 0
 
-	(* per-branch *)
-	val mutable terminated = false
-
 	(* per-frame *)
 	val mutable locals = []
 	val mutable local_offset = 0
@@ -314,7 +311,6 @@ class builder jc name jsig = object(self)
 			| Some jsig ->
 				code#return_value jsig
 			end;
-			self#set_terminated true;
 		| _ ->
 			assert false
 
@@ -572,10 +568,10 @@ class builder jc name jsig = object(self)
 	**)
 	method start_branch =
 		let save = code#get_stack#save in
-		let old_terminated = terminated in
+		let old_terminated = code#is_terminated in
 		(fun () ->
 			code#get_stack#restore save;
-			terminated <- old_terminated;
+			code#set_terminated old_terminated;
 		)
 
 	(** Generates code which executes [f_if()] and then branches into [f_then()] and [f_else()]. **)
@@ -648,7 +644,6 @@ class builder jc name jsig = object(self)
 		self#set_terminated term;
 		if not term then self#add_stack_frame;
 
-
 	(**
 		Emits a tableswitch or lookupswitch instruction, depending on which one makes more sense.
 
@@ -663,7 +658,6 @@ class builder jc name jsig = object(self)
 					self#string "Match failure";
 					self#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
 					self#get_code#athrow;
-					self#set_terminated true;
 				)
 			| _ ->
 				def
@@ -890,10 +884,10 @@ class builder jc name jsig = object(self)
 		Array.of_list (List.rev (snd stack_map))
 
 	method get_code = code
-	method is_terminated = terminated
+	method is_terminated = code#is_terminated
 	method get_name = name
 	method get_jsig = jsig
-	method set_terminated b = terminated <- b
+	method set_terminated b = code#set_terminated b
 
 	method private get_jcode (config : export_config) =
 		let attributes = DynArray.create () in

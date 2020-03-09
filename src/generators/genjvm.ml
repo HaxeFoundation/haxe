@@ -1605,7 +1605,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jm#expect_reference_type;
 		jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
 		code#athrow;
-		jm#set_terminated true
 
 	method try_catch ret e1 catches =
 		let restore = jm#start_branch in
@@ -1679,7 +1678,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					code#pop;
 					load();
 					code#athrow;
-					jm#set_terminated true
 				| (_,v,e) :: excl ->
 					code#dup;
 					let path = match self#vtype (self#mknull v.v_type) with TObject(path,_) -> path | _ -> assert false in
@@ -1908,7 +1906,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| Some label ->
 				label#goto;
 			end;
-			jm#set_terminated true;
 		| TContinue ->
 			self#emit_block_exits true;
 			begin match continue with
@@ -1917,7 +1914,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| Some label ->
 				label#goto;
 			end;
-			jm#set_terminated true;
 		| TTry(e1,catches) ->
 			self#try_catch ret e1 catches
 		| TField(e1,fa) ->
@@ -1945,14 +1941,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TReturn None ->
 			self#emit_block_exits false;
 			jm#return;
-			jm#set_terminated true;
 		| TReturn (Some e1) ->
 			self#texpr rvalue_any e1;
 			let jsig = Option.get return_type in
 			jm#cast jsig;
 			self#emit_block_exits false;
 			jm#return;
-			jm#set_terminated true;
 		| TFunction tf ->
 			self#tfunction e tf
 		| TArrayDecl el when not (need_val ret) ->
@@ -2044,7 +2038,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				self#throw vt
 			end else begin
 				code#athrow;
-				jm#set_terminated true
 			end
 		| TObjectDecl fl ->
 			let td = gctx.anon_identification#identify true e.etype in

@@ -25,6 +25,22 @@ open JvmSignature
 
 exception EmptyStack
 
+let terminates = function
+	| OpDreturn
+	| OpFreturn
+	| OpIreturn
+	| OpLreturn
+	| OpAreturn
+	| OpGoto _
+	| OpGoto_w _
+	| OpJsr _
+	| OpJsr_w _
+	| OpAthrow
+	| OpReturn ->
+		true
+	| _ ->
+		false
+
 class jvm_stack = object(self)
 	val mutable stack = [];
 	val mutable stack_size = 0;
@@ -88,6 +104,10 @@ class builder pool = object(self)
 	val ops = DynArray.create();
 	val stack_debug = DynArray.create()
 	val mutable fp = 0
+	val mutable terminated = false
+
+	method is_terminated = terminated
+	method set_terminated b = terminated <- b
 
 	method debug_stack =
 		let l = DynArray.to_list stack_debug in
@@ -148,6 +168,7 @@ class builder pool = object(self)
 		) expect;
 		List.iter stack#push (List.rev return);
 		DynArray.add stack_debug (opcode,cur,stack#get_stack,current_line);
+		if terminates opcode then terminated <- true
 
 	method op_maybe_wide op opw i tl tr = match get_numeric_range_unsigned i with
 		| Int8Range -> self#op op 2 tl tr
