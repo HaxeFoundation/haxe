@@ -728,8 +728,7 @@ class builder jc name jsig = object(self)
 			self#set_terminated false;
 			label_def#here;
 		end else if label_exit#was_jumped_to then
-			self#set_terminated false;
-		if def = None then label_exit else label_def
+			self#set_terminated false
 
 	(** Adds a local with a given [name], signature [jsig] and an [init_state].
 	    This function returns a tuple consisting of:

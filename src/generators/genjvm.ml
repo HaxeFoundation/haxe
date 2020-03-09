@@ -57,6 +57,29 @@ let java_hash s =
 	) s;
 	!h
 
+module HashtblList = struct
+	type ('a,'b) t = {
+		values : ('a,'b) Hashtbl.t;
+		mutable keys : 'a list;
+	}
+
+	let create () = {
+		values = Hashtbl.create 0;
+		keys = []
+	}
+
+	let add htl key value =
+		if not (Hashtbl.mem htl.values key) then begin
+			htl.keys <- key :: htl.keys
+		end;
+		Hashtbl.add htl.values key value
+
+	let as_list htl =
+		List.map (fun key ->
+			(key,Hashtbl.find_all htl.values key)
+		) htl.keys
+end
+
 let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
@@ -809,6 +832,87 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			(if flip then label_then else label_else)#if_ (if flip then CmpNe else CmpEq)
 		end;
 
+	method string_switch
+		(ret : ret)
+		(need_val : bool)
+		(load : (unit -> unit))
+		(exprs : (texpr * int) array)
+		(cases : (int32 * (string * int) list) list)
+		(def : (unit -> unit) option)
+	=
+		let def = match def with
+			| None when need_val ->
+				Some (fun () ->
+					jm#string "Match failure";
+					jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+					jm#get_code#athrow;
+				)
+			| _ ->
+				def
+		in
+		let label_def = jm#spawn_label "default" in
+		let label_exit = jm#spawn_label "exit" in
+		(* all strings can be null and we're not supposed to cause NPEs here... *)
+		load();
+		label_def#apply (jm#get_code#if_null string_sig);
+		load();
+		jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
+		(* switch *)
+		let exprs = Array.map (fun e -> e,jm#spawn_label "case-expr") exprs in
+		let jump_table = List.map (fun (hash,l) -> hash,jm#spawn_label "hash-match") cases in
+		let sorted_jump_table = List.map (fun (hash,label) -> hash,label#mk_offset) jump_table in
+		let sorted_jump_table = Array.of_list sorted_jump_table in
+		Array.sort (fun (i1,_) (i2,_) -> compare i1 i2) sorted_jump_table;
+		code#lookupswitch label_def#mk_offset sorted_jump_table;
+		let restore = jm#start_branch in
+		(* default *)
+		begin match def with
+			| None ->
+				()
+			| Some f ->
+				label_def#here;
+				let pop_scope = jm#push_scope in
+				f();
+				pop_scope();
+				if not jm#is_terminated then label_exit#goto;
+		end;
+		(* cases *)
+		let rec loop cases jumps = match cases,jumps with
+			| (_,l) :: cases,(_,label) :: jumps ->
+				label#here;
+				List.iter (fun (s,i) ->
+					restore();
+					jm#add_stack_frame;
+					let pop_scope = jm#push_scope in
+					let (e,num_jumps),r = exprs.(i) in
+					load();
+					jm#string s;
+					jm#invokevirtual string_path "equals" (method_sig [object_sig] (Some TBool));
+					jm#if_then
+						(code#if_ CmpEq)
+						(fun () ->
+							self#texpr ret e;
+							if not jm#is_terminated then label_exit#goto;
+						);
+					pop_scope();
+				) l;
+				label_def#goto;
+				loop cases jumps
+			| [],[] ->
+				()
+			| _ ->
+				assert false
+		in
+		loop cases jump_table;
+		if label_exit#was_jumped_to then label_exit#here;
+		if def = None then begin
+			jm#set_terminated false;
+			label_def#here;
+		end else if label_exit#was_jumped_to then
+			jm#set_terminated false
+		else
+			jm#set_terminated true
+
 	method switch ret e1 cases def =
 		let need_val = match ret with
 			| RValue _ -> true
@@ -831,34 +935,27 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			in
 			self#texpr rvalue_any e1;
 			jm#cast TInt;
-			ignore(jm#int_switch need_val cases def);
+			jm#int_switch need_val cases def
 		end else if List.for_all is_const_string_pattern cases then begin
-			let cases = List.map (fun (el,e) ->
-				let il = List.map (fun e -> match e.eexpr with
-					| TConst (TString s) -> java_hash s
+			let buckets = HashtblList.create () in
+			let exprs = DynArray.create () in
+			List.iter (fun (el,e) ->
+				List.iter (fun e' -> match e'.eexpr with
+					| TConst (TString s) ->
+						HashtblList.add buckets (java_hash s) (s,DynArray.length exprs);
+						DynArray.add exprs (e,List.length el);
 					| _ -> assert false
-				) el in
-				(il,(fun () -> self#texpr ret e))
-			) cases in
+				) el
+			) cases;
 			let def = match def with
 				| None -> None
 				| Some e -> Some (fun () -> self#texpr ret e)
 			in
 			self#texpr rvalue_any e1;
 			jm#cast string_sig;
-			(* all strings can be null and we're not supposed to cause NPEs here... *)
-			let label_exit = jm#spawn_label "exit" in
-			code#dup;
-			jm#if_then
-				(jm#get_code#if_nonnull string_sig)
-				(fun () ->
-					code#pop;
-					label_exit#goto;
-				);
-			jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
-			let label_out = jm#int_switch need_val cases def in
-			if not label_out#was_jumped_to then label_out#here;
-			label_exit#at label_out#get_offset
+			let _,load,save = jm#add_local "_hx_tmp" string_sig VarWillInit in
+			save();
+			self#string_switch ret need_val load (DynArray.to_array exprs) (HashtblList.as_list buckets) def;
 		end else begin
 			(* TODO: rewriting this is stupid *)
 			let pop_scope = jm#push_scope in
@@ -2153,7 +2250,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 			load();
 			jm#invokespecial jc#get_super_path "_hx_getField" jsig;
 		) in
-		ignore(jm#int_switch false cases (Some def));
+		jm#int_switch false cases (Some def);
 		jm#return
 	end;
 	let fields = List.filter (fun (_,_,kind) -> match kind with
@@ -2197,7 +2294,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 				end;
 			)
 		) fields in
-		ignore(jm#int_switch false cases (Some def));
+		jm#int_switch false cases (Some def);
 		jm#return
 	end
 
