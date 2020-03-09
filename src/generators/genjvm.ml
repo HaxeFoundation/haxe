@@ -2102,11 +2102,8 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let jm = jc#spawn_method "_hx_getField" jsig [MPublic;MSynthetic] in
 		let _,load,_ = jm#add_local "name" string_sig VarArgument in
 		jm#finalize_arguments;
-		load();
-		jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
 		let cases = List.map (fun (name,jsig,kind) ->
-			let hash = java_hash name in
-			[hash],(fun () ->
+			[name],(fun () ->
 				begin match kind with
 					| Method (MethNormal | MethInline) ->
 						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () ->
@@ -2126,7 +2123,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 			load();
 			jm#invokespecial jc#get_super_path "_hx_getField" jsig;
 		) in
-		jm#int_switch false cases (Some def);
+		jm#string_switch true load cases (Some def);
 		jm#return
 	end;
 	let fields = List.filter (fun (_,_,kind) -> match kind with
