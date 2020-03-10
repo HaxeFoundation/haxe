@@ -257,7 +257,7 @@ let rec rename_local_vars_aux ctx reserved e =
 			) catches
 		| TFunction tf ->
 			begin match ctx.com.config.pf_nested_function_scoping with
-			| JsLike ->
+			| Hoisted ->
 				funcs := tf :: !funcs;
 			| Nested | Independent ->
 				List.iter (fun (v,_) -> declare v) tf.tf_args;
