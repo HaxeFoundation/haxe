@@ -49,6 +49,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
+			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
@@ -60,8 +61,9 @@ let completion_item_of_expr ctx e =
 				| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta -> make_ci_enum_abstract_field a
 				| _ -> make_ci_class_field
 			in
-			of_field e origin cf CFSStatic make_ci
+			of_field {e with etype = te} origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
+			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
@@ -69,7 +71,7 @@ let completion_item_of_expr ctx e =
 			| _ ->
 				Self (TClassDecl c)
 			in
-			of_field e origin cf CFSMember make_ci_class_field
+			of_field {e with etype = te} origin cf CFSMember make_ci_class_field
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,(FAnon cf | FClosure(None,cf))) ->
 			begin match follow e1.etype with
@@ -141,7 +143,7 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t ->
 			let from_type = CompletionType.from_type (get_import_status ctx) in
-			Some (from_type t,from_type (follow t))
+			Some (from_type t,from_type (Type.map follow (follow t)))
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
@@ -244,10 +246,14 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
-					begin match extract_field fa with
-						| Some cf -> (e1.etype,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
-						| None -> [e1.etype,None,PMap.empty]
-					end
+					let f (t,_,cf) =
+						(t,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
+					in
+					begin match fa with
+						| FStatic(c,cf) | FInstance(c,_,cf) -> f (DisplayToplevel.maybe_resolve_macro_field ctx e1.etype c cf)
+						| FAnon cf | FClosure(_,cf) -> f (e1.etype,null_class,cf)
+						| _ -> [e1.etype,None,PMap.empty]
+					end;
 				| TConst TSuper ->
 					find_constructor_types e1.etype
 				| TLocal v ->

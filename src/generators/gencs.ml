@@ -1878,6 +1878,22 @@ let generate con =
 				gen.gcon.error "Invalid expression inside @:meta metadata" p
 		in
 
+		let gen_assembly_attributes w metadata =
+			List.iter (function
+				| Meta.AssemblyMeta, [EConst(String(s,_)), _], _ ->
+					write w "[assembly:";
+					write w s;
+					write w "]";
+					newline w
+				| Meta.AssemblyMeta, [meta], _ ->
+					write w "[assembly:";
+					gen_spart w meta;
+					write w "]";
+					newline w
+				| _ -> ()
+			) metadata
+		in
+
 		let gen_attributes w metadata =
 			List.iter (function
 				| Meta.Meta, [EConst(String(s,_)), _], _ ->
@@ -2188,9 +2204,12 @@ let generate con =
 							| Some e ->
 								write w " = ";
 								expr_s true w e;
-							| None -> ()
+								write w ";"
+							| None when (Meta.has Meta.Property cf.cf_meta) ->
+								write w " { get; set; }";
+							| None ->
+								write w ";"
 						);
-						write w ";"
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
@@ -2519,12 +2538,28 @@ let generate con =
 			end
 		in
 
-		let gen_class w cl =
+		let gen_class w cl is_first_type =
+			if (is_first_type == false) then begin
+				if Meta.has Meta.AssemblyStrict cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
+				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+			end;
+
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
 			newline w;
 			let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
-				| [] -> false
+				| [] ->
+					(* Should the assembly annotations be added to the class in this case? *)
+
+					if Meta.has Meta.AssemblyStrict cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
+					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
+
+					false
 				| ns ->
+					gen_assembly_attributes w cl.cl_meta;
 					print w "namespace %s " (String.concat "." ns);
 					begin_block w;
 					true
@@ -2779,7 +2814,7 @@ let generate con =
 			if should_close then end_block w
 		in
 
-		let module_type_gen w md_tp =
+		let module_type_gen w md_tp is_first_type =
 			let file_start = len w = 0 in
 			let requires_root = no_root && file_start in
 			if file_start then
@@ -2789,7 +2824,24 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
-						gen_class w cl;
+
+						(if (Meta.has Meta.CsUsing cl.cl_meta) then
+							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,_,p when not !is_first_type ->
+									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
+								| _,[],p ->
+									gen.gcon.error "One or several string constants expected" p
+								| _,e,_ ->
+									(List.iter (fun e ->
+										match e with
+										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
+										| _,p -> gen.gcon.error "One or several string constants expected" p
+									) e);
+									newline w
+						);
+
+						gen_class w cl !is_first_type;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2798,6 +2850,7 @@ let generate con =
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 						gen_enum w e;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -3422,7 +3475,8 @@ let generate con =
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in
 			let w = SourceWriter.new_source_writer() in
-			let should_write = List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types in
+			let is_first_type = ref true in
+			let should_write = List.fold_left (fun should md -> module_type_gen w md is_first_type || should) false md_def.m_types in
 			if should_write then begin
 				let path = path_of_md_def md_def in
 				write_file gen w source_dir path "cs" out_files

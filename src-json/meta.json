@@ -53,6 +53,20 @@
 		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
 	},
 	{
+		"name": "AssemblyMeta",
+		"metadata": ":cs.assemblyMeta",
+		"doc": "Used to declare a native C# assembly attribute",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
+		"name": "AssemblyStrict",
+		"metadata": ":cs.assemblyStrict",
+		"doc": "Used to declare a native C# assembly attribute; is type checked",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Ast",
 		"metadata": ":ast",
 		"doc": "Internally used to pass the AST source into the typed AST.",
@@ -194,6 +208,13 @@
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
+	},
+	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
 	},
 	{
 		"name": "Dce",
@@ -928,7 +949,7 @@
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property.",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
@@ -1203,7 +1224,15 @@
 		"name": "Value",
 		"metadata": ":value",
 		"doc": "Used to store default values for fields and function arguments.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"internal": true
+	},
+	{
+		"name": "HaxeArguments",
+		"metadata": ":haxe.arguments",
+		"doc": "Used to store function arguments.",
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
 		"name": "Void",

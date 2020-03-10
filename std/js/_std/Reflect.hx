@@ -62,10 +62,10 @@
 		if (o != null)
 			untyped {
 				var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
-				__js__("for( var f in o ) {");
+				js.Syntax.code("for( var f in o ) {");
 				if (f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f))
 					a.push(f);
-				__js__("}");
+				js.Syntax.code("}");
 			}
 		return a;
 	}
@@ -119,7 +119,7 @@
 	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
 	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return function() {
-			var a = untyped Array.prototype.slice.call(__js__("arguments"));
+			var a = untyped Array.prototype.slice.call(js.Syntax.code("arguments"));
 			return f(a);
 		};
 	}

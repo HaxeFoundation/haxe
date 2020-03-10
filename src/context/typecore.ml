@@ -88,6 +88,7 @@ type typer_globals = {
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
+	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
 	do_optimize : typer -> texpr -> texpr;

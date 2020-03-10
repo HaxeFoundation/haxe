@@ -630,6 +630,24 @@ let type_opt (ctx,cctx) p t =
 	| _ ->
 		load_type_hint ctx p t
 
+let transform_field (ctx,cctx) c f fields p =
+	let f = match cctx.abstract with
+		| Some a ->
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+			transform_abstract_field ctx.com this_t a_t a f
+		| None ->
+			f
+	in
+	if List.mem_assoc AMacro f.cff_access then
+		(match ctx.g.macros with
+		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
+			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
+				error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
+		| _ -> ());
+	f
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -638,24 +656,7 @@ let build_fields (ctx,cctx) c fields =
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
 		| EVars [_,_,Some (CTAnonymous f,p),None] ->
-			let f = List.map (fun f ->
-				let f = match cctx.abstract with
-					| Some a ->
-						let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
-						let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-						transform_abstract_field ctx.com this_t a_t a f
-					| None ->
-						f
-				in
-				if List.mem_assoc AMacro f.cff_access then
-					(match ctx.g.macros with
-					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
-						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
-						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
-							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
-					| _ -> ());
-				f
-			) f in
+			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
 			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
@@ -1141,7 +1142,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			with Not_found ->
 				()
 	) parent;
-	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
+	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;

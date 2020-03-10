@@ -27,6 +27,14 @@ open DisplayTypes
 open Genjson
 open Globals
 
+let maybe_resolve_macro_field ctx t c cf =
+	try
+		if cf.cf_kind <> Method MethMacro then raise Exit;
+		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
+		(TFun(tl,tr)),c,cf
+	with _ ->
+		t,c,cf
+
 let exclude : string list ref = ref []
 
 class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
@@ -268,6 +276,22 @@ let collect ctx tk with_type sort =
 		) ctx.locals;
 
 		let add_field scope origin cf =
+			let origin,cf = match origin with
+				| Self (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Self (TClassDecl c),cf
+				| StaticImport (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticImport (TClassDecl c),cf
+				| Parent (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Parent (TClassDecl c),cf
+				| StaticExtension (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticExtension (TClassDecl c),cf
+				| _ ->
+					origin,cf
+			in
 			let is_qualified = is_qualified cctx cf.cf_name in
 			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some cf.cf_name)
 		in
@@ -333,7 +357,7 @@ let collect ctx tk with_type sort =
 		(* enum constructors of expected type *)
 		begin match with_type with
 			| WithType.WithType(t,_) ->
-				(try enum_ctors (module_type_of_type t) with Exit -> ())
+				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
 			| _ -> ()
 		end;
 

@@ -335,7 +335,7 @@ let property ctx fa t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
+		| "copy" | "insert" | "contains" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
@@ -1159,7 +1159,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx false e;
 		if flag = NormalWhile then jstart();
 		let continue_pos = ctx.infos.ipos in
-		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
+		let _j = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull

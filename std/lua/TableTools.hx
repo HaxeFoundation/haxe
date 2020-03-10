@@ -30,10 +30,10 @@ import lua.Table.AnyTable;
 **/
 @:native("_hx_table")
 extern class TableTools {
-	public static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
-	public static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
-	public static function maxn(t:AnyTable):Int;
-	public static function __init__():Void {
+	static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
+	static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
+	static function maxn(t:AnyTable):Int;
+	static function __init__():Void {
 		untyped __define_feature__("use._hx_table", null);
 	}
 }
