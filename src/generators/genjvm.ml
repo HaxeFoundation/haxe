@@ -215,6 +215,10 @@ module AnnotationHandler = struct
 		List.iter (fun (m,el,_) -> match m,el with
 			| Meta.Meta,[e] ->
 				let path,annotation = parse_expr e in
+				let path = match path with
+					| [],name -> ["haxe";"root"],name
+					| _ -> path
+				in
 				builder#add_annotation path annotation;
 			| _ ->
 				()
@@ -1415,7 +1419,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path (String.sub cf.cf_name 1 (String.length cf.cf_name - 1)) (method_sig tl tr);
 			tr
-		| TField(_,FStatic({cl_path = (["haxe";"_Int64"],"Int64_Impl_")},{cf_name = "make"})) ->
+		| TField(_,FStatic({cl_path = (["haxe"],"Int64$Int64_Impl_")},{cf_name = "make"})) ->
 			begin match el with
 			| [{eexpr = TConst (TInt i1)};{eexpr = TConst (TInt i2)}] ->
 				let high = Int64.of_int32 i1 in
@@ -2752,12 +2756,32 @@ module Preprocessor = struct
 	let make_root path =
 		["haxe";"root"],snd path
 
+	let check_path mt =
+		if mt.mt_private then begin
+			let m = mt.mt_module in
+			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
+		end else if fst mt.mt_path = [] then
+			mt.mt_path <- make_root mt.mt_path
+
 	let preprocess gctx =
+		let rec has_runtime_meta = function
+			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
+				true
+			| _ :: l ->
+				has_runtime_meta l
+			| [] ->
+				false
+		in
 		(* go through com.modules so we can also pick up private typedefs *)
 		List.iter (fun m ->
-			List.iter (fun mt -> match mt with
+			List.iter (fun mt ->
+				match mt with
+				| TClassDecl ({cl_interface=true} as c) when has_runtime_meta c.cl_meta ->
+					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
+				| TClassDecl _ | TEnumDecl _ ->
+					check_path (t_infos mt);
 				| TTypeDecl td ->
-					if fst td.t_path = [] then td.t_path <- make_root td.t_path;
+					check_path (t_infos mt);
 					gctx.anon_identification#identify_typedef td
 				| _ ->
 					()
@@ -2767,10 +2791,7 @@ module Preprocessor = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
-				if fst c.cl_path = [] then c.cl_path <- make_root c.cl_path;
 				if debug_path c.cl_path && not c.cl_interface then gctx.preprocessor#preprocess_class c
-			| TEnumDecl en ->
-				if fst en.e_path = [] then en.e_path <- make_root en.e_path;
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
