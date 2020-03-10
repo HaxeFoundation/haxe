@@ -2752,6 +2752,85 @@ let generate_module_type ctx mt =
 		| _ -> ()
 	)
 
+let generate_anons gctx =
+	Hashtbl.iter (fun path td ->
+		let fields = match follow td.t_type with
+			| TAnon an -> an.a_fields
+			| _ -> assert false
+		in
+		let fields = convert_fields gctx fields in
+		let jc = new JvmClass.builder path haxe_dynamic_object_path in
+		jc#add_access_flag 0x1;
+		begin
+			let jm_ctor = jc#spawn_method "<init>" (method_sig (List.map snd fields) None) [MPublic] in
+			jm_ctor#load_this;
+			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
+			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
+			List.iter (fun (name,jsig) ->
+				jm_ctor#add_argument_and_field name jsig;
+			) fields;
+			jm_ctor#return;
+		end;
+		begin
+			let string_map_path = (["haxe";"ds"],"StringMap") in
+			let string_map_sig = object_path_sig string_map_path in
+			let jm_fields = jc#spawn_method "_hx_getKnownFields" (method_sig [] (Some string_map_sig)) [MProtected] in
+			let _,load,save = jm_fields#add_local "tmp" string_map_sig VarWillInit in
+			jm_fields#construct ConstructInit string_map_path (fun () -> []);
+			save();
+			List.iter (fun (name,jsig) ->
+				load();
+				let offset = jc#get_pool#add_const_string name in
+				jm_fields#get_code#sconst (string_sig) offset;
+				jm_fields#load_this;
+				jm_fields#getfield jc#get_this_path name jsig;
+				jm_fields#expect_reference_type;
+				jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
+			) fields;
+			load();
+			jm_fields#return
+		end;
+		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
+		begin match gctx.typedef_interfaces#get_interface_class path with
+		| None ->
+			()
+		| Some c ->
+			jc#add_interface c.cl_path;
+			List.iter (fun cf ->
+				let jsig_cf = jsignature_of_type gctx cf.cf_type in
+				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
+				let tl,tr = match follow cf.cf_type with
+					| TFun(tl,tr) -> tl,tr
+					| _ -> assert false
+				in
+				let locals = List.map (fun (n,_,t) ->
+					let jsig = jsignature_of_type gctx t in
+					jm#add_local n jsig VarArgument,jsig
+				) tl in
+				jm#finalize_arguments;
+				jm#load_this;
+				jm#getfield path cf.cf_name jsig_cf;
+				List.iter (fun ((_,load,_),_) ->
+					load();
+				) locals;
+				let jret = return_of_type gctx tr in
+				let meth = gctx.typed_functions#register_signature (List.map snd locals) jret in
+				jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
+				Option.may jm#cast jret;
+				jm#return
+			) c.cl_ordered_fields
+		end;
+		write_class gctx.jar path (jc#export_class gctx.default_export_config)
+	) gctx.anon_identification#get_anons
+
+let generate_typed_functions gctx =
+	let jc_function = gctx.typed_functions#generate in
+	write_class gctx.jar jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
+	let jc_varargs = gctx.typed_functions#generate_var_args in
+	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
+	let jc_closure_dispatch = gctx.typed_functions#generate_closure_dispatch in
+	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config)
+
 module Preprocessor = struct
 	let make_root path =
 		["haxe";"root"],snd path
@@ -2842,7 +2921,6 @@ let generate com =
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
-	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd then None
 		else begin
@@ -2870,81 +2948,15 @@ let generate com =
 		let filename = Codegen.escape_res_name name true in
 		Zip.add_entry v gctx.jar filename;
 	) com.resources;
-	List.iter (generate_module_type gctx) com.types;
-	Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.typedef_interfaces#get_interfaces;
-	Hashtbl.iter (fun path td ->
-		let fields = match follow td.t_type with
-			| TAnon an -> an.a_fields
-			| _ -> assert false
-		in
-		let fields = convert_fields gctx fields in
-		let jc = new JvmClass.builder path haxe_dynamic_object_path in
-		jc#add_access_flag 0x1;
-		begin
-			let jm_ctor = jc#spawn_method "<init>" (method_sig (List.map snd fields) None) [MPublic] in
-			jm_ctor#load_this;
-			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
-			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
-			List.iter (fun (name,jsig) ->
-				jm_ctor#add_argument_and_field name jsig;
-			) fields;
-			jm_ctor#return;
-		end;
-		begin
-			let string_map_path = (["haxe";"ds"],"StringMap") in
-			let string_map_sig = object_path_sig string_map_path in
-			let jm_fields = jc#spawn_method "_hx_getKnownFields" (method_sig [] (Some string_map_sig)) [MProtected] in
-			let _,load,save = jm_fields#add_local "tmp" string_map_sig VarWillInit in
-			jm_fields#construct ConstructInit string_map_path (fun () -> []);
-			save();
-			List.iter (fun (name,jsig) ->
-				load();
-				let offset = jc#get_pool#add_const_string name in
-				jm_fields#get_code#sconst (string_sig) offset;
-				jm_fields#load_this;
-				jm_fields#getfield jc#get_this_path name jsig;
-				jm_fields#expect_reference_type;
-				jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
-			) fields;
-			load();
-			jm_fields#return
-		end;
-		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
-		begin match gctx.typedef_interfaces#get_interface_class path with
-		| None ->
-			()
-		| Some c ->
-			jc#add_interface c.cl_path;
-			List.iter (fun cf ->
-				let jsig_cf = jsignature_of_type gctx cf.cf_type in
-				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
-				let tl,tr = match follow cf.cf_type with
-					| TFun(tl,tr) -> tl,tr
-					| _ -> assert false
-				in
-				let locals = List.map (fun (n,_,t) ->
-					let jsig = jsignature_of_type gctx t in
-					jm#add_local n jsig VarArgument,jsig
-				) tl in
-				jm#finalize_arguments;
-				jm#load_this;
-				jm#getfield path cf.cf_name jsig_cf;
-				List.iter (fun ((_,load,_),_) ->
-					load();
-				) locals;
-				let jret = return_of_type gctx tr in
-				let meth = gctx.typed_functions#register_signature (List.map snd locals) jret in
-				jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
-				Option.may jm#cast jret;
-				jm#return
-			) c.cl_ordered_fields
-		end;
-		write_class gctx.jar path (jc#export_class gctx.default_export_config)
-	) gctx.anon_identification#get_anons;
-	let jc_function = gctx.typed_functions#generate in
-	write_class gctx.jar jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
-	let jc_varargs = gctx.typed_functions#generate_var_args in
-	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
-	let jc_closure_dispatch = gctx.typed_functions#generate_closure_dispatch in
-	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config);
+	let generate_real_types () =
+		List.iter (generate_module_type gctx) com.types;
+	in
+	let generate_typed_interfaces () =
+		Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.typedef_interfaces#get_interfaces;
+	in
+	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
+	Std.finally (Timer.timer ["generate";"java";"real types"]) generate_real_types ();
+	Std.finally (Timer.timer ["generate";"java";"typed interfaces"]) generate_typed_interfaces ();
+	Std.finally (Timer.timer ["generate";"java";"anons"]) generate_anons gctx;
+	Std.finally (Timer.timer ["generate";"java";"typed functions"]) generate_typed_functions gctx;
 	Zip.close_out gctx.jar
