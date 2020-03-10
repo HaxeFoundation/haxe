@@ -68,7 +68,6 @@ class String {
 		else
 			startIndex += 1;
 		if (str == "") {
-			// TODO: this makes lua CI hang forever
 			return indexOfEmpty(this, startIndex - 1);
 		}
 		var r = BaseString.find(this, str, startIndex, true).begin;
