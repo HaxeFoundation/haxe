@@ -41,6 +41,6 @@ extern class NativeSocket {
 	function setTimeout(timeout:Float):Void;
 	function shutdown(read:Bool, write:Bool):Void;
 
-	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+	static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 		?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>};
 }
