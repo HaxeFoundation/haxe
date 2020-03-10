@@ -67,7 +67,7 @@ import js.Syntax;
 	}
 
 	public static inline function parseFloat(x:String):Float {
-		return untyped __js__("parseFloat")(x);
+		return js.Syntax.code("parseFloat({0})", x);
 	}
 
 	public static function random(x:Int):Int {
@@ -82,15 +82,15 @@ import js.Syntax;
 			__feature__("js.Boot.isClass", Array.__name__ = __feature__("Type.getClassName", "Array", true));
 			__feature__("Date.*", {
 				__feature__("js.Boot.getClass",
-					__js__('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = __js__('Date'), __js__('Date')));
-				__feature__("js.Boot.isClass", __js__('Date').__name__ = "Date");
+					js.Syntax.code('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
+				__feature__("js.Boot.isClass", js.Syntax.code('Date').__name__ = "Date");
 			});
-			__feature__("Int.*", __js__('var Int = { };'));
-			__feature__("Dynamic.*", __js__('var Dynamic = { };'));
-			__feature__("Float.*", __js__('var Float = Number'));
-			__feature__("Bool.*", __js__('var Bool = Boolean'));
-			__feature__("Class.*", __js__('var Class = { };'));
-			__feature__("Enum.*", __js__('var Enum = { };'));
+			__feature__("Int.*", js.Syntax.code('var Int = { };'));
+			__feature__("Dynamic.*", js.Syntax.code('var Dynamic = { };'));
+			__feature__("Float.*", js.Syntax.code('var Float = Number'));
+			__feature__("Bool.*", js.Syntax.code('var Bool = Boolean'));
+			__feature__("Class.*", js.Syntax.code('var Class = { };'));
+			__feature__("Enum.*", js.Syntax.code('var Enum = { };'));
 			#if (js_es < 5)
 			__feature__("Array.map", if (Array.prototype.map == null) Array.prototype.map = function(f) {
 				var a = [];

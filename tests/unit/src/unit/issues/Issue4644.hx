@@ -1,25 +1,25 @@
 package unit.issues;
 
 class Issue4644 extends Test {
+#if js
+
 	function test() {
-		#if js
-		var isHaxeError;
-		untyped __js__(
+		var isHaxeError = true;
+		js.Syntax.code(
 			"try {{
-				{0};
+				({0})();
 			}} catch (e) {{
-				{1} = (e instanceof {2});
+				({1})(e instanceof {2});
 			}}",
-			throw (new js.lib.Error() : Dynamic),
-			isHaxeError,
+			() -> throw (new js.lib.Error():Dynamic),
+			b -> isHaxeError = b,
 			#if js_unflatten
-			__js__("haxe.Exception")
+			js.Syntax.code("haxe.Exception")
 			#else
-			__js__("haxe_Exception")
+			js.Syntax.code("haxe_Exception")
 			#end
 		);
 		f(isHaxeError);
-		#end
-		noAssert();
 	}
+#end
 }

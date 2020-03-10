@@ -26,5 +26,5 @@ extern class NSLog {
 	@:native("NSLog")
 	@:overload(function(format:NSString, a0:NSObject):Void {})
 	@:overload(function(format:NSString, a0:NSObject, a1:NSObject):Void {})
-	public static function log(format:NSString):Void;
+	static function log(format:NSString):Void;
 }

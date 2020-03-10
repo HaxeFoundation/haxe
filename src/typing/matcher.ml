@@ -209,10 +209,8 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			if not (Common.defined ctx.com Define.NoDeprecationWarnings) then begin
-				DeprecationCheck.check_enum pctx.ctx.com en p;
-				DeprecationCheck.check_ef pctx.ctx.com ef p;
-			end;
+			DeprecationCheck.check_enum pctx.ctx.com en p;
+			DeprecationCheck.check_ef pctx.ctx.com ef p;
 			ConEnum(en,ef),p
 		in
 		let con_static c cf p = ConStatic(c,cf),p in

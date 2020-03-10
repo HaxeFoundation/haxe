@@ -34,17 +34,17 @@ package sys.thread;
 	/**
 		Create a new Deque instance which is initially empty.
 	**/
-	public function new():Void;
+	function new():Void;
 
 	/**
 		Adds an element at the end of `this` Deque.
 	**/
-	public function add(i:T):Void;
+	function add(i:T):Void;
 
 	/**
 		Adds an element at the front of `this` Deque.
 	**/
-	public function push(i:T):Void;
+	function push(i:T):Void;
 
 	/**
 		Tries to retrieve an element from the front of `this` Deque.
@@ -55,5 +55,5 @@ package sys.thread;
 
 		Otherwise, execution blocks until an element is available and returns it.
 	**/
-	public function pop(block:Bool):Null<T>;
+	function pop(block:Bool):Null<T>;
 }

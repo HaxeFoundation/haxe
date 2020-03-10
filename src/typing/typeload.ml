@@ -210,7 +210,7 @@ let load_type_def ctx p t =
 
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	
+
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
@@ -311,8 +311,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| TClassDecl {cl_kind = KGeneric} -> true,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
 			| TTypeDecl td ->
-				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-					begin try
+				DeprecationCheck.if_enabled ctx.com (fun() ->
+					try
 						let msg = match Meta.get Meta.Deprecated td.t_meta with
 							| _,[EConst(String(s,_)),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
@@ -320,7 +320,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						DeprecationCheck.warn_deprecation ctx.com msg p
 					with Not_found ->
 						()
-					end;
+				);
 				false,false
 			| _ -> false,false
 		in

@@ -366,8 +366,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert (ctx.es_version >= 6); spr ctx "super"
 
-let print_deprecation_message com msg p =
-	com.warning msg p
+let print_deprecation_message = DeprecationCheck.warn_deprecation
 
 let is_code_injection_function e =
 	match e.eexpr with
@@ -424,7 +423,7 @@ let rec gen_call ctx e el in_value =
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
 		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
@@ -1076,7 +1075,7 @@ let gen_class_static_field ctx c cl_path f =
 			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ (static_field ctx c f)) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -1296,7 +1295,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				process_expose cf.cf_meta (fun () -> dotp ^ (static_field ctx c cf)) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
+				process_expose cf.cf_meta (fun () -> dotp  ^ "." ^ cf.cf_name) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
 
 				false
 			| _ -> true
@@ -1514,7 +1513,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	let cl_path = get_generated_class_path c in
-	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ (static_field ctx c f)) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
 	gen_value ctx e;
 	newline ctx
@@ -1663,18 +1662,18 @@ let generate com =
 				let add s = r := s :: !r in
 				process_expose c.cl_meta (fun () -> path) add;
 				List.iter (fun f ->
-					process_expose f.cf_meta (fun () -> path ^ static_field ctx c f) add
+					process_expose f.cf_meta (fun () -> path ^ "." ^ f.cf_name) add
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
-		!r 
+		!r
 	end in
 	let anyExposed = exposed <> [] in
 	let exposedObject = { os_name = ""; os_fields = [] } in
 	let toplevelExposed = ref [] in
 	if anyExposed then begin
 		let exportMap = Hashtbl.create 0 in
-		List.iter (fun path -> 
+		List.iter (fun path ->
 			let parts = ExtString.String.nsplit path "." in
 			let rec loop p pre =
 				match p with

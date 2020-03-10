@@ -75,23 +75,10 @@ let limit_string s offset =
 	in
 	String.concat "" (loop 0 words)
 
-let rec error ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> error ctx msg p)
-	| None ->
-		let msg = try List.assoc msg deprecated with Not_found -> msg in
-		message ctx (CMError(msg,p));
-		ctx.has_error <- true
-
-let rec warning ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> warning ctx msg p)
-	| None -> message ctx (CMWarning(msg,p))
-
-let rec info ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> info ctx msg p)
-	| None -> message ctx (CMInfo(msg,p))
+let error ctx msg p =
+	let msg = try List.assoc msg deprecated with Not_found -> msg in
+	message ctx (CMError(msg,p));
+	ctx.has_error <- true
 
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
@@ -397,8 +384,8 @@ let setup_common_context ctx com =
 	Common.raw_define com "haxe4";
 	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
-	com.info <- info ctx;
-	com.warning <- warning ctx;
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
 		(match msg with
@@ -455,7 +442,7 @@ let process_display_configuration ctx =
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
-				warning ctx;
+				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
@@ -609,8 +596,7 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		DeprecationCheck.run com;
+	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
 

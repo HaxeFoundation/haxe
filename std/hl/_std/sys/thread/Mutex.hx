@@ -25,10 +25,10 @@ package sys.thread;
 #if doc_gen
 @:coreApi
 extern class Mutex {
-	public function new():Void;
-	public function acquire():Void;
-	public function tryAcquire():Bool;
-	public function release():Void;
+	function new():Void;
+	function acquire():Void;
+	function tryAcquire():Bool;
+	function release():Void;
 }
 #else
 

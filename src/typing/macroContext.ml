@@ -534,8 +534,7 @@ let load_macro' ctx display cpath f p =
 			| _ -> error "Macro should be called on a class" p
 		) in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
-		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-			DeprecationCheck.check_cf mctx.com meth p;
+		DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
 		restore();
 		if not ctx.in_macro then flush_macro_context mint ctx;
@@ -552,16 +551,17 @@ let load_macro' ctx display cpath f p =
 		meth
 	in
 	add_dependency ctx.m.curmod mloaded;
-	cpath,sub,meth
+	meth
 
 let load_macro ctx display cpath f p =
-	let cpath,sub,meth = load_macro' ctx display cpath f p in
+	let meth = load_macro' ctx display cpath f p in
 	let api, mctx = get_macro_context ctx p in
+	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
-		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
+		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
 		t();
 		if ctx.com.verbose then Common.log ctx.com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 		r

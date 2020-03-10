@@ -26,31 +26,31 @@ import python.lib.time.StructTime;
 
 @:pythonImport("datetime", "datetime")
 extern class Datetime {
-	public function new(year:Int, month:Int, day:Int, hour:Int = 0, minute:Int = 0, second:Int = 0, microsecond:Int = 0, tzinfo:Tzinfo = null);
+	function new(year:Int, month:Int, day:Int, hour:Int = 0, minute:Int = 0, second:Int = 0, microsecond:Int = 0, tzinfo:Tzinfo = null);
 
-	public static var min:Datetime;
-	public static var max:Datetime;
-	public static var resolution:Timedelta;
+	static var min:Datetime;
+	static var max:Datetime;
+	static var resolution:Timedelta;
 
-	public var year:Int;
-	public var month:Int;
-	public var day:Int;
-	public var hour:Int;
-	public var minute:Int;
-	public var second:Int;
-	public var microsecond:Int;
-	public var tzinfo:Tzinfo;
+	var year:Int;
+	var month:Int;
+	var day:Int;
+	var hour:Int;
+	var minute:Int;
+	var second:Int;
+	var microsecond:Int;
+	var tzinfo:Tzinfo;
 
-	public static function today():Datetime;
-	public static function now(?tzinfo:Tzinfo):Datetime;
-	public static function utcnow():Datetime;
-	public static function fromtimestamp(timestamp:Float, tzInfo:Tzinfo = null):Datetime;
-	public static function utcfromtimestamp(timestamp:Int):Datetime;
-	public static function fromordinal(ordinal:Int):Datetime;
+	static function today():Datetime;
+	static function now(?tzinfo:Tzinfo):Datetime;
+	static function utcnow():Datetime;
+	static function fromtimestamp(timestamp:Float, tzInfo:Tzinfo = null):Datetime;
+	static function utcfromtimestamp(timestamp:Int):Datetime;
+	static function fromordinal(ordinal:Int):Datetime;
 
-	public function timetuple():StructTime;
-	public function strftime(format:String):String;
-	public function replace(kwargs:python.KwArgs<{
+	function timetuple():StructTime;
+	function strftime(format:String):String;
+	function replace(kwargs:python.KwArgs<{
 		?year:Int,
 		?month:Int,
 		?day:Int,
@@ -61,12 +61,12 @@ extern class Datetime {
 		?tzinfo:Tzinfo
 	}>):Datetime;
 	/* 0-6 */
-	public function weekday():Int;
+	function weekday():Int;
 	/* 1-7 */
-	public function isoweekday():Int;
-	public function utcoffset():Int;
+	function isoweekday():Int;
+	function utcoffset():Int;
 
 	// python 3.3
-	public function timestamp():Float;
-	public function astimezone(?tz:Tzinfo):Datetime;
+	function timestamp():Float;
+	function astimezone(?tz:Tzinfo):Datetime;
 }

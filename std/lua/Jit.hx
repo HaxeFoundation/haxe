@@ -5,15 +5,15 @@ import haxe.Constraints.Function;
 #if lua_jit
 @:native("_G.jit")
 extern class Jit {
-	public static function on(?f:Function, ?recursive:Bool):Void;
-	public static function off(?f:Function, ?recursive:Bool):Void;
-	public static function flush(?f:Function, ?recursive:Bool):Void;
-	public static function status():Bool;
-	public static var version:String;
-	public static var version_num:Int;
-	public static var os:String;
-	public static var arch:String;
-	public static var opt:{start:Function};
-	public static var util:Dynamic;
+	static function on(?f:Function, ?recursive:Bool):Void;
+	static function off(?f:Function, ?recursive:Bool):Void;
+	static function flush(?f:Function, ?recursive:Bool):Void;
+	static function status():Bool;
+	static var version:String;
+	static var version_num:Int;
+	static var os:String;
+	static var arch:String;
+	static var opt:{start:Function};
+	static var util:Dynamic;
 }
 #end

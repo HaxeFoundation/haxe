@@ -26,10 +26,10 @@ abstract TermiosSettings(Dynamic) {}
 
 @:pythonImport("termios", ignoreError = true)
 extern class Termios {
-	public static var TCSADRAIN:Int;
-	public static var ECHO:Int;
+	static var TCSADRAIN:Int;
+	static var ECHO:Int;
 
-	public static function tcgetattr(fileNo:Int):TermiosSettings;
+	static function tcgetattr(fileNo:Int):TermiosSettings;
 
-	public static function tcsetattr(fileNo:Int, when:Int, settings:TermiosSettings):Void;
+	static function tcsetattr(fileNo:Int, when:Int, settings:TermiosSettings):Void;
 }

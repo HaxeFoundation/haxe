@@ -37,7 +37,7 @@ typedef TextIOWrapperOptions = {
 
 @:pythonImport("io", "TextIOWrapper")
 extern class TextIOWrapper extends TextIOBase {
-	public function new(buffer:BufferedIOBase, ?options:KwArgs<TextIOWrapperOptions>):Void;
+	function new(buffer:BufferedIOBase, ?options:KwArgs<TextIOWrapperOptions>):Void;
 
-	public var line_buffering:Bool;
+	var line_buffering:Bool;
 }

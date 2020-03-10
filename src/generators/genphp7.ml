@@ -1927,7 +1927,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
 		method write_expr_magic name args =
-			ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
+			let msg = "untyped " ^ name ^ " is deprecated. Use php.Syntax instead." in
+			DeprecationCheck.warn_deprecation ctx.pgc_common msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __POS__
