@@ -2836,7 +2836,10 @@ module Preprocessor = struct
 		["haxe";"root"],snd path
 
 	let check_path mt =
-		if mt.mt_private then begin
+		(* don't rewrite if there's an explicit @:native *)
+		if Meta.has Meta.Native mt.mt_meta then
+			()
+		else if mt.mt_private then begin
 			let m = mt.mt_module in
 			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
 		end else if fst mt.mt_path = [] then
