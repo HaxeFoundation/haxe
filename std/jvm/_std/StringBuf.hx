@@ -34,13 +34,60 @@ class StringBuf {
 	}
 
 	public function add<T>(x:T):Void {
-		if (Std.isOfType(x, Int)) {
-			var x:Int = cast x;
-			var xd:Dynamic = x;
-			b.append(xd);
+		if (jvm.Jvm.instanceof(x, java.lang.Double.DoubleClass)) {
+			b.append(jvm.Jvm.toString(cast x));
 		} else {
 			b.append(x);
 		}
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:Bool):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:java.types.Char16):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:Float):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:Single):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:Int):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:haxe.Int64):Void {
+		b.append(v);
+	}
+
+	@:overload
+	@:native("add")
+	@:ifFeature("StringBuf.add")
+	function addOpt(v:String):Void {
+		b.append(v);
 	}
 
 	public function addSub(s:String, pos:Int, ?len:Int):Void {
@@ -48,10 +95,9 @@ class StringBuf {
 		b.append(s, pos, pos + l);
 	}
 
-	public function addChar(c:Int):Void
-		untyped {
-			b.appendCodePoint(c);
-		}
+	public function addChar(c:Int):Void {
+		b.appendCodePoint(c);
+	}
 
 	public function toString():String {
 		return b.toString();

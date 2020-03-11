@@ -1464,6 +1464,27 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
+		| TField(e1,FInstance({cl_path=(["haxe";"root"],"StringBuf");cl_descendants=[]} as c,_,({cf_name="add"} as cf))) ->
+			self#texpr rvalue_any e1;
+			let jsig = match el with
+			| [ea1] ->
+				self#texpr rvalue_any ea1;
+				begin match code#get_stack#top with
+				| TBool | TChar | TDouble | TFloat | TInt | TLong | TObject((["java";"lang"],"String"),_) as jsig ->
+					jsig
+				| TByte | TShort ->
+					jm#cast TInt;
+					TInt
+				| _ ->
+					jm#cast object_sig;
+					object_sig
+				end;
+			| _ ->
+				ignore(self#call_arguments cf.cf_type el);
+				object_sig
+			in
+			jm#invokevirtual c.cl_path "add" (method_sig [jsig] None);
+			None
 		| TField(e1,FInstance(c,tl,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let is_super = match e1.eexpr with
 			| TConst TSuper ->
