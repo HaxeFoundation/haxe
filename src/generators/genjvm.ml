@@ -2445,7 +2445,7 @@ class tclass_to_jvm gctx c = object(self)
 	method generate_method gctx jc c mtype cf =
 		gctx.current_field_info <- gctx.preprocessor#get_field_info cf.cf_meta;
 		let jsig = jsignature_of_type gctx cf.cf_type in
-		let flags = [MPublic] in
+		let flags = if Meta.has Meta.Private cf.cf_meta then [MPrivate] else if Meta.has Meta.Protected cf.cf_meta then [MProtected] else [MPublic] in
 		let flags = if c.cl_interface then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
@@ -2483,7 +2483,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
 		let jsig = jsignature_of_type gctx cf.cf_type in
-		let flags = [FdPublic] in
+		let flags = if Meta.has Meta.Private cf.cf_meta then [FdPrivate] else if Meta.has Meta.Protected cf.cf_meta then [FdProtected] else [FdPublic] in
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then FdSynthetic :: flags else flags in
 		let jm = jc#spawn_field cf.cf_name jsig flags in
