@@ -604,6 +604,13 @@
 		"internal": true
 	},
 	{
+		"name": "JvmSynthetic",
+		"metadata": ":jvm.synthetic",
+		"doc": "Mark generated class, field or method as synthetic",
+		"platforms": ["java"],
+		"targets": ["TClass", "TEnum", "TAnyField"]
+	},
+	{
 		"name": "JsRequire",
 		"metadata": ":jsRequire",
 		"doc": "Generate JavaScript module require expression for given extern.",

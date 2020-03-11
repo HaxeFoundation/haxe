@@ -2250,7 +2250,8 @@ class tclass_to_jvm gctx c = object(self)
 			jc#add_interface (["java";"lang";"annotation"],"Annotation") [];
 			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
 			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
-		end
+		end;
+		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
 
 	method private handle_relation_type_params =
 		let map_type_params t =
@@ -2355,7 +2356,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method private generate_empty_ctor =
 		let jsig_empty = method_sig [haxe_empty_constructor_sig] None in
-		let jm_empty_ctor = jc#spawn_method "<init>" jsig_empty [MPublic] in
+		let jm_empty_ctor = jc#spawn_method "<init>" jsig_empty [MPublic;MSynthetic] in
 		let _,load,_ = jm_empty_ctor#add_local "_" haxe_empty_constructor_sig VarArgument in
 		jm_empty_ctor#load_this;
 		if c.cl_constructor = None then begin
@@ -2448,6 +2449,7 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if c.cl_interface then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
+		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
 		let name,scmode,flags = match mtype with
 			| MConstructor ->
 				let rec has_super_ctor c = match c.cl_super with
@@ -2483,6 +2485,7 @@ class tclass_to_jvm gctx c = object(self)
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = [FdPublic] in
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
+		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then FdSynthetic :: flags else flags in
 		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
@@ -2651,6 +2654,7 @@ let generate_enum gctx en =
 	let jc_enum = new JvmClass.builder en.e_path haxe_enum_path in
 	jc_enum#add_access_flag 0x1; (* public *)
 	jc_enum#add_access_flag 0x400; (* abstract *)
+	if Meta.has Meta.JvmSynthetic en.e_meta then jc_enum#add_access_flag 0x1000; (* synthetic *)
 	let jsig_enum_ctor = method_sig [TInt;string_sig] None in
 	(* Create base constructor *)
 	 begin
@@ -2687,7 +2691,7 @@ let generate_enum gctx en =
 			jm_ctor#return;
 			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]);
 			if args <> [] then begin
-				let jm_params = jc_ctor#spawn_method "_hx_getParameters" (method_sig [] (Some (array_sig object_sig))) [MPublic] in
+				let jm_params = jc_ctor#spawn_method "_hx_getParameters" (method_sig [] (Some (array_sig object_sig))) [MPublic;MSynthetic] in
 				let jm_equals,compare_field = generate_enum_equals gctx jc_ctor in
 				let fl = List.map (fun (n,jsig) ->
 					compare_field n jsig;
@@ -2797,7 +2801,7 @@ let generate_anons gctx =
 		begin
 			let string_map_path = (["haxe";"ds"],"StringMap") in
 			let string_map_sig = object_path_sig string_map_path in
-			let jm_fields = jc#spawn_method "_hx_getKnownFields" (method_sig [] (Some string_map_sig)) [MProtected] in
+			let jm_fields = jc#spawn_method "_hx_getKnownFields" (method_sig [] (Some string_map_sig)) [MProtected;MSynthetic] in
 			let _,load,save = jm_fields#add_local "tmp" string_map_sig VarWillInit in
 			jm_fields#construct ConstructInit string_map_path (fun () -> []);
 			save();
