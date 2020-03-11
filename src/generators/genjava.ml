@@ -2151,29 +2151,25 @@ let generate con =
 		in
 		loop cl.cl_meta;
 
-		(match gen.gcon.main_class with
-			| Some path when path = cl.cl_path ->
-				write w "public static void main(String[] args)";
-				begin_block w;
-				(try
-					let t = Hashtbl.find gen.gtypes ([], "Sys") in
-							match t with
-								| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
-									write w "Sys._args = args;"; newline w
-								| _ -> ()
-				with | Not_found -> ()
-				);
-				write w "haxe.java.Init.init();";
-				newline w;
-				(match gen.gcon.main with
-					| Some(expr) ->
-						expr_s w (mk_block expr)
-					| None ->
-						write w "main();");
-				end_block w;
-				newline w
-			| _ -> ()
-		);
+		(match gen.gentry_point with
+		| Some (_,cl_main,expr) when cl == cl_main ->
+			write w "public static void main(String[] args)";
+			begin_block w;
+			(try
+				let t = Hashtbl.find gen.gtypes ([], "Sys") in
+				match t with
+				| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
+					write w "Sys._args = args;"; newline w
+				| _ -> ()
+			with Not_found ->
+				());
+			write w "haxe.java.Init.init();";
+			newline w;
+			expr_s w expr;
+			write w ";";
+			end_block w;
+			newline w
+		| _ -> ());
 
 		(match cl.cl_init with
 			| None -> ()

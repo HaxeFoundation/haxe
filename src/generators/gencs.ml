@@ -2582,30 +2582,26 @@ let generate con =
 
 			gen_attributes w cl.cl_meta;
 
-			let is_main =
-				match gen.gcon.main_class with
-					| Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
-						(*
-							for cases where the main class is called Main, there will be a problem with creating the entry point there.
-							In this special case, a special entry point class will be created
-						*)
-						write w "public class EntryPoint__Main ";
-						begin_block w;
-						write w "public static void Main() ";
-						begin_block w;
-						(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-						(match gen.gcon.main with
-							| None ->
-								expr_s true w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
-								write w ".main();"
-							| Some expr ->
-								expr_s false w (mk_block expr));
-						end_block w;
-						end_block w;
-						newline w;
-						false
-					| Some path when path = cl.cl_path && not cl.cl_interface -> true
-					| _ -> false
+			let main_expr =
+				match gen.gentry_point with
+				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not cl.cl_interface ->
+					(*
+						for cases where the main class is called Main, there will be a problem with creating the entry point there.
+						In this special case, a special entry point class will be created
+					*)
+					write w "public class EntryPoint__Main ";
+					begin_block w;
+					write w "public static void Main() ";
+					begin_block w;
+					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
+					expr_s false w expr;
+					write w ";";
+					end_block w;
+					end_block w;
+					newline w;
+					None
+				| Some (_, cl_main,expr) when cl == cl_main && not cl.cl_interface -> Some expr
+				| _ -> None
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
@@ -2636,17 +2632,14 @@ let generate con =
 			in
 			loop cl.cl_meta;
 
-			if is_main then begin
+			Option.may (fun expr ->
 				write w "public static void Main()";
 				begin_block w;
 				(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-				(match gen.gcon.main with
-					| None ->
-						write w "main();";
-					| Some expr ->
-							expr_s false w (mk_block expr));
+				expr_s false w expr;
+				write w ";";
 				end_block w
-			end;
+			) main_expr;
 
 			(match cl.cl_init with
 				| None -> ()
