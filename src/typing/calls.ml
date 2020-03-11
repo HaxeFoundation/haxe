@@ -782,7 +782,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
