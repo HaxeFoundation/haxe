@@ -2246,7 +2246,7 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		if is_annotation then begin
 			jc#add_access_flag 0x2000;
-			jc#add_interface (["java";"lang";"annotation"],"Annotation");
+			jc#add_interface (["java";"lang";"annotation"],"Annotation") [];
 			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
 			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
 		end
@@ -2348,7 +2348,7 @@ class tclass_to_jvm gctx c = object(self)
 			if is_annotation && c_int.cl_path = (["java";"lang";"annotation"],"Annotation") then
 				()
 			else begin
-				jc#add_interface c_int.cl_path
+				jc#add_interface c_int.cl_path (List.map (jtype_argument_of_type gctx []) tl)
 			end
 		) c.cl_implements
 
@@ -2571,24 +2571,10 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		let stl = match c.cl_params with
-			| [] -> ""
-			| params ->
-				let stl = String.concat "" (List.map (fun (n,_) ->
-					Printf.sprintf "%s:Ljava/lang/Object;" n
-				) c.cl_params) in
-				Printf.sprintf "<%s>" stl
-		in
-		let ssuper = match c.cl_super with
-			| Some(c,tl) -> generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
-			| None -> generate_method_signature true object_sig
-		in
-		let sinterfaces = String.concat "" (List.map (fun(c,tl) ->
-			generate_method_signature true (jsignature_of_type gctx (TInst(c,tl)))
-		) c.cl_implements) in
-		let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
-		let offset = jc#get_pool#add_string s in
-		jc#add_attribute (AttributeSignature offset)
+		jc#set_type_parameters (List.map fst c.cl_params);
+		match c.cl_super with
+			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)
+			| _ -> ()
 
 	method generate_annotations =
 		AnnotationHandler.generate_annotations (jc :> JvmBuilder.base_builder) c.cl_meta;
@@ -2669,12 +2655,6 @@ let generate_enum gctx en =
 	let jc_enum = new JvmClass.builder en.e_path haxe_enum_path in
 	jc_enum#add_access_flag 0x1; (* public *)
 	jc_enum#add_access_flag 0x400; (* abstract *)
-	begin
-		let jsig = haxe_enum_sig (object_path_sig en.e_path) in
-		let s = generate_signature true jsig in
-		let offset = jc_enum#get_pool#add_string s in
-		jc_enum#add_attribute (AttributeSignature offset)
-	end;
 	let jsig_enum_ctor = method_sig [TInt;string_sig] None in
 	(* Create base constructor *)
 	 begin
@@ -2842,7 +2822,7 @@ let generate_anons gctx =
 		| None ->
 			()
 		| Some c ->
-			jc#add_interface c.cl_path;
+			jc#add_interface c.cl_path [];
 			List.iter (fun cf ->
 				let jsig_cf = jsignature_of_type gctx cf.cf_type in
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
