@@ -2515,7 +2515,12 @@ class tclass_to_jvm gctx c = object(self)
 			jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
 		end;
 		jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
-		jm#invokestatic jc#get_this_path "main" (method_sig [] None);
+		begin match gctx.com.main with
+		| Some e ->
+			self#generate_expr gctx jc jm e true SCNone MStatic
+		| None ->
+			()
+		end;
 		jm#return
 
 	method private generate_fields =
