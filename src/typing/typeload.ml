@@ -295,7 +295,7 @@ let make_extension_type ctx tl =
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
-	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
 (* build an instance from a full type *)
@@ -460,7 +460,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
-					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
+					mk_anon ~fields:(PMap.foldi PMap.add a.a_fields a2.a_fields) (ref (Extend [t]))
 				| _ -> error "Can only extend structures" p
 			in
 			let loop (t,p) = match follow t with

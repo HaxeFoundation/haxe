@@ -58,7 +58,7 @@ let add_property_field com c =
 			let cf = mk_field n com.basic.tstring p null_pos in
 			PMap.add n cf fields,((n,null_pos,NoQuotes),Texpr.Builder.make_string com.basic v p) :: values
 		) (PMap.empty,[]) props in
-		let t = mk_anon fields in
+		let t = mk_anon ~fields (ref Closed) in
 		let e = mk (TObjectDecl values) t p in
 		let cf = mk_field "__properties__" t p null_pos in
 		cf.cf_expr <- Some e;
@@ -452,9 +452,9 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
-		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+		| TClassDecl c -> mk_anon (ref (Statics c))
+		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
+		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 		| TTypeDecl _ -> assert false
 	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
