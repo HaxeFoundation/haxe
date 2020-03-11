@@ -736,7 +736,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TArray(e1,e2) ->
 			begin match follow e1.etype with
 				| TInst({cl_path = (["haxe";"root"],"Array")} as c,[t]) ->
-					let t = self#mknull t in
 					self#texpr rvalue_any e1;
 					if ak <> AKNone then code#dup;
 					self#texpr rvalue_any e2;
@@ -747,7 +746,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						self#cast_expect ret e.etype;
 					end;
 					apply (fun () -> code#dup_x2;);
-					self#cast t;
+					jm#expect_reference_type;
 					jm#invokevirtual c.cl_path "__set" (method_sig [TInt;object_sig] None);
 				| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 					let vte = self#vtype t in
@@ -789,24 +788,46 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method condition (flip : bool) (e : texpr) (label_then : label) (label_else : label) =
 		let stack = jm#get_code#get_stack in
 		let (_,before) = stack#save in
+		let bool_and flip e1 e2 =
+			let label_then2 = jm#spawn_label "then2" in
+			self#condition flip e1 label_then2 label_else;
+			label_then2#here;
+			self#condition flip e2 label_then label_else;
+		in
+		let involves_float_compare e =
+			let rec loop e = match e.eexpr with
+				| TBinop((OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte),e1,e2) ->
+					if ExtType.is_float (follow e1.etype) || ExtType.is_float (follow e2.etype) then raise Exit;
+					loop e1;
+					loop e2;
+				| _ ->
+					Type.iter loop e
+			in
+			try
+				loop e;
+				false
+			with Exit ->
+				true
+		in
 		begin match (Texpr.skip e).eexpr with
 		| TBinop((OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte) as op,e1,e2) ->
 			let op = convert_cmp_op op in
 			let op = if flip then flip_cmp_op op else op in
-			(if flip then label_then else label_else)#apply (self#apply_cmp (self#binop_compare op e1 e2))
-		| TBinop(OpBoolAnd,e1,e2) ->
-			let label_then2 = jm#spawn_label "then2" in
-			self#condition false e1 label_then2 label_else;
-			label_then2#here;
-			self#condition false e2 label_then label_else;
+			label_else#apply (self#apply_cmp (self#binop_compare op e1 e2))
+		| TBinop(OpBoolAnd,e1,e2) when not flip ->
+			bool_and false e1 e2
+		| TBinop(OpBoolOr,e1,e2) when flip ->
+			bool_and true e1 e2
+		| TUnop(Not,_,e1) when not (involves_float_compare e1) ->
+			self#condition (not flip) e1 label_then label_else
 		| _ ->
 			self#texpr (rvalue_sig TBool) e;
 		end;
 		let (_,after) = stack#save in
 		if after > before then begin
 			jm#cast TBool;
-			(if flip then label_then else label_else)#if_ (if flip then CmpNe else CmpEq)
-		end;
+			label_else#if_ (if flip then CmpNe else CmpEq)
+		end
 
 	method switch ret e1 cases def =
 		let need_val = match ret with
