@@ -2916,12 +2916,12 @@ let file_name_and_extension file =
 let generate com =
 	mkdir_from_path com.file;
 	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
-		| Some (name,cl,expr) ->
+		| Some (jarname,cl,expr) ->
 			let pack = match fst cl.cl_path with
 				| [] -> ["haxe";"root"]
 				| pack -> pack
 			in
-			name,"\nMain-Class: " ^ (s_type_path (pack,name)), Some (cl,expr)
+			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
 		| None -> "jar","",None
 	in
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
