@@ -275,6 +275,82 @@ type typed_function_kind =
 	| FuncMember of jpath * string
 	| FuncStatic of jpath * string
 
+module JavaFunctionalInterfaces = struct
+	type t = {
+		jargs: jsignature list;
+		jret : jsignature option;
+		jpath : jpath;
+		jname : string;
+		jparams : string list;
+	}
+
+	let java_functional_interfaces =
+		let juf = ["java";"util";"function"] in
+		let tp name = TTypeParameter name in
+		[
+			{
+				jargs = [];
+				jret = None;
+				jpath = ["java";"lang"],"Runnable";
+				jname = "run";
+				jparams = []
+			};
+			{
+				jargs = [tp "T"];
+				jret = None;
+				jpath = juf,"Consumer";
+				jname = "accept";
+				jparams = ["T"]
+			};
+			{
+				jargs = [tp "T";tp "U"];
+				jret = None;
+				jpath = juf,"BiConsumer";
+				jname = "accept";
+				jparams = ["T";"U"]
+			}
+		]
+
+	let unify jfi args ret =
+		let rec loop params want have = match want,have with
+			| [],[] ->
+				Some (jfi,List.map (fun s -> TType(WNone,List.assoc s params)) jfi.jparams)
+			| want1 :: want,have1 :: have ->
+				begin match want1 with
+				| TTypeParameter n ->
+					loop ((n,have1) :: params) want have
+				| _ ->
+					if have1 <> want1 then None
+					else loop params want have
+				end
+			| _ ->
+				None
+		in
+		match jfi.jret,ret with
+		| None,None ->
+			loop [] jfi.jargs args
+		| Some (TTypeParameter n),Some jsig ->
+			loop [n,jsig] jfi.jargs args
+		| Some jsig1,Some jsig2 ->
+			if jsig1 <> jsig2 then None
+			else loop [] jfi.jargs args
+		| _ ->
+			None
+
+
+	let find_compatible args ret =
+		ExtList.List.filter_map (fun jfi ->
+			if jfi.jparams = [] then begin
+				if jfi.jargs = args && jfi.jret = ret then
+					Some (jfi,[])
+				else None
+			end else
+				unify jfi args ret
+		) java_functional_interfaces
+end
+
+open JavaFunctionalInterfaces
+
 class typed_function
 	(functions : typed_functions)
 	(kind : typed_function_kind)
@@ -315,11 +391,32 @@ class typed_function
 		let meth = functions#register_signature arg_sigs ret in
 		let jsig_invoke = method_sig arg_sigs ret in
 		let jm_invoke = jc_closure#spawn_method meth.name jsig_invoke [MPublic] in
+		let implemented_interfaces = Hashtbl.create 0 in
+		let add_interface path params =
+			if not (Hashtbl.mem implemented_interfaces path) then begin
+				jc_closure#add_interface path params;
+				Hashtbl.add implemented_interfaces path true;
+			end
+		in
+		let spawn_forward_function meth_from meth_to =
+			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic] in
+			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
+		in
+		let check_functional_interfaces meth =
+			try
+				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
+				List.iter (fun (jfi,params) ->
+					add_interface jfi.jpath params;
+					spawn_forward_function {meth with name=jfi.jname} meth;
+				) l
+			with Not_found ->
+				()
+		in
 		let rec loop meth =
+			check_functional_interfaces meth;
 			begin match meth.next with
 			| Some meth_next ->
-				let jm_invoke_next = jc_closure#spawn_method meth_next.name (method_sig meth_next.dargs meth_next.dret) [MPublic] in
-				functions#make_forward_method jc_closure jm_invoke_next meth_next meth;
+				spawn_forward_function meth_next meth;
 				loop meth_next;
 			| None ->
 				()
