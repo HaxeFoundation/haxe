@@ -6,9 +6,9 @@ import haxe.ds.StringMap;
 @:native('haxe.jvm.DynamicObject')
 @:nativeGen
 class DynamicObject implements java.lang.Cloneable extends Object {
-	static var __hx_toString_depth = 0;
+	@:jvm.synthetic static var __hx_toString_depth = 0;
 
-	var _hx_fields:Null<StringMap<Dynamic>>;
+	@:jvm.synthetic var _hx_fields:Null<StringMap<Dynamic>>;
 
 	@:jvm.synthetic public var _hx_deletedAField:Null<Bool>;
 
