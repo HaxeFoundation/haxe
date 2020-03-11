@@ -51,6 +51,7 @@ exception HarderFailure of string
 type generation_context = {
 	com : Common.context;
 	jar : Zip.out_file;
+	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
 	t_throwable : Type.t;
 	mutable anon_identification : jsignature tanon_identification;
@@ -2527,7 +2528,7 @@ class tclass_to_jvm gctx c = object(self)
 		let offset = jc#get_pool#add_string ssig in
 		jm#add_attribute (AttributeSignature offset)
 
-	method generate_main =
+	method generate_main e =
 		let jsig = method_sig [array_sig string_sig] None in
 		let jm = jc#spawn_method "main" jsig [MPublic;MStatic] in
 		let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
@@ -2536,12 +2537,7 @@ class tclass_to_jvm gctx c = object(self)
 			jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
 		end;
 		jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
-		begin match gctx.com.main with
-		| Some e ->
-			self#generate_expr gctx jc jm e true SCNone MStatic
-		| None ->
-			()
-		end;
+		self#generate_expr gctx jc jm e true SCNone MStatic;
 		if not jm#is_terminated then jm#return
 
 	method private generate_fields =
@@ -2549,11 +2545,11 @@ class tclass_to_jvm gctx c = object(self)
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
 					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
-					if cf.cf_name = "main" then self#generate_main;
 				) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
 			| _ ->
 				if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
 		in
+		Option.may (fun (c2,e) -> if c2 == c then self#generate_main e) gctx.entry_point;
 		List.iter (field MStatic) c.cl_ordered_statics;
 		List.iter (field MInstance) c.cl_ordered_fields;
 		begin match c.cl_constructor,c.cl_super with
@@ -2919,15 +2915,14 @@ let file_name_and_extension file =
 
 let generate com =
 	mkdir_from_path com.file;
-	let jar_name,manifest_suffix = match com.main_class with
-		| Some path ->
-			let pack = match fst path with
+	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
+		| Some (jarname,cl,expr) ->
+			let pack = match fst cl.cl_path with
 				| [] -> ["haxe";"root"]
 				| pack -> pack
 			in
-			let name = snd path in
-			name,"\nMain-Class: " ^ (s_type_path (pack,name))
-		| None -> "jar",""
+			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
+		| None -> "jar","",None
 	in
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
 	let jar_dir = add_trailing_slash com.file in
@@ -2936,6 +2931,7 @@ let generate com =
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
+		entry_point = entry_point;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
 		anon_identification = anon_identification;
