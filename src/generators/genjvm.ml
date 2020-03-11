@@ -2519,9 +2519,8 @@ class tclass_to_jvm gctx c = object(self)
 		| Some e ->
 			self#generate_expr gctx jc jm e true SCNone MStatic
 		| None ->
-			()
-		end;
-		jm#return
+			jm#return
+		end
 
 	method private generate_fields =
 		let field mtype cf = match cf.cf_kind with

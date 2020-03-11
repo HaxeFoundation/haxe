@@ -39,7 +39,7 @@ package haxe;
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif java
+	#elseif (java && !jvm)
 	private var timer:java.util.Timer;
 	private var task:java.util.TimerTask;
 	#else
@@ -66,7 +66,7 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif java
+		#elseif (java && !jvm)
 		timer = new java.util.Timer();
 		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
 		#else
@@ -97,7 +97,7 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif java
+		#elseif (java && !jvm)
 		if (timer != null) {
 			timer.cancel();
 			timer = null;
@@ -121,7 +121,7 @@ class Timer {
 		var timer = new haxe.Timer(1000); // 1000ms delay
 		timer.run = function() { ... }
 		```
-		
+
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
 	**/
@@ -175,12 +175,12 @@ class Timer {
 		#elseif (neko || php)
 		return Sys.time();
 		#elseif js
-			#if nodejs
-			var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
-			return hrtime[0] + hrtime[1] / 1e9;
-			#else
-			return @:privateAccess HxOverrides.now() / 1000;
-			#end
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] + hrtime[1] / 1e9;
+		#else
+		return @:privateAccess HxOverrides.now() / 1000;
+		#end
 		#elseif cpp
 		return untyped __global__.__time_stamp();
 		#elseif python
@@ -193,7 +193,7 @@ class Timer {
 	}
 }
 
-#if java
+#if (java && !jvm)
 @:nativeGen
 private class TimerTask extends java.util.TimerTask {
 	var timer:Timer;
