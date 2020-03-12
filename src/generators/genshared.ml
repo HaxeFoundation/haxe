@@ -465,6 +465,10 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 
 	val lut = Hashtbl.create 0
 	val interfaces = Hashtbl.create 0
+	val interface_rewrites = Hashtbl.create 0
+
+	method add_interface_rewrite (path_from : path) (path_to : path) (is_extern : bool) =
+		Hashtbl.replace interface_rewrites path_from (path_to,is_extern)
 
 	method get_interface_class (path : path) =
 		try Some (Hashtbl.find interfaces path)
@@ -500,10 +504,12 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 					acc
 			) pfm.pfm_fields PMap.empty in
 			if PMap.is_empty fields then raise (Unify_error [Unify_custom "no fields"]);
-			let c = mk_class null_module path_inner null_pos null_pos in
+			let path,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
+			let c = mk_class null_module path null_pos null_pos in
 			c.cl_interface <- true;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
+			if is_extern then c.cl_extern <- true;
 			Hashtbl.replace interfaces pfm.pfm_path c;
 			c
 
