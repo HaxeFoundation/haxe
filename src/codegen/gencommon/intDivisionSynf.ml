@@ -56,18 +56,15 @@ let init com =
 		match e.eexpr with
 		| TBinop ((OpDiv as op), e1, e2) when is_int e1 && is_int e2 ->
 			{ e with eexpr = TBinop (op, mk_cast com.basic.tfloat (run e1), run e2) }
-
 		| TCall (
 				{ eexpr = TField (_, FStatic ({ cl_path = ([], "Std") }, { cf_name = "int" })) },
 				[ { eexpr = TBinop ((OpDiv as op), e1, e2) } as ebinop ]
 			) when is_int e1 && is_int e2 ->
-
 			let e = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = com.basic.tint } in
 			if not (is_exactly_int e1 && is_exactly_int e2) then
 				mk_cast com.basic.tint e
 			else
-				Type.map_expr run e
-
+				e
 		| TCast ({ eexpr = TBinop((OpDiv as op), e1, e2) } as ebinop, _ )
 		| TCast ({ eexpr = TBinop(((OpAssignOp OpDiv) as op), e1, e2) } as ebinop, _ ) when is_int e1 && is_int e2 && is_int e ->
 			let ret = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = e.etype } in
