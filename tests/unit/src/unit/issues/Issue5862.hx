@@ -26,10 +26,12 @@ class Issue5862 extends Test {
     smap.set("v3", "val3");
     smap.set("v3", "changed_val3");
 
+	#if !jvm
     var v:Vector<Dynamic> = cast @:privateAccess smap.vals;
     for (i in 0...v.length) {
       t(v[i] != "val3");
-    }
+	}
+	#end
 
     var omap = new ObjectMap<{}, String>();
     omap.set(imap, "val1");
@@ -73,10 +75,12 @@ class Issue5862 extends Test {
     smap.set("v3", "changed_val3");
     smap.set("v2", "changed_val2");
 
+	#if !jvm
     var v:Vector<Dynamic> = cast @:privateAccess smap.vals;
     for (i in 0...v.length) {
       t(v[i] != "val2");
-    }
+	}
+	#end
 
     var omap = new ObjectMap<{}, String>();
     omap.set(imap, "val1");
