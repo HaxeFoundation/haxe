@@ -210,7 +210,7 @@ let unify_kind k1 k2 =
 			| _ -> false
 
 let anon_accepts a t =
-	if not (List.memq t !(a.a_accepts)) then
+	if not (List.exists (fast_eq t) !(a.a_accepts)) then
 		a.a_accepts := t :: !(a.a_accepts)
 
 type 'a rec_stack = {
@@ -554,12 +554,12 @@ let rec unify a b =
 					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
-				anon_accepts an a;
 				(match f1.cf_kind with
 				| Method MethInline ->
 					if (c.cl_extern || has_class_field_flag f1 CfExtern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
+			anon_accepts an a;
 			(match !(an.a_status) with
 			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
