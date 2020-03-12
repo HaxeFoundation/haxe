@@ -58,13 +58,13 @@ let collect_module_symbols with_locals (pack,decls) =
 	in
 	List.iter (fun (td,p) ->
 		let add_type d kind =
+			let string_of_path l = String.concat "." l in
 			let module_name = Path.module_name_of_file p.pfile in
-			let pack = String.concat "." pack in
 			let type_name = fst d.d_name in
-			let primary_type = type_name = module_name in
-			let type_path = if primary_type then pack else pack ^ "." ^ module_name in
-			add type_name kind p type_path (is_deprecated d.d_meta);
-			if type_path = "" then type_name else type_path ^ "." ^ type_name
+			let is_primary_type = type_name = module_name in
+			let type_path = if is_primary_type then pack else pack @ [module_name] in
+			add type_name kind p (string_of_path type_path) (is_deprecated d.d_meta);
+			string_of_path (type_path @ [type_name])
 		in
 		match td with
 		| EImport _ | EUsing _ ->
