@@ -249,7 +249,28 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl;
 			if not (Meta.has Meta.CoreType a.a_meta) then
 				mark_t dce p (Abstract.get_underlying_type a pl)
-		| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ -> ()
+		| TAnon a ->
+			List.iter
+				(fun t ->
+					match follow t with
+					| TInst (c,tl) ->
+						PMap.iter (fun n f2 ->
+							let _, _, f1 = try class_field c tl n with Not_found -> assert false in
+							mark_field dce c f1 false;
+							match f2.cf_kind with
+							| Var vk ->
+								let mark n =
+									let _,_,f = try class_field c tl n with Not_found -> assert false in
+									mark_field dce c f false
+								in
+								(match vk.v_read with AccCall -> mark ("get_" ^ f1.cf_name) | _ -> ());
+								(match vk.v_write with AccCall -> mark ("set_" ^ f1.cf_name) | _ -> ());
+							|_ -> ()
+						) a.a_fields
+					| _ -> ()
+				)
+				!(a.a_accepts)
+		| TLazy _ | TDynamic _ | TType _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack
 	end

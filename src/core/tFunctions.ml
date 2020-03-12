@@ -66,9 +66,14 @@ let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_anon ?fields status =
-	let fields = match fields with Some fields -> fields | None -> PMap.empty in
-	TAnon { a_fields = fields; a_status = status; }
+let mk_anon ?fields ?accepts status =
+	let fields = match fields with Some fields -> fields | None -> PMap.empty
+	and accepts = match accepts with Some accepts -> accepts | None -> ref [] in
+	TAnon { a_fields = fields; a_status = status; a_accepts = accepts; }
+
+let ignore_anon_accepts a fn =
+	let old = !(a.a_accepts) in
+	Std.finally (fun() -> a.a_accepts := old) fn
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
@@ -244,7 +249,7 @@ let map loop t =
 				a.a_fields <- fields;
 				t
 			| _ ->
-				mk_anon ~fields a.a_status
+				mk_anon ~fields ~accepts:a.a_accepts a.a_status
 		end
 	| TLazy f ->
 		let ft = lazy_type f in
@@ -374,7 +379,7 @@ let apply_params ?stack cparams params t =
 					a.a_fields <- fields;
 					t
 				| _ ->
-					mk_anon ~fields a.a_status
+					mk_anon ~fields ~accepts:a.a_accepts a.a_status
 			end
 		| TLazy f ->
 			let ft = lazy_type f in

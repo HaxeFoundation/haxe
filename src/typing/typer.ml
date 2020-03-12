@@ -1554,6 +1554,7 @@ and type_object_decl ctx fl with_type p =
 				ODKWithStructure {
 					a_status = ref Closed;
 					a_fields = PMap.empty;
+					a_accepts = ref [];
 				}
 			| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
 				ODKWithClass(c,tl)

@@ -583,7 +583,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			end;
 			PMap.add n cf acc
 		in
-		let a = { a_fields = (List.fold_left loop PMap.empty l); a_status = ref Closed; } in
+		let a = { a_fields = (List.fold_left loop PMap.empty l); a_status = ref Closed; a_accepts = ref [] } in
 		begin match !displayed_field with
 		| None ->
 			()

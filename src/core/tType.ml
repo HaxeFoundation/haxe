@@ -114,6 +114,8 @@ and anon_status =
 and tanon = {
 	mutable a_fields : (string, tclass_field) PMap.t;
 	a_status : anon_status ref;
+	(* types, which get assigned to this anon *)
+	a_accepts : t list ref;
 }
 
 and texpr_expr =

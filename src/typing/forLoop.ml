@@ -86,7 +86,11 @@ module IterationKind = struct
 		let t,pt = Typeload.t_iterator ctx in
 		let dynamic_iterator = ref None in
 		let e1 = try
-			let e = AbstractCast.cast_or_unify_raise ctx t e p in
+			let e =
+				match follow t with
+				| TAnon a -> ignore_anon_accepts a (fun() -> AbstractCast.cast_or_unify_raise ctx t e p) ()
+				| _ -> assert false
+			in
 			match Abstract.follow_with_abstracts e.etype with
 			| TDynamic _ | TMono _ ->
 				(* try to find something better than a dynamic value to iterate on *)
