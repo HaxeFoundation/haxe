@@ -565,12 +565,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			cast();
 		in
 		match gctx.anon_identification#identify true t with
-		| Some td ->
-			let cf = match follow td.t_type with
-				| TAnon an -> PMap.find cf.cf_name an.a_fields
-				| _ -> assert false
-			in
-			let path = td.t_path in
+		| Some pfm ->
+			let cf = PMap.find cf.cf_name pfm.pfm_fields in
+			let path = pfm.pfm_path in
 			code#dup;
 			code#instanceof path;
 			jm#if_then_else
@@ -703,12 +700,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
 			begin match gctx.anon_identification#identify true e1.etype with
-			| Some td ->
-				let cf = match follow td.t_type with
-					| TAnon an -> PMap.find cf.cf_name an.a_fields
-					| _ -> assert false
-				in
-				let path = td.t_path in
+			| Some pfm ->
+				let cf = PMap.find cf.cf_name pfm.pfm_fields in
+				let path = pfm.pfm_path in
 				code#dup;
 				code#instanceof path;
 				let jsig_cf = self#vtype cf.cf_type in
@@ -1530,7 +1524,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			Some tr
 		| TField(e11,FAnon cf) ->
 			begin match gctx.anon_identification#identify false e11.etype with
-			| Some {t_path=path_anon} ->
+			| Some {pfm_path=path_anon} ->
 				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
 					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
@@ -2076,12 +2070,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			begin match follow e.etype,td with
 			(* The guard is here because in the case of quoted fields like `"a-b"`, the field is not part of the
 			   type. In this case we have to do full dynamic construction. *)
-			| TAnon an,Some td when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
-				let fl' = match follow td.t_type with
-					| TAnon an -> convert_fields gctx an.a_fields
-					| _ -> assert false
-				in
-				jm#construct ConstructInit td.t_path (fun () ->
+			| TAnon an,Some pfm when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
+				let fl' = convert_fields gctx pfm.pfm_fields in
+				jm#construct ConstructInit pfm.pfm_path (fun () ->
 					(* We have to respect declaration order, so let's temp var where necessary *)
 					let rec loop fl fl' ok acc = match fl,fl' with
 						| ((name,_,_),e) :: fl,(name',jsig) :: fl' ->
@@ -2780,12 +2771,8 @@ let generate_module_type ctx mt =
 	)
 
 let generate_anons gctx =
-	Hashtbl.iter (fun path td ->
-		let fields = match follow td.t_type with
-			| TAnon an -> an.a_fields
-			| _ -> assert false
-		in
-		let fields = convert_fields gctx fields in
+	Hashtbl.iter (fun path pfm ->
+		let fields = convert_fields gctx pfm.pfm_fields in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin
