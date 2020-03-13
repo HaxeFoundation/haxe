@@ -68,7 +68,7 @@
 				}
 			}
 			else if(startIndex > l)
-				return -1;
+				return str == '' ? l : -1;
 			if (__dollar__ssize(str.__s) == 0)
 				return startIndex < 0 ? l + startIndex : startIndex;
 			var p = try __dollar__sfind(this.__s, startIndex, str.__s) catch (e:Dynamic) null;

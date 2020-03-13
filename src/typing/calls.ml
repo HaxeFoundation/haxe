@@ -782,7 +782,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
@@ -833,7 +833,7 @@ let array_access ctx e1 e2 mode p =
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
+		let base_ok = ref true in
 		let rec loop ?(skip_abstract=false) et =
 			match skip_abstract,follow et with
 			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
@@ -851,12 +851,31 @@ let array_access ctx e1 e2 mode p =
 			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
+				begin try
+					unify_raise ctx et t p
+				with Error(Unify _,_) ->
+					if not ctx.untyped then begin
+						let msg = if !has_abstract_array_access then
+							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
+						else
+							"Array access is not allowed on " ^ (s_type (print_context()) e1.etype)
+						in
+						base_ok := false;
+						raise_or_display_message ctx msg e1.epos;
+					end
+				end;
 				pt
 		in
 		let pt = loop e1.etype in
+		if !base_ok then unify ctx e2.etype ctx.t.tint e2.epos;
 		AKExpr (mk (TArray (e1,e2)) pt p)
+
+(*
+	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+	return a new `access_mode->access_kind` getter for the whole field access chain.
+*)
+let field_chain ctx path e =
+	List.fold_left (fun e (f,_,p) ->
+		let e = acc_get ctx (e MGet) p in
+		type_field_default_cfg ctx e f p
+	) e path

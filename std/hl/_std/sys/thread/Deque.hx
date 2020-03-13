@@ -24,10 +24,10 @@ package sys.thread;
 
 #if doc_gen
 @:coreApi extern class Deque<T> {
-	public function new():Void;
-	public function add(i:T):Void;
-	public function push(i:T):Void;
-	public function pop(block:Bool):Null<T>;
+	function new():Void;
+	function add(i:T):Void;
+	function push(i:T):Void;
+	function pop(block:Bool):Null<T>;
 }
 #else
 

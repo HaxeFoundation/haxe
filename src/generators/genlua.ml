@@ -1674,7 +1674,7 @@ let generate_class ctx c =
     List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
     if (has_prototype ctx c) then begin
-        println ctx "%s.prototype = _hx_a();" p;
+        println ctx "%s.prototype = _hx_e();" p;
         let count = ref 0 in
         List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) c.cl_ordered_fields;
         if (has_class ctx c) then begin
@@ -1965,13 +1965,16 @@ let generate com =
         print ctx "%s\n" file_content;
     in
 
-    (* table-to-array helper *)
+    (* base table-to-array helpers and metatables *)
     print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
 
-    (* lua workarounds for basic anonymous object functionality *)
+    (* base lua "toString" functionality for haxe objects*)
+    print_file (Common.find_file com "lua/_lua/_hx_tostring.lua");
+
+    (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
 
-    (* class reflection metadata *)
+    (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
 
     let include_files = List.rev com.include_files in

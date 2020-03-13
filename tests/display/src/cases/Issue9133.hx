@@ -42,4 +42,16 @@ class Issue9133 extends DisplayTestCase {
 		Assert.isTrue(i1 < i2);
 		Assert.isTrue(i1 != -1);
 	}
+
+	/**
+		class Main {
+		static function main() {
+			var i = 0;
+			{-1-}// comment
+	**/
+	function test3() {
+		var fields = toplevel(pos(1));
+		var i1 = fields.findIndex(item -> item.kind == "local" && item.name == "i");
+		Assert.isTrue(i1 != -1);
+	}
 }

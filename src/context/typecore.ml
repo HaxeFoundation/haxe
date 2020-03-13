@@ -88,6 +88,7 @@ type typer_globals = {
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
+	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
 	do_optimize : typer -> texpr -> texpr;
@@ -169,7 +170,7 @@ let unify_min ctx el = (!unify_min_ref) ctx el
 let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx el src
 
 let make_static_this c p =
-	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 	mk (TTypeExpr (TClassDecl c)) ta p
 
 let make_static_field_access c cf t p =
