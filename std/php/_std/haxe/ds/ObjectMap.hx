@@ -78,7 +78,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public function toString():String {
-		var s = "{";
+		var s = "[";
 		var it = keys();
 		for (i in it) {
 			s += Std.string(i);
@@ -87,7 +87,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 			if (it.hasNext())
 				s += ", ";
 		}
-		return s + "}";
+		return s + "]";
 	}
 
 	public inline function clear():Void {

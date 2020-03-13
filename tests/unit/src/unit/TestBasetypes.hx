@@ -274,6 +274,18 @@ class TestBasetypes extends Test {
 		i[x++] += 4;
 		eq(x, 2);
 		eq(i[1], 4);
+
+		eq(new Map<Int, Int>().toString(), "[]");
+		eq(new Map<String, Int>().toString(), "[]");
+		eq(new Map<MyEnum, Int>().toString(), "[]");
+		eq(new Map<{}, Int>().toString(), "[]");
+
+		eq([1 => 1].toString(), "[1 => 1]");
+		eq(["foo" => 1].toString(), "[foo => 1]");
+		eq([MyEnum.C(0, "foo") => 1].toString(), "[C(0,foo) => 1]");
+		final objMapString = [{foo: 1} => 1].toString();
+		eq(objMapString.charCodeAt(0), "[".code);
+		eq(objMapString.charCodeAt(objMapString.length - 1), "]".code);
 	}
 
 	function testObjectKeyword() {
