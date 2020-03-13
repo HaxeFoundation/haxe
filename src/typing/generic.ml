@@ -160,6 +160,7 @@ let static_method_container gctx c cf p =
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
@@ -205,6 +206,7 @@ let rec build_generic ctx c p tl =
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;

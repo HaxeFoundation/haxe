@@ -2799,14 +2799,9 @@ let file_name_and_extension file =
 
 let generate com =
 	mkdir_from_path com.file;
-	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
-		| Some (jarname,cl,expr) ->
-			let pack = match fst cl.cl_path with
-				| [] -> ["haxe";"root"]
-				| pack -> pack
-			in
-			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
-		| None -> "jar","",None
+	let jar_name,entry_point = match get_entry_point com with
+		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
+		| None -> "jar",None
 	in
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
 	let jar_dir = add_trailing_slash com.file in
@@ -2848,14 +2843,6 @@ let generate com =
 			Some (Printf.sprintf "lib/%s" name)
 		end
 	) com.native_libs.java_libs in
-	let manifest_content =
-		"Manifest-Version: 1.0\n" ^
-		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
-		"Created-By: Haxe (Haxe Foundation)" ^
-		manifest_suffix ^
-		"\n\n"
-	in
-	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
 	Hashtbl.iter (fun name v ->
 		let filename = Codegen.escape_res_name name true in
 		Zip.add_entry v gctx.jar filename;
@@ -2871,4 +2858,14 @@ let generate com =
 	Std.finally (Timer.timer ["generate";"java";"typed interfaces"]) generate_typed_interfaces ();
 	Std.finally (Timer.timer ["generate";"java";"anons"]) generate_anons gctx;
 	Std.finally (Timer.timer ["generate";"java";"typed functions"]) generate_typed_functions gctx;
+
+	let manifest_content =
+		"Manifest-Version: 1.0\n" ^
+		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
+		"Created-By: Haxe (Haxe Foundation)" ^
+		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
+		"\n\n"
+	in
+	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
+
 	Zip.close_out gctx.jar

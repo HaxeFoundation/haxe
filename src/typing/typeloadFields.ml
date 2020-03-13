@@ -605,7 +605,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
+		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleStatics _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with

@@ -539,20 +539,31 @@ let load_macro_module ctx cpath display p =
 let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let mpath, sub = (match List.rev (fst cpath) with
-		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
-		| _ -> cpath, None
-	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded,restore = load_macro_module ctx mpath display p in
-		let mt = Typeload.load_type_def mctx p (mk_type_path ?sub mpath) in
-		let cl, meth = (match mt with
-			| TClassDecl c ->
-				mctx.g.do_finalize mctx;
-				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
-			| _ -> error "Macro should be called on a class" p
+		let mpath, sub = (match List.rev (fst cpath) with
+			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
+			| _ -> cpath, None
 		) in
+		let mloaded,restore = load_macro_module ctx mpath display p in
+		let cl, meth =
+			try
+				if sub <> None then raise Not_found;
+				match mloaded.m_statics with
+				| None -> raise Not_found
+				| Some c ->
+					mctx.g.do_finalize mctx;
+					c, PMap.find f c.cl_statics
+			with Not_found ->
+				let name = Option.default (snd mpath) sub in
+				let path = fst mpath, name in
+				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
+				match mt with
+				| TClassDecl c ->
+					mctx.g.do_finalize mctx;
+					c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+				| _ -> error "Macro should be called on a class" p
+		in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in

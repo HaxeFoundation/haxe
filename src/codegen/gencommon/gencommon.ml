@@ -620,11 +620,11 @@ let new_ctx con =
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
 				gen.gtypes_list <- md :: gen.gtypes_list;
-				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_statics = None; m_extra = module_extra "" "" 0. MFake [] } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
@@ -685,7 +685,7 @@ let reorder_modules gen =
 	Hashtbl.iter (fun md_path md ->
 		if not (Hashtbl.mem processed md_path) then begin
 			Hashtbl.add processed md_path true;
-			gen.gmodules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = (t_infos md).mt_module.m_extra } :: gen.gmodules
+			gen.gmodules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_statics = None; m_extra = (t_infos md).mt_module.m_extra } :: gen.gmodules
 		end
 	) modules
 

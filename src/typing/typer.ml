@@ -367,6 +367,15 @@ let rec type_ident_raise ctx i p mode =
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
 	with Not_found -> try
+		(* module-level statics *)
+		(match ctx.m.curmod.m_statics with
+		| None -> raise Not_found
+		| Some c ->
+			let f = PMap.find i c.cl_statics in
+			let e = type_module_type ctx (TClassDecl c) None p in
+			field_access ctx mode f (FStatic (c,f)) (field_type ctx c [] f p) e p
+		)
+	with Not_found -> try
 		let wrap e = if mode = MSet then
 				AKNo i
 			else

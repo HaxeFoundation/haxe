@@ -213,7 +213,7 @@ let collect ctx tk with_type sort =
 
 	let add_type mt =
 		match mt with
-		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
+		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleStatics _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
 			let mname = snd (t_infos mt).mt_module.m_path in

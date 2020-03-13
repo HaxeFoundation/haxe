@@ -38,6 +38,9 @@ type decl_flag =
 	| DPrivate
 	| DExtern
 	| DFinal
+	| DMacro
+	| DDynamic
+	| DInline
 
 type type_decl_completion_mode =
 	| TCBeforePackage
@@ -98,16 +101,33 @@ let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> HPrivate
 	| DExtern -> HExtern
 	| DFinal -> HFinal
+	| DMacro -> error (Custom "macro on classes is not allowed") p
+	| DDynamic -> error (Custom "dynamic on classes is not allowed") p
+	| DInline -> error (Custom "inline on classes is not allowed") p
 
 let decl_flag_to_enum_flag (flag,p) = match flag with
 	| DPrivate -> EPrivate
 	| DExtern -> EExtern
 	| DFinal -> error (Custom "final on enums is not allowed") p
+	| DMacro -> error (Custom "macro on enums is not allowed") p
+	| DDynamic -> error (Custom "dynamic on enums is not allowed") p
+	| DInline -> error (Custom "inline on enums is not allowed") p
 
 let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> AbPrivate
 	| DExtern -> AbExtern
 	| DFinal -> error (Custom "final on abstracts is not allowed") p
+	| DMacro -> error (Custom "macro on abstracts is not allowed") p
+	| DDynamic -> error (Custom "dynamic on abstracts is not allowed") p
+	| DInline -> error (Custom "inline on abstracts is not allowed") p
+
+let decl_flag_to_global_flag (flag,p) = match flag with
+	| DPrivate -> (APrivate,p)
+	| DMacro -> (AMacro,p)
+	| DDynamic -> (ADynamic,p)
+	| DInline -> (AInline,p)
+	| DExtern -> error (Custom "extern on module-statics is not allowed") p (* TODO: would be nice to have this actually, but we need some design for it *)
+	| DFinal -> error (Custom "final on module-statics is not allowed") p
 
 module TokenCache = struct
 	let cache = ref (DynArray.create ())

@@ -377,6 +377,14 @@ class Printer {
 						}
 					].join("\n")
 					+ "\n}";
+				case TDStatic(kind, access):
+					tabs = old;
+					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "")
+					+ switch (kind) {
+						case FVar(type, eo): ((access != null && access.has(AFinal)) ? '' : 'var ') + '${t.name}' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FProp(get, set, type, eo): 'var ${t.name}($get, $set)' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FFun(func): 'function ${t.name}' + printFunction(func) + switch func.expr { case {expr: EBlock(_)}: ""; case _: ";"; };
+					}
 			} tabs = old;
 
 		return str;

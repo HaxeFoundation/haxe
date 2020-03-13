@@ -674,17 +674,19 @@ and decode_meta_content m = decode_opt_array decode_meta_entry m
 
 and decode_doc = opt (fun s -> { doc_own = Some (decode_string s); doc_inherited = [] })
 
+and decode_class_field_kind v = 
+	match decode_enum v with
+	| 0, [t;e] ->
+		FVar (opt decode_ctype t, opt decode_expr e)
+	| 1, [f] ->
+		FFun (decode_fun f)
+	| 2, [get;set; t; e] ->
+		FProp (decode_placed_name vnull get, decode_placed_name vnull set, opt decode_ctype t, opt decode_expr e)
+	| _ ->
+		raise Invalid_expr
+
 and decode_field v =
-	let fkind = match decode_enum (field v "kind") with
-		| 0, [t;e] ->
-			FVar (opt decode_ctype t, opt decode_expr e)
-		| 1, [f] ->
-			FFun (decode_fun f)
-		| 2, [get;set; t; e] ->
-			FProp (decode_placed_name vnull get, decode_placed_name vnull set, opt decode_ctype t, opt decode_expr e)
-		| _ ->
-			raise Invalid_expr
-	in
+	let fkind = decode_class_field_kind (field v "kind") in
 	let pos = decode_pos (field v "pos") in
 	{
 		cff_name = (decode_string (field v "name"),decode_pos_default (field v "name_pos") pos);
@@ -974,7 +976,7 @@ and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
 		| KTypeParameter pl -> 1, [encode_tparams pl]
-		(* KExtension was here *)
+		| KModuleStatics m -> 2, [encode_string (s_type_path m.m_path)]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
@@ -1473,6 +1475,11 @@ let decode_type_def v =
 		let flags = match opt decode_array tto with None -> flags | Some ta -> (List.map (fun t -> AbTo (decode_ctype t)) ta) @ flags in
 		let flags = match opt decode_ctype tthis with None -> flags | Some t -> (AbOver t) :: flags in
 		EAbstract(mk flags fields)
+	| 5, [fk;al] ->
+		let fk = decode_class_field_kind fk in
+		let al = List.map decode_access (opt_list decode_array al) in
+		(* let al = if isExtern then (AExtern,pos) :: al else al in *)
+		EStatic (mk al fk)
 	| _ ->
 		raise Invalid_expr
 	) in

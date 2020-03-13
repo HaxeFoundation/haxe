@@ -359,6 +359,7 @@ let create_fake_module ctx file =
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
 		} in
 		Hashtbl.add fake_modules key mdep;
