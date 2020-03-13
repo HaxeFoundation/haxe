@@ -62,7 +62,7 @@
 			if (startIndex == null || startIndex < -l)
 				startIndex = 0;
 			else if (startIndex < 0) {
-				startIndex = str.length + startIndex;
+				startIndex = l + startIndex;
 				if ( startIndex < 0 ) {
 					startIndex = 0;
 				}
