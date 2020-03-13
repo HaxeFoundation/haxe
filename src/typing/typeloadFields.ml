@@ -1166,7 +1166,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if fd.f_expr <> None then
-						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
