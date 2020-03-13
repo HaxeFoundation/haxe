@@ -563,13 +563,12 @@ class TestJs {
 		return if (Std.isOfType(v, c)) v else null;
 	}
 
-	@:js('var f = function(x) {console.log("src/TestJs.hx:572:",x);};f(10);')
+	@:js('var f = function(x) {TestJs.use(x);};f(10);')
 	static function testVarSelfAssignmentRemoved() {
 		inline function g() return 0;
-
 		function f(x:Int) {
 			x = x + g();
-			trace(x);
+			use(x);
 		}
 
 		f(10);
