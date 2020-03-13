@@ -67,10 +67,16 @@ class String {
 
 	public function indexOf(str:String, ?startIndex:Int):Int {
 		var startByte = 0;
-		if (startIndex != null && startIndex > 0) {
-			if (startIndex >= length)
-				return str == '' ? length : -1;
-			startByte = startIndex << 1;
+		if (startIndex != null) {
+			if(startIndex < 0) {
+				startIndex = length + startIndex;
+				if(startIndex < 0) startIndex = 0;
+			}
+			if (startIndex > 0) {
+				if (startIndex >= length)
+					return str == '' ? length : -1;
+				startByte = startIndex << 1;
+			}
 		}
 		var p = findChar(startByte, length << 1, str.bytes, str.length << 1);
 		if (p > 0)
