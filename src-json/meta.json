@@ -719,7 +719,7 @@
 	},
 	{
 		"name": "NativeJni",
-		"metadata": ":native",
+		"metadata": ":java.native",
 		"doc": "Annotates that a function has implementation in native code through JNI.",
 		"platforms": ["java"],
 		"targets": ["TClassField"]
