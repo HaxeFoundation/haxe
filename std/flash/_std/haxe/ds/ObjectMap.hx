@@ -66,14 +66,14 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 	}
 
 	public function toString():String {
-		var s = "";
+		var s = "[";
 		var it = keys();
 		for (i in it) {
 			s += (s == "" ? "" : ",") + Std.string(i);
 			s += " => ";
 			s += Std.string(get(i));
 		}
-		return s + "}";
+		return s + "]";
 	}
 
 	public function clear():Void {
