@@ -27,12 +27,19 @@ extern class String {
 	function toLowerCase():String;
 	function charAt(index:Int):String;
 	function charCodeAt(index:Int):Null<Int>;
-	function indexOf(str:String, ?startIndex:Int):Int;
 	function lastIndexOf(str:String, ?startIndex:Int):Int;
 	function split(delimiter:String):Array<String>;
 	function substr(pos:Int, ?len:Int):String;
 	function substring(startIndex:Int, ?endIndex:Int):String;
 	function toString():String;
+
+	@:runtime public inline function indexOf(str:String, ?startIndex:Int):Int {
+		if(startIndex != null && startIndex < 0) {
+			startIndex = this.length + startIndex;
+			if(startIndex < 0) startIndex = 0;
+		}
+		return (this:{function indexOf(s:String, ?startIndex:Int):Int;}).indexOf(str, startIndex);
+	}
 
 	@:pure static inline function fromCharCode(code:Int):String
 		untyped {
