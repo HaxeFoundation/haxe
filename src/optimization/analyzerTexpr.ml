@@ -638,8 +638,10 @@ module Fusion = struct
 		let state = new fusion_state in
 		state#infer_from_texpr e;
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
-		   array or object declarations. The resulting element list is reversed. *)
-		let rec block_element acc el = match el with
+		   array or object declarations. The resulting element list is reversed.
+		   INFO: `el` is a reversed list of expressions in a block.
+		*)
+		let rec block_element ?(loop_bottom=false) acc el = match el with
 			| {eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, { eexpr = TLocal v2 })} :: el when v1 == v2 ->
 				block_element acc el
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
@@ -686,6 +688,8 @@ module Fusion = struct
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock []} :: el ->
 				block_element acc el
+			| { eexpr = TContinue } :: el when loop_bottom ->
+				block_element [] el
 			| e1 :: el ->
 				block_element (e1 :: acc) el
 			| [] ->
@@ -1044,24 +1048,30 @@ module Fusion = struct
 				acc
 		in
 		let rec loop e = match e.eexpr with
+			| TWhile(condition,{ eexpr = TBlock el; etype = t; epos = p },flag) ->
+				let condition = loop condition
+				and body = block true el t p in
+				{ e with eexpr = TWhile(condition,body,flag) }
 			| TBlock el ->
-				let el = List.rev_map loop el in
-				let el = block_element [] el in
-				(* fuse flips element order, but block_element doesn't care and flips it back *)
-				let el = fuse [] el in
-				let el = block_element [] el in
-				let rec fuse_loop el =
-					state#reset;
-					let el = fuse [] el in
-					let el = block_element [] el in
-					if state#did_change then fuse_loop el else el
-				in
-				let el = fuse_loop el in
-				{e with eexpr = TBlock el}
+				block false el e.etype e.epos
 			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| _ ->
 				Type.map_expr loop e
+		and block loop_body el t p =
+			let el = List.rev_map loop el in
+			let el = block_element ~loop_bottom:loop_body [] el in
+			(* fuse flips element order, but block_element doesn't care and flips it back *)
+			let el = fuse [] el in
+			let el = block_element [] el in
+			let rec fuse_loop el =
+				state#reset;
+				let el = fuse [] el in
+				let el = block_element [] el in
+				if state#did_change then fuse_loop el else el
+			in
+			let el = fuse_loop el in
+			mk (TBlock el) t p
 		in
 		loop e
 end

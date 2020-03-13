@@ -573,6 +573,18 @@ class TestJs {
 
 		f(10);
 	}
+
+	@:js('var f = function(x) {while(true) TestJs.use(x);};f(10);')
+	static inline function testNoRedundantContinue() {
+		inline function g() return true;
+		function f(x:Int) {
+			while (true) {
+				TestJs.use(x);
+				if (g()) continue;
+			}
+		}
+		f(10);
+	}
 }
 
 extern class Extern {
