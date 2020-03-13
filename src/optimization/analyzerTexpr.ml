@@ -640,6 +640,8 @@ module Fusion = struct
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
 		   array or object declarations. The resulting element list is reversed. *)
 		let rec block_element acc el = match el with
+			| {eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, { eexpr = TLocal v2 })} :: el when v1 == v2 ->
+				block_element acc el
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->

@@ -563,6 +563,17 @@ class TestJs {
 		return if (Std.isOfType(v, c)) v else null;
 	}
 
+	@:js('var f = function(x) {console.log("src/TestJs.hx:572:",x);};f(10);')
+	static function testVarSelfAssignmentRemoved() {
+		inline function g() return 0;
+
+		function f(x:Int) {
+			x = x + g();
+			trace(x);
+		}
+
+		f(10);
+	}
 }
 
 extern class Extern {
