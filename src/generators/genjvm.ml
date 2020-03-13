@@ -2441,6 +2441,7 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
+		let flags = if Meta.has Meta.NativeJni cf.cf_meta then MNative :: flags else flags in
 		let name,scmode,flags = match mtype with
 			| MConstructor ->
 				let rec has_super_ctor c = match c.cl_super with
