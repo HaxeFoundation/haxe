@@ -361,13 +361,18 @@ class typed_function
 = object(self)
 
 	val jc_closure =
+		let patch_name name = match name with
+			| "<init>" -> "new"
+			| "<clinit>" -> "__init__"
+			| name -> name
+		in
 		let name = match kind with
 			| FuncLocal ->
-				Printf.sprintf "Closure_%s_%i" host_method#get_name host_method#get_next_closure_id
+				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id
 			| FuncStatic(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 			| FuncMember(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 		in
 		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_access_flag 0x10; (* final *)
