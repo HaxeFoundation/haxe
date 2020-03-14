@@ -133,10 +133,10 @@ enum ValueType {
 			return js.Syntax.code("new empty()");
 		}
 	#else
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
-		untyped {
-			return js.Syntax.code("new ({0})", Function.prototype.bind.apply(cl, [null].concat(args)));
-		}
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		var ctor = ((cast js.lib.Function).prototype.bind : js.lib.Function).apply(cl, [null].concat(args));
+		return js.Syntax.code("new ({0})", ctor); // cannot use `js.Syntax.construct` because we need parens if `ctor` is fused in
+	}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
 		return js.lib.Object.create((cast cl).prototype);
