@@ -1781,38 +1781,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method new_native_array jsig el =
 		jm#new_native_array jsig (List.map (fun e -> fun () -> self#texpr (rvalue_sig jsig) e) el)
 
-	method basic_type_path name =
-		let offset = pool#add_field (["java";"lang"],name) "TYPE" java_class_sig FKField in
-		code#getstatic offset java_class_sig
-
-	method type_expr = function
-		| TByte -> self#basic_type_path "Byte"
-		| TChar -> self#basic_type_path "Character"
-		| TDouble -> self#basic_type_path "Double"
-		| TFloat -> self#basic_type_path "Float"
-		| TInt -> self#basic_type_path "Integer"
-		| TLong -> self#basic_type_path "Long"
-		| TShort -> self#basic_type_path "Short"
-		| TBool -> self#basic_type_path "Boolean"
-		| TObject(path,_) ->
-			let offset = pool#add_path path in
-			let t = object_path_sig path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,t)]))
-		| TMethod _ ->
-			assert false
-			(* let offset = pool#add_path method_handle_path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,method_handle_sig)])) *)
-		| TTypeParameter _ ->
-			let offset = pool#add_path object_path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
-		| TArray _ as t ->
-			(* TODO: this seems hacky *)
-			let offset = pool#add_path ([],generate_signature false t) in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
-		| jsig ->
-			print_endline (generate_signature false jsig);
-			assert false
-
 	method texpr ret e =
 		try
 			if not jm#is_terminated then self#texpr' ret e
@@ -1836,8 +1804,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			load()
 		| TTypeExpr mt ->
 			let t = type_of_module_type mt in
-			if ExtType.is_void (follow t) then self#basic_type_path "Void"
-			else self#type_expr (jsignature_of_type gctx t)
+			if ExtType.is_void (follow t) then jm#get_basic_type_class "Void"
+			else jm#get_class (jsignature_of_type gctx t)
 		| TUnop(op,flag,e1) ->
 			begin match op with
 			| Not | Neg | NegBits when not (need_val ret) -> self#texpr ret e1
