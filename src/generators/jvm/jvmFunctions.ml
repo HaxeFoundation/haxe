@@ -93,10 +93,9 @@ class typed_functions = object(self)
 				(String.concat ", " (List.map string_of_classification cl))
 				(Option.map_default string_of_classification "CVoid" cr)
 		in
-		let suffix = Option.map_default string_of_classification "Void" cr in
 		let meth = {
 			arity = List.length cl;
-			name = Printf.sprintf "invoke%s" suffix;
+			name = "invoke";
 			has_nonobject = List.exists (function CObject -> false | _ -> true) cl;
 			sort_string = to_string (cl,cr);
 			cargs = cl;
@@ -176,7 +175,7 @@ class typed_functions = object(self)
 					jm#get_code#aaload array_sig object_sig;
 					object_sig
 				) in
-				jm#invokevirtual jc#get_this_path "invokeObject" (method_sig args (Some object_sig));
+				jm#invokevirtual jc#get_this_path "invoke" (method_sig args (Some object_sig));
 				jm#return;
 			)
 		) in
@@ -198,7 +197,7 @@ class typed_functions = object(self)
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -222,7 +221,7 @@ class typed_functions = object(self)
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic;MBridge;MSynthetic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -230,7 +229,7 @@ class typed_functions = object(self)
 			jm#getfield jc#get_this_path "func" haxe_function_sig;
 			jm#new_native_array object_sig (List.map (fun (_,load,_) () -> load()) vars);
 			jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
-			jm#invokevirtual haxe_function_path "invokeObject" (method_sig [object_sig] (Some object_sig));
+			jm#invokevirtual haxe_function_path "invoke" (method_sig [object_sig] (Some object_sig));
 			jm#return;
 			if i < max_arity then loop (object_sig :: args) (i + 1)
 		in
@@ -243,7 +242,7 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder haxe_function_path object_path in
 		jc#add_access_flag 1; (* public *)
 		List.iter (fun meth ->
-			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic] in
+			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic;MBridge;MSynthetic] in
 			begin match meth.next with
 			| Some meth_next ->
 				self#make_forward_method jc jm meth meth_next;
@@ -404,7 +403,7 @@ class typed_function
 			end
 		in
 		let spawn_forward_function meth_from meth_to =
-			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic] in
+			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic;MBridge;MSynthetic] in
 			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
 		in
 		let check_functional_interfaces meth =
