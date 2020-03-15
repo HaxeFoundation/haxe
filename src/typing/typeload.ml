@@ -88,9 +88,18 @@ let find_type_in_module m tname =
 (* raises Type_not_found *)
 let find_type_in_module_raise m tname p =
 	try
-		find_type_in_module m tname
+		List.find (fun mt ->
+			let infos = t_infos mt in
+			if snd infos.mt_path = tname then
+				if infos.mt_private then
+					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
+				else
+					true
+			else
+				false
+		) m.m_types
 	with Not_found ->
-		raise_error (Type_not_found (m.m_path,tname)) p
+		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =

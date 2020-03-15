@@ -1293,7 +1293,7 @@ and handle_efield ctx e p0 mode =
 							let mpath = (pack,name) in
 							if Hashtbl.mem ctx.g.modules mpath then
 								let tname = Option.default name sub in
-								raise (Error (Type_not_found (mpath,tname),p))
+								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
 							else
 								raise (Error (Module_not_found mpath,p))
 						end
