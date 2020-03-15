@@ -159,7 +159,9 @@ let rec jsignature_of_type gctx stack t =
 	| TLazy f -> jsignature_of_type (lazy_type f)
 
 and jtype_argument_of_type gctx stack t =
-	TType(WNone,jsignature_of_type gctx stack t)
+	let jsig = jsignature_of_type gctx stack t in
+	let jsig = get_boxed_type jsig in
+	TType(WNone,jsig)
 
 and return_of_type gctx stack t =
 	if ExtType.is_void (follow t) then None else Some (jsignature_of_type gctx stack t)
