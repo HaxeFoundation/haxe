@@ -92,9 +92,13 @@ extern class Sys {
 	/**
 		Returns the type of the current system. Possible values are:
 		 - `"Windows"`
-		 - `"Linux"`
 		 - `"BSD"`
 		 - `"Mac"`
+		 - `"iOS"`
+		 - `"tvOS"`
+		 - `"Android"`
+		 - `"GNU/kFreeBSD"`
+		 - `"Linux"`
 	**/
 	static function systemName():String;
 
