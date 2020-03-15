@@ -31,6 +31,14 @@
 	public static var NEGATIVE_INFINITY(default, null) = cs.system.Double.NegativeInfinity;
 	@:readOnly
 	public static var POSITIVE_INFINITY(default, null) = cs.system.Double.PositiveInfinity;
+	@:readOnly
+	public static var MIN_INT(default, null) = cs.system.Int32.MinValue;
+	@:readOnly
+	public static var MAX_INT(default, null) = cs.system.Int32.MaxValue;
+	@:readOnly
+	public static var MIN_FLOAT(default, null) = cs.system.Double.MinValue;
+	@:readOnly
+	public static var MAX_FLOAT(default, null) = cs.system.Double.MaxValue;
 
 	public static inline function abs(v:Float):Float {
 		return cs.system.Math.Abs(v);

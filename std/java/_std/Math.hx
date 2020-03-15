@@ -19,12 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi
+// @:coreApi
 @:native("java.lang.Math") extern class Math {
 	static var PI(default, null):Float;
 	static var NaN(default, null):Float;
 	static var NEGATIVE_INFINITY(default, null):Float;
 	static var POSITIVE_INFINITY(default, null):Float;
+	static var MIN_INT(get, never):Int;
+	static inline function get_MIN_INT():Int return java.lang.Integer.IntegerClass.MIN_VALUE;
+	static var MAX_INT(get, never):Int;
+	static inline function get_MAX_INT():Int return java.lang.Integer.IntegerClass.MAX_VALUE;
+	static var MIN_FLOAT(get, never):Float;
+	static inline function get_MIN_FLOAT():Float return java.lang.Double.DoubleClass.MIN_VALUE;
+	static var MAX_FLOAT(get, never):Float;
+	static inline function get_MAX_FLOAT():Float return java.lang.Double.DoubleClass.MAX_VALUE;
 
 	static function abs(v:Float):Float;
 	static function min(a:Float, b:Float):Float;

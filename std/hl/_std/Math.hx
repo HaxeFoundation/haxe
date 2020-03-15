@@ -94,11 +94,19 @@ class Math {
 	public static var NaN(default, null):Float;
 	public static var POSITIVE_INFINITY(default, null):Float;
 	public static var NEGATIVE_INFINITY(default, null):Float;
+	public static var MIN_INT(default, null):Int;
+	public static var MAX_INT(default, null):Int;
+	public static var MIN_FLOAT(default, null):Float;
+	public static var MAX_FLOAT(default, null):Float;
 
 	static function __init__():Void {
 		PI = 3.1415926535897932384626433832795;
 		NaN = 0. / 0.;
 		POSITIVE_INFINITY = 1. / 0.;
 		NEGATIVE_INFINITY = -1. / 0.;
+		MIN_INT = -2147483648;
+		MAX_INT = 2147483647;
+		MIN_FLOAT = 2.2250738585072e-308;
+		MAX_FLOAT = 1.79769313486232e+308;
 	}
 }

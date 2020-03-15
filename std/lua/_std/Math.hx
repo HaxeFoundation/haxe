@@ -38,6 +38,26 @@ class Math {
 	static inline function get_POSITIVE_INFINITY():Float
 		return lua.Math.huge;
 
+	public static var MIN_INT(get, null):Int;
+
+	static inline function get_MIN_INT():Int
+		return -2147483648;
+
+	public static var MAX_INT(get, null):Int;
+
+	static inline function get_MAX_INT():Int
+		return 2147483647;
+
+	public static var MIN_FLOAT(get, null):Float;
+
+	static inline function get_MIN_FLOAT():Float
+		return 2.2250738585072e-308;
+
+	public static var MAX_FLOAT(get, null):Float;
+
+	static inline function get_MAX_FLOAT():Float
+		return 1.79769313486232e+308;
+
 	public static var NaN(get, null):Float;
 
 	// Note: this has to be an untyped literal, otherwise the compiler tries

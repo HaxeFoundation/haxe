@@ -31,6 +31,14 @@ extern class Math {
 
 	static var POSITIVE_INFINITY(default, null):Float;
 
+	static var MIN_INT(default, null):Int;
+
+	static var MAX_INT(default, null):Int;
+
+	static var MIN_FLOAT(default, null):Float;
+
+	static var MAX_FLOAT(default, null):Float;
+
 	static var NaN(default, null):Float;
 
 	static inline function abs(v:Float):Float {
@@ -125,7 +133,16 @@ extern class Math {
 	static function __init__():Void {
 		NEGATIVE_INFINITY = UBuiltins.float('-inf');
 		POSITIVE_INFINITY = UBuiltins.float('inf');
+		MIN_INT = -2147483648;
+		MAX_INT = 2147483647;
+		MIN_FLOAT = PythonSysAdapter.float_info.min;
+		MAX_FLOAT = PythonSysAdapter.float_info.max;
 		NaN = UBuiltins.float("nan");
 		PI = python.lib.Math.pi;
 	}
+}
+
+@:pythonImport("sys")
+private extern class PythonSysAdapter {
+	static var float_info:{max:Float, min:Float};
 }

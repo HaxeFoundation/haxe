@@ -56,6 +56,10 @@ private class MathImpl {
 		M.NaN = 0.0 / 0.0;
 		M.POSITIVE_INFINITY = 1.0 / 0.0;
 		M.NEGATIVE_INFINITY = -M.POSITIVE_INFINITY;
+		M.MIN_INT = -1073741824;
+		M.MAX_INT = 1073741823;
+		M.MIN_FLOAT = 2.2250738585072e-308;
+		M.MAX_FLOAT = 1.79769313486232e+308;
 		M.abs = Lib.load("std", "math_abs", 1);
 		M.sin = Lib.load("std", "math_sin", 1);
 		M.cos = Lib.load("std", "math_cos", 1);
@@ -83,6 +87,10 @@ extern final class Math {
 	public static var NaN(default, null):Float;
 	public static var POSITIVE_INFINITY(default, null):Float;
 	public static var NEGATIVE_INFINITY(default, null):Float;
+	public static var MIN_INT(default, null):Int;
+	public static var MAX_INT(default, null):Int;
+	public static var MIN_FLOAT(default, null):Float;
+	public static var MAX_FLOAT(default, null):Float;
 
 	public static function min(a:Float, b:Float):Float;
 	public static function max(a:Float, b:Float):Float;

@@ -443,3 +443,10 @@ math.atan2(0,1000) == 0;
 math.atan2(1,0) == Math.PI/2;
 math.atan2(-1,0) == -Math.PI/2;
 math.atan2(0,0) == 0;
+
+math.MIN_INT - math.MIN_INT == 0;
+math.MAX_INT - math.MAX_INT == 0;
+math.MIN_INT - (math.MIN_INT + 1) == 1;
+math.MAX_INT - (math.MAX_INT - 1) == 1;
+math.MIN_FLOAT - math.MIN_FLOAT == 0;
+math.MAX_FLOAT - math.MAX_FLOAT == 0;

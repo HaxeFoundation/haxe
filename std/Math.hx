@@ -63,6 +63,26 @@ extern class Math {
 	static var POSITIVE_INFINITY(default, null):Float;
 
 	/**
+		Minimal safe `Int` constant value. Runtime value depends on platform.
+	**/
+	static var MIN_INT(default, null):Int;
+
+	/**
+		Maximal safe `Int` constant value. Runtime value depends on platform.
+	**/
+	static var MAX_INT(default, null):Int;
+
+	/**
+		Minimal safe `Float` constant value. Runtime value depends on platform.
+	**/
+	static var MIN_FLOAT(default, null):Int;
+
+	/**
+		Maximal safe `Float` constant value. Runtime value depends on platform.
+	**/
+	static var MAX_FLOAT(default, null):Int;
+
+	/**
 		A special `Float` constant which denotes an invalid number.
 
 		NaN stands for "Not a Number". It occurs when a mathematically incorrect
@@ -297,12 +317,10 @@ extern class Math {
 			NaN = __global__["Number"].NaN;
 			NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 			POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
-			#else
-			// TODO: Abandoned code block? Js has its own _std/Math.hx
-			Math.__name__ = ["Math"];
-			Math.NaN = Number["NaN"];
-			Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
-			Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
+			MIN_INT = __global__["int"].MIN_VALUE;
+			MAX_INT = __global__["int"].MAX_VALUE;
+			MIN_FLOAT = __global__["Number"].MIN_VALUE;
+			MAX_FLOAT = __global__["Number"].MAX_VALUE;
 			#end
 			Math.isFinite = function(i) {
 				return #if flash __global__["isFinite"](i); #else false; #end

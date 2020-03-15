@@ -37,6 +37,26 @@ extern class Math {
 		return code("Infinity");
 	}
 
+	static var MIN_INT(get, null):Int;
+	@:pure private static inline function get_MIN_INT():Int {
+		return code("Number.MIN_SAFE_INTEGER");
+	}
+
+	static var MAX_INT(get, null):Int;
+	@:pure private static inline function get_MAX_INT():Int {
+		return code("Number.MAX_SAFE_INTEGER");
+	}
+
+	static var MIN_FLOAT(get, null):Float;
+	@:pure private static inline function get_MIN_FLOAT():Float {
+		return code("Number.MIN_VALUE");
+	}
+
+	static var MAX_FLOAT(get, null):Float;
+	@:pure private static inline function get_MAX_FLOAT():Float {
+		return code("Number.MAX_VALUE");
+	}
+
 	static var NaN(get, null):Float;
 	@:pure private static inline function get_NaN():Float {
 		return code("NaN");

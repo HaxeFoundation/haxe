@@ -29,6 +29,10 @@ import php.Syntax;
 	public static var NaN(default, null):Float = Const.NAN;
 	public static var POSITIVE_INFINITY(default, null):Float = Const.INF;
 	public static var NEGATIVE_INFINITY(default, null):Float = -Const.INF;
+	public static var MIN_INT(default, null):Int = Const.PHP_INT_MIN;
+	public static var MAX_INT(default, null):Int = Const.PHP_INT_MAX;
+	public static var MIN_FLOAT(default, null):Float = 2.2250738585072e-308;
+	public static var MAX_FLOAT(default, null):Float = 1.79769313486232e+308;
 
 	public static inline function abs(v:Float):Float
 		return Global.abs(v);
