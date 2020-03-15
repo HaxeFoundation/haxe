@@ -585,6 +585,23 @@ class TestJs {
 		}
 		f(10);
 	}
+
+	@:js('
+		var x = function() {return true;};
+		var f = function(b) {
+			if(x()) {b = true;}
+			TestJs.use(b);
+		};
+		f(false);
+	')
+	static function testIssue9239_noDoubleNegation() {
+		function x() return true;
+		function f(b:Bool) {
+			b = x() || b;
+			TestJs.use(b);
+		}
+		f(false);
+	}
 }
 
 extern class Extern {

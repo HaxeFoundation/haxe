@@ -133,6 +133,9 @@ let sanitize_expr com e =
 		let e1 = if loop e1 true then parent e1 else e1 in
 		let e2 = if loop e2 false then parent e2 else e2 in
 		{ e with eexpr = TBinop (op,e1,e2) }
+	| TUnop (Not,Prefix,{ eexpr = (TUnop (Not,Prefix,e1)) | (TParenthesis { eexpr = TUnop (Not,Prefix,e1) }) })
+		when ExtType.is_bool (Abstract.follow_with_abstracts e1.etype) ->
+		e1
 	| TUnop (op,mode,e1) ->
 		let rec loop ee =
 			match ee.eexpr with
