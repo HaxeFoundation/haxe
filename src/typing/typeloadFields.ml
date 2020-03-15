@@ -1100,11 +1100,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
-	let is_override = match fctx.override with
-		| None -> false
-		| _ -> true in
-	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": You can't have both 'override' and 'static'") p;
+	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
+	let is_override = Option.is_some fctx.override in
+	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
