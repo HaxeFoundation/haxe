@@ -280,6 +280,23 @@ class Jvm {
 		throw 'Cannot array-write on $obj';
 	}
 
+	static public function readFieldClosure(obj:Dynamic, name:String, parameterTypes:NativeArray<java.lang.Class<Dynamic>>):Dynamic {
+		var cl = (obj : java.lang.Object).getClass();
+		var method = cl.getMethod(name, parameterTypes);
+		if (method.isBridge()) {
+			/* This is probably not what we want... go through all methods and see if we find one that
+				isn't a bridge. This is pretty awkward, but I can't figure out how to use the Java reflection
+				API properly. */
+			for (meth in cl.getMethods()) {
+				if (meth.getName() == name && !meth.isBridge() && method.getParameterCount() == parameterTypes.length) {
+					method = meth;
+					break;
+				}
+			}
+		}
+		return new jvm.Closure(obj, method);
+	}
+
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
 		var isStatic = instanceof(obj, java.lang.Class);
 		var cl = isStatic ? obj : (obj : java.lang.Object).getClass();
