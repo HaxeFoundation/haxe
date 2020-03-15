@@ -318,6 +318,7 @@ module JavaFunctionalInterfaces = struct
 			| want1 :: want,have1 :: have ->
 				begin match want1 with
 				| TTypeParameter n ->
+					let have1 = get_boxed_type have1 in
 					loop ((n,have1) :: params) want have
 				| _ ->
 					if have1 <> want1 then None
@@ -330,6 +331,7 @@ module JavaFunctionalInterfaces = struct
 		| None,None ->
 			loop [] jfi.jargs args
 		| Some (TTypeParameter n),Some jsig ->
+			let jsig = get_boxed_type jsig in
 			loop [n,jsig] jfi.jargs args
 		| Some jsig1,Some jsig2 ->
 			if jsig1 <> jsig2 then None
