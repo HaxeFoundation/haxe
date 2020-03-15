@@ -1,3 +1,4 @@
+open JvmGlobals.MethodAccessFlags
 open JvmSignature
 open NativeSignatures
 
@@ -402,8 +403,10 @@ class typed_function
 				Hashtbl.add implemented_interfaces path true;
 			end
 		in
-		let spawn_forward_function meth_from meth_to =
-			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic;MBridge;MSynthetic] in
+		let spawn_forward_function meth_from meth_to is_bridge =
+			let flags = [MPublic] in
+			let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
+			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) flags in
 			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
 		in
 		let check_functional_interfaces meth =
@@ -411,7 +414,7 @@ class typed_function
 				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
 				List.iter (fun (jfi,params) ->
 					add_interface jfi.jpath params;
-					spawn_forward_function {meth with name=jfi.jname} meth;
+					spawn_forward_function {meth with name=jfi.jname} meth false;
 				) l
 			with Not_found ->
 				()
@@ -420,7 +423,7 @@ class typed_function
 			check_functional_interfaces meth;
 			begin match meth.next with
 			| Some meth_next ->
-				spawn_forward_function meth_next meth;
+				spawn_forward_function meth_next meth true;
 				loop meth_next;
 			| None ->
 				()
