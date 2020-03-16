@@ -170,7 +170,7 @@ let unify_min ctx el = (!unify_min_ref) ctx el
 let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx el src
 
 let make_static_this c p =
-	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 	mk (TTypeExpr (TClassDecl c)) ta p
 
 let make_static_field_access c cf t p =

@@ -563,6 +563,45 @@ class TestJs {
 		return if (Std.isOfType(v, c)) v else null;
 	}
 
+	@:js('var f = function(x) {TestJs.use(x);};f(10);')
+	static function testVarSelfAssignmentRemoved() {
+		inline function g() return 0;
+		function f(x:Int) {
+			x = x + g();
+			use(x);
+		}
+
+		f(10);
+	}
+
+	@:js('var f = function(x) {while(true) TestJs.use(x);};f(10);')
+	static inline function testNoRedundantContinue() {
+		inline function g() return true;
+		function f(x:Int) {
+			while (true) {
+				TestJs.use(x);
+				if (g()) continue;
+			}
+		}
+		f(10);
+	}
+
+	@:js('
+		var x = function() {return true;};
+		var f = function(b) {
+			if(x()) {b = true;}
+			TestJs.use(b);
+		};
+		f(false);
+	')
+	static function testIssue9239_noDoubleNegation() {
+		function x() return true;
+		function f(b:Bool) {
+			b = x() || b;
+			TestJs.use(b);
+		}
+		f(false);
+	}
 }
 
 extern class Extern {

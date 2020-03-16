@@ -68,8 +68,7 @@ class String {
 		else
 			startIndex += 1;
 		if (str == "") {
-			// TODO: this makes lua CI hang forever
-			// return indexOfEmpty(this, startIndex - 1);
+			return indexOfEmpty(this, startIndex - 1);
 		}
 		var r = BaseString.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0)
@@ -88,13 +87,12 @@ class String {
 	}
 
 	public inline function lastIndexOf(str:String, ?startIndex:Int):Int {
-		var i = 0;
 		var ret = -1;
 		if (startIndex == null)
 			startIndex = length;
 		while (true) {
 			var p = indexOf(str, ret + 1);
-			if (p == -1 || p > startIndex)
+			if (p == -1 || p > startIndex || p == ret)
 				break;
 			ret = p;
 		}

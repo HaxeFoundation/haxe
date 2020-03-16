@@ -269,6 +269,37 @@ class builder jc name jsig = object(self)
 		let offset = code#get_pool#add_field path name jsigf FKField in
 		code#putstatic offset jsigf
 
+	method get_basic_type_class (name : string) =
+		self#getstatic (["java";"lang"],name) "TYPE" java_class_sig
+
+	method get_class (jsig : jsignature) =
+		match jsig with
+		| TByte -> self#get_basic_type_class "Byte"
+		| TChar -> self#get_basic_type_class "Character"
+		| TDouble -> self#get_basic_type_class "Double"
+		| TFloat -> self#get_basic_type_class "Float"
+		| TInt -> self#get_basic_type_class "Integer"
+		| TLong -> self#get_basic_type_class "Long"
+		| TShort -> self#get_basic_type_class "Short"
+		| TBool -> self#get_basic_type_class "Boolean"
+		| TObject(path,_) ->
+			let offset = code#get_pool#add_path path in
+			let t = object_path_sig path in
+			code#ldc offset (TObject(java_class_path,[TType(WNone,t)]))
+		| TTypeParameter _ ->
+			let offset = code#get_pool#add_path object_path in
+			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
+		| TArray _ as t ->
+			(* TODO: this seems hacky *)
+			let offset = code#get_pool#add_path ([],generate_signature false t) in
+			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
+		| TMethod _ ->
+			let offset = code#get_pool#add_path haxe_function_path in
+			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
+		| jsig ->
+			print_endline (generate_signature false jsig);
+			assert false
+
 	(** Loads `this` **)
 	method load_this =
 		code#aload self#get_this_sig 0

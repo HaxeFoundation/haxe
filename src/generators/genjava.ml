@@ -938,7 +938,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"void"; "volatile"; "while"; ];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = mk_anon (ref Closed)
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -960,6 +960,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
 		| (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
 		| (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
+		| (Meta.NativeJni,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 let generate con =
@@ -2153,29 +2154,25 @@ let generate con =
 		in
 		loop cl.cl_meta;
 
-		(match gen.gcon.main_class with
-			| Some path when path = cl.cl_path ->
-				write w "public static void main(String[] args)";
-				begin_block w;
-				(try
-					let t = Hashtbl.find gen.gtypes ([], "Sys") in
-							match t with
-								| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
-									write w "Sys._args = args;"; newline w
-								| _ -> ()
-				with | Not_found -> ()
-				);
-				write w "haxe.java.Init.init();";
-				newline w;
-				(match gen.gcon.main with
-					| Some(expr) ->
-						expr_s w (mk_block expr)
-					| None ->
-						write w "main();");
-				end_block w;
-				newline w
-			| _ -> ()
-		);
+		(match gen.gentry_point with
+		| Some (_,cl_main,expr) when cl == cl_main ->
+			write w "public static void main(String[] args)";
+			begin_block w;
+			(try
+				let t = Hashtbl.find gen.gtypes ([], "Sys") in
+				match t with
+				| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
+					write w "Sys._args = args;"; newline w
+				| _ -> ()
+			with Not_found ->
+				());
+			write w "haxe.java.Init.init();";
+			newline w;
+			expr_s w expr;
+			write w ";";
+			end_block w;
+			newline w
+		| _ -> ());
 
 		(match cl.cl_init with
 			| None -> ()
@@ -2326,7 +2323,7 @@ let generate con =
 
 	let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
 	let empty_ctor_type = TEnum(empty_en, []) in
-	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (mk_anon (ref (EnumStatics empty_en))) null_pos in
 	let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 	OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 

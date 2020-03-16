@@ -119,7 +119,7 @@ let field_type ctx c pl f p =
 		apply_params l monos f.cf_type
 
 let fast_enum_field e ef p =
-	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
+	let et = mk (TTypeExpr (TEnumDecl e)) (mk_anon (ref (EnumStatics e))) p in
 	TField (et,FEnum (e,ef))
 
 let get_constructor ctx c params p =
@@ -523,7 +523,7 @@ let rec type_field cfg ctx e i p mode =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 		} in
 		let x = ref Opened in
-		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
+		let t = mk_anon ~fields:(PMap.add i f PMap.empty) x in
 		ctx.opened <- x :: ctx.opened;
 		Monomorph.bind r t;
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
