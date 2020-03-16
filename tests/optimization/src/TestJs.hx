@@ -611,6 +611,19 @@ class TestJs {
 		var a = processNullBool(null);
 		TestJs.use(a);
 	}
+
+	@:js('
+		var produce = function(producer) {return null;};
+		produce(function(obj) {obj.id = 2;});
+	')
+	static function testIssue9181_arrowFunction_infersVoidReturn() {
+		function produce<T>(producer: T -> Void): T {
+			return null;
+		}
+		var result = produce((obj) -> {
+			obj.id = 2;
+		});
+	}
 }
 
 extern class Extern {

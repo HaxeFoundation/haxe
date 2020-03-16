@@ -1949,8 +1949,9 @@ and type_local_function ctx kind f with_type p =
 					| _ -> ()
 				) args args2;
 				(* unify for top-down inference unless we are expecting Void *)
-				begin match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ -> ()
+				begin
+					match follow tr,follow rt with
+					| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
@@ -2133,21 +2134,24 @@ and type_return ?(implicit=false) ctx e with_type p =
 				else WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
-			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-			begin match follow e.etype with
-			| TAbstract({a_path=[],"Void"},_) ->
-				begin match (Texpr.skip e).eexpr with
-				| TConst TNull -> error "Cannot return `null` from Void-function" p
-				| _ -> ()
-				end;
-				(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-				mk (TBlock [
-					e;
-					mk (TReturn None) t_dynamic p
-				]) t_dynamic e.epos;
+			match follow ctx.ret with
+			| TAbstract({a_path=[],"Void"},_) when implicit ->
+				e
 			| _ ->
-				mk (TReturn (Some e)) t_dynamic p
-			end
+				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+				match follow e.etype with
+				| TAbstract({a_path=[],"Void"},_) ->
+					begin match (Texpr.skip e).eexpr with
+					| TConst TNull -> error "Cannot return `null` from Void-function" p
+					| _ -> ()
+					end;
+					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					mk (TBlock [
+						e;
+						mk (TReturn None) t_dynamic p
+					]) t_dynamic e.epos;
+				| _ ->
+					mk (TReturn (Some e)) t_dynamic p
 		with Error(err,p) ->
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
