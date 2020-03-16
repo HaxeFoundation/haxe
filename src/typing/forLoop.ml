@@ -500,11 +500,12 @@ let type_for_loop ctx handle_display it e2 p =
 			mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
 		end
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
-		begin match follow e1.etype with
-		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+		(match follow e1.etype with
+		| TDynamic _ | TMono _ ->
+			display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
-		end;
+		);
+		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
 		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
