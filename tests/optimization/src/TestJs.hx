@@ -624,6 +624,17 @@ class TestJs {
 			obj.id = 2;
 		});
 	}
+
+	@:js('
+		var voidFunc = function() {};
+		TestJs.use(function() {voidFunc();});
+		TestJs.use(function() {voidFunc();});
+	')
+	static function testIssue6420_voidFunction_noRedundantReturn() {
+		function voidFunc() {}
+		TestJs.use(function() return voidFunc());
+		TestJs.use(() -> voidFunc());
+	}
 }
 
 extern class Extern {

@@ -160,7 +160,13 @@ let sanitize_expr com e =
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
 		let f = (match f.tf_expr.eexpr with
-			| TBlock _ -> f
+			| TBlock exprs ->
+				if ExtType.is_void (follow f.tf_type) then
+					match List.rev exprs with
+					| { eexpr = TReturn None } :: rest -> { f with tf_expr = { f.tf_expr with eexpr = TBlock (List.rev rest) } }
+					| _ -> f
+				else
+					f
 			| _ -> { f with tf_expr = block f.tf_expr }
 		) in
 		{ e with eexpr = TFunction f }
