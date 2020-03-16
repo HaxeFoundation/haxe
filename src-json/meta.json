@@ -1253,5 +1253,11 @@
 		"metadata": ":void",
 		"doc": "Use Cpp native `void` return type.",
 		"platforms": ["cpp"]
+	},
+	{
+		"name": "NeedsExceptionStack",
+		"metadata": ":needsExceptionStack",
+		"doc": "Internally used for some of auto-generated `catch` vars",
+		"internal": true
 	}
 ]

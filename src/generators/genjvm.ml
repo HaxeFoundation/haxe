@@ -51,6 +51,7 @@ exception HarderFailure of string
 type generation_context = {
 	com : Common.context;
 	jar : Zip.out_file;
+	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
 	t_throwable : Type.t;
@@ -294,45 +295,26 @@ let type_unifies a b =
 
 let follow = Abstract.follow_with_abstracts
 
-class haxe_exception gctx (t : Type.t) = object(self)
-	val native_exception =
-		if follow t == t_dynamic then
-			throwable_sig,false
-		else if type_unifies t gctx.t_exception then
-			jsignature_of_type gctx t,true
-		else
-			haxe_exception_sig,false
-
-	val mutable native_exception_path = None
+class haxe_exception gctx (t : Type.t) =
+	let is_haxe_exception = Exceptions.is_haxe_exception t
+	and native_type = jsignature_of_type gctx t in
+object(self)
+	val native_path = (match native_type with TObject(path,_) -> path | _ -> assert false)
 
 	method is_assignable_to (exc2 : haxe_exception) =
-		match self#is_native_exception,exc2#is_native_exception with
-		| true, true ->
-			(* Native exceptions are assignable if they unify *)
+		match self#is_haxe_exception,exc2#is_haxe_exception with
+		| true, true | false, false ->
 			type_unifies t exc2#get_type
-		| false,false ->
-			(* Haxe exceptions are always assignable to each other *)
-			true
+		(* `haxe.Exception` is assignable to java.lang.RuntimeException/Exception/Throwable *)
 		| false,true ->
-			(* Haxe exception is assignable to native only if caught type is java.lang.Exception/Throwable *)
-			let exc2_native_exception_type = exc2#get_native_exception_type in
-			exc2_native_exception_type = throwable_sig || exc2_native_exception_type = exception_sig
+			List.mem exc2#get_native_type [throwable_sig; exception_sig; runtime_exception_sig]
 		| _ ->
-			(* Native to Haxe is never assignable *)
 			false
 
-	method is_native_exception = snd native_exception
-	method get_native_exception_type = fst native_exception
+	method is_haxe_exception = is_haxe_exception
 
-	method get_native_exception_path =
-		match native_exception_path with
-		| None ->
-			let path = (match (fst native_exception) with TObject(path,_) -> path | _ -> assert false) in
-			native_exception_path <- Some path;
-			path
-		| Some path ->
-			path
-
+	method get_native_type = native_type
+	method get_native_path = native_path
 	method get_type = t
 end
 
@@ -1629,11 +1611,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	(* exceptions *)
 
-	method throw vt =
-		jm#expect_reference_type;
-		jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
-		code#athrow;
-
 	method try_catch ret e1 catches =
 		let restore = jm#start_branch in
 		let fp_from = code#get_fp in
@@ -1648,17 +1625,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let term_try = jm#is_terminated in
 		let r_try = jm#maybe_make_jump in
 		let fp_to = code#get_fp in
-		let unwrap () =
-			code#dup;
-			code#instanceof haxe_exception_path;
-			jm#if_then_else
-				(code#if_ CmpEq)
-				(fun () ->
-					jm#cast haxe_exception_sig;
-					jm#getfield (["haxe";"jvm"],"Exception") "value" object_sig;
-				)
-				(fun () -> jm#cast object_sig);
-		in
 		let start_exception_block path jsig =
 			restore();
 			let fp_target = code#get_fp in
@@ -1671,8 +1637,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			};
 			code#get_stack#push jsig;
 			jm#add_stack_frame;
-			jm#get_code#dup;
-			jm#invokestatic haxe_exception_path "setException" (method_sig [throwable_sig] None);
 		in
 		let run_catch_expr v e =
 			let pop_scope = jm#push_scope in
@@ -1683,63 +1647,15 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#is_terminated
 		in
 		let add_catch (exc,v,e) =
-			start_exception_block exc#get_native_exception_path exc#get_native_exception_type;
-			if not exc#is_native_exception then begin
-				unwrap();
-				self#cast v.v_type
-			end;
+			start_exception_block exc#get_native_path exc#get_native_type;
 			let term = run_catch_expr v e in
 			let r = jm#maybe_make_jump in
 			term,r
 		in
-		let commit_instanceof_checks excl =
-			start_exception_block throwable_path throwable_sig;
-			let pop_scope = jm#push_scope in
-			let _,load,save = jm#add_local "exc" throwable_sig VarWillInit in
-			code#dup;
-			save();
-			unwrap();
-			let restore = jm#start_branch in
-			let rl = ref [] in
-			let rec loop excl = match excl with
-				| [] ->
-					code#pop;
-					load();
-					code#athrow;
-				| (_,v,e) :: excl ->
-					code#dup;
-					let path = match self#vtype (self#mknull v.v_type) with TObject(path,_) -> path | _ -> assert false in
-					if path = object_path then begin
-						code#pop;
-						restore();
-						let term = run_catch_expr v e in
-						rl := (term,ref 0) :: !rl;
-					end else begin
-						code#instanceof path;
-						jm#if_then_else
-							(code#if_ CmpEq)
-							(fun () ->
-								restore();
-								self#cast v.v_type;
-								let term = run_catch_expr v e in
-								rl := (term,ref 0) :: !rl;
-							)
-							(fun () -> loop excl)
-					end
-			in
-			loop excl;
-			pop_scope();
-			!rl
-		in
 		let rec loop acc excl = match excl with
 			| (exc,v,e) :: excl ->
-				if List.exists (fun (exc',_,_) -> exc'#is_assignable_to exc) excl || excl = [] && not exc#is_native_exception then begin
-					let res = commit_instanceof_checks ((exc,v,e) :: excl) in
-					acc @ res
-				end else begin
-					let res = add_catch (exc,v,e) in
-					loop (res :: acc) excl
-				end
+				let res = add_catch (exc,v,e) in
+				loop (res :: acc) excl
 			| [] ->
 				acc
 		in
@@ -2027,14 +1943,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#cast e.etype;
 		| TThrow e1 ->
 			self#texpr rvalue_any e1;
-			let exc = new haxe_exception gctx e1.etype in
-			if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then jm#add_thrown_exception exc#get_native_exception_path;
-			if not exc#is_native_exception then begin
-				let vt = self#vtype (self#mknull e1.etype) in
-				self#throw vt
-			end else begin
-				code#athrow;
-			end
+			if not (Exceptions.is_haxe_exception e1.etype) && not (type_unifies e1.etype gctx.t_runtime_exception) then begin
+				let exc = new haxe_exception gctx e1.etype in
+				if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
+					jm#add_thrown_exception exc#get_native_path;
+			end;
+			code#athrow;
+			jm#set_terminated true
 		| TObjectDecl fl ->
 			let td = gctx.anon_identification#identify true e.etype in
 			begin match follow e.etype,td with
@@ -2897,6 +2812,7 @@ let generate com =
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
+		t_runtime_exception = TInst(resolve_class com (["java";"lang"],"RuntimeException"),[]);
 		entry_point = entry_point;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);

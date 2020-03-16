@@ -517,6 +517,11 @@ module Builder = struct
 	let mk_parent e =
 		mk (TParenthesis e) e.etype e.epos
 
+	let ensure_parent e =
+		match e.eexpr with
+		| TParenthesis _ -> e
+		| _ -> mk_parent e
+
 	let mk_return e =
 		mk (TReturn (Some e)) t_dynamic e.epos
 

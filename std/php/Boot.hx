@@ -315,7 +315,7 @@ class Boot {
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
-		@throws HxException if `value` cannot be casted to this type
+		@throws haxe.ValueError if `value` cannot be casted to this type
 	**/
 	public static function typedCast(hxClass:HxClass, value:Dynamic):Dynamic {
 		if (value == null)
@@ -1013,19 +1013,5 @@ private class HxClosure {
 	**/
 	public function callWith(newThis:Dynamic, args:NativeArray):Dynamic {
 		return Global.call_user_func_array(getCallback(newThis), args);
-	}
-}
-
-/**
-	Special exception which is used to wrap non-throwable values
-**/
-@:keep
-@:dox(hide)
-private class HxException extends Exception {
-	var e:Dynamic;
-
-	public function new(e:Dynamic):Void {
-		this.e = e;
-		super(Boot.stringify(e));
 	}
 }

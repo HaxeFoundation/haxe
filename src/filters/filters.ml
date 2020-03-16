@@ -827,22 +827,17 @@ let run com tctx main =
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -917,7 +912,9 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
+		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
@@ -930,7 +927,6 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

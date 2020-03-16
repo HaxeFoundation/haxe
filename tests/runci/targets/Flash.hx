@@ -144,6 +144,8 @@ class Flash {
 				break;
 			}
 		}
+		traceProcess.kill();
+		traceProcess.close();
 		Sys.command("cat", [flashlogPath]);
 		return success;
 	}

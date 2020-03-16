@@ -1772,11 +1772,14 @@ and type_try ctx e1 catches with_type p =
 			let unreachable () =
 				display_error ctx "This block is unreachable" p;
 				let st = s_type (print_context()) in
-				display_error ctx (Printf.sprintf "%s can be assigned to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				display_error ctx (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| TDynamic _, TDynamic _ ->
+					| _, TDynamic _
+					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
+						unreachable()
+					| _, TInst({ cl_path = path },_) when path = ctx.com.config.pf_exceptions.ec_wildcard_catch ->
 						unreachable()
 					| TDynamic _,_ ->
 						()
@@ -2651,6 +2654,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx
 

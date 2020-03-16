@@ -22,7 +22,6 @@
 
 package cs;
 
-import cs.internal.Exceptions;
 import cs.internal.FieldLookup;
 import cs.internal.Function;
 import cs.internal.HxObject;

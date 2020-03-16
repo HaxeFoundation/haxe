@@ -6,6 +6,8 @@ class MainCatch {
 	static function test() {
 		function log() {
 			log();
+			//prevent tail recursion elimination
+			return 0;
 		}
 		try {
 			log();

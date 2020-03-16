@@ -61,6 +61,7 @@ type ctx = {
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
 	mutable found_expose : bool;
+	mutable catch_vars : texpr list;
 }
 
 type object_store = {
@@ -403,6 +404,21 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
+	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "rethrow" })), [] ->
+		(match ctx.catch_vars with
+			| e :: _ ->
+				spr ctx "throw ";
+				gen_value ctx e
+			| _ ->
+				abort "js.Lib.rethrow can only be called inside a catch block" e.epos
+		)
+	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "getOriginalException" })), [] ->
+		(match ctx.catch_vars with
+			| e :: _ ->
+				gen_value ctx e
+			| _ ->
+				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
+		)
 	| TIdent "__new__", args ->
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
@@ -711,7 +727,9 @@ and gen_expr ctx e =
 		gen_expr ctx etry;
 		check_var_declaration v;
 		print ctx " catch( %s ) " v.v_name;
-		gen_expr ctx ecatch
+		ctx.catch_vars <- (mk (TLocal v) v.v_type v.v_pos) :: ctx.catch_vars;
+		gen_expr ctx ecatch;
+		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch (e,cases,def) ->
@@ -1591,6 +1609,7 @@ let alloc_ctx com es_version =
 		type_accessor = (fun _ -> assert false);
 		separator = false;
 		found_expose = false;
+		catch_vars = [];
 	} in
 
 	ctx.type_accessor <- (fun t ->
