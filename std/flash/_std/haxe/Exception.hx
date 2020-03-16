@@ -15,7 +15,7 @@ class Exception extends NativeException {
 	@:noCompletion var __nativeException:Error;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function caught(value:Any):Exception {
+	static function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Error)) {
@@ -25,7 +25,7 @@ class Exception extends NativeException {
 		}
 	}
 
-	static public function thrown(value:Any):Any {
+	static function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else if(Std.isOfType(value, Error)) {
@@ -49,7 +49,7 @@ class Exception extends NativeException {
 		}
 	}
 
-	public function unwrap():Any {
+	function unwrap():Any {
 		return __nativeException;
 	}
 

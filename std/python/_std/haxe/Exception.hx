@@ -20,7 +20,7 @@ class Exception extends PyException {
 	@:noCompletion var __nativeException:BaseException;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function caught(value:Any):Exception {
+	static function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, BaseException)) {
@@ -30,7 +30,7 @@ class Exception extends PyException {
 		}
 	}
 
-	static public function thrown(value:Any):Any {
+	static function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else if(Std.isOfType(value, BaseException)) {
@@ -54,7 +54,7 @@ class Exception extends PyException {
 		}
 	}
 
-	public function unwrap():Any {
+	function unwrap():Any {
 		return __nativeException;
 	}
 

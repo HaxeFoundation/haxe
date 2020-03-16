@@ -268,7 +268,7 @@ class TestExceptions extends Test {
 		result.push(new ValueException('').stack);
 		result.push(new WithConstructorValueException('').stack);
 		result.push(new NoConstructorValueException('').stack);
-		result.push((Exception.thrown(''):Exception).stack);
+		result.push(@:privateAccess (Exception.thrown(''):Exception).stack);
 		return result;
 	}
 
@@ -284,7 +284,7 @@ class TestExceptions extends Test {
 		result.push(try throw new ValueException('') catch(e:Exception) e.stack);
 		result.push(try throw new WithConstructorValueException('') catch(e:Exception) e.stack);
 		result.push(try throw new NoConstructorValueException('') catch(e:Exception) e.stack);
-		result.push(try throw (Exception.thrown(''):Exception) catch(e:Exception) e.stack);
+		result.push(try throw @:privateAccess (Exception.thrown(''):Exception) catch(e:Exception) e.stack);
 		return result;
 	}
 

@@ -69,12 +69,12 @@ extern class Exception {
 	/**
 		Used internally for wildcard catches like `catch(e:Exception)`.
 	**/
-	static public function caught(value:Any):Exception;
+	static private function caught(value:Any):Exception;
 
 	/**
 		Used internally for wrapping non-throwable values for `throw` expressions.
 	**/
-	static public function thrown(value:Any):Any;
+	static private function thrown(value:Any):Any;
 
 	/**
 		Create a new Exception instance.
@@ -91,7 +91,7 @@ extern class Exception {
 		Used internally for catching non-native exceptions.
 		Do _not_ override unless you know what you are doing.
 	**/
-	public function unwrap():Any;
+	private function unwrap():Any;
 
 	/**
 		Exception description.

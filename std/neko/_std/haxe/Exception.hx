@@ -14,7 +14,7 @@ class Exception {
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
 
-	static public function caught(value:Any):Exception {
+	static function caught(value:Any):Exception {
 		if(Std.is(value, Exception)) {
 			return value;
 		} else {
@@ -22,7 +22,7 @@ class Exception {
 		}
 	}
 
-	static public function thrown(value:Any):Any {
+	static function thrown(value:Any):Any {
 		if(Std.isOfType(value, Exception)) {
 			return (value:Exception).native;
 		} else {
@@ -45,7 +45,7 @@ class Exception {
 		}
 	}
 
-	public function unwrap():Any {
+	function unwrap():Any {
 		return __nativeException;
 	}
 

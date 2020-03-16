@@ -32,7 +32,7 @@ class ValueException extends Exception {
 		Used internally for catching non-native exceptions.
 		Do _not_ override unless you know what you are doing.
 	**/
-	override public function unwrap():Any {
+	override function unwrap():Any {
 		return value;
 	}
 }
