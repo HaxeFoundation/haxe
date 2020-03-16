@@ -602,6 +602,15 @@ class TestJs {
 		}
 		f(false);
 	}
+
+	@:js('var a = !(!null);TestJs.use(a);')
+	static function testIssue9239_dubleNegation_notOptimizedForNullBool() {
+		inline function processNullBool(v:Null<Bool>):Bool {
+			return !!v;
+		}
+		var a = processNullBool(null);
+		TestJs.use(a);
+	}
 }
 
 extern class Extern {
