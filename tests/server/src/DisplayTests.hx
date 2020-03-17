@@ -468,4 +468,48 @@ typedef Foo = {
 		Assert.equals('Null<String>', strType(sigs[0].args[0].t));
 		Assert.equals('Null<Int>', strType(sigs[1].args[0].t));
 	}
+
+	function testIssue9159() {
+		var content = '
+			@:structInit
+			class CustomConstructor {
+				public var nope1:String;
+				public function new(x:Int = 0) {}
+				public function nope2() {}
+			}
+
+			@:structInit
+			class AutoConstructor {
+				public var y:Float;
+				public function nope() {}
+			}
+
+			class Main {
+				static function main() {
+					var a:CustomConstructor = {-1-}{};
+					var b:AutoConstructor = {-2-}{};
+				}
+			}
+		';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		Assert.equals(1, result.items.length);
+		Assert.equals('x', result.items[0].args.field.name);
+
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[2],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		Assert.equals(1, result.items.length);
+		Assert.equals('y', result.items[0].args.field.name);
+	}
 }

@@ -623,3 +623,54 @@ let rec type_field cfg ctx e i p mode =
 		try using_field ctx mode e i p with Not_found -> no_field()
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
+
+(**
+	Generates a list of fields for `@:structInit` class `c` with type params `tl`
+	as it's needed for anonymous object syntax.
+*)
+let get_struct_init_anon_fields c tl =
+	let args =
+		match c.cl_constructor with
+		| Some cf ->
+			(match follow cf.cf_type with
+			| TFun (args,_) ->
+				Some (match cf.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						List.map (fun (name,_,t) ->
+							let t = apply_params c.cl_params tl t in
+							try
+								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
+								name,t,v.v_pos
+							with Not_found ->
+								name,t,cf.cf_name_pos
+						) args
+					| _ ->
+						List.map
+							(fun (name,_,t) ->
+								let t = apply_params c.cl_params tl t in
+								try
+									let cf = PMap.find name c.cl_fields in
+									name,t,cf.cf_name_pos
+								with Not_found ->
+									name,t,cf.cf_name_pos
+							) args
+				)
+			| _ -> None
+			)
+		| _ -> None
+	in
+	match args with
+	| Some args ->
+		List.fold_left (fun fields (name,t,p) ->
+			let cf = mk_field name t p p in
+			PMap.add cf.cf_name cf fields
+		) PMap.empty args
+	| _ ->
+		PMap.fold (fun cf fields ->
+		match cf.cf_kind with
+		| Var _ ->
+			let cf = {cf with cf_type = apply_params c.cl_params tl cf.cf_type} in
+			PMap.add cf.cf_name cf fields
+		| _ ->
+			fields
+	) c.cl_fields PMap.empty

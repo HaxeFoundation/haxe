@@ -630,7 +630,7 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 						in
 						handle_structure_display ctx e an.a_fields origin
 					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
-						let fields = PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl cf.cf_type}) c.cl_fields in
+						let fields = get_struct_init_anon_fields c tl in
 						handle_structure_display ctx e fields (Self (TClassDecl c))
 					| _ -> handle_display ctx e dk with_type
 				end
