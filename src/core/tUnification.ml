@@ -171,8 +171,6 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
-let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
-let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
 (*
 	we can restrict access as soon as both are runtime-compatible
