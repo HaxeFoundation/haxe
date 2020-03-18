@@ -36,7 +36,14 @@ class NativeStackTrace {
 	}
 
 	static public function callStack():Any {
-		return normalize(tryHaxeStack(new Error()), 2);
+		var e:Null<Error> = new Error('');
+		var stack = tryHaxeStack(e);
+		//Internet Explorer provides call stack only if error was thrown
+		if(Syntax.typeof(stack) == "undefined") {
+			try throw e catch(e:Exception) {}
+			stack = e.stack;
+		}
+		return normalize(stack, 2);
 	}
 
 	static public function exceptionStack():Any {
@@ -58,14 +65,18 @@ class NativeStackTrace {
 				var matched:Null<Array<String>> = Syntax.code('{0}.match(/^    at ([A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$/)', line);
 				if (matched != null) {
 					var path = matched[1].split(".");
+					if(path[0] == "$hxClasses") {
+						path.shift();
+					}
 					var meth = path.pop();
 					var file = matched[2];
 					var line = Std.parseInt(matched[3]);
 					var column = Std.parseInt(matched[4]);
 					m.push(FilePos(meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth), file, line,
 						column));
-				} else
+				} else {
 					m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
+				}
 			}
 			return m;
 		} else if(skip > 0 && Syntax.code('Array.isArray({0})', s)) {
@@ -97,9 +108,11 @@ class NativeStackTrace {
 			if (fullName != null) {
 				var idx = fullName.lastIndexOf(".");
 				if (idx >= 0) {
-					var className = fullName.substring(0, idx - 1);
+					var className = fullName.substring(0, idx);
 					var methodName = fullName.substring(idx + 1);
 					method = Method(className, methodName);
+				} else {
+					method = Method(null, fullName);
 				}
 			}
 			var fileName = site.getFileName();

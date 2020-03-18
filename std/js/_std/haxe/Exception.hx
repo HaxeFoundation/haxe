@@ -55,6 +55,11 @@ class Exception extends NativeException {
 					e = cast this;
 				} else {
 					e = new Error();
+					//Internet Explorer provides call stack only if error was thrown
+					if(js.Syntax.typeof(e.stack) == "undefined") {
+						js.Syntax.code('try { throw {0}; } catch(_) {}', e);
+						__skipStack++;
+					}
 				}
 				(cast this).stack = e.stack;
 			}
