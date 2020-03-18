@@ -287,7 +287,7 @@ class Jvm {
 				isn't a bridge. This is pretty awkward, but I can't figure out how to use the Java reflection
 				API properly. */
 			for (meth in cl.getMethods()) {
-				if (meth.getName() == name && !meth.isBridge() && method.getParameterCount() == parameterTypes.length) {
+				if (meth.getName() == name && !meth.isBridge() && method.getParameterTypes().length == parameterTypes.length) {
 					method = meth;
 					break;
 				}
