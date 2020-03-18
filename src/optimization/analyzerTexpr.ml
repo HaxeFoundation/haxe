@@ -671,6 +671,11 @@ module Fusion = struct
 					| Some e ->
 						block_element acc (e :: el)
 				end
+			| ({eexpr = TSwitch(e1,cases,def)} as e) :: el ->
+				begin match Optimizer.check_constant_switch e1 cases def with
+				| Some e -> block_element acc (e :: el)
+				| None -> block_element (e :: acc) el
+				end
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)

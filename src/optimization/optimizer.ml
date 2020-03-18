@@ -237,6 +237,23 @@ let check_enum_construction_args el i =
 	) (true,0) el in
 	b
 
+let check_constant_switch e1 cases def =
+	let rec loop e1 cases = match cases with
+		| (el,e) :: cases ->
+			if List.exists (Texpr.equal e1) el then Some e
+			else loop e1 cases
+		| [] ->
+			begin match def with
+			| None -> None
+			| Some e -> Some e
+			end
+	in
+	match Texpr.skip e1 with
+		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
+			loop e1 cases
+		| _ ->
+			None
+
 let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -245,23 +262,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TSwitch (e1,cases,def) ->
-		let e = match Texpr.skip e1 with
-			| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
-				let rec loop cases = match cases with
-					| (el,e) :: cases ->
-						if List.exists (Texpr.equal e1) el then e
-						else loop cases
-					| [] ->
-						begin match def with
-						| None -> e
-						| Some e -> e
-						end
-				in
-				loop cases
-			| _ ->
-				e
-		in
-		e
+		begin match check_constant_switch e1 cases def with
+		| Some e -> e
+		| None -> e
+		end
 	| TBinop (op,e1,e2) ->
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
