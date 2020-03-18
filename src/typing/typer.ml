@@ -1663,11 +1663,18 @@ and type_object_decl ctx fl with_type p =
 		let el = List.map (fun (n,_,t) ->
 			try Expr.field_assoc n fl
 			with Not_found ->
-				let t =
-					if type_has_meta (Abstract.follow_with_abstracts_without_null t) Meta.NotNull then ctx.t.tnull t
-					else t
-				in
-				mk (TConst TNull) t p
+				try
+					match ctor.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						Option.get (snd (List.find (fun (v,e) -> Option.is_some e) fn.tf_args))
+					| _ ->
+						raise Not_found
+				with Not_found | Option.No_value ->
+					let t =
+						if type_has_meta (Abstract.follow_with_abstracts_without_null t) Meta.NotNull then ctx.t.tnull t
+						else t
+					in
+					mk (TConst TNull) t p
 		) args in
 		let e = mk (TNew(c,tl,el)) (TInst(c,tl)) p in
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
