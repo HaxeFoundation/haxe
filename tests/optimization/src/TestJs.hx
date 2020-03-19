@@ -635,6 +635,22 @@ class TestJs {
 		TestJs.use(function() return voidFunc());
 		TestJs.use(() -> voidFunc());
 	}
+
+	@:js('
+		var x = 1;
+		var f = function(y) {
+			return new Issue9227(x,y);
+		};
+		f(3);
+	')
+	static function testIssue9227_bind_lessClosures() {
+		var f = Issue9227.new.bind(1);
+		f(3);
+	}
+}
+
+class Issue9227 {
+	public function new(x:Int, y:Int) {}
 }
 
 extern class Extern {
