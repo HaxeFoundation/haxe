@@ -1971,6 +1971,13 @@ let macro_api ccom get_api =
 			let stop = Timer.timer full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
+		"map_anon_ref", vfun2 (fun a_ref fn ->
+			let a = decode_ref a_ref
+			and fn = prepare_callback fn 1 in
+			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
+			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
+			| _ -> assert false
+		)
 	]
 
 
