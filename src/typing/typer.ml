@@ -1666,7 +1666,7 @@ and type_object_decl ctx fl with_type p =
 				try
 					match ctor.cf_expr with
 					| Some { eexpr = TFunction fn } ->
-						Option.get (snd (List.find (fun (v,e) -> Option.is_some e) fn.tf_args))
+						Option.get (snd (List.find (fun (v,e) -> n = v.v_name && Option.is_some e) fn.tf_args))
 					| _ ->
 						raise Not_found
 				with Not_found | Option.No_value ->
