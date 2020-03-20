@@ -1213,7 +1213,7 @@ module Purity = struct
 		taint node;
 		raise Exit
 
-	let apply_to_field com is_ctor is_static c cf =
+	let apply_to_field com is_ctor c cf =
 		let node = get_node c cf in
 		let check_field c cf =
 			let node' = get_node c cf in
@@ -1233,9 +1233,8 @@ module Purity = struct
 					taint_raise node
 			end
 		and loop e = match e.eexpr with
-			| TMeta((Meta.Pure,_,_) as m,_) ->
-				if get_purity_from_meta [m] = Impure then taint_raise node
-				else ()
+			| TMeta((Meta.Pure,_,_),_) ->
+				()
 			| TThrow _ ->
 				taint_raise node;
 			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
@@ -1270,8 +1269,6 @@ module Purity = struct
 		match cf.cf_kind with
 			| Method MethDynamic | Var _ ->
 				taint node;
-			| _ when not (is_static || is_ctor) && FiltersCommon.is_overridden c cf ->
-				taint node
 			| _ ->
 				match cf.cf_expr with
 				| None ->
@@ -1290,9 +1287,9 @@ module Purity = struct
 						()
 
 	let apply_to_class com c =
-		List.iter (apply_to_field com false false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false true c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true false c cf | None -> ())
+		List.iter (apply_to_field com false c) c.cl_ordered_fields;
+		List.iter (apply_to_field com false c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
 
 	let infer com =
 		Hashtbl.clear node_lut;
