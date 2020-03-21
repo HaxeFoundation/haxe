@@ -205,7 +205,7 @@ and expr_def =
 	| ECall of expr * expr list
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
-	| EVars of (placed_name * bool * type_hint option * expr option) list
+	| EVars of (metadata * placed_name * bool * type_hint option * expr option) list
 	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
@@ -660,10 +660,10 @@ let map_expr loop (e,p) =
 		ENew (t,el)
 	| EUnop (op,f,e) -> EUnop (op,f,loop e)
 	| EVars vl ->
-		EVars (List.map (fun (n,b,t,eo) ->
+		EVars (List.map (fun (meta,n,b,t,eo) ->
 			let t = opt type_hint t in
 			let eo = opt loop eo in
-			n,b,t,eo
+			meta,n,b,t,eo
 		) vl)
 	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
@@ -744,7 +744,7 @@ let iter_expr loop (e,p) =
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
-	| EVars vl -> List.iter (fun (_,_,_,eo) -> opt eo) vl
+	| EVars vl -> List.iter (fun (_,_,_,_,eo) -> opt eo) vl
 
 let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
@@ -859,7 +859,7 @@ module Printer = struct
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
 	and s_func_arg tabs ((n,_),o,_,t,e) =
 		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
-	and s_var tabs ((n,_),_,t,e) =
+	and s_var tabs (_,(n,_),_,t,e) =
 		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
 	and s_case tabs (el,e1,e2,_) =
 		"case " ^ s_expr_list tabs el ", " ^
@@ -1005,7 +1005,7 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,cto,eo) ->
+				List.iter (fun (_,(n,p),_,cto,eo) ->
 					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
 					match eo with
 					| None -> ()

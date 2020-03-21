@@ -333,7 +333,7 @@ module Pattern = struct
 						if i = "_" then PatAny
 						else handle_ident i (pos e)
 				end
-			| EVars([(s,p),final,None,None]) ->
+			| EVars([_,(s,p),final,None,None]) ->
 				let v = add_local final s p in
 				PatVariable v
 			| ECall(e1,el) ->

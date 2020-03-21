@@ -324,6 +324,11 @@ typedef Var = {
 		Whether or not the variable can be assigned to.
 	**/
 	var ?isFinal:Bool;
+
+	/**
+		The metadata of the variable.
+	**/
+	var ?meta:Metadata;
 }
 
 /**

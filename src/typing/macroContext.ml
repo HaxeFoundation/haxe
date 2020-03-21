@@ -656,7 +656,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
+					(EVars [[],("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
 					(EConst (Ident "__tmp"),p);
 				],p)
 			) in
@@ -709,7 +709,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							else
 								List.map Interp.decode_field (Interp.decode_array v)
 						in
-						Some (EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
+						Some (EVars [[],("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
 					)
 				| MMacroType ->
 					"ComplexType",(fun () ->
