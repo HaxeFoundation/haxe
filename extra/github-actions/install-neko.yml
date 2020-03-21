@@ -1,0 +1,53 @@
+- name: Install Neko using snapshot from S3 (Windows)
+  if: startsWith(env.PLATFORM, 'windows')
+  shell: pwsh
+  run: |
+    $DOWNLOADDIR="./temp"
+    new-item -Name $DOWNLOADDIR -ItemType directory
+    Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
+    Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
+    $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
+    Write-Host "::add-path::$NEKOPATH"
+    Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
+
+- name: Install Neko using snapshot from S3 (Unix)
+  # if: (!startsWith(env.PLATFORM, 'windows'))
+  if: (startsWith(env.PLATFORM, 'linux'))
+  run: |
+    set -ex
+    sudo add-apt-repository ppa:haxe/snapshots -y
+    sudo apt-get update -qqy
+    sudo apt-get install -qqy neko
+
+    # DOWNLOADDIR="./temp"
+    # mkdir $DOWNLOADDIR
+    # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
+    # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
+    # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
+    # sudo mkdir -p /usr/local/bin
+    # sudo mkdir -p /usr/local/lib/neko
+    # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+    # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+    # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+    # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
+    # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
+    # set +x
+    # echo "::add-path::$NEKOPATH"
+    # echo "::set-env name=NEKOPATH::$NEKOPATH"
+
+- name: Install Neko using snapshot from S3 (Mac)
+  if: (startsWith(env.PLATFORM, 'mac'))
+  run: |
+    set -ex
+    HOMEBREW_NO_AUTO_UPDATE=1
+    brew install neko
+
+- name: ldconfig
+  if: env.PLATFORM == 'linux64'
+  run: |
+    sudo ldconfig
+    sudo ldconfig /usr/local/lib
+
+- name: Print Neko version
+  run: neko -version 2>&1
+

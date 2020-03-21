@@ -72,6 +72,8 @@ class RunCi {
 						["-D","appveyor"];
 					case AzurePipelines:
 						["-D","azure"];
+					case GithubActions:
+						["-D","github"];
 				}
 				args = args.concat(["-D", systemName]);
 				switch (test) {

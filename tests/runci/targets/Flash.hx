@@ -64,7 +64,7 @@ class Flash {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
 				switch (ci) {
-					case AzurePipelines:
+					case AzurePipelines, GithubActions:
 						runCommand("xvfb-run", ["-a", playerCmd, "-v"]);
 					case _:
 						runCommand(playerCmd, ["-v"]);
@@ -101,7 +101,7 @@ class Flash {
 		switch (systemName) {
 			case "Linux":
 				switch (ci) {
-					case AzurePipelines:
+					case AzurePipelines, GithubActions:
 						new Process("xvfb-run", ["-a", playerCmd, swf]);
 					case _:
 						new Process(playerCmd, [swf]);
