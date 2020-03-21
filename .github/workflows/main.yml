@@ -5,7 +5,6 @@ on: [push, pull_request]
 jobs:
   windows64-build:
     runs-on: windows-latest
-    # if: false
     env:
       PLATFORM: windows64
       OPAMYES: 1
@@ -32,7 +31,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -40,34 +38,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -127,7 +103,6 @@ jobs:
 
   windows-build:
     runs-on: windows-latest
-    # if: false
     env:
       PLATFORM: windows
       OPAMYES: 1
@@ -154,7 +129,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -162,34 +136,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -249,7 +201,6 @@ jobs:
 
   linux-build:
     runs-on: ubuntu-latest
-    # if: false
     env:
       PLATFORM: linux64
       OPAMYES: 1
@@ -307,7 +258,6 @@ jobs:
 
   mac-build:
     runs-on: macos-latest
-    # if: false
     env:
       PLATFORM: mac
       OPAMYES: 1
@@ -329,29 +279,12 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
           sudo add-apt-repository ppa:haxe/snapshots -y
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
-      
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
@@ -360,12 +293,6 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
       
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
-      
       - name: Print Neko version
         run: neko -version 2>&1
       
@@ -373,7 +300,7 @@ jobs:
       - name: Install dependencies
         run: |
           set -ex
-          brew update || brew update || brew update
+          brew update
           brew unlink python@2
           brew bundle --file=tests/Brewfile --no-upgrade
       
@@ -416,8 +343,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TODO. Lua/flash has never been enabled on our AppVeyor builds.
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko]
     steps:
       - uses: actions/checkout@master
         with:
@@ -439,7 +365,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -447,34 +372,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -510,6 +413,14 @@ jobs:
           cmd /c mklink $py3path $pypath
           python3 -V
       
+      - name: Install hererocks
+        if: matrix.target == 'lua'
+        shell: cmd
+        run: |
+          pip install hererocks
+          hererocks lua53 -l5.3 -rlatest
+          call lua53/bin/activate
+      
       - name: Setup haxelib
         shell: pwsh
         run: |
@@ -518,15 +429,13 @@ jobs:
       
       - name: Test
         shell: pwsh
-        run: |
-          haxe RunCi.hxml
+        run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
       
 
   windows-test:
     needs: windows-build
     runs-on: windows-latest
-    # if: false
     env:
       PLATFORM: windows
       TEST: ${{matrix.target}}
@@ -535,9 +444,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TODO. Lua/flash has never been enabled on our AppVeyor builds.
-        # jvm: https://github.com/HaxeFoundation/haxe/issues/8601
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
+        target: [macro, js, hl, cpp, java, cs, php, python, lua, neko]
     steps:
       - uses: actions/checkout@master
         with:
@@ -559,7 +467,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -567,34 +474,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -630,6 +515,14 @@ jobs:
           cmd /c mklink $py3path $pypath
           python3 -V
       
+      - name: Install hererocks
+        if: matrix.target == 'lua'
+        shell: cmd
+        run: |
+          pip install hererocks
+          hererocks lua53 -l5.3 -rlatest
+          call lua53/bin/activate
+      
       - name: Setup haxelib
         shell: pwsh
         run: |
@@ -638,8 +531,7 @@ jobs:
       
       - name: Test
         shell: pwsh
-        run: |
-          haxe RunCi.hxml
+        run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
       
 
@@ -688,7 +580,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -696,34 +587,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -780,7 +649,6 @@ jobs:
   mac-test:
     needs: mac-build
     runs-on: macos-latest
-    # if: false
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}
@@ -813,7 +681,6 @@ jobs:
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
       - name: Install Neko using snapshot from S3 (Unix)
-        # if: (!startsWith(env.PLATFORM, 'windows'))
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
@@ -821,34 +688,12 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
       
-          # DOWNLOADDIR="./temp"
-          # mkdir $DOWNLOADDIR
-          # curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $DOWNLOADDIR/neko_latest.tar.gz
-          # tar -xf $DOWNLOADDIR/neko_latest.tar.gz -C $DOWNLOADDIR
-          # NEKOPATH=`echo $DOWNLOADDIR/neko-*-*`
-          # sudo mkdir -p /usr/local/bin
-          # sudo mkdir -p /usr/local/lib/neko
-          # sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          # sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          # sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/nekoml.std                     /usr/local/lib/neko/
-          # sudo ln -s $NEKOPATH/include/*.h                    /usr/local/include/
-          # set +x
-          # echo "::add-path::$NEKOPATH"
-          # echo "::set-env name=NEKOPATH::$NEKOPATH"
-      
       - name: Install Neko using snapshot from S3 (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
-      - name: ldconfig
-        if: env.PLATFORM == 'linux64'
-        run: |
-          sudo ldconfig
-          sudo ldconfig /usr/local/lib
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -882,9 +727,8 @@ jobs:
       
       - name: Test
         run: |
-          # LC_CTYPE=C
-          # LANG=C
+          # disable invalid Unicode filenames on APFS
+          echo "" > sys/compile-fs.hxml
           haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-      
       

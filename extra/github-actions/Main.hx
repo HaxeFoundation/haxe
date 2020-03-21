@@ -10,9 +10,7 @@ class Main {
 	static final matchImport = ~/^([ \t]*)@import (.+)$/gm;
 	static final matchRunnable = ~/^([ \t]*)jobs:/gm;
 
-	static function main():Void new Main();
-
-	function new() {
+	static function main():Void {
 		final folder = FileSystem.absolutePath(".");
 		final outFolder = "../../.github";
 
@@ -38,7 +36,7 @@ class Main {
 		});
 	}
 
-	function iterFolderItems(dir:String, func:(dir:String, name:String)->Void):Void {
+	static function iterFolderItems(dir:String, func:(dir:String, name:String)->Void):Void {
 		for (name in FileSystem.readDirectory(dir)) {
 			if (FileSystem.isDirectory(name)) iterFolderItems('$dir/$name', func);
 			func(dir, name);

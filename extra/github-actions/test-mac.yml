@@ -26,8 +26,7 @@
 
 - name: Test
   run: |
-    # LC_CTYPE=C
-    # LANG=C
+    # disable invalid Unicode filenames on APFS
+    echo "" > sys/compile-fs.hxml
     haxe RunCi.hxml
   working-directory: ${{github.workspace}}/tests
-

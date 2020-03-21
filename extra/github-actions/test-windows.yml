@@ -28,6 +28,14 @@
     cmd /c mklink $py3path $pypath
     python3 -V
 
+- name: Install hererocks
+  if: matrix.target == 'lua'
+  shell: cmd
+  run: |
+    pip install hererocks
+    hererocks lua53 -l5.3 -rlatest
+    call lua53/bin/activate
+
 - name: Setup haxelib
   shell: pwsh
   run: |
@@ -36,6 +44,5 @@
 
 - name: Test
   shell: pwsh
-  run: |
-    haxe RunCi.hxml
+  run: haxe RunCi.hxml
   working-directory: ${{github.workspace}}/tests
