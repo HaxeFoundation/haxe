@@ -1270,7 +1270,7 @@ module Purity = struct
 		match cf.cf_kind with
 			| Method MethDynamic | Var _ ->
 				taint node;
-			| _ when not (is_static || is_ctor || has_class_field_flag cf CfFinal) ->
+			| Method MethNormal when not (is_static || is_ctor || has_class_field_flag cf CfFinal) ->
 				taint node
 			| _ ->
 				match cf.cf_expr with
