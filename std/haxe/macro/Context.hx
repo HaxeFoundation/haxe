@@ -291,7 +291,7 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no module can be found, `null` is returned.
+		If no module can be found, an exception of type `String` is thrown.
 	**/
 	public static function getModule(name:String):Array<Type> {
 		return load("get_module", 1)(name);
