@@ -1,18 +1,18 @@
 package unit;
 
-abstract W(Int) from Int to Int {}
+private abstract Abstr(Int) from Int to Int {}
 
 class TestBasicDefaults extends Test {
 
 	static var staticInt:Int;
 	static var staticFloat:Float;
 	static var staticBool:Bool;
-	static var staticAbstract:W;
+	static var staticAbstract:Abstr;
 
 	var instanceInt:Int;
 	var instanceFloat:Float;
 	var instanceBool:Bool;
-	var instanceAbstract:W;
+	var instanceAbstract:Abstr;
 
 	function test(){
 		eq(0, staticInt);
