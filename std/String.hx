@@ -78,10 +78,11 @@ extern class String {
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
-		of `this` String starting from `startIndex` (if `startIndex` is posivite
-		or 0) or `max(this.length + startIndex, 0)` (if `startIndex` is negative).
+		of `this` String starting from `startIndex`.
 
 		If `startIndex` exceeds `this.length`, -1 is returned.
+
+		If `startIndex` is negative, the result is unspecifed.
 
 		Otherwise the search is performed within `this` String. In either case,
 		the returned position is relative to the beginning of `this` String.
@@ -98,6 +99,8 @@ extern class String {
 		of `this` String from 0 to `startIndex + str.length`. Otherwise the search
 		is performed within `this` String. In either case, the returned position
 		is relative to the beginning of `this` String.
+
+		If `startIndex` is negative, the result is unspecifed.
 
 		If `str` cannot be found, -1 is returned.
 	**/
