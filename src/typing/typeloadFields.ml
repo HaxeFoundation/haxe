@@ -770,7 +770,8 @@ let bind_var (ctx,cctx,fctx) cf e =
 			| TLazy { contents = LAvailable t } -> default_value t
 			| TType({ t_type = t },_) -> default_value t
 			| TAbstract({ a_path = [],"Null" },_) -> None
-			| TAbstract({ a_path = [],("Int"|"Float") },[]) -> Some ((EConst (Int "0")),cf.cf_pos)
+			| TAbstract({ a_path = [],("Int") },[]) -> Some ((EConst (Int "0")),cf.cf_pos)
+			| TAbstract({ a_path = [],("Float") },[]) -> Some ((EConst (Float "0.0")),cf.cf_pos)
 			| TAbstract({ a_path = [],"Bool" },[]) -> Some ((EConst (Ident "false")),cf.cf_pos)
 			| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) -> default_value a.a_this
 			| _ -> None
