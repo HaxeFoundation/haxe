@@ -763,7 +763,24 @@ let bind_var (ctx,cctx,fctx) cf e =
 					error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
 	end;
 	let t = cf.cf_type in
-
+	let e =
+		let rec default_value t =
+			match t with
+			| TMono { tm_type = Some t } -> default_value t
+			| TLazy { contents = LAvailable t } -> default_value t
+			| TType({ t_type = t },_) -> default_value t
+			| TAbstract({ a_path = [],"Null" },_) -> None
+			| TAbstract({ a_path = [],("Int"|"Float") },[]) -> Some ((EConst (Int "0")),cf.cf_pos)
+			| TAbstract({ a_path = [],"Bool" },[]) -> Some ((EConst (Ident "false")),cf.cf_pos)
+			| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) -> default_value a.a_this
+			| _ -> None
+		in
+		match e with
+		| Some _ -> e
+		| None when has_meta Meta.BasicDefaults cf.cf_meta || has_meta Meta.BasicDefaults c.cl_meta ->
+			default_value cf.cf_type
+		| None -> None
+	in
 	match e with
 	| None ->
 		check_field_display ctx fctx c cf;

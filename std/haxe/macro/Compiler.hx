@@ -427,6 +427,17 @@ class Compiler {
 	}
 
 	/**
+		Automatically set default values to the fields of `Int`, `Float` and `Bool` types in `path`.
+		`Int` and `Float` fields get `0` and `Bool` get `false`.
+
+		@param path A package, module or sub-type dot path to apply default values to.
+		@param recursive If true, recurses into sub-packages for package paths.
+	**/
+	public static function basicDefaults(path:String, recursive:Bool = true) {
+		addGlobalMetadata(path, '@:basicDefaults', recursive);
+	}
+
+	/**
 		Adds metadata `meta` to all types (if `toTypes = true`) or fields (if
 		`toFields = true`) whose dot-path matches `pathFilter`.
 

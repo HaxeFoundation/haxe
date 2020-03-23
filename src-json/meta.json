@@ -849,6 +849,12 @@
 		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
 	{
+		"name": "BasicDefaults",
+		"metadata": ":basicDefaults",
+		"doc": "Automatically set default values for fields of Int, Float and Bool types.",
+		"targets": ["TClass", "TClassField"]
+	},
+	{
 		"name": "Objc",
 		"metadata": ":objc",
 		"doc": "Declares a class or interface that is used to interoperate with Objective-C code.",
