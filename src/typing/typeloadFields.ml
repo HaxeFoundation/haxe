@@ -139,7 +139,9 @@ let get_struct_init_super_info ctx c p =
 			let args = (try get_method_args ctor with Not_found -> []) in
 			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = match value with Some _ -> true | None -> false in
+					let opt = match value with
+						| Some _ -> true
+						| None -> is_nullable v.v_type in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
