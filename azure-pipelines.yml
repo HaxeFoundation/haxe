@@ -118,7 +118,7 @@ stages:
       - job: TestMac
         dependsOn: BuildMac
         pool:
-          vmImage: 'macOS-10.13'
+          vmImage: 'macOS-10.14'
         strategy:
           matrix:
             macro:
@@ -174,7 +174,10 @@ stages:
           - script: brew install $BREW_PACKAGES
             condition: and(succeeded(), variables['BREW_PACKAGES'])
             displayName: Install homebrew packages
-          - script: haxe RunCi.hxml
+          - script: |
+              # disable invalid Unicode filenames on APFS
+              echo "" > sys/compile-fs.hxml
+              haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             displayName: Test
 

@@ -58,7 +58,7 @@ class TestUnicode extends utest.Test {
 	];
 
 	// list of expected filenames in sub-directories
-	static var names:Array<UnicodeString> = (Sys.systemName() == "Windows" ? UnicodeSequences.valid.slice(1) : UnicodeSequences.valid);
+	static var names:Array<UnicodeString> = UnicodeSequences.validFilenames;
 
 	// extra files only present in the root test-res directory
 	static var namesRoot = names.concat([
@@ -132,7 +132,11 @@ class TestUnicode extends utest.Test {
 
 	function setupClass() {
 		FileSystem.createDirectory("temp-unicode");
+		#if TEST_INVALID_UNICODE_FS
+		Sys.command("python3", ["genTestRes.py", "TEST_INVALID_UNICODE_FS"]);
+		#else
 		Sys.command("python3", ["genTestRes.py"]);
+		#end
 	}
 
 	function teardownClass() {

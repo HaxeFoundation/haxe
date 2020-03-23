@@ -9,3 +9,4 @@
 --debug
 -lib utest
 -p src
+compile-fs.hxml

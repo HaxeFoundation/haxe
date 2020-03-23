@@ -39,6 +39,19 @@ class UnicodeSequences {
 		.concat([Only([0x1F602, 0x1F604, 0x1F619])]) // important (non-BMP) emoji
 		.concat(normal);
 
+	public static var validFilenames:Array<UnicodeString> = {
+		var valid = valid.copy();
+		if (Sys.systemName() == "Windows") valid = valid.filter(f -> !f.match(Only([0x0001])));
+		#if !(TEST_INVALID_UNICODE_FS)
+		valid = valid.filter(f ->
+			!f.match(Only([0xD7FF]))
+			&& !f.match(Only([0x1FFFF]))
+			&& !f.match(Only([0xFFFFF]))
+			&& !f.match(Only([0x10FFFF])));
+		#end
+		valid;
+	};
+
 	public static var validBytes = haxe.io.Bytes.ofHex(
 			"010A" +
 			"7F0A" +
@@ -75,12 +88,6 @@ class UnicodeSequences {
 		"\u{1F602}\u{1F604}\u{1F619}\n" +
 		"\u0227\n" +
 		"\u4E2D\u6587\uFF0C\u306B\u307B\u3093\u3054\n";
-
-	// invalid sequences
-	public static var invalid:Array<UnicodeString> = [
-		Only([0xFFFE]),
-		Only([0xFFFF])
-	];
 
 	// utility methods
 
