@@ -45,6 +45,7 @@ class UnicodeSequences {
 		#if !(TEST_INVALID_UNICODE_FS)
 		valid = valid.filter(f ->
 			!f.match(Only([0xD7FF]))
+			&& !f.match(Only([0x1FFFF]))
 			&& !f.match(Only([0xFFFFF]))
 			&& !f.match(Only([0x10FFFF])));
 		#end
