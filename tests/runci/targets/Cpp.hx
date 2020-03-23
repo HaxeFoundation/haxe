@@ -24,7 +24,7 @@ class Cpp {
 			var path = getHaxelibPath("hxcpp");
 			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
-			haxelibInstallGit("RblSb", "hxcpp", "map_tostring", true);
+			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
