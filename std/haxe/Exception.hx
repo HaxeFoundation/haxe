@@ -79,6 +79,8 @@ extern class Exception {
 	/**
 		Create a new Exception instance.
 
+		The `previous` argument could be used for exception chaining.
+
 		The `native` argument is for internal usage only.
 		There is no need to provide `native` argument manually and no need to keep it
 		upon extending `haxe.Exception` unless you know what you're doing.

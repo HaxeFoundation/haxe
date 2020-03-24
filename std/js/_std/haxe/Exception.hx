@@ -101,6 +101,7 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:noCompletion
 	function setProperty(name:String, value:Any):Void {
 		try {
 			js.lib.Object.defineProperty(this, name, {value:value});
@@ -109,37 +110,45 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:noCompletion
 	inline function get___exceptionStack():CallStack {
 		return (cast this).__exceptionStack;
 	}
 
+	@:noCompletion
 	inline function set___exceptionStack(value:CallStack):CallStack {
 		setProperty('__exceptionStack', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___skipStack():Int {
 		return (cast this).__skipStack;
 	}
 
+	@:noCompletion
 	inline function set___skipStack(value:Int):Int {
 		setProperty('__skipStack', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___nativeException():Any {
 		return (cast this).__nativeException;
 	}
 
+	@:noCompletion
 	inline function set___nativeException(value:Any):Any {
 		setProperty('__nativeException', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___previousException():Null<Exception> {
 		return (cast this).__previousException;
 	}
 
+	@:noCompletion
 	inline function set___previousException(value:Null<Exception>):Null<Exception> {
 		setProperty('__previousException', value);
 		return value;
