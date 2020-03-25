@@ -303,6 +303,14 @@ class TestExceptions extends Test {
 		return result;
 	}
 
+	function testCatch_noTypeHint() {
+		try {
+			({}:Dynamic)();
+		} catch(e) {
+			Assert.notNull(Std.downcast(e, Exception));
+		}
+	}
+
 #if java
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
