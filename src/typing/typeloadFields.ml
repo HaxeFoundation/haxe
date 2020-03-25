@@ -130,6 +130,19 @@ let get_method_args field =
 		| Some { eexpr = TFunction { tf_args = args } } -> args
 		| _ -> raise Not_found
 
+let rec is_struct_init_arg_opt c v value =
+	match value with
+		| Some _ -> true
+		| None ->
+			if not (is_nullable v.v_type) then false
+			else try
+				let field = PMap.find v.v_name c.cl_fields in
+				not (is_explicit_null field.cf_type)
+			with | Not_found ->
+				match c.cl_super with
+					| Some(csup, cparams) -> is_struct_init_arg_opt csup v value
+					| None -> false
+
 (**
 	Get super constructor data required for @:structInit descendants.
 *)
@@ -139,15 +152,7 @@ let get_struct_init_super_info ctx c p =
 			let args = (try get_method_args ctor with Not_found -> []) in
 			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = match value with
-						| Some _ -> true
-						| None ->
-							if not (is_nullable v.v_type) then false
-							else try
-								let field = PMap.find v.v_name csup.cl_fields in
-								not (is_explicit_null field.cf_type)
-							with | Not_found -> false
-						in
+					let opt = is_struct_init_arg_opt csup v value in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
