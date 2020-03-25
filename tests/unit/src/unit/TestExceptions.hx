@@ -305,7 +305,7 @@ class TestExceptions extends Test {
 
 	function testCatch_noTypeHint() {
 		try {
-			({}:Dynamic)();
+			throw new Exception('Terrible error');
 		} catch(e) {
 			Assert.notNull(Std.downcast(e, Exception));
 		}
