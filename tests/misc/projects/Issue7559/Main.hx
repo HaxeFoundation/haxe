@@ -1,5 +1,6 @@
 class Main {
 	static function main() {
+		final base:NullChild = {};
 		final base:BaseEmpty = {};
 		final base:ChildEmpty = {};
 		final base:Base = {};
@@ -10,6 +11,14 @@ class Main {
 		final child:FatChild = {};
 		final child:FatEmptyChild = {};
 	}
+}
+@:structInit
+class BaseNullEmpty {
+	final base:Null<Int>;
+}
+@:structInit
+class NullChild extends BaseNullEmpty {
+	@:optional final child: Int;
 }
 @:structInit
 class BaseEmpty {

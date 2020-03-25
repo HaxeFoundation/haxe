@@ -141,7 +141,13 @@ let get_struct_init_super_info ctx c p =
 				List.fold_left (fun (args,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
-						| None -> is_nullable v.v_type in
+						| None ->
+							if not (is_nullable v.v_type) then false
+							else try
+								let field = PMap.find v.v_name csup.cl_fields in
+								not (is_explicit_null field.cf_type)
+							with | Not_found -> false
+						in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
