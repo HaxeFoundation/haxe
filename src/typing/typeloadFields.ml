@@ -183,9 +183,8 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
-				let () =
-					if not (Meta.has Meta.Optional v.v_meta) then
-						if opt then v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta in
+				if not (Meta.has Meta.Optional v.v_meta) then
+						if opt then v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta;
 				(* this.field = <constructor_argument> *)
 				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
