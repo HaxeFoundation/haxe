@@ -406,11 +406,18 @@ let is_sure_scalar (target:Type.t) =
 		| _ -> false
 
 (**
-	Indicates if `expr` is guaranteed to be an access to a `var` field.
+	Indicates if `expr` has to be wrapped into parentheses to be called.
 *)
-let is_sure_var_field_access expr =
-	match (reveal_expr expr).eexpr with
-		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
+let rec needs_parenthesis_to_call expr =
+	match expr.eexpr with
+		| TParenthesis _ -> false
+		| TCast (e, None)
+		| TMeta (_, e) -> needs_parenthesis_to_call e
+		| TNew _
+		| TObjectDecl _
+		| TArrayDecl _
+		| TField (_, FClosure (_,_))
+		| TField (_, FStatic (_, { cf_kind = Var _ }))
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
 		(* | TField (_, FAnon { cf_kind = Var _ }) -> true *) (* Sometimes we get anon access to non-anonymous objects *)
 		| _ -> false
@@ -1591,7 +1598,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
-				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args self#write self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
@@ -2537,14 +2543,15 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Writes TCall to output buffer
 		*)
 		method write_expr_call target_expr args =
-			let target_expr = reveal_expr target_expr
-			and no_call = ref false in
-			(match target_expr.eexpr with
-				| TConst TSuper ->
+			let no_call = ref false in
+			(match reveal_expr target_expr with
+				| { eexpr = TConst TSuper } ->
 					no_call := not has_super_constructor;
 					if not !no_call then self#write "parent::__construct"
-				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
-				| _ -> self#write_expr target_expr
+				| e when needs_parenthesis_to_call e ->
+					self#write_expr (parenthesis e)
+				| e ->
+					self#write_expr e
 			);
 			if not !no_call then
 				begin
