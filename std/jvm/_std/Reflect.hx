@@ -38,6 +38,9 @@ class Reflect {
 	}
 
 	public static function field(o:Dynamic, field:String):Dynamic {
+		if (o == null) {
+			return null;
+		}
 		return Jvm.readField(o, field);
 	}
 

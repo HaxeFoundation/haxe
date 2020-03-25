@@ -29,6 +29,7 @@ import haxe.ds.Vector;
 import haxe.extern.Rest;
 import java.Init;
 import java.NativeArray;
+import java.lang.NullPointerException;
 import jvm.DynamicObject;
 import jvm.EmptyConstructor;
 import jvm.Object;
@@ -329,7 +330,10 @@ class Jvm {
 	}
 
 	static public function readField(obj:Dynamic, name:String):Dynamic {
-		if (obj == null || name == null) {
+		if (obj == null) {
+			throw new NullPointerException(name);
+		}
+		if (name == null) {
 			return null;
 		}
 		if (instanceof(obj, jvm.Object)) {
