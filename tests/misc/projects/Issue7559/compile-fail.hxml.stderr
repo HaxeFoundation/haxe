@@ -1,0 +1,6 @@
+Main.hx:3: characters 26-28 : Object requires field base
+Main.hx:4: characters 26-28 : Object requires field base
+Main.hx:5: characters 27-29 : Object requires fields: child, base
+Main.hx:10: characters 36-38 : Object requires field base
+Main.hx:11: characters 26-28 : Object requires fields: fatChild, child
+Main.hx:12: characters 31-33 : Object requires fields: fatChild, child, base
