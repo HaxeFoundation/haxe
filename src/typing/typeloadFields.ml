@@ -130,19 +130,6 @@ let get_method_args field =
 		| Some { eexpr = TFunction { tf_args = args } } -> args
 		| _ -> raise Not_found
 
-let rec is_struct_init_arg_opt c v value =
-	match value with
-		| Some _ -> true
-		| None ->
-			if not (is_nullable v.v_type) then false
-			else try
-				let field = PMap.find v.v_name c.cl_fields in
-				not (is_explicit_null field.cf_type)
-			with | Not_found ->
-				match c.cl_super with
-					| Some(csup, cparams) -> is_struct_init_arg_opt csup v value
-					| None -> false
-
 (**
 	Get super constructor data required for @:structInit descendants.
 *)
@@ -152,7 +139,9 @@ let get_struct_init_super_info ctx c p =
 			let args = (try get_method_args ctor with Not_found -> []) in
 			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = is_struct_init_arg_opt csup v value in
+					let opt = match value with
+						| Some _ -> true
+						| None -> Meta.has Meta.Optional v.v_meta in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
@@ -194,6 +183,9 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
+				let () =
+					if not (Meta.has Meta.Optional v.v_meta) then
+						if opt then v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta in
 				(* this.field = <constructor_argument> *)
 				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
