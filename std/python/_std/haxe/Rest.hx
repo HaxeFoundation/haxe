@@ -2,6 +2,11 @@ package haxe;
 
 import python.Syntax;
 
+/**
+	A special type that represents "rest" function argument.
+	Allows to use array access by index syntax to get values of rest arguments.
+	If index exceeds the amount of rest arguments passed, the result is unspecified.
+**/
 @:coreType @:runtimeValue @:semantics(value)
 abstract Rest<T> {
 	public var length(get,never):Int;
