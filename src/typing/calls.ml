@@ -180,9 +180,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
 			end;
 			[]
-		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
+		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
-				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
+				| TAbstract({a_path=(["haxe"],"Rest")},[t]) ->
 					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
 					assert false

@@ -191,6 +191,10 @@ module ExtType = struct
 		| TAbstract({a_path=[],"Bool"},_) -> true
 		| _ -> false
 
+	let is_rest t = match t with
+		| TAbstract({a_path=["haxe"],"Rest"},_) -> true
+		| _ -> false
+
 	type semantics =
 		| VariableSemantics
 		| ReferenceSemantics
