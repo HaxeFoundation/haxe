@@ -519,14 +519,14 @@ let load_macro_module ctx cpath display p =
 let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let cpath, sub = (match List.rev (fst cpath) with
+	let mpath, sub = (match List.rev (fst cpath) with
 		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 		| _ -> cpath, None
 	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded,restore = load_macro_module ctx cpath display p in
-		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
+		let mloaded,restore = load_macro_module ctx mpath display p in
+		let mt = Typeload.load_type_def mctx p { tpackage = fst mpath; tname = snd mpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
 				mctx.g.do_finalize mctx;
