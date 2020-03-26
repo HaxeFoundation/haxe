@@ -74,6 +74,7 @@ class TestMain {
 			new TestNull(),
 			new TestNumericCasts(),
 			new TestHashMap(),
+			new TestRest(),
 			#if (!no_http && (!azure || !(php && Windows)))
 			new TestHttp(),
 			#end

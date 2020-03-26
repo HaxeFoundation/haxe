@@ -2,7 +2,7 @@
 
 import haxe.Rest;
 
-class TestExceptions extends Test {
+class TestRest extends Test {
 	function testArrayAccess() {
 		function rest(a:Int, b:Int, r:Rest<Int>) {
 			return r[2];
@@ -17,15 +17,15 @@ class TestExceptions extends Test {
 		eq(4, rest(1, 2, 3, 4));
 	}
 
-	function testIterator {
+	function testIterator() {
 		function rest(r:Rest<Int>):Array<Int> {
 			return [for(i in r) i];
 		}
 		aeq([3, 2, 1], rest(3, 2, 1));
 	}
 
-	function testKeyValueIterator {
-		function rest(r:Rest<Int>):{keys:Array<T>, values:Array<Int>} {
+	function testKeyValueIterator() {
+		function rest(r:Rest<Int>):{keys:Array<Int>, values:Array<Int>} {
 			var keys = [];
 			var values = [];
 			for(k => v in r) {

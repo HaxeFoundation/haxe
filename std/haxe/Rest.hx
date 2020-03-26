@@ -1,8 +1,5 @@
 package haxe;
 
-import haxe.iterators.RestKeyValueIterator;
-import haxe.iterators.RestIterator;
-
 @:coreType
 abstract Rest<T> {
 	public var length(get,never):Int;
@@ -44,7 +41,7 @@ private class RestKeyValueIterator<T> {
 	final args:Rest<T>;
 	var current:Int = 0;
 
-	public inline function new(args:Rest<T>) {
+	public inline function new(args:Any) {
 		this.args = args;
 	}
 
