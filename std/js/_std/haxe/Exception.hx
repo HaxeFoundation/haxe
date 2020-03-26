@@ -160,8 +160,7 @@ class Exception extends NativeException {
 @:native('Error')
 private extern class NativeException {
 	// private var message:String; //redefined in haxe.Exception
-	@:noCompletion private var name:String;
 	// private var stack(default, null):String; //redefined in haxe.Exception
 
-	private function new(?message:String):Void;
+	function new(?message:String);
 }
