@@ -139,7 +139,7 @@ module TExprToExpr = struct
 			let catches = List.map (fun (v,e) ->
 				let ct = try convert_type v.v_type,null_pos with Exit -> assert false in
 				let e = convert_expr e in
-				(v.v_name,v.v_pos),ct,e,(pos e)
+				(v.v_name,v.v_pos),(Some ct),e,(pos e)
 			) catches in
 			ETry (e1,catches)
 		| TReturn e -> EReturn (eopt e)

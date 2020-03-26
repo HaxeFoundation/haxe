@@ -1473,10 +1473,8 @@ and parse_switch_cases eswitch cases = parser
 and parse_catch etry = parser
 	| [< '(Kwd Catch,p); '(POpen,_); name, pn = dollar_ident; s >] ->
 		match s with parser
-		| [< t,pt = parse_type_hint; '(PClose,_); e = secure_expr >] -> ((name,pn),(t,pt),e,punion p (pos e)),(pos e)
-		| [< '(PClose,_); e = secure_expr >] ->
-			let hint = (CTPath { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] },null_pos) in
-			((name,pn),hint,e,punion p (pos e)),(pos e)
+		| [< t,pt = parse_type_hint; '(PClose,_); e = secure_expr >] -> ((name,pn),(Some (t,pt)),e,punion p (pos e)),(pos e)
+		| [< '(PClose,_); e = secure_expr >] -> ((name,pn),None,e,punion p (pos e)),(pos e)
 		| [< '(_,p) >] -> error Missing_type p
 
 and parse_catches etry catches pmax = parser

@@ -4,6 +4,7 @@ import haxe.Exception;
 import haxe.ValueException;
 import haxe.CallStack;
 import utest.Assert;
+import unit.HelperMacros;
 
 private enum EnumError {
 	EError;
@@ -309,6 +310,9 @@ class TestExceptions extends Test {
 		} catch(e) {
 			Assert.notNull(Std.downcast(e, Exception));
 		}
+
+		HelperMacros.parseAndPrint('try { } catch(e) { }');
+		eq('haxe.Exception', HelperMacros.typeString(try throw new Exception('') catch(e) e));
 	}
 
 #if java

@@ -769,12 +769,12 @@ let optimize_completion_expr e args =
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun ((n,pn),(t,pt),e,p) ->
+			let cl = List.map (fun ((n,pn),th,e,p) ->
 				let old = save() in
-				decl n (Some t) None;
+				decl n (Option.map fst th) None;
 				let e = loop e in
 				old();
-				(n,pn), (t,pt), e, p
+				(n,pn), th, e, p
 			) cl in
 			(ETry (et,cl),p)
 		| ECall(e1,el) when DisplayPosition.display_position#enclosed_in p ->
