@@ -337,7 +337,7 @@ let declare_rest_args_legacy com args rest_arg =
 	in
 	let i = string_of_int (List.length args) in
 	let new_array = mk (TIdent ("new Array($l-"^ i ^")")) t_dynamic rest_arg.v_pos
-	and populate = mk (TIdent ("for(var $i=1;$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
+	and populate = mk (TIdent ("for(var $i=" ^ i ^ ";$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
 	in
 	loop args 0
 	@ [
