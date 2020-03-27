@@ -221,6 +221,20 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	let rec check_args fargs ast_args first =
+		match fargs, ast_args with
+		| (v,e_opt) :: rest_fargs, (_,opt,_,_,_) :: rest_ast_args ->
+			if ExtType.is_rest (follow v.v_type) then begin
+				if opt then error "Rest argument cannot be optional" v.v_pos;
+				if Option.is_some e_opt then error "Rest argument cannot have default value" v.v_pos;
+				if args <> [] && not (first && fmode = FunMemberAbstract) then
+					error "Rest should only be used for the last function argument" v.v_pos;
+			end;
+			check_args rest_fargs rest_ast_args false
+		| [], [] -> ()
+		| _ -> assert false
+	in
+	check_args fargs f.f_args true;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 

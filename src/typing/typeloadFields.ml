@@ -1116,13 +1116,6 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| ((name,p),opt,m,t,ct) :: args ->
 			(* TODO is_lib: avoid forcing the field to be typed *)
 			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
-			delay ctx PTypeField (fun() -> if ExtType.is_rest (follow t) then begin
-					if opt then error "Rest argument cannot be optional" p;
-					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
-					if args <> [] && not (fctx.is_abstract_member && first) then
-						error "Rest should only be used for the last function argument" p
-				end
-			);
 			(name, ct, t) :: (loop args false)
 		| [] ->
 			[]
