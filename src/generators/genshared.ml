@@ -25,8 +25,8 @@ let unify_cf map_type c cf el =
 						Type.unify e.etype t;
 						loop2 ((e,o) :: acc) el tl
 					with _ ->
-						match t,tl with
-						| TAbstract({a_path=["haxe";"extern"],"Rest"},[t]),[] ->
+						match follow t,tl with
+						| TAbstract({a_path=["haxe"],"Rest"},[t]),[] ->
 							begin try
 								let el = List.map (fun e -> unify t e.etype; e,o) el in
 								Some ((List.rev acc) @ el,tf,(c,cf,monos))

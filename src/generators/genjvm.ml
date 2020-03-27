@@ -111,7 +111,7 @@ let rec jsignature_of_type gctx stack t =
 				| [t] -> get_boxed_type (jsignature_of_type t)
 				| _ -> assert false
 				end
-			| (["haxe";"ds"],"Vector") | (["haxe";"extern"],"Rest") ->
+			| (["haxe";"ds"],"Vector") | (["haxe"],"Rest") ->
 				begin match tl with
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> assert false
@@ -1338,7 +1338,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let varargs_type = match follow t with
 			| TFun(tl,_) ->
 				begin match List.rev tl with
-				| (_,_,(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t]))) :: _ -> Some (jsignature_of_type gctx t)
+				| (_,_,t) :: _ ->
+					(match follow t with
+					| TAbstract({ a_path = ["haxe"],"Rest" }, [t]) -> Some (jsignature_of_type gctx t)
+					| _ -> None)
 				| _ -> None
 				end
 			| _ ->

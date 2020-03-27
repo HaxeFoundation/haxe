@@ -1112,23 +1112,22 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
-	let rec loop args = match args with
+	let rec loop args first = match args with
 		| ((name,p),opt,m,t,ct) :: args ->
 			(* TODO is_lib: avoid forcing the field to be typed *)
 			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
-			delay ctx PTypeField (fun() -> match follow t with
-				| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
+			delay ctx PTypeField (fun() -> if ExtType.is_rest (follow t) then begin
 					if opt then error "Rest argument cannot be optional" p;
 					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
-					if args <> [] then error "Rest should only be used for the last function argument" p;
-				| _ ->
-					()
+					if args <> [] && not (fctx.is_abstract_member && first) then
+						error "Rest should only be used for the last function argument" p
+				end
 			);
-			(name, ct, t) :: (loop args)
+			(name, ct, t) :: (loop args false)
 		| [] ->
 			[]
 	in
-	let args = loop fd.f_args in
+	let args = loop fd.f_args true in
 	let t = TFun (fun_args args,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with

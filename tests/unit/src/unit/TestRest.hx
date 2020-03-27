@@ -1,6 +1,6 @@
 ﻿package unit;
 
-import haxe.Rest;
+// import haxe.Rest;
 
 class TestRest extends Test {
 	function testArrayAccess() {
