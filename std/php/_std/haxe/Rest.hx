@@ -2,7 +2,7 @@ package haxe;
 
 import php.*;
 
-@:coreType @:runtimeValue @:semantics(value)
+@:coreType @:semantics(value)
 abstract Rest<T> {
 	public var length(get,never):Int;
 	inline function get_length():Int {

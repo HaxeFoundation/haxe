@@ -2,7 +2,7 @@ package haxe;
 
 import js.Syntax;
 
-@:coreType @:runtimeValue @:semantics(value)
+@:coreType
 abstract Rest<T> {
 	public var length(get,never):Int;
 	inline function get_length():Int {
