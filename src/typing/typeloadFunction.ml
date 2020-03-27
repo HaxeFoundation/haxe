@@ -227,7 +227,7 @@ let type_function ctx args ret fmode f do_display p =
 			if ExtType.is_rest (follow v.v_type) then begin
 				if opt then error "Rest argument cannot be optional" v.v_pos;
 				if Option.is_some e_opt then error "Rest argument cannot have default value" v.v_pos;
-				if args <> [] && not (first && fmode = FunMemberAbstract) then
+				if rest_fargs <> [] && not (first && fmode = FunMemberAbstract) then
 					error "Rest should only be used for the last function argument" v.v_pos;
 			end;
 			check_args rest_fargs rest_ast_args false
