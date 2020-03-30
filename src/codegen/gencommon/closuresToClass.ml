@@ -852,8 +852,20 @@ struct
 		in
 
 		let dynamic_fun_call call_expr =
-			let tc, params = match call_expr.eexpr with
-				| TCall(tc, params) -> tc, params
+			let tc, params, rest_args, params_len, call_expr = match call_expr.eexpr with
+				| TCall(tc, params) ->
+					let rest_args, params_len, call_expr =
+						let default() = false, List.length params, call_expr in
+						match follow tc.etype with
+						| TFun(args,_) ->
+							(match List.rev args with
+							| (_,_,t) :: _ when ExtType.is_rest (follow t) ->
+								true, List.length args, call_expr
+							| _ -> default()
+							)
+						| _ -> default()
+					in
+					tc, params, rest_args, params_len, call_expr
 				| _ -> assert false
 			in
 			let ct = gen.greal_type call_expr.etype in
@@ -863,7 +875,6 @@ struct
 				else
 					"_o", t_dynamic
 			in
-			let params_len = List.length params in
 			let ret_t = if params_len >= max_arity then t_dynamic else ret_t in
 
 			let invoke_fun = if params_len >= max_arity then "invokeDynamic" else "invoke" ^ (string_of_int params_len) ^ postfix in

@@ -1244,6 +1244,7 @@ let generate con =
 				| TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
 				| TInst ({ cl_path = ["haxe"],"Int64" },[])
 				| TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
+				| TAbstract({ a_path = (["haxe"], "Rest") }, [param])
 				| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
 					let rec check_t_s t =
 						match real_type t with
@@ -2010,9 +2011,16 @@ let generate con =
 				(* <T>(string arg1, object arg2) with T : object *)
 				(match cf.cf_expr with
 					| Some { eexpr = TFunction tf } ->
-							print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
+						let str_arg_type t =
+							match follow t with
+							| TAbstract({ a_path = ["haxe"],"Rest" }, [t]) ->
+								(argt_s cf.cf_pos (run_follow gen t)) ^ "..."
+							| _ ->
+								argt_s cf.cf_pos (run_follow gen t)
+						in
+						print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (str_arg_type t) (change_id var.v_name)) tf.tf_args args))
 					| _ ->
-							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
+						print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
 				);
 				if is_interface || List.mem "native" modifiers then
 					write w ";"
