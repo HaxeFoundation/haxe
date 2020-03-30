@@ -234,6 +234,8 @@ module Pattern = struct
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
+				| TMeta((Meta.Deprecated,_,_), e) ->
+					loop e
 				| _ ->
 					raise Exit
 			in
