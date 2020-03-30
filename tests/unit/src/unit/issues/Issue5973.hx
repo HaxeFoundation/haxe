@@ -4,12 +4,12 @@ class Issue5973 extends Test{
 		var foo    = new Issue5973Foo();
 		var bar    = new Issue5973Bar();
 		var foobar = new Issue5973FooBar();
-		t(Std.is(foo    , Issue5973IFoo));
-		f(Std.is(foo    , Issue5973IBar));
-		f(Std.is(bar    , Issue5973IFoo));
-		t(Std.is(bar    , Issue5973IBar));
-		t(Std.is(foobar , Issue5973IFoo));
-		t(Std.is(foobar , Issue5973IBar));
+		t(Std.isOfType(foo    , Issue5973IFoo));
+		f(Std.isOfType(foo    , Issue5973IBar));
+		f(Std.isOfType(bar    , Issue5973IFoo));
+		t(Std.isOfType(bar    , Issue5973IBar));
+		t(Std.isOfType(foobar , Issue5973IFoo));
+		t(Std.isOfType(foobar , Issue5973IBar));
 	}
 }
 

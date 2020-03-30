@@ -1098,9 +1098,9 @@ module Run = struct
 		let com = ctx.Typecore.com in
 		let config = get_base_config com in
 		with_timer config.detail_times ["other"] (fun () ->
-			let cfl = if config.optimize && config.purity_inference then with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com) else [] in
-			List.iter (run_on_type ctx config) types;
-			List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
+			if config.optimize && config.purity_inference then
+				with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+			List.iter (run_on_type ctx config) types
 		)
 end
 ;;

@@ -458,21 +458,21 @@ let process_display_configuration ctx =
 	end
 
 let run_or_diagnose com f arg =
-	let handle_diagnostics global msg p kind =
+	let handle_diagnostics msg p kind =
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com global;
+		Diagnostics.run com;
 	in
 	match com.display.dms_kind with
-	| DMDiagnostics global ->
+	| DMDiagnostics _ ->
 		begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
-			handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			handle_diagnostics (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
 		| Parser.Error(msg,p) ->
-			handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
 	| _ ->
 		f arg
@@ -509,7 +509,7 @@ let do_type tctx config_macros classes =
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match !CompilationServer.instance,com.display.dms_kind with
-		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+		| Some cs,(DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
 	t()
@@ -596,8 +596,7 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		DeprecationCheck.run com;
+	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
 
@@ -677,7 +676,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -837,18 +836,18 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header>","define SWF header (width:height:fps:color)");
 		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
-		("Target-specific",[],["--swf-lib";"-swf-lib"],Arg.String (fun file ->
+		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
 		(* FIXME: replace with -D define *)
-		("Target-specific",[],["--swf-lib-extern";"-swf-lib-extern"],Arg.String (fun file ->
+		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			add_native_lib file true;
 		),"<file>","use the SWF library for type checking");
-		("Target-specific",[],["--java-lib";"-java-lib"],Arg.String (fun file ->
+		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add an external JAR or class directory library");
-		("Target-specific",[],["--net-lib";"-net-lib"],Arg.String (fun file ->
+		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
@@ -1019,7 +1018,7 @@ try
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin match com.display.dms_kind with
-		| DMDefault -> ()
+		| DMDefault | DMUsage _ -> ()
 		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
@@ -1194,7 +1193,11 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
+	| DisplayException(DisplayDiagnostics dctx) ->
+		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

@@ -89,7 +89,7 @@ import lua.Boot;
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {
-			return [for (f in lua.Boot.fieldIterator(o)) f];
+			return untyped _hx_field_arr(o);
 		}
 	}
 
@@ -122,7 +122,7 @@ import lua.Boot;
 		}
 
 	public static function isEnumValue(v:Dynamic):Bool {
-		return v != null && Std.is(v, lua.Table) && v.__enum__ != null;
+		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool

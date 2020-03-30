@@ -23,8 +23,8 @@
 package haxe.display;
 
 import haxe.display.JsonModuleTypes;
-import haxe.display.Protocol;
 import haxe.display.Position;
+import haxe.display.Protocol;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -52,6 +52,11 @@ class DisplayMethods {
 		The goto definition request is sent from the client to Haxe to resolve the definition location(s) of a symbol at a given text document position.
 	**/
 	static inline var GotoDefinition = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/definition");
+
+	/**
+		The goto implementation request is sent from the client to Haxe to resolve the implementation location(s) of a symbol at a given text document position.
+	**/
+	static inline var GotoImplementation = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/implementation");
 
 	/**
 		The goto type definition request is sent from the client to Haxe to resolve the type definition location(s) of a symbol at a given text document position.

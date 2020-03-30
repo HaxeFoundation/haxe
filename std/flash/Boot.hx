@@ -232,7 +232,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function mapDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["mapHX"](f);
 		} else {
 			return untyped d["map"](f);
@@ -240,7 +240,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function filterDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["filterHX"](f);
 		} else {
 			return untyped d["filter"](f);
@@ -297,6 +297,9 @@ class Boot extends flash.display.MovieClip {
 			aproto.insert = function(i, x) {
 				__this__.splice(i, 0, x);
 			};
+			aproto.contains = function(obj) {
+				return __this__.indexOf(obj) != -1;
+			}
 			aproto.remove = function(obj) {
 				var idx = __this__.indexOf(obj);
 				if (idx == -1)
@@ -318,6 +321,7 @@ class Boot extends flash.display.MovieClip {
 			};
 			aproto.setPropertyIsEnumerable("copy", false);
 			aproto.setPropertyIsEnumerable("insert", false);
+			aproto.setPropertyIsEnumerable("contains", false);
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
 			aproto.setPropertyIsEnumerable("resize", false);

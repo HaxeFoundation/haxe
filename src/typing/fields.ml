@@ -119,7 +119,7 @@ let field_type ctx c pl f p =
 		apply_params l monos f.cf_type
 
 let fast_enum_field e ef p =
-	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
+	let et = mk (TTypeExpr (TEnumDecl e)) (mk_anon (ref (EnumStatics e))) p in
 	TField (et,FEnum (e,ef))
 
 let get_constructor ctx c params p =
@@ -232,7 +232,7 @@ let field_access ctx mode f fmode t e p =
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
-				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) ->
+				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) when Meta.has Meta.Impl f.cf_meta  ->
 					c == ctx.curclass
 				| _ ->
 					false
@@ -320,7 +320,7 @@ let rec using_field ctx mode e i p =
 						| _ -> ()
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					ImportHandling.maybe_mark_import_position ctx pc;
+					ImportHandling.mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
 				| _ ->
 					raise Not_found
@@ -523,7 +523,7 @@ let rec type_field cfg ctx e i p mode =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 		} in
 		let x = ref Opened in
-		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
+		let t = mk_anon ~fields:(PMap.add i f PMap.empty) x in
 		ctx.opened <- x :: ctx.opened;
 		Monomorph.bind r t;
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
@@ -544,6 +544,9 @@ let rec type_field cfg ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
+			| (MGet | MCall), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+				let ef = field_expr f (field_type f) in
+				AKExpr(ef)
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
@@ -620,3 +623,54 @@ let rec type_field cfg ctx e i p mode =
 		try using_field ctx mode e i p with Not_found -> no_field()
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
+
+(**
+	Generates a list of fields for `@:structInit` class `c` with type params `tl`
+	as it's needed for anonymous object syntax.
+*)
+let get_struct_init_anon_fields c tl =
+	let args =
+		match c.cl_constructor with
+		| Some cf ->
+			(match follow cf.cf_type with
+			| TFun (args,_) ->
+				Some (match cf.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						List.map (fun (name,_,t) ->
+							let t = apply_params c.cl_params tl t in
+							try
+								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
+								name,t,v.v_pos
+							with Not_found ->
+								name,t,cf.cf_name_pos
+						) args
+					| _ ->
+						List.map
+							(fun (name,_,t) ->
+								let t = apply_params c.cl_params tl t in
+								try
+									let cf = PMap.find name c.cl_fields in
+									name,t,cf.cf_name_pos
+								with Not_found ->
+									name,t,cf.cf_name_pos
+							) args
+				)
+			| _ -> None
+			)
+		| _ -> None
+	in
+	match args with
+	| Some args ->
+		List.fold_left (fun fields (name,t,p) ->
+			let cf = mk_field name t p p in
+			PMap.add cf.cf_name cf fields
+		) PMap.empty args
+	| _ ->
+		PMap.fold (fun cf fields ->
+		match cf.cf_kind with
+		| Var _ ->
+			let cf = {cf with cf_type = apply_params c.cl_params tl cf.cf_type} in
+			PMap.add cf.cf_name cf fields
+		| _ ->
+			fields
+	) c.cl_fields PMap.empty

@@ -78,9 +78,9 @@ class EReg {
 		else if (n == 0) {
 			var k = sub(s, m[1], m[2]).match;
 			return k;
-		} else if (Std.is(m[3], lua.Table)) {
+		} else if (Std.isOfType(m[3], lua.Table)) {
 			var mn = 2 * (n - 1);
-			if (Std.is(untyped m[3][mn + 1], Bool))
+			if (Std.isOfType(untyped m[3][mn + 1], Bool))
 				return null;
 			return sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]).match;
 		} else {

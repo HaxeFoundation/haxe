@@ -27,7 +27,7 @@ import java.Boot;
 
 @:coreApi class Reflect {
 	public static function hasField(o:Dynamic, field:String):Bool {
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, true, false) != Runtime.undefined;
 		}
 		return Runtime.slowHasField(o, field);
@@ -35,7 +35,7 @@ import java.Boot;
 
 	@:keep
 	public static function field(o:Dynamic, field:String):Dynamic {
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, false);
 		}
 		return Runtime.slowGetField(o, field, false);
@@ -43,7 +43,7 @@ import java.Boot;
 
 	@:keep
 	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			untyped (o : IHxObject).__hx_setField(field, value, false);
 		} else {
 			Runtime.slowSetField(o, field, value);
@@ -54,7 +54,7 @@ import java.Boot;
 		if (o == null || field == null) {
 			return null;
 		}
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, true);
 		}
 		if (Runtime.slowHasField(o, "get_" + field)) {
@@ -64,7 +64,7 @@ import java.Boot;
 	}
 
 	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			untyped (o : IHxObject).__hx_setField(field, value, true);
 		} else if (Runtime.slowHasField(o, "set_" + field)) {
 			Runtime.slowCallField(o, "set_" + field, java.NativeArray.make(value));
@@ -80,11 +80,11 @@ import java.Boot;
 
 	@:keep
 	public static function fields(o:Dynamic):Array<String> {
-		if (Std.is(o, IHxObject)) {
+		if (Std.isOfType(o, IHxObject)) {
 			var ret:Array<String> = [];
 			untyped (o : IHxObject).__hx_getFields(ret);
 			return ret;
-		} else if (Std.is(o, java.lang.Class)) {
+		} else if (Std.isOfType(o, java.lang.Class)) {
 			return Type.getClassFields(cast o);
 		} else {
 			return [];
@@ -92,7 +92,7 @@ import java.Boot;
 	}
 
 	public static function isFunction(f:Dynamic):Bool {
-		return Std.is(f, Function);
+		return Std.isOfType(f, Function);
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
@@ -104,7 +104,7 @@ import java.Boot;
 		if (f1 == f2) {
 			return true;
 		}
-		if (Std.is(f1, Closure) && Std.is(f2, Closure)) {
+		if (Std.isOfType(f1, Closure) && Std.isOfType(f2, Closure)) {
 			var f1c:Closure = cast f1;
 			var f2c:Closure = cast f2;
 			return Runtime.refEq(f1c.obj, f2c.obj) && f1c.field == f2c.field;
@@ -114,19 +114,19 @@ import java.Boot;
 
 	public static function isObject(v:Dynamic):Bool {
 		return v != null
-			&& !(Std.is(v, HxEnum)
-				|| Std.is(v, Function)
-				|| Std.is(v, java.lang.Enum)
-				|| Std.is(v, java.lang.Number)
-				|| Std.is(v, java.lang.Boolean.BooleanClass));
+			&& !(Std.isOfType(v, HxEnum)
+				|| Std.isOfType(v, Function)
+				|| Std.isOfType(v, java.lang.Enum)
+				|| Std.isOfType(v, java.lang.Number)
+				|| Std.isOfType(v, java.lang.Boolean.BooleanClass));
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
-		return v != null && (Std.is(v, HxEnum) || Std.is(v, java.lang.Enum));
+		return v != null && (Std.isOfType(v, HxEnum) || Std.isOfType(v, java.lang.Enum));
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool {
-		return (Std.is(o, DynamicObject) && (o : DynamicObject).__hx_deleteField(field));
+		return (Std.isOfType(o, DynamicObject) && (o : DynamicObject).__hx_deleteField(field));
 	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {

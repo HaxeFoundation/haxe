@@ -189,7 +189,7 @@ and tclass_kind =
 and metadata = Ast.metadata
 
 and tinfos = {
-	mt_path : path;
+	mutable mt_path : path;
 	mt_module : module_def;
 	mt_pos : pos;
 	mt_name_pos : pos;
@@ -265,7 +265,7 @@ and tenum = {
 }
 
 and tdef = {
-	t_path : path;
+	mutable t_path : path;
 	t_module : module_def;
 	t_pos : pos;
 	t_name_pos : pos;

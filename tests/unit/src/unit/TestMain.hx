@@ -50,6 +50,7 @@ class TestMain {
 		var classes = [
 			new TestOps(),
 			new TestBasetypes(),
+			new TestExceptions(),
 			new TestBytes(),
 			new TestIO(),
 			new TestLocals(),
@@ -72,6 +73,7 @@ class TestMain {
 			new TestSyntaxModule(),
 			new TestNull(),
 			new TestNumericCasts(),
+			new TestHashMap(),
 			#if (!no_http && (!azure || !(php && Windows)))
 			new TestHttp(),
 			#end

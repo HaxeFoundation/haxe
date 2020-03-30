@@ -1,5 +1,5 @@
 open Ast
-
+open Globals
 open DisplayTypes.SymbolKind
 
 let collect_module_symbols with_locals (pack,decls) =
@@ -42,40 +42,62 @@ let collect_module_symbols with_locals (pack,decls) =
 		expr_opt parent f.f_expr
 	in
 	let is_deprecated meta = Meta.has Meta.Deprecated meta in
-	let field parent cff =
+	let field parent parent_kind cff =
 		let field_parent = parent ^ "." ^ (fst cff.cff_name) in
 		let add_field kind = add (fst cff.cff_name) kind cff.cff_pos parent (is_deprecated cff.cff_meta) in
 		match cff.cff_kind with
 		| FVar(_,eo) ->
-			add_field Field;
+			add_field (
+				if parent_kind = EnumAbstract && not (List.mem_assoc AStatic cff.cff_access) then EnumMember
+				else if (List.mem_assoc AInline cff.cff_access) then Constant
+				else Field
+			);
 			if with_locals then expr_opt field_parent eo
 		| FFun f ->
-			add_field (if fst cff.cff_name = "new" then Constructor else Method);
+			add_field (
+				if fst cff.cff_name = "new" then Constructor
+				else if ((parent_kind = EnumAbstract or parent_kind = Abstract) && Meta.has_one_of [Meta.Op; Meta.ArrayAccess; Meta.Resolve] cff.cff_meta) then Operator
+				else Method
+			);
 			if with_locals then func field_parent f
 		| FProp(_,_,_,eo) ->
 			add_field Property;
 			if with_locals then expr_opt field_parent eo
 	in
-	List.iter (fun (td,p) -> match td with
+	List.iter (fun (td,p) ->
+		let add_type d kind =
+			let string_of_path l = String.concat "." l in
+			let module_name = Path.module_name_of_file p.pfile in
+			let type_name = fst d.d_name in
+			let is_primary_type = type_name = module_name in
+			let type_path = if is_primary_type then pack else pack @ [module_name] in
+			add type_name kind p (string_of_path type_path) (is_deprecated d.d_meta);
+			string_of_path (type_path @ [type_name])
+		in
+		match td with
 		| EImport _ | EUsing _ ->
-			() (* TODO: Can we do anything with these? *)
+			()
 		| EClass d ->
-			add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p "" (is_deprecated d.d_meta);
-			List.iter (field (fst d.d_name)) d.d_data
+			let kind = if List.mem HInterface d.d_flags then Interface else Class in
+			let parent = add_type d kind in
+			List.iter (field parent kind) d.d_data
 		| EEnum d ->
-			add (fst d.d_name) Enum p "" (is_deprecated d.d_meta);
+			let parent = add_type d Enum in
 			List.iter (fun ef ->
-				add (fst ef.ec_name) Method ef.ec_pos (fst d.d_name) (is_deprecated ef.ec_meta)
+				add (fst ef.ec_name) EnumMember ef.ec_pos parent (is_deprecated ef.ec_meta)
 			) d.d_data
 		| ETypedef d ->
-			add (fst d.d_name) Typedef p "" (is_deprecated d.d_meta);
 			(match d.d_data with
 			| CTAnonymous fields,_ ->
-				List.iter (field (fst d.d_name)) fields
-			| _ -> ())
+				let parent = add_type d Struct in
+				List.iter (field parent Struct) fields
+			| _ ->
+				ignore(add_type d TypeAlias)
+			)
 		| EAbstract d ->
-			add (fst d.d_name) Abstract p "" (is_deprecated d.d_meta);
-			List.iter (field (fst d.d_name)) d.d_data
+			let kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract in
+			let parent = add_type d kind in
+			List.iter (field parent kind) d.d_data
 	) decls;
 	l
 

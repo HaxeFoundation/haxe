@@ -108,6 +108,11 @@ class ArrayImpl {
 		}
 	}
 
+	@:ifFeature("dynamic_read.contains", "anon_optional_read.contains", "python.internal.ArrayImpl.contains")
+	public static inline function contains<T>(x:Array<T>,e : T) : Bool {
+		return Syntax.isIn(e, x);
+	}
+
 	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift", "python.internal.ArrayImpl.shift")
 	public static inline function shift<T>(x:Array<T>):Null<T> {
 		if (x.length == 0)

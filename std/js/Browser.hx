@@ -30,7 +30,7 @@ class Browser {
 	public static var window(get, never):js.html.Window;
 
 	extern inline static function get_window()
-		return untyped __js__("window");
+		return js.Syntax.code("window");
 
 	/** Shortcut to Window.document. */
 	public static var document(get, never):js.html.HTMLDocument;
@@ -110,10 +110,10 @@ class Browser {
 	 * Explorer.
 	 */
 	public static function createXMLHttpRequest():XMLHttpRequest {
-		if (untyped __js__("typeof XMLHttpRequest") != "undefined") {
+		if (js.Syntax.code("typeof XMLHttpRequest") != "undefined") {
 			return new XMLHttpRequest();
 		}
-		if (untyped __js__("typeof ActiveXObject") != "undefined") {
+		if (js.Syntax.code("typeof ActiveXObject") != "undefined") {
 			return js.Syntax.construct("ActiveXObject", "Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";

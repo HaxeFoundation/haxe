@@ -33,23 +33,23 @@ extern class Math {
 
 	static var NaN(default, null):Float;
 
-	public static inline function abs(v:Float):Float {
+	static inline function abs(v:Float):Float {
 		return (Math : Dynamic).fabs(v);
 	}
 
-	public static inline function min(a:Float, b:Float):Float {
+	static inline function min(a:Float, b:Float):Float {
 		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.min(a, b);
 	}
 
-	public static inline function max(a:Float, b:Float):Float {
+	static inline function max(a:Float, b:Float):Float {
 		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.max(a, b);
 	}
 
-	public static inline function sin(v:Float):Float {
+	static inline function sin(v:Float):Float {
 		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.sin(v);
 	}
 
-	public static inline function cos(v:Float):Float {
+	static inline function cos(v:Float):Float {
 		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.cos(v);
 	}
 
@@ -59,7 +59,7 @@ extern class Math {
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
 
-	public static inline function exp(v:Float):Float {
+	static inline function exp(v:Float):Float {
 		if (v == NEGATIVE_INFINITY) {
 			return 0.0;
 		} else if (v == POSITIVE_INFINITY) {
@@ -69,17 +69,17 @@ extern class Math {
 		}
 	}
 
-	public static inline function log(v:Float):Float {
+	static inline function log(v:Float):Float {
 		return if (v == 0.0) NEGATIVE_INFINITY else if (v < 0.0) NaN else python.lib.Math.log(v);
 	}
 
 	static function pow(v:Float, exp:Float):Float;
 
-	public static inline function sqrt(v:Float):Float {
+	static inline function sqrt(v:Float):Float {
 		return if (v < 0) NaN else python.lib.Math.sqrt(v);
 	}
 
-	public static inline function round(v:Float):Int {
+	static inline function round(v:Float):Int {
 		return Math.floor(v + 0.5);
 	}
 

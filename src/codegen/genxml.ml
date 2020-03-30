@@ -52,7 +52,7 @@ let gen_doc s =
 let gen_doc_opt d =
 	match d with
 	| None -> []
-	| Some s -> [gen_doc s]
+	| Some d -> [gen_doc (Ast.gen_doc_text d)]
 
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name

@@ -114,21 +114,18 @@ let rec	parse_file s =
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
 		begin match s with parser
 		| [< '(Const(Ident _),p) when pack = [] >] -> error (Custom "Package name must start with a lowercase character") p
-		| [< psem = semicolon; l = parse_type_decls TCAfterImport psem.pmax pack []; '(Eof,_) >] -> pack , l
+		| [< psem = semicolon; l = parse_type_decls TCAfterImport psem.pmax pack [] >] -> pack , l
 		end
-	| [< l = parse_type_decls TCBeforePackage (-1) [] []; '(Eof,_) >] -> [] , l
+	| [< l = parse_type_decls TCBeforePackage (-1) [] [] >] -> [] , l
 
 and parse_type_decls mode pmax pack acc s =
-	try
-		check_type_decl_completion mode pmax s;
-		match s with parser
-		| [< (v,p) = parse_type_decl mode >] ->
-			let mode = match v with
-				| EImport _ | EUsing _ -> TCAfterImport
-				| _ -> TCAfterType
-			in
-			parse_type_decls mode p.pmax pack ((v,p) :: acc) s
-		| [< >] -> List.rev acc
+	check_type_decl_completion mode pmax s;
+	let result = try
+		begin match s with parser
+		| [< cff = parse_type_decl mode >] -> Success cff
+		| [< '(Eof,p) >] -> End p
+		| [< >] -> Error ""
+		end
 	with
 	| TypePath ([],Some (name,false),b,p) ->
 		(* resolve imports *)
@@ -142,6 +139,18 @@ and parse_type_decls mode pmax pack acc s =
 		) acc;
 		raise (TypePath (pack,Some(name,true),b,p))
 	| Stream.Error msg when !in_display_file ->
+		Error msg
+	in
+	match result with
+	| Success (td,p) ->
+		let mode = match td with
+			| EImport _ | EUsing _ -> TCAfterImport
+			| _ -> TCAfterType
+		in
+		parse_type_decls mode p.pmax pack ((td,p) :: acc) s
+	| End _ ->
+		List.rev acc
+	| Error msg ->
 		handle_stream_error msg s;
 		ignore(resume false false s);
 		parse_type_decls mode (last_pos s).pmax pack acc s
@@ -150,13 +159,13 @@ and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
 		let fl,p2 = match s with parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
-			| [< >] -> syntax_error (Expected ["{"]) s ([],last_pos s)
+			| [< >] -> syntax_error (Expected ["{";"to";"from"]) s ([],last_pos s)
 		in
 		let flags = List.map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
 			d_name = name;
-			d_doc = doc;
+			d_doc = doc_from_string_opt doc;
 			d_meta = meta;
 			d_params = tl;
 			d_flags = flags @ sl;
@@ -176,7 +185,7 @@ and parse_type_decl mode s =
 			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 				(EEnum {
 					d_name = name;
-					d_doc = doc;
+					d_doc = doc_from_string_opt doc;
 					d_meta = meta;
 					d_params = tl;
 					d_flags = List.map decl_flag_to_enum_flag c;
@@ -218,7 +227,7 @@ and parse_type_decl mode s =
 			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;
-				d_doc = doc;
+				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map decl_flag_to_class_flag c @ n @ hl;
@@ -230,7 +239,7 @@ and parse_type_decl mode s =
 			| [< >] -> ());
 			(ETypedef {
 				d_name = name;
-				d_doc = doc;
+				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map decl_flag_to_enum_flag c;
@@ -345,16 +354,6 @@ and parse_abstract_subtype s =
 
 and parse_package s = psep Dot lower_ident_or_macro s
 
-and parse_class_fields tdecl p1 s =
-	let l = parse_class_field_resume tdecl s in
-	let p2 = (match s with parser
-		| [< '(BrClose,p2) >] -> p2
-		| [< >] ->
-			(* We don't want to register this as a syntax error because it's part of the logic in display mode *)
-			if !in_display then (pos (last_token s)) else error (Expected ["}"]) (next_pos s)
-	) in
-	l, p2
-
 and resume tdecl fdecl s =
 	(* look for next variable/function or next type declaration *)
 	let rec junk k =
@@ -417,18 +416,38 @@ and resume tdecl fdecl s =
 	in
 	loop 1
 
-and parse_class_field_resume tdecl s =
-	if not (!in_display_file) then
-		plist (parse_class_field tdecl) s
-	else try
-		let c = parse_class_field tdecl s in
-		c :: parse_class_field_resume tdecl s
-	with
-	| Stream.Error msg ->
+and parse_class_field_resume acc tdecl s =
+	let result = try
+		begin match s with parser
+		| [< cff = parse_class_field tdecl >] -> Success cff
+		| [< '(BrClose,p) >] -> End p
+		| [< >] -> Error ""
+		end
+	with Stream.Error msg ->
+		Error msg
+	in
+	match result with
+	| Success cff ->
+		parse_class_field_resume (cff :: acc) tdecl s
+	| End p ->
+		List.rev acc,p
+	| Error msg ->
 		handle_stream_error msg s;
-		if resume tdecl true s then parse_class_field_resume tdecl s else []
-	| Stream.Failure ->
-		if resume tdecl true s then parse_class_field_resume tdecl s else []
+		if resume tdecl true s then
+			parse_class_field_resume acc tdecl s
+		else
+			acc,last_pos s
+
+and parse_class_fields tdecl p1 s =
+	if not (!in_display_file) then begin
+		let acc = plist (parse_class_field tdecl) s in
+		let p2 = (match s with parser
+			| [< '(BrClose,p2) >] -> p2
+			| [< >] -> error (Expected ["}"]) (next_pos s)
+		) in
+		acc,p2
+	end else
+		parse_class_field_resume [] tdecl s
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,p); l = parse_common_flags >] -> (DPrivate,p) :: l
@@ -650,6 +669,8 @@ and parse_type_path_or_const plt = parser
 	(* we can't allow (expr) here *)
 	| [< '(BkOpen,p1); e = parse_array_decl p1 >] -> TPExpr (e)
 	| [< t = parse_complex_type >] -> TPType t
+	| [< '(Unop op,p1); '(Const c,p2) >] -> TPExpr (make_unop op (EConst c,p2) p1)
+	| [< '(Binop OpSub,p1); '(Const c,p2) >] -> TPExpr (make_unop Neg (EConst c,p2) p1)
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
@@ -757,7 +778,7 @@ and parse_enum s =
 		) in
 		{
 			ec_name = name,p1;
-			ec_doc = doc;
+			ec_doc = doc_from_string_opt doc;
 			ec_meta = meta;
 			ec_args = args;
 			ec_params = params;
@@ -868,7 +889,7 @@ and parse_class_field tdecl s =
 		in
 		{
 			cff_name = name;
-			cff_doc = doc;
+			cff_doc = doc_from_string_opt doc;
 			cff_meta = meta;
 			cff_access = al;
 			cff_pos = pos;

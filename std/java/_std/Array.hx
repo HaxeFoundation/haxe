@@ -375,6 +375,17 @@ import java.NativeArray;
 		return false;
 	}
 
+	public function contains(x:T):Bool {
+		var __a = __a;
+		var i = -1;
+		var length = length;
+		while (++i < length) {
+			if (__a[i] == x)
+				return true;
+		}
+		return false;
+	}
+		
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;
 		if (i < 0) {

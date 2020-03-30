@@ -58,7 +58,7 @@ class Meta {
 		return php.Boot.getMeta(t.phpClassName);
 		#elseif (java || cs)
 		var ret = Reflect.field(t, "__meta__");
-		if (ret == null && Std.is(t, Class)) {
+		if (ret == null && Std.isOfType(t, Class)) {
 			if (isInterface(t)) {
 				var name = Type.getClassName(t),
 					cls = Type.resolveClass(name + '_HxMeta');

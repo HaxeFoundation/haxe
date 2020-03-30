@@ -24,51 +24,49 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Os {
-    @:native("os_homedir")
-	public static function homedir():String;
+	@:native("os_homedir")
+	static function homedir():String;
 
-    @:native("os_tmpdir")
-	public static function tmpdir():String;
+	@:native("os_tmpdir")
+	static function tmpdir():String;
 
-    @:native("os_get_passwd")
-	public static function get_passwd():String;
+	@:native("os_get_passwd")
+	static function get_passwd():String;
 
-    @:native("os_getenv")
-	public static function getenv(env:String):String;
+	@:native("os_getenv")
+	static function getenv(env:String):String;
 
-    @:native("os_setenv")
-	public static function setenv(env:String, value:String):Void;
+	@:native("os_setenv")
+	static function setenv(env:String, value:String):Void;
 
-    @:native("os_unsetenv")
-	public static function unsetenv(env:String):Void;
+	@:native("os_unsetenv")
+	static function unsetenv(env:String):Void;
 
-    @:native("os_gethostname")
-    public static function gethostname():String;
+	@:native("os_gethostname")
+	static function gethostname():String;
 
-    @:native("os_environ")
-    public static function environ() : Table<String,String>;
+	@:native("os_environ")
+	static function environ():Table<String, String>;
 
-    @:native("os_uname")
-    public static function uname() : Uname;
+	@:native("os_uname")
+	static function uname():Uname;
 
-    @:native("os_getpid")
-    public static function getpid() : Int;
+	@:native("os_getpid")
+	static function getpid():Int;
 
-    @:native("os_getppid")
-    public static function getppid() : Int;
+	@:native("os_getppid")
+	static function getppid():Int;
 
-    @:native("os_getpriority")
-    public static function getpriority(pid :Int) : Int;
+	@:native("os_getpriority")
+	static function getpriority(pid:Int):Int;
 
-    @:native("os_setpriority")
-    public static function setpriority(pid :Int, priority : Int) : Bool;
-
+	@:native("os_setpriority")
+	static function setpriority(pid:Int, priority:Int):Bool;
 }
 
 typedef Uname = {
-    sysname : String,
-    release : String,
-    version : String,
-    machine : String
+	sysname:String,
+	release:String,
+	version:String,
+	machine:String
 }
-

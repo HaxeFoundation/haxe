@@ -23,37 +23,37 @@
 package cpp;
 
 extern class NativeString {
-	public static inline function raw(inString:String):RawConstPointer<Char> {
+	static inline function raw(inString:String):RawConstPointer<Char> {
 		return untyped inString.raw_ptr();
 	}
-	public static inline function c_str(inString:String):ConstPointer<Char> {
+	static inline function c_str(inString:String):ConstPointer<Char> {
 		return cpp.ConstPointer.fromPointer(untyped inString.c_str());
 	}
-	public static inline function fromPointer(inPtr:ConstPointer<Char>):String {
+	static inline function fromPointer(inPtr:ConstPointer<Char>):String {
 		return untyped __global__.String(inPtr.ptr);
 	}
-	public static inline function fromGcPointer(inPtr:ConstPointer<Char>, inLen:Int):String {
+	static inline function fromGcPointer(inPtr:ConstPointer<Char>, inLen:Int):String {
 		return untyped __global__.String(inPtr.ptr, inLen);
 	}
 
 	@:native("_hx_string_compare")
-	public static function compare(inString0:String, inString1:String):Int;
+	static function compare(inString0:String, inString1:String):Int;
 
 	@:native("_hx_utf8_char_code_at")
-	public static function utf8CharCodeAt(inString:String, inIndex:Int):Int;
+	static function utf8CharCodeAt(inString:String, inIndex:Int):Int;
 
 	@:native("_hx_utf8_length")
-	public static function utf8Length(inString:String):Int;
+	static function utf8Length(inString:String):Int;
 
 	@:native("_hx_utf8_is_valid")
-	public static function utf8IsValid(inString:String):Bool;
+	static function utf8IsValid(inString:String):Bool;
 
 	@:native("_hx_utf8_sub")
-	public static function utf8Sub(inString:String, charStart:Int, inLen:Int):String;
+	static function utf8Sub(inString:String, charStart:Int, inLen:Int):String;
 
 	@:native("_hx_string_create")
-	public static function fromPointerLen(inPtr:ConstPointer<Char>, len:Int):String;
+	static function fromPointerLen(inPtr:ConstPointer<Char>, len:Int):String;
 
 	@:native("_hx_utf8_decode_advance")
-	public static function utf8DecodeAdvance(reference:Char):Int;
+	static function utf8DecodeAdvance(reference:Char):Int;
 }

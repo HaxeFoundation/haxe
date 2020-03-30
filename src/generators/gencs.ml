@@ -243,12 +243,12 @@ struct
 			match e.eexpr with
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" } | TAbstractDecl { a_path = [], "Dynamic" }) }]
 					) ->
 						Type.map_expr run e
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") }) ) },
 						[ obj; { eexpr = TTypeExpr(md) }]
 					) ->
 					let md = change_md md in
@@ -272,7 +272,7 @@ struct
 						match obj.eexpr with
 							| TLocal(v) -> f obj
 							| _ ->
-								let var = mk_temp "is" obj.etype in
+								let var = mk_temp "isOfType" obj.etype in
 								let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 								let local = mk_local var obj.epos in
 								{
@@ -690,7 +690,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"; "await"];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = mk_anon (ref Closed)
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -1878,6 +1878,22 @@ let generate con =
 				gen.gcon.error "Invalid expression inside @:meta metadata" p
 		in
 
+		let gen_assembly_attributes w metadata =
+			List.iter (function
+				| Meta.AssemblyMeta, [EConst(String(s,_)), _], _ ->
+					write w "[assembly:";
+					write w s;
+					write w "]";
+					newline w
+				| Meta.AssemblyMeta, [meta], _ ->
+					write w "[assembly:";
+					gen_spart w meta;
+					write w "]";
+					newline w
+				| _ -> ()
+			) metadata
+		in
+
 		let gen_attributes w metadata =
 			List.iter (function
 				| Meta.Meta, [EConst(String(s,_)), _], _ ->
@@ -2188,9 +2204,12 @@ let generate con =
 							| Some e ->
 								write w " = ";
 								expr_s true w e;
-							| None -> ()
+								write w ";"
+							| None when (Meta.has Meta.Property cf.cf_meta) ->
+								write w " { get; set; }";
+							| None ->
+								write w ";"
 						);
-						write w ";"
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
@@ -2519,12 +2538,28 @@ let generate con =
 			end
 		in
 
-		let gen_class w cl =
+		let gen_class w cl is_first_type =
+			if (is_first_type == false) then begin
+				if Meta.has Meta.AssemblyStrict cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
+				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+			end;
+
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
 			newline w;
 			let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
-				| [] -> false
+				| [] ->
+					(* Should the assembly annotations be added to the class in this case? *)
+
+					if Meta.has Meta.AssemblyStrict cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
+					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
+
+					false
 				| ns ->
+					gen_assembly_attributes w cl.cl_meta;
 					print w "namespace %s " (String.concat "." ns);
 					begin_block w;
 					true
@@ -2547,30 +2582,26 @@ let generate con =
 
 			gen_attributes w cl.cl_meta;
 
-			let is_main =
-				match gen.gcon.main_class with
-					| Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
-						(*
-							for cases where the main class is called Main, there will be a problem with creating the entry point there.
-							In this special case, a special entry point class will be created
-						*)
-						write w "public class EntryPoint__Main ";
-						begin_block w;
-						write w "public static void Main() ";
-						begin_block w;
-						(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-						(match gen.gcon.main with
-							| None ->
-								expr_s true w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
-								write w ".main();"
-							| Some expr ->
-								expr_s false w (mk_block expr));
-						end_block w;
-						end_block w;
-						newline w;
-						false
-					| Some path when path = cl.cl_path && not cl.cl_interface -> true
-					| _ -> false
+			let main_expr =
+				match gen.gentry_point with
+				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not cl.cl_interface ->
+					(*
+						for cases where the main class is called Main, there will be a problem with creating the entry point there.
+						In this special case, a special entry point class will be created
+					*)
+					write w "public class EntryPoint__Main ";
+					begin_block w;
+					write w "public static void Main() ";
+					begin_block w;
+					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
+					expr_s false w expr;
+					write w ";";
+					end_block w;
+					end_block w;
+					newline w;
+					None
+				| Some (_, cl_main,expr) when cl == cl_main && not cl.cl_interface -> Some expr
+				| _ -> None
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
@@ -2601,17 +2632,14 @@ let generate con =
 			in
 			loop cl.cl_meta;
 
-			if is_main then begin
+			Option.may (fun expr ->
 				write w "public static void Main()";
 				begin_block w;
 				(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-				(match gen.gcon.main with
-					| None ->
-						write w "main();";
-					| Some expr ->
-							expr_s false w (mk_block expr));
+				expr_s false w expr;
+				write w ";";
 				end_block w
-			end;
+			) main_expr;
 
 			(match cl.cl_init with
 				| None -> ()
@@ -2779,7 +2807,7 @@ let generate con =
 			if should_close then end_block w
 		in
 
-		let module_type_gen w md_tp =
+		let module_type_gen w md_tp is_first_type =
 			let file_start = len w = 0 in
 			let requires_root = no_root && file_start in
 			if file_start then
@@ -2789,7 +2817,24 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
-						gen_class w cl;
+
+						(if (Meta.has Meta.CsUsing cl.cl_meta) then
+							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,_,p when not !is_first_type ->
+									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
+								| _,[],p ->
+									gen.gcon.error "One or several string constants expected" p
+								| _,e,_ ->
+									(List.iter (fun e ->
+										match e with
+										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
+										| _,p -> gen.gcon.error "One or several string constants expected" p
+									) e);
+									newline w
+						);
+
+						gen_class w cl !is_first_type;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2798,6 +2843,7 @@ let generate con =
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 						gen_enum w e;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2951,7 +2997,7 @@ let generate con =
 
 		let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
 		let empty_ctor_type = TEnum(empty_en, []) in
-		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (mk_anon (ref (EnumStatics empty_en))) null_pos in
 		let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 		OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 
@@ -3422,7 +3468,8 @@ let generate con =
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in
 			let w = SourceWriter.new_source_writer() in
-			let should_write = List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types in
+			let is_first_type = ref true in
+			let should_write = List.fold_left (fun should md -> module_type_gen w md is_first_type || should) false md_def.m_types in
 			if should_write then begin
 				let path = path_of_md_def md_def in
 				write_file gen w source_dir path "cs" out_files

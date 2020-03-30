@@ -22,10 +22,13 @@
 
 import cs.Boot;
 import cs.Lib;
-import cs.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
@@ -65,7 +68,7 @@ import cs.internal.Exceptions;
 	public static function string(s:Dynamic):String {
 		if (s == null)
 			return "null";
-		if (Std.is(s, Bool))
+		if (Std.isOfType(s, Bool))
 			return cast(s, Bool) ? "true" : "false";
 
 		return s.ToString();

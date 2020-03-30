@@ -55,6 +55,11 @@
 
 	public function add<T>(x:T):Void {
 		var slen = 0;
+		var str = Std.downcast((x:Dynamic),String);
+		if( str != null ) {
+			__add(@:privateAccess str.bytes, 0, str.length<<1);
+			return;
+		}
 		var sbytes = hl.Bytes.fromValue(x, new hl.Ref(slen));
 		__add(sbytes, 0, slen << 1);
 	}

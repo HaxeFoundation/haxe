@@ -22,7 +22,7 @@ let parse_module ctx m p =
 	display_position#run_outside (fun () -> TypeloadParse.parse_module ctx m p)
 
 module ReferencePosition = struct
-	let reference_position = ref ("",null_pos,KVar)
+	let reference_position = ref ("",null_pos,SKOther)
 	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
 	let get () = !reference_position
 end
@@ -248,7 +248,7 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end

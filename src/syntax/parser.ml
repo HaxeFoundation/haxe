@@ -51,6 +51,11 @@ type syntax_completion =
 	| SCTypeDecl of type_decl_completion_mode
 	| SCAfterTypeFlag of decl_flag list
 
+type 'a sequence_parsing_result =
+	| Success of 'a
+	| End of pos
+	| Error of string
+
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
@@ -77,10 +82,8 @@ type parser_display_information = {
 }
 
 type 'a parse_result =
-	(* Parsed display file. There can be errors. *)
-	| ParseDisplayFile of 'a * parser_display_information
 	(* Parsed non-display-file without errors. *)
-	| ParseSuccess of 'a
+	| ParseSuccess of 'a * bool * parser_display_information
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
@@ -270,7 +273,7 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
 let make_is e (t,p_t) p p_is =
-	let e_is = EField((EConst(Ident "Std"),null_pos),"is"),p_is in
+	let e_is = EField((EConst(Ident "Std"),null_pos),"isOfType"),p_is in
 	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
 

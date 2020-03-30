@@ -22,10 +22,13 @@
 
 import java.Boot;
 import java.Lib;
-import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
@@ -157,7 +160,7 @@ import java.internal.Exceptions;
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Std.is(value, c) ? cast value : null;
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')

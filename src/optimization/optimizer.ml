@@ -133,6 +133,9 @@ let sanitize_expr com e =
 		let e1 = if loop e1 true then parent e1 else e1 in
 		let e2 = if loop e2 false then parent e2 else e2 in
 		{ e with eexpr = TBinop (op,e1,e2) }
+	| TUnop (Not,Prefix,{ eexpr = (TUnop (Not,Prefix,e1)) | (TParenthesis { eexpr = TUnop (Not,Prefix,e1) }) })
+		when ExtType.is_bool (Abstract.follow_with_abstracts_without_null e1.etype) ->
+		e1
 	| TUnop (op,mode,e1) ->
 		let rec loop ee =
 			match ee.eexpr with
@@ -157,7 +160,13 @@ let sanitize_expr com e =
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
 		let f = (match f.tf_expr.eexpr with
-			| TBlock _ -> f
+			| TBlock exprs ->
+				if ExtType.is_void (follow f.tf_type) then
+					match List.rev exprs with
+					| { eexpr = TReturn None } :: rest -> { f with tf_expr = { f.tf_expr with eexpr = TBlock (List.rev rest) } }
+					| _ -> f
+				else
+					f
 			| _ -> { f with tf_expr = block f.tf_expr }
 		) in
 		{ e with eexpr = TFunction f }
@@ -228,6 +237,23 @@ let check_enum_construction_args el i =
 	) (true,0) el in
 	b
 
+let check_constant_switch e1 cases def =
+	let rec loop e1 cases = match cases with
+		| (el,e) :: cases ->
+			if List.exists (Texpr.equal e1) el then Some e
+			else loop e1 cases
+		| [] ->
+			begin match def with
+			| None -> None
+			| Some e -> Some e
+			end
+	in
+	match Texpr.skip e1 with
+		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
+			loop e1 cases
+		| _ ->
+			None
+
 let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -236,23 +262,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TSwitch (e1,cases,def) ->
-		let e = match Texpr.skip e1 with
-			| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
-				let rec loop cases = match cases with
-					| (el,e) :: cases ->
-						if List.exists (Texpr.equal e1) el then e
-						else loop cases
-					| [] ->
-						begin match def with
-						| None -> e
-						| Some e -> e
-						end
-				in
-				loop cases
-			| _ ->
-				e
-		in
-		e
+		begin match check_constant_switch e1 cases def with
+		| Some e -> e
+		| None -> e
+		end
 	| TBinop (op,e1,e2) ->
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
@@ -291,11 +304,12 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
+					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
-					let inl = (try type_inline ctx cf tf ef el rt None e.epos false with Error (Custom _,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_) -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
 					| Some e ->

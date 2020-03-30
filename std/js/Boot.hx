@@ -24,26 +24,6 @@ package js;
 
 import js.Syntax; // import it here so it's always available in the compiler
 
-private class HaxeError extends js.lib.Error {
-	var val:Dynamic;
-
-	@:pure
-	public function new(val:Dynamic) {
-		super();
-		this.val = val;
-		if ((cast js.lib.Error).captureStackTrace)
-			(cast js.lib.Error).captureStackTrace(this, HaxeError);
-	}
-
-	public static function wrap(val:Dynamic):js.lib.Error {
-		return if (js.Syntax.instanceof(val, js.lib.Error)) val else new HaxeError(val);
-	}
-
-	static function __init__() {
-		js.lib.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
-	}
-}
-
 @:dox(hide)
 class Boot {
 	static inline function isClass(o:Dynamic):Bool {
@@ -61,7 +41,7 @@ class Boot {
 	@:pure static function getClass(o:Null<Dynamic>):Null<Dynamic> {
 		if (o == null) {
 			return null;
-		} else if (Std.is(o, Array)) {
+		} else if (Std.isOfType(o, Array)) {
 			return Array;
 		} else {
 			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);
@@ -129,7 +109,7 @@ class Boot {
 						// strange error on IE
 						return "???";
 					}
-					if (tostr != null && tostr != __js__("Object.toString") && js.Syntax.typeof(tostr) == "function") {
+					if (tostr != null && tostr != js.Syntax.code("Object.toString") && js.Syntax.typeof(tostr) == "function") {
 						var s2 = o.toString();
 						if (s2 != "[object Object]")
 							return s2;
@@ -138,15 +118,15 @@ class Boot {
 					s += "\t";
 					var hasp = (o.hasOwnProperty != null);
 					var k:String = null;
-					__js__("for( {0} in {1} ) {", k, o);
+					js.Syntax.code("for( {0} in {1} ) {", k, o);
 					if (hasp && !o.hasOwnProperty(k))
-						__js__("continue");
+						js.Syntax.code("continue");
 					if (k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__")
-						__js__("continue");
+						js.Syntax.code("continue");
 					if (str.length != 2)
 						str += ", \n";
 					str += s + k + " : " + __string_rec(o[k], s);
-					__js__("}");
+					js.Syntax.code("}");
 					s = s.substring(1);
 					str += "\n" + s + "}";
 					return str;
@@ -165,8 +145,11 @@ class Boot {
 			return false;
 		if (cc == cl)
 			return true;
-		if (js.lib.Object.prototype.hasOwnProperty.call(cc, "__interfaces__")) {
-			var intf:Dynamic = cc.__interfaces__;
+		var intf:Dynamic = cc.__interfaces__;
+		if (intf != null
+			// ES6 classes inherit statics, so we want to avoid accessing inherited `__interfaces__`
+			#if (js_es >= 6) && (cc.__super__ == null || cc.__super__.__interfaces__ != intf) #end
+		) {
 			for (i in 0...intf.length) {
 				var i:Dynamic = intf[i];
 				if (i == cl || __interfLoop(i, cl))
@@ -176,7 +159,7 @@ class Boot {
 		return __interfLoop(cc.__super__, cl);
 	}
 
-	@:ifFeature("typed_catch") @:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
+	@:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		if (cl == null)
 			return false;
 		switch (cl) {

@@ -68,9 +68,9 @@ private class JdbcConnection implements sys.db.Connection {
 	}
 
 	public function addValue(s:StringBuf, v:Dynamic) {
-		if (Std.is(v, Date)) {
+		if (Std.isOfType(v, Date)) {
 			v = Std.string(v);
-		} else if (Std.is(v, Bytes)) {
+		} else if (Std.isOfType(v, Bytes)) {
 			var bt:Bytes = v;
 			v = bt.getData();
 		}

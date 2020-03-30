@@ -64,6 +64,10 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
+let is_lower_ident s p =
+	try Ast.is_lower_ident s
+	with Invalid_argument msg -> error msg p
+
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
@@ -119,8 +123,7 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in
-		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-			DeprecationCheck.check_typedef ctx.com s p;
+		DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p
@@ -139,6 +142,10 @@ let rec type_module_type ctx t tparams p =
 
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
+
+let mk_module_type_access ctx t p : access_mode -> access_kind =
+	let e = type_module_type ctx t None p in
+	(fun _ -> AKExpr e)
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in

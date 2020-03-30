@@ -148,6 +148,19 @@
 		return false;
 	}
 
+	public function contains(x:T):Bool {
+		var i = 0;
+		var l = this.length;
+		var a = this.__a;
+		while (i < l) {
+			if (a[i] == x) {
+				return true;
+			}
+			i += 1;
+		}
+		return false;
+	}
+
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var len = length;
 		var i:Int = (fromIndex != null) ? fromIndex : 0;

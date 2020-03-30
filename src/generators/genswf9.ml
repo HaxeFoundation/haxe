@@ -335,7 +335,7 @@ let property ctx fa t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
+		| "copy" | "insert" | "contains" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
@@ -1048,7 +1048,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		if has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception e.etype) then begin
 			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 			let id = type_path ctx (["flash";"errors"],"Error") in
 			write ctx (HFindPropStrict id);
@@ -1159,7 +1159,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx false e;
 		if flag = NormalWhile then jstart();
 		let continue_pos = ctx.infos.ipos in
-		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
+		let _j = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull
@@ -1212,7 +1212,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception v.v_type) then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
@@ -1405,7 +1405,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (HOp A3OIs)
-	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "is" })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
+	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = ("is" | "isOfType") })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
 		(* fast inlining of Std.is with known values *)
 		gen_expr ctx true e;
 		gen_expr ctx true t;

@@ -72,7 +72,7 @@ let generate_expr_pos ctx p =
 	jtodo
 
 let generate_doc ctx d = match ctx.generation_mode with
-	| GMFull -> jopt jstring d
+	| GMFull -> jopt jstring (gen_doc_text_opt d)
 	| GMWithoutDoc | GMMinimum -> jnull
 
 (** return a range JSON structure for given position

@@ -188,7 +188,7 @@ class Unserializer {
 			if (get(pos) == "g".code)
 				break;
 			var k:Dynamic = unserialize();
-			if (!Std.is(k, String))
+			if (!Std.isOfType(k, String))
 				throw "Invalid object key";
 			var v = unserialize();
 			Reflect.setField(o, k, v);

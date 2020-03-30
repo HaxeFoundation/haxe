@@ -188,6 +188,11 @@ module StdArray = struct
 		vbool (EvalArray.remove this equals x)
 	)
 
+	let contains = vifun1 (fun vthis x ->
+		let this = this vthis in
+		vbool (EvalArray.contains this equals x)
+	)
+
 	let reverse = vifun0 (fun vthis ->
 		let this = this vthis in
 		EvalArray.reverse this;
@@ -300,7 +305,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let value = decode_int value in
-		(try Bytes.fill this pos len (char_of_int value) with _ -> outside_bounds());
+		(try Bytes.fill this pos len (char_of_int (value land 0xFF)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -532,7 +537,7 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdCallStack = struct
+module StdNativeStackTrace = struct
 	let make_stack envs =
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
@@ -1999,7 +2004,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2145,11 +2150,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -3175,9 +3182,9 @@ let init_constructors builtins =
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3228,7 +3235,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3260,6 +3268,7 @@ let init_standard_library builtins =
 		"push",StdArray.push;
 		"remove",StdArray.remove;
 		"resize",StdArray.resize;
+		"contains",StdArray.contains;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
@@ -3317,9 +3326,9 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"],"CallStack") [
-		"getCallStack",StdCallStack.getCallStack;
-		"getExceptionStack",StdCallStack.getExceptionStack;
+	init_fields builtins (["haxe"],"NativeStackTrace") [
+		"_callStack",StdNativeStackTrace.getCallStack;
+		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
@@ -3524,7 +3533,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3548,6 +3557,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;
@@ -3660,4 +3670,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

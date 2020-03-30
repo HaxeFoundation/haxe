@@ -129,6 +129,10 @@ class ArrayDyn extends ArrayAccess {
 		array.insertDyn(pos, x);
 	}
 
+	public function contains(x:Dynamic):Bool {
+		return array.containsDyn(x);
+	}
+
 	public function remove(x:Dynamic):Bool {
 		return array.removeDyn(x);
 	}

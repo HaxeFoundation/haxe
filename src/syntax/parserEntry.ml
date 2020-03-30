@@ -119,30 +119,7 @@ and eval_binop_exprs ctx e1 e2 =
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
 
-class condition_handler_nop = object(self)
-	val null = EConst(Ident "null"),null_pos
-
-	method cond_if (e : expr) =
-		()
-
-	method cond_else =
-		()
-
-	method cond_elseif (e : expr) =
-		()
-
-	method cond_end =
-		()
-
-	method get_current_condition : expr =
-		null
-
-	method get_conditions : expr list =
-		[]
-end
-
-class condition_Handler = object(self)
-	inherit condition_handler_nop
+class condition_handler = object(self)
 	val mutable conditional_expressions = []
 	val mutable conditional_stack = []
 	val mutable depths = []
@@ -226,8 +203,6 @@ class dead_block_collector conds = object(self)
 		DynArray.to_list dead_blocks
 end
 
-let nop_handler = new condition_handler_nop
-
 (* parse main *)
 let parse ctx code file =
 	let old = Lexer.save() in
@@ -259,7 +234,7 @@ let parse ctx code file =
 		error (Custom line) p
 	in
 
-	let conds = if !in_display_file then new condition_Handler else nop_handler in
+	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
@@ -273,7 +248,12 @@ let parse ctx code file =
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
-			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment None (pos tk);
+			if !in_display_file then begin
+				let p = pos tk in
+				(* Completion at the / should not pick up the comment (issue #9133) *)
+				let p = if is_completion() then {p with pmin = p.pmin + 1} else p in
+				if display_position#enclosed_in p then syntax_completion SCComment None (pos tk);
+			end;
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with
@@ -385,10 +365,11 @@ let parse ctx code file =
 		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
+		let pdi = {pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions} in
 		if was_display_file then
-			ParseDisplayFile(l,{pd_errors = List.rev !syntax_errors;pd_dead_blocks = dbc#get_dead_blocks;pd_conditions = conds#get_conditions})
+			ParseSuccess(l,true,pdi)
 		else begin match List.rev !syntax_errors with
-			| [] -> ParseSuccess l
+			| [] -> ParseSuccess(l,false,pdi)
 			| error :: errors -> ParseError(l,error,errors)
 		end
 	with
@@ -447,6 +428,5 @@ let parse_expr_string com s p error inl =
 		| _ -> raise Exit
 	in
 	match parse_string com (head ^ s ^ ";}") p error inl with
-	| ParseSuccess data -> ParseSuccess(extract_expr data)
+	| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(extract_expr data,is_display_file,pdi)
 	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
-	| ParseDisplayFile(data,pdi) -> ParseDisplayFile(extract_expr data,pdi)

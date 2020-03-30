@@ -38,14 +38,14 @@ enum ValueType {
 
 @:coreApi class Type {
 	public static function getClass<T>(o:T):Class<T> {
-		if (o == null || Std.is(o, DynamicObject) || Std.is(o, java.lang.Class)) {
+		if (o == null || Std.isOfType(o, DynamicObject) || Std.isOfType(o, java.lang.Class)) {
 			return null;
 		}
 		return cast java.Lib.getNativeType(o);
 	}
 
 	public static function getEnum(o:EnumValue):Enum<Dynamic> {
-		if (Std.is(o, java.lang.Enum) || Std.is(o, HxEnum)) {
+		if (Std.isOfType(o, java.lang.Enum) || Std.isOfType(o, HxEnum)) {
 			return untyped o.getClass();
 		}
 		return null;
@@ -137,12 +137,14 @@ enum ValueType {
 			for (arg in args) {
 				argNum++;
 				var expectedType = argNum < ptypes.length ? ptypes[argNum] : ptypes[ptypes.length - 1]; // varags
-				var isDynamic = Std.is(arg, DynamicObject) && expectedType.isAssignableFrom(java.Lib.getNativeType(arg));
+				var isDynamic = Std.isOfType(arg, DynamicObject) && expectedType.isAssignableFrom(java.Lib.getNativeType(arg));
 				var argType = Type.getClass(arg);
 
 				if (arg == null || isDynamic || (argType != null && expectedType.isAssignableFrom(java.Lib.toNativeType(argType)))) {
 					callArguments[argNum] = arg;
-				} else if (Std.is(arg, java.lang.Number)) {
+				} else if(expectedType.getName() == 'boolean' && (cast argType:java.lang.Class<Dynamic>).getName() == 'java.lang.Boolean') {
+					callArguments[argNum] = (cast arg : java.lang.Boolean).booleanValue();
+				} else if (Std.isOfType(arg, java.lang.Number)) {
 					var name = expectedType.getName();
 					switch (name) {
 						case 'double' | 'java.lang.Double':
@@ -193,7 +195,7 @@ enum ValueType {
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		if (params == null || params.length == 0) {
 			var ret:Dynamic = java.internal.Runtime.slowGetField(e, constr, true);
-			if (Std.is(ret, java.internal.Function)) {
+			if (Std.isOfType(ret, java.internal.Function)) {
 				throw "Constructor " + constr + " needs parameters";
 			}
 			return ret;
@@ -359,7 +361,7 @@ enum ValueType {
 		var ret = [];
 		for (ctor in ctors) {
 			var v = Reflect.field(e, ctor);
-			if (Std.is(v, e))
+			if (Std.isOfType(v, e))
 				ret.push(v);
 		}
 

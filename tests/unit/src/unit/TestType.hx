@@ -298,8 +298,8 @@ class TestType extends Test {
 
 		var c = new Cov2();
 		typedAs(c.covariant(), c1);
-		t(Std.is(c.covariant(), Child1));
-		t(Std.is(cast(c, Cov1).covariant(), Child1));
+		t(Std.isOfType(c.covariant(), Child1));
+		t(Std.isOfType(cast(c, Cov1).covariant(), Child1));
 
 		// base class reference
 		var br:Cov1 = c;

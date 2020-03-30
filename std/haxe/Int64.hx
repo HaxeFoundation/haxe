@@ -65,11 +65,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	inline public static function is(val:Dynamic):Bool {
+		return isInt64(val);
+	}
+
 	/**
 		Returns whether the value `val` is of type `haxe.Int64`
 	**/
-	inline public static function is(val:Dynamic):Bool
-		return Std.is(val, __Int64);
+	inline public static function isInt64(val:Dynamic):Bool
+		return Std.isOfType(val, __Int64);
 
 	/**
 		Returns the high 32-bit word of `x`.

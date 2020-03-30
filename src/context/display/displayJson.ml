@@ -102,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 3;
+					"minor",jint 4;
 					"patch",jint 0;
 				]
 			])
@@ -125,6 +125,11 @@ let handler =
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+		);
+		"display/implementation", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display (DMImplementation);
 		);
 		"display/typeDefinition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;

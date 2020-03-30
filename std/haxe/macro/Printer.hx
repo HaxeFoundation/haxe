@@ -178,13 +178,19 @@ class Printer {
 	public function printFunctionArg(arg:FunctionArg)
 		return (arg.opt ? "?" : "") + arg.name + opt(arg.type, printComplexType, ":") + opt(arg.value, printExpr, " = ");
 
-	public function printFunction(func:Function)
+	public function printFunction(func:Function, ?kind:FunctionKind) {
+		var skipParentheses = switch func.args {
+			case [{ type:null }]: kind == FArrow;
+			case _: false;
+		}
 		return (func.params == null ? "" : func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
-			+ "("
+			+ (skipParentheses ? "" : "(")
 			+ func.args.map(printFunctionArg).join(", ")
-			+ ")"
+			+ (skipParentheses ? "" : ")")
+			+ (kind == FArrow ? " ->" : "")
 			+ opt(func.ret, printComplexType, ":")
 			+ opt(func.expr, printExpr, " ");
+	}
 
 	public function printVar(v:Var)
 		return v.name + opt(v.type, printComplexType, ":") + opt(v.expr, printExpr, " = ");
@@ -218,7 +224,7 @@ class Printer {
 			case EUnop(op, true, e1): printExpr(e1) + printUnop(op);
 			case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
 			case EFunction(FNamed(no,inlined), func): (inlined ? 'inline ' : '') + 'function $no' + printFunction(func);
-			case EFunction(_, func): "function" + printFunction(func);
+			case EFunction(kind, func): (kind != FArrow ? "function" : "") + printFunction(func, kind);
 			case EVars(vl): "var " + vl.map(printVar).join(", ");
 			case EBlock([]): '{ }';
 			case EBlock(el):
@@ -256,6 +262,7 @@ class Printer {
 			case EDisplayNew(tp): '#DISPLAY(${printTypePath(tp)})';
 			case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
 			case ECheckType(e1, ct): '(${printExpr(e1)} : ${printComplexType(ct)})';
+			case EMeta({ name:":implicitReturn" }, { expr:EReturn(e1) }): printExpr(e1);
 			case EMeta(meta, e1): printMetadata(meta) + " " + printExpr(e1);
 		}
 

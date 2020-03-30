@@ -55,7 +55,7 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 	function compareArg(v1:Dynamic, v2:Dynamic):Int {
 		return if (Reflect.isEnumValue(v1) && Reflect.isEnumValue(v2)) {
 			compare(v1, v2);
-		} else if (Std.is(v1, Array) && Std.is(v2, Array)) {
+		} else if (Std.isOfType(v1, Array) && Std.isOfType(v2, Array)) {
 			compareArgs(v1, v2);
 		} else {
 			Reflect.compare(v1, v2);

@@ -54,6 +54,10 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 		return wrap(result);
 	}
 
+	public inline function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		if (fromIndex == null && !Boot.isHxClosure(x) && !Boot.isNumber(x)) {
 			var index = Global.array_search(x, arr, true);
@@ -127,14 +131,14 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 
 	public function remove(x:T):Bool {
 		var result = false;
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			if (value == x) {
+		for(index in 0...length) {
+			if (arr[index] == x) {
 				Global.array_splice(arr, index, 1);
 				length--;
 				result = true;
-				Syntax.code('break');
+				break;
 			}
-		});
+		}
 		return result;
 	}
 

@@ -69,7 +69,7 @@ let rec add_final_return e =
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init e =
+let check_local_vars_init com e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -88,9 +88,13 @@ let check_local_vars_init e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init && not (IntMap.mem v.v_id !outside_vars) then begin
-				if v.v_name = "this" then error "Missing this = value" e.epos
-				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+			if not init then begin
+				if IntMap.mem v.v_id !outside_vars then
+					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
+					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+				else
+					if v.v_name = "this" then error "Missing this = value" e.epos
+					else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -818,27 +822,22 @@ let run com tctx main =
 	t();
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
-		check_local_vars_init;
+		check_local_vars_init tctx.com;
 		check_abstract_as_value;
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -913,7 +912,9 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
+		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
@@ -926,7 +927,6 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

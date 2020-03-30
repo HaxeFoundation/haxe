@@ -452,7 +452,10 @@ module Printer = struct
 	let s_pmap fk fv pm =
 		"{" ^ (String.concat ", " (PMap.foldi (fun k v acc -> (Printf.sprintf "%s = %s" (fk k) (fv v)) :: acc) pm [])) ^ "}"
 
-	let s_doc = s_opt (fun s -> s)
+	let s_doc doc_opt =
+		match doc_opt with
+		| None -> "None"
+		| Some d -> gen_doc_text d
 
 	let s_metadata_entry (s,el,_) =
 		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")")
@@ -638,7 +641,7 @@ module Printer = struct
 	let s_class_field cff =
 		s_record_fields "" [
 			"cff_name",s_placed (fun s -> s) cff.cff_name;
-			"cff_doc",s_opt (fun s -> s) cff.cff_doc;
+			"cff_doc",s_doc cff.cff_doc;
 			"cff_pos",s_pos cff.cff_pos;
 			"cff_meta",s_metadata cff.cff_meta;
 			"cff_access",s_list ", " Ast.s_placed_access cff.cff_access;

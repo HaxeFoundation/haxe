@@ -13,6 +13,12 @@ open Common
 open Display
 open DisplayPosition
 
+let symbol_of_module_type = function
+	| TClassDecl c -> SKClass c
+	| TEnumDecl en -> SKEnum en
+	| TTypeDecl td -> SKTypedef td
+	| TAbstractDecl a -> SKAbstract a
+
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition | DMTypeDefinition ->
 		begin match mt with
@@ -22,9 +28,9 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		| _ ->
 			raise_positions [(t_infos mt).mt_name_pos];
 		end
-	| DMUsage _ ->
+	| DMUsage _ | DMImplementation ->
 		let infos = t_infos mt in
-		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,KModuleType)
+		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,symbol_of_module_type mt)
 	| DMHover ->
 		let t = type_of_module_type mt in
 		let ct = CompletionType.from_type (get_import_status ctx) t in
@@ -81,7 +87,7 @@ let raise_position_of_type t =
 let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [v.v_pos]
 	| DMTypeDefinition -> raise_position_of_type v.v_type
-	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,KVar)
+	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,SKVariable v)
 	| DMHover ->
 		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta v.v_meta) v.v_type in
 		raise_hover (make_ci_local v (v.v_type,ct)) None p
@@ -90,13 +96,13 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type cf.cf_type
-	| DMUsage _ ->
+	| DMUsage _ | DMImplementation ->
 		let name,kind = match cf.cf_name,origin with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
-				snd c.cl_path,KConstructor
+				snd c.cl_path,SKConstructor cf
 			| _ ->
-				cf.cf_name,KClassField
+				cf.cf_name,SKField cf
 		in
 		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->
@@ -119,7 +125,7 @@ let maybe_display_field ctx origin scope cf p =
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [ef.ef_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ef.ef_type
-	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,KEnumField)
+	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef)
 	| DMHover ->
 		let ct = CompletionType.from_type (get_import_status ctx) ef.ef_type in
 		raise_hover (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (ef.ef_type,ct)) None p

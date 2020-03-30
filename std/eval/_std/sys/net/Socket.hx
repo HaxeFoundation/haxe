@@ -23,27 +23,7 @@
 package sys.net;
 
 import haxe.io.Error;
-
-extern private class NativeSocket {
-	function new():Void;
-	function accept():NativeSocket;
-	function bind(host:Int, port:Int):Void;
-	function close():Void;
-	function connect(host:Int, port:Int):Void;
-	function host():{ip:Int, port:Int};
-	function listen(connections:Int):Void;
-	function peer():{ip:Int, port:Int};
-	function receive(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
-	function receiveChar():Int;
-	function send(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
-	function sendChar(char:Int):Void;
-	function setFastSend(b:Bool):Void;
-	function setTimeout(timeout:Float):Void;
-	function shutdown(read:Bool, write:Bool):Void;
-
-	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
-		?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>};
-}
+import eval.vm.NativeSocket;
 
 private class SocketOutput extends haxe.io.Output {
 	var socket:NativeSocket;

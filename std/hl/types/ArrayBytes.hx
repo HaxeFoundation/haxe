@@ -210,6 +210,10 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		bytes[pos] = x;
 	}
 
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
 	public function remove(x:T):Bool {
 		var idx = indexOf(x);
 		if (idx < 0)
@@ -315,6 +319,9 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	override function insertDyn(pos:Int, v:Dynamic)
 		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
 
 	override function removeDyn(v:Dynamic)
 		return remove(v);

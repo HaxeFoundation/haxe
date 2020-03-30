@@ -104,6 +104,7 @@ type context = {
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
+	mutable tstring : ttype;
 	macro_typedefs : (string, ttype) Hashtbl.t;
 	array_impl : array_impl;
 	base_class : tclass;
@@ -137,6 +138,10 @@ type access =
 let is_to_string t =
 	match follow t with
 	| TFun([],r) -> (match follow r with TInst({ cl_path=[],"String" },[]) -> true | _ -> false)
+	| _ -> false
+
+let is_string = function
+	| HObj { pname = "String"} -> true
 	| _ -> false
 
 let is_extern_field f =
@@ -605,7 +610,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let add_field name get_t =
 			let fid = DynArray.length fa + start_field in
-			let str = if name = "" then 0 else alloc_string ctx name in
+			let str = alloc_string ctx name in
 			p.pindex <- PMap.add name (fid, HVoid) p.pindex;
 			DynArray.add fa (name, str, HVoid);
 			ctx.ct_delayed <- (fun() ->
@@ -1054,6 +1059,39 @@ let rec eval_to ctx e (t:ttype) =
 		let r = eval_expr ctx e in
 		cast_to ctx r t e.epos
 
+and to_string ctx (r:reg) p =
+	let rt = rtype ctx r in
+	if safe_cast rt ctx.tstring then r else
+	match rt with
+	| HUI8 | HUI16 | HI32 ->
+		let len = alloc_tmp ctx HI32 in
+		hold ctx len;
+		let lref = alloc_tmp ctx (HRef HI32) in
+		let bytes = alloc_tmp ctx HBytes in
+		op ctx (ORef (lref,len));
+		op ctx (OCall2 (bytes,alloc_std ctx "itos" [HI32;HRef HI32] HBytes,cast_to ctx r HI32 p,lref));
+		let out = alloc_tmp ctx ctx.tstring in
+		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
+		free ctx len;
+		out
+	| HF32 | HF64 ->
+		let len = alloc_tmp ctx HI32 in
+		let lref = alloc_tmp ctx (HRef HI32) in
+		let bytes = alloc_tmp ctx HBytes in
+		op ctx (ORef (lref,len));
+		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
+		let out = alloc_tmp ctx ctx.tstring in
+		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
+		out
+	| _ ->
+		let r = cast_to ctx r HDyn p in
+		let out = alloc_tmp ctx ctx.tstring in
+		op ctx (OJNotNull (r,2));
+		op ctx (ONull out);
+		op ctx (OJAlways 1);
+		op ctx (OCall1 (out,alloc_fun_path ctx ([],"Std") "string",r));
+		out
+
 and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then r else
@@ -1072,34 +1110,6 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
-	| (HUI8 | HUI16 | HI32), HObj { pname = "String" } ->
-		let len = alloc_tmp ctx HI32 in
-		hold ctx len;
-		let lref = alloc_tmp ctx (HRef HI32) in
-		let bytes = alloc_tmp ctx HBytes in
-		op ctx (ORef (lref,len));
-		op ctx (OCall2 (bytes,alloc_std ctx "itos" [HI32;HRef HI32] HBytes,cast_to ctx r HI32 p,lref));
-		let out = alloc_tmp ctx t in
-		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
-		free ctx len;
-		out
-	| (HF32 | HF64), HObj { pname = "String" } ->
-		let len = alloc_tmp ctx HI32 in
-		let lref = alloc_tmp ctx (HRef HI32) in
-		let bytes = alloc_tmp ctx HBytes in
-		op ctx (ORef (lref,len));
-		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
-		let out = alloc_tmp ctx t in
-		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
-		out
-	| _, HObj { pname = "String" } ->
-		let r = cast_to ctx r HDyn p in
-		let out = alloc_tmp ctx t in
-		op ctx (OJNotNull (r,2));
-		op ctx (ONull out);
-		op ctx (OJAlways 1);
-		op ctx (OCall1 (out,alloc_fun_path ctx ([],"Std") "string",r));
-		out
 	| HObj o, HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		(try
@@ -1506,7 +1516,7 @@ and make_const ctx c p =
 		let fields, t = (match c with
 		| CString s ->
 			let str, len = to_utf8 s p in
-			[alloc_string ctx str; alloc_i32 ctx (Int32.of_int len)], to_type ctx ctx.com.basic.tstring
+			[alloc_string ctx str; alloc_i32 ctx (Int32.of_int len)], ctx.tstring
 		) in
 		let g = lookup_alloc ctx.cglobals t in
 		g, Array.of_list fields
@@ -1515,7 +1525,7 @@ and make_const ctx c p =
 	g
 
 and make_string ctx s p =
-	let r = alloc_tmp ctx (to_type ctx ctx.com.basic.tstring) in
+	let r = alloc_tmp ctx ctx.tstring in
 	op ctx (OGetGlobal (r, make_const ctx (CString s) p));
 	r
 
@@ -2285,7 +2295,7 @@ and eval_expr ctx e =
 					| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 ->
 						op ctx (OAdd (r,a,b))
 					| HObj { pname = "String" } ->
-						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",a,b))
+						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",to_string ctx a e1.epos,to_string ctx b e2.epos))
 					| HDyn ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
 					| t ->
@@ -2346,10 +2356,18 @@ and eval_expr ctx e =
 			r
 		| OpAdd | OpSub | OpMult | OpDiv | OpMod | OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 			let t = (match to_type ctx e.etype with HNull t -> t | t -> t) in
+			let conv_string = bop = OpAdd && is_string t in
+			let eval e =
+				if conv_string then
+					let r = eval_expr ctx e in
+					to_string ctx r e.epos
+				else
+					eval_to ctx e t
+			in
 			let r = alloc_tmp ctx t in
-			let a = eval_to ctx e1 t in
+			let a = eval e1 in
 			hold ctx a;
-			let b = eval_to ctx e2 t in
+			let b = eval e2 in
 			free ctx a;
 			binop r a b;
 			r
@@ -2459,7 +2477,7 @@ and eval_expr ctx e =
 			| acc ->
 				gen_assign_op ctx acc e1 (fun r ->
 					hold ctx r;
-					let b = eval_to ctx e2 (rtype ctx r) in
+					let b = if bop = OpAdd && is_string (rtype ctx r) then to_string ctx (eval_expr ctx e2) e2.epos else eval_to ctx e2 (rtype ctx r) in
 					free ctx r;
 					binop r r b;
 					r))
@@ -3939,6 +3957,7 @@ let create_context com is_macro dump =
 		cached_tuples = PMap.empty;
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
+		tstring = HVoid;
 		array_impl = {
 			aall = get_class "ArrayAccess";
 			abase = get_class "ArrayBase";
@@ -3963,6 +3982,7 @@ let create_context com is_macro dump =
 		ct_delayed = [];
 		ct_depth = 0;
 	} in
+	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");
 	ignore(class_type ctx ctx.base_class [] false);
 	ctx

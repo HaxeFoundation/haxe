@@ -38,7 +38,7 @@ let s_version with_build =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics global->
+		| DMDiagnostics _->
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -47,7 +47,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				in
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com global))
+			raise (Completion (Diagnostics.print ctx.com))
 		| _ ->
 			f_otherwise ()
 		end
@@ -142,21 +142,28 @@ let parse_file cs com file p =
 			try
 				let cfile = cc#find_file ffile in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com file p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseDisplayFile _ -> "not cached, is display file",true
-					| ParseSuccess data ->
-						begin try
+					| ParseSuccess(data,is_display_file,pdi) ->
+						if is_display_file then begin
+							if pdi.pd_errors <> [] then
+								"not cached, is display file with parse errors",true
+							else if com.display.dms_per_file then begin
+								cc#cache_file ffile ftime data pdi;
+								"cached, is intact display file",true
+							end else
+								"not cached, is display file",true
+						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if not com.display.dms_display then raise Not_found;
 							let ident = Hashtbl.find Parser.special_identifier_files ffile in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data;
+							cc#cache_file ffile ftime data pdi;
 							"cached",false
 						end
 				in
@@ -822,8 +829,19 @@ let init_wait_socket host port =
 let do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+	let rec display_stdin args =
+		match args with
+		| [] -> ""
+		| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
+			let accept = init_wait_stdio() in
+			let _, read, _, _ = accept() in
+			Option.default "" (read true)
+		| _ :: args ->
+			display_stdin args
+	in
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (Bytes.of_string (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000"));
+	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with

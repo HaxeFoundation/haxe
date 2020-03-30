@@ -26,46 +26,46 @@ package cpp;
 extern class ConstPointer<T> {
 	// ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
 	// Use value or ref to get dereferenced value
-	public var ptr:Star<T>;
+	var ptr:Star<T>;
 
-	public var value(get, never):T;
+	var value(get, never):T;
 
 	// Typecast to non-const
-	public var raw(get, never):RawPointer<T>;
+	var raw(get, never):RawPointer<T>;
 
 	// const version
-	public var constRaw(get, never):RawConstPointer<T>;
+	var constRaw(get, never):RawConstPointer<T>;
 
-	public function get_value():Reference<T>;
+	function get_value():Reference<T>;
 
-	public function get_constRaw():RawConstPointer<T>;
-	public function get_raw():RawPointer<T>;
+	function get_constRaw():RawConstPointer<T>;
+	function get_raw():RawPointer<T>;
 
-	public function lt(inOther:ConstPointer<T>):Bool;
-	public function leq(inOther:ConstPointer<T>):Bool;
-	public function gt(inOther:ConstPointer<T>):Bool;
-	public function geq(inOther:ConstPointer<T>):Bool;
+	function lt(inOther:ConstPointer<T>):Bool;
+	function leq(inOther:ConstPointer<T>):Bool;
+	function gt(inOther:ConstPointer<T>):Bool;
+	function geq(inOther:ConstPointer<T>):Bool;
 
-	public function setRaw<O>(ptr:RawPointer<O>):Void;
+	function setRaw<O>(ptr:RawPointer<O>):Void;
 
-	public static function fromRaw<T>(ptr:RawConstPointer<T>):ConstPointer<T>;
+	static function fromRaw<T>(ptr:RawConstPointer<T>):ConstPointer<T>;
 
 	@:native("::cpp::Pointer_obj::fromRaw")
-	public static function fromStar<T>(star:Star<T>):ConstPointer<T>;
+	static function fromStar<T>(star:Star<T>):ConstPointer<T>;
 
-	public static function fromPointer<T>(inNativePointer:Dynamic):ConstPointer<T>;
+	static function fromPointer<T>(inNativePointer:Dynamic):ConstPointer<T>;
 
-	public function reinterpret<Other>():Pointer<Other>;
+	function reinterpret<Other>():Pointer<Other>;
 
-	public function rawCast<Other>():RawPointer<Other>;
+	function rawCast<Other>():RawPointer<Other>;
 
-	public function at(inIndex:Int):Reference<T>;
+	function at(inIndex:Int):Reference<T>;
 
-	public function inc():ConstPointer<T>;
-	public function dec():ConstPointer<T>;
-	public function incBy(inT:Int):ConstPointer<T>;
-	public function decBy(inT:Int):ConstPointer<T>;
-	public function add(inT:Int):ConstPointer<T>;
-	public function sub(inT:Int):ConstPointer<T>;
-	public function postIncVal():Reference<T>;
+	function inc():ConstPointer<T>;
+	function dec():ConstPointer<T>;
+	function incBy(inT:Int):ConstPointer<T>;
+	function decBy(inT:Int):ConstPointer<T>;
+	function add(inT:Int):ConstPointer<T>;
+	function sub(inT:Int):ConstPointer<T>;
+	function postIncVal():Reference<T>;
 }

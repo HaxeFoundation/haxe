@@ -129,14 +129,14 @@ enum ValueType {
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T
 		untyped {
-			__js__("function empty() {}; empty.prototype = cl.prototype");
-			return __js__("new empty()");
+			js.Syntax.code("function empty() {}; empty.prototype = cl.prototype");
+			return js.Syntax.code("new empty()");
 		}
 	#else
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
-		untyped {
-			return untyped __js__("new ({0})", Function.prototype.bind.apply(cl, [null].concat(args)));
-		}
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		var ctor = ((cast js.lib.Function).prototype.bind : js.lib.Function).apply(cl, [null].concat(args));
+		return js.Syntax.code("new ({0})", ctor); // cannot use `js.Syntax.construct` because we need parens if `ctor` is fused in
+	}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
 		return js.lib.Object.create((cast cl).prototype);
@@ -201,7 +201,7 @@ enum ValueType {
 	#else
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var a = [];
-		untyped __js__("for(var i in c.prototype) a.push(i)");
+		js.Syntax.code("for(var i in c.prototype) a.push(i)");
 		a.remove("__class__");
 		a.remove("__properties__");
 		return a;

@@ -265,7 +265,7 @@ let collect ctx e_ast e dk with_type p =
 	let items = match fst e_ast with
 		| EConst(String(s,_)) when String.length s = 1 ->
 			let cf = mk_field "code" ctx.t.tint e.epos null_pos in
-			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
+			cf.cf_doc <- doc_from_string "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 			let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 			let item = make_ci_class_field (CompletionClassField.make cf CFSMember BuiltIn true) (cf.cf_type,ct) in

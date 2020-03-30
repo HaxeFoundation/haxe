@@ -534,7 +534,7 @@ class TestMatch extends Test {
 		eq(3, check(3));
 		eq(4, check(4));
 
-		function is<T>(pred : T -> Bool) return function (x : T) {
+		function isTrue<T>(pred : T -> Bool) return function (x : T) {
 			return pred(x)?Some(x):None;
 		}
 
@@ -549,7 +549,7 @@ class TestMatch extends Test {
 			return switch(i) {
 				case [x]: 1;
 				case isPair(_) => Some({ a : a, b : b }) if (a < 0): 42;
-				case isPair(_) => Some({ a : is(even)(_) => Some(a), b : b }) : a+b;
+				case isPair(_) => Some({ a : isTrue(even)(_) => Some(a), b : b }) : a+b;
 				case isPair(_) => Some({ a : isNot(even)(_) => Some(a), b : b }) : a*b;
 				case testArgs(1, "foo", _) => "[99,98,97]": 99;
 				case var arr: 3;

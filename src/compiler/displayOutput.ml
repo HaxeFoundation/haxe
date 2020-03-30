@@ -71,8 +71,8 @@ let print_fields fields =
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
 			let s,(doc,_) = Meta.get_info meta in
-			"metadata","@" ^ s,"",Some doc
-		| ITTimer(name,value) -> "timer",name,"",Some value
+			"metadata","@" ^ s,"",doc_from_string doc
+		| ITTimer(name,value) -> "timer",name,"",doc_from_string value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
 			"literal",s,s_type (print_context()) t,None
@@ -83,14 +83,14 @@ let print_fields fields =
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
 	List.iter (fun(k,n,t,d) ->
-		let d = match d with None -> "" | Some d -> d in
+		let d = match d with None -> "" | Some d -> gen_doc_text d in
 		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n k (htmlescape t) (htmlescape d))
 	) fields;
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 
-let maybe_print_doc d =
-	Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d
+let maybe_print_doc d_opt =
+	Option.map_default (fun d -> Printf.sprintf " d=\"%s\"" (htmlescape (gen_doc_text d))) "" d_opt
 
 let print_toplevel il =
 	let b = Buffer.create 0 in
@@ -155,7 +155,7 @@ let print_signatures tl =
 	let b = Buffer.create 0 in
 	List.iter (fun (((args,ret),_),doc) ->
 		Buffer.add_string b "<type";
-		Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
+		Option.may (fun d -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape (gen_doc_text d)))) doc;
 		Buffer.add_string b ">\n";
 		Buffer.add_string b (htmlescape (s_type (print_context()) (TFun(args,ret))));
 		Buffer.add_string b "\n</type>\n";
@@ -197,7 +197,7 @@ let print_signature tl display_arg =
 			"label",JString label;
 			"parameters",JArray parameters;
 		] in
-		JObject (match doc with None -> js | Some s -> ("documentation",JString s) :: js)
+		JObject (match doc with None -> js | Some d -> ("documentation",JString (gen_doc_text d)) :: js)
 	) tl in
 	let jo = JObject [
 		"signatures",JArray siginf;
@@ -230,11 +230,12 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		Common.define com Define.NoCOpt;
-		com.display <- DisplayMode.create (DMDiagnostics true);
-		Parser.display_mode := DMDiagnostics true;
+		com.display <- DisplayMode.create (DMDiagnostics []);
+		Parser.display_mode := DMDiagnostics [];
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
+		let file_unique = Path.unique_full_path file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
@@ -258,7 +259,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				DMModuleSymbols None;
 			| "diagnostics" ->
 				Common.define com Define.NoCOpt;
-				DMDiagnostics false;
+				DMDiagnostics [file_unique];
 			| "statistics" ->
 				Common.define com Define.NoCOpt;
 				DMStatistics
@@ -283,7 +284,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
-			pfile = Path.unique_full_path file;
+			pfile = file_unique;
 			pmin = pos;
 			pmax = pos;
 		}
@@ -348,7 +349,11 @@ let process_display_file com classes =
 					| [name] ->
 						classes := path :: !classes;
 						DPKNormal path
-					| _ ->
+					| [name;target] ->
+						let path = fst path, name in
+						classes := path :: !classes;
+						DPKNormal path
+					| e ->
 						assert false
 				in
 				path
@@ -387,7 +392,7 @@ let load_display_content_standalone ctx input =
 	let file = file_input_marker in
 	let p = {pfile = file; pmin = 0; pmax = 0} in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
-	let pack,decls = TypeloadParse.handle_parser_result com file p parsed in
+	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
 	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 let promote_type_hints tctx =
@@ -410,10 +415,12 @@ let process_global_display_mode com tctx =
 	match com.display.dms_kind with
 	| DMUsage with_definition ->
 		FindReferences.find_references tctx com with_definition
-	| DMDiagnostics global ->
-		Diagnostics.run com global
+	| DMImplementation ->
+		FindReferences.find_implementations tctx com
+	| DMDiagnostics _ ->
+		Diagnostics.run com
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) in
+		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) true in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->

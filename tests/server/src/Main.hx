@@ -106,7 +106,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertSuccess();
 	}
 
-
 	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
@@ -264,6 +263,18 @@ class ServerTests extends HaxeServerTestCase {
 		// check messages manually because module file contains awkward absolute path
 		var r = ~/skipping Dependency\(.*dep.dep\)/;
 		Assert.isTrue(messages.exists(message -> r.match(message)));
+	}
+
+	function testIssue9029_analyzer_preventPurityOnOverridden() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue9029/Main.hx"));
+		vfs.putContent("Game.hx", getTemplate("issues/Issue9029/Game.hx"));
+		vfs.putContent("Screen.hx", getTemplate("issues/Issue9029/Screen.hx"));
+		var args = ["-main", "Main", "-D", "analyzer-optimize", "--interp"];
+		runHaxe(args);
+		vfs.putContent("Game.hx", getTemplate("issues/Issue9029/Game.hx.modified"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Game.hx")});
+		runHaxe(args);
+		assertSuccess();
 	}
 
 	// function testIssue8616() {

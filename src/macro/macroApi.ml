@@ -336,7 +336,7 @@ and encode_field (f:class_field) =
 	encode_obj [
 		"name",encode_placed_name f.cff_name;
 		"name_pos", encode_pos (pos f.cff_name);
-		"doc", null encode_string f.cff_doc;
+		"doc", null encode_string (gen_doc_text_opt f.cff_doc);
 		"pos", encode_pos f.cff_pos;
 		"kind", encode_enum IField tag pl;
 		"meta", encode_meta_content f.cff_meta;
@@ -673,6 +673,8 @@ and decode_meta_entry v =
 
 and decode_meta_content m = decode_opt_array decode_meta_entry m
 
+and decode_doc = opt (fun s -> { doc_own = Some (decode_string s); doc_inherited = [] })
+
 and decode_field v =
 	let fkind = match decode_enum (field v "kind") with
 		| 0, [t;e] ->
@@ -687,7 +689,7 @@ and decode_field v =
 	let pos = decode_pos (field v "pos") in
 	{
 		cff_name = (decode_string (field v "name"),decode_pos_default (field v "name_pos") pos);
-		cff_doc = opt decode_string (field v "doc");
+		cff_doc = decode_doc (field v "doc");
 		cff_pos = pos;
 		cff_kind = fkind;
 		cff_access = List.map decode_access (opt_list decode_array (field v "access"));
@@ -880,7 +882,7 @@ let rec encode_mtype t fields =
 		"module", encode_string (s_type_path i.mt_module.m_path);
 		"isPrivate", vbool i.mt_private;
 		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
-		"doc", null encode_string i.mt_doc;
+		"doc", null encode_string (get_own_doc_opt i.mt_doc);
 		"params", encode_type_params i.mt_params;
 	] @ fields)
 
@@ -916,7 +918,7 @@ and encode_efield f =
 		"namePos", encode_pos f.ef_name_pos;
 		"index", vint f.ef_index;
 		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
-		"doc", null encode_string f.ef_doc;
+		"doc", null encode_string (get_own_doc_opt f.ef_doc);
 		"params", encode_type_params f.ef_params;
 	]
 
@@ -934,7 +936,7 @@ and encode_cfield f =
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
 		"namePos",encode_pos f.cf_name_pos;
-		"doc", null encode_string f.cf_doc;
+		"doc", null encode_string (get_own_doc_opt f.cf_doc);
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool (has_class_field_flag f CfExtern);
 		"isFinal", vbool (has_class_field_flag f CfFinal);
@@ -1307,7 +1309,7 @@ let decode_cfield v =
 		cf_type = decode_type (field v "type");
 		cf_pos = decode_pos (field v "pos");
 		cf_name_pos = decode_pos (field v "namePos");
-		cf_doc = opt decode_string (field v "doc");
+		cf_doc = decode_doc (field v "doc");
 		cf_meta = []; (* TODO *)
 		cf_kind = decode_field_kind (field v "kind");
 		cf_params = decode_type_params (field v "params");
@@ -1329,7 +1331,7 @@ let decode_efield v =
 		ef_name_pos = decode_pos (field v "namePos");
 		ef_index = decode_int (field v "index");
 		ef_meta = []; (* TODO *)
-		ef_doc = opt decode_string (field v "doc");
+		ef_doc = decode_doc (field v "doc");
 		ef_params = decode_type_params (field v "params")
 	}
 
@@ -1413,7 +1415,7 @@ let decode_type_def v =
 	let pos = decode_pos (field v "pos") in
 	let isExtern = decode_opt_bool (field v "isExtern") in
 	let fields = List.map decode_field (decode_array (field v "fields")) in
-	let doc = opt decode_string (field v "doc") in
+	let doc = decode_doc (field v "doc") in
 	let mk fl dl =
 		{
 			d_name = name;
@@ -1517,6 +1519,19 @@ let rec make_const e =
 
 let macro_api ccom get_api =
 	[
+		"contains_display_position", vfun1 (fun p ->
+			let p = decode_pos p in
+			let display_pos = DisplayPosition.display_position in
+			let same_file() =
+				let dfile = display_pos#get.pfile in
+				dfile = p.pfile
+				|| (
+					(Filename.is_relative p.pfile || Filename.is_relative dfile)
+					&& (Path.unique_full_path dfile = Path.unique_full_path p.pfile)
+				)
+			in
+			vbool (display_pos#enclosed_in p && same_file())
+		);
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
@@ -1956,6 +1971,13 @@ let macro_api ccom get_api =
 			let stop = Timer.timer full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
+		"map_anon_ref", vfun2 (fun a_ref fn ->
+			let a = decode_ref a_ref
+			and fn = prepare_callback fn 1 in
+			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
+			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
+			| _ -> assert false
+		)
 	]
 
 

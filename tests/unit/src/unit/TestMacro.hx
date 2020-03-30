@@ -66,5 +66,11 @@ class TestMacro extends Test {
 		// special case with 1 argument
 		parseAndPrint("var a:X -> Y");
 		parseAndPrint("var a:(X) -> Y");
+		// local functions
+		parseAndPrint('a -> b');
+		parseAndPrint('(a:Int) -> b');
+		parseAndPrint('(a, b) -> c');
+		parseAndPrint('function(a) return b');
+		parseAndPrint('function named(a) return b');
 	}
 }

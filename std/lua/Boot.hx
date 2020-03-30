@@ -39,8 +39,7 @@ class Boot {
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function() {}), 7) > 0;
 
-	static var hiddenFields:Table<String,
-		Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
+	static var hiddenFields:Table<String, Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
 
 	static function __unhtml(s:String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -70,9 +69,9 @@ class Boot {
 		for the given class.
 	**/
 	static inline public function getClass(o:Dynamic):Class<Dynamic> {
-		if (Std.is(o, Array))
+		if (Std.isOfType(o, Array))
 			return Array;
-		else if (Std.is(o, String))
+		else if (Std.isOfType(o, String))
 			return String;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
@@ -153,110 +152,6 @@ class Boot {
 			throw "Cannot cast " + Std.string(o) + " to " + Std.string(t);
 	}
 
-	/**
-		Helper method to generate a string representation of an enum
-	**/
-	static function printEnum(o:Array<Dynamic>, s:String) {
-		if (o.length == 2) {
-			return o[0];
-		} else {
-			// parameterized enums are arrays
-			var str = o[0] + "(";
-			s += "\t";
-			for (i in 2...o.length) {
-				if (i != 2)
-					str += "," + __string_rec(o[i], s);
-				else
-					str += __string_rec(o[i], s);
-			}
-			return str + ")";
-		}
-	}
-
-	/**
-		Helper method to generate a string representation of a class
-	**/
-	static inline function printClass(c:Table<String, Dynamic>, s:String):String {
-		return '{${printClassRec(c, '', s)}}';
-	}
-
-	/**
-		Helper method to generate a string representation of a class
-	**/
-	static function printClassRec(c:Table<String, Dynamic>, result = '', s:String):String {
-		var f = Boot.__string_rec;
-		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
-		return result;
-	}
-
-	/**
-		Generate a string representation for arbitrary object.
-	**/
-	@:ifFeature("has_enum")
-	static function __string_rec(o:Dynamic, s:String = "") {
-		if (s.length >= 5)
-			return "<...>";
-		return switch (untyped __type__(o)) {
-			case "nil": "null";
-			case "number": {
-					if (o == std.Math.POSITIVE_INFINITY)
-						"Infinity";
-					else if (o == std.Math.NEGATIVE_INFINITY)
-						"-Infinity";
-					else if (o == 0)
-						"0";
-					else if (o != o)
-						"NaN";
-					else
-						untyped tostring(o);
-				}
-			case "boolean": untyped tostring(o);
-			case "string": o;
-			case "userdata": {
-					var mt = lua.Lua.getmetatable(o);
-					if (mt != null && mt.__tostring != null) {
-						lua.Lua.tostring(o);
-					} else {
-						"<userdata>";
-					}
-				}
-			case "function": "<function>";
-			case "thread": "<thread>";
-			case "table": {
-					if (o.__enum__ != null)
-						printEnum(o, s);
-					else if (o.toString != null && !isArray(o))
-						o.toString();
-					else if (isArray(o)) {
-						var o2:Array<Dynamic> = untyped o;
-						if (s.length > 5)
-							"[...]"
-						else
-							'[${[for (i in o2) __string_rec(i, s + 1)].join(",")}]';
-					} else if (o.__class__ != null)
-						printClass(o, s + "\t");
-					else {
-						var fields = fieldIterator(o);
-						var buffer:Table<Int, String> = Table.create();
-						var first = true;
-						Table.insert(buffer, "{ ");
-						for (f in fields) {
-							if (first)
-								first = false;
-							else
-								Table.insert(buffer, ", ");
-							Table.insert(buffer, '${Std.string(f)} : ${untyped __string_rec(o[f], s + "\t")}');
-						}
-						Table.insert(buffer, " }");
-						Table.concat(buffer, "");
-					}
-				};
-			default: {
-					throw "Unknown Lua type";
-					null;
-				}
-		}
-	}
 
 	/**
 		Define an array from the given table
@@ -372,32 +267,6 @@ class Boot {
 				return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
 			default:
 				return Os.tmpname();
-		}
-	}
-
-	public static function fieldIterator(o:Table<String, Dynamic>):Iterator<String> {
-		if (Lua.type(o) != "table") {
-			return {
-				next: function() return null,
-				hasNext: function() return false
-			}
-		}
-		var tbl:Table<String, String> = cast(untyped o.__fields__ != null) ? o.__fields__ : o;
-		var cur = Lua.pairs(tbl).next;
-		var next_valid = function(tbl, val) {
-			while (hiddenFields[untyped val] != null) {
-				val = cur(tbl, val).index;
-			}
-			return val;
-		}
-		var cur_val = next_valid(tbl, cur(tbl, null).index);
-		return {
-			next: function() {
-				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
-				return ret;
-			},
-			hasNext: function() return cur_val != null
 		}
 	}
 

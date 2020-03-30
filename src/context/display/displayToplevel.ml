@@ -27,6 +27,14 @@ open DisplayTypes
 open Genjson
 open Globals
 
+let maybe_resolve_macro_field ctx t c cf =
+	try
+		if cf.cf_kind <> Method MethMacro then raise Exit;
+		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
+		(TFun(tl,tr)),c,cf
+	with _ ->
+		t,c,cf
+
 let exclude : string list ref = ref []
 
 class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
@@ -189,7 +197,7 @@ let pack_contains pack1 pack2 =
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
-let collect ctx tk with_type =
+let collect ctx tk with_type sort =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
@@ -268,6 +276,22 @@ let collect ctx tk with_type =
 		) ctx.locals;
 
 		let add_field scope origin cf =
+			let origin,cf = match origin with
+				| Self (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Self (TClassDecl c),cf
+				| StaticImport (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticImport (TClassDecl c),cf
+				| Parent (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Parent (TClassDecl c),cf
+				| StaticExtension (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticExtension (TClassDecl c),cf
+				| _ ->
+					origin,cf
+			in
 			let is_qualified = is_qualified cctx cf.cf_name in
 			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some cf.cf_name)
 		in
@@ -333,7 +357,7 @@ let collect ctx tk with_type =
 		(* enum constructors of expected type *)
 		begin match with_type with
 			| WithType.WithType(t,_) ->
-				(try enum_ctors (module_type_of_type t) with Exit -> ())
+				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
 			| _ -> ()
 		end;
 
@@ -471,8 +495,10 @@ let collect ctx tk with_type =
 	let l = DynArray.to_list cctx.items in
 	let l = if is_legacy_completion then
 		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-	else
+	else if sort then
 		Display.sort_fields l with_type tk
+	else
+		l
 	in
 	t();
 	l
@@ -482,12 +508,12 @@ let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	| Some p' when pname.pmin = p'.pmin ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
-		collect ctx tk with_type
+		collect ctx tk with_type (name = "")
 	in
 	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
+	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue false in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in

@@ -113,6 +113,13 @@ class Context {
 	}
 
 	/**
+		Check if current display position is within `pos`.
+	**/
+	public static function containsDisplayPosition(pos:Position):Bool {
+		return load("contains_display_position", 1)(pos);
+	}
+
+	/**
 		Returns the position at which the macro was called.
 	**/
 	public static function currentPos():Position {
@@ -284,7 +291,7 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no module can be found, `null` is returned.
+		If no module can be found, an exception of type `String` is thrown.
 	**/
 	public static function getModule(name:String):Array<Type> {
 		return load("get_module", 1)(name);

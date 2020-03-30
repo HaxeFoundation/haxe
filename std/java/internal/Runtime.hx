@@ -149,7 +149,7 @@ package java.internal;
 	}
 
 	@:overload public static function isInt(obj:Dynamic):Bool {
-		if (Std.is(obj, java.lang.Number)) {
+		if (Std.isOfType(obj, java.lang.Number)) {
 			var n:java.lang.Number = obj;
 			return n.doubleValue() == n.intValue();
 		} else {
@@ -294,7 +294,7 @@ package java.internal;
 		}
 
 		if (throwErrors)
-			throw HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 
 		return null;
 	}
@@ -331,7 +331,7 @@ package java.internal;
 		}
 		catch (Throwable t)
 		{
-			throw HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 		}
 	')
 	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic {
@@ -421,7 +421,7 @@ package java.internal;
 
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
-			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown("No compatible method found for: " + field);
 
 		if (hasNumber)
 		{
@@ -471,12 +471,12 @@ package java.internal;
 
 		catch (java.lang.reflect.InvocationTargetException e)
 		{
-			throw haxe.lang.HaxeException.wrap(e.getCause());
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(e.getCause());
 		}
 
 		catch (Throwable t)
 		{
-			throw haxe.lang.HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 		}
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic {
@@ -547,7 +547,7 @@ package java.internal;
 		if (obj == null)
 			return null;
 
-		if (Std.is(obj, java.lang.Number) && !Std.is(obj, java.lang.Integer.IntegerClass) && isInt((obj : java.lang.Number)))
+		if (Std.isOfType(obj, java.lang.Number) && !Std.isOfType(obj, java.lang.Integer.IntegerClass) && isInt((obj : java.lang.Number)))
 			return java.lang.Integer._toString(toInt(obj));
 		return untyped obj.toString();
 	}
@@ -569,27 +569,27 @@ package java.internal;
 	}
 
 	public static function numToInteger(num:java.lang.Number):java.lang.Integer {
-		return num == null ? null : (Std.is(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
 	}
 
 	public static function numToDouble(num:java.lang.Number):java.lang.Double {
-		return num == null ? null : (Std.is(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
 	}
 
 	public static function numToFloat(num:java.lang.Number):java.lang.Float {
-		return num == null ? null : (Std.is(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
 	}
 
 	public static function numToByte(num:java.lang.Number):java.lang.Byte {
-		return num == null ? null : (Std.is(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
 	}
 
 	public static function numToLong(num:java.lang.Number):java.lang.Long {
-		return num == null ? null : (Std.is(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
 	}
 
 	public static function numToShort(num:java.lang.Number):java.lang.Short {
-		return num == null ? null : (Std.is(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
 	}
 }
 
