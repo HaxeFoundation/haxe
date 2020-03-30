@@ -8,4 +8,6 @@ class Issue9273 extends unit.Test {
 #end
 }
 
+#if flash
 private class HaxeExtendsSwc extends ParentCtorWithDefaultStringArgument {}
+#end
