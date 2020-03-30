@@ -260,9 +260,12 @@ let build_class com c file =
 						| None -> None
 						| Some v ->
 							let v = (match v with
-							| HVNone | HVNull | HVNamespace _ | HVString _ ->
+							| HVNone | HVNull | HVNamespace _ ->
 								is_opt := true;
 								None
+							| HVString s ->
+								is_opt := true;
+								Some (String (s,SDoubleQuotes))
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
