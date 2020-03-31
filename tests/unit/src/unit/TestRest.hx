@@ -17,6 +17,15 @@ class TestRest extends Test {
         eq(4, rest(1, 2, 3, 4));
     }
 
+#if !lua
+    function testRestReturn(){
+        function rest(r:Rest<Int>){
+            return r;
+        }
+        eq(4, rest(1,2,3,4)[3]);
+    }
+#end
+
     function testIterator() {
         function rest(r:Rest<Int>):Array<Int> {
             return [for(i in r) i];
