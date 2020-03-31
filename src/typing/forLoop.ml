@@ -330,13 +330,13 @@ module IterationKind = struct
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then error "Cannot iterate backwards" p;
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			let v_index = gen_local ctx t_int v.v_pos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let op1,op2 = if ascending then (OpLt,Increment) else (OpGt,Decrement) in
-			let econd = binop op1 ev_index b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop op1 ev_index b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
@@ -345,15 +345,15 @@ module IterationKind = struct
 			]) t_void p
 		| IteratorInt(a,b) ->
 			check_loop_var_modification [v] e2;
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			let v_index = gen_local ctx t_int v.v_pos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let v_b = gen_local ctx b.etype b.epos in
-			let evar_b = mk (TVar (v_b,Some b)) t_void p in
+			let evar_b = mk (TVar (v_b,Some b)) t_void b.epos in
 			let ev_b = make_local v_b b.epos in
-			let econd = binop OpLt ev_index ev_b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop OpLt ev_index ev_b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
