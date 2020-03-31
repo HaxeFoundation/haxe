@@ -366,7 +366,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
+			pf_capture_policy = if get_es_version com >= 6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
 			pf_exceptions = {
