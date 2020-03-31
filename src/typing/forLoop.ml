@@ -345,7 +345,7 @@ module IterationKind = struct
 			]) t_void p
 		| IteratorInt(a,b) ->
 			check_loop_var_modification [v] e2;
-			let v_index = gen_local ctx t_int v.v_pos in
+			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
 			let v_b = gen_local ctx b.etype b.epos in
