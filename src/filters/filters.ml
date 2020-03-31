@@ -217,7 +217,8 @@ let collect_reserved_local_names com =
 		!h
 	| _ -> StringMap.empty
 
-let rename_local_vars ctx reserved e =
+let rec rename_local_vars_aux ctx reserved e =
+	let initial_reserved = reserved in
 	let vars = ref [] in
 	let declare v =
 		vars := v :: !vars
@@ -238,6 +239,7 @@ let rename_local_vars ctx reserved e =
 		| TAbstract (a,_) -> check (TAbstractDecl a)
 		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
 	in
+	let funcs = ref [] in
 	let rec collect e = match e.eexpr with
  		| TVar(v,eo) ->
 			declare v;
@@ -254,8 +256,13 @@ let rename_local_vars ctx reserved e =
 				collect e
 			) catches
 		| TFunction tf ->
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
-			collect tf.tf_expr
+			begin match ctx.com.config.pf_nested_function_scoping with
+			| Hoisted ->
+				funcs := tf :: !funcs;
+			| Nested | Independent ->
+				List.iter (fun (v,_) -> declare v) tf.tf_args;
+				collect tf.tf_expr
+			end
 		| TTypeExpr t ->
 			check t
 		| TNew (c,_,_) ->
@@ -270,11 +277,6 @@ let rename_local_vars ctx reserved e =
 			Type.iter collect e
 	in
 	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
 	collect e;
 	(* Pass 2: Check and rename variables. *)
 	let count_table = Hashtbl.create 0 in
@@ -294,6 +296,26 @@ let rename_local_vars ctx reserved e =
 		v.v_name <- !name;
 	in
 	List.iter maybe_rename (List.rev !vars);
+	(* Pass 3: Recurse into nested functions. *)
+	List.iter (fun tf ->
+		reserved := initial_reserved;
+		List.iter (fun (v,_) ->
+			maybe_rename v;
+		) tf.tf_args;
+		ignore(rename_local_vars_aux ctx !reserved tf.tf_expr);
+	) !funcs
+
+let rename_local_vars ctx reserved e =
+	let reserved = ref reserved in
+	let reserve name =
+		reserved := StringMap.add name true !reserved
+	in
+	reserve "this";
+	if ctx.com.platform = Java then reserve "_";
+	begin match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> reserve s
+	end;
+	rename_local_vars_aux ctx !reserved e;
 	e
 
 let mark_switch_break_loops e =
