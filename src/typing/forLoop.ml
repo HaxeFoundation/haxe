@@ -330,7 +330,7 @@ module IterationKind = struct
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then error "Cannot iterate backwards" p;
-			let v_index = gen_local ctx t_int v.v_pos in
+			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
 			let op1,op2 = if ascending then (OpLt,Increment) else (OpGt,Decrement) in
