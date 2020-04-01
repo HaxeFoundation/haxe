@@ -141,7 +141,7 @@ let print_type t p doc =
 	if p = null_pos then
 		Buffer.add_string b "<type"
 	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" (Path.unique_full_path file) line in
+		let error_printer file line = Printf.sprintf "%s:%d:" (Path.get_full_path file) line in
 		let epos = Lexer.get_error_pos error_printer p in
 		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\"")
 	end;
@@ -235,7 +235,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
-		let file_unique = Path.unique_full_path file in
+		let file_unique = Path.UniqueKey.create file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
@@ -284,12 +284,12 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
-			pfile = file_unique;
+			pfile = Path.get_full_path file;
 			pmin = pos;
 			pmax = pos;
 		}
 
-let file_input_marker = Path.unique_full_path "? input"
+let file_input_marker = Path.get_full_path "? input"
 
 type display_path_kind =
 	| DPKNormal of path
@@ -428,7 +428,8 @@ let process_global_display_mode com tctx =
 			| None -> []
 			| Some cs ->
 				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
-				List.fold_left (fun acc (file,cfile) ->
+				List.fold_left (fun acc (file_key,cfile) ->
+					let file = cfile.CompilationServer.c_file_path in
 					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else

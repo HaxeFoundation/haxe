@@ -102,8 +102,8 @@ let read_class_paths com timer =
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file = Path.unique_full_path file in
-				(CommonCache.get_cache cs com)#remove_file_for_real file
+				let file_key = Path.UniqueKey.create file in
+				(CommonCache.get_cache cs com)#remove_file_for_real file_key
 			| _ ->
 				()
 		end
@@ -124,12 +124,12 @@ let init_or_update_server cs com timer_name =
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun file () ->
-		DynArray.add removed_removed_files file;
+	Hashtbl.iter (fun file_key file_path ->
+		DynArray.add removed_removed_files file_key;
 		try
-			ignore(cc#find_file file);
+			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
@@ -458,8 +458,8 @@ let collect ctx tk with_type sort =
 			| [] -> ()
 			| s :: sl -> add_package (List.rev sl,s)
 		in
-		List.iter (fun ((file,cfile),_) ->
-			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+		List.iter (fun ((file_key,cfile),_) ->
+			let module_name = CompilationServer.get_module_name_of_cfile cfile.c_file_path cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
 			(* In legacy mode we only show toplevel types. *)
 			if is_legacy_completion && cfile.c_package <> [] then begin
@@ -470,7 +470,7 @@ let collect ctx tk with_type sort =
 			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
+				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) cfile.c_file_path;
 				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
 		) files;

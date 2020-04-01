@@ -131,8 +131,9 @@ let current_stdin = ref None
 
 let parse_file cs com file p =
 	let cc = CommonCache.get_cache cs com in
-	let ffile = Path.unique_full_path file in
-	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
+	let ffile = Path.get_full_path file
+	and fkey = Path.UniqueKey.create file in
+	let is_display_file = DisplayPosition.display_position#is_in_file ffile in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
@@ -140,7 +141,7 @@ let parse_file cs com file p =
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = cc#find_file ffile in
+				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
@@ -152,7 +153,7 @@ let parse_file cs com file p =
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true
 							else if com.display.dms_per_file then begin
-								cc#cache_file ffile ftime data pdi;
+								cc#cache_file fkey ffile ftime data pdi;
 								"cached, is intact display file",true
 							end else
 								"not cached, is display file",true
@@ -160,10 +161,10 @@ let parse_file cs com file p =
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if not com.display.dms_display then raise Not_found;
-							let ident = Hashtbl.find Parser.special_identifier_files ffile in
+							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data pdi;
+							cc#cache_file fkey ffile ftime data pdi;
 							"cached",false
 						end
 				in
@@ -295,9 +296,9 @@ let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
-		let ffile = Path.unique_full_path file in
+		let fkey = Path.UniqueKey.create file in
 		try
-			let cfile = cc#find_file ffile in
+			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
 			let new_data = TypeloadParse.parse_module ctx m.m_path p in
@@ -339,7 +340,7 @@ let check_module sctx ctx m p =
 						match load m.m_path p with
 						| None -> loop l
 						| Some _ ->
-							if Path.unique_full_path file <> m.m_extra.m_file then begin
+							if Path.UniqueKey.create file <> Path.UniqueKey.create m.m_extra.m_file then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 								raise Not_found;
 							end
@@ -371,7 +372,7 @@ let check_module sctx ctx m p =
 					ServerMessage.unchanged_content com "" m.m_extra.m_file;
 				end else begin
 					ServerMessage.not_cached com "" m;
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
+					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.create m.m_extra.m_file);
 					raise Not_found;
 				end
 			end

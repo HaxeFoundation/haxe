@@ -160,8 +160,8 @@ let explore_uncached_modules tctx cs symbols =
 	let files = cc#get_files in
 	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
-	let acc = Hashtbl.fold (fun file cfile acc ->
-		let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+	let acc = Hashtbl.fold (fun file_key cfile acc ->
+		let module_name = CompilationServer.get_module_name_of_cfile cfile.CompilationServer.c_file_path cfile in
 		if Hashtbl.mem modules (cfile.c_package,module_name) then
 			acc
 		else try

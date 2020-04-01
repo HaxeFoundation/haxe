@@ -5,6 +5,7 @@ open Type
 open Define
 
 type cached_file = {
+	c_file_path : string;
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;
@@ -23,7 +24,7 @@ type cached_native_lib = {
 }
 
 class context_cache (index : int) = object(self)
-	val files : (string,cached_file) Hashtbl.t = Hashtbl.create 0
+	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -34,14 +35,15 @@ class context_cache (index : int) = object(self)
 	method find_file key =
 		Hashtbl.find files key
 
-	method cache_file key time data pdi =
-		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
+	method cache_file key path time data pdi =
+		Hashtbl.replace files key { c_file_path = path; c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
 
 	method remove_file key =
-		if Hashtbl.mem files key then begin
+		try
+			let f = Hashtbl.find files key in
 			Hashtbl.remove files key;
-			Hashtbl.replace removed_files key ()
-		end
+			Hashtbl.replace removed_files key f.c_file_path
+		with Not_found -> ()
 
 	(* Like remove_file, but doesn't keep track of the file *)
 	method remove_file_for_real key =
@@ -158,10 +160,10 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
-	method taint_modules file =
+	method taint_modules file_key =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m.m_path
+				if Path.UniqueKey.create m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some m.m_path
 			) cc#get_modules
 		) contexts
 

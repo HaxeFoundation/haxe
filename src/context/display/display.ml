@@ -23,7 +23,7 @@ let parse_module ctx m p =
 
 module ReferencePosition = struct
 	let reference_position = ref ("",null_pos,SKOther)
-	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let set (s,p,k) = reference_position := (s,{p with pfile = Path.get_full_path p.pfile},k)
 	let get () = !reference_position
 end
 

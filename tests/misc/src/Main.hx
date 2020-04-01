@@ -49,7 +49,7 @@ class Main {
 					++count;
 					if (!result.success) {
 						failures++;
-						failuresSummary.push(result.summary);
+						failuresSummary.push(path + ':\n' + result.summary);
 					}
 					Sys.setCwd(old);
 				}

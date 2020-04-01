@@ -92,7 +92,7 @@ let syntax_completion kind so p =
 
 let error m p = raise (Error (m,p))
 
-let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
+let special_identifier_files : (Path.UniqueKey.t,string) Hashtbl.t = Hashtbl.create 0
 
 let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> HPrivate
