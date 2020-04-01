@@ -1,9 +1,12 @@
 package unit.hxcpp_issues;
 
+#if (cpp && !cppia)
 import cpp.*;
+#end
 
 class Issue9194 extends Test {
 
+	#if (cpp && !cppia)
 	@:analyzer(no_optimize)
 	function test() {
 		var buffer: RawPointer<cpp.Void> = null;
@@ -15,5 +18,6 @@ class Issue9194 extends Test {
 		var floatBuffer: Star<Float32> = cast buffer;
 		// generates correct: float* floatBuffer = ( (float*) buffer ) 
 	}
+	#end
 
 }
