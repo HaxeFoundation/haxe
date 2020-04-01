@@ -307,7 +307,7 @@ class TypeTools {
 					t: f(arg.t)
 				}), f(ret));
 			case TAnonymous(an):
-				t; // TODO: Ref?
+				TAnonymous(Context.load("map_anon_ref", 2)(an, f));
 			case TDynamic(t2):
 				t == t2 ? t : TDynamic(f(t2));
 			case TLazy(ft):

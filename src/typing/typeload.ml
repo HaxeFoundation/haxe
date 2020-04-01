@@ -88,9 +88,18 @@ let find_type_in_module m tname =
 (* raises Type_not_found *)
 let find_type_in_module_raise m tname p =
 	try
-		find_type_in_module m tname
+		List.find (fun mt ->
+			let infos = t_infos mt in
+			if snd infos.mt_path = tname then
+				if infos.mt_private then
+					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
+				else
+					true
+			else
+				false
+		) m.m_types
 	with Not_found ->
-		raise_error (Type_not_found (m.m_path,tname)) p
+		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
@@ -210,7 +219,7 @@ let load_type_def ctx p t =
 
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	
+
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
@@ -295,7 +304,7 @@ let make_extension_type ctx tl =
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
-	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
 (* build an instance from a full type *)
@@ -311,8 +320,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| TClassDecl {cl_kind = KGeneric} -> true,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
 			| TTypeDecl td ->
-				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-					begin try
+				DeprecationCheck.if_enabled ctx.com (fun() ->
+					try
 						let msg = match Meta.get Meta.Deprecated td.t_meta with
 							| _,[EConst(String(s,_)),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
@@ -320,7 +329,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						DeprecationCheck.warn_deprecation ctx.com msg p
 					with Not_found ->
 						()
-					end;
+				);
 				false,false
 			| _ -> false,false
 		in
@@ -460,7 +469,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
-					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
+					mk_anon ~fields:(PMap.foldi PMap.add a.a_fields a2.a_fields) (ref (Extend [t]))
 				| _ -> error "Can only extend structures" p
 			in
 			let loop (t,p) = match follow t with
@@ -633,7 +642,15 @@ and init_meta_overloads ctx co cf =
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
-			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
+			let args =
+				List.map
+					(fun ((a,_),opt,_,t,cto) ->
+						let t = if opt then ctx.t.tnull (topt t) else topt t in
+						let opt = opt || cto <> None in
+						a,opt,t
+					)
+					f.f_args
+			in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;

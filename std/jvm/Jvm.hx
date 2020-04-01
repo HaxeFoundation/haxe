@@ -22,21 +22,20 @@
 
 package jvm;
 
-import haxe.extern.Rest;
-import haxe.Constraints;
 import Enum;
+import haxe.Constraints;
+import haxe.ds.Option;
+import haxe.ds.Vector;
+import haxe.extern.Rest;
+import java.Init;
+import java.NativeArray;
+import java.lang.NullPointerException;
 import jvm.DynamicObject;
-import jvm.Exception;
 import jvm.EmptyConstructor;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
 import jvm.annotation.EnumReflectionInformation;
 import jvm.annotation.EnumValueReflectionInformation;
-import java.lang.invoke.*;
-import java.NativeArray;
-import java.Init;
-import haxe.ds.Vector;
-import haxe.ds.Option;
 
 @:keep
 @:native('haxe.jvm.Jvm')
@@ -44,8 +43,6 @@ class Jvm {
 	extern static public function instanceof<S, T>(obj:S, type:T):Bool;
 
 	extern static public function referenceEquals<T>(v1:T, v2:T):Bool;
-
-	extern static public function invokedynamic<T>(bootstrapMethod:Function, fieldName:String, staticArguments:Array<Dynamic>, rest:Rest<Dynamic>):T;
 
 	static public function stringCompare(v1:String, v2:String):Int {
 		if (v1 == null) {
@@ -59,6 +56,16 @@ class Jvm {
 
 	static public function compare<T>(v1:T, v2:T):Int {
 		return Reflect.compare(v1, v2);
+	}
+
+	static public function enumEq(v1:Dynamic, v2:Dynamic) {
+		if (!instanceof(v1, jvm.Enum)) {
+			return false;
+		}
+		if (!instanceof(v2, jvm.Enum)) {
+			return false;
+		}
+		return Type.enumEq(v1, v2);
 	}
 
 	// calls
@@ -135,16 +142,11 @@ class Jvm {
 		return Some(callArgs);
 	}
 
-	static public function call(mh:java.lang.invoke.MethodHandle, args:NativeArray<Dynamic>) {
-		var params = mh.type().parameterArray();
-		return switch (unifyCallArguments(args, params, true)) {
-			case Some(args): mh.invokeWithArguments(args);
-			case None: mh.invokeWithArguments(args);
-		}
+	static public function call(func:jvm.Function, args:NativeArray<Dynamic>) {
+		return func.invokeDynamic(args);
 	}
 
 	// casts
-
 	// TODO: add other dynamicToType methods
 
 	static public function dynamicToByte<T>(d:T):Null<java.lang.Byte> {
@@ -278,9 +280,21 @@ class Jvm {
 		throw 'Cannot array-write on $obj';
 	}
 
-	static public function bootstrap(caller:MethodHandles.MethodHandles_Lookup, name:String, type:MethodType):CallSite {
-		var handle = caller.findStatic(caller.lookupClass(), name, type);
-		return new ConstantCallSite(handle);
+	static public function readFieldClosure(obj:Dynamic, name:String, parameterTypes:NativeArray<java.lang.Class<Dynamic>>):Dynamic {
+		var cl = (obj : java.lang.Object).getClass();
+		var method = cl.getMethod(name, parameterTypes);
+		if (method.isBridge()) {
+			/* This is probably not what we want... go through all methods and see if we find one that
+				isn't a bridge. This is pretty awkward, but I can't figure out how to use the Java reflection
+				API properly. */
+			for (meth in cl.getMethods()) {
+				if (meth.getName() == name && !meth.isBridge() && method.getParameterTypes().length == parameterTypes.length) {
+					method = meth;
+					break;
+				}
+			}
+		}
+		return new jvm.Closure(obj, method);
 	}
 
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
@@ -294,12 +308,12 @@ class Jvm {
 			while (cl != null) {
 				var methods = cl.getMethods();
 				for (m in methods) {
-					if (m.getName() == name) {
-						var method = java.lang.invoke.MethodHandles.lookup().unreflect(m);
+					if (m.getName() == name && !m.isSynthetic()) {
+						var context = null;
 						if (!isStatic || cl == cast java.lang.Class) {
-							method = method.bindTo(obj);
+							context = obj;
 						}
-						return method;
+						return new jvm.Closure(context, m);
 					}
 				}
 				if (isStatic) {
@@ -316,7 +330,10 @@ class Jvm {
 	}
 
 	static public function readField(obj:Dynamic, name:String):Dynamic {
-		if (obj == null || name == null) {
+		if (obj == null) {
+			throw new NullPointerException(name);
+		}
+		if (name == null) {
 			return null;
 		}
 		if (instanceof(obj, jvm.Object)) {
@@ -327,27 +344,27 @@ class Jvm {
 				case "length":
 					return (obj : String).length;
 				case "charAt":
-					return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "charAt") : Closure).bindTo(obj);
 				case "charCodeAt":
-					return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "charCodeAt") : Closure).bindTo(obj);
 				case "indexOf":
-					return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "indexOf") : Closure).bindTo(obj);
 				case "iterator":
 					return function() return new haxe.iterators.StringIterator(obj);
 				case "keyValueIterator":
 					return function() return new haxe.iterators.StringKeyValueIterator(obj);
 				case "lastIndexOf":
-					return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "lastIndexOf") : Closure).bindTo(obj);
 				case "split":
-					return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "split") : Closure).bindTo(obj);
 				case "substr":
-					return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "substr") : Closure).bindTo(obj);
 				case "substring":
-					return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "substring") : Closure).bindTo(obj);
 				case "toLowerCase":
-					return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "toLowerCase") : Closure).bindTo(obj);
 				case "toUpperCase":
-					return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
+					return (readFieldNoObject(jvm.StringExt, "toUpperCase") : Closure).bindTo(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);

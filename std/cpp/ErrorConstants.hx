@@ -24,17 +24,17 @@ package cpp;
 
 extern class ErrorConstants {
 	@:native("HX_INVALID_CAST")
-	public static var invalidCast:Dynamic;
+	static var invalidCast:Dynamic;
 
 	@:native("HX_INDEX_OUT_OF_BOUNDS")
-	public static var indexOutOfBounds:Dynamic;
+	static var indexOutOfBounds:Dynamic;
 
 	@:native("HX_INVALID_OBJECT")
-	public static var invalidObject:Dynamic;
+	static var invalidObject:Dynamic;
 
 	@:native("HX_INVALID_ARG_COUNT")
-	public static var invalidArgCount:Dynamic;
+	static var invalidArgCount:Dynamic;
 
 	@:native("HX_NULL_FUNCTION_POINTER")
-	public static var nullFunctionPointer:Dynamic;
+	static var nullFunctionPointer:Dynamic;
 }

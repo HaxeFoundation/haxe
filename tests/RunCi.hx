@@ -1,3 +1,4 @@
+import haxe.Exception;
 import runci.TestTarget;
 import runci.System;
 import runci.System.*;
@@ -101,7 +102,7 @@ class RunCi {
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:
-						throw "unknown target: " + t;
+						throw new Exception("unknown target: " + t);
 				}
 			} catch(f:Failure) {
 				success = false;

@@ -26,8 +26,8 @@ import haxe.extern.EitherType;
 
 extern class TcpMaster extends Socket {
 	// transforms master to TcpServer
-	public function listen(backlog:Int):Void;
+	function listen(backlog:Int):Void;
 	// transforms master to TcpClient
-	public function connect(address:String, port:Int):Void;
-	public function bind(address:String, port:Int):Void;
+	function connect(address:String, port:Int):Void;
+	function bind(address:String, port:Int):Void;
 }

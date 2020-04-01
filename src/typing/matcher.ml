@@ -209,10 +209,8 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			if not (Common.defined ctx.com Define.NoDeprecationWarnings) then begin
-				DeprecationCheck.check_enum pctx.ctx.com en p;
-				DeprecationCheck.check_ef pctx.ctx.com ef p;
-			end;
+			DeprecationCheck.check_enum pctx.ctx.com en p;
+			DeprecationCheck.check_ef pctx.ctx.com ef p;
 			ConEnum(en,ef),p
 		in
 		let con_static c cf p = ConStatic(c,cf),p in
@@ -236,6 +234,9 @@ module Pattern = struct
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
+				| TMeta((Meta.Deprecated,_,_) as m, e1) ->
+					DeprecationCheck.check_meta pctx.ctx.com [m] "field" e1.epos;
+					loop e1
 				| _ ->
 					raise Exit
 			in
@@ -1627,7 +1628,7 @@ module Match = struct
 		let tmono,with_type,allow_min_void = match with_type with
 			| WithType.WithType(t,src) ->
 				(match follow t, src with
-				| TMono _, Some ImplicitReturn -> Some t, WithType.Value src, true
+				| ((TMono _) | (TAbstract({a_path=[],"Void"},_))), Some ImplicitReturn -> Some t, WithType.Value src, true
 				| TMono _, _ -> Some t,WithType.value,false
 				| _ -> None,with_type,false)
 			| _ -> None,with_type,false

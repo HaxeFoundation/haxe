@@ -127,8 +127,8 @@ extern class FileSystem {
 	static function symlink(oldpath:String, newpath:String, flags:Int):Bool;
 
 	@:native("fs_readlink")
-	@:overload(function(path : String, cb : String->String->Void) : Request {})
-	static function readlink(path : String) : String;
+	@:overload(function(path:String, cb:String->String->Void):Request {})
+	static function readlink(path:String):String;
 
 	@:native("fs_realpath")
 	@:overload(function(path:String, cb:String->String->Void):Request {})
@@ -142,74 +142,74 @@ extern class FileSystem {
 	@:overload(function(descriptor:FileDescriptor, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
 	static function fchown(descriptor:FileDescriptor, uid:Int, gid:Int):Bool;
 
-    /**
-      Not available on windows
-    **/
+	/**
+		Not available on windows
+	**/
 	@:native("fs_lchown")
 	@:overload(function(descriptor:FileDescriptor, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
 	static function lchown(descriptor:FileDescriptor, uid:Int, gid:Int):Bool;
 
-    @:native("fs_statfs")
-    @:overload(function(path:String, cb:StatFs->Bool->Void):Request{})
-    static function statfs(path:String):StatFs;
+	@:native("fs_statfs")
+	@:overload(function(path:String, cb:StatFs->Bool->Void):Request {})
+	static function statfs(path:String):StatFs;
 
-    @:native("fs_opendir")
-    @:overload(function(path:String, cb:Handle->Bool->Void):Request{})
-    static function opendir(path : String) : Handle;
+	@:native("fs_opendir")
+	@:overload(function(path:String, cb:Handle->Bool->Void):Request {})
+	static function opendir(path:String):Handle;
 
-    @:native("fs_readdir")
-    @:overload(function(dir:Handle, cb:Table<Int,NameType>->Bool->Void):Request{})
-    static function readdir(path : String) : Table<Int,NameType>;
+	@:native("fs_readdir")
+	@:overload(function(dir:Handle, cb:Table<Int, NameType>->Bool->Void):Request {})
+	static function readdir(path:String):Table<Int, NameType>;
 
-    @:native("fs_closedir")
-    @:overload(function(dir:Handle, cb:Bool->Void):Request{})
-    static function closedir(dir:Handle):Bool;
+	@:native("fs_closedir")
+	@:overload(function(dir:Handle, cb:Bool->Void):Request {})
+	static function closedir(dir:Handle):Bool;
 }
 
 extern class ScanDirMarker {}
 
 @:multiReturn
 extern class ScandirNext {
-	var name : String;
-	var type : String;
+	var name:String;
+	var type:String;
 }
 
 typedef NameType = {
-    name : String,
-    type : String
+	name:String,
+	type:String
 }
 
 typedef Stat = {
-	ino       : Int,
-	ctime     : TimeStamp,
-	uid       : Int,
-	dev       : Int,
-	nlink     : Int,
-	mode      : Int,
-	size      : Int,
-	birthtime : TimeStamp,
-	gid       : Int,
-	type      : String,
-	rdev      : Int,
-	gen       : Int,
-	blocks    : Int,
-	mtime     : TimeStamp,
-	atime     : TimeStamp,
-	blksize   : Int,
-	flags     : Int
+	ino:Int,
+	ctime:TimeStamp,
+	uid:Int,
+	dev:Int,
+	nlink:Int,
+	mode:Int,
+	size:Int,
+	birthtime:TimeStamp,
+	gid:Int,
+	type:String,
+	rdev:Int,
+	gen:Int,
+	blocks:Int,
+	mtime:TimeStamp,
+	atime:TimeStamp,
+	blksize:Int,
+	flags:Int
 }
 
 typedef TimeStamp = {
-	sec  : Int,
-	nsec : Int
+	sec:Int,
+	nsec:Int
 }
 
 typedef StatFs = {
-    type   : Int,
-    bsize  : Int,
-    blocks : Int,
-    bfree  : Int,
-    bavail : Int,
-    files  : Int,
-    ffree  : Int
+	type:Int,
+	bsize:Int,
+	blocks:Int,
+	bfree:Int,
+	bavail:Int,
+	files:Int,
+	ffree:Int
 }

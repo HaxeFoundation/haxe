@@ -131,10 +131,10 @@ class TestTreGeneration {
 		while(true) {
 			try {
 				if(n <= 0) {
-					throw new js__$Boot_HaxeError("exit");
+					throw haxe_Exception.thrown("exit");
 				}
 				return TestTreGeneration.testTryCancelsTre(n - 1);
-			} catch( e ) {
+			} catch( _g24 ) {
 				if(n == 0) {
 					n -= 1;
 					continue;

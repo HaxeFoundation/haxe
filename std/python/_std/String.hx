@@ -31,19 +31,19 @@ extern class String {
 
 	function new(string:String):Void;
 
-	@:runtime public inline function toUpperCase():String {
+	@:runtime inline function toUpperCase():String {
 		return StringImpl.toUpperCase(this);
 	}
 
-	@:runtime public inline function toLowerCase():String {
+	@:runtime inline function toLowerCase():String {
 		return StringImpl.toLowerCase(this);
 	}
 
-	inline public function charAt(index:Int):String {
+	inline function charAt(index:Int):String {
 		return StringImpl.charAt(this, index);
 	}
 
-	inline public function charCodeAt(index:Int):Null<Int> {
+	inline function charCodeAt(index:Int):Null<Int> {
 		return StringImpl.charCodeAt(this, index);
 	}
 
@@ -59,7 +59,7 @@ extern class String {
 		return StringImpl.split(this, delimiter);
 	}
 
-	inline public function substr(pos:Int, ?len:Int):String {
+	inline function substr(pos:Int, ?len:Int):String {
 		return StringImpl.substr(this, pos, len);
 	}
 
@@ -70,7 +70,7 @@ extern class String {
 	inline function toString():String
 		return StringImpl.toString(this);
 
-	public static inline function fromCharCode(code:Int):String {
+	static inline function fromCharCode(code:Int):String {
 		return StringImpl.fromCharCode(code);
 	}
 }

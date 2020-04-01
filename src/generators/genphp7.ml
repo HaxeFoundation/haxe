@@ -86,14 +86,6 @@ let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
 let diff_lists list1 list2 = List.filter (fun x -> not (List.mem x list2)) list1
 
 (**
-	Type path for native PHP Exception class
-*)
-let native_exception_path = ([], "Throwable")
-(**
-	Type path for Haxe exceptions wrapper
-*)
-let hxexception_type_path = (["php"; "_Boot"], "HxException")
-(**
 	Type path of `php.Boot`
 *)
 let boot_type_path = (["php"], "Boot")
@@ -310,7 +302,7 @@ let is_function_type t = match follow t with TFun _ -> true | _ -> false
 *)
 let is_syntax_extern expr =
 	match expr.eexpr with
-		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) when path = syntax_type_path -> true
+		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) -> path = syntax_type_path
 		| _ -> false
 
 (**
@@ -414,11 +406,18 @@ let is_sure_scalar (target:Type.t) =
 		| _ -> false
 
 (**
-	Indicates if `expr` is guaranteed to be an access to a `var` field.
+	Indicates if `expr` has to be wrapped into parentheses to be called.
 *)
-let is_sure_var_field_access expr =
-	match (reveal_expr expr).eexpr with
-		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
+let rec needs_parenthesis_to_call expr =
+	match expr.eexpr with
+		| TParenthesis _ -> false
+		| TCast (e, None)
+		| TMeta (_, e) -> needs_parenthesis_to_call e
+		| TNew _
+		| TObjectDecl _
+		| TArrayDecl _
+		| TField (_, FClosure (_,_))
+		| TField (_, FStatic (_, { cf_kind = Var _ }))
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
 		(* | TField (_, FAnon { cf_kind = Var _ }) -> true *) (* Sometimes we get anon access to non-anonymous objects *)
 		| _ -> false
@@ -526,34 +525,6 @@ let get_full_type_name ?(escape=false) ?(omit_first_slash=false) (type_path:path
 		String.escaped name
 	else
 		name
-
-(**
-	Check if `target` is or implements native PHP `Throwable` interface
-*)
-let rec is_native_exception (target:Type.t) =
-	match follow target with
-		| TInst ({ cl_path = path }, _) when path = native_exception_path -> true
-		| TInst ({ cl_super = parent ; cl_implements = interfaces ; cl_path = path }, _) ->
-			let (parent, params) =
-				match parent with
-					| Some (parent, params) -> (Some parent, params)
-					| None -> (None, [])
-			in
-			let found = ref false in
-			List.iter
-				(fun (cls, params) ->
-					if not !found then
-						found := is_native_exception (TInst (cls, params))
-				)
-				interfaces;
-			if !found then
-				true
-			else
-				(match parent with
-					| Some parent -> is_native_exception (TInst (parent, params))
-					| None -> false
-				)
-		| _ -> false
 
 (**
 	@return Short type name. E.g. returns "Test" for (["example"], "Test")
@@ -1624,12 +1595,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
-				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
-					ctx.pgc_common.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
-					self#write_expr_magic name args
+				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
-				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args self#write self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
@@ -1790,7 +1758,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			vars#captured used_vars;
 			self#write " ";
 			if List.length used_vars > 0 then begin
-				self#write " use (";
+				self#write "use (";
 				write_args self#write (fun name -> self#write ("&$" ^ name)) used_vars;
 				self#write ") "
 			end;
@@ -1863,12 +1831,16 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					if not ctx.pgc_skip_line_directives && not (is_block expr) then
+					if not ctx.pgc_skip_line_directives && not (is_block expr) && expr.epos <> null_pos then
 						if self#write_pos expr then self#write_indentation;
-					self#write_expr expr;
 					match expr.eexpr with
-						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
-						| _ -> self#write ";\n"
+						| TBlock _ ->
+							self#write_as_block ~inline:true expr
+						| _ ->
+							self#write_expr expr;
+							match expr.eexpr with
+								| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
+								| _ -> self#write ";\n"
 				in
 				let write_expr_with_indent expr =
 					self#write_indentation;
@@ -1929,73 +1901,21 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_throw expr =
 			self#write "throw ";
-			if is_native_exception expr.etype then
-				self#write_expr expr
-			else if sure_extends_extern expr.etype || is_dynamic_type expr.etype then
-				begin
-					self#write "(is_object($__hx__throw = ";
-					self#write_expr expr;
-					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use hxexception_type_path) ^ "($__hx__throw))")
-				end
-			else
-				begin
-					self#write ("new " ^ (self#use hxexception_type_path) ^ "(");
-					self#write_expr expr;
-					self#write ")"
-				end
+			self#write_expr expr
 		(**
 			Writes try...catch to output buffer
 		*)
 		method write_expr_try_catch try_expr catches =
-			let catching_dynamic = ref false in
-			let haxe_exception = self#use hxexception_type_path
-			and first_catch = ref true in
-			let write_catch (var, expr) =
-				let dynamic = ref false in
-				(match follow var.v_type with
-					| TInst ({ cl_path = ([], "String") }, _) -> self#write "if (is_string($__hx__real_e)) {\n"
-					| TAbstract ({ a_path = ([], "Float") }, _) -> self#write "if (is_float($__hx__real_e)) {\n"
-					| TAbstract ({ a_path = ([], "Int") }, _) -> self#write "if (is_int($__hx__real_e)) {\n"
-					| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "if (is_bool($__hx__real_e)) {\n"
-					| TDynamic _ ->
-						dynamic := true;
-						catching_dynamic := true;
-						if not !first_catch then self#write "{\n"
-					| vtype -> self#write ("if ($__hx__real_e instanceof " ^ (self#use_t vtype) ^ ") {\n")
-				);
-				if !dynamic && !first_catch then
-					begin
-						self#write ("$" ^ var.v_name ^ " = $__hx__real_e;\n");
-						self#write_indentation;
-						self#write_as_block ~inline:true expr;
-					end
-				else
-					begin
-						self#indent_more;
-						self#write_statement ("$" ^ var.v_name ^ " = $__hx__real_e");
-						self#write_indentation;
-						self#write_as_block ~inline:true expr;
-						self#indent_less;
-						self#write_with_indentation "}";
-					end;
-				if not !dynamic then self#write " else ";
-				first_catch := false;
-			in
 			self#write "try ";
 			self#write_as_block try_expr;
-			self#write " catch (\\Throwable $__hx__caught_e) {\n";
-			self#indent_more;
-			if has_feature ctx.pgc_common "haxe.CallStack.exceptionStack"  then
-				self#write_statement ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace($__hx__caught_e)");
-			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
-			self#write_indentation;
-			List.iter write_catch catches;
-			if not !catching_dynamic then
-				self#write " throw $__hx__caught_e;\n"
-			else
-				(match catches with [_] -> () | _ -> self#write "\n");
-			self#indent_less;
-			self#write_with_indentation "}"
+			let rec traverse = function
+				| [] -> ()
+				| (v,body) :: rest ->
+					self#write (" catch(" ^ (self#use_t v.v_type) ^ " $" ^ v.v_name ^ ") ");
+					self#write_as_block body;
+					traverse rest
+			in
+			traverse catches
 		(**
 			Writes TCast to output buffer
 		*)
@@ -2013,6 +1933,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
 		method write_expr_magic name args =
+			let msg = "untyped " ^ name ^ " is deprecated. Use php.Syntax instead." in
+			DeprecationCheck.warn_deprecation ctx.pgc_common msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __POS__
@@ -2621,14 +2543,15 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Writes TCall to output buffer
 		*)
 		method write_expr_call target_expr args =
-			let target_expr = reveal_expr target_expr
-			and no_call = ref false in
-			(match target_expr.eexpr with
-				| TConst TSuper ->
+			let no_call = ref false in
+			(match reveal_expr target_expr with
+				| { eexpr = TConst TSuper } ->
 					no_call := not has_super_constructor;
 					if not !no_call then self#write "parent::__construct"
-				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
-				| _ -> self#write_expr target_expr
+				| e when needs_parenthesis_to_call e ->
+					self#write_expr (parenthesis e)
+				| e ->
+					self#write_expr e
 			);
 			if not !no_call then
 				begin

@@ -190,4 +190,16 @@ class HaxeServerTestCase implements ITest {
 		}
 		Assert.pass();
 	}
+
+	function strType(t:JsonType<JsonTypePathWithParams>):String {
+		var path = t.args.path;
+		var params = t.args.params;
+		var parts = path.pack.concat([path.typeName]);
+		var s = parts.join('.');
+		if(params.length == 0) {
+			return s;
+		}
+		var sParams = params.map(strType).join('.');
+		return '$s<$sParams>';
+	}
 }

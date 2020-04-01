@@ -193,7 +193,7 @@ let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
 	let make_path name priv p =
-		List.iter (fun (t2,(_,p2)) -> 
+		List.iter (fun (t2,(_,p2)) ->
 			if snd (t_path t2) = name then begin
 				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
 				error "Previous declaration here" p2;
@@ -688,10 +688,7 @@ let init_module_type ctx context_init (decl,p) =
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- TAnon {
-			a_fields = !fields;
-			a_status = ref (EnumStatics e);
-		};
+		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then

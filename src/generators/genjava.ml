@@ -905,11 +905,13 @@ let rec handle_throws gen cf =
 			Type.iter iter e
 		with | Exit -> (* needs typed exception to be caught *)
 			let throwable = get_cl (get_type gen (["java";"lang"],"Throwable")) in
+			let cast_cl = get_cl (get_type gen (["java";"lang"],"RuntimeException")) in
 			let catch_var = alloc_var "typedException" (TInst(throwable,[])) in
 			let rethrow = mk_local catch_var e.epos in
-			let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
-			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
-			let wrapped = { rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; } in
+			let hx_exception = get_cl (get_type gen (["haxe"], "Exception")) in
+			let wrap_static = mk_static_field_access (hx_exception) "thrown" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
+			let thrown_value = mk_cast (TInst(cast_cl,[])) { rethrow with eexpr = TCall(wrap_static, [rethrow]) } in
+			let wrapped = { rethrow with eexpr = TThrow thrown_value; } in
 			let map_throws cl =
 				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_params)) in
 				var, { tf.tf_expr with eexpr = TThrow (mk_local var e.epos) }
@@ -936,7 +938,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"void"; "volatile"; "while"; ];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = mk_anon (ref Closed)
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -958,6 +960,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
 		| (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
 		| (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
+		| (Meta.NativeJni,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 let generate con =
@@ -2151,29 +2154,25 @@ let generate con =
 		in
 		loop cl.cl_meta;
 
-		(match gen.gcon.main_class with
-			| Some path when path = cl.cl_path ->
-				write w "public static void main(String[] args)";
-				begin_block w;
-				(try
-					let t = Hashtbl.find gen.gtypes ([], "Sys") in
-							match t with
-								| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
-									write w "Sys._args = args;"; newline w
-								| _ -> ()
-				with | Not_found -> ()
-				);
-				write w "haxe.java.Init.init();";
-				newline w;
-				(match gen.gcon.main with
-					| Some(expr) ->
-						expr_s w (mk_block expr)
-					| None ->
-						write w "main();");
-				end_block w;
-				newline w
-			| _ -> ()
-		);
+		(match gen.gentry_point with
+		| Some (_,cl_main,expr) when cl == cl_main ->
+			write w "public static void main(String[] args)";
+			begin_block w;
+			(try
+				let t = Hashtbl.find gen.gtypes ([], "Sys") in
+				match t with
+				| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
+					write w "Sys._args = args;"; newline w
+				| _ -> ()
+			with Not_found ->
+				());
+			write w "haxe.java.Init.init();";
+			newline w;
+			expr_s w expr;
+			write w ";";
+			end_block w;
+			newline w
+		| _ -> ());
 
 		(match cl.cl_init with
 			| None -> ()
@@ -2324,7 +2323,7 @@ let generate con =
 
 	let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
 	let empty_ctor_type = TEnum(empty_en, []) in
-	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (mk_anon (ref (EnumStatics empty_en))) null_pos in
 	let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 	OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 
