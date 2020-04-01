@@ -219,9 +219,16 @@ let collect_reserved_local_names com =
 
 let rec rename_local_vars_aux ctx reserved e =
 	let initial_reserved = reserved in
-	let vars = ref [] in
+	let own_vars = Hashtbl.create 10 in
+	let own_vars_ordered = ref [] in
+	let foreign_vars = Hashtbl.create 5 in (* Variables which are declared outside of `e` *)
 	let declare v =
-		vars := v :: !vars
+		own_vars_ordered := v :: !own_vars_ordered;
+		Hashtbl.add own_vars v.v_id v
+	in
+	let referenced v =
+		if not (Hashtbl.mem own_vars v.v_id) && not (Hashtbl.mem foreign_vars v.v_name) then
+			Hashtbl.add foreign_vars v.v_name ()
 	in
 	let reserved = ref reserved in
 	let reserve name =
@@ -241,6 +248,8 @@ let rec rename_local_vars_aux ctx reserved e =
 	in
 	let funcs = ref [] in
 	let rec collect e = match e.eexpr with
+		| TLocal v ->
+			referenced v
  		| TVar(v,eo) ->
 			declare v;
 			(match eo with None -> () | Some e -> collect e)
@@ -295,7 +304,8 @@ let rec rename_local_vars_aux ctx reserved e =
 			v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),e.epos],e.epos) :: v.v_meta;
 		v.v_name <- !name;
 	in
-	List.iter maybe_rename (List.rev !vars);
+	Hashtbl.iter (fun name _ -> reserve name) foreign_vars;
+	List.iter maybe_rename (List.rev !own_vars_ordered);
 	(* Pass 3: Recurse into nested functions. *)
 	List.iter (fun tf ->
 		reserved := initial_reserved;
