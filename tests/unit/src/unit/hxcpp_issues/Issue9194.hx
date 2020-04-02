@@ -5,7 +5,7 @@ class Issue9194 extends Test {
 
 	@:analyzer(no_optimize)
 	function test() {
-		#if (cpp && !cppia)
+		#if cpp
 		// will fail during C++ compile
 		var buffer: cpp.RawPointer<cpp.Void> = null;
 		var floatBuffer: cpp.RawPointer<cpp.Float32> = cast buffer;
