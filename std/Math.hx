@@ -81,7 +81,7 @@ extern class Math {
 	/**
 		Returns the absolute value of `v`.
 
-		- If `v` is positive or `0`, the result is unchanged. Otherwise the result is -`v`.
+		- If `v` is positive or `0`, the result is unchanged. Otherwise the result is `-v`.
 		- If `v` is `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
 		- If `v` is `NaN`, the result is `NaN`.
 	**/
