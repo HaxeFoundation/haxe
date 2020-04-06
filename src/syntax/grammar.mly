@@ -1126,30 +1126,33 @@ and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
 	| [< '(Kwd Function,p1) >] -> false, p1
 
-and parse_macro_expr p
-	if !parsing_macro_reification then
-		serror()
-	else begin
-		parsing_macro_reification := true;
+and parse_macro_expr p s =
+	let do_error = !parsing_macro_reification in
+	parsing_macro_reification := true;
+	let result =
 		Std.finally
-			(fun() -> parsing_macro_reification := false)
-			(fun() ->
-				parser
-				| [< '(DblDot,_); t = parse_complex_type >] ->
-					let _, to_type, _  = reify !in_macro in
-					let t = to_type t p in
-					(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
-				| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
-					reify_expr (EVars vl,p1) !in_macro
-				| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
-					reify_expr (EVars vl,p1) !in_macro
-				| [< d = parse_class None [] [] false >] ->
-					let _,_,to_type = reify !in_macro in
-					(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] },null_pos)),p)
-				| [< e = secure_expr >] ->
-				reify_expr e !in_macro
-			)
-	end
+		(fun() -> parsing_macro_reification := false)
+		(fun() ->
+			match s with parser
+			| [< '(DblDot,_); t = parse_complex_type >] ->
+				let _, to_type, _  = reify !in_macro in
+				let t = to_type t p in
+				(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
+			| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
+				reify_expr (EVars vl,p1) !in_macro
+			| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
+				reify_expr (EVars vl,p1) !in_macro
+			| [< d = parse_class None [] [] false >] ->
+				let _,_,to_type = reify !in_macro in
+				(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] },null_pos)),p)
+			| [< e = secure_expr >] ->
+			reify_expr e !in_macro
+		) ()
+	in
+	if do_error then
+		syntax_error (Custom "Macro reification inside of a macro reification is not allowed") ~pos:(Some p) s result
+	else
+		result
 
 and parse_function p1 inl = parser
 	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
