@@ -33,7 +33,7 @@ enum ValueType {
 
 @:coreApi class Type {
 	public static inline function getClass<T>(o:T):Class<T> {
-		return if (o == null) null else @:privateAccess js.Boot.getClass(o);
+		return @:privateAccess js.Boot.getClass(o);
 	}
 
 	public static function getEnum(o:EnumValue):Enum<Dynamic>
@@ -86,6 +86,7 @@ enum ValueType {
 		return untyped __define_feature__("Type.resolveEnum", $hxEnums[name]);
 	}
 	#end
+
 	#if (js_es < 5)
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		switch (args.length) {
@@ -128,19 +129,20 @@ enum ValueType {
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T
 		untyped {
-			__js__("function empty() {}; empty.prototype = cl.prototype");
-			return __js__("new empty()");
+			js.Syntax.code("function empty() {}; empty.prototype = cl.prototype");
+			return js.Syntax.code("new empty()");
 		}
 	#else
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
-		untyped {
-			return untyped __js__("new ({0})", Function.prototype.bind.apply(cl, [null].concat(args)));
-		}
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		var ctor = ((cast js.lib.Function).prototype.bind : js.lib.Function).apply(cl, [null].concat(args));
+		return js.Syntax.code("new ({0})", ctor); // cannot use `js.Syntax.construct` because we need parens if `ctor` is fused in
+	}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
 		return js.lib.Object.create((cast cl).prototype);
 	}
 	#end
+
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		var f:Dynamic = Reflect.field(e, constr);
 		if (f == null)
@@ -199,7 +201,7 @@ enum ValueType {
 	#else
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var a = [];
-		untyped __js__("for(var i in c.prototype) a.push(i)");
+		js.Syntax.code("for(var i in c.prototype) a.push(i)");
 		a.remove("__class__");
 		a.remove("__properties__");
 		return a;
@@ -216,8 +218,9 @@ enum ValueType {
 		return a;
 	}
 	#end
+
 	public static inline function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
-		return ((cast e).__constructs__:Array<String>).copy();
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	@:access(js.Boot)
@@ -311,6 +314,7 @@ enum ValueType {
 			return params != null ? [for (p in params) e[p]] : [];
 		}
 	#end
+
 	public inline static function enumIndex(e:EnumValue):Int {
 		#if !js_enums_as_arrays
 		return untyped e._hx_index;

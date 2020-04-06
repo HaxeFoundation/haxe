@@ -19,12 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.macro;
 
 #if (macro && !doc_gen)
-@:coreType abstract Position {
-}
+@:coreType abstract Position {}
 #else
+
 /**
 	Represents a position in a file.
 **/
@@ -32,19 +33,24 @@ typedef Position = {
 	/**
 		Reference to the filename.
 	**/
-	var file : String;
+	var file:String;
 
 	/**
 		Position of the first character.
 	**/
-	var min : Int;
+	var min:Int;
 
 	/**
 		Position of the last character.
 	**/
-	var max : Int;
+	var max:Int;
 }
 #end
+
+enum StringLiteralKind {
+	DoubleQuotes;
+	SingleQuotes;
+}
 
 /**
 	Represents a constant.
@@ -54,33 +60,33 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt( v : String );
+	CInt(v:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat( f : String );
+	CFloat(f:String);
 
 	/**
 		Represents a string literal.
 	**/
-	CString( s : String );
+	CString(s:String, ?kind:StringLiteralKind);
 
 	/**
 		Represents an identifier.
 	**/
-	CIdent( s : String );
+	CIdent(s:String);
 
 	/**
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
-		 * The first argument _haxe_ is a string with regular expression pattern.
-		 * The second argument _i_ is a string with regular expression flags.
+		* The first argument _haxe_ is a string with regular expression pattern.
+		* The second argument _i_ is a string with regular expression flags.
 
 		@see https://haxe.org/manual/std-regex.html
 	**/
-	CRegexp( r : String, opt : String );
+	CRegexp(r:String, opt:String);
 }
 
 /**
@@ -201,7 +207,7 @@ enum Binop {
 		`^=`
 		`%=`
 	**/
-	OpAssignOp( op : Binop );
+	OpAssignOp(op:Binop);
 
 	/**
 		`...`
@@ -258,12 +264,12 @@ typedef Expr = {
 	/**
 		The expression kind.
 	**/
-	var expr : ExprDef;
+	var expr:ExprDef;
 
 	/**
 		The position of the expression.
 	**/
-	var pos : Position;
+	var pos:Position;
 }
 
 /**
@@ -281,17 +287,17 @@ typedef Case = {
 	/**
 		The value expressions of the case.
 	**/
-	var values : Array<Expr>;
+	var values:Array<Expr>;
 
 	/**
 		The optional guard expressions of the case, if available.
 	**/
-	var ?guard : Null<Expr>;
+	var ?guard:Null<Expr>;
 
 	/**
 		The expression of the case, if available.
 	**/
-	var expr: Null<Expr>;
+	var expr:Null<Expr>;
 }
 
 /**
@@ -302,22 +308,22 @@ typedef Var = {
 	/**
 		The name of the variable.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The type-hint of the variable, if available.
 	**/
-	var type : Null<ComplexType>;
+	var type:Null<ComplexType>;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	var expr : Null<Expr>;
+	var expr:Null<Expr>;
 
 	/**
 		Whether or not the variable can be assigned to.
 	**/
-	var ?isFinal : Bool;
+	var ?isFinal:Bool;
 }
 
 /**
@@ -328,17 +334,17 @@ typedef Catch = {
 	/**
 		The name of the catch variable.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The type of the catch.
 	**/
-	var type : ComplexType;
+	var type:ComplexType;
 
 	/**
 		The expression of the catch.
 	**/
-	var expr : Expr;
+	var expr:Expr;
 }
 
 /**
@@ -363,17 +369,35 @@ typedef ObjectField = {
 	/**
 		The name of the field.
 	**/
-	var field : String;
+	var field:String;
 
 	/**
 		The field expression.
 	**/
-	var expr : Expr;
+	var expr:Expr;
 
 	/**
 		How the field name is quoted.
 	**/
-	var ?quotes : QuoteStatus;
+	var ?quotes:QuoteStatus;
+}
+
+/**
+	Represents function kind in the AST
+**/
+enum FunctionKind {
+	/**
+		Anonymous function
+	**/
+	FAnonymous;
+	/**
+		Named function
+	**/
+	FNamed(name:String, ?inlined:Bool);
+	/**
+		Arrow function
+	**/
+	FArrow;
 }
 
 /**
@@ -383,47 +407,47 @@ enum ExprDef {
 	/**
 		A constant.
 	**/
-	EConst( c : Constant );
+	EConst(c:Constant);
 
 	/**
 		Array access `e1[e2]`.
 	**/
-	EArray( e1 : Expr, e2 : Expr );
+	EArray(e1:Expr, e2:Expr);
 
 	/**
 		Binary operator `e1 op e2`.
 	**/
-	EBinop( op : Binop, e1 : Expr, e2 : Expr );
+	EBinop(op:Binop, e1:Expr, e2:Expr);
 
 	/**
 		Field access on `e.field`.
 	**/
-	EField( e : Expr, field : String );
+	EField(e:Expr, field:String);
 
 	/**
 		Parentheses `(e)`.
 	**/
-	EParenthesis( e : Expr );
+	EParenthesis(e:Expr);
 
 	/**
 		An object declaration.
 	**/
-	EObjectDecl( fields : Array<ObjectField> );
+	EObjectDecl(fields:Array<ObjectField>);
 
 	/**
 		An array declaration `[el]`.
 	**/
-	EArrayDecl( values : Array<Expr> );
+	EArrayDecl(values:Array<Expr>);
 
 	/**
 		A call `e(params)`.
 	**/
-	ECall( e : Expr, params : Array<Expr> );
+	ECall(e:Expr, params:Array<Expr>);
 
 	/**
 		A constructor call `new t(params)`.
 	**/
-	ENew( t : TypePath, params : Array<Expr> );
+	ENew(t:TypePath, params:Array<Expr>);
 
 	/**
 		An unary operator `op` on `e`:
@@ -436,55 +460,55 @@ enum ExprDef {
 		* !e (op = OpNot, postFix = false)
 		* ~e (op = OpNegBits, postFix = false)
 	**/
-	EUnop( op : Unop, postFix : Bool, e : Expr );
+	EUnop(op:Unop, postFix:Bool, e:Expr);
 
 	/**
 		Variable declarations.
 	**/
-	EVars( vars : Array<Var> );
+	EVars(vars:Array<Var>);
 
 	/**
 		A function declaration.
 	**/
-	EFunction( name : Null<String>, f : Function );
+	EFunction(kind:Null<FunctionKind>, f:Function);
 
 	/**
 		A block of expressions `{exprs}`.
 	**/
-	EBlock( exprs : Array<Expr> );
+	EBlock(exprs:Array<Expr>);
 
 	/**
 		A `for` expression.
 	**/
-	EFor( it : Expr, expr : Expr );
+	EFor(it:Expr, expr:Expr);
 
 	/**
 		An `if(econd) eif` or `if(econd) eif else eelse` expression.
 	**/
-	EIf( econd : Expr, eif : Expr, eelse : Null<Expr> );
+	EIf(econd:Expr, eif:Expr, eelse:Null<Expr>);
 
 	/**
 		Represents a `while` expression.
 		When `normalWhile` is `true` it is `while (...)`.
 		When `normalWhile` is `false` it is `do {...} while (...)`.
 	**/
-	EWhile( econd : Expr, e : Expr, normalWhile : Bool );
+	EWhile(econd:Expr, e:Expr, normalWhile:Bool);
 
 	/**
 		Represents a `switch` expression with related cases and an optional.
 		`default` case if edef != null.
 	**/
-	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Expr> );
+	ESwitch(e:Expr, cases:Array<Case>, edef:Null<Expr>);
 
 	/**
 		Represents a `try`-expression with related catches.
 	**/
-	ETry( e : Expr, catches : Array<Catch> );
+	ETry(e:Expr, catches:Array<Catch>);
 
 	/**
 		A `return` or `return e` expression.
 	**/
-	EReturn( ?e : Null<Expr> );
+	EReturn(?e:Null<Expr>);
 
 	/**
 		A `break` expression.
@@ -499,42 +523,42 @@ enum ExprDef {
 	/**
 		An `untyped e` source code.
 	**/
-	EUntyped( e : Expr );
+	EUntyped(e:Expr);
 
 	/**
 		A `throw e` expression.
 	**/
-	EThrow( e : Expr );
+	EThrow(e:Expr);
 
 	/**
 		A `cast e` or `cast (e, m)` expression.
 	**/
-	ECast( e : Expr, t : Null<ComplexType> );
+	ECast(e:Expr, t:Null<ComplexType>);
 
 	/**
 		Internally used to provide completion.
 	**/
-	EDisplay( e : Expr, displayKind:DisplayKind );
+	EDisplay(e:Expr, displayKind:DisplayKind);
 
 	/**
 		Internally used to provide completion.
 	**/
-	EDisplayNew( t : TypePath );
+	EDisplayNew(t:TypePath);
 
 	/**
 		A `(econd) ? eif : eelse` expression.
 	**/
-	ETernary( econd : Expr, eif : Expr, eelse : Expr );
+	ETernary(econd:Expr, eif:Expr, eelse:Expr);
 
 	/**
 		A `(e:t)` expression.
 	**/
-	ECheckType( e : Expr, t : ComplexType );
+	ECheckType(e:Expr, t:ComplexType);
 
 	/**
 		A `@m e` expression.
 	**/
-	EMeta( s : MetadataEntry, e : Expr );
+	EMeta(s:MetadataEntry, e:Expr);
 }
 
 enum DisplayKind {
@@ -542,7 +566,7 @@ enum DisplayKind {
 	DKDot;
 	DKStructure;
 	DKMarked;
-	DKPattern( outermost : Bool );
+	DKPattern(outermost:Bool);
 }
 
 /**
@@ -552,42 +576,42 @@ enum ComplexType {
 	/**
 		Represents the type path.
 	**/
-	TPath( p : TypePath );
+	TPath(p:TypePath);
 
 	/**
 		Represents a function type.
 		@see https://haxe.org/manual/types-function.html
 	**/
-	TFunction( args : Array<ComplexType>, ret : ComplexType );
+	TFunction(args:Array<ComplexType>, ret:ComplexType);
 
 	/**
 		Represents an anonymous structure type.
 		@see https://haxe.org/manual/types-anonymous-structure.html
 	**/
-	TAnonymous( fields : Array<Field> );
+	TAnonymous(fields:Array<Field>);
 
 	/**
 		Represents parentheses around a type, e.g. the `(Int -> Void)` part in
 		`(Int -> Void) -> String`.
 	**/
-	TParent( t : ComplexType );
+	TParent(t:ComplexType);
 
 	/**
 		Represents typedef extensions `> Iterable<T>`.
 		The array `p` holds the type paths to the given types.
 		@see https://haxe.org/manual/type-system-extensions.html
 	**/
-	TExtend( p : Array<TypePath>, fields : Array<Field> );
+	TExtend(p:Array<TypePath>, fields:Array<Field>);
 
 	/**
 		Represents an optional type.
 	**/
-	TOptional( t : ComplexType );
+	TOptional(t:ComplexType);
 
 	/**
 		Represents a type with a name.
 	**/
-	TNamed( n : String, t : ComplexType );
+	TNamed(n:String, t:ComplexType);
 
 	/**
 		Represents an intersection type `T1 & T2 & ... & TN`.
@@ -602,23 +626,23 @@ typedef TypePath = {
 	/**
 		Represents the package of the type path.
 	**/
-	var pack : Array<String>;
+	var pack:Array<String>;
 
 	/**
 		The name of the type path.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		Optional parameters of the type path.
 	**/
-	var ?params : Array<TypeParam>;
+	var ?params:Array<TypeParam>;
 
 	/**
 		Sub is set on module sub-type access:
 		`pack.Module.Type` has name = Module, sub = Type, if available.
 	**/
-	var ?sub : Null<String>;
+	var ?sub:Null<String>;
 }
 
 /**
@@ -632,12 +656,12 @@ enum TypeParam {
 	/**
 
 	**/
-	TPType( t : ComplexType );
+	TPType(t:ComplexType);
 
 	/**
 
 	**/
-	TPExpr( e : Expr );
+	TPExpr(e:Expr);
 }
 
 /**
@@ -647,22 +671,22 @@ typedef TypeParamDecl = {
 	/**
 		The name of the type parameter.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The optional constraints of the type parameter.
 	**/
-	var ?constraints : Array<ComplexType>;
+	var ?constraints:Array<ComplexType>;
 
 	/**
 		The optional parameters of the type parameter.
 	**/
-	var ?params : Array<TypeParamDecl>;
+	var ?params:Array<TypeParamDecl>;
 
 	/**
 		The metadata of the type parameter.
 	**/
-	var ?meta : Metadata;
+	var ?meta:Metadata;
 }
 
 /**
@@ -672,22 +696,22 @@ typedef Function = {
 	/**
 		A list of function arguments.
 	**/
-	var args : Array<FunctionArg>;
+	var args:Array<FunctionArg>;
 
 	/**
 		The return type-hint of the function, if available.
 	**/
-	var ret : Null<ComplexType>;
+	var ret:Null<ComplexType>;
 
 	/**
 		The expression of the function body, if available.
 	**/
-	var expr : Null<Expr>;
+	var expr:Null<Expr>;
 
 	/**
 		An optional list of function parameter type declarations.
 	**/
-	var ?params : Array<TypeParamDecl>;
+	var ?params:Array<TypeParamDecl>;
 }
 
 /**
@@ -697,27 +721,27 @@ typedef FunctionArg = {
 	/**
 		The name of the function argument.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		Whether or not the function argument is optional.
 	**/
-	var ?opt : Bool;
+	var ?opt:Bool;
 
 	/**
 		The type-hint of the function argument, if available.
 	**/
-	var type : Null<ComplexType>;
+	var type:Null<ComplexType>;
 
 	/**
 		The optional value of the function argument, if available.
 	**/
-	var ?value : Null<Expr>;
+	var ?value:Null<Expr>;
 
 	/**
 		The metadata of the function argument.
 	**/
-	var ?meta : Metadata;
+	var ?meta:Metadata;
 }
 
 /**
@@ -727,17 +751,17 @@ typedef MetadataEntry = {
 	/**
 		The name of the metadata entry.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The optional parameters of the metadata entry.
 	**/
-	var ?params : Array<Expr>;
+	var ?params:Array<Expr>;
 
 	/**
 		The position of the metadata entry.
 	**/
-	var pos : Position;
+	var pos:Position;
 }
 
 /**
@@ -752,34 +776,34 @@ typedef Field = {
 	/**
 		The name of the field.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	var ?doc : Null<String>;
+	var ?doc:Null<String>;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
 		@see https://haxe.org/manual/class-field-access-modifier.html
 	**/
-	var ?access : Array<Access>;
+	var ?access:Array<Access>;
 
 	/**
 		The kind of the field.
 	**/
-	var kind : FieldType;
+	var kind:FieldType;
 
 	/**
 		The position of the field.
 	**/
-	var pos : Position;
+	var pos:Position;
 
 	/**
 		The optional metadata of the field.
 	**/
-	var ?meta : Metadata;
+	var ?meta:Metadata;
 }
 
 /**
@@ -787,7 +811,6 @@ typedef Field = {
 	@see https://haxe.org/manual/class-field-access-modifier.html
 **/
 enum Access {
-
 	/**
 		Public access modifier, grants access from anywhere.
 		@see https://haxe.org/manual/class-field-visibility.html
@@ -850,17 +873,17 @@ enum FieldType {
 	/**
 		Represents a variable field type.
 	**/
-	FVar( t : Null<ComplexType>, ?e : Null<Expr> );
+	FVar(t:Null<ComplexType>, ?e:Null<Expr>);
 
 	/**
 		Represents a function field type.
 	**/
-	FFun( f : Function );
+	FFun(f:Function);
 
 	/**
 		Represents a property with getter and setter field type.
 	**/
-	FProp( get : String, set : String, ?t : Null<ComplexType>, ?e : Null<Expr> );
+	FProp(get:String, set:String, ?t:Null<ComplexType>, ?e:Null<Expr>);
 }
 
 /**
@@ -870,48 +893,48 @@ typedef TypeDefinition = {
 	/**
 		The package of the type definition.
 	**/
-	var pack : Array<String>;
+	var pack:Array<String>;
 
 	/**
 		The name of the type definition.
 	**/
-	var name : String;
+	var name:String;
 
 	/**
 		The documentation of the type, if available. If the type has no
 		documentation, the value is `null`.
 	**/
-	var ?doc : Null<String>;
+	var ?doc:Null<String>;
 
 	/**
 		The position to the type definition.
 	**/
-	var pos : Position;
+	var pos:Position;
 
 	/**
 		The optional metadata of the type definition.
 	**/
-	var ?meta : Metadata;
+	var ?meta:Metadata;
 
 	/**
 		The parameter type declarations of the type definition.
 	**/
-	var ?params : Array<TypeParamDecl>;
+	var ?params:Array<TypeParamDecl>;
 
 	/**
 		Whether or not the type is extern.
 	**/
-	var ?isExtern : Bool;
+	var ?isExtern:Bool;
 
 	/**
 		The kind of the type definition.
 	**/
-	var kind : TypeDefKind;
+	var kind:TypeDefKind;
 
 	/**
 		The fields of the type definition.
 	**/
-	var fields : Array<Field>;
+	var fields:Array<Field>;
 }
 
 /**
@@ -931,38 +954,37 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool, ?isFinal : Bool );
+	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool);
 
 	/**
 		Represents an alias/typedef kind.
 	**/
-	TDAlias( t : ComplexType ); // ignore TypeDefinition.fields
+	TDAlias(t:ComplexType); // ignore TypeDefinition.fields
 
 	/**
 		Represents an abstract kind.
 	**/
-	TDAbstract( tthis : Null<ComplexType>, ?from : Array<ComplexType>, ?to: Array<ComplexType> );
+	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
 }
 
 /**
 	This error can be used to handle or produce compilation errors in macros.
 **/
 class Error {
-
 	/**
 		The error message.
 	**/
-	public var message : String;
+	public var message:String;
 
 	/**
 		The position of the error.
 	**/
-	public var pos : Expr.Position;
+	public var pos:Expr.Position;
 
 	/**
 		Instantiates an error with given message and position.
 	**/
-	public function new(m,p) {
+	public function new(m, p) {
 		this.message = m;
 		this.pos = p;
 	}
@@ -1003,10 +1025,10 @@ typedef ImportExpr = {
 	/**
 		The path to the import expression.
 	**/
-	var path: Array< { pos: Position, name: String } >;
+	var path:Array<{pos:Position, name:String}>;
 
 	/**
 		The mode of the import expression.
 	**/
-	var mode: ImportMode;
+	var mode:ImportMode;
 }

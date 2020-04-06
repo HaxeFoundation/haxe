@@ -1,10 +1,10 @@
 {
-	"haxe.displayConfigurations": [
+	"haxe.configurations": [
 		{"label": "Neko", "args": ["build.hxml", "-neko", "export/run.n", "-cmd", "neko export/run.n"]},
 		{"label": "JavaScript", "args": ["build.hxml", "-js","export/run.js", "-lib", "hxnodejs", "-cmd", "node export/run.js"]},
 		{"label": "Python", "args": ["build.hxml", "-python", "export/run.py", "-cmd", "python3 export/run.py"]},
 		{"label": "C++", "args": ["build.hxml", "-cpp", "export/cpp", "-cmd", "cmd /C export\\cpp\\Main.exe"]},
-		{"label": "CPPIA", "args": ["build.hxml", "-cppia","export/cppia.txt"]},
+		{"label": "CPPIA", "args": ["build.hxml", "-cppia","export/run.cppia", "-cmd", "haxelib run hxcpp export/run.cppia"]},
 		{"label": "HashLink/JIT", "args": ["build.hxml", "-hl", "export/run.hl", "-cmd", "hl export/run.hl"]},
 		{"label": "HashLink/Interp", "args": ["build.hxml", "-hl", "export/run.hl", "-D", "interp"]},
 		{"label": "Lua 5.1", "args": ["build.hxml", "-lua", "export/run.lua", "-cmd", "C:\\WINDOWS\\Sysnative\\bash.exe -c 'lua5.1 export/run.lua'"]},

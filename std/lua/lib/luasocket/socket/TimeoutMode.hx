@@ -20,8 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-
 package lua.lib.luasocket.socket;
+
 enum abstract TimeoutMode(String) {
 	var Block = "b";
 	var Total = "t";

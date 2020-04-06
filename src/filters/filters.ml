@@ -25,23 +25,7 @@ open Error
 open Globals
 open FiltersCommon
 
-(** retrieve string from @:native metadata or raise Not_found *)
-let get_native_name meta =
-	let rec get_native meta = match meta with
-		| [] -> raise Not_found
-		| (Meta.Native,[v],p as meta) :: _ ->
-			meta
-		| _ :: meta ->
-			get_native meta
-	in
-	let (_,e,mp) = get_native meta in
-	match e with
-	| [Ast.EConst (Ast.String name),p] ->
-		name,p
-	| [] ->
-		raise Not_found
-	| _ ->
-		error "String expected" mp
+let get_native_name = TypeloadCheck.get_native_name
 
 (* PASS 1 begin *)
 
@@ -85,7 +69,7 @@ let rec add_final_return e =
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init e =
+let check_local_vars_init com e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -104,9 +88,13 @@ let check_local_vars_init e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init && not (IntMap.mem v.v_id !outside_vars) then begin
-				if v.v_name = "this" then error "Missing this = value" e.epos
-				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+			if not init then begin
+				if IntMap.mem v.v_id !outside_vars then
+					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
+					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+				else
+					if v.v_name = "this" then error "Missing this = value" e.epos
+					else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -229,10 +217,18 @@ let collect_reserved_local_names com =
 		!h
 	| _ -> StringMap.empty
 
-let rename_local_vars ctx reserved e =
-	let vars = ref [] in
+let rec rename_local_vars_aux ctx reserved e =
+	let initial_reserved = reserved in
+	let own_vars = Hashtbl.create 10 in
+	let own_vars_ordered = ref [] in
+	let foreign_vars = Hashtbl.create 5 in (* Variables which are declared outside of `e` *)
 	let declare v =
-		vars := v :: !vars
+		own_vars_ordered := v :: !own_vars_ordered;
+		Hashtbl.add own_vars v.v_id v
+	in
+	let referenced v =
+		if not (Hashtbl.mem own_vars v.v_id) && not (Hashtbl.mem foreign_vars v.v_name) then
+			Hashtbl.add foreign_vars v.v_name ()
 	in
 	let reserved = ref reserved in
 	let reserve name =
@@ -250,7 +246,10 @@ let rename_local_vars ctx reserved e =
 		| TAbstract (a,_) -> check (TAbstractDecl a)
 		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
 	in
+	let funcs = ref [] in
 	let rec collect e = match e.eexpr with
+		| TLocal v ->
+			referenced v
  		| TVar(v,eo) ->
 			declare v;
 			(match eo with None -> () | Some e -> collect e)
@@ -266,8 +265,13 @@ let rename_local_vars ctx reserved e =
 				collect e
 			) catches
 		| TFunction tf ->
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
-			collect tf.tf_expr
+			begin match ctx.com.config.pf_nested_function_scoping with
+			| Hoisted ->
+				funcs := tf :: !funcs;
+			| Nested | Independent ->
+				List.iter (fun (v,_) -> declare v) tf.tf_args;
+				collect tf.tf_expr
+			end
 		| TTypeExpr t ->
 			check t
 		| TNew (c,_,_) ->
@@ -282,11 +286,6 @@ let rename_local_vars ctx reserved e =
 			Type.iter collect e
 	in
 	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
 	collect e;
 	(* Pass 2: Check and rename variables. *)
 	let count_table = Hashtbl.create 0 in
@@ -302,10 +301,31 @@ let rename_local_vars ctx reserved e =
 		reserve !name;
 		Hashtbl.replace count_table v.v_name !count;
 		if not (Meta.has Meta.RealPath v.v_meta) then
-			v.v_meta <- (Meta.RealPath,[EConst (String v.v_name),e.epos],e.epos) :: v.v_meta;
+			v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),e.epos],e.epos) :: v.v_meta;
 		v.v_name <- !name;
 	in
-	List.iter maybe_rename (List.rev !vars);
+	Hashtbl.iter (fun name _ -> reserve name) foreign_vars;
+	List.iter maybe_rename (List.rev !own_vars_ordered);
+	(* Pass 3: Recurse into nested functions. *)
+	List.iter (fun tf ->
+		reserved := initial_reserved;
+		List.iter (fun (v,_) ->
+			maybe_rename v;
+		) tf.tf_args;
+		ignore(rename_local_vars_aux ctx !reserved tf.tf_expr);
+	) !funcs
+
+let rename_local_vars ctx reserved e =
+	let reserved = ref reserved in
+	let reserve name =
+		reserved := StringMap.add name true !reserved
+	in
+	reserve "this";
+	if ctx.com.platform = Java then reserve "_";
+	begin match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> reserve s
+	end;
+	rename_local_vars_aux ctx !reserved e;
 	e
 
 let mark_switch_break_loops e =
@@ -365,12 +385,57 @@ let check_unification ctx e t =
 	end;
 	e
 
+let rec fix_return_dynamic_from_void_function ctx return_is_void e =
+	match e.eexpr with
+	| TFunction fn ->
+		let is_void = ExtType.is_void (follow fn.tf_type) in
+		let body = fix_return_dynamic_from_void_function ctx is_void fn.tf_expr in
+		{ e with eexpr = TFunction { fn with tf_expr = body } }
+	| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
+		let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
+		let exprs = [
+			fix_return_dynamic_from_void_function ctx return_is_void return_expr;
+			{ e with eexpr = TReturn None; epos = return_pos };
+		] in
+		{ e with
+			eexpr = TMeta (
+				(Meta.MergeBlock, [], null_pos),
+				mk (TBlock exprs) e.etype e.epos
+			);
+		}
+	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
+
+let check_abstract_as_value e =
+	let rec loop e =
+		match e.eexpr with
+		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
+		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+			error "Cannot use abstract as value" e.epos
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 	| TClassDecl c ->
+		let vars = ref [] in
+		let rec save_vars e =
+			let add v = vars := (v, v.v_type) :: !vars in
+			match e.eexpr with
+				| TFunction fn ->
+					List.iter (fun (v, _) -> add v) fn.tf_args;
+					save_vars fn.tf_expr
+				| TVar (v, e) ->
+					add v;
+					Option.may save_vars e
+				| _ ->
+					iter save_vars e
+		in
 		let mk_field_restore f =
+			Option.may save_vars f.cf_expr;
 			let rec mk_overload_restore f =
 				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in
@@ -395,6 +460,7 @@ let save_class_state ctx t = match t with
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
 		let init = c.cl_init in
+		Option.may save_vars init;
 		c.cl_restore <- (fun() ->
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
@@ -409,6 +475,7 @@ let save_class_state ctx t = match t with
 			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
 			c.cl_descendants <- [];
+			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
 	| _ ->
 		()
@@ -456,11 +523,11 @@ let check_private_path ctx t = match t with
 let apply_native_paths ctx t =
 	let get_real_name meta name =
 		let name',p = get_native_name meta in
-		(Meta.RealPath,[Ast.EConst (Ast.String (name)), p], p), name'
+		(Meta.RealPath,[Ast.EConst (Ast.String (name,SDoubleQuotes)), p], p), name'
 	in
 	let get_real_path meta path =
 		let name,p = get_native_name meta in
-		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)), p], p), parse_path name
+		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path,SDoubleQuotes)), p], p), parse_path name
 	in
 	try
 		(match t with
@@ -514,7 +581,6 @@ let add_rtti ctx t =
 
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits reserved ctx t =
-	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -522,28 +588,7 @@ let add_field_inits reserved ctx t =
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
-			| Var _, Some _ ->
-				if is_as3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-			| Method MethDynamic, Some e when is_as3 ->
-				(* TODO : this would have a better place in genSWF9 I think - NC *)
-				(* we move the initialization of dynamic functions to the constructor and also solve the
-				   'this' problem along the way *)
-				let rec use_this v e = match e.eexpr with
-					| TConst TThis ->
-						need_this := true;
-						mk (TLocal v) v.v_type e.epos
-					| _ -> Type.map_expr (use_this v) e
-				in
-				let e = Type.map_expr (use_this v) e in
-				let cf2 = {cf with cf_expr = Some e} in
-				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
-				let fields = if List.memq cf c.cl_overrides then begin
-					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
-					fields
-				end else
-					cf2 :: fields
-				in
-				(cf2 :: inits, fields)
+			| Var _, Some _ -> (cf :: inits, cf :: fields)
 			| _ -> (inits, cf :: fields)
 		) ([],[]) c.cl_ordered_fields in
 		c.cl_ordered_fields <- (List.rev fields);
@@ -556,12 +601,7 @@ let add_field_inits reserved ctx t =
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
-					if is_as3 then begin
-						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
-						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
-					end else
-						eassign;
+					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
@@ -612,7 +652,6 @@ let add_meta_field ctx t = match t with
 			let cf = mk_field "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
-				| Flash when Common.defined ctx.com Define.As3 -> false
 				| Cs | Java -> false
 				| _ -> true
 			in
@@ -668,7 +707,7 @@ let check_cs_events com t = match t with
 
 					(* add @:keep to event methods if the event is kept *)
 					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
-						m.cf_meta <- (Meta.Keep,[],f.cf_pos) :: m.cf_meta;
+						m.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: m.cf_meta;
 				in
 				process_event_method ("add_" ^ f.cf_name);
 				process_event_method ("remove_" ^ f.cf_name)
@@ -778,42 +817,59 @@ module ForRemap = struct
 end
 
 let run com tctx main =
-	let detail_times = Common.raw_defined com "filter-times" in
+	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
-		(match t with
+		let cached = is_cached t in
+		begin match t with
 			| TClassDecl cls ->
 				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
-				(match cls.cl_super with
+				begin match cls.cl_super with
 					| Some (csup,_) -> add_descendant csup cls
-					| None -> ())
-			| _ -> ());
-		not (is_cached t)
+					| None -> ()
+				end;
+				(* Save cf_expr_unoptimized early: We want to inline with the original expression
+				   on the next compilation. *)
+				if not cached then begin
+					let field cf = match cf.cf_expr with
+						| Some {eexpr = TFunction tf} -> cf.cf_expr_unoptimized <- Some tf
+						| _ -> ()
+					in
+					List.iter field cls.cl_ordered_fields;
+					List.iter field cls.cl_ordered_statics;
+					Option.may field cls.cl_constructor;
+				end;
+			| _ -> ()
+		end;
+		not cached
 	) com.types in
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		(* ForRemap.apply tctx; *)
+		ForRemap.apply tctx;
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
-		check_local_vars_init;
-		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+	] in
+	let t = filter_timer detail_times ["expr 0"] in
+	List.iter (run_expression_filters tctx filters) new_types;
+	t();
+	let filters = [
+		fix_return_dynamic_from_void_function tctx true;
+		check_local_vars_init tctx.com;
+		check_abstract_as_value;
+		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
+		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -837,7 +893,9 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 1"] in
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
+	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+	com.stage <- CAnalyzerDone;
 	let reserved = collect_reserved_local_names com in
 	let filters = [
 		Optimizer.sanitize com;
@@ -854,9 +912,11 @@ let run com tctx main =
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	t();
+	com.stage <- CSaveStart;
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
 	t();
+	com.stage <- CSaveDone;
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	t();
@@ -870,13 +930,10 @@ let run com tctx main =
 		check_remove_metadata tctx t;
 	) com.types;
 	t();
+	com.stage <- CDceStart;
 	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
-	let dce_mode = if Common.defined com Define.As3 then
-		"no"
-	else
-		(try Common.defined_value com Define.Dce with _ -> "no")
-	in
+	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
 	let dce_mode = match dce_mode with
 		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
 		| "std" -> DceStd
@@ -885,8 +942,11 @@ let run com tctx main =
 	in
 	Dce.run com main dce_mode;
 	t();
+	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
+		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
@@ -899,10 +959,10 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 	t();
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
+	com.stage <- CFilteringDone

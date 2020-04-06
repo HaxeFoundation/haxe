@@ -19,42 +19,45 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
+
 import sys.io.FileSeek;
 import cpp.NativeFile;
 
 @:coreApi
 class FileOutput extends haxe.io.Output {
+	private var __f:Dynamic;
 
-	private var __f : Dynamic;
-
-	function new(f:Dynamic) : Void {
+	function new(f:Dynamic):Void {
 		__f = f;
 	}
 
-	public override function writeByte( c : Int ) : Void {
-		try NativeFile.file_write_char(__f,c) catch( e : Dynamic ) throw haxe.io.Error.Custom(e);
+	public override function writeByte(c:Int):Void {
+		try
+			NativeFile.file_write_char(__f, c)
+		catch (e:Dynamic)
+			throw haxe.io.Error.Custom(e);
 	}
 
-	public override function writeBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
-		return try NativeFile.file_write(__f,s.getData(),p,l) catch( e : Dynamic ) throw haxe.io.Error.Custom(e);
+	public override function writeBytes(s:haxe.io.Bytes, p:Int, l:Int):Int {
+		return try NativeFile.file_write(__f, s.getData(), p, l) catch (e:Dynamic) throw haxe.io.Error.Custom(e);
 	}
 
-	public override function flush() : Void {
+	public override function flush():Void {
 		NativeFile.file_flush(__f);
 	}
 
-	public override function close() : Void {
+	public override function close():Void {
 		super.close();
 		NativeFile.file_close(__f);
 	}
 
-	public function seek( p : Int, pos : FileSeek ) : Void {
-		NativeFile.file_seek(__f,p, pos == SeekBegin ? 0 : pos ==  SeekCur ? 1 : 2);
+	public function seek(p:Int, pos:FileSeek):Void {
+		NativeFile.file_seek(__f, p, pos == SeekBegin ? 0 : pos == SeekCur ? 1 : 2);
 	}
 
-	public function tell() : Int {
+	public function tell():Int {
 		return NativeFile.file_tell(__f);
 	}
-
 }

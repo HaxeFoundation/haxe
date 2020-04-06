@@ -141,6 +141,10 @@ let remove a equals x =
 		true
 	end
 
+let contains a equals x =
+	let i = indexOf a equals x 0 in
+	i >= 0
+
 let reverse a =
 	a.avalues <- ExtArray.Array.rev (Array.sub a.avalues 0 a.alength)
 

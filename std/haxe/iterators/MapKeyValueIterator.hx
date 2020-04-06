@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.iterators;
 
 import haxe.ds.IntMap;
@@ -31,7 +32,7 @@ class MapKeyValueIterator<K, V> {
 	var map:haxe.Constraints.IMap<K, V>;
 	var keys:Iterator<K>;
 
- 	public inline function new(map:haxe.Constraints.IMap<K, V>) {
+	public inline function new(map:haxe.Constraints.IMap<K, V>) {
 		this.map = map;
 		this.keys = map.keys();
 	}
@@ -39,15 +40,15 @@ class MapKeyValueIterator<K, V> {
 	/**
 		See `Iterator.hasNext`
 	**/
- 	public inline function hasNext():Bool {
+	public inline function hasNext():Bool {
 		return keys.hasNext();
 	}
 
 	/**
 		See `Iterator.next`
 	**/
- 	public inline function next():{key:K,value:V} {
+	public inline function next():{key:K, value:V} {
 		var key = keys.next();
-		return {value: map.get(key), key:key};
+		return {value: map.get(key), key: key};
 	}
 }

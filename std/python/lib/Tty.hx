@@ -19,9 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
-@:pythonImport("tty", ignoreError=true)
+@:pythonImport("tty", ignoreError = true)
 extern class Tty {
-	public static function setraw (fileNo:Int):Void;
+	static function setraw(fileNo:Int):Void;
 }

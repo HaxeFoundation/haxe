@@ -19,123 +19,126 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
 class Reflect {
-
-	public static function hasField( o : Dynamic, field : String ) : Bool {
-		if( field == null ) return false;
+	public static function hasField(o:Dynamic, field:String):Bool {
+		if (field == null)
+			return false;
 		var hash = @:privateAccess field.bytes.hash();
-		return hl.Api.hasField(o,hash);
+		return hl.Api.hasField(o, hash);
 	}
 
-	public static function field( o : Dynamic, field : String ) : Dynamic {
-		if( field == null ) return null;
+	public static function field(o:Dynamic, field:String):Dynamic {
+		if (field == null)
+			return null;
 		var hash = @:privateAccess field.bytes.hash();
-		return hl.Api.getField(o,hash);
+		return hl.Api.getField(o, hash);
 	}
 
-	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		var hash = @:privateAccess field.bytes.hash();
-		hl.Api.setField(o,hash,value);
+		hl.Api.setField(o, hash, value);
 	}
 
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
-		var f : Dynamic = Reflect.field(o, "get_" + field);
-		if( f != null )
+	public static function getProperty(o:Dynamic, field:String):Dynamic {
+		var f:Dynamic = Reflect.field(o, "get_" + field);
+		if (f != null)
 			return f();
-		return Reflect.field(o,field);
+		return Reflect.field(o, field);
 	}
 
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		var f : Dynamic = Reflect.field(o, "set_" + field);
-		if( f != null )
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+		var f:Dynamic = Reflect.field(o, "set_" + field);
+		if (f != null)
 			f(value);
 		else
 			setField(o, field, value);
 	}
 
-	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
-		var args : hl.types.ArrayDyn = cast args;
+	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+		var args:hl.types.ArrayDyn = cast args;
 
 		var ft = hl.Type.getDynamic(func);
-		if( ft.kind != HFun )
+		if (ft.kind != HFun)
 			throw "Invalid function " + func;
 
 		var count = args.length;
 		var need = ft.getArgsCount();
 		var nargs = count < need ? need : count;
-		var cval : Dynamic = hl.Api.getClosureValue(func);
-		if( cval != null ) {
+		var cval:Dynamic = hl.Api.getClosureValue(func);
+		if (cval != null) {
 			func = hl.Api.noClosure(func);
 			nargs++;
 		}
 
 		var a = new hl.NativeArray<Dynamic>(nargs);
-		if( cval == null ) {
-			for( i in 0...count )
+		if (cval == null) {
+			for (i in 0...count)
 				a[i] = args.getDyn(i);
 		} else {
 			a[0] = cval;
-			for( i in 0...count )
-				a[i+1] = args.getDyn(i);
+			for (i in 0...count)
+				a[i + 1] = args.getDyn(i);
 		}
-		return hl.Api.callMethod(func,a);
+		return hl.Api.callMethod(func, a);
 	}
 
-	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.NativeArray<hl.Bytes> {
+	@:hlNative("std", "obj_fields") static function getObjectFields(v:Dynamic):hl.NativeArray<hl.Bytes> {
 		return null;
 	}
 
-	public static function fields( o : Dynamic ) : Array<String> {
+	public static function fields(o:Dynamic):Array<String> {
 		var fields = getObjectFields(o);
-		if( fields == null ) return [];
-		return [for( f in fields ) @:privateAccess String.fromUCS2(f)];
+		if (fields == null)
+			return [];
+		return [for (f in fields) @:privateAccess String.fromUCS2(f)];
 	}
 
-	public static inline function isFunction( f : Dynamic ) : Bool {
+	public static inline function isFunction(f:Dynamic):Bool {
 		return hl.Type.getDynamic(f).kind == HFun;
 	}
 
-	@:hlNative("std","dyn_compare")
-	public static function compare<T>( a : T, b : T ) : Int {
+	@:hlNative("std", "dyn_compare")
+	public static function compare<T>(a:T, b:T):Int {
 		return 0;
 	}
 
-	@:hlNative("std","fun_compare")
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
+	@:hlNative("std", "fun_compare")
+	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
 		return false;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool {
+	public static function isObject(v:Dynamic):Bool {
 		var t = hl.Type.getDynamic(v);
-		return switch( t.kind ) { case HObj, HDynObj, HVirtual: true; default: false; }
+		return switch (t.kind) {
+			case HObj, HDynObj, HVirtual: true;
+			default: false;
+		}
 	}
 
-	public static function isEnumValue( v : Dynamic ) : Bool {
+	public static function isEnumValue(v:Dynamic):Bool {
 		var t = hl.Type.getDynamic(v);
 		return t.kind == HEnum;
 	}
 
-	public static function deleteField( o : Dynamic, field : String ) : Bool {
-		return hl.Api.deleteField(o,@:privateAccess field.bytes.hash());
+	public static function deleteField(o:Dynamic, field:String):Bool {
+		return hl.Api.deleteField(o, @:privateAccess field.bytes.hash());
 	}
 
-	@:hlNative("std","obj_copy")
-	public static function copy<T>( o : Null<T> ) : Null<T> {
+	@:hlNative("std", "obj_copy")
+	public static function copy<T>(o:Null<T>):Null<T> {
 		return null;
 	}
 
-	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
-	extern public inline static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
+	extern public inline static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return _makeVarArgs(f);
 	}
 
-	static function _makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+	static function _makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return hl.Api.makeVarArgs(function(args:hl.NativeArray<Dynamic>) {
 			var arr = hl.types.ArrayDyn.alloc(hl.types.ArrayObj.alloc(args), true);
 			return f(cast arr);
 		});
 	}
-
 }

@@ -19,21 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import java.util.regex.*;
 
-@:coreApi class EReg {
+using StringTools;
 
+@:coreApi class EReg {
 	private var pattern:String;
 	private var matcher:Matcher;
 	private var cur:String;
 	private var isGlobal:Bool;
 
-	public function new( r : String, opt : String ) {
+	public function new(r:String, opt:String) {
 		var flags = 0;
-		for (i in 0...opt.length)
-		{
-			switch(StringTools.fastCodeAt(opt, i))
-			{
+		for (i in 0...opt.length) {
+			switch (StringTools.fastCodeAt(opt, i)) {
 				case 'i'.code:
 					flags |= Pattern.CASE_INSENSITIVE;
 				case 'm'.code:
@@ -53,76 +53,70 @@ import java.util.regex.*;
 		pattern = r;
 	}
 
-	private static function convert(r:String):String
-	{
-		//some references of the implementation:
-		//http://stackoverflow.com/questions/809647/java-vs-javascript-regex-problem
-		//http://stackoverflow.com/questions/4788413/how-to-convert-javascript-regex-to-safe-java-regex
-		//Some necessary changes:
+	private static function convert(r:String):String {
+		// some references of the implementation:
+		// http://stackoverflow.com/questions/809647/java-vs-javascript-regex-problem
+		// http://stackoverflow.com/questions/4788413/how-to-convert-javascript-regex-to-safe-java-regex
+		// Some necessary changes:
 		//
 		// \0  -> \x00
 		// \v  -> \x0b
 		// [^] -> [\s\S]
 		// unescaped ', " -> \', \"
 		/* FIXME
-		var pat = new StringBuf();
-		var len = r.length;
-		var i = 0;
-		while (i < len)
-		{
-			var c = StringTools.fastCodeAt(r, i++);
-			switch(c)
+			var pat = new StringBuf();
+			var len = r.length;
+			var i = 0;
+			while (i < len)
 			{
-				case '\\'.code: //escape-sequence
+				var c = StringTools.fastCodeAt(r, i++);
+				switch(c)
+				{
+					case '\\'.code: //escape-sequence
 
+				}
 			}
-		}
-		*/
+		 */
+
 		return r;
 	}
 
-	public function match( s : String ) : Bool {
+	public function match(s:String):Bool {
 		cur = s;
 		matcher = matcher.reset(s);
 		return matcher.find();
 	}
 
-	public function matched( n : Int ) : String
-	{
+	public function matched(n:Int):String {
 		if (n == 0)
 			return matcher.group();
 		else
 			return matcher.group(n);
 	}
 
-	public function matchedLeft() : String
-	{
+	public function matchedLeft():String {
 		return untyped cur.substring(0, matcher.start());
 	}
 
-	public function matchedRight() : String
-	{
+	public function matchedRight():String {
 		return untyped cur.substring(matcher.end(), cur.length);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
+	public function matchedPos():{pos:Int, len:Int} {
 		var start = matcher.start();
-		return { pos : start, len : matcher.end() - start };
+		return {pos: start, len: matcher.end() - start};
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		matcher = matcher.reset(len < 0 ? s : s.substr(0,pos + len));
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
+		matcher = matcher.reset(len < 0 ? s : s.substr(0, pos + len));
 		cur = s;
 		return matcher.find(pos);
 	}
 
-	public function split( s : String ) : Array<String>
-	{
-		if (isGlobal)
-		{
+	public function split(s:String):Array<String> {
+		if (isGlobal) {
 			var ret = [];
-			while(this.match(s))
-			{
+			while (this.match(s)) {
 				ret.push(matchedLeft());
 				s = matchedRight();
 			}
@@ -131,8 +125,7 @@ import java.util.regex.*;
 		} else {
 			var m = matcher;
 			m.reset(s);
-			if (m.find())
-			{
+			if (m.find()) {
 				return untyped [s.substring(0, m.start()), s.substring(m.end(), s.length)];
 			} else {
 				return [s];
@@ -140,24 +133,21 @@ import java.util.regex.*;
 		}
 	}
 
-	inline function start(group:Int) : Int
-	{
+	inline function start(group:Int):Int {
 		return matcher.start(group);
 	}
 
-	inline function len(group:Int) : Int
-	{
+	inline function len(group:Int):Int {
 		return matcher.end(group) - matcher.start(group);
 	}
 
-	public function replace( s : String, by : String ) : String
-	{
-      matcher.reset(s);
-			by = by.split("$$").join("\\$");
-			return isGlobal ? matcher.replaceAll(by) : matcher.replaceFirst(by);
+	public function replace(s:String, by:String):String {
+		matcher.reset(s);
+		by = by.replace("\\", "\\\\").replace("$$", "\\$");
+		return isGlobal ? matcher.replaceAll(by) : matcher.replaceFirst(by);
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
+	public function map(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
@@ -173,8 +163,7 @@ import java.util.regex.*;
 			if (p.len == 0) {
 				buf.add(s.substr(p.pos, 1));
 				offset = p.pos + 1;
-			}
-			else
+			} else
 				offset = p.pos + p.len;
 		} while (isGlobal);
 		if (!isGlobal && offset > 0 && offset < s.length)
@@ -182,7 +171,7 @@ import java.util.regex.*;
 		return buf.toString();
 	}
 
-	public static inline function escape( s : String ) : String {
+	public static inline function escape(s:String):String {
 		return Pattern.quote(s);
 	}
 }

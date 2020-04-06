@@ -19,140 +19,252 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
+import js.lib.Object;
+import haxe.Constraints.IMap;
+import haxe.DynamicAccess;
+
+#if (js_es >= 5)
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	var h:Dynamic;
+
+	public inline function new() {
+		h = Object.create(null);
+	}
+
+	public inline function exists(key:String):Bool {
+		return Object.prototype.hasOwnProperty.call(h, key);
+	}
+
+	public inline function get(key:String):Null<T> {
+		return h[cast key];
+	}
+
+	public inline function set(key:String, value:T):Void {
+		h[cast key] = value;
+	}
+
+	public inline function remove(key:String):Bool {
+		return if (exists(key)) {
+			js.Syntax.delete(h, key); true;
+		} else {
+			false;
+		}
+	}
+
+	public inline function keys():Iterator<String> {
+		return keysIterator(h);
+	}
+
+	public inline function iterator():Iterator<T> {
+		return valueIterator(h);
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
+		return kvIterator(h);
+	}
+
+	public inline function copy():StringMap<T> {
+		return createCopy(h);
+	}
+
+	public inline function clear():Void {
+		h = Object.create(null);
+	}
+
+	public inline function toString():String {
+		return stringify(h);
+	}
+
+	// impl
+
+	static function keysIterator(h:Dynamic):Iterator<String> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> keys[idx++]
+		};
+	}
+
+	static function valueIterator<T>(h:Dynamic):Iterator<T> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> h[cast keys[idx++]]
+		};
+	}
+
+	static function kvIterator<T>(h:Dynamic):KeyValueIterator<String, T> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> {var k = keys[idx++]; {key: k, value: h[cast k]}}
+		};
+	}
+
+	static function createCopy<T>(h:Dynamic):StringMap<T> {
+		var copy = new StringMap();
+		js.Syntax.code("for (var key in {0}) {1}[key] = {0}[key]", h, copy.h);
+		return copy;
+	}
+
+	@:analyzer(no_optimize)
+	static function stringify(h:Dynamic):String {
+		var s = "{", first = true;
+		js.Syntax.code("for (var key in {0}) {", h);
+		js.Syntax.code("\tif ({0}) {0} = false; else {1} += ',';", first, s);
+		js.Syntax.code("\t{0} += key + ' => ' + {1}({2}[key]);", s, Std.string, h);
+		js.Syntax.code("}");
+		return s + "}";
+	}
+}
+#else
 private class StringMapIterator<T> {
-	var map : StringMap<T>;
-	var keys : Array<String>;
-	var index : Int;
-	var count : Int;
+	var map:StringMap<T>;
+	var keys:Array<String>;
+	var index:Int;
+	var count:Int;
+
 	public inline function new(map:StringMap<T>, keys:Array<String>) {
 		this.map = map;
 		this.keys = keys;
 		this.index = 0;
 		this.count = keys.length;
 	}
+
 	public inline function hasNext() {
 		return index < count;
 	}
+
 	public inline function next() {
 		return map.get(keys[index++]);
 	}
 }
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	private var h:Dynamic;
+	private var rh:Dynamic;
 
-	private var h : Dynamic;
-	private var rh : Dynamic;
-
-	public inline function new() : Void {
+	public inline function new():Void {
 		h = {};
 	}
 
-	inline function isReserved(key:String) : Bool {
-		return untyped __js__("__map_reserved")[key] != null;
+	inline function isReserved(key:String):Bool {
+		return js.Syntax.code("__map_reserved[{0}]", key) != null;
 	}
 
-	public inline function set( key : String, value : T ) : Void {
-		if( isReserved(key) )
+	public inline function set(key:String, value:T):Void {
+		if (isReserved(key))
 			setReserved(key, value);
 		else
 			h[cast key] = value;
 	}
 
-	public inline function get( key : String ) : Null<T> {
-		if( isReserved(key) )
+	public inline function get(key:String):Null<T> {
+		if (isReserved(key))
 			return getReserved(key);
 		return h[cast key];
 	}
 
-	public inline function exists( key : String ) : Bool {
-		if( isReserved(key) )
+	public inline function exists(key:String):Bool {
+		if (isReserved(key))
 			return existsReserved(key);
 		return h.hasOwnProperty(key);
 	}
 
-	function setReserved( key : String, value : T ) : Void {
-		if( rh == null ) rh = {};
-		rh[cast "$"+key] = value;
+	function setReserved(key:String, value:T):Void {
+		if (rh == null)
+			rh = {};
+		rh[cast "$" + key] = value;
 	}
 
-	function getReserved( key : String ) : Null<T> {
-		return rh == null ? null : rh[cast "$"+key];
+	function getReserved(key:String):Null<T> {
+		return rh == null ? null : rh[cast "$" + key];
 	}
 
-	function existsReserved( key : String ) : Bool {
-		if( rh == null ) return false;
-		return (cast rh).hasOwnProperty("$"+key);
+	function existsReserved(key:String):Bool {
+		if (rh == null)
+			return false;
+		return (cast rh).hasOwnProperty("$" + key);
 	}
 
-	public function remove( key : String ) : Bool {
-		if( isReserved(key) ) {
+	public function remove(key:String):Bool {
+		if (isReserved(key)) {
 			key = "$" + key;
-			if( rh == null || !rh.hasOwnProperty(key) ) return false;
+			if (rh == null || !rh.hasOwnProperty(key))
+				return false;
 			js.Syntax.delete(rh, key);
 			return true;
 		} else {
-			if( !h.hasOwnProperty(key) )
+			if (!h.hasOwnProperty(key))
 				return false;
 			js.Syntax.delete(h, key);
 			return true;
 		}
 	}
 
-	public function keys() : Iterator<String> {
+	public function keys():Iterator<String> {
 		return arrayKeys().iterator();
 	}
 
-	function arrayKeys() : Array<String> {
+	function arrayKeys():Array<String> {
 		var out = [];
 		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					out.push(key);
-			__js__("}");
+			js.Syntax.code("for( var key in this.h ) {");
+			if (h.hasOwnProperty(key))
+				out.push(key);
+			js.Syntax.code("}");
 		}
-		if( rh != null ) untyped {
-			__js__("for( var key in this.rh ) {");
-				if( key.charCodeAt(0) == "$".code )
+		if (rh != null)
+			untyped {
+				js.Syntax.code("for( var key in this.rh ) {");
+				if (key.charCodeAt(0) == "$".code)
 					out.push(key.substr(1));
-			__js__("}");
-		}
+				js.Syntax.code("}");
+			}
 		return out;
 	}
 
-	public inline function iterator() : Iterator<T> {
+	public inline function iterator():Iterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var keys = arrayKeys();
-		for( i in 0...keys.length ) {
+		for (i in 0...keys.length) {
 			var k = keys[i];
 			s.add(k);
 			s.add(" => ");
 			s.add(Std.string(get(k)));
-			if( i < keys.length-1 )
+			if (i < keys.length - 1)
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
-	static function __init__() : Void {
-		untyped __js__("var __map_reserved = {};");
+	public inline function clear():Void {
+		h = {};
+		rh = null;
 	}
 
+	static function __init__():Void {
+		js.Syntax.code("var __map_reserved = {};");
+	}
 }
+#end

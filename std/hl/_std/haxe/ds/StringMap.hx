@@ -23,9 +23,9 @@
 package haxe.ds;
 
 private class StringMapKeysIterator {
-	var arr : hl.NativeArray<hl.Bytes>;
-	var pos : Int;
-	var length : Int;
+	var arr:hl.NativeArray<hl.Bytes>;
+	var pos:Int;
+	var length:Int;
 
 	public inline function new(h:hl.types.BytesMap) {
 		this.arr = h.keysArray();
@@ -41,65 +41,67 @@ private class StringMapKeysIterator {
 		var b = arr[pos++];
 		return String.fromUCS2(b);
 	}
-
 }
 
 @:coreApi
-class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	var h:hl.types.BytesMap;
 
-	var h : hl.types.BytesMap;
-
-	public function new() : Void {
+	public function new():Void {
 		h = new hl.types.BytesMap();
 	}
 
-	public function set( key : String, value : T ) : Void {
-		@:privateAccess h.set(key.bytes,value);
+	public function set(key:String, value:T):Void {
+		@:privateAccess h.set(key.bytes, value);
 	}
 
-	public function get( key : String ) : Null<T> {
-		if( key == null ) return null;
+	public function get(key:String):Null<T> {
+		if (key == null)
+			return null;
 		return @:privateAccess h.get(key.bytes);
 	}
 
-	public function exists( key : String ) : Bool {
-		if( key == null ) return false;
+	public function exists(key:String):Bool {
+		if (key == null)
+			return false;
 		return @:privateAccess h.exists(key.bytes);
 	}
 
-	public function remove( key : String ) : Bool {
-		if( key == null ) return false;
+	public function remove(key:String):Bool {
+		if (key == null)
+			return false;
 		return @:privateAccess h.remove(key.bytes);
 	}
 
-	public function keys() : Iterator<String> {
+	public function keys():Iterator<String> {
 		return new StringMapKeysIterator(h);
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return h.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		var keys = h.keysArray();
 		var values = h.valuesArray();
 		s.addChar('{'.code);
-		for( i in 0...keys.length ) {
-			if( i > 0 )
+		for (i in 0...keys.length) {
+			if (i > 0)
 				s.add(", ");
 			var k = keys[i];
-			@:privateAccess s.__add(k,0,(@:privateAccess k.ucs2Length(0)) << 1);
+			@:privateAccess s.__add(k, 0, (@:privateAccess k.ucs2Length(0)) << 1);
 			s.add(" => ");
 			s.add(values[i]);
 		}
@@ -107,4 +109,11 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 		return s.toString();
 	}
 
+	public function clear():Void {
+		#if (hl_ver >= version("1.11.0"))
+		@:privateAccess h.clear();
+		#else
+		h = new hl.types.BytesMap();
+		#end
+	}
 }

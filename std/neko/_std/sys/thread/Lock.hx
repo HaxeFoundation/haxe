@@ -19,25 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
 @:coreApi
 class Lock {
-	var l : Dynamic;
+	var l:Dynamic;
 
 	public function new() {
 		l = lock_create();
 	}
 
-	public function wait( ?timeout : Float ) : Bool {
-		return lock_wait(l,timeout);
+	public function wait(?timeout:Float):Bool {
+		return lock_wait(l, timeout);
 	}
 
 	public function release():Void {
 		lock_release(l);
 	}
 
-	static var lock_create = neko.Lib.load("std","lock_create",0);
-	static var lock_release = neko.Lib.load("std","lock_release",1);
-	static var lock_wait = neko.Lib.load("std","lock_wait",2);
+	static var lock_create = neko.Lib.load("std", "lock_create", 0);
+	static var lock_release = neko.Lib.load("std", "lock_release", 1);
+	static var lock_wait = neko.Lib.load("std", "lock_wait", 2);
 }

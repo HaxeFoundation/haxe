@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open JvmGlobals
 open JvmData
 open JvmSignature
@@ -5,6 +24,22 @@ open JvmSignature
 (* Opcode builder with stack management *)
 
 exception EmptyStack
+
+let terminates = function
+	| OpDreturn
+	| OpFreturn
+	| OpIreturn
+	| OpLreturn
+	| OpAreturn
+	| OpGoto _
+	| OpGoto_w _
+	| OpJsr _
+	| OpJsr_w _
+	| OpAthrow
+	| OpReturn ->
+		true
+	| _ ->
+		false
 
 class jvm_stack = object(self)
 	val mutable stack = [];
@@ -69,6 +104,10 @@ class builder pool = object(self)
 	val ops = DynArray.create();
 	val stack_debug = DynArray.create()
 	val mutable fp = 0
+	val mutable terminated = false
+
+	method is_terminated = terminated
+	method set_terminated b = terminated <- b
 
 	method debug_stack =
 		let l = DynArray.to_list stack_debug in
@@ -114,7 +153,7 @@ class builder pool = object(self)
 			match js,js' with
 			| (TObject _ | TTypeParameter _),(TObject _ | TTypeParameter _ | TArray _) -> () (* TODO ??? *)
 			| TMethod _,TMethod _ -> ()
-			| TMethod _,TObject((["java";"lang";"invoke"],"MethodHandle"),[]) -> ()
+			| TMethod _,TObject(path,[]) when path = NativeSignatures.haxe_function_path -> ()
 			| TTypeParameter _,TMethod _ -> ()
 			| TObject _,TMethod _ -> ()
 			| TMethod _,TObject _ -> ()
@@ -129,6 +168,7 @@ class builder pool = object(self)
 		) expect;
 		List.iter stack#push (List.rev return);
 		DynArray.add stack_debug (opcode,cur,stack#get_stack,current_line);
+		if terminates opcode then terminated <- true
 
 	method op_maybe_wide op opw i tl tr = match get_numeric_range_unsigned i with
 		| Int8Range -> self#op op 2 tl tr
@@ -323,22 +363,16 @@ class builder pool = object(self)
 	(* control flow *)
 
 	method if_ cmp r = self#op (OpIf(cmp,r)) 3 [TBool] []
-	method if_ref cmp = let r = ref fp in self#if_ cmp r; r
 
 	method if_icmp cmp r = self#op (OpIf_icmp(cmp,r)) 3 [TInt;TInt] []
-	method if_icmp_ref cmp = let r = ref fp in self#if_icmp cmp r; r
 
 	method if_acmp_eq t1 t2 r = self#op (OpIf_acmpeq r) 3 [t1;t2] []
-	method if_acmp_eq_ref t1 t2 = let r = ref fp in self#if_acmp_eq t1 t2 r; r
 
 	method if_acmp_ne t1 t2 r = self#op (OpIf_acmpne r) 3 [t1;t2] []
-	method if_acmp_ne_ref t1 t2 = let r = ref fp in self#if_acmp_ne t1 t2 r; r
 
 	method if_null t r = self#op (OpIfnull r) 3 [t] []
-	method if_null_ref t = let r = ref fp in self#if_null t r; r
 
 	method if_nonnull t r = self#op (OpIfnonnull r) 3 [t] []
-	method if_nonnull_ref t = let r = ref fp in self#if_nonnull t r; r
 
 	method goto r = self#op (OpGoto r) 3 [] []
 

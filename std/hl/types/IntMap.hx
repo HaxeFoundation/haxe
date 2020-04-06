@@ -19,51 +19,54 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl.types;
 
 typedef IntMapData = Abstract<"hl_int_map">;
 
 abstract IntMap(IntMapData) {
-
 	extern public inline function new() {
 		this = alloc();
 	}
 
-	@:hlNative("std","hialloc") static function alloc() : IntMapData {
+	@:hlNative("std", "hialloc") static function alloc():IntMapData {
 		return null;
 	}
 
-	@:hlNative("std","hiset")
-	public function set( key : Int, value : Dynamic ) {
-	}
+	@:hlNative("std", "hiset")
+	public function set(key:Int, value:Dynamic) {}
 
-	@:hlNative("std","hiexists")
-	public function exists( key : Int ) : Bool {
+	@:hlNative("std", "hiexists")
+	public function exists(key:Int):Bool {
 		return false;
 	}
 
-	@:hlNative("std","higet")
-	public function get( key : Int ) : Dynamic {
+	@:hlNative("std", "higet")
+	public function get(key:Int):Dynamic {
 		return null;
 	}
 
-	@:hlNative("std","hiremove")
-	public function remove( key : Int ) : Bool {
+	@:hlNative("std", "hiremove")
+	public function remove(key:Int):Bool {
 		return false;
 	}
 
-	@:hlNative("std","hikeys")
-	public function keysArray() : NativeArray<Int> {
+	@:hlNative("std", "hikeys")
+	public function keysArray():NativeArray<Int> {
 		return null;
 	}
 
-	@:hlNative("std","hivalues")
-	public function valuesArray() : NativeArray<Dynamic> {
+	@:hlNative("std", "hivalues")
+	public function valuesArray():NativeArray<Dynamic> {
 		return null;
 	}
+
+	#if (hl_ver >= version("1.11.0"))
+	@:hlNative("std", "hiclear")
+	public function clear():Void {}
+	#end
 
 	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}
-
 }

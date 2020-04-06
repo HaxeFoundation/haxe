@@ -19,58 +19,52 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.NativeArray;
 
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
 final class Array<T> implements ArrayAccess<T> {
-
-	public var length(default,null) : Int;
+	public var length(default, null):Int;
 
 	private var __a:NativeArray<T>;
 
 	@:skipReflection static var __hx_toString_depth = 0;
+	@:skipReflection static inline final __hx_defaultCapacity = 4;
 
-#if erase_generics
-	inline private static function ofNative<X>(native:NativeArray<Dynamic>):Array<X>
-	{
+	#if erase_generics
+	inline private static function ofNative<X>(native:NativeArray<Dynamic>):Array<X> {
 		return new Array(native);
 	}
-#else
-	inline private static function ofNative<X>(native:NativeArray<X>):Array<X>
-	{
+	#else
+	inline private static function ofNative<X>(native:NativeArray<X>):Array<X> {
 		return new Array(native);
 	}
-#end
+	#end
 
-	inline private static function alloc<Y>(size:Int):Array<Y>
-	{
+	inline private static function alloc<Y>(size:Int):Array<Y> {
 		return new Array(new NativeArray(size));
 	}
 
-	@:overload public function new() : Void
-	{
+	@:overload public function new():Void {
 		this.length = 0;
 		this.__a = new NativeArray(0);
 	}
 
-#if erase_generics
-	@:overload private function new(native:NativeArray<Dynamic>)
-	{
+	#if erase_generics
+	@:overload private function new(native:NativeArray<Dynamic>) {
 		this.length = native.Length;
 		this.__a = untyped native;
 	}
-#else
-	@:overload private function new(native:NativeArray<T>)
-	{
+	#else
+	@:overload private function new(native:NativeArray<T>) {
 		this.length = native.Length;
 		this.__a = native;
 	}
-#end
+	#end
 
-	public function concat( a : Array<T> ) : Array<T>
-	{
+	public function concat(a:Array<T>):Array<T> {
 		var len = length + a.length;
 		var retarr = new NativeArray(len);
 		cs.system.Array.Copy(__a, 0, retarr, 0, length);
@@ -79,12 +73,10 @@ final class Array<T> implements ArrayAccess<T> {
 		return ofNative(retarr);
 	}
 
-	private function concatNative( a : NativeArray<T> ) : Void
-	{
+	private function concatNative(a:NativeArray<T>):Void {
 		var __a = __a;
 		var len = length + a.Length;
-		if (__a.Length >= len)
-		{
+		if (__a.Length >= len) {
 			cs.system.Array.Copy(a, 0, __a, length, length);
 		} else {
 			var newarr = new NativeArray(len);
@@ -97,45 +89,37 @@ final class Array<T> implements ArrayAccess<T> {
 		this.length = len;
 	}
 
-	public function indexOf( x : T, ?fromIndex:Int ) : Int
-	{
+	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var len = length, i:Int = (fromIndex == null) ? 0 : fromIndex;
-		if (i < 0)
-		{
+		if (i < 0) {
 			i += len;
-			if (i < 0) i = 0;
-		}
-		else if (i >= len)
-		{
+			if (i < 0)
+				i = 0;
+		} else if (i >= len) {
 			return -1;
 		}
 		return cs.system.Array.IndexOf(__a, x, i, len - i);
 	}
 
-	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int
-	{
+	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
 		var len = length, i:Int = (fromIndex == null) ? len - 1 : fromIndex;
-		if (i >= len)
-		{
+		if (i >= len) {
 			i = len - 1;
-		}
-		else if (i < 0)
-		{
+		} else if (i < 0) {
 			i += len;
-			if (i < 0) return -1;
+			if (i < 0)
+				return -1;
 		}
 		return cs.system.Array.LastIndexOf(__a, x, i, i + 1);
 	}
 
-	public function join( sep : String ) : String
-	{
+	public function join(sep:String):String {
 		var buf = new StringBuf();
 		var i = -1;
 
 		var first = true;
 		var length = length;
-		while (++i < length)
-		{
+		while (++i < length) {
 			if (first)
 				first = false;
 			else
@@ -146,12 +130,10 @@ final class Array<T> implements ArrayAccess<T> {
 		return buf.toString();
 	}
 
-	public function pop() : Null<T>
-	{
+	public function pop():Null<T> {
 		var __a = __a;
 		var length = length;
-		if (length > 0)
-		{
+		if (length > 0) {
 			var val = __a[--length];
 			__a[length] = null;
 			this.length = length;
@@ -162,11 +144,9 @@ final class Array<T> implements ArrayAccess<T> {
 		}
 	}
 
-	public function push(x : T) : Int
-	{
-		if (length >= __a.Length)
-		{
-			var newLen = (length << 1) + 1;
+	public function push(x:T):Int {
+		if (length >= __a.Length) {
+			var newLen = length == 0 ? __hx_defaultCapacity : (length << 1);
 			var newarr = new NativeArray(newLen);
 			__a.CopyTo(newarr, 0);
 
@@ -177,53 +157,50 @@ final class Array<T> implements ArrayAccess<T> {
 		return ++length;
 	}
 
-	public function reverse() : Void
-	{
+	public function reverse():Void {
 		var i = 0;
 		var l = this.length;
 		var a = this.__a;
 		var half = l >> 1;
 		l -= 1;
-		while ( i < half )
-		{
+		while (i < half) {
 			var tmp = a[i];
-			a[i] = a[l-i];
-			a[l-i] = tmp;
+			a[i] = a[l - i];
+			a[l - i] = tmp;
 			i += 1;
 		}
 	}
 
-	public function shift() : Null<T>
-	{
+	public function shift():Null<T> {
 		var l = this.length;
-		if( l == 0 )
+		if (l == 0)
 			return null;
 
 		var a = this.__a;
 		var x = a[0];
 		l -= 1;
-		cs.system.Array.Copy(a, 1, a, 0, length-1);
+		cs.system.Array.Copy(a, 1, a, 0, length - 1);
 		a[l] = null;
 		this.length = l;
 
 		return x;
 	}
 
-	public function slice( pos : Int, ?end : Int ) : Array<T>
-	{
-		if( pos < 0 ){
+	public function slice(pos:Int, ?end:Int):Array<T> {
+		if (pos < 0) {
 			pos = this.length + pos;
-			if( pos < 0 )
+			if (pos < 0)
 				pos = 0;
 		}
-		if( end == null )
+		if (end == null)
 			end = this.length;
-		else if( end < 0 )
+		else if (end < 0)
 			end = this.length + end;
-		if( end > this.length )
+		if (end > this.length)
 			end = this.length;
 		var len = end - pos;
-		if ( len < 0 ) return new Array();
+		if (len < 0)
+			return new Array();
 
 		var newarr = new NativeArray(len);
 		cs.system.Array.Copy(__a, pos, newarr, 0, len);
@@ -231,47 +208,49 @@ final class Array<T> implements ArrayAccess<T> {
 		return ofNative(newarr);
 	}
 
-	public function sort( f : T -> T -> Int ) : Void
-	{
+	public function sort(f:T->T->Int):Void {
 		if (length == 0)
 			return;
 		quicksort(0, length - 1, f);
 	}
 
-	private function quicksort( lo : Int, hi : Int, f : T -> T -> Int ) : Void
-	{
+	private function quicksort(lo:Int, hi:Int, f:T->T->Int):Void {
 		var buf = __a;
 		var i = lo, j = hi;
 		var p = buf[(i + j) >> 1];
-		while ( i <= j )
-		{
-			while ( i < hi && f(buf[i], p) < 0 ) i++;
-			while ( j > lo && f(buf[j], p) > 0 ) j--;
-			if ( i <= j )
-			{
+		while (i <= j) {
+			while (i < hi && f(buf[i], p) < 0)
+				i++;
+			while (j > lo && f(buf[j], p) > 0)
+				j--;
+			if (i <= j) {
 				var t = buf[i];
 				buf[i++] = buf[j];
 				buf[j--] = t;
 			}
 		}
 
-		if( lo < j ) quicksort( lo, j, f );
-		if( i < hi ) quicksort( i, hi, f );
+		if (lo < j)
+			quicksort(lo, j, f);
+		if (i < hi)
+			quicksort(i, hi, f);
 	}
 
-	public function splice( pos : Int, len : Int ) : Array<T>
-	{
-		if( len < 0 ) return new Array();
-		if( pos < 0 ) {
+	public function splice(pos:Int, len:Int):Array<T> {
+		if (len < 0)
+			return new Array();
+		if (pos < 0) {
 			pos = this.length + pos;
-			if( pos < 0 ) pos = 0;
+			if (pos < 0)
+				pos = 0;
 		}
-		if( pos > this.length ) {
+		if (pos > this.length) {
 			pos = 0;
 			len = 0;
-		} else if( pos + len > this.length ) {
+		} else if (pos + len > this.length) {
 			len = this.length - pos;
-			if( len < 0 ) len = 0;
+			if (len < 0)
+				len = 0;
 		}
 		var a = this.__a;
 
@@ -282,36 +261,37 @@ final class Array<T> implements ArrayAccess<T> {
 		var end = pos + len;
 		cs.system.Array.Copy(a, end, a, pos, this.length - end);
 		this.length -= len;
-		while( --len >= 0 )
+		while (--len >= 0)
 			a[this.length + len] = null;
 		return ret;
 	}
 
-	private function spliceVoid( pos : Int, len : Int ) : Void
-	{
-		if( len < 0 ) return;
-		if( pos < 0 ) {
+	private function spliceVoid(pos:Int, len:Int):Void {
+		if (len < 0)
+			return;
+		if (pos < 0) {
 			pos = this.length + pos;
-			if( pos < 0 ) pos = 0;
+			if (pos < 0)
+				pos = 0;
 		}
-		if( pos > this.length ) {
+		if (pos > this.length) {
 			pos = 0;
 			len = 0;
-		} else if( pos + len > this.length ) {
+		} else if (pos + len > this.length) {
 			len = this.length - pos;
-			if( len < 0 ) len = 0;
+			if (len < 0)
+				len = 0;
 		}
 		var a = this.__a;
 
 		var end = pos + len;
 		cs.system.Array.Copy(a, end, a, pos, this.length - end);
 		this.length -= len;
-		while( --len >= 0 )
+		while (--len >= 0)
 			a[this.length + len] = null;
 	}
 
-	public function toString() : String
-	{
+	public function toString():String {
 		if (__hx_toString_depth >= 5) {
 			return "...";
 		}
@@ -320,21 +300,19 @@ final class Array<T> implements ArrayAccess<T> {
 			var s = __hx_toString();
 			--__hx_toString_depth;
 			return s;
-		} catch(e:Dynamic) {
+		} catch (e:Dynamic) {
 			--__hx_toString_depth;
 			throw(e);
 		}
 	}
 
 	@:skipReflection
-	function __hx_toString() : String
-	{
+	function __hx_toString():String {
 		var ret = new StringBuf();
 		var a = __a;
 		ret.add("[");
 		var first = true;
-		for (i in 0...length)
-		{
+		for (i in 0...length) {
 			if (first)
 				first = false;
 			else
@@ -346,12 +324,10 @@ final class Array<T> implements ArrayAccess<T> {
 		return ret.toString();
 	}
 
-	public function unshift( x : T ) : Void
-	{
+	public function unshift(x:T):Void {
 		var __a = __a;
 		var length = length;
-		if (length >= __a.Length)
-		{
+		if (length >= __a.Length) {
 			var newLen = (length << 1) + 1;
 			var newarr = new NativeArray(newLen);
 			cs.system.Array.Copy(__a, 0, newarr, 1, length);
@@ -365,14 +341,14 @@ final class Array<T> implements ArrayAccess<T> {
 		++this.length;
 	}
 
-	public function insert( pos : Int, x : T ) : Void
-	{
+	public function insert(pos:Int, x:T):Void {
 		var l = this.length;
-		if( pos < 0 ) {
+		if (pos < 0) {
 			pos = l + pos;
-			if( pos < 0 ) pos = 0;
+			if (pos < 0)
+				pos = 0;
 		}
-		if ( pos >= l ) {
+		if (pos >= l) {
 			this.push(x);
 			return;
 		} else if (pos == 0) {
@@ -380,8 +356,7 @@ final class Array<T> implements ArrayAccess<T> {
 			return;
 		}
 
-		if (l >= __a.Length)
-		{
+		if (l >= __a.Length) {
 			var newLen = (length << 1) + 1;
 			var newarr = new NativeArray(newLen);
 			cs.system.Array.Copy(__a, 0, newarr, 0, pos);
@@ -399,15 +374,12 @@ final class Array<T> implements ArrayAccess<T> {
 		}
 	}
 
-	public function remove( x : T ) : Bool
-	{
+	public function remove(x:T):Bool {
 		var __a = __a;
 		var i = -1;
 		var length = length;
-		while (++i < length)
-		{
-			if (__a[i] == x)
-			{
+		while (++i < length) {
+			if (__a[i] == x) {
 				cs.system.Array.Copy(__a, i + 1, __a, i, length - i - 1);
 				__a[--this.length] = null;
 
@@ -418,23 +390,35 @@ final class Array<T> implements ArrayAccess<T> {
 		return false;
 	}
 
-	public function map<S>( f : T -> S ) : Array<S> {
-		var ret = [];
-		for (elt in this)
-			ret.push(f(elt));
+	public inline function map<S>(f:T->S):Array<S> {
+		var ret = alloc(length);
+		for (i in 0...length)
+			ret.__unsafe_set(i, f(__unsafe_get(i)));
 		return ret;
 	}
 
-	public function filter( f : T -> Bool ) : Array<T> {
+	public function contains(x:T):Bool {
+		var __a = __a;
+		var i = -1;
+		var length = length;
+		while (++i < length) {
+			if (__a[i] == x)
+				return true;
+		}
+		return false;
+	}
+
+	public inline function filter(f:T->Bool):Array<T> {
 		var ret = [];
-		for (elt in this)
+		for (i in 0...length) {
+			var elt = __unsafe_get(i);
 			if (f(elt))
 				ret.push(elt);
+		}
 		return ret;
 	}
 
-	public function copy() : Array<T>
-	{
+	public function copy():Array<T> {
 		var len = length;
 		var __a = __a;
 		var newarr = new NativeArray(len);
@@ -442,38 +426,29 @@ final class Array<T> implements ArrayAccess<T> {
 		return ofNative(newarr);
 	}
 
-	public inline function iterator() : Iterator<T>
-	{
-		return new ArrayIterator<T>(this);
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
-	public function resize( len : Int ) : Void
-	{
-		if (length < len)
-		{
-			if (__a.length < len)
-			{
+	public function resize(len:Int):Void {
+		if (length < len) {
+			if (__a.length < len) {
 				cs.system.Array.Resize(__a, len);
 			}
 			this.length = len;
-		}
-		else if (length > len)
-		{
+		} else if (length > len) {
 			spliceVoid(len, length - len);
 		}
 	}
 
-	private function __get(idx:Int):T
-	{
+	private function __get(idx:Int):T {
 		return if ((cast idx : UInt) >= length) null else __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):T
-	{
+	private function __set(idx:Int, v:T):T {
 		var idx:UInt = idx;
 		var __a = __a;
-		if (idx >= __a.Length)
-		{
+		if (idx >= __a.Length) {
 			var len = idx + 1;
 			if (idx == __a.Length)
 				len = (idx << 1) + 1;
@@ -488,30 +463,11 @@ final class Array<T> implements ArrayAccess<T> {
 		return __a[idx] = v;
 	}
 
-	private inline function __unsafe_get(idx:Int):T
-	{
+	private inline function __unsafe_get(idx:Int):T {
 		return __a[idx];
 	}
 
-	private inline function __unsafe_set(idx:Int, val:T):T
-	{
+	private inline function __unsafe_set(idx:Int, val:T):T {
 		return __a[idx] = val;
 	}
-}
-
-private final class ArrayIterator<T>
-{
-	var arr:Array<T>;
-	var len:Int;
-	var i:Int;
-
-	public inline function new(a:Array<T>)
-	{
-		arr = a;
-		len = a.length;
-		i = 0;
-	}
-
-	public inline function hasNext():Bool return i < len;
-	public inline function next():T return arr[i++];
 }

@@ -24,5 +24,5 @@ package lua.lib.luv;
 
 @:luaRequire("luv")
 extern class Request {
-  function cancel() : Bool;
+	function cancel():Bool;
 }

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.Exceptions.StopIteration;
@@ -35,12 +36,13 @@ class HaxeIterator<T> {
 	}
 
 	public inline function next():T {
-		if (!checked) hasNext();
+		if (!checked)
+			hasNext();
 		checked = false;
 		return x;
 	}
 
-	public function hasNext ():Bool {
+	public function hasNext():Bool {
 		if (!checked) {
 			try {
 				x = it.__next__();

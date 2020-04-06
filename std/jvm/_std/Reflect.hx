@@ -26,11 +26,11 @@ import jvm.Jvm;
 class Reflect {
 	public static function hasField(o:Dynamic, field:String):Bool {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
-			var c:java.lang.Class <Dynamic>= Jvm.instanceof(o, java.lang.Class) ? cast o : (cast o : java.lang.Object).getClass();
+			var c:java.lang.Class<Dynamic> = Jvm.instanceof(o, java.lang.Class) ? cast o : (cast o : java.lang.Object).getClass();
 			try {
 				c.getField(field);
 				return true;
-			} catch(e:Dynamic) {
+			} catch (e:Dynamic) {
 				return false;
 			}
 		}
@@ -38,6 +38,9 @@ class Reflect {
 	}
 
 	public static function field(o:Dynamic, field:String):Dynamic {
+		if (o == null) {
+			return null;
+		}
 		return Jvm.readField(o, field);
 	}
 
@@ -84,7 +87,7 @@ class Reflect {
 	}
 
 	public static function isFunction(f:Dynamic):Bool {
-		return Jvm.instanceof(f, java.lang.invoke.MethodHandle);
+		return Jvm.instanceof(f, jvm.Function);
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
@@ -120,15 +123,13 @@ class Reflect {
 		if (c1 != (f2 : java.lang.Object).getClass()) {
 			return false;
 		}
-		try {
-			var arg0 = c1.getDeclaredField("argL0");
-			arg0.setAccessible(true);
-			var arg1 = c1.getDeclaredField("argL1");
-			arg1.setAccessible(true);
-			return arg0.get(f1) == arg0.get(f2) && arg1.get(f1) == arg1.get(f2);
-		} catch(_:Dynamic) {
-			return false;
+		if (Std.is(f1, jvm.Function)) {
+			if (!Std.is(f2, jvm.Function)) {
+				return false;
+			}
+			return (f1 : jvm.Function).equals(f2);
 		}
+		return false;
 	}
 
 	public static function isObject(v:Dynamic):Bool {
@@ -144,7 +145,7 @@ class Reflect {
 		if (Jvm.instanceof(v, java.lang.Boolean.BooleanClass)) {
 			return false;
 		}
-		if (Jvm.instanceof(v, java.lang.invoke.MethodHandle)) {
+		if (Jvm.instanceof(v, jvm.Function)) {
 			return false;
 		}
 		return true;
@@ -174,9 +175,6 @@ class Reflect {
 
 	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
 	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
-		var fAdapt = function(args:java.NativeArray<Dynamic>) {
-			return f(@:privateAccess Array.ofNative(args));
-		}
-		return (cast fAdapt : java.lang.invoke.MethodHandle).asVarargsCollector(cast java.NativeArray);
+		return new jvm.Closure.VarArgs((cast f : jvm.Function));
 	}
 }

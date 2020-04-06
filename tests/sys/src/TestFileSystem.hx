@@ -94,6 +94,11 @@ class TestFileSystem extends utest.Test {
 		}
 	}
 
+	function testRootExists() {
+		Assert.isTrue(FileSystem.exists("/"));
+		Assert.isTrue(FileSystem.stat("/") != null);
+	}
+
 	function testWindowsSpecialCases() {
 		if (Sys.systemName() != "Windows" #if python || true #end) {
 			Assert.isTrue(true);

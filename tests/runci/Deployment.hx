@@ -197,72 +197,6 @@ class Deployment {
 		}
 	}
 
-	/**
-		Deploy source package to hxbuilds s3
-	*/
-	static function deployNightlies():Void {
-		changeDirectory(repoDir);
-
-		switch (systemName) {
-			case "Linux":
-				runCommand("make", ["-s", "package_unix"]);// source
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
-						submitToS3("source", 'out/$file');
-						break;
-					}
-				}
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe')) {
-						if (file.endsWith('_bin.tar.gz')) {
-							submitToS3('linux64', 'out/$file');
-						}
-					}
-				}
-			case "Mac":
-				runCommand("make", ["-s", 'package_unix', 'package_installer_mac']);
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe')) {
-						if (file.endsWith('_bin.tar.gz')) {
-							submitToS3('mac', 'out/$file');
-						} else if (file.endsWith('_installer.tar.gz')) {
-							submitToS3('mac-installer', 'out/$file');
-						}
-					}
-				}
-			case "Windows":
-				var kind = switch (Sys.getEnv("ARCH")) {
-					case null:
-						throw "ARCH is not set";
-					case "32":
-						"windows";
-					case "64":
-						cleanup32BitDlls();
-						"windows64";
-					case _:
-						throw "unknown ARCH";
-				}
-
-				var cygRoot = Sys.getEnv("CYG_ROOT");
-				if (cygRoot != null) {
-					runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
-				} else {
-					runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
-				}
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe')) {
-						if (file.endsWith('_bin.zip')) {
-							submitToS3(kind, 'out/$file');
-						} else if (file.endsWith('_installer.zip')) {
-							submitToS3('${kind}-installer', 'out/$file');
-						}
-					}
-				}
-			case _:
-				throw "unknown system";
-		}
-	}
-
 	static function fileExtension(file:String) {
 		file = haxe.io.Path.withoutDirectory(file);
 		var idx = file.indexOf('.');
@@ -270,33 +204,6 @@ class Deployment {
 			return '';
 		} else {
 			return file.substr(idx);
-		}
-	}
-
-	static function submitToS3(kind:String, sourceFile:String) {
-		switch ([
-			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID"),
-			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY")
-		]) {
-			case [null, _] | [_, null]:
-				infoMsg("Missing HXBUILDS_AWS_*, skip submit to S3");
-			case [accessKeyId, secretAccessKey]:
-				var date = DateTools.format(Date.now(), '%Y-%m-%d');
-				var ext = fileExtension(sourceFile);
-				var fileName = 'haxe_${date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}${ext}';
-
-				var changeLatest = gitInfo.branch == "development";
-				Sys.putEnv('AWS_ACCESS_KEY_ID', accessKeyId);
-				Sys.putEnv('AWS_SECRET_ACCESS_KEY', secretAccessKey);
-				runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
-				if (changeLatest) {
-					runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
-				}
-				Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
-				runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
-
-				Indexer.index('$S3_HXBUILDS_ADDR/');
-				runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/index.html"');
 		}
 	}
 
@@ -393,12 +300,6 @@ class Deployment {
 			deployApiDoc();
 		} else {
 			infoMsg("Not deploying API doc");
-		}
-
-		if (isDeployNightlies()) {
-			deployNightlies();
-		} else {
-			infoMsg("Not deploying nightlies");
 		}
 	}
 }

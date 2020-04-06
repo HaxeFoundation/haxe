@@ -24,42 +24,41 @@ package lua;
 
 import haxe.Constraints.Function;
 import lua.Table;
+
 #if lua_jit
 @:luaRequire("ffi")
 extern class Ffi {
-	public function new(type : String, arg : Dynamic);
+	function new(type:String, arg:Dynamic);
 
 	// Declaring and accessing external symbols
-	public static function cdef(def : String) : Void;
-	public static var C : Dynamic;
-	public static function gc(cdata : Dynamic, finalizer : Function) : Void;
-	public static function load (name : String, ?global : Bool) : Dynamic;
-	public static function metatype<T>(ct : Ctype<T>, metatable : Table<Dynamic,Dynamic>) : Ctype<T>;
-	public static function typeof(str:String) : Ctype<Dynamic>;
+	static function cdef(def:String):Void;
+	static var C:Dynamic;
+	static function gc(cdata:Dynamic, finalizer:Function):Void;
+	static function load(name:String, ?global:Bool):Dynamic;
+	static function metatype<T>(ct:Ctype<T>, metatable:Table<Dynamic, Dynamic>):Ctype<T>;
+	static function typeof(str:String):Ctype<Dynamic>;
 
 	// C Type functionality
-	public static function alignof<T>(ct : Ctype<T>) : Int;
-	public static function istype<T>(ct : Ctype<T>, obj:Dynamic) : Bool;
-	public static function offsetof<T>(ct : Ctype<T>, field:String) : Int;
-	public static function sizeof<T>(ct : Ctype<T>, ?nelem : Int) : Int;
-
+	static function alignof<T>(ct:Ctype<T>):Int;
+	static function istype<T>(ct:Ctype<T>, obj:Dynamic):Bool;
+	static function offsetof<T>(ct:Ctype<T>, field:String):Int;
+	static function sizeof<T>(ct:Ctype<T>, ?nelem:Int):Int;
 
 	// Utility functionality
-	public static function errno(?newerr : Int) : Int;
-	public static function fill(dst : Dynamic, len : Int, c:Int) : Void;
-	public static function string(ptr : Dynamic, ?len : Int) : String;
+	static function errno(?newerr:Int):Int;
+	static function fill(dst:Dynamic, len:Int, c:Int):Void;
+	static function string(ptr:Dynamic, ?len:Int):String;
 
-	@:overload(   function     (dst : Dynamic, str : String)             : Dynamic {})
-	public static function copy(dst : Dynamic, src : Dynamic, len : Int) : String;
+	@:overload(function(dst:Dynamic, str:String):Dynamic {})
+	static function copy(dst:Dynamic, src:Dynamic, len:Int):String;
 
 	// Target specific functionality
-	public static var os : String;
-	public static var arch : String;
-	public static function abi(param : String) : Bool;
+	static var os:String;
+	static var arch:String;
+	static function abi(param:String):Bool;
 }
 
 extern class Ctype<T> {}
 
 // TODO FFI callback type (gc methods)
 #end
-

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
@@ -45,7 +46,7 @@ extern class NumberFormat {
 
 	/**
 		Returns a new object with properties reflecting the locale and collation options
-		computed during initialization of the object. 
+		computed during initialization of the object.
 	**/
 	@:pure function resolvedOptions():NumberFormatResolvedOption;
 
@@ -121,7 +122,7 @@ typedef NumberFormatOptions = {
 		Possible values are from 1 to 21; the default is 1.
 	**/
 	var ?minimumSignificantDigits:Int;
-	
+
 	/**
 		The maximum number of significant digits to use.
 		Possible values are from 1 to 21; the default is 21.
@@ -158,7 +159,6 @@ typedef NumberFormatResolvedOption = {
 	final currencyDisplay:String;
 
 	final minimumIntegerDigits:Int;
-
 	final minimumFractionDigits:Int;
 
 	/**
@@ -199,12 +199,12 @@ enum abstract CurrencyDisplay(String) {
 		To use a localized currency symbol such as €.
 	**/
 	var Symbol = "symbol";
-	
+
 	/**
 		To use the ISO currency code.
 	**/
 	var Code = "code";
-	
+
 	/**
 		To use a localized currency name such as "dollar".
 	**/
@@ -269,7 +269,7 @@ enum abstract NumberFormatPartType(String) {
 	var plusSign = "plusSign";
 
 	/**
-		The percent sign string ("%"). 
+		The percent sign string ("%").
 	**/
 	var percentSign = "percentSign";
 }

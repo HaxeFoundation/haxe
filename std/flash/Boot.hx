@@ -19,14 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package flash;
 
-#if !as3
 @:keep private class RealBoot extends Boot {
 	#if swc
 	public function new() {
 		super();
 	}
+
 	public static function initSwc(mc) {
 		flash.Lib.current = mc;
 		new RealBoot().init();
@@ -34,40 +35,39 @@ package flash;
 	#else
 	function new() {
 		super();
-		if( flash.Lib.current == null ) flash.Lib.current = this;
+		if (flash.Lib.current == null)
+			flash.Lib.current = this;
 		start();
 	}
 	#end
 }
-#end
 
 @:dox(hide)
 @:keep
 class Boot extends flash.display.MovieClip {
-
-	static var tf : flash.text.TextField;
-	static var lines : Array<String>;
-	static var lastError : flash.errors.Error;
+	static var tf:flash.text.TextField;
+	static var lines:Array<String>;
+	static var lastError:flash.errors.Error;
 
 	public static var skip_constructor = false;
 
 	function start() {
 		#if dontWaitStage
-			init();
+		init();
 		#else
-			var c = flash.Lib.current;
-			try {
-				untyped if( c == this && c.stage != null && c.stage.align == "" )
-					c.stage.align = "TOP_LEFT";
-			} catch( e : Dynamic ) {
-				// security error when loading from different domain
-			}
-			if( c.stage == null )
-				c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
-			else if( c.stage.stageWidth == 0 || c.stage.stageHeight == 0 )
-				untyped __global__["flash.utils.setTimeout"](start,1);
-			else
-				init();
+		var c = flash.Lib.current;
+		try {
+			untyped if (c == this && c.stage != null && c.stage.align == "")
+				c.stage.align = "TOP_LEFT";
+		} catch (e:Dynamic) {
+			// security error when loading from different domain
+		}
+		if (c.stage == null)
+			c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+		else if (c.stage.stageWidth == 0 || c.stage.stageHeight == 0)
+			untyped __global__["flash.utils.setTimeout"](start, 1);
+		else
+			init();
 		#end
 	}
 
@@ -81,33 +81,33 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static var IN_E = 0;
-	public static function enum_to_string( e : { tag : String, params : Array<Dynamic> } ) {
-		if( e.params == null )
+
+	public static function enum_to_string(e:{tag:String, params:Array<Dynamic>}) {
+		if (e.params == null)
 			return e.tag;
 		var pstr = [];
-		if( IN_E > 15 ) {
+		if (IN_E > 15) {
 			pstr.push("...");
 		} else {
 			IN_E++;
-			for( p in e.params )
+			for (p in e.params)
 				pstr.push(__string_rec(p, ""));
 			IN_E--;
 		}
-		return e.tag+"("+pstr.join(",")+")";
+		return e.tag + "(" + pstr.join(",") + ")";
 	}
 
-	public static function __instanceof( v : Dynamic, t : Dynamic ) {
+	public static function __instanceof(v:Dynamic, t:Dynamic) {
 		try {
-			if( t == Dynamic )
+			if (t == Dynamic)
 				return v != null;
-			return untyped __is__(v,t);
-		} catch( e : Dynamic ) {
-		}
+			return untyped __is__(v, t);
+		} catch (e:Dynamic) {}
 		return false;
 	}
 
 	public static function __clear_trace() {
-		if( tf == null )
+		if (tf == null)
 			return;
 		tf.parent.removeChild(tf);
 		tf = null;
@@ -122,11 +122,11 @@ class Boot extends flash.display.MovieClip {
 
 	public static function getTrace() {
 		var mc = flash.Lib.current;
-		if( tf == null ) {
+		if (tf == null) {
 			tf = new flash.text.TextField();
 			#if flash10_2
 			var color = 0xFFFFFF, glow = 0;
-			if( mc.stage != null ) {
+			if (mc.stage != null) {
 				glow = mc.stage.color;
 				color = 0xFFFFFF - glow;
 			}
@@ -137,99 +137,102 @@ class Boot extends flash.display.MovieClip {
 			format.font = "_sans";
 			tf.defaultTextFormat = format;
 			tf.selectable = false;
-			tf.width = if( mc.stage == null ) 800 else mc.stage.stageWidth;
+			tf.width = if (mc.stage == null) 800 else mc.stage.stageWidth;
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 			tf.mouseEnabled = false;
 		}
-		if( mc.stage == null )
+		if (mc.stage == null)
 			mc.addChild(tf);
 		else
 			mc.stage.addChild(tf); // on top
 		return tf;
 	}
 
-	public static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
+	public static function __trace(v:Dynamic, pos:haxe.PosInfos) {
 		var tf = getTrace();
-		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
-		if( lines == null ) lines = [];
-		var str = pstr +": "+__string_rec(v, "");
-		if( pos != null && pos.customParams != null )
-			for( v in pos.customParams )
-				str += ","+__string_rec(v, "");
+		var pstr = if (pos == null) "(null)" else pos.fileName + ":" + pos.lineNumber;
+		if (lines == null)
+			lines = [];
+		var str = pstr + ": " + __string_rec(v, "");
+		if (pos != null && pos.customParams != null)
+			for (v in pos.customParams)
+				str += "," + __string_rec(v, "");
 		lines = lines.concat(str.split("\n"));
 		tf.text = lines.join("\n");
 		var stage = flash.Lib.current.stage;
-		if( stage == null )
+		if (stage == null)
 			return;
-		while( lines.length > 1 && tf.height > stage.stageHeight ) {
+		while (lines.length > 1 && tf.height > stage.stageHeight) {
 			lines.shift();
 			tf.text = lines.join("\n");
 		}
 	}
 
-	public static function __string_rec( v : Dynamic, str : String, maxRecursion : Int = 5 ) {
-		if(maxRecursion <= 0) {
+	public static function __string_rec(v:Dynamic, str:String, maxRecursion:Int = 5) {
+		if (maxRecursion <= 0) {
 			return "<...>";
 		}
 		var cname = untyped __global__["flash.utils.getQualifiedClassName"](v);
-		switch( cname ) {
-		case "Object":
-			var k : Array<String> = untyped __keys__(v);
-			var s = "{";
-			var first = true;
-			for( i in 0...k.length ) {
-				var key = k[i];
-				if( key == "toString" )
-					try return v.toString() catch( e : Dynamic ) {}
-				if( first )
-					first = false;
-				else
-					s += ",";
-				s += " "+key+" : "+__string_rec(v[untyped key],str,maxRecursion - 1);
-			}
-			if( !first )
-				s += " ";
-			s += "}";
-			return s;
-		case "Array":
-			if( v == Array )
-				return "#Array";
-			var s = "[";
-			var i;
-			var first = true;
-			var a : Array<Dynamic> = v;
-			for( i in 0...a.length ) {
-				if( first )
-					first = false;
-				else
-					s += ",";
-				s += __string_rec(a[i],str,maxRecursion - 1);
-			}
-			return s + "]";
-		default:
-			switch( untyped __typeof__(v) ) {
-			case "function": return "<function>";
-			case "undefined": return "null";
-			}
+		switch (cname) {
+			case "Object":
+				var k:Array<String> = untyped __keys__(v);
+				var s = "{";
+				var first = true;
+				for (i in 0...k.length) {
+					var key = k[i];
+					if (key == "toString")
+						try
+							return v.toString()
+						catch (e:Dynamic) {}
+					if (first)
+						first = false;
+					else
+						s += ",";
+					s += " " + key + " : " + __string_rec(v[untyped key], str, maxRecursion - 1);
+				}
+				if (!first)
+					s += " ";
+				s += "}";
+				return s;
+			case "Array":
+				if (v == Array)
+					return "#Array";
+				var s = "[";
+				var i;
+				var first = true;
+				var a:Array<Dynamic> = v;
+				for (i in 0...a.length) {
+					if (first)
+						first = false;
+					else
+						s += ",";
+					s += __string_rec(a[i], str, maxRecursion - 1);
+				}
+				return s + "]";
+			default:
+				switch (untyped __typeof__(v)) {
+					case "function": return "<function>";
+					case "undefined": return "null";
+				}
 		}
 		return new String(v);
 	}
 
-	static public function fromCodePoint( code : Int ) {
+	static public function fromCodePoint(code:Int) {
 		var o = new flash.utils.ByteArray();
 		o.endian = LITTLE_ENDIAN;
-		o.writeShort((code>>10) + 0xD7C0);
-		o.writeShort((code&0x3FF) + 0xDC00);
+		o.writeShort((code >> 10) + 0xD7C0);
+		o.writeShort((code & 0x3FF) + 0xDC00);
 		o.position = 0;
-		return o.readMultiByte(4,"unicode");
+		return o.readMultiByte(4, "unicode");
 	}
 
-	static function __unprotect__( s : String ) {
+	static function __unprotect__(s:String) {
 		return s;
 	}
 
 	static public function mapDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["mapHX"](f);
 		} else {
 			return untyped d["map"](f);
@@ -237,108 +240,147 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function filterDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["filterHX"](f);
 		} else {
 			return untyped d["filter"](f);
 		}
 	}
 
-	static function __init__() untyped {
-		var aproto = Array.prototype;
-		aproto.copy = function() {
-			return __this__.slice();
-		};
-		aproto.insert = function(i,x) {
-			__this__.splice(i,0,x);
-		};
-		aproto.remove = function(obj) {
-			var idx = __this__.indexOf(obj);
-			if( idx == -1 ) return false;
-			#if flash19
-			__this__.removeAt(idx);
-			#else
-			__this__.splice(idx,1);
-			#end
-			return true;
-		}
-		aproto.iterator = function() {
-			var cur = 0;
-			var arr : Array<Dynamic> = __this__;
-			return {
-				hasNext : function() {
-					return cur < arr.length;
-				},
-				next : function() {
-					return arr[cur++];
+	static function __init__()
+		untyped {
+			var d:Dynamic = Date;
+			d.now = function() {
+				return __new__(Date);
+			};
+			d.fromTime = function(t) {
+				var d:Date = __new__(Date);
+				d.setTime(t);
+				return d;
+			};
+			d.fromString = function(s:String) {
+				switch (s.length) {
+					case 8: // hh:mm:ss
+						var k = s.split(":");
+						var d:Date = __new__(Date);
+						d.setTime(0);
+						d.setUTCHours(k[0]);
+						d.setUTCMinutes(k[1]);
+						d.setUTCSeconds(k[2]);
+						return d;
+					case 10: // YYYY-MM-DD
+						var k = s.split("-");
+						return new Date(cast k[0], cast k[1] - 1, cast k[2], 0, 0, 0);
+					case 19: // YYYY-MM-DD hh:mm:ss
+						var k = s.split(" ");
+						var y = k[0].split("-");
+						var t = k[1].split(":");
+						return new Date(cast y[0], cast y[1] - 1, cast y[2], cast t[0], cast t[1], cast t[2]);
+					default:
+						throw "Invalid date format : " + s;
 				}
+			};
+			d.prototype[#if no_flash_override "toStringHX" #else "toString" #end] = function() {
+				var date:Date = __this__;
+				var m = date.getMonth() + 1;
+				var d = date.getDate();
+				var h = date.getHours();
+				var mi = date.getMinutes();
+				var s = date.getSeconds();
+				return date.getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
+					+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
+			};
+			var aproto = Array.prototype;
+			aproto.copy = function() {
+				return __this__.slice();
+			};
+			aproto.insert = function(i, x) {
+				__this__.splice(i, 0, x);
+			};
+			aproto.contains = function(obj) {
+				return __this__.indexOf(obj) != -1;
 			}
-		};
-		aproto.resize = function(len) {
-			__this__.length = len;
-		};
-		aproto.setPropertyIsEnumerable("copy", false);
-		aproto.setPropertyIsEnumerable("insert", false);
-		aproto.setPropertyIsEnumerable("remove", false);
-		aproto.setPropertyIsEnumerable("iterator", false);
-		aproto.setPropertyIsEnumerable("resize", false);
-		#if (as3 || no_flash_override)
-		aproto.filterHX = function(f) {
-			var ret = [];
-			var i = 0;
-			var l = __this__.length;
-			while ( i < l ) {
-				if (f(__this__[i]))
-					ret.push(__this__[i]);
-				i++;
+			aproto.remove = function(obj) {
+				var idx = __this__.indexOf(obj);
+				if (idx == -1)
+					return false;
+				#if flash19
+				// removeAt is only available through as3 namespace and genswf9 will only generate it for a known Array,
+				// so we have to type it properly (thus the typecheck). See https://github.com/HaxeFoundation/haxe/issues/8612
+				(__this__:Array<Dynamic>).removeAt(idx);
+				#else
+				__this__.splice(idx, 1);
+				#end
+				return true;
 			}
-			return ret;
-		};
-		aproto.mapHX = function(f) {
-			var ret = [];
-			var i = 0;
-			var l = __this__.length;
-			while( i < l ) {
-				ret.push(f(__this__[i]));
-				i++;
-			}
-			return ret;
-		};
-		aproto.setPropertyIsEnumerable("mapHX", false);
-		aproto.setPropertyIsEnumerable("filterHX", false);
-		String.prototype.charCodeAtHX = function(i) : Null<Int> {
-		#else
-		aproto["filter"] = function(f) {
-			var ret = [];
-			var i = 0;
-			var l = __this__.length;
-			while ( i < l ) {
-				if (f(__this__[i]))
-					ret.push(__this__[i]);
-				i++;
-			}
-			return ret;
-		};
-		aproto["map"] = function(f) {
-			var ret = [];
-			var i = 0;
-			var l = __this__.length;
-			while( i < l ) {
-				ret.push(f(__this__[i]));
-				i++;
-			}
-			return ret;
-		};
-		aproto.setPropertyIsEnumerable("map", false);
-		aproto.setPropertyIsEnumerable("filter", false);
-		String.prototype.charCodeAt = function(i) : Null<Int> {
-		#end
-			var s : String = __this__;
-			var x : Float = s.cca(i);
-			if( __global__["isNaN"](x) )
-				return null;
-			return Std.int(x);
-		};
+			aproto.iterator = function() {
+				return new haxe.iterators.ArrayIterator(cast __this__);
+			};
+			aproto.resize = function(len) {
+				__this__.length = len;
+			};
+			aproto.setPropertyIsEnumerable("copy", false);
+			aproto.setPropertyIsEnumerable("insert", false);
+			aproto.setPropertyIsEnumerable("contains", false);
+			aproto.setPropertyIsEnumerable("remove", false);
+			aproto.setPropertyIsEnumerable("iterator", false);
+			aproto.setPropertyIsEnumerable("resize", false);
+			#if no_flash_override
+			aproto.filterHX = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					if (f(__this__[i]))
+						ret.push(__this__[i]);
+					i++;
+				}
+				return ret;
+			};
+			aproto.mapHX = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					ret.push(f(__this__[i]));
+					i++;
+				}
+				return ret;
+			};
+			aproto.setPropertyIsEnumerable("mapHX", false);
+			aproto.setPropertyIsEnumerable("filterHX", false);
+			String.prototype.charCodeAtHX = function(i):Null<Int> {
+			#else
+			aproto["filter"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					if (f(__this__[i]))
+						ret.push(__this__[i]);
+					i++;
+				}
+				return ret;
+			};
+			aproto["map"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					ret.push(f(__this__[i]));
+					i++;
+				}
+				return ret;
+			};
+			aproto.setPropertyIsEnumerable("map", false);
+			aproto.setPropertyIsEnumerable("filter", false);
+			String.prototype.charCodeAt = function(i):Null<Int> {
+			#end
+				var s:String = __this__;
+				var x:Float = s.cca(i);
+				if (__global__["isNaN"](x))
+					return null;
+				return Std.int(x);
+			};
 	}
-
 }

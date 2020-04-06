@@ -110,7 +110,7 @@ class Validator {
 				sourceFile = Compiler.getOutput();
 				mapFile = '${Compiler.getOutput()}.map';
 			case Php:
-				var phpFilePath = new Path(location.file.substr(location.file.indexOf('cases')));
+				var phpFilePath = new Path(location.file.toString().substr(location.file.toString().indexOf('cases')));
 				phpFilePath.ext = 'php';
 				sourceFile = Path.join([Compiler.getOutput(), 'lib', phpFilePath.toString()]);
 				mapFile = '$sourceFile.map';

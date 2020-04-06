@@ -7,21 +7,33 @@ import haxe.macro.Type;
 using haxe.macro.Tools;
 
 abstract TypeName(String) to String {
+	public inline function new(s:String) {
+		this = s;
+	}
+
 	@:from static macro function fromE(e:Expr) {
-		return macro $v{Context.typeof(e).toString()};
+		return macro new TypeName($v{Context.typeof(e).toString()});
 	}
 }
 
 abstract Arity(Int) to Int {
+	public inline function new(i:Int) {
+		this = i;
+	}
+
 	@:from static macro function fromE(e:Expr) {
 		return switch (Context.typeof(e).follow()) {
-			case TFun(tl, _): macro $v{tl.length};
+			case TFun(tl, _): macro new Arity($v{tl.length});
 			case _: Context.error("Expected function type", e.pos);
 		}
 	}
 }
 
 abstract EnumListener<T>(String) to String {
+	public inline function new(s:String) {
+		this = s;
+	}
+
 	@:from static macro function fromE(e:Expr) {
 		var e = Context.typeExpr(e);
 		var ef = switch (e.expr) {
@@ -39,6 +51,6 @@ abstract EnumListener<T>(String) to String {
 			case _: Context.error("Something went wrong, again", e.pos);
 		}
 		Context.unify(t, t2);
-		return macro $v{ef.name};
+		return macro new EnumListener($v{ef.name});
 	}
 }

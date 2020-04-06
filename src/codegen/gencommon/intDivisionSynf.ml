@@ -30,41 +30,48 @@ open Gencommon
 		it will be one of the last modules to run
 *)
 let init com =
-	let rec is_int t =
-		match follow t with
-		| TInst ({ cl_path = (["haxe";"lang"],"Null") }, [t]) ->
-			is_int t
-		| t ->
-			like_int t && not (like_i64 t)
+	let rec is_int e =
+		let rec is_int_type t =
+			match follow t with
+				| TInst ({ cl_path = (["haxe";"lang"],"Null") }, [t]) ->
+					is_int_type t
+				| t ->
+					like_int t && not (like_i64 t)
+		in
+		is_int_type e.etype || begin
+			match e.eexpr with
+			| TUnop (_, _, e) -> is_int e
+			| _ -> false
+		end
 	in
-	let is_exactly_int t =
-		match follow t with
+	let rec is_exactly_int e =
+		match follow e.etype with
 		| TAbstract ({ a_path = ([],"Int") }, []) -> true
-		| _ -> false
+		| _ ->
+			match e.eexpr with
+			| TUnop (_, _, e) -> is_exactly_int e
+			| _ -> false
 	in
 	let rec run e =
 		match e.eexpr with
-		| TBinop ((OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
+		| TBinop ((OpDiv as op), e1, e2) when is_int e1 && is_int e2 ->
 			{ e with eexpr = TBinop (op, mk_cast com.basic.tfloat (run e1), run e2) }
-
 		| TCall (
 				{ eexpr = TField (_, FStatic ({ cl_path = ([], "Std") }, { cf_name = "int" })) },
 				[ { eexpr = TBinop ((OpDiv as op), e1, e2) } as ebinop ]
-			) when is_int e1.etype && is_int e2.etype ->
-
+			) when is_int e1 && is_int e2 ->
 			let e = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = com.basic.tint } in
-			if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+			if not (is_exactly_int e1 && is_exactly_int e2) then
 				mk_cast com.basic.tint e
 			else
 				e
-
 		| TCast ({ eexpr = TBinop((OpDiv as op), e1, e2) } as ebinop, _ )
-		| TCast ({ eexpr = TBinop(((OpAssignOp OpDiv) as op), e1, e2) } as ebinop, _ ) when is_int e1.etype && is_int e2.etype && is_int e.etype ->
+		| TCast ({ eexpr = TBinop(((OpAssignOp OpDiv) as op), e1, e2) } as ebinop, _ ) when is_int e1 && is_int e2 && is_int e ->
 			let ret = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = e.etype } in
-			if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+			if not (is_exactly_int e1 && is_exactly_int e2) then
 				mk_cast e.etype ret
 			else
-				e
+				Type.map_expr run e
 
 		| _ ->
 			Type.map_expr run e

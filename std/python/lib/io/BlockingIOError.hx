@@ -19,13 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.Exceptions.IOError;
 
 @:pythonImport("io", "BlockingIOError")
 class BlockingIOError extends IOError {
-
 	var characters_written:Int;
-
 }

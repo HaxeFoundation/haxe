@@ -19,65 +19,65 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys;
 
 /**
 	File information, as given by `sys.FileSystem.stat`.
 **/
 typedef FileStat = {
-
 	/**
-		The user group id for the file's owner.
+		The user group id for the file owner.
 	**/
-	var gid : Int;
+	var gid:Int;
 
 	/** 
-		The user id for the file's owner.
+		The user id for the file owner.
 	**/
-	var uid : Int;
+	var uid:Int;
 
 	/** 
 		The last access time for the file (when enabled by the file system).
 	**/
-	var atime : Date;
+	var atime:Date;
 
 	/** 
 		The last modification time for the file.
 	**/
-	var mtime : Date;
+	var mtime:Date;
 
 	/**
 		The creation time for the file (not all file systems support this).
 	**/
-	var ctime : Date;
+	var ctime:Date;
 
 	/** 
-		The size of the file, in bytes. 
+		The size of the file, in bytes.
 	**/
-	var size : Int;
+	var size:Int;
 
 	/** 
 		The device on which stat resides.
 	**/
-	var dev : Int;
+	var dev:Int;
 
 	/** 
 		The inode number for stat.
 	**/
-	var ino : Int;
+	var ino:Int;
 
 	/** 
 		The number of hard links to stat.
 	**/
-	var nlink : Int;
+	var nlink:Int;
 
 	/** 
 		The device type on which stat resides (special files only).
 	**/
-	var rdev : Int;
+	var rdev:Int;
 
 	/** 
 		The permission bits of stat. The meaning of the bits is platform dependent.
 	**/
-	var mode : Int;
+	var mode:Int;
 }

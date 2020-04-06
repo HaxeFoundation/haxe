@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 using haxe.Int64;
@@ -32,7 +33,7 @@ class Int64Helper {
 	/**
 		Create `Int64` from given string.
 	**/
-	public static function parseString( sParam : String ) : Int64 {
+	public static function parseString(sParam:String):Int64 {
 		var base = Int64.ofInt(10);
 		var current = Int64.ofInt(0);
 		var multiplier = Int64.ofInt(1);
@@ -51,8 +52,8 @@ class Int64Helper {
 			if (digitInt < 0 || digitInt > 9) {
 				throw "NumberFormatError";
 			}
-			
-			if (digitInt != 0 ) {
+
+			if (digitInt != 0) {
 				var digit:Int64 = Int64.ofInt(digitInt);
 				if (sIsNegative) {
 					current = Int64.sub(current, Int64.mul(multiplier, digit));
@@ -66,7 +67,7 @@ class Int64Helper {
 					}
 				}
 			}
-			
+
 			multiplier = Int64.mul(multiplier, base);
 		}
 		return current;
@@ -75,7 +76,7 @@ class Int64Helper {
 	/**
 		Create `Int64` from given float.
 	**/
-	public static function fromFloat( f : Float ) : Int64 {
+	public static function fromFloat(f:Float):Int64 {
 		if (Math.isNaN(f) || !Math.isFinite(f)) {
 			throw "Number is NaN or Infinite";
 		}
@@ -84,7 +85,7 @@ class Int64Helper {
 
 		// 2^53-1 and -2^53+1: these are parseable without loss of precision.
 		// In theory 2^53 and -2^53 are parseable too, but then there's no way to
-		// distinguish 2^53 from 2^53+1 
+		// distinguish 2^53 from 2^53+1
 		// (i.e. trace(9007199254740992. + 1. > 9007199254740992.); // false!)
 		if (noFractions > 9007199254740991) {
 			throw "Conversion overflow";

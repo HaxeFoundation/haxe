@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 /**
@@ -29,5 +30,5 @@ package js.lib.webassembly;
 **/
 @:native("WebAssembly.LinkError")
 extern class LinkError extends js.lib.Error {
-	function new(?message : String):Void;
+	function new(?message:String):Void;
 }

@@ -4,9 +4,8 @@ import TestJs.use;
 
 class Issue5745 {
 	@:js('
-		var fn = "filename";
-		var v = cat(fn);
-		runProgram.apply(undefined, ["rm",fn]);
+		var v = cat("filename");
+		runProgram.apply(undefined, ["rm","filename"]);
 		TestJs.use(v);
 	')
     static function test() {
@@ -19,9 +18,9 @@ class Issue5745 {
 
 class Shell {
     public inline static function runProgram(args:Array<String>):Int {
-        return untyped __js__('runProgram.apply(undefined, {0})', args);
+        return js.Syntax.code('runProgram.apply(undefined, {0})', args);
     }
     public inline static function cat(v:String):String {
-        return untyped __js__('cat({0})', v);
+        return js.Syntax.code('cat({0})', v);
     }
 }

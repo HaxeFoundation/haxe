@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.abi;
+
+package cpp.abi;
 
 @:abi("__cdecl")
-extern class CDecl extends Abi { }
+extern class CDecl extends Abi {}

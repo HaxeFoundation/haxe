@@ -19,11 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.threading;
 
 @:pythonImport("threading", "Lock")
 extern class Lock {
-  public function new():Void;
-  public function acquire(?blocking:Bool, ?timeout:Float):Bool;
-  public function release():Void;
+	function new():Void;
+	function acquire(?blocking:Bool, ?timeout:Float):Bool;
+	function release():Void;
 }

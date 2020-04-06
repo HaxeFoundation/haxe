@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.internal;
 
 /**
- This class is meant for internal compiler use only. It provides the Haxe runtime
- compatibility to the host language. Do not access it directly.
+	This class is meant for internal compiler use only. It provides the Haxe runtime
+	compatibility to the host language. Do not access it directly.
 **/
-
 @:native('haxe.lang.Runtime')
 @:nativeGen
 @:classCode('
@@ -56,15 +56,13 @@ package java.internal;
 		return obj.__hx_invokeField(field, args);
 	}
 ')
-@:keep class Runtime
-{
-	public static var undefined:Dynamic = { };
+@:keep class Runtime {
+	public static var undefined:Dynamic = {};
 
 	@:functionCode('
 	return new haxe.lang.Closure(obj, field);
 	')
-	public static function closure(obj:Dynamic, field:String):Dynamic
-	{
+	public static function closure(obj:Dynamic, field:String):Dynamic {
 		return null;
 	}
 
@@ -90,8 +88,7 @@ package java.internal;
 
 			return false;
 	')
-	public static function eq(v1:Dynamic, v2:Dynamic):Bool
-	{
+	public static function eq(v1:Dynamic, v2:Dynamic):Bool {
 		return false;
 	}
 
@@ -106,42 +103,36 @@ package java.internal;
 			return v1 == v2;
 		}
 	')
-	public static function refEq(v1: { }, v2: { } ):Bool
-	{
+	public static function refEq(v1:{}, v2:{}):Bool {
 		return false;
 	}
 
 	@:functionCode('
 		return v1 == v2 || (v1 != null && v1.equals(v2));
 	')
-	public static function valEq(v1: { }, v2: { } ):Bool
-	{
+	public static function valEq(v1:{}, v2:{}):Bool {
 		return false;
 	}
 
 	@:functionCode('
 		return (obj == null) ? 0.0 : ((java.lang.Number) obj).doubleValue();
 	')
-	public static function toDouble(obj:Dynamic):Float
-	{
+	public static function toDouble(obj:Dynamic):Float {
 		return 0.0;
 	}
 
-	public static function toBool(obj:java.lang.Boolean):Bool
-	{
+	public static function toBool(obj:java.lang.Boolean):Bool {
 		return obj == null ? false : obj.booleanValue();
 	}
 
 	@:functionCode('
 		return (obj == null) ? 0 : ((java.lang.Number) obj).intValue();
 	')
-	public static function toInt(obj:Dynamic):Int
-	{
+	public static function toInt(obj:Dynamic):Int {
 		return 0;
 	}
 
-	public static function toLong(obj:Dynamic):haxe.Int64
-	{
+	public static function toLong(obj:Dynamic):haxe.Int64 {
 		return obj == null ? 0 : (obj : java.lang.Number).longValue();
 	}
 
@@ -153,14 +144,12 @@ package java.internal;
 			return false;
 		}
 	')
-	public static function isDouble(obj:Dynamic):Bool
-	{
+	public static function isDouble(obj:Dynamic):Bool {
 		return false;
 	}
 
-	@:overload public static function isInt(obj:Dynamic):Bool
-	{
-		if (Std.is(obj, java.lang.Number)) {
+	@:overload public static function isInt(obj:Dynamic):Bool {
+		if (Std.isOfType(obj, java.lang.Number)) {
 			var n:java.lang.Number = obj;
 			return n.doubleValue() == n.intValue();
 		} else {
@@ -205,8 +194,7 @@ package java.internal;
 
 		return false;
 	')
-	public static function slowHasField(o:Dynamic, field:String):Bool
-	{
+	public static function slowHasField(o:Dynamic, field:String):Bool {
 		return false;
 	}
 
@@ -236,8 +224,7 @@ package java.internal;
 			//if it\'s not a number it must be a String
 			return ((java.lang.String) v1).compareTo((java.lang.String) v2);
 	')
-	public static function compare(v1:Dynamic, v2:Dynamic):Int
-	{
+	public static function compare(v1:Dynamic, v2:Dynamic):Int {
 		return 0;
 	}
 
@@ -258,8 +245,7 @@ package java.internal;
 
 			throw new java.lang.IllegalArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	')
-	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
-	{
+	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic {
 		return null;
 	}
 
@@ -308,14 +294,13 @@ package java.internal;
 		}
 
 		if (throwErrors)
-			throw HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 
 		return null;
 	}
 
 	')
-	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
-	{
+	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic {
 		return null;
 	}
 
@@ -346,11 +331,10 @@ package java.internal;
 		}
 		catch (Throwable t)
 		{
-			throw HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 		}
 	')
-	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
-	{
+	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic {
 		return null;
 	}
 
@@ -437,7 +421,7 @@ package java.internal;
 
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
-			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown("No compatible method found for: " + field);
 
 		if (hasNumber)
 		{
@@ -487,16 +471,15 @@ package java.internal;
 
 		catch (java.lang.reflect.InvocationTargetException e)
 		{
-			throw haxe.lang.HaxeException.wrap(e.getCause());
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(e.getCause());
 		}
 
 		catch (Throwable t)
 		{
-			throw haxe.lang.HaxeException.wrap(t);
+			throw (java.lang.RuntimeException)haxe.Exception.thrown(t);
 		}
 	')
-	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
-	{
+	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic {
 		return null;
 	}
 
@@ -508,8 +491,7 @@ package java.internal;
 
 		return slowCallField(obj, field, args);
 	')
-	public static function callField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
-	{
+	public static function callField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic {
 		return null;
 	}
 
@@ -521,8 +503,7 @@ package java.internal;
 		return slowGetField(obj, field, throwErrors);
 
 	')
-	public static function getField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
-	{
+	public static function getField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic {
 		return null;
 	}
 
@@ -534,8 +515,7 @@ package java.internal;
 		return toDouble(slowGetField(obj, field, throwErrors));
 
 	')
-	public static function getField_f(obj:Dynamic, field:String, throwErrors:Bool):Float
-	{
+	public static function getField_f(obj:Dynamic, field:String, throwErrors:Bool):Float {
 		return 0.0;
 	}
 
@@ -547,8 +527,7 @@ package java.internal;
 		return slowSetField(obj, field, value);
 
 	')
-	public static function setField(obj:Dynamic, field:String, value:Dynamic):Dynamic
-	{
+	public static function setField(obj:Dynamic, field:String, value:Dynamic):Dynamic {
 		return null;
 	}
 
@@ -560,23 +539,20 @@ package java.internal;
 		return toDouble(slowSetField(obj, field, value));
 
 	')
-	public static function setField_f(obj:Dynamic, field:String, value:Float):Float
-	{
+	public static function setField_f(obj:Dynamic, field:String, value:Float):Float {
 		return 0.0;
 	}
 
-	public static function toString(obj:Dynamic):String
-	{
+	public static function toString(obj:Dynamic):String {
 		if (obj == null)
 			return null;
 
-		if (Std.is(obj, java.lang.Number) && !Std.is(obj, java.lang.Integer.IntegerClass) && isInt( (obj : java.lang.Number) ))
+		if (Std.isOfType(obj, java.lang.Number) && !Std.isOfType(obj, java.lang.Integer.IntegerClass) && isInt((obj : java.lang.Number)))
 			return java.lang.Integer._toString(toInt(obj));
 		return untyped obj.toString();
 	}
 
-	public static function isFinite(v:Float):Bool
-	{
+	public static function isFinite(v:Float):Bool {
 		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
 
@@ -593,31 +569,30 @@ package java.internal;
 	}
 
 	public static function numToInteger(num:java.lang.Number):java.lang.Integer {
-		return num == null ? null : (Std.is(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
 	}
 
 	public static function numToDouble(num:java.lang.Number):java.lang.Double {
-		return num == null ? null : (Std.is(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
 	}
 
 	public static function numToFloat(num:java.lang.Number):java.lang.Float {
-		return num == null ? null : (Std.is(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
 	}
 
 	public static function numToByte(num:java.lang.Number):java.lang.Byte {
-		return num == null ? null : (Std.is(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
 	}
 
 	public static function numToLong(num:java.lang.Number):java.lang.Long {
-		return num == null ? null : (Std.is(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
 	}
 
 	public static function numToShort(num:java.lang.Number):java.lang.Short {
-		return num == null ? null : (Std.is(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
+		return num == null ? null : (Std.isOfType(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
 	}
 }
 
-@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
-{
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject {
 	EMPTY;
 }

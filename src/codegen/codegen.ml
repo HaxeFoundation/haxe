@@ -58,7 +58,7 @@ let add_property_field com c =
 			let cf = mk_field n com.basic.tstring p null_pos in
 			PMap.add n cf fields,((n,null_pos,NoQuotes),Texpr.Builder.make_string com.basic v p) :: values
 		) (PMap.empty,[]) props in
-		let t = mk_anon fields in
+		let t = mk_anon ~fields (ref Closed) in
 		let e = mk (TObjectDecl values) t p in
 		let cf = mk_field "__properties__" t p null_pos in
 		cf.cf_expr <- Some e;
@@ -94,7 +94,7 @@ let update_cache_dependencies t =
 		| TAnon an ->
 			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> check_t m t
 			| _ -> ())
 		| TLazy f ->
@@ -189,8 +189,6 @@ let fix_override com c f fd =
 						{ e with eexpr = TBlock (el_v @ el) }
 				);
 			} in
-			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && has_class_field_flag f CfPublic then add_class_field_flag f2 CfPublic;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -247,7 +245,7 @@ let fix_abstract_inheritance com t =
 let rec is_volatile t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> is_volatile t
 		| _ -> false)
 	| TLazy f ->
@@ -275,7 +273,7 @@ module Dump = struct
 			close_out ch)
 
 	let create_dumpfile_from_path com path =
-		let buf,close = create_dumpfile [] ("dump" :: (platform_name_macro com) :: fst path @ [snd path]) in
+		let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
 		buf,close
 
 	let dump_types com s_expr =
@@ -422,7 +420,8 @@ module Dump = struct
 			| None -> platform_name_macro com
 			| Some s -> s
 		in
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependencies"] in
+		let dump_dependencies_path = [dump_path com;target_name;"dependencies"] in
+		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
@@ -434,7 +433,8 @@ module Dump = struct
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
-		let buf,close = create_dumpfile [] ["dump";target_name;".dependants"] in
+		let dump_dependants_path = [dump_path com;target_name;"dependants"] in
+		let buf,close = create_dumpfile [] dump_dependants_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		Hashtbl.iter (fun n ml ->
 			print "%s:\n" n;
@@ -452,9 +452,9 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
-		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+		| TClassDecl c -> mk_anon (ref (Statics c))
+		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
+		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
 		| TTypeDecl _ -> assert false
 	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
@@ -464,7 +464,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
 	let fis = (try
 			let c = (match std with TClassDecl c -> c | _ -> assert false) in
-			FStatic (c, PMap.find "is" c.cl_statics)
+			FStatic (c, PMap.find "isOfType" c.cl_statics)
 		with Not_found ->
 			assert false
 	) in

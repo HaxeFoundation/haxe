@@ -130,18 +130,52 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
+(** retrieve string from @:native metadata or raise Not_found *)
+let get_native_name meta =
+	let rec get_native meta = match meta with
+		| [] -> raise Not_found
+		| (Meta.Native,[v],p as meta) :: _ ->
+			meta
+		| _ :: meta ->
+			get_native meta
+	in
+	let (_,e,mp) = get_native meta in
+	match e with
+	| [Ast.EConst (Ast.String(name,_)),p] ->
+		name,p
+	| [] ->
+		raise Not_found
+	| _ ->
+		error "String expected" mp
+
+let check_native_name_override ctx child base =
+	let error base_pos child_pos =
+		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
+		display_error ctx ("Base field is defined here") base_pos
+	in
+	try
+		let child_name, child_pos = get_native_name child.cf_meta in
+		try
+			let base_name, base_pos = get_native_name base.cf_meta in
+			if base_name <> child_name then
+				error base_pos child_pos
+		with Not_found ->
+			error base.cf_name_pos child_pos
+	with Not_found -> ()
+
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
 		if List.memq f c.cl_overrides then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
-		let p = f.cf_pos in
+		let p = f.cf_name_pos in
 		let i = f.cf_name in
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
 				display_error ctx ("Missing @:overload declaration for field " ^ i) p);
 			let t, f2 = get_super_field csup i in
+			check_native_name_override ctx f f2;
 			(* allow to define fields that are not defined for this platform version in superclass *)
 			(match f2.cf_kind with
 			| Var { v_read = AccRequire _ } -> raise Not_found;
@@ -164,11 +198,10 @@ let check_overriding ctx c f =
 			try
 				let t = apply_params csup.cl_params params t in
 				valid_redefinition ctx f f.cf_type f2 t;
-				add_class_field_flag f2 CfOverridden;
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx ("Base field is defined here") f2.cf_pos;
+					display_error ctx ("Base field is defined here") f2.cf_name_pos;
 					display_error ctx (error_msg (Unify l)) p;
 		with
 			Not_found ->
@@ -303,7 +336,7 @@ module Inheritance = struct
 		| _ -> error "Should extend by using a class" p
 
 	let rec check_interface ctx c intf params =
-		let p = c.cl_pos in
+		let p = c.cl_name_pos in
 		let rec check_field i f =
 			(if ctx.com.config.pf_overload then
 				List.iter (function
@@ -322,12 +355,8 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-				if ctx.com.display.dms_collect_data then begin
-						let h = ctx.com.display_information in
-						h.interface_field_implementations <- (intf,f,c,Some f2) :: h.interface_field_implementations;
-				end;
 				ignore(follow f2.cf_type); (* force evaluation *)
-				let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
+				let p = f2.cf_name_pos in
 				let mkind = function
 					| MethNormal | MethInline -> 0
 					| MethDynamic -> 1
@@ -407,7 +436,7 @@ module Inheritance = struct
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
-						ImportHandling.mark_import_position ctx.com pi;
+						ImportHandling.mark_import_position ctx pi;
 						t
 					in
 					{ t with tpackage = fst (t_path lt) },p
@@ -471,9 +500,9 @@ module Inheritance = struct
 			try
 				let t = try
 					Typeload.load_instance ~allow_display:true ctx (ct,p) false
-				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
-					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
+					if not is_extends && c.cl_interface then raise_fields [] CRImplements r.fsubject;
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
@@ -481,8 +510,8 @@ module Inheritance = struct
 							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
-					) l in
-					raise_fields l (if is_extends then CRExtends else CRImplements) p
+					) r.fitems in
+					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->

@@ -9,7 +9,6 @@ class Issue8063 implements ITest {
 
 	@:timeout(5000)
 	function test(async:Async) {
-		Sys.println("Running Issue8063");
 		Assert.isTrue(Thread.current() == Thread.current());
 		Thread.create(() -> {
 			Assert.isTrue(Thread.current() == Thread.current());

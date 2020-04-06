@@ -200,8 +200,8 @@ let to_swf ttf config =
 		font_is_ansi = false;
 		font_wide_offsets = true;
 		font_wide_codes = true;
-		font_is_italic = false;
-		font_is_bold = false;
+		font_is_italic = config.ttfc_font_posture = TFPItalic;
+		font_is_bold = config.ttfc_font_weight = TFWBold;
 		font_language = LCNone;
 		font_name = (match config.ttfc_font_name with Some s -> s | None -> ttf.ttf_font_name);
 		font_glyphs = glyfs;

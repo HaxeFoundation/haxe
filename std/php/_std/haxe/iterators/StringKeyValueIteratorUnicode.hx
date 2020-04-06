@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.iterators;
 
 import php.Global.*;
@@ -41,19 +42,23 @@ class StringKeyValueIteratorUnicode {
 
 	public inline function next() {
 		var code = ord(s[byteOffset]);
-		if(code < 0xC0) {
+		if (code < 0xC0) {
 			byteOffset++;
-		} else if(code < 0xE0) {
+		} else if (code < 0xE0) {
 			code = ((code - 0xC0) << 6) + ord(s[byteOffset + 1]) - 0x80;
 			byteOffset += 2;
-		} else if(code < 0xF0) {
+		} else if (code < 0xF0) {
 			code = ((code - 0xE0) << 12) + ((ord(s[byteOffset + 1]) - 0x80) << 6) + ord(s[byteOffset + 2]) - 0x80;
 			byteOffset += 3;
 		} else {
-			code = ((code - 0xF0) << 18) + ((ord(s[byteOffset + 1]) - 0x80) << 12) + ((ord(s[byteOffset + 2]) - 0x80) << 6) + ord(s[byteOffset + 3]) - 0x80;
+			code = ((code - 0xF0) << 18)
+				+ ((ord(s[byteOffset + 1]) - 0x80) << 12)
+				+ ((ord(s[byteOffset + 2]) - 0x80) << 6)
+				+ ord(s[byteOffset + 3])
+				- 0x80;
 			byteOffset += 4;
 		}
-		return { key: charOffset++, value: code };
+		return {key: charOffset++, value: code};
 	}
 
 	static public inline function unicodeKeyValueIterator(s:String) {

@@ -1,3 +1,8 @@
+#java native build
+-cmd "haxelib run hxjava native_java/hxjava_build.txt --out native_java/native"
+
+--next
+
 compile-each.hxml
 --main unit.TestMain
 --java-lib native_java/native.jar

@@ -39,7 +39,7 @@ let conv_path p =
 let get_real_path meta path =
 	try
 		let real_path = match Meta.get Meta.RealPath meta with
-			| (_,[(EConst(String s),_)],_) ->
+			| (_,[(EConst(String(s,_)),_)],_) ->
 				s
 			| _ -> raise Not_found
 		in
@@ -70,7 +70,7 @@ let generate_type com t =
 	let rec notnull t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> t
 			| Some t -> notnull t)
 		| TLazy f ->
@@ -86,7 +86,7 @@ let generate_type com t =
 	and stype t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> "Unknown"
 			| Some t -> stype t)
 		| TInst ({ cl_kind = KTypeParameter _ } as c,tl) ->
@@ -113,7 +113,7 @@ let generate_type com t =
 	and ftype t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> stype t
 			| Some t -> ftype t)
 		| TLazy f ->
@@ -156,7 +156,7 @@ let generate_type com t =
 		if not (has_class_field_flag f CfPublic) then p "private ";
 		if stat then p "static ";
 		let name = try (match Meta.get Meta.RealPath f.cf_meta with
-				| (Meta.RealPath, [EConst( String s ), _], _) ->
+				| (Meta.RealPath, [EConst( String(s,_) ), _], _) ->
 					s
 				| _ ->
 					raise Not_found)
@@ -178,7 +178,7 @@ let generate_type com t =
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
-							| (Meta.DefParam,[(EConst (String p),_);(EConst v,_)],_) :: _ when p = a ->
+							| (Meta.DefParam,[(EConst (String(p,_)),_);(EConst v,_)],_) :: _ when p = a ->
 								(match v with
 								| Float "1.#QNAN" -> Float "0./*NaN*/"
 								| Float "4294967295." -> Int "0xFFFFFFFF"

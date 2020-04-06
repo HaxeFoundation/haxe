@@ -28,7 +28,6 @@ package haxe.ds;
 	of equal elements has to be retained on all targets.
 **/
 class ArraySort {
-
 	/**
 		Sorts Array `a` according to the comparison function `cmp`, where
 		`cmp(x,y)` returns 0 if `x == y`, a positive Int if `x > y` and a
@@ -40,14 +39,15 @@ class ArraySort {
 
 		If `a` or `cmp` are null, the result is unspecified.
 	**/
-	static public function sort<T>(a:Array<T>, cmp:T -> T -> Int) {
+	static public function sort<T>(a:Array<T>, cmp:T->T->Int) {
 		rec(a, cmp, 0, a.length);
 	}
 
 	static function rec<T>(a:Array<T>, cmp, from, to) {
 		var middle = (from + to) >> 1;
 		if (to - from < 12) {
-			if (to <= from) return;
+			if (to <= from)
+				return;
 			for (i in (from + 1)...to) {
 				var j = i;
 				while (j > from) {
@@ -91,9 +91,10 @@ class ArraySort {
 		doMerge(a, cmp, new_mid, second_cut, to, len1 - len11, len2 - len22);
 	}
 
-	static function rotate<T>(a:Array<T>, cmp:T -> T -> Int, from, mid, to) {
+	static function rotate<T>(a:Array<T>, cmp:T->T->Int, from, mid, to) {
 		var n;
-		if (from == mid || mid == to) return;
+		if (from == mid || mid == to)
+			return;
 		n = gcd(to - from, mid - from);
 		while (n-- != 0) {
 			var val = a[from + n];
@@ -102,8 +103,10 @@ class ArraySort {
 			while (p2 != from + n) {
 				a[p1] = a[p2];
 				p1 = p2;
-				if (to - p2 > shift) p2 += shift;
-				else p2 = from + (shift - (to - p2));
+				if (to - p2 > shift)
+					p2 += shift;
+				else
+					p2 = from + (shift - (to - p2));
 			}
 			a[p1] = val;
 		}
@@ -153,7 +156,7 @@ class ArraySort {
 		a[j] = tmp;
 	}
 
-	static inline function compare<T>(a:Array<T>, cmp:T -> T -> Int, i, j) {
+	static inline function compare<T>(a:Array<T>, cmp:T->T->Int, i, j) {
 		return cmp(a[i], a[j]);
 	}
 }

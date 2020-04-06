@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
-@:pythonImport("msvcrt", ignoreError=true)
+@:pythonImport("msvcrt", ignoreError = true)
 extern class Msvcrt {
-
-	public static function getch ():python.Bytes;
-	public static function getwch ():String;
+	static function getch():python.Bytes;
+	static function getwch():String;
 }

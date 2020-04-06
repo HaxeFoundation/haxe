@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.Bytearray;
@@ -26,10 +27,9 @@ import python.lib.io.BufferedIOBase;
 
 @:pythonImport("io", "BufferedWriter")
 extern class BufferedWriter extends BufferedIOBase implements IBufferedWriter {
-	public function new (raw:RawIOBase):Void;
+	function new(raw:RawIOBase):Void;
 }
 
-
 @:remove extern interface IBufferedWriter extends IBufferedIOBase {
-	public function flush():Void;
+	function flush():Void;
 }

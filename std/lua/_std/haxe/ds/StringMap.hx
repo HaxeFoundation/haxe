@@ -19,92 +19,101 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
+
 import lua.Lua;
 
-class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	private var h:lua.Table<String, T>;
 
-	private var h : lua.Table<String,T>;
-	static var tnull : Dynamic = lua.Table.create();
+	static var tnull:Dynamic = lua.Table.create();
 
-	public inline function new() : Void {
+	public inline function new():Void {
 		h = lua.Table.create();
 	}
 
-	public inline function set( key : String, value : T ) : Void untyped {
-		if (value == null){
-			h[key] = tnull;
-		} else {
-			h[key] = value;
+	public inline function set(key:String, value:T):Void
+		untyped {
+			if (value == null) {
+				h[key] = tnull;
+			} else {
+				h[key] = value;
+			}
 		}
-	}
 
-	public inline function get( key : String ) : Null<T> untyped {
-		var ret = h[key];
-		if (ret == tnull){
-			ret = null;
+	public inline function get(key:String):Null<T>
+		untyped {
+			var ret = h[key];
+			if (ret == tnull) {
+				ret = null;
+			}
+			return ret;
 		}
-		return ret;
-	}
 
-	public inline function exists( key : String ) : Bool untyped {
-		return h[key] != null;
-	}
-
-	public function remove( key : String ) : Bool untyped {
-		if (h[key] == null){
-			return false;
-		} else {
-			h[key] = null;
-			return true;
+	public inline function exists(key:String):Bool
+		untyped {
+			return h[key] != null;
 		}
-	}
 
-	public function keys() : Iterator<String> {
+	public function remove(key:String):Bool
+		untyped {
+			if (h[key] == null) {
+				return false;
+			} else {
+				h[key] = null;
+				return true;
+			}
+		}
+
+	public function keys():Iterator<String> {
 		var next = Lua.next;
-		var cur = next(h,null).index;
+		var cur = next(h, null).index;
 		return {
-			next : function() {
+			next: function() {
 				var ret = cur;
-				cur = next(h,cur).index;
+				cur = next(h, cur).index;
 				return cast ret;
 			},
-			hasNext : function() return cur != null
+			hasNext: function() return cur != null
 		}
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		var it = keys();
 		return untyped {
-			hasNext : function() return it.hasNext(),
-			next : function() return h[it.next()]
+			hasNext: function() return it.hasNext(),
+			next: function() return h[it.next()]
 		};
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = lua.Table.create();
+	}
 }
-

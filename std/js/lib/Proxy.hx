@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import js.lib.Object;
@@ -43,67 +44,67 @@ typedef ProxyHandler<T:{}> = {
 	/**
 		A trap for `Object.getPrototypeOf`.
 	**/
-	var ?getPrototypeOf:(target:T)->Null<{}>;
+	var ?getPrototypeOf:(target:T) -> Null<{}>;
 
 	/**
 		A trap for `Object.setPrototypeOf`.
 	**/
-	var ?setPrototypeOf:(target:T, prototype:Null<{}>)->Bool;
+	var ?setPrototypeOf:(target:T, prototype:Null<{}>) -> Bool;
 
 	/**
 		A trap for `Object.isExtensible`.
 	**/
-	var ?isExtensible:(target:T)->Bool;
+	var ?isExtensible:(target:T) -> Bool;
 
 	/**
 		A trap for `Object.preventExtensions`.
 	**/
-	var ?preventExtensions:(target:T)->Bool;
+	var ?preventExtensions:(target:T) -> Bool;
 
 	/**
 		A trap for `Object.getOwnPropertyDescriptor`.
 	**/
-	var ?getOwnPropertyDescriptor:(target:T, prop:String)->Null<ObjectPropertyDescriptor>;
+	var ?getOwnPropertyDescriptor:(target:T, prop:String) -> Null<ObjectPropertyDescriptor>;
 
 	/**
 		A trap for `Object.defineProperty`.
 	**/
-	var ?defineProperty:(target:T, property:String, descriptor:ObjectPropertyDescriptor)->Bool;
+	var ?defineProperty:(target:T, property:String, descriptor:ObjectPropertyDescriptor) -> Bool;
 
 	/**
 		A trap for the `in` operator.
 	**/
-	var ?has:(target:T, prop:String)->Bool;
+	var ?has:(target:T, prop:String) -> Bool;
 
 	/**
 		A trap for getting property values.
 	**/
-	var ?get:(target:T, property:String, receiver:Null<{}>)->Any;
+	var ?get:(target:T, property:String, receiver:Null<{}>) -> Any;
 
 	/**
 		A trap for setting property values.
 	**/
-	var ?set:(target:T, property:String, value:Any, receiver:Null<{}>)->Bool;
+	var ?set:(target:T, property:String, value:Any, receiver:Null<{}>) -> Bool;
 
 	/**
 		A trap for the `delete` operator.
 	**/
-	var ?deleteProperty:(target:T, property:String)->Bool;
+	var ?deleteProperty:(target:T, property:String) -> Bool;
 
 	/**
 		A trap for `Object.getOwnPropertyNames` and `Object.getOwnPropertySymbols`.
 	**/
-	var ?ownKeys:(target:T)->Array<String>;
+	var ?ownKeys:(target:T) -> Array<String>;
 
 	/**
 		A trap a function call.
 	**/
-	var ?apply:(target:T, thisArg:{}, argumentsList:Array<Any>)->Any;
+	var ?apply:(target:T, thisArg:{}, argumentsList:Array<Any>) -> Any;
 
 	/**
 		A trap for the `new` operator.
 	**/
-	var ?construct:(target:Class<T>, argumentsList:Array<Any>, newTarget:Class<Any>)->Void;
+	var ?construct:(target:Class<T>, argumentsList:Array<Any>, newTarget:Class<Any>) -> Void;
 }
 
 typedef RevocableProxy<T:{}> = {
@@ -111,7 +112,7 @@ typedef RevocableProxy<T:{}> = {
 		A Proxy object created with `new Proxy(target, handler)` call.
 	**/
 	final proxy:Proxy<T>;
-	
+
 	/**
 		A function with no argument to invalidate (switch off) the `proxy`.
 	**/

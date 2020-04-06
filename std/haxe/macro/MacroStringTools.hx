@@ -28,11 +28,11 @@ import haxe.macro.Expr;
 	This class provides some utility methods to work with strings in macro
 	context.
 **/
-#if hl @:hlNative("macro") #end
+#if hl
+@:hlNative("macro")
+#end
 class MacroStringTools {
 	#if (macro || display)
-
-
 	/**
 		Formats `String` `s` using the usual interpolation rules.
 
@@ -55,7 +55,7 @@ class MacroStringTools {
 
 		This operation depends on the position of `e`.
 	**/
-	static public function isFormatExpr(e:ExprOf<String>) : Bool {
+	static public function isFormatExpr(e:ExprOf<String>):Bool {
 		#if (neko || eval)
 		return Context.load("is_fmt_string", 1)(e.pos);
 		#else
@@ -64,11 +64,10 @@ class MacroStringTools {
 	}
 
 	#if !neko
-	static function isFmtString(p:Position) : Bool {
+	static function isFmtString(p:Position):Bool {
 		return false;
 	}
 	#end
-
 	#end
 
 	/**
@@ -82,15 +81,15 @@ class MacroStringTools {
 
 		If `sl` is null, the result is unspecified.
 	**/
-	static public function toFieldExpr(sl:Array<String>,?pos):Expr {
-		if( pos == null )
+	static public function toFieldExpr(sl:Array<String>, ?pos):Expr {
+		if (pos == null)
 			return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
 		var e = null;
-		for( v in sl )
-			if( e == null )
-				e = { expr : EConst(CIdent(v)), pos : pos };
+		for (v in sl)
+			if (e == null)
+				e = {expr: EConst(CIdent(v)), pos: pos};
 			else
-				e = { expr : EField(e,v), pos : pos };
+				e = {expr: EField(e, v), pos: pos};
 		return e;
 	}
 
@@ -106,12 +105,11 @@ class MacroStringTools {
 		an appended dot separating the result from `name`.
 	**/
 	static public function toDotPath(pack:Array<String>, name:String):String {
-		return if (pack.length == 0) name else pack.join(".") + "." +name;
+		return if (pack.length == 0) name else pack.join(".") + "." + name;
 	}
 
-	static public function toComplex( path : String ) : ComplexType {
+	static public function toComplex(path:String):ComplexType {
 		var pack = path.split(".");
-		return TPath( { pack : pack, name : pack.pop(), params : [] } );
+		return TPath({pack: pack, name: pack.pop(), params: []});
 	}
-
 }

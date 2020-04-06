@@ -51,29 +51,6 @@ external zlib_crc32 : bytes -> int -> int32 = "zlib_crc32"
 
 external time : unit -> float = "sys_time"
 
-type library
-type sym
-type value
-
-external dlopen : string -> library = "sys_dlopen"
-external dlsym : library -> string -> sym = "sys_dlsym"
-external dlcall0 : sym -> value = "sys_dlcall0"
-external dlcall1 : sym -> value -> value = "sys_dlcall1"
-external dlcall2 : sym -> value -> value -> value = "sys_dlcall2"
-external dlcall3 : sym -> value -> value -> value -> value = "sys_dlcall3"
-external dlcall4 : sym -> value -> value -> value -> value -> value = "sys_dlcall4"
-external dlcall5 : sym -> value -> value -> value -> value -> value -> value = "sys_dlcall5_bc" "sys_dlcall5"
-external dlint : int -> value = "sys_dlint"
-external dltoint : value -> int = "sys_dltoint"
-external dlstring : string -> value = "%identity"
-external dladdr : value -> int -> value = "sys_dladdr"
-external dlptr : value -> value = "sys_dlptr"
-external dlsetptr : value -> value -> unit = "sys_dlsetptr"
-external dlalloc_string : value -> string = "sys_dlalloc_string"
-external dlmemcpy : value -> value -> int -> unit = "sys_dlmemcpy"
-external dlcallback : int -> value = "sys_dlcallback"
-external dlcaml_callback : int -> value = "sys_dlcaml_callback"
-external dlint32 : int32 -> value = "sys_dlint32"
 external getch : bool -> int = "sys_getch"
 
 external filetime : string -> float = "sys_filetime"

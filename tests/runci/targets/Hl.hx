@@ -74,7 +74,7 @@ class Hl {
 		// runCommand("hl", ["export/threads.hl"]);
 
         changeDirectory(sysDir);
-        runCommand("haxe", ["compile-hl.hxml"]);
+        runCommand("haxe", ["compile-hl.hxml"].concat(args));
         runCommand(hlBinary, ["bin/hl/sys.hl"]);
     }
 }

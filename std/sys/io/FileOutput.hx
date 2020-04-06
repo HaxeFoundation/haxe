@@ -19,14 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 /**
 	Use `sys.io.File.write` to create a `FileOutput`.
 **/
 extern class FileOutput extends haxe.io.Output {
-
-	public function seek( p : Int, pos : FileSeek ) : Void;
-	public function tell() : Int;
-
+	function seek(p:Int, pos:FileSeek):Void;
+	function tell():Int;
 }

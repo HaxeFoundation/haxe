@@ -1,1 +1,1 @@
-Main.hx:6: characters 3-24 : Cannot use Void as value
+Main.hx:6: characters 7-8 : Variables of type Void are not allowed

@@ -19,44 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import haxe.io.Output;
-
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
 class NativeOutput<T:IOBase> extends Output {
-
 	var stream:T;
 
-	public var canSeek(get,never):Bool;
-	inline function get_canSeek():Bool return stream.seekable();
+	public var canSeek(get, never):Bool;
 
-	public function new (stream:T) {
+	inline function get_canSeek():Bool
+		return stream.seekable();
+
+	public function new(stream:T) {
 		this.bigEndian = false;
 		this.stream = stream;
-		if (!stream.writable()) throw "Read only stream";
+		if (!stream.writable())
+			throw "Read only stream";
 	}
 
-	override public function close():Void
-	{
+	override public function close():Void {
 		stream.close();
 	}
 
-	override public function prepare(nbytes:Int):Void
-	{
+	override public function prepare(nbytes:Int):Void {
 		stream.truncate(nbytes);
 	}
 
-	override public function flush():Void
-	{
+	override public function flush():Void {
 		stream.flush();
 	}
 
-
-	public function tell() : Int
-	{
+	public function tell():Int {
 		return stream.tell();
 	}
 }

@@ -1,4 +1,27 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 package lua;
+
 /**
 	These are all externs for the base Lua "string" class, which functions
 	as an additional set of string tools.
@@ -11,7 +34,7 @@ extern class NativeStringTools {
 		Receives a string and returns its length. The empty string `""` has
 		length `0`. Embedded zeros are counted, so `"a\000bc\000"` has length `5`.
 	**/
-	public static function len(str : String): Int;
+	static function len(str:String):Int;
 
 	/**
 		Receives zero or more integers. Returns a string with length equal to the
@@ -19,10 +42,10 @@ extern class NativeStringTools {
 		code equal to its corresponding argument.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function char(codes: haxe.extern.Rest<Int>): String;
-
+	static function char(codes:haxe.extern.Rest<Int>):String;
 
 	// TODO: make a note about handling matched groups with multireturn
+
 	/**
 		Returns the substring of `str` that starts at `start` and continues until `end`;
 		`start` and `end` can be negative. If `end` is absent, then it is assumed to be
@@ -31,7 +54,7 @@ extern class NativeStringTools {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	public static function sub(str : String, start : Int, ?end : Int): StringSub;
+	static function sub(str:String, start:Int, ?end:Int):StringSub;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -39,20 +62,20 @@ extern class NativeStringTools {
 		occurrence starts and ends.
 
 		@param target If the target has captures, then in a successful match the
-		       captured values are also returned, after the two indices.
+			   captured values are also returned, after the two indices.
 		@param start specifies where to start the search; its default value is `1`
-		       and can be negative.
+			   and can be negative.
 		@param plain turns off the pattern matching facilities, so the function does
-		       a plain "find substring" operation, with no characters in pattern
-		       being considered "magic". Note that if plain is given, then `start` must be given as well.
+			   a plain "find substring" operation, with no characters in pattern
+			   being considered "magic". Note that if plain is given, then `start` must be given as well.
 	**/
-	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): StringFind;
+	static function find(str:String, target:String, ?start:Int, ?plain:Bool):StringFind;
 
 	/**
 		Returns the internal numerical codes of the characters `str[index]`.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function byte(str : String, ?index : Int) : Int;
+	static function byte(str:String, ?index:Int):Int;
 
 	/**
 		Returns a formatted version of its variable number of arguments following
@@ -65,10 +88,10 @@ extern class NativeStringTools {
 		double quotes, and all double quotes, newlines, embedded zeros,
 		and backslashes in the string are correctly escaped when written.
 		For instance, the call
-   `string.format('%q', 'a string with "quotes" and \n new line')`
+		   `string.format('%q', 'a string with "quotes" and \n new line')`
 		will produce the string:
 		`"a string with \"quotes\" and \
-      new line"`
+			  new line"`
 
 		The options `c`, `d` `E`, `e`, `f`, `g`, `G`, `i`, `o`, `u, `X-, and `x` all
 		expect a number as argument, whereas `q` and `s` expect a string.
@@ -76,22 +99,22 @@ extern class NativeStringTools {
 		This function does not accept string values containing embedded zeros,
 		except as arguments to the `q` option.
 	**/
-	public static function format(str : String, ?e1 : Dynamic, ?e2 : Dynamic, ?e3 : Dynamic, ?e4 : Dynamic): String;
+	static function format(str:String, ?e1:Dynamic, ?e2:Dynamic, ?e3:Dynamic, ?e4:Dynamic):String;
 
 	/**
 
 	**/
-	@:overload(   function     (str : String, pattern : String, replace : String->Void,   ?n : Int): String {})
-	@:overload(   function     (str : String, pattern : String, replace : String->String, ?n : Int): String {})
-	public static function gsub(str : String, pattern : String, replace : String,		  ?n : Int): String;
+	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):String {})
+	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):String {})
+	static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
 
 	/**
 		Returns an iterator function that, each time it is called, returns the next
 		captures from pattern over string `str`. If `pattern` specifies no captures,
 		then the whole match is produced in each call.
 	**/
-	@:overload(   function     (str : String, pattern : String, match : Void->String,   ?n : Int): String->Void {})
-	public static function gmatch(str : String, pattern : String): Void->String;
+	@:overload(function(str:String, pattern:String, match:Void->String, ?n:Int):String->Void {})
+	static function gmatch(str:String, pattern:String):Void->String;
 
 	/**
 		Looks for the first match of pattern in the string s. If it finds one,
@@ -100,36 +123,48 @@ extern class NativeStringTools {
 		The optional argument `n` specifies where to start the search;
 		its default value is `1` and can be negative.
 	**/
-	public static function match(str : String, pattern : String, ?n : Int): String;
+	static function match(str:String, pattern:String, ?n:Int):String;
 
 	/**
 		Receives a string and returns a copy of this string with all lowercase
 		letters changed to uppercase. All other characters are left unchanged.
 		The definition of what a lowercase letter is depends on the current locale.
 	**/
-	public static function upper(str:String) : String;
+	static function upper(str:String):String;
 
 	/**
 		Receives a string and returns a copy of this string with all uppercase
 		letters changed to lowercase. All other characters are left unchanged.
 		The definition of what an uppercase letter is depends on the current locale.
 	**/
-	public static function lower(str:String) : String;
+	static function lower(str:String):String;
 
 	/**
 		Returns a string containing a binary representation of the given function,
 		so that a later loadstring on this string returns a copy of the function.
 		function must be a Lua function without upvalues.
 	**/
-	public static function dump(d:Dynamic) : Dynamic;
+	static function dump(d:Dynamic):Dynamic;
+
+
+    /**
+        Returns a string that is the concatenation of n copies of
+        the string s separated by the string sep. The default value
+        for sep is the empty string (that is, no separator).
+        Returns the empty string if n is not positive.  (Note that
+        it is very easy to exhaust the memory of your machine with
+        a single call to this function.)
+    **/
+    static function rep(s:String, n : Int, ?sep : String) : String;
+
 }
 
 @:multiReturn extern class StringFind {
-	var begin : Int;
-	var end : Int;
+	var begin:Int;
+	var end:Int;
 }
 
 @:multiReturn extern class StringSub {
-	var match : String;
-	var count : Int;
+	var match:String;
+	var count:Int;
 }

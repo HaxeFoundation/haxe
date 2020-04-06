@@ -39,105 +39,105 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp && !lua && !eval) inline #end public static function urlEncode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlEncode(s:String):String {
 		#if flash
-			return untyped __global__["encodeURIComponent"](s);
+		return untyped __global__["encodeURIComponent"](s);
 		#elseif neko
-			return untyped new String(_urlEncode(s.__s));
+		return untyped new String(_urlEncode(s.__s));
 		#elseif js
-			return untyped encodeURIComponent(s);
+		return untyped encodeURIComponent(s);
 		#elseif cpp
-			return untyped s.__URLEncode();
+		return untyped s.__URLEncode();
 		#elseif java
-			return postProcessUrlEncode(java.net.URLEncoder.encode(s, "UTF-8"));
+		return postProcessUrlEncode(java.net.URLEncoder.encode(s, "UTF-8"));
 		#elseif cs
-			return untyped cs.system.Uri.EscapeDataString(s);
+		return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
-			return python.lib.urllib.Parse.quote(s, "");
+		return python.lib.urllib.Parse.quote(s, "");
 		#elseif hl
-			var len = 0;
-			var b = @:privateAccess s.bytes.urlEncode(len);
-			return @:privateAccess String.__alloc__(b,len);
+		var len = 0;
+		var b = @:privateAccess s.bytes.urlEncode(len);
+		return @:privateAccess String.__alloc__(b, len);
 		#elseif lua
-			s = lua.NativeStringTools.gsub(s, "\n", "\r\n");
-			s = lua.NativeStringTools.gsub(s, "([^%w %-%_%.%~])", function (c) {
-				return lua.NativeStringTools.format("%%%02X", lua.NativeStringTools.byte(c) + '');
-			});
-			s = lua.NativeStringTools.gsub(s, " ", "+");
-			return s;
+		s = lua.NativeStringTools.gsub(s, "\n", "\r\n");
+		s = lua.NativeStringTools.gsub(s, "([^%w %-%_%.%~])", function(c) {
+			return lua.NativeStringTools.format("%%%02X", lua.NativeStringTools.byte(c) + '');
+		});
+		s = lua.NativeStringTools.gsub(s, " ", "+");
+		return s;
 		#else
-			return null;
+		return null;
 		#end
 	}
 
-#if java
-	private static function postProcessUrlEncode( s : String ) : String {
+	#if java
+	private static function postProcessUrlEncode(s:String):String {
 		var ret = new StringBuf();
-		var i = 0,
-		    len = s.length;
+		var i = 0, len = s.length;
 		while (i < len) {
-			switch(_charAt(s, i++)) {
-			case '+'.code:
-				ret.add('%20');
-			case '%'.code if (i <= len - 2):
-				var c1 = _charAt(s, i++),
-				    c2 = _charAt(s, i++);
-				switch[c1, c2] {
-				case ['2'.code, '1'.code]:
-					ret.addChar('!'.code);
-				case ['2'.code, '7'.code]:
-					ret.addChar('\''.code);
-				case ['2'.code, '8'.code]:
-					ret.addChar('('.code);
-				case ['2'.code, '9'.code]:
-					ret.addChar(')'.code);
-				case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
-					ret.addChar('~'.code);
-				case _:
-					ret.addChar('%'.code);
-					ret.addChar(cast c1);
-					ret.addChar(cast c2);
-				}
-			case var chr:
-				ret.addChar(cast chr);
+			switch (_charAt(s, i++)) {
+				case '+'.code:
+					ret.add('%20');
+				case '%'.code if (i <= len - 2):
+					var c1 = _charAt(s, i++), c2 = _charAt(s, i++);
+					switch [c1, c2] {
+						case ['2'.code, '1'.code]:
+							ret.addChar('!'.code);
+						case ['2'.code, '7'.code]:
+							ret.addChar('\''.code);
+						case ['2'.code, '8'.code]:
+							ret.addChar('('.code);
+						case ['2'.code, '9'.code]:
+							ret.addChar(')'.code);
+						case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
+							ret.addChar('~'.code);
+						case _:
+							ret.addChar('%'.code);
+							ret.addChar(cast c1);
+							ret.addChar(cast c2);
+					}
+				case var chr:
+					ret.addChar(cast chr);
 			}
 		}
 		return ret.toString();
 	}
-#end
+	#end
 
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp && !lua && !eval) inline #end public static function urlDecode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlDecode(s:String):String {
 		#if flash
-			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
+		return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif neko
-			return untyped new String(_urlDecode(s.__s));
+		return untyped new String(_urlDecode(s.__s));
 		#elseif js
-			return untyped decodeURIComponent(s.split("+").join(" "));
+		return untyped decodeURIComponent(s.split("+").join(" "));
 		#elseif cpp
-			return untyped s.__URLDecode();
+		return untyped s.__URLDecode();
 		#elseif java
-			try
-				return java.net.URLDecoder.decode(s, "UTF-8")
-			catch (e:Dynamic) throw e;
+		try
+			return java.net.URLDecoder.decode(s, "UTF-8")
+		catch (e:Dynamic)
+			throw e;
 		#elseif cs
-			return untyped cs.system.Uri.UnescapeDataString(s);
+		return untyped cs.system.Uri.UnescapeDataString(s);
 		#elseif python
-			return python.lib.urllib.Parse.unquote(s);
+		return python.lib.urllib.Parse.unquote(s);
 		#elseif hl
-			var len = 0;
-			var b = @:privateAccess s.bytes.urlDecode(len);
-			return @:privateAccess String.__alloc__(b,len);
+		var len = 0;
+		var b = @:privateAccess s.bytes.urlDecode(len);
+		return @:privateAccess String.__alloc__(b, len);
 		#elseif lua
-			s = lua.NativeStringTools.gsub (s, "+", " ");
-			s = lua.NativeStringTools.gsub (s, "%%(%x%x)",
-				function(h) {return lua.NativeStringTools.char(lua.Lua.tonumber(h,16));});
-			s = lua.NativeStringTools.gsub (s, "\r\n", "\n");
-			return s;
+		s = lua.NativeStringTools.gsub(s, "+", " ");
+		s = lua.NativeStringTools.gsub(s, "%%(%x%x)", function(h) {
+			return lua.NativeStringTools.char(lua.Lua.tonumber(h, 16));
+		});
+		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
+		return s;
 		#else
-			return null;
+		return null;
 		#end
 	}
 
@@ -155,16 +155,22 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
+	public static function htmlEscape(s:String, ?quotes:Bool):String {
 		var buf = new StringBuf();
-		for (code in new haxe.iterators.StringIteratorUnicode(s)) {
+		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
-				case '&'.code: buf.add("&amp;");
-				case '<'.code: buf.add("&lt;");
-				case '>'.code: buf.add("&gt;");
-				case '"'.code if (quotes): buf.add("&quot;");
-				case '\''.code if (quotes): buf.add("&#039;");
-				case _: buf.addChar(code);
+				case '&'.code:
+					buf.add("&amp;");
+				case '<'.code:
+					buf.add("&lt;");
+				case '>'.code:
+					buf.add("&gt;");
+				case '"'.code if (quotes):
+					buf.add("&quot;");
+				case '\''.code if (quotes):
+					buf.add("&#039;");
+				case _:
+					buf.addChar(code);
 			}
 		}
 		return buf.toString();
@@ -184,8 +190,17 @@ class StringTools {
 		- `&quot;` becomes `"`
 		- `&#039;` becomes `'`
 	**/
-	public static function htmlUnescape( s : String ) : String {
-		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
+	public static function htmlUnescape(s:String):String {
+		return s.split("&gt;")
+			.join(">")
+			.split("&lt;")
+			.join("<")
+			.split("&quot;")
+			.join('"')
+			.split("&#039;")
+			.join("'")
+			.split("&amp;")
+			.join("&");
 	}
 
 	/**
@@ -193,7 +208,7 @@ class StringTools {
 
 		When `value` is `null`, the result is unspecified.
 	**/
-	public static inline function contains(s : String, value : String) : Bool {
+	public static inline function contains(s:String, value:String):Bool {
 		return s.indexOf(value) != -1;
 	}
 
@@ -204,26 +219,26 @@ class StringTools {
 
 		If `start` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python) inline #end function startsWith( s : String, start : String ) : Bool {
+	public static #if (cs || java || python) inline #end function startsWith(s:String, start:String):Bool {
 		#if java
 		return (cast s : java.NativeString).startsWith(start);
 		#elseif cs
 		return untyped s.StartsWith(start);
 		#elseif cpp
-		if (s.length<start.length)
+		if (s.length < start.length)
 			return false;
 		var p0 = s.c_str();
 		var p1 = start.c_str();
-		for(i in 0...start.length)
-			if ( p0.at(i) != p1.at(i) )
+		for (i in 0...start.length)
+			if (p0.at(i) != p1.at(i))
 				return false;
 		return true;
 		#elseif hl
-		return @:privateAccess (s.length >= start.length && s.bytes.compare(0,start.bytes,0,start.length<<1) == 0);
+		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
 		#else
-		return( s.length >= start.length && s.lastIndexOf(start, 0) == 0 );
+		return (s.length >= start.length && s.lastIndexOf(start, 0) == 0);
 		#end
 	}
 
@@ -234,18 +249,18 @@ class StringTools {
 
 		If `end` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python) inline #end function endsWith( s : String, end : String ) : Bool {
+	public static #if (cs || java || python) inline #end function endsWith(s:String, end:String):Bool {
 		#if java
 		return (cast s : java.NativeString).endsWith(end);
 		#elseif cs
 		return untyped s.EndsWith(end);
 		#elseif cpp
-		if (s.length<end.length)
+		if (s.length < end.length)
 			return false;
-		var p0 = s.c_str().add( s.length-end.length );
+		var p0 = s.c_str().add(s.length - end.length);
 		var p1 = end.c_str();
-		for(i in 0...end.length)
-			if ( p0.at(i) != p1.at(i) )
+		for (i in 0...end.length)
+			if (p0.at(i) != p1.at(i))
 				return false;
 		return true;
 		#elseif hl
@@ -257,7 +272,7 @@ class StringTools {
 		#else
 		var elen = end.length;
 		var slen = s.length;
-		return( slen >= elen && s.indexOf(end, (slen - elen)) == (slen - elen) );
+		return (slen >= elen && s.indexOf(end, (slen - elen)) == (slen - elen));
 		#end
 	}
 
@@ -270,11 +285,12 @@ class StringTools {
 		If `s` is the empty String `""`, or if pos is not a valid position within
 		`s`, the result is false.
 	**/
-	public static function isSpace( s : String, pos : Int ) : Bool {
+	public static function isSpace(s:String, pos:Int):Bool {
 		#if (python || lua)
-		if (s.length == 0 || pos < 0 || pos >= s.length) return false;
+		if (s.length == 0 || pos < 0 || pos >= s.length)
+			return false;
 		#end
-		var c = s.charCodeAt( pos );
+		var c = s.charCodeAt(pos);
 		return (c > 8 && c < 14) || c == 32;
 	}
 
@@ -287,17 +303,17 @@ class StringTools {
 		If `s` is the empty String `""` or consists only of space characters, the
 		result is the empty String `""`.
 	**/
-	public #if cs inline #end static function ltrim( s : String ) : String {
+	public #if cs inline #end static function ltrim(s:String):String {
 		#if cs
 		return untyped s.TrimStart();
 		#else
 		var l = s.length;
 		var r = 0;
-		while( r < l && isSpace(s,r) ){
+		while (r < l && isSpace(s, r)) {
 			r++;
 		}
-		if( r > 0 )
-			return s.substr(r, l-r);
+		if (r > 0)
+			return s.substr(r, l - r);
 		else
 			return s;
 		#end
@@ -312,18 +328,18 @@ class StringTools {
 		If `s` is the empty String `""` or consists only of space characters, the
 		result is the empty String `""`.
 	**/
-	public #if cs inline #end static function rtrim( s : String ) : String {
+	public #if cs inline #end static function rtrim(s:String):String {
 		#if cs
 		return untyped s.TrimEnd();
 		#else
 		var l = s.length;
 		var r = 0;
-		while( r < l && isSpace(s,l-r-1) ){
+		while (r < l && isSpace(s, l - r - 1)) {
 			r++;
 		}
-		if( r > 0 ){
-			return s.substr(0, l-r);
-		}else{
+		if (r > 0) {
+			return s.substr(0, l - r);
+		} else {
 			return s;
 		}
 		#end
@@ -334,7 +350,7 @@ class StringTools {
 
 		This is a convenience function for `ltrim(rtrim(s))`.
 	**/
-	public #if (cs || java) inline #end static function trim( s : String ) : String {
+	public #if (cs || java) inline #end static function trim(s:String):String {
 		#if cs
 		return untyped s.Trim();
 		#elseif java
@@ -356,7 +372,7 @@ class StringTools {
 
 		If `c` is null, the result is unspecified.
 	**/
-	public static function lpad( s : String, c : String, l : Int ) : String {
+	public static function lpad(s:String, c:String, l:Int):String {
 		if (c.length <= 0)
 			return s;
 
@@ -381,7 +397,7 @@ class StringTools {
 
 		If `c` is null, the result is unspecified.
 	**/
-	public static function rpad( s : String, c : String, l : Int ) : String {
+	public static function rpad(s:String, c:String, l:Int):String {
 		if (c.length <= 0)
 			return s;
 
@@ -403,7 +419,7 @@ class StringTools {
 
 		If `sub` or `by` are null, the result is unspecified.
 	**/
-	public static function replace( s : String, sub : String, by : String ) : String {
+	public static function replace(s:String, sub:String, by:String):String {
 		#if java
 		if (sub.length == 0)
 			return s.split(sub).join(by);
@@ -425,18 +441,18 @@ class StringTools {
 		If `digits` is specified, the resulting String is padded with "0" until
 		its `length` equals `digits`.
 	**/
-	public static function hex( n : Int, ?digits : Int ) {
+	public static function hex(n:Int, ?digits:Int) {
 		#if flash
-			var n : UInt = n;
-			var s : String = untyped n.toString(16);
-			s = s.toUpperCase();
+		var n:UInt = n;
+		var s:String = untyped n.toString(16);
+		s = s.toUpperCase();
 		#else
-			var s = "";
-			var hexChars = "0123456789ABCDEF";
-			do {
-				s = hexChars.charAt(n&15) + s;
-				n >>>= 4;
-			} while( n > 0 );
+		var s = "";
+		var hexChars = "0123456789ABCDEF";
+		do {
+			s = hexChars.charAt(n & 15) + s;
+			n >>>= 4;
+		} while (n > 0);
 		#end
 		#if python
 		if (digits != null && s.length < digits) {
@@ -446,9 +462,9 @@ class StringTools {
 			}
 		}
 		#else
-		if( digits != null )
-			while( s.length < digits )
-				s = "0"+s;
+		if (digits != null)
+			while (s.length < digits)
+				s = "0" + s;
 		#end
 		return s;
 	}
@@ -467,7 +483,7 @@ class StringTools {
 		This operation is not guaranteed to work if `s` contains the `\0`
 		character.
 	**/
-	public static #if !eval inline #end function fastCodeAt( s : String, index : Int ) : Int {
+	public static #if !eval inline #end function fastCodeAt(s:String, index:Int):Int {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
@@ -475,9 +491,9 @@ class StringTools {
 		#elseif flash
 		return untyped s.cca(index);
 		#elseif java
-		return ( index < s.length ) ? cast(_charAt(s, index), Int) : -1;
+		return (index < s.length) ? cast(_charAt(s, index), Int) : -1;
 		#elseif cs
-		return ( cast(index, UInt) < s.length ) ? cast(s[index], Int) : -1;
+		return (cast(index, UInt) < s.length) ? cast(s[index], Int) : -1;
 		#elseif js
 		return (cast s).charCodeAt(index);
 		#elseif python
@@ -485,11 +501,11 @@ class StringTools {
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
 		#elseif lua
-			#if lua_vanilla
-			return lua.NativeStringTools.byte(s,index+1);
-			#else
-			return lua.lib.luautf8.Utf8.byte(s,index+1);
-			#end
+		#if lua_vanilla
+		return lua.NativeStringTools.byte(s, index + 1);
+		#else
+		return lua.lib.luautf8.Utf8.byte(s, index + 1);
+		#end
 		#else
 		return untyped s.cca(index);
 		#end
@@ -502,7 +518,7 @@ class StringTools {
 		internal encoding of strings in different runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
 	**/
-	public static inline function iterator( s : String ) : StringIterator {
+	public static inline function iterator(s:String):StringIterator {
 		return new StringIterator(s);
 	}
 
@@ -513,14 +529,14 @@ class StringTools {
 		internal encoding of strings in different of runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
 	**/
-	public static inline function keyValueIterator( s : String ) : StringKeyValueIterator {
+	public static inline function keyValueIterator(s:String):StringKeyValueIterator {
 		return new StringKeyValueIterator(s);
 	}
 
 	/**
 		Tells if `c` represents the end-of-file (EOF) character.
 	**/
-	@:noUsing public static inline function isEof( c : Int ) : Bool {
+	@:noUsing public static inline function isEof(c:Int):Bool {
 		#if (flash || cpp || hl)
 		return c == 0;
 		#elseif js
@@ -572,20 +588,22 @@ class StringTools {
 	}
 
 	#if java
-	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return (cast str : java.NativeString).charAt(idx);
+	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16
+		return (cast str : java.NativeString).charAt(idx);
 	#end
 
 	#if neko
-	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
-	private static var _urlDecode = neko.Lib.load("std","url_decode",1);
+	private static var _urlEncode = neko.Lib.load("std", "url_encode", 1);
+	private static var _urlDecode = neko.Lib.load("std", "url_decode", 1);
 	#end
 
 	#if utf16
 	static inline var MIN_SURROGATE_CODE_POINT = 65536;
+
 	static inline function utf16CodePointAt(s:String, index:Int):Int {
 		var c = StringTools.fastCodeAt(s, index);
 		if (c >= 0xD800 && c <= 0xDBFF) {
-			c = ((c -0xD7C0) << 10) | (StringTools.fastCodeAt(s, index + 1) & 0x3FF);
+			c = ((c - 0xD7C0) << 10) | (StringTools.fastCodeAt(s, index + 1) & 0x3FF);
 		}
 		return c;
 	}

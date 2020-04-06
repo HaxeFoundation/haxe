@@ -365,11 +365,11 @@ module ConstPropagation = DataFlow(struct
 	let top = Top
 	let bottom = Bottom
 
-	let equals lat1 lat2 = match lat1,lat2 with
+	let rec equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
+		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && List.for_all2 equals tl1 tl2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
@@ -517,7 +517,7 @@ end)
 (*
 	Propagates local variables to other local variables.
 
-	Respects scopes on targets where it matters (all except JS and As3).
+	Respects scopes on targets where it matters (all except JS).
 *)
 module CopyPropagation = DataFlow(struct
 	open BasicBlock
@@ -809,7 +809,7 @@ module Debug = struct
 		) g.g_var_infos
 
 	let get_dump_path ctx c cf =
-		"dump" :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		(dump_path ctx.com) :: [platform_name_macro ctx.com] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
@@ -1030,7 +1030,6 @@ module Run = struct
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
-			(match e.eexpr with TFunction tf -> cf.cf_expr_unoptimized <- Some tf | _ -> ());
 			let actx = create_analyzer_context ctx.Typecore.com config e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
@@ -1099,9 +1098,9 @@ module Run = struct
 		let com = ctx.Typecore.com in
 		let config = get_base_config com in
 		with_timer config.detail_times ["other"] (fun () ->
-			let cfl = if config.optimize && config.purity_inference then with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com) else [] in
-			List.iter (run_on_type ctx config) types;
-			List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
+			if config.optimize && config.purity_inference then
+				with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+			List.iter (run_on_type ctx config) types
 		)
 end
 ;;

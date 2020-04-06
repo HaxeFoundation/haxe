@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 @:headerClassCode("
@@ -50,62 +51,92 @@ package haxe.ds;
   inline Float get_float(int key) { return __int_hash_get_float(h,key); }
   inline String get_string(int key) { return __int_hash_get_string(h,key); }
 ")
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
-
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	@:ifFeature("haxe.ds.IntMap.*")
-	private var h : Dynamic;
+	private var h:Dynamic;
 
-	public function new() : Void { }
+	public function new():Void {}
 
-	public function set( key : Int, value : T ) : Void {
-		untyped __global__.__int_hash_set(__cpp__("HX_MAP_THIS"),key,value);
+	public function set(key:Int, value:T):Void {
+		untyped __global__.__int_hash_set(__cpp__("HX_MAP_THIS"), key, value);
 	}
 
-	public function get( key : Int ) : Null<T> {
-		return untyped __global__.__int_hash_get(h,key);
+	public function get(key:Int):Null<T> {
+		return untyped __global__.__int_hash_get(h, key);
 	}
 
-	public function exists( key : Int ) : Bool {
-		return untyped __global__.__int_hash_exists(h,key);
+	public function exists(key:Int):Bool {
+		return untyped __global__.__int_hash_exists(h, key);
 	}
 
-	public function remove( key : Int ) : Bool {
-		return untyped __global__.__int_hash_remove(h,key);
+	public function remove(key:Int):Bool {
+		return untyped __global__.__int_hash_remove(h, key);
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys():Iterator<Int> {
 		var a:Array<Int> = untyped __global__.__int_hash_keys(h);
 		return a.iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return untyped __global__.__int_hash_to_string(h);
 	}
 
-   #if (scriptable)
-   private function setString(key:Int,val:String) : Void { untyped __int_hash_set_string(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setInt(key:Int,val:Int) : Void { untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setBool(key:Int,val:Bool) : Void { untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
-   private function setFloat(key:Int,val:Float) : Void { untyped __int_hash_set_float(__cpp__("HX_MAP_THIS"),key,val); }
+	public function clear():Void {
+		#if (hxcpp_api_level >= 400)
+		return untyped __global__.__int_hash_clear(h);
+		#else
+		h = null;
+		#end
+	}
 
-   private function getString(key:Int) : String { return untyped __int_hash_get_string(h,key); }
-   private function getInt(key:Int) : Int { return untyped __int_hash_get_int(h,key); }
-   private function getBool(key:Int) : Bool { return untyped __int_hash_get_bool(h,key); }
-   private function getFloat(key:Int) : Float { return untyped __int_hash_get_float(h,key); }
-   #end
+	#if (scriptable)
+	private function setString(key:Int, val:String):Void {
+		untyped __int_hash_set_string(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setInt(key:Int, val:Int):Void {
+		untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setBool(key:Int, val:Bool):Void {
+		untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function setFloat(key:Int, val:Float):Void {
+		untyped __int_hash_set_float(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
+	private function getString(key:Int):String {
+		return untyped __int_hash_get_string(h, key);
+	}
+
+	private function getInt(key:Int):Int {
+		return untyped __int_hash_get_int(h, key);
+	}
+
+	private function getBool(key:Int):Bool {
+		return untyped __int_hash_get_bool(h, key);
+	}
+
+	private function getFloat(key:Int):Float {
+		return untyped __int_hash_get_float(h, key);
+	}
+	#end
 }

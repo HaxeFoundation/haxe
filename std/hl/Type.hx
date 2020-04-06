@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 enum abstract TypeKind(Int) {
@@ -45,69 +46,72 @@ enum abstract TypeKind(Int) {
 }
 
 @:coreType abstract Type {
+	public var kind(get, never):TypeKind;
 
-	public var kind(get,never) : TypeKind;
-
-	extern inline function get_kind() : TypeKind {
+	extern inline function get_kind():TypeKind {
 		return untyped $tkind(this);
 	}
 
-	@:hlNative("std","type_name") function getNameBytes() : Bytes {
+	@:hlNative("std", "type_name") function getNameBytes():Bytes {
 		return null;
 	}
 
-	extern public static inline function getDynamic( v : Dynamic ) : Type {
+	extern public static inline function getDynamic(v:Dynamic):Type {
 		return untyped $tdyntype(v);
 	}
 
-	extern public static inline function get<T>( v : T ) : Type {
+	extern public static inline function get<T>(v:T):Type {
 		return untyped $ttype(v);
 	}
 
-	extern public inline function getTypeName() : String {
+	extern public static inline function void():Type {
+		return untyped $ttype((null:Void));
+	}
+
+	extern public inline function getTypeName():String {
 		var s = getNameBytes();
-		if( s == null ) return null;
+		if (s == null)
+			return null;
 		return @:privateAccess String.fromUCS2(s);
 	}
 
-	@:hlNative("std", "type_safe_cast") public function safeCast( t : Type ) : Bool {
+	@:hlNative("std", "type_safe_cast") public function safeCast(t:Type):Bool {
 		return false;
 	}
 
-	@:hlNative("std","type_instance_fields") public function getInstanceFields() : NativeArray<Bytes> {
+	@:hlNative("std", "type_instance_fields") public function getInstanceFields():NativeArray<Bytes> {
 		return null;
 	}
 
-	@:hlNative("std","type_get_global") public function getGlobal() : Dynamic {
+	@:hlNative("std", "type_get_global") public function getGlobal():Dynamic {
 		return null;
 	}
 
-	@:hlNative("std","type_set_global") public function setGlobal( v : Dynamic ) : Bool {
+	@:hlNative("std", "type_set_global") public function setGlobal(v:Dynamic):Bool {
 		return false;
 	}
 
-	@:hlNative("std","type_args_count") public function getArgsCount() : Int {
+	@:hlNative("std", "type_args_count") public function getArgsCount():Int {
 		return 0;
 	}
 
-	@:hlNative("std","type_super") public function getSuper() : Type {
+	@:hlNative("std", "type_super") public function getSuper():Type {
 		return null;
 	}
 
-	@:hlNative("std","type_enum_fields") public function getEnumFields() : NativeArray<Bytes> {
+	@:hlNative("std", "type_enum_fields") public function getEnumFields():NativeArray<Bytes> {
 		return null;
 	}
 
-	@:hlNative("std","type_enum_values") public function getEnumValues() : NativeArray<Dynamic> {
+	@:hlNative("std", "type_enum_values") public function getEnumValues():NativeArray<Dynamic> {
 		return null;
 	}
 
-	@:hlNative("std","alloc_obj") public function allocObject() : Dynamic {
+	@:hlNative("std", "alloc_obj") public function allocObject():Dynamic {
 		return null;
 	}
 
-	@:hlNative("std", "alloc_enum_dyn") public function allocEnum( index : Int, args : NativeArray<Dynamic>, nargs : Int ) : Dynamic {
+	@:hlNative("std", "alloc_enum_dyn") public function allocEnum(index:Int, args:NativeArray<Dynamic>, nargs:Int):Dynamic {
 		return null;
 	}
-
 }

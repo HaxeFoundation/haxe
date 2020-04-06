@@ -19,71 +19,73 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js;
 
 import js.html.TextAreaElement;
 
 class Selection {
+	var doc:Dynamic;
 
-	var doc : Dynamic;
-
-	public function new( doc : TextAreaElement ) {
+	public function new(doc:TextAreaElement) {
 		this.doc = doc;
 	}
 
 	public function get() {
 		// Mozilla
-		if( doc.selectionStart != null )
-			return doc.value.substring(doc.selectionStart,doc.selectionEnd);
+		if (doc.selectionStart != null)
+			return doc.value.substring(doc.selectionStart, doc.selectionEnd);
 		// IE
 		var range = untyped js.Lib.document.selection.createRange();
-		if( range.parentElement() != doc )
+		if (range.parentElement() != doc)
 			return "";
 		return range.text;
 	}
 
-	public function select( start : Int, end : Int ) {
+	public function select(start:Int, end:Int) {
 		doc.focus();
 		// Mozilla
-		if( doc.selectionStart != null ) {
+		if (doc.selectionStart != null) {
 			doc.selectionStart = start;
 			doc.selectionEnd = end;
 			return;
 		}
 		// FIX : IE count \r\n as one single char for selection
 		// operations, we must then deal with it
-		var value : String = doc.value;
+		var value:String = doc.value;
 		var p = 0, delta = 0;
-		while( true ) {
+		while (true) {
 			var i = value.indexOf("\r\n", p);
-			if( i < 0 || i > start ) break;
+			if (i < 0 || i > start)
+				break;
 			delta++;
 			p = i + 2;
 		}
 		start -= delta;
-		while( true ) {
+		while (true) {
 			var i = value.indexOf("\r\n", p);
-			if( i < 0 || i > end ) break;
+			if (i < 0 || i > end)
+				break;
 			delta++;
 			p = i + 2;
 		}
 		end -= delta;
 		// IE
 		var r = doc.createTextRange();
-        r.moveEnd('textedit',-1);
-        r.moveStart('character',start);
-        r.moveEnd('character',end - start);
-        r.select();
+		r.moveEnd('textedit', -1);
+		r.moveStart('character', start);
+		r.moveEnd('character', end - start);
+		r.select();
 	}
 
-	public function insert( left : String, text : String, right : String ) {
+	public function insert(left:String, text:String, right:String) {
 		doc.focus();
 		// Mozilla
-		if( doc.selectionStart != null ) {
+		if (doc.selectionStart != null) {
 			var top = doc.scrollTop;
 			var start = doc.selectionStart;
 			var end = doc.selectionEnd;
-			doc.value = doc.value.substr(0,start) + left + text + right + doc.value.substr(end);
+			doc.value = doc.value.substr(0, start) + left + text + right + doc.value.substr(end);
 			doc.selectionStart = start + left.length;
 			doc.selectionEnd = start + left.length + text.length;
 			doc.scrollTop = top;
@@ -92,9 +94,8 @@ class Selection {
 		// IE
 		var range = untyped js.Lib.document.selection.createRange();
 		range.text = left + text + right;
-		range.moveStart('character',-text.length-right.length);
-		range.moveEnd('character',-right.length);
+		range.moveStart('character', -text.length - right.length);
+		range.moveEnd('character', -right.length);
 		range.select();
 	}
-
 }

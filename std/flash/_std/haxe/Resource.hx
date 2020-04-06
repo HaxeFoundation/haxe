@@ -19,69 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
-#if as3
 @:coreApi
 class Resource {
-	public static function listNames() : Array<String> untyped {
-		return __keys__(__resources__.list);
-	}
+	static var content:Array<{name:String}>;
 
-	public static function getString( name : String ) : String {
-		var b = resolve(name);
-		return b == null ? null : b.readUTFBytes(b.length);
-	}
-
-	public static function getBytes( name : String ) : haxe.io.Bytes {
-		var b = resolve(name);
-		return b == null ? null : haxe.io.Bytes.ofData(b);
-	}
-
-	static function resolve( name : String) :flash.utils.ByteArray untyped {
-		var n = __resources__.list[name];
-		if (n == null) return null;
-		return untyped __new__(n);
-	}
-
-	static function __init__() : Void {
-		untyped __resources__.__init__();
-	}
-}
-#else
-@:coreApi
-class Resource {
-
-	static var content : Array<{ name : String }>;
-
-	public static function listNames() : Array<String> {
+	public static function listNames():Array<String> {
 		var names = new Array();
-		for( x in content )
+		for (x in content)
 			names.push(x.name);
 		return names;
 	}
 
-	public static function getString( name : String ) : String {
+	public static function getString(name:String):String {
 		var b = resolve(name);
 		return b == null ? null : b.readUTFBytes(b.length);
 	}
 
-	public static function getBytes( name : String ) : haxe.io.Bytes {
+	public static function getBytes(name:String):haxe.io.Bytes {
 		var b = resolve(name);
 		return b == null ? null : haxe.io.Bytes.ofData(b);
 	}
 
-	static function resolve( name : String ) : flash.utils.ByteArray {
-		try untyped {
-			var c = __as__(__global__["flash.utils.getDefinitionByName"]("_res._"+name.split(".").join("_")),Class);
-			return __new__(c);
-		} catch( e : Dynamic ) {
+	static function resolve(name:String):flash.utils.ByteArray {
+		try
+			untyped {
+				var c = __as__(__global__["flash.utils.getDefinitionByName"]("_res._" + name.split(".").join("_")), Class);
+				return __new__(c);
+			} catch (e:Dynamic) {
 			return null;
 		}
 	}
 
-	static function __init__() : Void {
+	static function __init__():Void {
 		content = untyped __resources__();
 	}
 }
-#end

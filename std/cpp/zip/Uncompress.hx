@@ -19,8 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.zip;
 
-#if (haxe_ver < 9000.0)
+package cpp.zip;
+
 typedef Uncompress = haxe.zip.Uncompress;
-#end

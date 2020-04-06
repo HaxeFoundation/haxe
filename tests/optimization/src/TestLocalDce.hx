@@ -161,7 +161,6 @@ class TestLocalDce {
 			var i = _g1[_g];
 			++_g;
 			s += i * 2;
-			continue;
 		}
 		TestJs.use(s);
 	')

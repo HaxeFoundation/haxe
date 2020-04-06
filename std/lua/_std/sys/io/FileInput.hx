@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import lua.FileHandle;
@@ -34,32 +35,33 @@ class FileInput extends haxe.io.Input {
 	var f:FileHandle;
 	var _eof:Bool;
 
-	public function new(f:FileHandle){
-		if (f == null) throw 'Invalid filehandle : $f';
+	public function new(f:FileHandle) {
+		if (f == null)
+			throw 'Invalid filehandle : $f';
 		this.bigEndian = Boot.platformBigEndian;
 		this.f = f;
 		this._eof = false;
 	}
 
-	inline public function seek( p : Int, pos : FileSeek ) : Void {
-		var arg = switch(pos){
-			case SeekBegin : "set";
-			case SeekCur   : "cur";
-			case SeekEnd   : "end";
+	inline public function seek(p:Int, pos:FileSeek):Void {
+		var arg = switch (pos) {
+			case SeekBegin: "set";
+			case SeekCur: "cur";
+			case SeekEnd: "end";
 		}
 		_eof = false;
 		return f.seek(arg, p);
 	}
 
-	inline public function tell() : Int {
+	inline public function tell():Int {
 		return f.seek();
 	}
 
-	inline public function eof() : Bool {
+	inline public function eof():Bool {
 		return _eof;
 	}
 
-	override inline public function readByte() : Int {
+	override inline public function readByte():Int {
 		var byte = f.read(1);
 		if (byte == null) {
 			_eof = true;
@@ -68,30 +70,31 @@ class FileInput extends haxe.io.Input {
 		return NativeStringTools.byte(byte);
 	}
 
-	override function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
-		if(eof()) throw new haxe.io.Eof();
+	override function readBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (eof())
+			throw new haxe.io.Eof();
 		return super.readBytes(s, pos, len);
 	}
 
-	override inline public function close() : Void {
+	override inline public function close():Void {
 		f.close();
 	}
-	override public function readAll( ?bufsize : Int ) : Bytes {
-		if( bufsize == null )
+
+	override public function readAll(?bufsize:Int):Bytes {
+		if (bufsize == null)
 			bufsize = (1 << 14); // 16 Ko
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {
-			while( true ) {
-				var len = readBytes(buf,0,bufsize);
-				if (len == 0) break;
-				total.addBytes(buf,0,len);
+			while (true) {
+				var len = readBytes(buf, 0, bufsize);
+				if (len == 0)
+					break;
+				total.addBytes(buf, 0, len);
 			}
-		} catch( e : Eof ) {
+		} catch (e:Eof) {
 			_eof = true;
 		}
 		return total.getBytes();
 	}
-
-
 }

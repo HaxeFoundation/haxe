@@ -30,8 +30,7 @@ import cs.Lib;
 	final lockObj = {};
 	final addEvent = new ManualResetEvent(false);
 
-	public function new():Void {
-	}
+	public function new():Void {}
 
 	public function add(i:T):Void {
 		Lib.lock(lockObj, {
@@ -50,12 +49,12 @@ import cs.Lib;
 	public function pop(block:Bool):Null<T> {
 		do {
 			Lib.lock(lockObj, {
-				if(storage.length > 0) {
+				if (storage.length > 0) {
 					return storage.shift();
 				}
 				addEvent.Reset();
 			});
-		} while(block && addEvent.WaitOne());
+		} while (block && addEvent.WaitOne());
 		return null;
 	}
 }

@@ -19,127 +19,112 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	private var h:Dynamic;
+	private var rh:Dynamic;
 
-	private var h : Dynamic;
-	private var rh : Dynamic;
-	static var reserved = { };
+	static var reserved = {};
 
-	public function new() : Void {
+	public function new():Void {
 		h = {};
 	}
 
-	inline function isReserved(key:String) : Bool {
-		return untyped __in__(key,reserved);
+	inline function isReserved(key:String):Bool {
+		return untyped __in__(key, reserved);
 	}
 
-	public inline function set( key : String, value : T ) : Void {
-		if( isReserved(key) )
+	public inline function set(key:String, value:T):Void {
+		if (isReserved(key))
 			setReserved(key, value);
 		else
 			untyped h[key] = value;
 	}
 
-	public inline function get( key : String ) : Null<T> {
-		if( isReserved(key) )
+	public inline function get(key:String):Null<T> {
+		if (isReserved(key))
 			return getReserved(key);
 		return untyped h[key];
 	}
 
-	public inline function exists( key : String ) : Bool {
-		if( isReserved(key) )
+	public inline function exists(key:String):Bool {
+		if (isReserved(key))
 			return existsReserved(key);
-		return untyped __in__(key,h);
+		return untyped __in__(key, h);
 	}
 
-	function setReserved( key : String, value : T ) : Void {
-		if( rh == null ) rh = {};
-		untyped rh["$"+key] = value;
+	function setReserved(key:String, value:T):Void {
+		if (rh == null)
+			rh = {};
+		untyped rh["$" + key] = value;
 	}
 
-	function getReserved( key : String ) : Null<T> {
-		return rh == null ? null : untyped rh["$"+key];
+	function getReserved(key:String):Null<T> {
+		return rh == null ? null : untyped rh["$" + key];
 	}
 
-	function existsReserved( key : String ) : Bool {
-		if( rh == null ) return false;
-		return untyped __in__("$"+key,rh);
+	function existsReserved(key:String):Bool {
+		if (rh == null)
+			return false;
+		return untyped __in__("$" + key, rh);
 	}
 
-	public function remove( key : String ) : Bool {
-		if( isReserved(key) ) {
+	public function remove(key:String):Bool {
+		if (isReserved(key)) {
 			key = "$" + key;
-			if( rh == null || !untyped __in__(key,rh) ) return false;
-			untyped __delete__(rh,key);
+			if (rh == null || !untyped __in__(key, rh))
+				return false;
+			untyped __delete__(rh, key);
 			return true;
 		} else {
-			if( !untyped __in__(key,h) )
+			if (!untyped __in__(key, h))
 				return false;
-			untyped __delete__(h,key);
+			untyped __delete__(h, key);
 			return true;
 		}
 	}
 
-	#if as3
-
-	// unoptimized version
-
-	public function keys() : Iterator<String> {
-		var out : Array<String> = untyped __keys__(h);
-		if( rh != null ) out = out.concat(untyped __hkeys__(rh));
-		return out.iterator();
-	}
-
-	public function iterator() : Iterator<T> {
-		return untyped {
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { return get(__this__.it.next()); }
-		};
-	}
-
-	#else
-
-	public inline function keys() : Iterator<String> {
+	public inline function keys():Iterator<String> {
 		return new StringMapKeysIterator(h, rh);
 	}
 
-	public inline function iterator() : Iterator<T> {
+	public inline function iterator():Iterator<T> {
 		return new StringMapValuesIterator<T>(h, rh);
 	}
 
-	#end
-
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = {};
+		rh = null;
+	}
 }
-
-#if !as3
 
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
@@ -147,9 +132,9 @@ package haxe.ds;
 private class StringMapKeysIterator {
 	var h:Dynamic;
 	var rh:Dynamic;
-	var index : Int;
-	var nextIndex : Int;
-	var isReserved : Bool;
+	var index:Int;
+	var nextIndex:Int;
+	var isReserved:Bool;
 
 	inline function new(h:Dynamic, rh:Dynamic):Void {
 		this.h = h;
@@ -162,7 +147,7 @@ private class StringMapKeysIterator {
 	public inline function hasNext():Bool {
 		var h = h, index = index; // tmp vars required for __has_next
 		var n = untyped __has_next__(h, index);
-		if( !n && rh != null ) {
+		if (!n && rh != null) {
 			h = this.h = rh;
 			index = this.index = 0;
 			rh = null;
@@ -174,20 +159,20 @@ private class StringMapKeysIterator {
 	}
 
 	public inline function next():String {
-		var r : String = untyped __forin__(h, nextIndex);
+		var r:String = untyped __forin__(h, nextIndex);
 		index = nextIndex;
-		if( isReserved ) r = r.substr(1);
+		if (isReserved)
+			r = r.substr(1);
 		return r;
 	}
-
 }
 
 @:allow(haxe.ds.StringMap)
 private class StringMapValuesIterator<T> {
 	var h:Dynamic;
 	var rh:Dynamic;
-	var index : Int;
-	var nextIndex : Int;
+	var index:Int;
+	var nextIndex:Int;
 
 	inline function new(h:Dynamic, rh:Dynamic):Void {
 		this.h = h;
@@ -199,7 +184,7 @@ private class StringMapValuesIterator<T> {
 	public inline function hasNext():Bool {
 		var h = h, index = index; // tmp vars required for __has_next
 		var n = untyped __has_next__(h, index);
-		if( !n && rh != null ) {
+		if (!n && rh != null) {
 			h = this.h = rh;
 			index = this.index = 0;
 			rh = null;
@@ -214,6 +199,4 @@ private class StringMapValuesIterator<T> {
 		index = nextIndex;
 		return r;
 	}
-
 }
-#end

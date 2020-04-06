@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open JvmGlobals
 
 type jpath = (string list) * string
@@ -29,6 +48,169 @@ and jsignature =
 
 (* ( jsignature list ) ReturnDescriptor (| V | jsignature) *)
 and jmethod_signature = jsignature list * jsignature option
+
+let rec has_type_parameter = function
+	| TTypeParameter _ -> true
+	| TArray(jsig,_) -> has_type_parameter jsig
+	| TObject(_,jsigs) -> List.exists (function TType(_,jsig) -> has_type_parameter jsig | _ -> false) jsigs
+	| _ -> false
+
+module NativeSignatures = struct
+	let object_path = ["java";"lang"],"Object"
+	let object_sig = TObject(object_path,[])
+
+	let string_path = ["java";"lang"],"String"
+	let string_sig = TObject(string_path,[])
+
+	let boolean_path = ["java";"lang"],"Boolean"
+	let boolean_sig = TObject(boolean_path,[])
+
+	let character_path = ["java";"lang"],"Character"
+	let character_sig = TObject(character_path,[])
+
+	let method_type_path = (["java";"lang";"invoke"],"MethodType")
+	let method_type_sig = TObject(method_type_path,[])
+
+	let method_lookup_path = (["java";"lang";"invoke"],"MethodHandles$Lookup")
+	let method_lookup_sig = TObject(method_lookup_path,[])
+
+	let call_site_path = (["java";"lang";"invoke"],"CallSite")
+	let call_site_sig = TObject(call_site_path,[])
+
+	let java_class_path = ["java";"lang"],"Class"
+	let java_class_sig = TObject(java_class_path,[TType(WNone,object_sig)])
+
+	let haxe_jvm_path = ["haxe";"jvm"],"Jvm"
+
+	let haxe_dynamic_object_path = ["haxe";"jvm"],"DynamicObject"
+	let haxe_dynamic_object_sig = TObject(haxe_dynamic_object_path,[])
+
+	let haxe_exception_path = ["haxe"],"Exception"
+	let haxe_exception_sig = TObject(haxe_exception_path,[])
+
+	let haxe_object_path = ["haxe";"jvm"],"Object"
+	let haxe_object_sig = TObject(haxe_object_path,[])
+
+	let throwable_path = (["java";"lang"],"Throwable")
+	let throwable_sig = TObject(throwable_path,[])
+
+	let exception_path = (["java";"lang"],"Exception")
+	let exception_sig = TObject(exception_path,[])
+
+	let runtime_exception_path = (["java";"lang"],"RuntimeException")
+	let runtime_exception_sig = TObject(runtime_exception_path,[])
+
+	let retention_path = (["java";"lang";"annotation"],"Retention")
+	let retention_sig = TObject(retention_path,[])
+
+	let retention_policy_path = (["java";"lang";"annotation"],"RetentionPolicy")
+	let retention_policy_sig = TObject(retention_policy_path,[])
+
+	let java_enum_path = (["java";"lang"],"Enum")
+	let java_enum_sig jsig = TObject(java_enum_path,[TType(WNone,jsig)])
+
+	let haxe_enum_path = (["haxe";"jvm"],"Enum")
+	let haxe_enum_sig jsig = TObject(haxe_enum_path,[TType(WNone,jsig)])
+
+	let haxe_empty_constructor_path = (["haxe";"jvm"],"EmptyConstructor")
+	let haxe_empty_constructor_sig = TObject(haxe_empty_constructor_path,[])
+
+	let haxe_function_path = (["haxe";"jvm"],"Function")
+	let haxe_function_sig = TObject(haxe_function_path,[])
+
+	let void_path = ["java";"lang"],"Void"
+	let void_sig = TObject(void_path,[])
+
+	(* numeric *)
+
+	let number_path = ["java";"lang"],"Number"
+	let number_sig = TObject(number_path,[])
+
+	let byte_path = ["java";"lang"],"Byte"
+	let byte_sig = TObject(byte_path,[])
+
+	let short_path = ["java";"lang"],"Short"
+	let short_sig = TObject(short_path,[])
+
+	let integer_path = ["java";"lang"],"Integer"
+	let integer_sig = TObject(integer_path,[])
+
+	let long_path = ["java";"lang"],"Long"
+	let long_sig = TObject(long_path,[])
+
+	let float_path = ["java";"lang"],"Float"
+	let float_sig = TObject(float_path,[])
+
+	let double_path = ["java";"lang"],"Double"
+	let double_sig = TObject(double_path,[])
+
+	(* compound *)
+
+	let array_sig jsig = TArray(jsig,None)
+
+	let method_sig jsigs jsig = TMethod(jsigs,jsig)
+
+	let object_path_sig path = TObject(path,[])
+
+	let get_boxed_type jsig = match jsig with
+		| TBool -> boolean_sig
+		| TChar -> character_sig
+		| TByte -> byte_sig
+		| TShort -> short_sig
+		| TInt -> integer_sig
+		| TLong -> long_sig
+		| TFloat -> float_sig
+		| TDouble -> double_sig
+		| _ -> jsig
+
+	let get_unboxed_type jsig = match jsig with
+		| TObject((["java";"lang"],"Boolean"),_) -> TBool
+		| TObject((["java";"lang"],"Charcter"),_) -> TChar
+		| TObject((["java";"lang"],"Byte"),_) -> TByte
+		| TObject((["java";"lang"],"Short"),_) -> TShort
+		| TObject((["java";"lang"],"Integer"),_) -> TInt
+		| TObject((["java";"lang"],"Long"),_) -> TLong
+		| TObject((["java";"lang"],"Float"),_) -> TFloat
+		| TObject((["java";"lang"],"Double"),_) -> TDouble
+		| _ -> jsig
+
+	let is_unboxed jsig = match jsig with
+		| TBool | TChar
+		| TByte | TShort | TInt | TLong
+		| TFloat | TDouble ->
+			true
+		| _ ->
+			false
+
+	let is_dynamic_at_runtime = function
+		| TObject((["java";"lang"],"Object"),_)
+		| TTypeParameter _ ->
+			true
+		| _ ->
+			false
+end
+
+let equals_at_runtime jsig1 jsig2 = match jsig1,jsig2 with
+	| TByte,TByte
+	| TChar,TChar
+	| TDouble,TDouble
+	| TFloat,TFloat
+	| TInt,TInt
+	| TLong,TLong
+	| TShort,TShort
+	| TBool,TBool
+	| TObjectInner _,TObjectInner _
+	| TArray _,TArray _
+	| TMethod _,TMethod _
+	| TTypeParameter _,TTypeParameter _
+	| TUninitialized _,TUninitialized _ ->
+		true
+	| TObject(path1,_),TObject(path2,_) ->
+		path1 = path2
+	| TObject(path,_),TTypeParameter _
+	| TTypeParameter _,TObject(path,_) ->
+		path = NativeSignatures.object_path
+	| _ -> false
 
 let s_wildcard = function
 	| WExtends -> "WExtends"
@@ -112,7 +294,7 @@ and write_signature full ch jsig = match jsig with
 		end;
 		write_signature full ch s
 	| TMethod _ ->
-		write_signature full ch (TObject((["java";"lang";"invoke"],"MethodHandle"),[]))
+		write_signature full ch NativeSignatures.haxe_function_sig
 	| TTypeParameter name ->
 		if full then begin
 			write_byte ch (Char.code 'T');
@@ -120,8 +302,11 @@ and write_signature full ch jsig = match jsig with
 			write_byte ch (Char.code ';')
 		end else
 			write_string ch "Ljava/lang/Object;"
-	| TUninitialized _ ->
-		()
+	| TUninitialized io ->
+		write_string ch "uninitialized";
+		match io with
+		| None -> write_string ch " this"
+		| Some i -> write_string ch (Printf.sprintf "(%i)" i)
 
 let generate_signature full jsig =
 	let ch = IO.output_bytes () in
@@ -147,129 +332,3 @@ let generate_method_signature full jsig =
 let signature_size = function
 	| TDouble | TLong -> 2
 	| _ -> 1
-
-module NativeSignatures = struct
-	let object_path = ["java";"lang"],"Object"
-	let object_sig = TObject(object_path,[])
-
-	let string_path = ["java";"lang"],"String"
-	let string_sig = TObject(string_path,[])
-
-	let boolean_path = ["java";"lang"],"Boolean"
-	let boolean_sig = TObject(boolean_path,[])
-
-	let character_path = ["java";"lang"],"Character"
-	let character_sig = TObject(character_path,[])
-
-	let method_handle_path = (["java";"lang";"invoke"],"MethodHandle")
-	let method_handle_sig = TObject(method_handle_path,[])
-
-	let method_type_path = (["java";"lang";"invoke"],"MethodType")
-	let method_type_sig = TObject(method_type_path,[])
-
-	let method_lookup_path = (["java";"lang";"invoke"],"MethodHandles$Lookup")
-	let method_lookup_sig = TObject(method_lookup_path,[])
-
-	let call_site_path = (["java";"lang";"invoke"],"CallSite")
-	let call_site_sig = TObject(call_site_path,[])
-
-	let java_class_path = ["java";"lang"],"Class"
-	let java_class_sig = TObject(java_class_path,[TType(WNone,object_sig)])
-
-	let haxe_jvm_path = ["haxe";"jvm"],"Jvm"
-
-	let haxe_dynamic_object_path = ["haxe";"jvm"],"DynamicObject"
-	let haxe_dynamic_object_sig = TObject(haxe_dynamic_object_path,[])
-
-	let haxe_exception_path = ["haxe";"jvm"],"Exception"
-	let haxe_exception_sig = TObject(haxe_exception_path,[])
-
-	let haxe_object_path = ["haxe";"jvm"],"Object"
-	let haxe_object_sig = TObject(haxe_object_path,[])
-
-	let throwable_path = (["java";"lang"],"Throwable")
-	let throwable_sig = TObject(throwable_path,[])
-
-	let exception_path = (["java";"lang"],"Exception")
-	let exception_sig = TObject(exception_path,[])
-
-	let retention_path = (["java";"lang";"annotation"],"Retention")
-	let retention_sig = TObject(retention_path,[])
-
-	let retention_policy_path = (["java";"lang";"annotation"],"RetentionPolicy")
-	let retention_policy_sig = TObject(retention_policy_path,[])
-
-	let java_enum_path = (["java";"lang"],"Enum")
-	let java_enum_sig jsig = TObject(java_enum_path,[TType(WNone,jsig)])
-
-	let haxe_enum_path = (["haxe";"jvm"],"Enum")
-	let haxe_enum_sig jsig = TObject(haxe_enum_path,[TType(WNone,jsig)])
-
-	let haxe_empty_constructor_path = (["haxe";"jvm"],"EmptyConstructor")
-	let haxe_empty_constructor_sig = TObject(haxe_empty_constructor_path,[])
-
-	(* numeric *)
-
-	let byte_path = ["java";"lang"],"Byte"
-	let byte_sig = TObject(byte_path,[])
-
-	let short_path = ["java";"lang"],"Short"
-	let short_sig = TObject(short_path,[])
-
-	let integer_path = ["java";"lang"],"Integer"
-	let integer_sig = TObject(integer_path,[])
-
-	let long_path = ["java";"lang"],"Long"
-	let long_sig = TObject(long_path,[])
-
-	let float_path = ["java";"lang"],"Float"
-	let float_sig = TObject(float_path,[])
-
-	let double_path = ["java";"lang"],"Double"
-	let double_sig = TObject(double_path,[])
-
-	(* compound *)
-
-	let array_sig jsig = TArray(jsig,None)
-
-	let method_sig jsigs jsig = TMethod(jsigs,jsig)
-
-	let object_path_sig path = TObject(path,[])
-
-	let get_boxed_type jsig = match jsig with
-		| TBool -> boolean_sig
-		| TChar -> character_sig
-		| TByte -> byte_sig
-		| TShort -> short_sig
-		| TInt -> integer_sig
-		| TLong -> long_sig
-		| TFloat -> float_sig
-		| TDouble -> double_sig
-		| _ -> jsig
-
-	let get_unboxed_type jsig = match jsig with
-		| TObject((["java";"lang"],"Boolean"),_) -> TBool
-		| TObject((["java";"lang"],"Charcter"),_) -> TChar
-		| TObject((["java";"lang"],"Byte"),_) -> TByte
-		| TObject((["java";"lang"],"Short"),_) -> TShort
-		| TObject((["java";"lang"],"Integer"),_) -> TInt
-		| TObject((["java";"lang"],"Long"),_) -> TLong
-		| TObject((["java";"lang"],"Float"),_) -> TFloat
-		| TObject((["java";"lang"],"Double"),_) -> TDouble
-		| _ -> jsig
-
-	let is_unboxed jsig = match jsig with
-		| TBool | TChar
-		| TByte | TShort | TInt | TLong
-		| TFloat | TDouble ->
-			true
-		| _ ->
-			false
-
-	let is_dynamic_at_runtime = function
-		| TObject((["java";"lang"],"Object"),_)
-		| TTypeParameter _ ->
-			true
-		| _ ->
-			false
-end

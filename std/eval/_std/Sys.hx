@@ -19,21 +19,32 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import haxe.SysTools;
 
 @:require(sys)
 @:coreApi
 class Sys {
 	extern static public function print(v:Dynamic):Void;
+
 	extern static public function println(v:Dynamic):Void;
+
 	extern static public function args():Array<String>;
+
 	extern static public function getEnv(s:String):String;
+
 	extern static public function putEnv(s:String, v:String):Void;
+
 	extern static public function environment():Map<String, String>;
+
 	extern static public function sleep(seconds:Float):Void;
+
 	extern static public function setTimeLocale(loc:String):Bool;
+
 	extern static public function getCwd():String;
+
 	extern static public function setCwd(s:String):Void;
+
 	extern static public function systemName():String;
 
 	extern static function _command(cmd:String):Int;
@@ -46,7 +57,7 @@ class Sys {
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						SysTools.quoteWinArg(a, true)
+							SysTools.quoteWinArg(a, true)
 					].join(" ");
 					return _command(cmd);
 				case _:
@@ -56,15 +67,24 @@ class Sys {
 		}
 	}
 
-	static public function executablePath():String { return programPath(); }
+	static public function executablePath():String {
+		return programPath();
+	}
 
 	extern static public function exit(code:Int):Void;
+
 	extern static public function time():Float;
+
 	extern static public function cpuTime():Float;
+
 	extern static public function programPath():String;
+
 	extern static public function getChar(echo:Bool):Int;
+
 	extern static public function stdin():haxe.io.Input;
+
 	extern static public function stdout():haxe.io.Output;
+
 	extern static public function stderr():haxe.io.Output;
 
 	static function __init__():Void {

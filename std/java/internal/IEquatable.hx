@@ -19,14 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.internal;
 
 @:native('haxe.lang.IEquatable')
 @:keep
 @:nativeGen
-interface IEquatable
-{
-
+interface IEquatable {
 	public function equals(to:Dynamic):Bool;
-
 }

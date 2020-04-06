@@ -19,11 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 @:pythonImport("io", "BytesIO")
 extern class BytesIO extends python.lib.io.BufferedIOBase {
-
-	public function new (base:python.lib.io.IOBase);
-
+	function new(base:python.lib.io.IOBase);
 }

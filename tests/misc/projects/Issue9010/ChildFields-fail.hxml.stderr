@@ -1,0 +1,2 @@
+ChildFields.hx:4: characters 18-28 : Field noOverride should be declared with 'override' since it is inherited from superclass Parent
+ChildFields.hx:7: characters 27-34 : Field inlined is inlined and cannot be overridden

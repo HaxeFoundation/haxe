@@ -52,7 +52,7 @@ let gen_doc s =
 let gen_doc_opt d =
 	match d with
 	| None -> []
-	| Some s -> [gen_doc s]
+	| Some d -> [gen_doc (Ast.gen_doc_text d)]
 
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name
@@ -60,7 +60,7 @@ let gen_arg_name (name,opt,_) =
 let real_path path meta =
 	let rec loop = function
 		| [] -> path
-		| (Meta.RealPath,[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
+		| (Meta.RealPath,[(Ast.EConst (Ast.String(s,_)),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop meta
@@ -72,7 +72,7 @@ let tpath t =
 let rec follow_param t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow_param t
 		| _ -> t)
 	| TAbstract ({ a_path = [],"Null" },[t]) ->
@@ -92,7 +92,7 @@ let gen_meta meta =
 
 let rec gen_type ?(values=None) t =
 	match t with
-	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
+	| TMono m -> (match m.tm_type with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> gen_type_decl "e" (TEnumDecl e) params
 	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
@@ -165,7 +165,7 @@ and gen_field att f =
 	let field_name cf =
 		try
 			begin match Meta.get Meta.RealPath cf.cf_meta with
-				| _,[EConst (String (s)),_],_ -> s
+				| _,[EConst (String (s,_)),_],_ -> s
 				| _ -> raise Not_found
 			end;
 		with Not_found ->

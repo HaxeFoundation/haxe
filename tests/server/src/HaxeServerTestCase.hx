@@ -1,4 +1,7 @@
-import haxe.display.JsonModuleTypes.JsonModuleType;
+import haxeserver.HaxeServerRequestResult;
+import haxe.display.JsonModuleTypes;
+import haxe.display.Display;
+import haxe.display.Protocol;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -13,10 +16,11 @@ class HaxeServerTestCase implements ITest {
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
-	var storedTypes:Array<JsonModuleType<Any>>;
+	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
 	var errorMessages = [];
-	var i:Int = 0;
+
+	static var i:Int = 0;
 
 	public function new() {}
 
@@ -30,14 +34,11 @@ class HaxeServerTestCase implements ITest {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
+	function runHaxe(args:Array<String>, done:Void->Void) {
 		messages = [];
 		errorMessages = [];
-		storedTypes = [];
-		if (storeTypes) {
-			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
-		}
 		server.rawRequest(args, null, function(result) {
+			lastResult = result;
 			sendLogMessage(result.stdout);
 			for (print in result.prints) {
 				var line = print.trim();
@@ -46,16 +47,14 @@ class HaxeServerTestCase implements ITest {
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
-			if (storeTypes) {
-				storedTypes = try {
-					Json.parse(result.stderr).result.result;
-				} catch (e:Dynamic) {
-					trace(e);
-					[];
-				}
-			}
 			done();
 		}, sendErrorMessage);
+	}
+
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:Void->Void) {
+		var methodArgs = {method: method, id: 1, params: methodArgs};
+		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		runHaxe(args, done);
 	}
 
 	function sendErrorMessage(msg:String) {
@@ -94,13 +93,35 @@ class HaxeServerTestCase implements ITest {
 		return false;
 	}
 
-	function getStoredType(typePackage:String, typeName:String) {
+	function getStoredType<T>(typePackage:String, typeName:String) {
+		var storedTypes:Array<JsonModuleType<T>> = try {
+			Json.parse(lastResult.stderr).result.result;
+		} catch (e:Dynamic) {
+			trace(e);
+			[];
+		}
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {
 				return type;
 			}
 		}
 		return null;
+	}
+
+	function parseCompletion():CompletionResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseHover():HoverResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseSignatureHelp():SignatureHelpResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseGotoDefinition():GotoTypeDefinitionResult {
+		return Json.parse(lastResult.stderr).result;
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
@@ -148,5 +169,37 @@ class HaxeServerTestCase implements ITest {
 		if (type != null) {
 			Assert.isTrue(check(type), null, p);
 		}
+	}
+
+	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
+			if (f(type)) {
+				Assert.pass();
+				return;
+			}
+		}
+		Assert.fail("No such completion", p);
+	}
+
+	function assertHasNoCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
+			if (f(type)) {
+				Assert.fail("Unexpected completion", p);
+				return;
+			}
+		}
+		Assert.pass();
+	}
+
+	function strType(t:JsonType<JsonTypePathWithParams>):String {
+		var path = t.args.path;
+		var params = t.args.params;
+		var parts = path.pack.concat([path.typeName]);
+		var s = parts.join('.');
+		if(params.length == 0) {
+			return s;
+		}
+		var sParams = params.map(strType).join('.');
+		return '$s<$sParams>';
 	}
 }

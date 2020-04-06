@@ -185,7 +185,7 @@ let type_path ctx path =
 let rec follow_basic t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> follow_basic t
 		| _ -> t)
 	| TLazy f ->
@@ -200,7 +200,6 @@ let rec follow_basic t =
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[])
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
@@ -231,6 +230,8 @@ let rec type_id ctx t =
 			type_path ctx c.cl_path)
 	| TAbstract ({ a_path = [],"Null"},_) ->
 		HMPath ([],"Object")
+	| TAbstract ({ a_path = ["flash"],"AnyType"},_) ->
+		HMAny
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
@@ -264,6 +265,8 @@ let classify ctx t =
 		KBool
 	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
 		KDynamic
+	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
+		KDynamic
 	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
@@ -276,7 +279,7 @@ let classify ctx t =
 		(match !(a.a_status) with
 		| Statics _ -> KNone
 		| _ -> KDynamic)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[]) ->
+	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
 	| TInst _ | TAbstract _ ->
 		KType (type_id ctx t)
@@ -310,9 +313,9 @@ let ns_access cf =
 	try
 		let (_,params,_) = Meta.get Meta.Ns cf.cf_meta in
 		match params with
-		| [(EConst (String ns),_)] ->
+		| [(EConst (String(ns,_)),_)] ->
 			Some (HMName (cf.cf_name, HNNamespace ns))
-		| [(EConst (String ns),_); (EConst (Ident "internal"),_)] ->
+		| [(EConst (String(ns,_)),_); (EConst (Ident "internal"),_)] ->
 			Some (HMName (cf.cf_name, HNInternal (Some ns)))
 		| _ -> assert false
 	with Not_found ->
@@ -332,7 +335,7 @@ let property ctx fa t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
+		| "copy" | "insert" | "contains" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
@@ -654,7 +657,7 @@ let to_utf8 str =
 	with
 		UTF8.Malformed_code ->
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 
 let gen_constant ctx c t p =
@@ -1034,6 +1037,8 @@ let rec gen_type ctx t =
 		write ctx (HGetLex t);
 		List.iter (gen_type ctx) tl;
 		write ctx (HApplyType (List.length tl));
+	| HMAny ->
+		write ctx (HNull)
 	| _ ->
 		write ctx (HGetLex t)
 
@@ -1043,7 +1048,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		if has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception e.etype) then begin
 			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 			let id = type_path ctx (["flash";"errors"],"Error") in
 			write ctx (HFindPropStrict id);
@@ -1154,7 +1159,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx false e;
 		if flag = NormalWhile then jstart();
 		let continue_pos = ctx.infos.ipos in
-		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
+		let _j = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull
@@ -1207,7 +1212,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception v.v_type) then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
@@ -1400,7 +1405,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (HOp A3OIs)
-	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "is" })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
+	| TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = ("is" | "isOfType") })),[e;{ eexpr = TTypeExpr (TClassDecl _) } as t] ->
 		(* fast inlining of Std.is with known values *)
 		gen_expr ctx true e;
 		gen_expr ctx true t;
@@ -1518,6 +1523,9 @@ and gen_call ctx retval e el r =
 			| 2l -> A3OSign16
 			| _ -> assert false
 		))
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		gen_type ctx (type_id ctx t)
 	| TIdent "__vector__", [ep] ->
 		gen_type ctx (type_id ctx r);
 		write ctx HGetGlobalScope;
@@ -2028,8 +2036,8 @@ let extract_meta meta =
 		| (Meta.Meta,[ECall ((EConst (Ident n),_),args),_],_) :: l ->
 			let mk_arg (a,p) =
 				match a with
-				| EConst (String s) -> (None, s)
-				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String s),_)) -> (Some n, s)
+				| EConst (String(s,_)) -> (None, s)
+				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String(s,_)),_)) -> (Some n, s)
 				| _ -> abort "Invalid meta definition" p
 			in
 			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
@@ -2447,7 +2455,7 @@ let generate_class ctx c =
 			| x :: l ->
 				match x with
 				| ((Meta.Getter | Meta.Setter),[EConst (Ident f),_],_) -> ident f
-				| (Meta.Ns,[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
+				| (Meta.Ns,[EConst (String(ns,_)),_],_) -> HMName (f.cf_name,HNNamespace ns)
 				| (Meta.Protected,[],_) -> protect()
 				| _ -> loop_meta l
 		in

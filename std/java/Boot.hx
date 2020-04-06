@@ -19,14 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java;
-import java.internal.Exceptions;
+
 import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;
 import java.Lib;
 import java.Init;
-//import java.internal.StringExt;
+// import java.internal.StringExt;
 import java.StdTypes;
 import Reflect;
 import Map;
@@ -46,9 +47,4 @@ import java.internal.StringExt;
 import java.internal.FieldLookup;
 
 @:dox(hide)
-extern class Boot
-{
-
-
-
-}
+extern class Boot {}

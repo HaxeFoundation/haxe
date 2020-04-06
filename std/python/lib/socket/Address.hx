@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.socket;
 
-typedef Address = python.Tuple.Tuple2<String,Int>;
+typedef Address = python.Tuple.Tuple2<String, Int>;

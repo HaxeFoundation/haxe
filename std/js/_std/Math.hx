@@ -19,28 +19,27 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package;
+import js.Syntax.code;
 
 // Can't enable @:coreApi because some fields are now inline getters
 // @:coreApi
 @:keepInit
-extern class Math
-{
-	static var PI(default,null) : Float;
+extern class Math {
+	static var PI(default, null):Float;
 
-	static var NEGATIVE_INFINITY(get, null) : Float;
-	@:pure private static inline function get_NEGATIVE_INFINITY () : Float {
-		return -(untyped __js__("Infinity"));
+	static var NEGATIVE_INFINITY(get, null):Float;
+	@:pure private static inline function get_NEGATIVE_INFINITY():Float {
+		return -code("Infinity");
 	}
 
-	static var POSITIVE_INFINITY(get,null) : Float;
-	@:pure private static inline function get_POSITIVE_INFINITY () : Float {
-		return (untyped __js__("Infinity"));
+	static var POSITIVE_INFINITY(get, null):Float;
+	@:pure private static inline function get_POSITIVE_INFINITY():Float {
+		return code("Infinity");
 	}
 
-	static var NaN(get, null) : Float;
-	@:pure private static inline function get_NaN () : Float {
-		return (untyped __js__("NaN"));
+	static var NaN(get, null):Float;
+	@:pure private static inline function get_NaN():Float {
+		return code("NaN");
 	}
 
 	@:pure static function abs(v:Float):Float;
@@ -56,33 +55,33 @@ extern class Math
 	@:pure static function max(a:Float, b:Float):Float;
 	@:pure static function min(a:Float, b:Float):Float;
 	@:pure static function pow(v:Float, exp:Float):Float;
-	static function random() : Float;
+	static function random():Float;
 	@:pure static function round(v:Float):Int;
 	@:pure static function sin(v:Float):Float;
 	@:pure static function sqrt(v:Float):Float;
 	@:pure static function tan(v:Float):Float;
 
-	@:pure static inline function ffloor( v : Float ) : Float {
+	@:pure static inline function ffloor(v:Float):Float {
 		return floor(v);
 	}
 
-	@:pure static inline function fceil( v : Float ) : Float {
+	@:pure static inline function fceil(v:Float):Float {
 		return ceil(v);
 	}
 
-	@:pure static inline function fround( v : Float ) : Float {
+	@:pure static inline function fround(v:Float):Float {
 		return round(v);
 	}
 
-	@:pure static inline function isFinite( f : Float ) : Bool {
-		return (untyped __js__("isFinite"))(f);
+	@:pure static inline function isFinite(f:Float):Bool {
+		return code("isFinite")(f);
 	}
 
-	@:pure static inline function isNaN( f : Float ) : Bool {
-		return (untyped __js__("isNaN"))(f);
+	@:pure static inline function isNaN(f:Float):Bool {
+		return code("isNaN")(f);
 	}
 
-	static function __init__() : Void {
+	static function __init__():Void {
 		untyped __feature__("Type.resolveClass", $hxClasses["Math"] = Math);
 	}
 }

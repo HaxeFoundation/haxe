@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess data | ParseDisplayFile(data,_) -> data
+	| ParseSuccess(data,_,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)
@@ -93,7 +93,7 @@ let get_var_slot_by_name env is_read scopes name =
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				let vi = Hashtbl.find scope.local_infos slot in
-				if is_read && not (declared_before vi env.env_debug.expr.epos) then raise Not_found;
+				if is_read && not (declared_before vi env.env_debug.debug_pos) then raise Not_found;
 				slot + scope.local_offset
 			with Not_found ->
 				loop scopes
@@ -164,7 +164,7 @@ let resolve_ident ctx env s =
 		end
 	with Not_found -> try
 		(* 4. Type *)
-		VPrototype (IntMap.find key ctx.static_prototypes)
+		VPrototype (get_static_prototype_raise ctx key)
 	with Not_found -> try
 		(* 5. Toplevel *)
 		EvalField.field_raise ctx.toplevel key
@@ -201,7 +201,7 @@ let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> EvalString.create_unknown s
+				| String(s,_) -> EvalString.create_unknown s
 				| Int s -> VInt32 (Int32.of_string s)
 				| Float s -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue
@@ -224,17 +224,25 @@ let rec expr_to_value ctx env e =
 			end
 		| EField(e1,s) ->
 			let v1 = loop e1 in
-			let s = hash s in
+			let s' = hash s in
 			begin match v1 with
 			| VEnumValue ve ->
 				begin try
-					let i = find_enum_field_by_name ve s in
+					let i = find_enum_field_by_name ve s' in
 					ve.eargs.(i)
 				with Not_found ->
 					vnull
 				end
 			| _ ->
-				let v = EvalField.field v1 s in
+				let v = try
+					EvalField.field_raise v1 s'
+				with Not_found -> try
+					(* Maybe we have a getter? (#8599) *)
+					let vf = EvalField.field v1 (hash ("get_" ^ s)) in
+					safe_call env.env_eval (EvalPrinting.call_value_on v1 vf) []
+				with _ ->
+					vnull
+				in
 				v
 			end
 		| EArrayDecl el ->
@@ -248,7 +256,6 @@ let rec expr_to_value ctx env e =
 			| OpAssign ->
 				let v2 = loop e2 in
 				write_expr ctx env e1 v2;
-				v2
 			| OpAssignOp op ->
 				raise Exit (* Nobody does that, right? *)
 			| OpBoolAnd ->
@@ -360,23 +367,32 @@ let rec expr_to_value ctx env e =
 and write_expr ctx env expr value =
 	begin match fst expr with
 		| EField(e1,s) ->
-			let s = hash s in
+			let s' = hash s in
 			let v1 = expr_to_value ctx env e1 in
 			begin match v1 with
 			| VEnumValue ve ->
 				begin try
-					let i = find_enum_field_by_name ve s in
-					ve.eargs.(i) <- value
+					let i = find_enum_field_by_name ve s' in
+					ve.eargs.(i) <- value;
+					value
 				with Not_found ->
-					()
+					value
 				end
 			| _ ->
-				set_field v1 s value;
+				try
+					set_field v1 s' value;
+					value;
+				with Not_found -> try
+					let vf = EvalField.field v1 (hash ("set_" ^ s)) in
+					safe_call env.env_eval (EvalPrinting.call_value_on v1 vf) [value]
+				with _ ->
+					value
 			end
 		| EConst (Ident s) ->
 			begin try
 				let slot = get_var_slot_by_name env false env.env_debug.scopes s in
 				env.env_locals.(slot) <- value;
+				value
 			with Not_found ->
 				raise Exit
 			end
@@ -389,7 +405,8 @@ and write_expr ctx env expr value =
 				| VVector vv -> Array.set vv idx value
 				| VEnumValue ev -> Array.set ev.eargs idx value
 				| _ -> raise Exit
-			end
+			end;
+			value
 		| _ ->
 			raise Exit
 	end

@@ -19,33 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-@:native("NSData") @:objc extern class NSDataData { }
+@:native("NSData") @:objc extern class NSDataData {}
 
 @:objc
-extern abstract NSData( NSDataData )
-{
-   @:native("_hx_value_to_objc") extern static function to_data(b:haxe.io.BytesData) : NSData;
-   @:native("_hx_value_to_objc") extern static function to_data_data(b:haxe.io.BytesData) : NSDataData;
-   @:native("_hx_objc_to_bytes") extern static function NSDataDataToBytes(d:NSDataData) : haxe.io.BytesData;
+extern abstract NSData(NSDataData) {
+	@:native("_hx_value_to_objc") extern static function to_data(b:haxe.io.BytesData):NSData;
 
+	@:native("_hx_value_to_objc") extern static function to_data_data(b:haxe.io.BytesData):NSDataData;
 
-   inline function new(d:NSDataData) this = d;
+	@:native("_hx_objc_to_bytes") extern static function NSDataDataToBytes(d:NSDataData):haxe.io.BytesData;
 
-   @:from extern
-   static public inline function fromBytesData(d:haxe.io.BytesData):NSData return new NSData( to_data_data(d) );
+	inline function new(d:NSDataData)
+		this = d;
 
-   @:from extern
-   static public inline function fromBytes(d:haxe.io.Bytes):NSData return new NSData( to_data_data(d.getData()) );
+	@:from extern static public inline function fromBytesData(d:haxe.io.BytesData):NSData
+		return new NSData(to_data_data(d));
 
-   @:to extern
-   public inline function toBytesData():haxe.io.BytesData return NSDataDataToBytes(this);
+	@:from extern static public inline function fromBytes(d:haxe.io.Bytes):NSData
+		return new NSData(to_data_data(d.getData()));
 
-   @:to extern
-   public inline function toBytes():haxe.io.Bytes return haxe.io.Bytes.ofData(NSDataDataToBytes(this));
+	@:to extern public inline function toBytesData():haxe.io.BytesData
+		return NSDataDataToBytes(this);
 
-   @:to extern public inline function toNSObject():NSObject return cast this;
+	@:to extern public inline function toBytes():haxe.io.Bytes
+		return haxe.io.Bytes.ofData(NSDataDataToBytes(this));
 
+	@:to extern public inline function toNSObject():NSObject
+		return cast this;
 }
-

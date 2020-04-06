@@ -82,3 +82,23 @@ for(i in 0 ... keys1.length) test2.set(keys1[i], values1[i]);
 [for(k=>v in test2) k] == [1,2,3];
 [for(k=>v in test2) v] == [2,4,6];
 [for(k=>v in test2) k*v] == [2,8,18];
+
+// clear
+var test3 = new haxe.ds.BalancedTree<Int, Int>();
+test3.set(0, 1);
+test3.set(2, 3);
+test3.set(4, 6);
+
+[for(k=>v in test3) k] == [0,2,4];
+
+test3.clear();
+
+[for(k=>v in test3) k] == [];
+test3.exists(0) == false;
+test3.exists(2) == false;
+test3.exists(4) == false;
+
+test3.set(0, 1);
+test3.exists(0) == true;
+test3.exists(2) == false;
+test3.exists(4) == false;

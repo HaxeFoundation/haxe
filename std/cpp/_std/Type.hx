@@ -19,7 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 enum ValueType {
 	TNull;
 	TInt;
@@ -27,140 +26,155 @@ enum ValueType {
 	TBool;
 	TObject;
 	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
+	TClass(c:Class<Dynamic>);
+	TEnum(e:Enum<Dynamic>);
 	TUnknown;
 }
 
 @:coreApi class Type {
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-			if (o==null || !Reflect.isObject(o))  return null;
+	public static function getClass<T>(o:T):Class<T>
+		untyped {
+			if (o == null || !Reflect.isObject(o))
+				return null;
 			var c = o.__GetClass();
-			switch(c.toString())
-			{
-				case "__Anon" : return null;
-				case "Class" : return null;
+			switch (c.toString()) {
+				case "__Anon":
+					return null;
+				case "Class":
+					return null;
 			}
 			return c;
-	}
+		}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
-		if (o==null) return null;
-		return untyped o.__GetClass();
-	}
+	public static function getEnum(o:EnumValue):Enum<Dynamic>
+		untyped {
+			if (o == null)
+				return null;
+			return untyped o.__GetClass();
+		}
 
+	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+		untyped {
+			return c.GetSuper();
+		}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
-		return c.GetSuper();
-	}
-
-	public static function getClassName( c : Class<Dynamic> ) : String {
-		if( c == null )
+	public static function getClassName(c:Class<Dynamic>):String {
+		if (c == null)
 			return null;
 		return untyped c.mName;
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String {
+	public static function getEnumName(e:Enum<Dynamic>):String {
 		return untyped e.__ToString();
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var result:Class<Dynamic> = Class.Resolve(name);
-		if (result!=null && result.__IsEnum() )
+	public static function resolveClass(name:String):Class<Dynamic>
+		untyped {
+			var result:Class<Dynamic> = Class.Resolve(name);
+			if (result != null && result.__IsEnum())
+				return null;
+			return result;
+		}
+
+	public static function resolveEnum(name:String):Enum<Dynamic>
+		untyped {
+			var result:Class<Dynamic> = Class.Resolve(name);
+			if (result != null && !result.__IsEnum())
+				return null;
+			return result;
+		}
+
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
+		untyped {
+			if (cl != null)
+				return cl.ConstructArgs(args);
 			return null;
-		return result;
+		}
+
+	public static function createEmptyInstance<T>(cl:Class<T>):T
+		untyped {
+			return cl.ConstructEmpty();
+		}
+
+	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		return untyped e.ConstructEnum(constr, params);
 	}
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
-		var result:Class<Dynamic> = Class.Resolve(name);
-		if (result!=null && !result.__IsEnum() )
-			return null;
-		return result;
-	}
-
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		if (cl!=null)
-			return cl.ConstructArgs(args);
-		return null;
-	}
-
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		return cl.ConstructEmpty();
-	}
-
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		return untyped e.ConstructEnum(constr,params);
-	}
-
-	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
+	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
 		var c = Type.getEnumConstructs(e)[index];
-		if( c == null ) throw index+" is not a valid enum constructor index";
-		return createEnum(e,c,params);
+		if (c == null)
+			throw index + " is not a valid enum constructor index";
+		return createEnum(e, c, params);
 	}
 
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		return untyped c.GetInstanceFields();
 	}
 
-	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-			return untyped c.GetClassFields();
+	public static function getClassFields(c:Class<Dynamic>):Array<String> {
+		return untyped c.GetClassFields();
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String>
+		untyped {
 			return untyped e.GetClassFields();
-	}
+		}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-			if (v==null) return TNull;
+	public static function typeof(v:Dynamic):ValueType
+		untyped {
+			if (v == null)
+				return TNull;
 			var t:Int = untyped v.__GetType();
-			switch(t)
-			{
-				case 2 : return TBool;
-				case 0xFF : return TInt;
-				case 1 : return TFloat;
-				case 6 : return TFunction;
-				case 4 : return TObject;
-				case 7 : return TEnum(v.__GetClass());
+			switch (t) {
+				case 2:
+					return TBool;
+				case 0xFF:
+					return TInt;
+				case 1:
+					return TFloat;
+				case 6:
+					return TFunction;
+				case 4:
+					return TObject;
+				case 7:
+					return TEnum(v.__GetClass());
 				default:
 					return untyped TClass(v.__GetClass());
 			}
+		}
+
+	public static function enumEq<T>(a:T, b:T):Bool
+		untyped {
+			return a == b;
+		}
+
+	public static function enumConstructor(e:EnumValue):String {
+		var value:cpp.EnumBase = cast e;
+		return value._hx_getTag();
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
-			return a==b;
+	public static function enumParameters(e:EnumValue):Array<Dynamic> {
+		var value:cpp.EnumBase = cast e;
+		return value._hx_getParameters();
 	}
 
-	public static function enumConstructor( e : EnumValue ) : String {
-			var value:cpp.EnumBase = cast e;
-			return value._hx_getTag();
+	@:native("_hx_getEnumValueIndex")
+	extern private static function getEnumValueIndex(e:EnumValue):Int;
+
+	#if !cppia inline #end public static function enumIndex(e:EnumValue):Int {
+		return getEnumValueIndex(e);
 	}
 
-	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-			var value:cpp.EnumBase = cast e;
-			return value._hx_getParameters();
-	}
-
-    @:native("_hx_getEnumValueIndex")
-	extern private static function getEnumValueIndex( e : EnumValue ) : Int;
-
-	#if !cppia inline #end public static function enumIndex( e : EnumValue ) : Int {
-			return getEnumValueIndex(e);
-	}
-
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-      var names:Array<String> =  untyped e.GetClassFields();
+	public static function allEnums<T>(e:Enum<T>):Array<T> {
+		var names:Array<String> = untyped e.GetClassFields();
 		var enums = new Array<T>();
-      for(name in names)
-      {
-         try {
-            var result:T = untyped e.ConstructEnum(name,null);
-            if (result!=null)
-               enums.push( result );
-         } catch ( invalidArgCount:String) {
-         }
-      }
+		for (name in names) {
+			try {
+				var result:T = untyped e.ConstructEnum(name, null);
+				if (result != null)
+					enums.push(result);
+			} catch (invalidArgCount:String) {}
+		}
 		return enums;
 	}
-
 }
-

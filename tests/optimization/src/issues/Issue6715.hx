@@ -4,27 +4,34 @@ class Issue6715 {
 	@:js('
 		var f = function() {
 			var x = 1;
+			x = 2;
 		};
 		issues_Issue6715.x = f;
 		issues_Issue6715.x = f;
 		issues_Issue6715.x = f;
+		var x = 1;
+		x = 2;
 		var x1 = 1;
+		x1 = 2;
 		var x2 = 1;
-		var x3 = 1;
+		x2 = 2;
 	')
 	@:analyzer(no_local_dce)
 	static public function test1() {
-		insanity(function() var x = 1);
+		insanity(function() { var x = 1; x = 2; });
 	}
 
 	@:js('
 		var x = 1;
+		x = 2;
 		var x1 = 1;
+		x1 = 2;
 		var x2 = 1;
+		x2 = 2;
 	')
 	@:analyzer(no_local_dce)
 	static public function test2() {
-		insanity2(function() var x = 1);
+		insanity2(function() { var x = 1; x = 2; });
 	}
 
 	@:js('

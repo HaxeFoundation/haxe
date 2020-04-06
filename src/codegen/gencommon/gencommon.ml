@@ -104,7 +104,7 @@ let rec like_i64 t =
 let follow_once t =
 	match t with
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| Some t -> t
 		| _ -> t_dynamic) (* avoid infinite loop / should be the same in this context *)
 	| TLazy f ->
@@ -116,7 +116,7 @@ let follow_once t =
 	| _ ->
 		t
 
-let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
+let t_empty = mk_anon (ref Closed)
 
 let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
@@ -165,7 +165,7 @@ let anon_class t =
 			| AbstractStatics a -> TAbstractDecl a
 			| _ -> assert false)
 	| TLazy f -> t_to_md (lazy_type f)
-	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
+	| TMono r -> (match r.tm_type with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
 
@@ -378,6 +378,8 @@ type generator_ctx =
 	(* this is all you need to care about *)
 	gcon : Common.context;
 
+	gentry_point : (string * tclass * texpr) option;
+
 	gclasses : gen_classes;
 
 	gtools : gen_tools;
@@ -571,6 +573,7 @@ let new_ctx con =
 
 	let rec gen = {
 		gcon = con;
+		gentry_point = get_entry_point con;
 		gclasses = {
 			cl_reflect = get_cl (get_type ([], "Reflect"));
 			cl_type = get_cl (get_type ([], "Type"));
@@ -656,7 +659,7 @@ let init_ctx gen =
 	let follow t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> follow_f t
 			| _ -> Some t)
 		| TLazy f ->
@@ -915,19 +918,19 @@ let dump_descriptor gen name path_s module_s =
 	SourceWriter.write w "end modules";
 	SourceWriter.newline w;
 	(* dump all resources *)
-	(match gen.gcon.main_class with
-		| Some path ->
-			SourceWriter.write w "begin main";
-			SourceWriter.newline w;
-			(try
-				SourceWriter.write w (Hashtbl.find main_paths path)
-			with
-				| Not_found -> SourceWriter.write w (path_s path));
-			SourceWriter.newline w;
-			SourceWriter.write w "end main";
-			SourceWriter.newline w
-	| _ -> ()
-	);
+	(match gen.gentry_point with
+	| Some (_,cl,_) ->
+		SourceWriter.write w "begin main";
+		SourceWriter.newline w;
+		let path = cl.cl_path in
+		(try
+			SourceWriter.write w (Hashtbl.find main_paths path)
+		with Not_found ->
+			SourceWriter.write w (path_s path));
+		SourceWriter.newline w;
+		SourceWriter.write w "end main";
+		SourceWriter.newline w
+	| _ -> ());
 	SourceWriter.write w "begin resources";
 	SourceWriter.newline w;
 	Hashtbl.iter (fun name _ ->
@@ -947,19 +950,19 @@ let dump_descriptor gen name path_s module_s =
 				file
 	in
 	if Common.platform gen.gcon Java then
-		List.iter (fun (s,std,_,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".jar");
+		List.iter (fun java_lib ->
+			if not (java_lib#has_flag NativeLibraries.FlagIsStd) && not (java_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path java_lib#get_file_path ".jar");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.java_libs
+		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
-		List.iter (fun (s,std,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".dll");
+		List.iter (fun net_lib ->
+			if not (net_lib#has_flag NativeLibraries.FlagIsStd) && not (net_lib#has_flag NativeLibraries.FlagIsExtern) then begin
+				SourceWriter.write w (path net_lib#get_name ".dll");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.net_libs;
+		) gen.gcon.native_libs.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
 	let args = gen.gcon.c_args in
@@ -1068,8 +1071,8 @@ let add_constructor cl cf =
 let rec replace_mono t =
 	match t with
 	| TMono t ->
-		(match !t with
-		| None -> t := Some t_dynamic
+		(match t.tm_type with
+		| None -> Monomorph.bind t t_dynamic
 		| Some _ -> ())
 	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
 		List.iter replace_mono p

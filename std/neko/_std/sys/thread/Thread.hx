@@ -117,6 +117,7 @@ abstract Thread(ThreadHandle) {
 		static var os_sync = null;
 	 */
 	static var thread_create = neko.Lib.load("std", "thread_create", 2);
+
 	static var thread_current = neko.Lib.load("std", "thread_current", 0);
 	static var thread_send = neko.Lib.load("std", "thread_send", 2);
 	static var thread_read_message = neko.Lib.load("std", "thread_read_message", 1);

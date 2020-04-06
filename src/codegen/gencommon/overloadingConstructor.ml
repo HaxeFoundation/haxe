@@ -331,15 +331,22 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 							cl.cl_constructor <- Some ctor;
 							ctor
 				in
+
+				let has_super_constructor =
+					match cl.cl_super with
+						| None -> false
+						| Some (csup,_) -> has_constructor csup
+				in
+
 				(* now that we made sure we have a constructor, exit if native gen *)
 				if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then begin
-					if descends_from_native_or_skipctor cl && is_some cl.cl_super then
+					if descends_from_native_or_skipctor cl && has_super_constructor then
 						List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads);
 					raise Exit
 				end;
 
 				(* if cl descends from a native class, we cannot use the static constructor strategy *)
-				if descends_from_native_or_skipctor cl && is_some cl.cl_super then
+				if descends_from_native_or_skipctor cl && has_super_constructor then
 					List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads)
 				else
 					(* now that we have a current ctor, create the static counterparts *)

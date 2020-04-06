@@ -2,123 +2,144 @@
 	{
 		"name": "Abi",
 		"metadata": ":abi",
-		"doc": "Function ABI/calling convention",
+		"doc": "Function ABI/calling convention.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "Abstract",
 		"metadata": ":abstract",
-		"doc": "Sets the underlying class implementation as 'abstract'",
+		"doc": "Sets the underlying class implementation as `abstract`.",
 		"platforms": ["java", "cs"]
 	},
 	{
 		"name": "Access",
 		"metadata": ":access",
-		"doc": "Forces private access to package, type or field",
+		"doc": "Forces private access to package, type or field.",
 		"params": ["Target path"],
-		"targets": ["TClass", "TClassField"]
+		"targets": ["TClass", "TClassField"],
+		"links": ["https://haxe.org/manual/lf-access-control.html"]
 	},
 	{
 		"name": "Accessor",
 		"metadata": ":accessor",
-		"doc": "Used internally by DCE to mark property accessors",
+		"doc": "Used internally by DCE to mark property accessors.",
 		"targets": ["TClassField"],
 		"internal": true
 	},
 	{
 		"name": "Allow",
 		"metadata": ":allow",
-		"doc": "Allows private access from package, type or field",
-		"params": ["Target path"]
+		"doc": "Allows private access from package, type or field.",
+		"params": ["Target path"],
+		"links": ["https://haxe.org/manual/lf-access-control.html"]
 	},
 	{
 		"name": "Analyzer",
 		"metadata": ":analyzer",
-		"doc": "Used to configure the static analyzer"
+		"doc": "Used to configure the static analyzer."
 	},
 	{
 		"name": "Annotation",
 		"metadata": ":annotation",
-		"doc": "Annotation (@interface) definitions on --java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe",
+		"doc": "Annotation (`@interface`) definitions on `--java-lib` imports will be annotated with this metadata. Has no effect on types compiled by Haxe.",
 		"platforms": ["java"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "ArrayAccess",
 		"metadata": ":arrayAccess",
-		"doc": "Allows [] access on an abstract",
-		"targets": ["TAbstract", "TAbstractField"]
+		"doc": "Allows array access on an abstract.",
+		"targets": ["TAbstract", "TAbstractField"],
+		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
+	},
+	{
+		"name": "AssemblyMeta",
+		"metadata": ":cs.assemblyMeta",
+		"doc": "Used to declare a native C# assembly attribute",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
+		"name": "AssemblyStrict",
+		"metadata": ":cs.assemblyStrict",
+		"doc": "Used to declare a native C# assembly attribute; is type checked",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
 	},
 	{
 		"name": "Ast",
 		"metadata": ":ast",
-		"doc": "Internally used to pass the AST source into the typed AST",
+		"doc": "Internally used to pass the AST source into the typed AST.",
 		"internal": true
 	},
 	{
 		"name": "AstSource",
 		"metadata": ":astSource",
-		"doc": "Filled by the compiler with the parsed expression of the field",
+		"doc": "Filled by the compiler with the parsed expression of the field.",
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "AutoBuild",
 		"metadata": ":autoBuild",
-		"doc": "Extends @:build metadata to all extending and implementing classes",
+		"doc": "Extends `@:build` metadata to all extending and implementing classes.",
 		"params": ["Build macro call"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/macro-auto-build.html"]
 	},
 	{
 		"name": "Bind",
 		"metadata": ":bind",
-		"doc": "Override SWF class declaration",
+		"doc": "Override SWF class declaration.",
 		"platforms": ["flash"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Bitmap",
 		"metadata": ":bitmap",
-		"doc": "Embeds given bitmap data into the class (must extend flash.display.BitmapData)",
+		"doc": "Embeds given bitmap data into the class (must extend `flash.display.BitmapData`).",
 		"platforms": ["flash"],
 		"params": ["Bitmap file path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "BridgeProperties",
 		"metadata": ":bridgeProperties",
-		"doc": "Creates native property bridges for all Haxe properties in this class",
+		"doc": "Creates native property bridges for all Haxe properties in this class.",
 		"platforms": ["cs"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Build",
 		"metadata": ":build",
-		"doc": "Builds a class or enum from a macro",
+		"doc": "Builds a class or enum from a macro.",
 		"params": ["Build macro call"],
-		"targets": ["TClass", "TEnum"]
+		"targets": ["TClass", "TEnum"],
+		"links": ["https://haxe.org/manual/macro-type-building.html"]
 	},
 	{
 		"name": "BuildXml",
 		"metadata": ":buildXml",
-		"doc": "Specify xml data to be injected into Build.xml",
+		"doc": "Specify XML data to be injected into `Build.xml`.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "BypassAccessor",
 		"metadata": ":bypassAccessor",
-		"doc": "Do not call property accessor method and access the field directly",
-		"targets": ["TExpr"]
+		"doc": "Do not call property accessor method and access the field directly.",
+		"targets": ["TExpr"],
+		"links": ["https://haxe.org/manual/class-field-property.html"]
 	},
 	{
 		"name": "Callable",
 		"metadata": ":callable",
-		"doc": "Abstract forwards call to its underlying type",
+		"doc": "Abstract forwards call to its underlying type.",
 		"targets": ["TAbstract"]
 	},
 	{
 		"name": "Class",
 		"metadata": ":class",
-		"doc": "Used internally to annotate an enum that will be generated as a class",
+		"doc": "Used internally to annotate an enum that will be generated as a class.",
 		"platforms": ["java", "cs"],
 		"targets": ["TEnum"],
 		"internal": true
@@ -126,50 +147,52 @@
 	{
 		"name": "ClassCode",
 		"metadata": ":classCode",
-		"doc": "Used to inject platform-native code into a class",
+		"doc": "Used to inject platform-native code into a class.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Commutative",
 		"metadata": ":commutative",
-		"doc": "Declares an abstract operator as commutative",
-		"targets": ["TAbstractField"]
+		"doc": "Declares an abstract operator as commutative.",
+		"targets": ["TAbstractField"],
+		"links": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
 	},
 	{
 		"name": "CompilerGenerated",
 		"metadata": ":compilerGenerated",
-		"doc": "Marks a field as generated by the compiler. Shouldn't be used by the end user",
-		"platforms": ["java", "cs"]
+		"doc": "Marks a field as generated by the compiler. Should not be used by the end user.",
+		"internal": true
 	},
 	{
 		"name": "Const",
 		"metadata": ":const",
-		"doc": "Allows a type parameter to accept expression values",
+		"doc": "Allows a type parameter to accept expression values.",
 		"targets": ["TTypeParameter"]
 	},
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core api class (forces API check)",
+		"doc": "Identifies this class as a core API class (forces API check).",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
 		"name": "CoreType",
 		"metadata": ":coreType",
-		"doc": "Identifies an abstract as core type so that it requires no implementation",
-		"targets": ["TAbstract"]
+		"doc": "Identifies an abstract as core type so that it requires no implementation.",
+		"targets": ["TAbstract"],
+		"links": ["https://haxe.org/manual/types-abstract-core-type.html"]
 	},
 	{
 		"name": "CppFileCode",
 		"metadata": ":cppFileCode",
-		"doc": "Code to be injected into generated cpp file",
+		"doc": "Code to be injected into generated cpp file.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "CppInclude",
 		"metadata": ":cppInclude",
-		"doc": "File to be included in generated cpp file",
+		"doc": "File to be included in generated cpp file.",
 		"platforms": ["cpp"]
 	},
 	{
@@ -181,21 +204,29 @@
 	{
 		"name": "CsNative",
 		"metadata": ":csNative",
-		"doc": "Automatically added by --net-lib on classes generated from .NET DLL files",
+		"doc": "Automatically added by `--net-lib` on classes generated from .NET DLL files.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
 	},
 	{
+		"name": "CsUsing",
+		"metadata": ":cs.using",
+		"doc": "Add using directives to your module",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Dce",
 		"metadata": ":dce",
-		"doc": "Forces dead code elimination even when --dce full is not specified",
-		"targets": ["TClass", "TEnum"]
+		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
+		"targets": ["TClass", "TEnum"],
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Debug",
 		"metadata": ":debug",
-		"doc": "Forces debug information to be generated into the SWF even without --debug",
+		"doc": "Forces debug information to be generated into the SWF even without `--debug`.",
 		"platforms": ["flash"],
 		"targets": ["TClass", "TClassField"]
 	},
@@ -208,14 +239,14 @@
 	{
 		"name": "DefParam",
 		"metadata": ":defParam",
-		"doc": "Default function argument value loaded from the SWF and used for documentation in Genxml",
+		"doc": "Default function argument value loaded from the SWF and used for documentation in Genxml.",
 		"platforms": ["flash"],
 		"internal": true
 	},
 	{
 		"name": "Delegate",
 		"metadata": ":delegate",
-		"doc": "Automatically added by --net-lib on delegates",
+		"doc": "Automatically added by `--net-lib` on delegates.",
 		"platforms": ["cs"],
 		"targets": ["TAbstract"]
 	},
@@ -228,18 +259,24 @@
 	{
 		"name": "Deprecated",
 		"metadata": ":deprecated",
-		"doc": "Mark a type or field as deprecated"
+		"doc": "Mark a type or field as deprecated."
 	},
 	{
 		"name": "DirectlyUsed",
 		"metadata": ":directlyUsed",
-		"doc": "Marks types that are directly referenced by non-extern code",
+		"doc": "Marks types that are directly referenced by non-extern code.",
+		"internal": true
+	},
+	{
+		"name": "DisplayOverride",
+		"metadata": ":?display.override",
+		"doc": "Internally used to mark override fields for completion",
 		"internal": true
 	},
 	{
 		"name": "DynamicObject",
 		"metadata": ":dynamicObject",
-		"doc": "Used internally to identify the Dynamic Object implementation",
+		"doc": "Used internally to identify the Dynamic Object implementation.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass"],
 		"internal": true
@@ -247,74 +284,79 @@
 	{
 		"name": "Eager",
 		"metadata": ":eager",
-		"doc": "Forces typedefs to be followed early",
+		"doc": "Forces typedefs to be followed early.",
 		"targets": ["TTypedef"]
 	},
 	{
 		"name": "Enum",
 		"metadata": ":enum",
-		"doc": "Defines finite value sets to abstract definitions",
-		"targets": ["TAbstract"]
+		"doc": "Defines finite value sets to abstract definitions.",
+		"targets": ["TAbstract"],
+		"links": ["https://haxe.org/manual/types-abstract-enum.html"]
 	},
 	{
 		"name": "EnumConstructorParam",
 		"metadata": ":enumConstructorParam",
-		"doc": "Used internally to annotate GADT type parameters",
+		"doc": "Used internally to annotate GADT type parameters.",
 		"targets": ["TClass"],
 		"internal": true
 	},
 	{
 		"name": "Event",
 		"metadata": ":event",
-		"doc": "Automatically added by --net-lib on events. Has no effect on types compiled by Haxe",
+		"doc": "Automatically added by `--net-lib` on events. Has no effect on types compiled by Haxe.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "Exhaustive",
 		"metadata": ":exhaustive",
-		"doc": "",
-		"internal": true
+		"doc": "Used internally to mark that a switch is exhaustive.",
+		"internal": true,
+		"links": ["https://haxe.org/manual/lf-pattern-matching-exhaustiveness.html"]
 	},
 	{
 		"name": "Expose",
 		"metadata": ":expose",
-		"doc": "Includes the class or field in Haxe exports",
+		"doc": "Includes the class or field in Haxe exports (default name is the classpath).",
 		"platforms": ["js", "lua"],
-		"params": ["?Name=Class path"]
+		"params": ["name"],
+		"links": ["https://haxe.org/manual/target-javascript-expose.html"]
 	},
 	{
 		"name": "Extern",
 		"metadata": ":extern",
-		"doc": "Marks the field as extern so it is not generated",
+		"doc": "Marks the field as extern so it is not generated.",
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "File",
 		"metadata": ":file",
-		"doc": "Includes a given binary file into the target SWF and associates it with the class (must extend flash.utils.ByteArray)",
+		"doc": "Includes a given binary file into the target SWF and associates it with the class (must extend `flash.utils.ByteArray`).",
 		"platforms": ["flash"],
 		"params": ["File path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "FileXml",
 		"metadata": ":fileXml",
-		"doc": "Include xml attribute snippet in Build.xml entry for file",
+		"doc": "Include a given XML attribute snippet in the `Build.xml` entry for the file.",
 		"platforms": ["cpp"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Final",
 		"metadata": ":final",
-		"doc": "Prevents a class or interface from being extended or a method from being overridden",
-		"targets": ["TClass", "TClassField"]
+		"doc": "Prevents a class or interface from being extended or a method from being overridden. Deprecated by the keyword `final`.",
+		"targets": ["TClass", "TClassField"],
+		"links": ["https://haxe.org/manual/class-field-final.html"]
 	},
 	{
 		"devcomment": "this used to have UsedOn TObjectDecl(_)",
 		"name": "Fixed",
 		"metadata": ":fixed",
-		"doc": "Declares an anonymous object to have fixed fields"
+		"doc": "Declares an anonymous object to have fixed fields."
 	},
 	{
 		"name": "FlashProperty",
@@ -326,47 +368,51 @@
 	{
 		"name": "FlatEnum",
 		"metadata": ":flatEnum",
-		"doc": "Internally used to mark an enum as being flat, i.e. having no function constructors",
+		"doc": "Internally used to mark an enum as being flat, i.e. having no function constructors.",
 		"targets": ["TEnum"],
 		"internal": true
 	},
 	{
 		"name": "Font",
 		"metadata": ":font",
-		"doc": "Embeds the given TrueType font into the class (must extend flash.text.Font)",
+		"doc": "Embeds the given TrueType font into the class (must extend `flash.text.Font`).",
 		"params": ["TTF path", "Range String"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "ForLoopVariable",
 		"metadata": ":forLoopVariable",
-		"doc": "Internally used to mark for-loop variables",
+		"doc": "Internally used to mark for-loop variables.",
 		"internal": true
 	},
 	{
 		"name": "Forward",
 		"metadata": ":forward",
-		"doc": "Forwards field access to underlying type",
+		"doc": "Forwards field access to underlying type.",
 		"params": ["List of field names"],
-		"targets": ["TAbstract"]
+		"targets": ["TAbstract"],
+		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
 		"name": "ForwardStatics",
 		"metadata": ":forwardStatics",
-		"doc": "Forwards static field access to underlying type",
+		"doc": "Forwards static field access to underlying type.",
 		"params": ["List of field names"],
-		"targets": ["TAbstract"]
+		"targets": ["TAbstract"],
+		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
 		"name": "From",
 		"metadata": ":from",
-		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function",
-		"targets": ["TAbstractField"]
+		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
+		"targets": ["TAbstractField"],
+		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
 		"name": "FunctionCode",
 		"metadata": ":functionCode",
-		"doc": "Used to inject platform-native code into a function",
+		"doc": "Used to inject platform-native code into a function.",
 		"platforms": ["cpp", "java", "cs"]
 	},
 	{
@@ -378,25 +424,32 @@
 	{
 		"name": "Generic",
 		"metadata": ":generic",
-		"doc": "Marks a class or class field as generic so each type parameter combination generates its own type/field"
+		"doc": "Marks a class or class field as generic so each type parameter combination generates its own type/field.",
+		"links": ["https://haxe.org/manual/type-system-generic.html"]
 	},
 	{
 		"name": "GenericBuild",
 		"metadata": ":genericBuild",
-		"doc": "Builds instances of a type using the specified macro",
+		"doc": "Builds instances of a type using the specified macro.",
 		"targets": ["TClass"]
 	},
 	{
 		"name": "GenericInstance",
 		"metadata": ":genericInstance",
-		"doc": "Internally used to mark instances of @:generic methods",
+		"doc": "Internally used to mark instances of `@:generic` methods.",
 		"targets": ["TClassField"],
 		"internal": true
 	},
 	{
+		"name": "GenericClassPerMethod",
+		"metadata": ":genericClassPerMethod",
+		"doc": "Makes compiler generate separate class per generic static method specialization",
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Getter",
 		"metadata": ":getter",
-		"doc": "Generates a native getter function on the given field",
+		"doc": "Generates a native getter function on the given field.",
 		"platforms": ["flash"],
 		"params": ["Class field name"],
 		"targets": ["TClassField"]
@@ -404,19 +457,19 @@
 	{
 		"name": "Hack",
 		"metadata": ":hack",
-		"doc": "Allows extending classes marked as @:final",
+		"doc": "Allows extending classes marked as `@:final`. Not guaranteed to work on all targets.",
 		"targets": ["TClass"]
 	},
 	{
 		"name": "HasUntyped",
 		"metadata": ":has_untyped",
-		"doc": "Used by the typer to mark fields that have untyped expressions",
+		"doc": "Used by the typer to mark fields that have untyped expressions.",
 		"internal": true
 	},
 	{
 		"name": "HaxeGeneric",
 		"metadata": ":haxeGeneric",
-		"doc": "Used internally to annotate non-native generic classes",
+		"doc": "Used internally to annotate non-native generic classes.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
@@ -424,19 +477,19 @@
 	{
 		"name": "HeaderClassCode",
 		"metadata": ":headerClassCode",
-		"doc": "Code to be injected into the generated class, in the header",
+		"doc": "Code to be injected into the generated class, in the header.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HeaderCode",
 		"metadata": ":headerCode",
-		"doc": "Code to be injected into the generated header file",
+		"doc": "Code to be injected into the generated header file.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HeaderInclude",
 		"metadata": ":headerInclude",
-		"doc": "File to be included in generated header file",
+		"doc": "File to be included in generated header file.",
 		"platforms": ["cpp"]
 	},
 	{
@@ -448,42 +501,50 @@
 	{
 		"name": "HlNative",
 		"metadata": ":hlNative",
-		"doc": "Specifies hdll name and function prefix for native functions",
+		"doc": "Specifies `hdll` name and function prefix for native functions.",
 		"platforms": ["hl"],
 		"targets": ["TClass", "TClassField"]
 	},
 	{
 		"name": "HxGen",
 		"metadata": ":hxGen",
-		"doc": "Annotates that an extern class was generated by Haxe",
+		"doc": "Annotates that an extern class was generated by Haxe.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass", "TEnum"]
 	},
 	{
 		"name": "IfFeature",
 		"metadata": ":ifFeature",
-		"doc": "Causes a field to be kept by DCE if the given feature is part of the compilation",
+		"doc": "Causes a field to be kept by DCE if the given feature is part of the compilation.",
 		"params": ["Feature name"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Impl",
 		"metadata": ":impl",
-		"doc": "Used internally to mark abstract implementation fields",
+		"doc": "Used internally to mark abstract implementation fields.",
 		"targets": ["TAbstractField"],
 		"internal": true
 	},
 	{
 		"name": "PythonImport",
 		"metadata": ":pythonImport",
-		"doc": "Generates python import statement for extern classes",
+		"doc": "Generates python import statement for extern classes.",
 		"platforms": ["python"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "ImplicitCast",
 		"metadata": ":implicitCast",
-		"doc": "Generated automatically on the AST when an implicit abstract cast happens",
+		"doc": "Generated automatically on the AST when an implicit abstract cast happens.",
+		"targets": ["TExpr"],
+		"internal": true
+	},
+	{
+		"name": "ImplicitReturn",
+		"metadata": ":implicitReturn",
+		"doc": "Generated automatically on the AST when an implicit return is inserted for arrow function.",
 		"targets": ["TExpr"],
 		"internal": true
 	},
@@ -496,39 +557,40 @@
 	{
 		"name": "InitPackage",
 		"metadata": ":initPackage",
-		"doc": "Some weird thing for Genjs we want to remove someday",
+		"doc": "Some weird thing for Genjs we want to remove someday.",
 		"platforms": ["js"],
 		"internal": true
 	},
 	{
 		"name": "Inline",
 		"metadata": ":inline",
-		"doc": "Inserted by the parser in case of `inline expr` and `inline function`",
+		"doc": "Inserted by the parser in case of `inline expr` and `inline function`.",
 		"targets": ["TExpr"]
 	},
 	{
 		"name": "InlineConstructorArgument",
 		"metadata": ":inlineConstructorArgument",
-		"doc": "Internally used to mark expressions that were passed as arguments of an inlined constructor",
+		"doc": "Internally used to mark expressions that were passed as arguments of an inlined constructor.",
 		"internal": true
 	},
 	{
 		"name": "Internal",
 		"metadata": ":internal",
-		"doc": "Generates the annotated field/class with 'internal' access",
+		"doc": "Generates the annotated field/class with 'internal' access.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass", "TEnum", "TClassField"]
 	},
 	{
 		"name": "IsVar",
 		"metadata": ":isVar",
-		"doc": "Forces a physical field to be generated for properties that otherwise would not require one",
-		"targets": ["TClassField"]
+		"doc": "Forces a physical field to be generated for properties that otherwise would not require one.",
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/class-field-property-rules.html"]
 	},
 	{
 		"name": "JavaCanonical",
 		"metadata": ":javaCanonical",
-		"doc": "Used by the Java target to annotate the canonical path of the type",
+		"doc": "Used by the Java target to annotate the canonical path of the type.",
 		"platforms": ["java"],
 		"params": ["Output type package", "Output type name"],
 		"targets": ["TClass", "TEnum"]
@@ -536,52 +598,63 @@
 	{
 		"name": "JavaNative",
 		"metadata": ":javaNative",
-		"doc": "Automatically added by --java-lib on classes generated from JAR/class files",
+		"doc": "Automatically added by `--java-lib` on classes generated from JAR/class files.",
 		"platforms": ["java"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
 	},
 	{
+		"name": "JvmSynthetic",
+		"metadata": ":jvm.synthetic",
+		"doc": "Mark generated class, field or method as synthetic",
+		"platforms": ["java"],
+		"targets": ["TClass", "TEnum", "TAnyField"]
+	},
+	{
 		"name": "JsRequire",
 		"metadata": ":jsRequire",
-		"doc": "Generate JavaScript module require expression for given extern",
+		"doc": "Generate JavaScript module require expression for given extern.",
 		"platforms": ["js"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
 		"name": "LuaRequire",
 		"metadata": ":luaRequire",
-		"doc": "Generate Lua module require expression for given extern",
+		"doc": "Generate Lua module require expression for given extern.",
 		"platforms": ["lua"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "LuaDotMethod",
 		"metadata": ":luaDotMethod",
-		"doc": "Indicates that the given extern type instance should have dot-style invocation for methods instead of colon",
+		"doc": "Indicates that the given extern type instance should have dot-style invocation for methods instead of colon.",
 		"platforms": ["lua"]
 	},
 	{
 		"name": "Keep",
 		"metadata": ":keep",
-		"doc": "Causes a field or type to be kept by DCE"
+		"doc": "Causes a field or type to be kept by DCE.",
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "KeepInit",
 		"metadata": ":keepInit",
-		"doc": "Causes a class to be kept by DCE even if all its field are removed",
-		"targets": ["TClass"]
+		"doc": "Causes a class to be kept by DCE even if all its field are removed.",
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "KeepSub",
 		"metadata": ":keepSub",
-		"doc": "Extends @:keep metadata to all implementing and extending classes",
-		"targets": ["TClass"]
+		"doc": "Extends `@:keep` metadata to all implementing and extending classes.",
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "LibType",
 		"metadata": ":libType",
-		"doc": "Used by --net-lib and --java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",
+		"doc": "Used by `--net-lib` and `--java-lib` to mark a class that should not be checked (overrides, interfaces, etc) by the type loader.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass"],
 		"internal": true
@@ -589,18 +662,20 @@
 	{
 		"name": "LoopLabel",
 		"metadata": ":loopLabel",
-		"doc": "Mark loop and break expressions with a label to support breaking from within switch",
+		"doc": "Mark loop and break expressions with a label to support breaking from within switch.",
 		"internal": true
 	},
 	{
 		"name": "Markup",
 		"metadata": ":markup",
-		"doc": "Used as a result of inline XML parsing"
+		"doc": "Used as a result of inline XML parsing.",
+		"links": ["https://haxe.org/manual/lf-markup.html"]
 	},
 	{
 		"name": "Meta",
 		"metadata": ":meta",
-		"doc": "Internally used to mark a class field as being the metadata field"
+		"doc": "Internally used to mark a class field as being the metadata field.",
+		"internal": true
 	},
 	{
 		"name": "Macro",
@@ -610,54 +685,63 @@
 	{
 		"name": "MaybeUsed",
 		"metadata": ":maybeUsed",
-		"doc": "Internally used by DCE to mark fields that might be kept",
+		"doc": "Internally used by DCE to mark fields that might be kept.",
 		"internal": true
 	},
 	{
 		"name": "MergeBlock",
 		"metadata": ":mergeBlock",
-		"doc": "Merge the annotated block into the current scope",
+		"doc": "Merge the annotated block into the current scope.",
 		"targets": ["TExpr"]
 	},
 	{
 		"name": "MultiReturn",
 		"metadata": ":multiReturn",
-		"doc": "Annotates an extern class as the result of multi-return function",
+		"doc": "Annotates an extern class as the result of multi-return function.",
 		"platforms": ["lua"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-lua-multireturns.html"]
 	},
 	{
 		"name": "MultiType",
 		"metadata": ":multiType",
-		"doc": "Specifies that an abstract chooses its this-type from its @:to functions",
+		"doc": "Specifies that an abstract chooses its this-type from its `@:to` functions.",
 		"params": ["Relevant type parameters"],
 		"targets": ["TAbstract"]
 	},
 	{
 		"name": "Native",
 		"metadata": ":native",
-		"doc": "Rewrites the path of a class or enum during generation",
-		"params": ["Output type path"],
-		"targets": ["TClass", "TEnum"]
+		"doc": "Rewrites the path of a type or class field during generation.",
+		"params": ["Output path"],
+		"targets": ["TClass", "TEnum", "TAbstract", "TClassField"],
+		"links": ["https://haxe.org/manual/lf-externs.html"]
+	},
+	{
+		"name": "NativeJni",
+		"metadata": ":java.native",
+		"doc": "Annotates that a function has implementation in native code through JNI.",
+		"platforms": ["java"],
+		"targets": ["TClassField"]
 	},
 	{
 		"name": "NativeChildren",
 		"metadata": ":nativeChildren",
-		"doc": "Annotates that all children from a type should be treated as if it were an extern definition - platform native",
+		"doc": "Annotates that all children from a type should be treated as if it were an extern definition - platform native.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "NativeGen",
 		"metadata": ":nativeGen",
-		"doc": "Annotates that a type should be treated as if it were an extern definition - platform native",
+		"doc": "Annotates that a type should be treated as if it were an extern definition - platform native.",
 		"platforms": ["java", "cs", "python"],
 		"targets": ["TClass", "TEnum"]
 	},
 	{
 		"name": "NativeGeneric",
 		"metadata": ":nativeGeneric",
-		"doc": "Used internally to annotate native generic classes",
+		"doc": "Used internally to annotate native generic classes.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
@@ -665,61 +749,68 @@
 	{
 		"name": "NativeProperty",
 		"metadata": ":nativeProperty",
-		"doc": "Use native properties which will execute even with dynamic usage",
+		"doc": "Use native properties which will execute even with dynamic usage.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "NativeStaticExtension",
 		"metadata": ":nativeStaticExtension",
-		"doc": "Converts static function syntax into member call",
+		"doc": "Converts static function syntax into member call.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "NoCompletion",
 		"metadata": ":noCompletion",
-		"doc": "Prevents the compiler from suggesting completion on this field or type",
-		"targets": ["TClassField"]
+		"doc": "Prevents the compiler from suggesting completion on this field or type.",
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/cr-completion.html"]
+	},
+	{
+		"name": "NoClosure",
+		"metadata": ":noClosure",
+		"doc": "Prevents a method or all methods in a class from being used as a value.",
+		"targets": ["TClass", "TClassField"]
 	},
 	{
 		"name": "NoDebug",
 		"metadata": ":noDebug",
-		"doc": "Does not generate debug information even if --debug is set",
+		"doc": "Does not generate debug information even if `--debug` is set.",
 		"platforms": ["flash", "cpp"],
 		"targets": ["TClass", "TClassField"]
 	},
 	{
 		"name": "NoDoc",
 		"metadata": ":noDoc",
-		"doc": "Prevents a type from being included in documentation generation"
+		"doc": "Prevents a type from being included in documentation generation."
 	},
 	{
 		"name": "NoExpr",
 		"metadata": ":noExpr",
-		"doc": "Internally used to mark abstract fields which have no expression by design",
+		"doc": "Internally used to mark abstract fields which have no expression by design.",
 		"internal": true
 	},
 	{
 		"name": "NoImportGlobal",
 		"metadata": ":noImportGlobal",
-		"doc": "Prevents a static field from being imported with import Class.*",
+		"doc": "Prevents a static field from being imported with `import Class.*`.",
 		"targets": ["TAnyField"]
 	},
 	{
 		"name": "NonVirtual",
 		"metadata": ":nonVirtual",
-		"doc": "Declares function to be non-virtual in cpp",
+		"doc": "Declares function to be non-virtual in cpp.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "NoPackageRestrict",
 		"metadata": ":noPackageRestrict",
-		"doc": "Allows a module to be accessed across all targets if found on its first type",
+		"doc": "Allows a module to be accessed across all targets if found on its first type.",
 		"internal": true
 	},
 	{
 		"name": "NoPrivateAccess",
 		"metadata": ":noPrivateAccess",
-		"doc": "Disallow private access to anything for the annotated expression",
+		"doc": "Disallow private access to anything for the annotated expression.",
 		"targets": ["TExpr"]
 	},
 	{
@@ -731,228 +822,241 @@
 	{
 		"name": "NotNull",
 		"metadata": ":notNull",
-		"doc": "Declares an abstract type as not accepting null values",
-		"targets": ["TAbstract"]
+		"doc": "Declares an abstract type as not accepting null values.",
+		"targets": ["TAbstract"],
+		"links": ["https://haxe.org/manual/types-nullability.html"]
 	},
 	{
 		"name": "NoUsing",
 		"metadata": ":noUsing",
-		"doc": "Prevents a field from being used with 'using'",
-		"targets": ["TClassField"]
+		"doc": "Prevents a field from being used with static extension.",
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/lf-static-extension.html"]
 	},
 	{
 		"name": "Ns",
 		"metadata": ":ns",
-		"doc": "Internally used by the SWF generator to handle namespaces",
-		"platforms": ["flash"]
+		"doc": "Internally used by the SWF generator to handle namespaces.",
+		"platforms": ["flash"],
+		"internal": true
 	},
 	{
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
-		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument (e.g. `@:nullSafety(Off)`)",
-		"targets": ["TClass", "TClassField", "TExpr"]
+		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
+		"params": ["Off | Loose | Strict | StrictThreaded"],
+		"targets": ["TClass", "TClassField", "TExpr"],
+		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
 	{
 		"name": "Objc",
 		"metadata": ":objc",
-		"doc": "Declares a class or interface that is used to interoperate with Objective-C code",
+		"doc": "Declares a class or interface that is used to interoperate with Objective-C code.",
 		"platforms": ["cpp"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "ObjcProtocol",
 		"metadata": ":objcProtocol",
-		"doc": "Associates an interface with, or describes a function in, a native Objective-C protocol",
+		"doc": "Associates an interface with, or describes a function in, a native Objective-C protocol.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "Op",
 		"metadata": ":op",
-		"doc": "Declares an abstract field as being an operator overload",
+		"doc": "Declares an abstract field as being an operator overload.",
 		"params": ["The operation"],
-		"targets": ["TAbstractField"]
+		"targets": ["TAbstractField"],
+		"links": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
 	},
 	{
 		"name": "Optional",
 		"metadata": ":optional",
-		"doc": "Marks the field of a structure as optional",
-		"targets": ["TClassField"]
+		"doc": "Marks the field of a structure as optional.",
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/types-nullability-optional-arguments.html"]
 	},
 	{
 		"name": "Overload",
 		"metadata": ":overload",
-		"doc": "Allows the field to be called with different argument types",
+		"doc": "Allows the field to be called with different argument types.",
 		"params": ["Function specification (no expression)"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "Persistent",
 		"metadata": ":persistent",
-		"doc": "Keeps the value of static variables in macro context across compilations",
+		"doc": "Keeps the value of static variables in macro context across compilations.",
 		"targets": ["TAnyField"],
 		"platforms": ["eval"]
 	},
 	{
 		"name": "PhpGlobal",
 		"metadata": ":phpGlobal",
-		"doc": "Indicates that static fields of an extern class actually are located in the global PHP namespace",
+		"doc": "Indicates that static fields of an extern class actually are located in the global PHP namespace.",
 		"platforms": ["php"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "PhpClassConst",
 		"metadata": ":phpClassConst",
-		"doc": "Indicates that a static var of an extern class is a PHP class constant",
+		"doc": "Indicates that a static var of an extern class is a PHP class constant.",
 		"platforms": ["php"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "PhpMagic",
 		"metadata": ":phpMagic",
-		"doc": "Treat annotated field as special PHP magic field - this meta makes compiler avoid renaming such fields on generating PHP code",
+		"doc": "Treat annotated field as special PHP magic field - this meta makes compiler avoid renaming such fields on generating PHP code.",
 		"platforms": ["php"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "PhpNoConstructor",
 		"metadata": ":phpNoConstructor",
-		"doc": "Special meta for extern classes which do not have native constructor in PHP, but need a constructor in Haxe extern",
+		"doc": "Special meta for extern classes which do not have native constructor in PHP, but need a constructor in Haxe extern.",
 		"platforms": ["php"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Pos",
 		"metadata": ":pos",
-		"doc": "Sets the position of a reified expression",
+		"doc": "Sets the position of a reified expression.",
 		"params": ["Position"],
-		"targets": ["TExpr"]
+		"targets": ["TExpr"],
+		"links": ["https://haxe.org/manual/macro-reification.html"]
 	},
 	{
 		"name": "Public",
 		"metadata": ":public",
-		"doc": "Marks a class field as being public",
+		"doc": "Marks a class field as being public.",
 		"targets": ["TClassField"],
 		"internal": true
 	},
 	{
 		"name": "PublicFields",
 		"metadata": ":publicFields",
-		"doc": "Forces all class fields of inheriting classes to be public",
+		"doc": "Forces all class fields of inheriting classes to be public.",
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Private",
 		"metadata": ":private",
-		"doc": "Marks a class field as being private",
+		"doc": "Marks a class field as being private.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "PrivateAccess",
 		"metadata": ":privateAccess",
-		"doc": "Allow private access to anything for the annotated expression",
+		"doc": "Allow private access to anything for the annotated expression.",
 		"targets": ["TExpr"]
 	},
 	{
 		"name": "Protected",
 		"metadata": ":protected",
-		"doc": "Marks a class field as being protected",
+		"doc": "Marks a class field as being protected.",
 		"platforms": ["cs", "java", "flash"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "Pure",
 		"metadata": ":pure",
-		"doc": "Marks a class field, class or expression as pure (side-effect free)",
+		"doc": "Marks a class field, class or expression as pure (side-effect free).",
 		"targets": ["TClass", "TClassField", "TExpr"]
 	},
 	{
 		"name": "ReadOnly",
 		"metadata": ":readOnly",
-		"doc": "Generates a field with the 'readonly' native keyword",
+		"doc": "Generates a field with the `readonly` native keyword.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "RealPath",
 		"metadata": ":realPath",
-		"doc": "Internally used on @:native types to retain original path information",
+		"doc": "Internally used on `@:native` types to retain original path information.",
 		"internal": true
 	},
 	{
 		"name": "Remove",
 		"metadata": ":remove",
-		"doc": "Causes an interface to be removed from all implementing classes before generation",
+		"doc": "Causes an interface to be removed from all implementing classes before generation.",
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Require",
 		"metadata": ":require",
-		"doc": "Allows access to a field only if the specified compiler flag is set",
+		"doc": "Allows access to a field only if the specified compiler flag is set.",
 		"params": ["Compiler flag to check"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/lf-condition-compilation.html"]
 	},
 	{
 		"name": "RequiresAssign",
 		"metadata": ":requiresAssign",
-		"doc": "Used internally to mark certain abstract operator overloads",
+		"doc": "Used internally to mark certain abstract operator overloads.",
 		"internal": true
 	},
 	{
 		"name": "Resolve",
 		"metadata": ":resolve",
-		"doc": "Abstract fields marked with this metadata can be used to resolve unknown fields",
+		"doc": "Abstract fields marked with this metadata can be used to resolve unknown fields.",
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "Rtti",
 		"metadata": ":rtti",
-		"doc": "Adds runtime type information",
-		"targets": ["TClass"]
+		"doc": "Adds runtime type information.",
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/cr-rtti.html"]
 	},
 	{
 		"name": "Runtime",
 		"metadata": ":runtime",
-		"doc": "?"
+		"doc": "",
+		"internal": true
 	},
 	{
 		"name": "RuntimeValue",
 		"metadata": ":runtimeValue",
-		"doc": "Marks an abstract as being a runtime value",
+		"doc": "Marks an abstract as being a runtime value.",
 		"targets": ["TAbstract"]
 	},
 	{
 		"name": "Scalar",
 		"metadata": ":scalar",
-		"doc": "Used by hxcpp to mark a custom coreType abstract",
+		"doc": "Used by hxcpp to mark a custom coreType abstract.",
 		"platforms": ["cpp"],
 		"targets": ["TAbstract"]
 	},
 	{
 		"name": "SelfCall",
 		"metadata": ":selfCall",
-		"doc": "Translates method calls into calling object directly",
+		"doc": "Translates method calls into calling object directly.",
 		"platforms": ["js", "lua"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"links": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "Semantics",
 		"metadata": ":semantics",
-		"doc": "The native semantics of the type",
+		"doc": "The native semantics of the type.",
 		"params": ["value | reference | variable"],
 		"targets": ["TClass", "TTypedef", "TAbstract"]
 	},
 	{
 		"name": "Setter",
 		"metadata": ":setter",
-		"doc": "Generates a native setter function on the given field",
+		"doc": "Generates a native setter function on the given field.",
 		"platforms": ["flash"],
 		"params": ["Class field name"],
 		"targets": ["TClassField"]
@@ -960,14 +1064,14 @@
 	{
 		"name": "SkipCtor",
 		"metadata": ":skipCtor",
-		"doc": "Used internally to generate a constructor as if it were a native type (no __hx_ctor)",
+		"doc": "Used internally to generate a constructor as if it were a native type (no `__hx_ctor`).",
 		"platforms": ["java", "cs"],
 		"internal": true
 	},
 	{
 		"name": "SkipReflection",
 		"metadata": ":skipReflection",
-		"doc": "Used internally to annotate a field that shouldn't have its reflection data generated",
+		"doc": "Used internally to annotate a field that shouldn't have its reflection data generated.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClassField"],
 		"internal": true
@@ -975,79 +1079,86 @@
 	{
 		"name": "Sound",
 		"metadata": ":sound",
-		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend flash.media.Sound)",
+		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend `flash.media.Sound`).",
 		"platforms": ["flash"],
 		"params": ["File path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "SourceFile",
 		"metadata": ":sourceFile",
-		"doc": "Source code filename for external class",
+		"doc": "Source code filename for external class.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "StackOnly",
 		"metadata": ":stackOnly",
-		"doc": "Instances of this type can only appear on the stack",
+		"doc": "Instances of this type can only appear on the stack.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "StaticExtension",
 		"metadata": "haxe.internal.static_extension",
-		"doc": "Used internally to mark static extension fields",
+		"doc": "Used internally to mark static extension fields.",
 		"internal": true
 	},
 	{
 		"name": "StoredTypedExpr",
 		"metadata": ":storedTypedExpr",
-		"doc": "Used internally to reference a typed expression returned from a macro",
+		"doc": "Used internally to reference a typed expression returned from a macro.",
 		"internal": true
 	},
 	{
 		"name": "Strict",
 		"metadata": ":strict",
-		"doc": "Used to declare a native C# attribute or a native Java metadata; is type checked",
+		"doc": "Used to declare a native C# attribute or a native Java metadata; is type checked.",
 		"platforms": ["java", "cs"]
 	},
 	{
 		"name": "Struct",
 		"metadata": ":struct",
-		"doc": "Marks a class definition as a struct",
+		"doc": "Marks a class definition as a struct.",
 		"platforms": ["cs", "hl"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "StructAccess",
 		"metadata": ":structAccess",
-		"doc": "Marks an extern class as using struct access('.') not pointer('->')",
+		"doc": "Marks an extern class as using struct access (`.`) not pointer (`->`).",
 		"platforms": ["cpp"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "StructInit",
 		"metadata": ":structInit",
-		"doc": "Allows one to initialize the class with a structure that matches constructor parameters",
+		"doc": "Allows one to initialize the class with a structure that matches constructor parameters.",
 		"targets": ["TClass"]
 	},
 	{
 		"name": "SuppressWarnings",
 		"metadata": ":suppressWarnings",
-		"doc": "Adds a SuppressWarnings annotation for the generated Java class",
+		"doc": "Adds a `SuppressWarnings` annotation for the generated Java class.",
 		"platforms": ["java"],
 		"targets": ["TClass"]
 	},
 	{
+		"name": "TailRecursion",
+		"metadata": ":tailRecursion",
+		"doc": "Internally used for tail recursion elimination.",
+		"internal": true
+	},
+	{
 		"name": "TemplatedCall",
 		"metadata": ":templatedCall",
-		"doc": "Indicates that the first parameter of static call should be treated as a template argument",
+		"doc": "Indicates that the first parameter of static call should be treated as a template argument.",
 		"platforms": ["cpp"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "Throws",
 		"metadata": ":throws",
-		"doc": "Adds a 'throws' declaration to the generated function",
+		"doc": "Adds a `throws` declaration to the generated function.",
 		"platforms": ["java"],
 		"params": ["Type as String"],
 		"targets": ["TClassField"]
@@ -1055,33 +1166,34 @@
 	{
 		"name": "This",
 		"metadata": ":this",
-		"doc": "Internally used to pass a 'this' expression to macros",
+		"doc": "Internally used to pass a `this` expression to macros.",
 		"targets": ["TExpr"],
 		"internal": true
 	},
 	{
 		"name": "To",
 		"metadata": ":to",
-		"doc": "Specifies that the field of the abstract is a cast operation to the type identified in the function",
-		"targets": ["TAbstractField"]
+		"doc": "Specifies that the field of the abstract is a cast operation to the type identified in the function.",
+		"targets": ["TAbstractField"],
+		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
 		"name": "ToString",
 		"metadata": ":toString",
-		"doc": "Internally used",
+		"doc": "Internally used.",
 		"internal": true
 	},
 	{
 		"name": "Transient",
 		"metadata": ":transient",
-		"doc": "Adds the 'transient' flag to the class field",
+		"doc": "Adds the `transient` flag to the class field.",
 		"platforms": ["java"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "ValueUsed",
 		"metadata": ":valueUsed",
-		"doc": "Internally used by DCE to mark an abstract value as used",
+		"doc": "Internally used by DCE to mark an abstract value as used.",
 		"internal": true
 	},
 	{
@@ -1093,7 +1205,7 @@
 	{
 		"name": "UnifyMinDynamic",
 		"metadata": ":unifyMinDynamic",
-		"doc": "Allows a collection of types to unify to Dynamic",
+		"doc": "Allows a collection of types to unify to `Dynamic`.",
 		"targets": ["TClassField"]
 	},
 	{
@@ -1105,32 +1217,47 @@
 	{
 		"name": "Unsafe",
 		"metadata": ":unsafe",
-		"doc": "Declares a class, or a method with the C#'s 'unsafe' flag",
+		"doc": "Declares a class, or a method with the C#'s `unsafe` flag.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TClassField"]
 	},
 	{
 		"name": "Used",
 		"metadata": ":used",
-		"doc": "Internally used by DCE to mark a class or field as used",
+		"doc": "Internally used by DCE to mark a class or field as used.",
 		"internal": true
 	},
 	{
 		"name": "Using",
 		"metadata": ":using",
-		"doc": "Automatically uses the argument types as static extensions for the annotated type",
-		"targets": ["TClass", "TEnum", "TAbstract"]
+		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
+		"targets": ["TClass", "TEnum", "TAbstract"],
+		"links": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{
 		"name": "Value",
 		"metadata": ":value",
-		"doc": "Used to store default values for fields and function arguments",
-		"targets": ["TClassField"]
+		"doc": "Used to store default values for fields and function arguments.",
+		"targets": ["TClassField"],
+		"internal": true
+	},
+	{
+		"name": "HaxeArguments",
+		"metadata": ":haxe.arguments",
+		"doc": "Used to store function arguments.",
+		"targets": ["TClassField"],
+		"internal": true
 	},
 	{
 		"name": "Void",
 		"metadata": ":void",
-		"doc": "Use Cpp native 'void' return type",
+		"doc": "Use Cpp native `void` return type.",
 		"platforms": ["cpp"]
+	},
+	{
+		"name": "NeedsExceptionStack",
+		"metadata": ":needsExceptionStack",
+		"doc": "Internally used for some of auto-generated `catch` vars",
+		"internal": true
 	}
 ]

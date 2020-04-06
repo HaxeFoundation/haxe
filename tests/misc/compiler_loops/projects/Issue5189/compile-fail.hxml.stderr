@@ -1,0 +1,3 @@
+Main.hx:18: characters 9-29 : error: { c : Array<TT_A>, b : String, a : Int } has no field d
+Main.hx:18: characters 9-29 :  have: { c: Array<{ c, b, a }> }
+Main.hx:18: characters 9-29 :  want: { c: Array<TT_B> }

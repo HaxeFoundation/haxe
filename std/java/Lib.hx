@@ -19,27 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java;
 
 /**
 	Platform-specific Java Library. Provides some platform-specific functions for the Java target,
 	such as conversion from Haxe types to native types and vice-versa.
 **/
-//we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
-@:native('haxe.java.Lib') class Lib
-{
-
+// we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
+@:native('haxe.java.Lib') class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	inline public static function print( v : Dynamic ) : Void {
+	inline public static function print(v:Dynamic):Void {
 		Sys.print(v);
 	}
 
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
-	inline public static function println( v : Dynamic ) : Void {
+	inline public static function println(v:Dynamic):Void {
 		Sys.println(v);
 	}
 
@@ -49,11 +48,9 @@ package java;
 
 		If `equalLengthRequired` is true, the result might be a copy of an array with the correct size.
 	**/
-	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
-	{
+	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T> {
 		var ret = new NativeArray(arr.length);
-		for (i in 0...arr.length)
-		{
+		for (i in 0...arr.length) {
 			ret[i] = arr[i];
 		}
 		return ret;
@@ -64,40 +61,35 @@ package java;
 		[deprecated] - use `getNativeType` instead
 	**/
 	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
-	inline public static function nativeType<T>(obj:T):java.lang.Class<T>
-	{
+	inline public static function nativeType<T>(obj:T):java.lang.Class<T> {
 		return untyped obj.getClass();
 	}
 
 	/**
 		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
 	**/
-	inline public static function getNativeType<T>(obj:T):java.lang.Class<T>
-	{
+	inline public static function getNativeType<T>(obj:T):java.lang.Class<T> {
 		return untyped obj.getClass();
 	}
 
 	/**
 		Returns a Class<> equivalent to the native java.lang.Class type.
 	**/
-	public static inline function fromNativeType<T>(t:java.lang.Class<T>):Class<T>
-	{
+	public static inline function fromNativeType<T>(t:java.lang.Class<T>):Class<T> {
 		return untyped t;
 	}
 
 	/**
 		Returns a java.lang.Class equivalent to the Haxe Class<> type.
 	**/
-	public static inline function toNativeType<T>(cl:Class<T>):java.lang.Class<T>
-	{
+	public static inline function toNativeType<T>(cl:Class<T>):java.lang.Class<T> {
 		return untyped cl;
 	}
 
 	/**
 		Returns a java.lang.Class equivalent to the Haxe Enum<> type.
 	**/
-	public static inline function toNativeEnum<T>(cl:Enum<T>):java.lang.Class<T>
-	{
+	public static inline function toNativeEnum<T>(cl:Enum<T>):java.lang.Class<T> {
 		return untyped cl;
 	}
 
@@ -106,66 +98,54 @@ package java;
 		Unless `copy` is true, it won't copy the contents of the native array,
 		so unless any operation triggers an array resize, all changes made to the Haxe array will affect the native array argument.
 	**/
-	@:generic public static function array<T>(native:java.NativeArray<T>):Array<T>
-	{
+	@:generic public static function array<T>(native:java.NativeArray<T>):Array<T> {
 		return untyped Array.ofNative(native);
 	}
 
-	extern inline private static function doArray<T>(native:java.NativeArray<T>):Array<T>
-	{
+	extern inline private static function doArray<T>(native:java.NativeArray<T>):Array<T> {
 		var ret:NativeArray<Dynamic> = new NativeArray(native.length);
-		for (i in 0...native.length)
-		{
+		for (i in 0...native.length) {
 			ret[i] = native[i];
 		}
 		return untyped Array.ofNative(ret);
 	}
 
-	public static function array_Int(native:java.NativeArray<Int>):Array<Int>
-	{
+	public static function array_Int(native:java.NativeArray<Int>):Array<Int> {
 		return doArray(native);
 	}
 
-	public static function array_Float(native:java.NativeArray<Float>):Array<Float>
-	{
+	public static function array_Float(native:java.NativeArray<Float>):Array<Float> {
 		return doArray(native);
 	}
 
-	public static function array_Bool(native:java.NativeArray<Bool>):Array<Bool>
-	{
+	public static function array_Bool(native:java.NativeArray<Bool>):Array<Bool> {
 		return doArray(native);
 	}
 
-	public static function array_java_Int8(native:java.NativeArray<java.StdTypes.Int8>):Array<java.StdTypes.Int8>
-	{
+	public static function array_java_Int8(native:java.NativeArray<java.StdTypes.Int8>):Array<java.StdTypes.Int8> {
 		return doArray(native);
 	}
 
-	public static function array_java_Int16(native:java.NativeArray<java.StdTypes.Int16>):Array<java.StdTypes.Int16>
-	{
+	public static function array_java_Int16(native:java.NativeArray<java.StdTypes.Int16>):Array<java.StdTypes.Int16> {
 		return doArray(native);
 	}
 
-	public static function array_java_Char16(native:java.NativeArray<java.StdTypes.Char16>):Array<java.StdTypes.Char16>
-	{
+	public static function array_java_Char16(native:java.NativeArray<java.StdTypes.Char16>):Array<java.StdTypes.Char16> {
 		return doArray(native);
 	}
 
-	public static function array_Single(native:java.NativeArray<Single>):Array<Single>
-	{
+	public static function array_Single(native:java.NativeArray<Single>):Array<Single> {
 		return doArray(native);
 	}
 
-	public static function array_haxe_Int64(native:java.NativeArray<haxe.Int64>):Array<haxe.Int64>
-	{
+	public static function array_haxe_Int64(native:java.NativeArray<haxe.Int64>):Array<haxe.Int64> {
 		return doArray(native);
 	}
 
 	/**
 		Allocates a new Haxe Array with a predetermined size
 	**/
-	public static function arrayAlloc<T>(size:Int):Array<T>
-	{
+	public static function arrayAlloc<T>(size:Int):Array<T> {
 		return untyped Array.alloc(size);
 	}
 
@@ -177,8 +157,7 @@ package java;
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	extern public static inline function lock<T>(obj:Dynamic, block:T):Void
-	{
+	extern public static inline function lock<T>(obj:Dynamic, block:T):Void {
 		untyped __lock__(obj, block);
 	}
 }

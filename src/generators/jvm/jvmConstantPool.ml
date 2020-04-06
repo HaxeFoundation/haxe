@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open IO
 open IO.BigEndian
 open JvmGlobals
@@ -8,7 +27,7 @@ open JvmSignature
 let utf8jvm (input : string) : bytes =
 	let channel = IO.output_bytes () in
 	UTF8.iter (fun c ->
-		let code = UChar.code c in
+		let code = UCharExt.code c in
 		match code with
 			| b when (b > 0 && b <= 0x7F) ->
 			IO.write_byte channel b
@@ -68,7 +87,7 @@ class constant_pool = object(self)
 	method add_path path =
 		let s = self#s_type_path path in
 		let offset = self#add_type s in
-		if String.contains (snd path) '$' then begin
+		if String.contains (snd path) '$' && not (ExtString.String.starts_with s "[") then begin
 			let name1,name2 = ExtString.String.split (snd path) "$" in
 			Hashtbl.replace inner_classes ((fst path,name1),name2) offset;
 		end;

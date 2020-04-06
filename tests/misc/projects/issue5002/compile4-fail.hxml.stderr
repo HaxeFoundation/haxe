@@ -1,0 +1,4 @@
+Main4.hx:3: characters 7-9 : Variable names starting with a dollar are not allowed: "$i"
+Main4.hx:5: characters 17-19 : Catch variable names starting with a dollar are not allowed: "$i"
+Main4.hx:7: characters 8-10 : For variable names starting with a dollar are not allowed: "$i"
+Main4.hx:10: characters 9-11 : Pattern variables must be lower-case

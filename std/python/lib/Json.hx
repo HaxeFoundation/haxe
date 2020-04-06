@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.KwArgs;
@@ -27,28 +28,25 @@ import python.lib.json.JSONEncoder;
 import python.Tuple.Tuple2;
 
 typedef JsonDumpsOptions = {
-	var ?skipkeys : Bool;
-	var ?ensure_ascii : Bool;
-	var ?check_circular : Bool;
-	var ?allow_nan : Bool;
-	var ?cls : Dynamic;
-	var ?indent : String;
-	var ?separators:Tuple2<String,String>;
+	var ?skipkeys:Bool;
+	var ?ensure_ascii:Bool;
+	var ?check_circular:Bool;
+	var ?allow_nan:Bool;
+	var ?cls:Dynamic;
+	var ?indent:String;
+	var ?separators:Tuple2<String, String>;
 	@:native("default") var ?def:Dynamic->String;
 	var ?sort_keys:Bool;
-
 }
 
 typedef JsonLoadsOptions = {
 	var ?encoding:String;
-	var ?cls : Dynamic;
+	var ?cls:Dynamic;
 	var ?object_hook:Dict<String, Dynamic>->Dynamic;
 }
 
 @:pythonImport("json")
 extern class Json {
-
-	public static function loads ( s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
-	public static function dumps (x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
-
+	static function loads(s:String, ?options:KwArgs<JsonLoadsOptions>):Dict<String, Dynamic>;
+	static function dumps(x:Dynamic, ?options:KwArgs<JsonDumpsOptions>):String;
 }

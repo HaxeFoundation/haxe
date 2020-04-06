@@ -62,7 +62,7 @@ class Lua {
 			// Note: don't use a user config
 			// runCommand("luarocks", ["config", "--user-config"], false, true);
 
-			installLib("haxe-deps", "0.0.1-1");
+			installLib("haxe-deps", "0.0.1-2");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));

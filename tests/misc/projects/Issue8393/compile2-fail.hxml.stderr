@@ -1,0 +1,1 @@
+Main2.hx:9: characters 3-11 : Cannot specialize @:generic because the generated function name is already used: test_Int

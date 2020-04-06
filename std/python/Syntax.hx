@@ -19,149 +19,86 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python;
 
-#if macro
-import haxe.macro.Expr;
-import haxe.macro.Context;
-import haxe.macro.ExprTools;
-#end
+package python;
 
 import haxe.extern.Rest;
 
 @:noPackageRestrict
+@:noClosure
 extern class Syntax {
 
-	#if macro
-	static var self = macro python.Syntax;
-	#end
+	@:noUsing macro public static function importModule(module:String):haxe.macro.Expr;
 
-	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro ($self.code($v{"import " + module}):Void);
-	}
+	@:noUsing macro public static function importAs(module:String, className:String):haxe.macro.Expr;
 
-	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr {
-		var n = className.split(".").join("_");
-		var e = "import " + module + " as " + n;
-
-		return macro ($self.code($v{e}):Void);
-	}
-
-	#if !macro
 	@:overload(function(className:String, args:Rest<Dynamic>):Dynamic {})
 	static function construct<T>(cls:Class<T>, args:Rest<Dynamic>):T;
-	#end
 
 	@:noUsing
 	@:deprecated("python.Syntax.newInstance() is deprecated. Use python.Syntax.construct() instead.")
-	macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr {
-		return macro $self._newInstance($c, $a{params});
-	}
+	macro public static function newInstance(c:haxe.macro.Expr, params:Array<haxe.macro.Expr>):haxe.macro.Expr;
 
 	extern static function _newInstance(c:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function isIn(a:Dynamic, b:Dynamic):Bool;
+	extern static function isIn(a:Dynamic, b:Dynamic):Bool;
 
 	@:noUsing
-	extern public static function delete(a:Dynamic):Void;
+	extern static function delete(a:Dynamic):Void;
 
 	@:noUsing
-	extern public static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic;
+	extern static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic;
 
 	@:noUsing
-	extern public static function assign(a:Dynamic, b:Dynamic):Void;
+	extern static function assign(a:Dynamic, b:Dynamic):Void;
 
-	#if !macro
-	public static function code(code:String, args:Rest<Dynamic>):Dynamic;
-	#end
+	static function code(code:String, args:Rest<Dynamic>):Dynamic;
 
 	@:noUsing
 	@:deprecated("python.Syntax.pythonCode() is deprecated. Use python.Syntax.code() instead.")
-	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
-		if (rest == null) rest = [];
-		return macro @:pos(Context.currentPos()) untyped $self._pythonCode($b, $a{rest});
-	};
-
-	#if !macro
-	@:noUsing
-	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T;
-	#end
-	@:noUsing
-	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
-		return macro $self._arrayAccess($x, $a{rest});
-	}
+	macro public static function pythonCode(b:ExprOf<String>, rest:Array<haxe.macro.Expr>):haxe.macro.Expr;
 
 	@:noUsing
-	macro public static function arrayAccessWithTrailingColon(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
-		return macro $self._arrayAccess($x, $a{rest}, true);
-	}
+	static function _pythonCode<T>(b:String, args:Array<Dynamic>):T;
+
+	@:noUsing
+	macro public static function arrayAccess(x:haxe.macro.Expr, rest:Array<haxe.macro.Expr>):haxe.macro.Expr.ExprOf<Dynamic>;
+
+	@:noUsing
+	macro public static function arrayAccessWithTrailingColon(x:haxe.macro.Expr, rest:Array<haxe.macro.Expr>):haxe.macro.Expr.ExprOf<Dynamic>;
 
 	extern static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic;
 
 	@:noUsing
-	extern public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
-
+	extern static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
 
 	extern static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic;
 
+	@:noUsing
+	macro public static function foreach<T>(v:haxe.macro.Expr, it:haxe.macro.Expr, b:haxe.macro.Expr):haxe.macro.Expr;
+
+	@:noUsing macro public static function importFromAs(from:String, module:String, className:String):haxe.macro.Expr;
 
 	@:noUsing
-	macro public static function foreach<T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr {
-		var id = switch (v.expr) {
-			case EConst(CIdent(x)): x;
-			case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
-		}
-
-		var iter = try {
-			var it = macro ($it.__iter__() : python.NativeIterator.NativeIteratorRaw<T>);
-			Context.typeof(it);
-			it;
-		} catch (e:Dynamic) {
-			macro ($it : python.NativeIterable.NativeIterableRaw<T>);
-		}
-
-		return macro {
-			var $id = null;
-			$self._foreach($v, $it, cast $b);
-		}
-	}
-
-	@:noUsing macro public static function importFromAs (from:String, module:String, className : String):haxe.macro.Expr {
-
-		var n = className.split(".").join("_");
-
-		var e = "from " + from + " import " + module + " as " + n;
-
-		return macro ($self.code($v{e}):Void);
-	}
-
-	@:noUsing
-	macro public static function callField(o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
-		return macro @:pos(o.pos) $self.call($self.field($o, $field), $a{params});
-	}
+	macro public static function callField(o:haxe.macro.Expr, field:haxe.macro.Expr.ExprOf<String>, params:Array<haxe.macro.Expr>):haxe.macro.Expr;
 
 	extern static function call(e:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function field (o:Dynamic, field:String):Dynamic;
+	extern static function field(o:Dynamic, field:String):Dynamic;
 
 	@:noUsing
-	macro public static function tuple(args:Array<Expr>):Dynamic {
-		var args = macro $a{args};
-		return macro $self._tuple($args);
-	}
+	macro public static function tuple(args:Array<haxe.macro.Expr>):haxe.macro.Expr;
 
 	extern static function _tuple(args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function varArgs(args:Array<Dynamic>):Dynamic;
+	extern static function varArgs(args:Array<Dynamic>):Dynamic;
 
-	macro public static function callNamedUntyped (e:Expr, args:Expr):Expr {
-		return macro @:pos(e.pos) $self._callNamedUntyped($e, $args);
-	}
+	macro public static function callNamedUntyped(e:haxe.macro.Expr, args:haxe.macro.Expr):haxe.macro.Expr;
 
 	extern static function _callNamedUntyped(e:Dynamic, args:Dynamic):Dynamic;
 
-	extern public static function opPow(a:Int, b:Int):Int;
+	extern static function opPow(a:Int, b:Int):Int;
 }

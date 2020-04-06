@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 #if !macro
 import python.internal.ArrayImpl;
 import python.NativeIterator;
@@ -27,114 +28,109 @@ import python.NativeIterator;
 @:native("list")
 @:coreApi
 extern class Array<T> implements ArrayAccess<T> {
+	var length(default, null):Int;
 
-	public var length(default,null) : Int;
+	function new():Void;
 
-
-	public function new() : Void;
-
-	public inline function concat( a : Array<T>) : Array<T> {
-
+	inline function concat(a:Array<T>):Array<T> {
 		return ArrayImpl.concat(this, a);
 	}
 
-	public inline function copy() : Array<T> {
+	inline function copy():Array<T> {
 		return ArrayImpl.copy(this);
 	}
 
-	@:runtime public inline function iterator() : Iterator<T> {
-		return ArrayImpl.iterator(this);
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
 	}
 
-	public inline function insert( pos : Int, x : T ) : Void {
+	inline function insert(pos:Int, x:T):Void {
 		ArrayImpl.insert(this, pos, x);
 	}
 
-
-	@:runtime public inline function join( sep : String ) : String {
+	@:runtime inline function join(sep:String):String {
 		return ArrayImpl.join(this, sep);
 	}
 
-	public inline function toString() : String {
+	inline function toString():String {
 		return ArrayImpl.toString(this);
 	}
 
-	@:runtime public inline function pop() : Null<T> {
+	@:runtime inline function pop():Null<T> {
 		return ArrayImpl.pop(this);
 	}
 
-	@:runtime public inline function push(x:T) : Int {
-		return ArrayImpl.push(this,x);
+	@:runtime inline function push(x:T):Int {
+		return ArrayImpl.push(this, x);
 	}
 
-	public inline function unshift(x : T) : Void {
-		ArrayImpl.unshift(this,x);
+	inline function unshift(x:T):Void {
+		ArrayImpl.unshift(this, x);
 	}
 
-	public inline function indexOf(x : T, ?fromIndex:Int) : Int {
-		return ArrayImpl.indexOf(this,x, fromIndex);
+	inline function indexOf(x:T, ?fromIndex:Int):Int {
+		return ArrayImpl.indexOf(this, x, fromIndex);
 	}
 
-	public inline function lastIndexOf(x : T, ?fromIndex:Int) : Int {
-		return ArrayImpl.lastIndexOf(this,x, fromIndex);
+	inline function lastIndexOf(x:T, ?fromIndex:Int):Int {
+		return ArrayImpl.lastIndexOf(this, x, fromIndex);
 	}
 
-	public inline function remove(x : T) : Bool {
-		return ArrayImpl.remove(this,x);
-
+	inline function remove(x:T):Bool {
+		return ArrayImpl.remove(this, x);
 	}
 
-	public inline function reverse() : Void {
+	inline function contains(x:T):Bool {
+		return ArrayImpl.contains(this,x);
+	}
+
+	inline function reverse():Void {
 		ArrayImpl.reverse(this);
 	}
 
-	@:runtime public inline function shift() : Null<T> {
+	@:runtime inline function shift():Null<T> {
 		return ArrayImpl.shift(this);
 	}
 
-	public inline function slice( pos : Int, ?end : Int ) : Array<T> {
+	inline function slice(pos:Int, ?end:Int):Array<T> {
 		return ArrayImpl.slice(this, pos, end);
 	}
 
-	public inline function sort(f:T->T->Int) : Void {
+	inline function sort(f:T->T->Int):Void {
 		ArrayImpl.sort(this, f);
 	}
 
-	public inline function splice( pos : Int, len : Int ) : Array<T> {
+	inline function splice(pos:Int, len:Int):Array<T> {
 		return ArrayImpl.splice(this, pos, len);
 	}
 
-	@:runtime public inline function map<S>( f : T -> S ) : Array<S> {
+	@:runtime inline function map<S>(f:T->S):Array<S> {
 		return ArrayImpl.map(this, f);
 	}
 
-	@:runtime public inline function filter( f : T -> Bool ) : Array<T> {
-		return ArrayImpl.filter(this,f);
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return ArrayImpl.filter(this, f);
 	}
 
-	public inline function resize ( len : Int ) : Void {
+	inline function resize(len:Int):Void {
 		ArrayImpl.resize(this, len);
 	}
 
-	@:keep private inline function _get(idx:Int):T
-	{
+	@:keep private inline function _get(idx:Int):T {
 		return ArrayImpl._get(this, idx);
 	}
 
-	@:keep private inline function _set(idx:Int, val:T):T
-	{
-		return ArrayImpl._set(this, idx,val);
+	@:keep private inline function _set(idx:Int, val:T):T {
+		return ArrayImpl._set(this, idx, val);
 	}
 
-	@:keep private inline function unsafeGet(idx:Int):T
-	{
+	@:keep private inline function unsafeGet(idx:Int):T {
 		return ArrayImpl.unsafeGet(this, idx);
 	}
 
-	@:keep private inline function unsafeSet(idx:Int, val:T):T
-	{
-		return ArrayImpl.unsafeSet(this, idx,val);
+	@:keep private inline function unsafeSet(idx:Int, val:T):T {
+		return ArrayImpl.unsafeSet(this, idx, val);
 	}
 
-	@:noCompletion private function __iter__ ():NativeIterator<T>;
+	@:noCompletion private function __iter__():NativeIterator<T>;
 }

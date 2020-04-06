@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
+
 import cs.StdTypes.Int64;
 
 /**
@@ -43,63 +45,89 @@ import cs.StdTypes.Int64;
 #if !unsafe
 #error "You need to define 'unsafe' to be able to use unsafe code in hxcs"
 #else
-@:runtimeValue @:coreType abstract Pointer<T> from Int64 from PointerAccess<T> to PointerAccess<T>
-{
-	@:op(A+B) public static function addIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A+B) public static function addp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A*B) public static function mulIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A*B) public static function mulp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A%B) public static function modIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A%B) public static function modp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A-B) public static function subIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A-B) public static function subp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A/B) public static function divIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A/B) public static function divp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A|B) public static function orIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A|B) public static function orp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A^B) public static function xorIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A^B) public static function xorp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A&B) public static function andIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A&B) public static function andp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A<<B) public static function shlIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A<<B) public static function shlp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
-	@:op(A>>B) public static function shrIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
-	@:op(A>>B) public static function shrp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+@:runtimeValue @:coreType abstract Pointer<T> from Int64 from PointerAccess<T> to PointerAccess<T> {
+	@:op(A + B) public static function addIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
 
-	@:op(A>B) public static function gtp<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
-	@:op(A>=B) public static function gtep<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
-	@:op(A<B) public static function ltp<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
-	@:op(A<=B) public static function ltep<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
+	@:op(A + B) public static function addp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A * B) public static function mulIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A * B) public static function mulp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A % B) public static function modIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A % B) public static function modp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A - B) public static function subIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A - B) public static function subp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A / B) public static function divIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A / B) public static function divp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A | B) public static function orIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A | B) public static function orp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A ^ B) public static function xorIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A ^ B) public static function xorp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A & B) public static function andIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A & B) public static function andp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A << B) public static function shlIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A << B) public static function shlp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A >> B) public static function shrIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
+
+	@:op(A >> B) public static function shrp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;
+
+	@:op(A > B) public static function gtp<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
+
+	@:op(A >= B) public static function gtep<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
+
+	@:op(A < B) public static function ltp<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
+
+	@:op(A <= B) public static function ltep<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
 
 	@:op(~A) public static function bnegp<T>(t:Pointer<T>):Pointer<T>;
+
 	@:op(A++) public static function prepp<T>(t:Pointer<T>):Pointer<T>;
+
 	@:op(A--) public static function prenn<T>(t:Pointer<T>):Pointer<T>;
+
 	@:op(++A) public static function postpp<T>(t:Pointer<T>):Pointer<T>;
+
 	@:op(--A) public static function postnn<T>(t:Pointer<T>):Pointer<T>;
 
 	/**
 		Returns a `cs.PointerAccess` type, which in turn allows the underlying Pointer's
 		fields to be accessed.
-	 **/
+	**/
 	// @:analyzer(no_simplification)
-	public var acc(get,never):PointerAccess<T>;
+	public var acc(get, never):PointerAccess<T>;
 
 	// @:analyzer(no_simplification)
-	extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
+	extern inline private function get_acc():PointerAccess<T>
+		return (cast this : PointerAccess<T>);
 
 	// backwards compatibility
-	inline public function add(i:Int):Pointer<T>
-	{
+	inline public function add(i:Int):Pointer<T> {
 		return this + i;
 	}
 
 	@:arrayAccess public static function getIp<T>(p:Pointer<T>, at:Int):T;
+
 	@:arrayAccess public static function setIp<T>(p:Pointer<T>, at:Int, val:T):T;
+
 	@:arrayAccess public static function getp<T>(p:Pointer<T>, at:Int64):T;
+
 	@:arrayAccess public static function setp<T>(p:Pointer<T>, at:Int64, val:T):T;
 }
 
-@:forward abstract PointerAccess<T>(T)
-{
-}
+@:forward abstract PointerAccess<T>(T) {}
 #end

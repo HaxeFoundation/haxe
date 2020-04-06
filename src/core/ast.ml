@@ -99,10 +99,15 @@ type unop =
 	| Neg
 	| NegBits
 
+type string_literal_kind =
+	| SDoubleQuotes
+	| SSingleQuotes
+	(* | SMarkup *)
+
 type constant =
 	| Int of string
 	| Float of string
-	| String of string
+	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
 
@@ -177,6 +182,11 @@ and func = {
 
 and placed_name = string * pos
 
+and function_kind =
+	| FKAnonymous
+	| FKNamed of placed_name * bool (* bool for `inline` *)
+	| FKArrow
+
 and display_kind =
 	| DKCall
 	| DKDot
@@ -196,7 +206,7 @@ and expr_def =
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (placed_name * bool * type_hint option * expr option) list
-	| EFunction of placed_name option * func
+	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
@@ -224,7 +234,12 @@ and type_param = {
 	tp_meta : metadata;
 }
 
-and documentation = string option
+and doc_block = {
+	doc_own: string option;
+	mutable doc_inherited: (unit -> (string option)) list
+}
+
+and documentation = doc_block option
 
 and metadata_entry = (Meta.strict_meta * expr list * pos)
 and metadata = metadata_entry list
@@ -314,15 +329,33 @@ type type_decl = type_def * pos
 type package = string list * type_decl list
 
 let is_lower_ident i =
-	let rec loop p =
-		match String.unsafe_get i p with
-		| 'a'..'z' -> true
-		| '_' -> if p + 1 < String.length i then loop (p + 1) else true
-		| _ -> false
-	in
-	loop 0
+	if String.length i = 0 then
+		raise (Invalid_argument "Identifier name must not be empty")
+	else
+		let rec loop p =
+			match String.unsafe_get i p with
+			| 'a'..'z' -> true
+			| '_' -> p + 1 >= String.length i || loop (p + 1)
+			| _ -> false
+		in
+		loop 0
 
 let pos = snd
+
+let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
+
+let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
+
+let gen_doc_text d =
+	let docs =
+		match d.doc_own with Some s -> [s] | None -> []
+	in
+	String.concat "\n" docs
+
+
+let gen_doc_text_opt = Option.map gen_doc_text
+
+let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
@@ -357,7 +390,11 @@ let parse_path s =
 let s_constant = function
 	| Int s -> s
 	| Float s -> s
-	| String s -> "\"" ^ StringHelper.s_escape s ^ "\""
+	| String(s,qs) ->
+		begin match qs with
+		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		| SSingleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
+		end
 	| Ident s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
@@ -497,8 +534,10 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
-					Buffer.add_char b c;
+					let u = (try (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
+					if u > 127 then
+						fail (Some ("Values greater than \\177 are not allowed. Use \\u00" ^ (Printf.sprintf "%02x" u) ^ " instead."));
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'x' ->
 					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence.") in
@@ -506,7 +545,7 @@ let unescape s =
 					let u = (try (int_of_string ("0x" ^ hex)) with _ -> fail_no_hex ()) in
 					if u > 127 then
 						fail (Some ("Values greater than \\x7f are not allowed. Use \\u00" ^ hex ^ " instead."));
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
 					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence enclosed in curly brackets.") in
@@ -526,7 +565,7 @@ let unescape s =
 					in
 					if u >= 0xD800 && u < 0xE000 then
 						fail (Some "UTF-16 surrogates are not allowed in strings.");
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					UTF8.add_uchar b (UCharExt.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
 					fail None);
@@ -626,7 +665,7 @@ let map_expr loop (e,p) =
 			let eo = opt loop eo in
 			n,b,t,eo
 		) vl)
-	| EFunction (n,f) -> EFunction (n,func f)
+	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
 	| EFor (e1,e2) ->
 		let e1 = loop e1 in
@@ -732,8 +771,9 @@ module Printer = struct
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (Some (n,_),f) -> "function " ^ n ^ s_func tabs f
-		| EFunction (None,f) -> "function" ^ s_func tabs f
+		| EFunction (FKNamed((n,_),inline),f) -> (if inline then "inline " else "") ^ "function " ^ n ^ s_func tabs f
+		| EFunction (FKAnonymous,f) -> "function" ^ s_func tabs f
+		| EFunction (FKArrow,f) -> "function" ^ s_func ~is_arrow:true tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
 		| EBlock el -> s_block tabs el "{" "\n" "}"
@@ -784,15 +824,35 @@ module Printer = struct
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
-		match f.cff_doc with
-		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
-		| None -> "" ^
-		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
-		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
-		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp ((get,_),(set,_),t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
+		let doc = match f.cff_doc with
+			| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
+			| None -> ""
+		in
+		let s_separated f sep list =
+			if list <> [] then ((String.concat sep (List.map f list)) ^ sep) else ""
+		in
+		let s_meta = s_separated (s_metadata tabs) ("\n" ^ tabs) in
+		let s_access = s_separated s_placed_access " " in
+		(match f.cff_kind with
+		| FVar (t,e) ->
+			doc ^
+			let keyword = ref "var " in
+			let question = ref "" in
+			let access = List.filter (fun (a,_) -> if a = AFinal then (keyword := "final "; false) else true) f.cff_access in
+			let meta = List.filter (fun (m,_,_) -> if m = Meta.Optional then (question := "?"; false) else true) f.cff_meta in
+			s_meta meta ^
+			s_access access ^
+			!keyword ^ !question ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp ((get,_),(set,_),t,e) ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"function " ^ (fst f.cff_name) ^ s_func tabs func)
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
 	and s_opt_expr tabs e pre =
@@ -803,10 +863,11 @@ module Printer = struct
 		match t with
 		| Some(t,_) -> pre ^ s_complex_type tabs t
 		| None -> ""
-	and s_func tabs f =
+	and s_func ?(is_arrow=false) tabs f =
 		s_type_param_list tabs f.f_params ^
 		"(" ^ String.concat ", " (List.map (s_func_arg tabs) f.f_args) ^ ")" ^
 		s_opt_type_hint tabs f.f_type ":" ^
+		(if is_arrow then " -> " else "") ^
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
 		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
@@ -971,7 +1032,7 @@ module Expr = struct
 					| Some e ->
 						loop' (Printf.sprintf "%s      " tabs) e
 				) vl
-			| EFunction(so,f) ->
+			| EFunction(_,f) ->
 				add "EFunction";
 				Option.may loop f.f_expr;
 			| EBlock el ->

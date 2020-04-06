@@ -19,12 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import cs.NativeArray;
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T>
-{
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	extern private static inline var HASH_UPPER = 0.77;
 	extern private static inline var FLAG_EMPTY = 0;
 	extern private static inline var FLAG_DEL = 1;
@@ -38,6 +38,7 @@ import cs.NativeArray;
 	 * The insertion algorithm will do the same but will also break when FLAG_DEL is found;
 	 */
 	private var hashes:NativeArray<HashType>;
+
 	private var _keys:NativeArray<String>;
 	private var vals:NativeArray<T>;
 
@@ -46,33 +47,29 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
-#if !no_map_cache
+	#if !no_map_cache
 	private var cachedKey:String;
 	private var cachedIndex:Int;
-#end
+	#end
 
-#if DEBUG_HASHTBL
+	#if DEBUG_HASHTBL
 	private var totalProbes:Int;
 	private var probeTimes:Int;
 	private var sameHash:Int;
 	private var maxProbe:Int;
-#end
+	#end
 
-	public function new() : Void
-	{
-#if !no_map_cache
+	public function new():Void {
+		#if !no_map_cache
 		cachedIndex = -1;
-#end
+		#end
 	}
 
-	public function set( key : String, value : T ) : Void
-	{
+	public function set(key:String, value:T):Void {
 		var x:Int, k:Int;
-		if (nOccupied >= upperBound)
-		{
-			if (nBuckets > (size << 1))
-			{
-				resize(nBuckets - 1); //clear "deleted" elements
+		if (nOccupied >= upperBound) {
+			if (nBuckets > (size << 1)) {
+				resize(nBuckets - 1); // clear "deleted" elements
 			} else {
 				resize(nBuckets + 2);
 			}
@@ -91,38 +88,34 @@ import cs.NativeArray;
 				x = i;
 			} else {
 				var last = i, flag;
-				while(! (isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
-				{
-					if (isDel(flag) && delKey == -1)
-					{
+				while (!(isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key))) {
+					if (isDel(flag) && delKey == -1) {
 						delKey = i;
 					}
 					i = (i + ++nProbes) & mask;
-#if DEBUG_HASHTBL
+					#if DEBUG_HASHTBL
 					probeTimes++;
 					if (i == last)
 						throw "assert";
-#end
+					#end
 				}
 
-				if (isEmpty(flag) && delKey != -1)
-				{
+				if (isEmpty(flag) && delKey != -1) {
 					x = delKey;
 				} else {
 					x = i;
 				}
 			}
 
-#if DEBUG_HASHTBL
+			#if DEBUG_HASHTBL
 			if (nProbes > maxProbe)
 				maxProbe = nProbes;
 			totalProbes++;
-#end
+			#end
 		}
 
 		var flag = hashes[x];
-		if (isEmpty(flag))
-		{
+		if (isEmpty(flag)) {
 			keys[x] = key;
 			vals[x] = value;
 			hashes[x] = k;
@@ -138,58 +131,55 @@ import cs.NativeArray;
 			vals[x] = value;
 		}
 
-#if !no_map_cache
+		#if !no_map_cache
 		cachedIndex = x;
 		cachedKey = key;
-#end
+		#end
 	}
 
-	private final function lookup( key : String ) : Int
-	{
-		if (nBuckets != 0)
-		{
+	private final function lookup(key:String):Int {
+		if (nBuckets != 0) {
 			var hashes = hashes, keys = _keys;
 
 			var mask = nBuckets - 1, hash = hash(key), k = hash, nProbes = 0;
 			var i = k & mask;
 			var last = i, flag;
 			// if we hit an empty bucket, it means we're done
-			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || keys[i] != key))
-			{
+			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || keys[i] != key)) {
 				i = (i + ++nProbes) & mask;
-#if DEBUG_HASHTBL
+				#if DEBUG_HASHTBL
 				probeTimes++;
 				if (i == last)
 					throw "assert";
-#end
+				#end
 			}
 
-#if DEBUG_HASHTBL
+			#if DEBUG_HASHTBL
 			if (nProbes > maxProbe)
 				maxProbe = nProbes;
 			totalProbes++;
-#end
+			#end
 			return isEither(flag) ? -1 : i;
 		}
 
 		return -1;
 	}
 
-	final function resize(newNBuckets:Int) : Void
-	{
-		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
+	final function resize(newNBuckets:Int):Void {
+		// This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
 		var j = 1;
 		{
 			newNBuckets = roundUp(newNBuckets);
-			if (newNBuckets < 4) newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5)) /* requested size is too small */
-			{
+			if (newNBuckets < 4)
+				newNBuckets = 4;
+			if (size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested size is too small */ {
 				j = 0;
 			} else { /* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
-				newHash = new NativeArray( nfSize );
-				if (nBuckets < newNBuckets) //expand
+				newHash = new NativeArray(nfSize);
+				if (nBuckets < newNBuckets) // expand
 				{
 					var k = new NativeArray(newNBuckets);
 					if (_keys != null)
@@ -200,53 +190,51 @@ import cs.NativeArray;
 					if (vals != null)
 						arrayCopy(vals, 0, v, 0, nBuckets);
 					vals = v;
-				} //otherwise shrink
+				} // otherwise shrink
 			}
 		}
 
-		if (j != 0)
-		{ //rehashing is required
-			//resetting cache
-#if !no_map_cache
+		if (j != 0) { // rehashing is required
+			// resetting cache
+			#if !no_map_cache
 			cachedKey = null;
 			cachedIndex = -1;
-#end
+			#end
 
 			j = -1;
-			var nBuckets = nBuckets, _keys = _keys, vals = vals, hashes = hashes;
+			var nBuckets = nBuckets,
+				_keys = _keys,
+				vals = vals,
+				hashes = hashes;
 
 			var newMask = newNBuckets - 1;
-			while (++j < nBuckets)
-			{
+			while (++j < nBuckets) {
 				var k;
-				if (!isEither(k = hashes[j]))
-				{
+				if (!isEither(k = hashes[j])) {
 					var key = _keys[j];
 					var val = vals[j];
 
 					_keys[j] = null;
 					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
-					while (true) /* kick-out process; sort of like in Cuckoo hashing */
-					{
+					while (true)
+						/* kick-out process; sort of like in Cuckoo hashing */ {
 						var nProbes = 0;
 						var i = k & newMask;
 
-						while (!isEmpty(newHash[i]))
-						{
+						while (!isEmpty(newHash[i])) {
 							i = (i + ++nProbes) & newMask;
 						}
 
 						newHash[i] = k;
 
-						if (i < nBuckets && !isEither(k = hashes[i])) /* kick out the existing element */
-						{
+						if (i < nBuckets && !isEither(k = hashes[i]))
+							/* kick out the existing element */ {
 							{ // inlined swap
 								var tmp = _keys[i];
 								_keys[i] = key;
 								key = tmp;
-							}
-							{ // inlined swap
+							} { // inlined swap
 								var tmp = vals[i];
 								vals[i] = val;
 								val = tmp;
@@ -262,14 +250,13 @@ import cs.NativeArray;
 				}
 			}
 
-			if (nBuckets > newNBuckets) /* shrink the hash table */
-			{
+			if (nBuckets > newNBuckets)
+				/* shrink the hash table */ {
 				{ // inlined swap
 					var k = new NativeArray(newNBuckets);
 					arrayCopy(_keys, 0, k, 0, newNBuckets);
 					this._keys = k;
-				}
-				{ // inlined swap
+				} { // inlined swap
 					var v = new NativeArray(newNBuckets);
 					arrayCopy(vals, 0, v, 0, newNBuckets);
 					this.vals = v;
@@ -283,45 +270,39 @@ import cs.NativeArray;
 		}
 	}
 
-	public function get( key : String ) : Null<T>
-	{
+	public function get(key:String):Null<T> {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return vals[idx];
 		}
-#end
+		#end
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 			return vals[idx];
 		}
 
 		return null;
 	}
 
-	private function getDefault( key : String, def : T ) : T
-	{
+	private function getDefault(key:String, def:T):T {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return vals[idx];
 		}
-#end
+		#end
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 
 			return vals[idx];
 		}
@@ -329,49 +310,43 @@ import cs.NativeArray;
 		return def;
 	}
 
-	public function exists( key : String ) : Bool
-	{
+	public function exists(key:String):Bool {
 		var idx = -1;
-#if !no_map_cache
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
+		#if !no_map_cache
+		if (cachedKey == key && ((idx = cachedIndex) != -1)) {
 			return true;
 		}
-#end
+		#end
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
-#if !no_map_cache
+		if (idx != -1) {
+			#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-#end
+			#end
 			return true;
 		}
 
 		return false;
 	}
 
-	public function remove( key : String ) : Bool
-	{
+	public function remove(key:String):Bool {
 		var idx = -1;
-#if !no_map_cache
-		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
-#end
+		#if !no_map_cache
+		if (!(cachedKey == key && ((idx = cachedIndex) != -1)))
+		#end
 		{
 			idx = lookup(key);
 		}
 
-		if (idx == -1)
-		{
+		if (idx == -1) {
 			return false;
 		} else {
-#if !no_map_cache
-			if (cachedKey == key)
-			{
+			#if !no_map_cache
+			if (cachedKey == key) {
 				cachedIndex = -1;
 			}
-#end
+			#end
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
 			vals[idx] = null;
@@ -381,55 +356,61 @@ import cs.NativeArray;
 		}
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
-	public inline function keys() : Iterator<String>
-	{
+	public inline function keys():Iterator<String> {
 		return new StringMapKeyIterator(this);
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
-	public inline function iterator() : Iterator<T>
-	{
+	public inline function iterator():Iterator<T> {
 		return new StringMapValueIterator(this);
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap<T>();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
-
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
-	extern private static inline function roundUp(x:Int):Int
-	{
+	public function clear():Void {
+		hashes = null;
+		_keys = null;
+		vals = null;
+		nBuckets = 0;
+		size = 0;
+		nOccupied = 0;
+		upperBound = 0;
+		#if !no_map_cache
+		cachedKey = null;
+		cachedIndex = -1;
+		#end
+		#if DEBUG_HASHTBL
+		totalProbes = 0;
+		probeTimes = 0;
+		sameHash = 0;
+		maxProbe = 0;
+		#end
+	}
+
+	extern private static inline function roundUp(x:Int):Int {
 		--x;
 		x |= (x) >>> 1;
 		x |= (x) >>> 2;
@@ -449,25 +430,23 @@ import cs.NativeArray;
 		return v == FLAG_DEL;
 
 	// guarantee: Whatever this function is, it will never return 0 nor 1
-	extern private static inline function hash(s:String):HashType
-	{
+	extern private static inline function hash(s:String):HashType {
 		var k:Int = untyped s.GetHashCode();
-		//k *= 357913941;
-		//k ^= k << 24;
-		//k += ~357913941;
-		//k ^= k >> 31;
-		//k ^= k << 31;
+		// k *= 357913941;
+		// k ^= k << 24;
+		// k += ~357913941;
+		// k ^= k >> 31;
+		// k ^= k << 31;
 
-		k = (k+0x7ed55d16) + (k<<12);
-		k = (k^0xc761c23c) ^ (k>>19);
-		k = (k+0x165667b1) + (k<<5);
-		k = (k+0xd3a2646c) ^ (k<<9);
-		k = (k+0xfd7046c5) + (k<<3);
-		k = (k^0xb55a4f09) ^ (k>>16);
+		k = (k + 0x7ed55d16) + (k << 12);
+		k = (k ^ 0xc761c23c) ^ (k >> 19);
+		k = (k + 0x165667b1) + (k << 5);
+		k = (k + 0xd3a2646c) ^ (k << 9);
+		k = (k + 0xfd7046c5) + (k << 3);
+		k = (k ^ 0xb55a4f09) ^ (k >> 16);
 
 		var ret = k;
-		if (isEither(ret))
-		{
+		if (isEither(ret)) {
 			if (ret == 0)
 				ret = 2;
 			else
@@ -477,39 +456,35 @@ import cs.NativeArray;
 		return ret;
 	}
 
-	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int,
+			length:Int):Void
 		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
-	extern private static inline function assert(x:Bool):Void
-	{
-#if DEBUG_HASHTBL
-		if (!x) throw "assert failed";
-#end
+	extern private static inline function assert(x:Bool):Void {
+		#if DEBUG_HASHTBL
+		if (!x)
+			throw "assert failed";
+		#end
 	}
 }
 
 private typedef HashType = Int;
 
 @:access(haxe.ds.StringMap)
-private final class StringMapKeyIterator<T>
-{
+private final class StringMapKeyIterator<T> {
 	var m:StringMap<T>;
 	var i:Int;
 	var len:Int;
 
-	public function new(m:StringMap<T>)
-	{
+	public function new(m:StringMap<T>) {
 		this.m = m;
 		this.i = 0;
 		this.len = m.nBuckets;
 	}
 
-	public function hasNext():Bool
-	{
-		for (j in i...len)
-		{
-			if (!StringMap.isEither(m.hashes[j]))
-			{
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!StringMap.isEither(m.hashes[j])) {
 				i = j;
 				return true;
 			}
@@ -517,38 +492,32 @@ private final class StringMapKeyIterator<T>
 		return false;
 	}
 
-	public function next():String
-	{
+	public function next():String {
 		var ret = m._keys[i];
-#if !no_map_cache
+		#if !no_map_cache
 		m.cachedIndex = i;
 		m.cachedKey = ret;
-#end
+		#end
 		i++;
 		return ret;
 	}
 }
 
 @:access(haxe.ds.StringMap)
-private final class StringMapValueIterator<T>
-{
+private final class StringMapValueIterator<T> {
 	var m:StringMap<T>;
 	var i:Int;
 	var len:Int;
 
-	public function new(m:StringMap<T>)
-	{
+	public function new(m:StringMap<T>) {
 		this.m = m;
 		this.i = 0;
 		this.len = m.nBuckets;
 	}
 
-	public function hasNext():Bool
-	{
-		for (j in i...len)
-		{
-			if (!StringMap.isEither(m.hashes[j]))
-			{
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!StringMap.isEither(m.hashes[j])) {
 				i = j;
 				return true;
 			}
@@ -556,8 +525,7 @@ private final class StringMapValueIterator<T>
 		return false;
 	}
 
-	public inline function next():T
-	{
+	public inline function next():T {
 		return m.vals[i++];
 	}
 }

@@ -6,11 +6,11 @@ import haxe.ds.StringMap;
 @:native('haxe.jvm.DynamicObject')
 @:nativeGen
 class DynamicObject implements java.lang.Cloneable extends Object {
-	static var __hx_toString_depth  = 0;
+	@:private static var __hx_toString_depth = 0;
 
-	var _hx_fields:Null<StringMap<Dynamic>>;
+	@:private var _hx_fields:Null<StringMap<Dynamic>>;
 
-	public var _hx_deletedAField:Null<Bool>;
+	@:jvm.synthetic public var _hx_deletedAField:Null<Bool>;
 
 	public function toString() {
 		if (__hx_toString_depth >= 5) {
@@ -27,15 +27,15 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		var first = true;
 		try {
 			for (key in _hx_fields.keys()) {
+				if (first)
+					first = false
+				else
+					buf.add(", ");
 				buf.add(key);
 				buf.add(": ");
 				buf.add(_hx_fields.get(key));
-				if (first) {
-					first = false;
-					buf.add(", ");
-				}
 			}
-		} catch(e:Dynamic) {
+		} catch (e:Dynamic) {
 			--__hx_toString_depth;
 			throw(e);
 		}
@@ -44,7 +44,7 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		return buf.toString();
 	}
 
-	final public function _hx_deleteField(name:String) {
+	@:jvm.synthetic final public function _hx_deleteField(name:String) {
 		_hx_initReflection();
 		_hx_deletedAField = true;
 		try {
@@ -53,27 +53,27 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		return _hx_fields.remove(name);
 	}
 
-	final public function _hx_getFields() {
+	@:jvm.synthetic final public function _hx_getFields() {
 		_hx_initReflection();
 		return [for (key in _hx_fields.keys()) key];
 	}
 
-	override public function _hx_getField<T>(name:String) {
+	@:jvm.synthetic override public function _hx_getField<T>(name:String) {
 		_hx_initReflection();
 		return _hx_fields.get(name);
 	}
 
-	final public function _hx_hasField(name:String) {
+	@:jvm.synthetic final public function _hx_hasField(name:String) {
 		_hx_initReflection();
 		return _hx_fields.exists(name);
 	}
 
-	override public function _hx_setField(name:String, value:Dynamic) {
+	@:jvm.synthetic override public function _hx_setField(name:String, value:Dynamic) {
 		_hx_initReflection();
 		_hx_fields.set(name, value);
 	}
 
-	final public function _hx_clone() {
+	@:jvm.synthetic final public function _hx_clone() {
 		var clone:DynamicObject = (cast this : java.lang.Object).clone();
 		if (_hx_fields != null) {
 			clone._hx_fields = this._hx_fields.copy();
@@ -81,13 +81,13 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		return clone;
 	}
 
-	final function _hx_initReflection() {
+	@:jvm.synthetic final function _hx_initReflection() {
 		if (_hx_fields == null) {
 			_hx_fields = _hx_getKnownFields();
 		}
 	}
 
-	function _hx_getKnownFields():StringMap<Dynamic> {
+	@:jvm.synthetic function _hx_getKnownFields():StringMap<Dynamic> {
 		return new StringMap();
 	}
 }

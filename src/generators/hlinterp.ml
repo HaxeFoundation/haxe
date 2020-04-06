@@ -329,7 +329,7 @@ let hl_to_caml str =
 		loop 0
 	in
 	let b = UTF8.Buf.create (String.length str / 2) in
-	utf16_iter (fun c -> UTF8.Buf.add_char b (UChar.chr c)) (utf16_eof str);
+	utf16_iter (fun c -> UTF8.Buf.add_char b (UCharExt.chr c)) (utf16_eof str);
 	UTF8.Buf.contents b
 
 let null_access() =

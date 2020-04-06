@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import php.Syntax;
@@ -26,42 +27,26 @@ import php.Global;
 import php.NativeArray;
 import php.NativeIndexedArray;
 
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
-
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	var data:NativeIndexedArray<T>;
 
-	/**
-		Creates a new IntMap.
-	**/
-	public function new() : Void {
+	public function new():Void {
 		data = new NativeIndexedArray();
 	}
 
-	/**
-		See `Map.set`
-	**/
-	public inline function set( key : Int, value : T ) : Void {
+	public inline function set(key:Int, value:T):Void {
 		data[key] = value;
 	}
 
-	/**
-		See `Map.get`
-	**/
-	public inline function get( key : Int ) : Null<T> {
+	public inline function get(key:Int):Null<T> {
 		return Syntax.coalesce(data[key], null);
 	}
 
-	/**
-		See `Map.exists`
-	**/
-	public inline function exists( key : Int ) : Bool {
+	public inline function exists(key:Int):Bool {
 		return Global.array_key_exists(key, data);
 	}
 
-	/**
-		See `Map.remove`
-	**/
-	public function remove( key : Int ) : Bool {
+	public function remove(key:Int):Bool {
 		if (Global.array_key_exists(key, data)) {
 			Global.unset(data[key]);
 			return true;
@@ -70,40 +55,34 @@ import php.NativeIndexedArray;
 		return false;
 	}
 
-	/**
-		See `Map.keys`
-	**/
-	public inline function keys() : Iterator<Int> {
+	public inline function keys():Iterator<Int> {
 		return Global.array_keys(data).iterator();
 	}
 
-	/**
-		See `Map.iterator`
-	**/
-	public inline function iterator() : Iterator<T> {
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():Iterator<T> {
 		return Global.array_values(data).iterator();
 	}
 
-	/**
-		See `Map.keyValueIterator`
-	**/
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public inline function copy() : IntMap<T> {
+	public inline function copy():IntMap<T> {
 		return Syntax.clone(this);
 	}
 
-	/**
-		See `Map.toString`
-	**/
-	public function toString() : String {
+	public function toString():String {
 		var parts = new NativeArray();
 		Syntax.foreach(data, function(key:Int, value:T) {
 			Global.array_push(parts, '$key => ' + Std.string(value));
 		});
 
 		return '{' + Global.implode(', ', parts) + '}';
+	}
+
+	public inline function clear():Void {
+		data = new NativeIndexedArray();
 	}
 }

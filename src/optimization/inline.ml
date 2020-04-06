@@ -106,20 +106,25 @@ let api_inline2 com c field params p =
 	| _ ->
 		None
 
-let api_inline ctx c field params p = match c.cl_path, field, params with
-	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let tstring = ctx.com.basic.tstring in
-		let tbool = ctx.com.basic.tbool in
-		let tint = ctx.com.basic.tint in
+let api_inline ctx c field params p =
+	let mk_typeexpr path =
+		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> assert false) in
+		add_dependency ctx.m.curmod m;
+		ExtList.List.find_map (function
+			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
+			| _ -> None
+		) m.m_types
+	in
 
-		let esyntax () =
-			let m = (try Hashtbl.find ctx.g.modules (["js"],"Syntax") with Not_found -> assert false) in
-			add_dependency ctx.m.curmod m;
-			ExtList.List.find_map (function
-				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
-				| _ -> None
-			) m.m_types
-		in
+	let eJsSyntax () = mk_typeexpr (["js"],"Syntax") in
+	let eJsBoot () = mk_typeexpr (["js"],"Boot") in
+
+	let tstring = ctx.com.basic.tstring in
+	let tbool = ctx.com.basic.tbool in
+	let tint = ctx.com.basic.tint in
+
+	match c.cl_path, field, params with
+	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -127,11 +132,16 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = Texpr.Builder.fcall (esyntax()) "typeof" [o] tstring p in
+			let tof = Texpr.Builder.fcall (eJsSyntax()) "typeof" [o] tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
-		(match t.eexpr with
+		let rec skip_cast = function
+			| { eexpr = TCast (e, None) } -> skip_cast e
+			| e -> e
+		in
+
+		(match (skip_cast t).eexpr with
 		(* generate simple typeof checks for basic types *)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
@@ -139,19 +149,31 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* generate typeof(o) == "number" && (o|0) === o check *)
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			let jscheck = Texpr.Builder.fcall (esyntax()) "strictEq" [lhs;o] tbool p in
+			let jscheck = Texpr.Builder.fcall (eJsSyntax()) "strictEq" [lhs;o] tbool p in
 			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
-			let iof = Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p in
-			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
-			let null = mk (TConst TNull) (mk_mono()) p in
-			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
-			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
-		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
-			Some (Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p)
+			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
+			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+				Some iof
+			else begin
+				let enum = mk (TField (o, FDynamic "__enum__")) t_dynamic p in
+				let null = mk (TConst TNull) t_dynamic p in
+				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			end
+		| TTypeExpr (TClassDecl cls) ->
+			if cls.cl_interface then
+				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
+			else
+				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
+	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
+		if cls.cl_interface then
+			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
+		else
+			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with
@@ -190,6 +212,7 @@ type in_local = {
 	mutable i_read : int;
 	mutable i_called : int;
 	mutable i_force_temp : bool;
+	mutable i_default_value : texpr option;
 }
 
 type var_inline_kind =
@@ -220,6 +243,28 @@ let inline_default_config cf t =
 	let tmonos = snd tparams @ pmonos in
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
+
+let inline_config cls_opt cf call_args return_type =
+	match cls_opt with
+	| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl cf.cf_meta ->
+		let t = if cf.cf_name = "_new" then
+			return_type
+		else if call_args = [] then
+			error "Invalid abstract implementation function" cf.cf_pos
+		else
+			follow (List.hd call_args).etype
+		in
+		begin match t with
+			| TAbstract(a,pl) ->
+				let has_params = a.a_params <> [] || cf.cf_params <> [] in
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map_type = fun t -> apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				Some (has_params,map_type)
+			| _ ->
+				None
+		end
+	| _ ->
+		None
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
@@ -270,6 +315,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
+				i_default_value = None;
 			} in
 			i.i_subst.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.This) v.v_meta;
 			Hashtbl.add locals v.v_id i;
@@ -290,6 +336,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
+				i_default_value = None;
 			}
 		in
 		if _in_local_fun then l.i_captured <- true;
@@ -341,6 +388,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			else begin
 				let vik = match e.eexpr with
 					| TLocal _ when i.i_abstract_this -> VIInline
+					| TConst TNull -> VIDoNotInline
 					| TLocal _ | TConst _ ->
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
@@ -387,6 +435,10 @@ class inline_state ctx ethis params cf f p = object(self)
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
 					| TConst TNull , Some c -> c
+					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not ctx.com.config.pf_static || is_nullable v.v_type) ->
+						l.i_force_temp <- true;
+						l.i_default_value <- Some c;
+						e
 					| _ -> e
 				in
 				if has_side_effect e then begin
@@ -408,13 +460,21 @@ class inline_state ctx ethis params cf f p = object(self)
 		(*
 			Build the expr/var subst list
 		*)
-		let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
-		let vthis = alloc_var VInlined "_this" ethis.etype ethis.epos in
-		let args1 = (ethis :: params) in
-		let args2 = ((vthis,None) :: f.tf_args) in
-		let vars = loop [] args1 args2 true in
-		_inlined_vars <- vars; (* Order is reversed due to tail-recursion *)
-		vthis
+		let set_inlined_vars args1 args2 =
+			let vars = loop [] args1 args2 true in
+			_inlined_vars <- vars; (* Order is reversed due to tail-recursion *)
+		in
+		match ethis.eexpr with
+		| TConst TNull ->
+			set_inlined_vars params f.tf_args;
+			None
+		| _ ->
+			let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
+			let vthis = alloc_var VInlined "_this" ethis.etype ethis.epos in
+			let args1 = (ethis :: params) in
+			let args2 = ((vthis,None) :: f.tf_args) in
+			set_inlined_vars args1 args2;
+			Some vthis
 
 	method finalize config e tl tret p =
 		let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
@@ -473,21 +533,33 @@ class inline_state ctx ethis params cf f p = object(self)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos
 		in
-		let e = (match e.eexpr, init with
-			| _, None when not self#has_return_value ->
+		let e = match init with
+			| None when not self#has_return_value ->
 				begin match e.eexpr with
 					| TBlock _ -> {e with etype = tret}
 					| _ -> mk (TBlock [e]) tret e.epos
 				end
-			| TBlock [e] , None -> wrap e
-			| _ , None -> wrap e
-			| TBlock l, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
-				mk (TBlock (el_v @ l)) tret e.epos
-			| _, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
-				mk (TBlock (el_v @ [e])) tret e.epos
-		) in
+			| None ->
+				begin match e.eexpr with
+					| TBlock [e] -> wrap e
+					| _ -> wrap e
+				end
+			| Some vl ->
+				let el = DynArray.create () in
+				let add = DynArray.add el in
+				List.iter (fun (v,eo) ->
+					add (mk (TVar (v,eo)) ctx.t.tvoid e.epos);
+				) vl;
+				List.iter (fun (l,e) -> match l.i_default_value with
+					| Some e when l.i_read > 0 -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| _ -> ()
+				) _inlined_vars;
+				begin match e.eexpr with
+					| TBlock el -> List.iter add el
+					| _ -> add e
+				end;
+				mk (TBlock (DynArray.to_list el)) tret e.epos
+		in
 		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
 		if has_params then begin
@@ -505,21 +577,44 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let rec map_var v =
+		let rec map_var map_type v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
 				if not (self#read v).i_outside then begin
 					v.v_type <- map_type v.v_type;
 					match v.v_extra with
 					| Some(tl,Some e) ->
-						v.v_extra <- Some(tl,Some (map_expr_type e));
+						v.v_extra <- Some(tl,Some (map_expr_type map_type e));
 					| _ ->
 						()
 				end
 			end;
 			v
-		and map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
-		map_expr_type e
+		and map_expr_type map_type e =
+			(*
+				No need to change typing of arguments of inlined call
+				because they were already properly typed prior to inlining.
+			*)
+			let map_type =
+				if List.memq e params then (fun t -> t)
+				else map_type
+			in
+			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
+		in
+		let e = map_expr_type map_type e in
+		let rec drop_unused_vars e =
+			match e.eexpr with
+			| TVar (v, Some { eexpr = TConst _ }) ->
+				(try
+					let data = Hashtbl.find locals v.v_id in
+					if data.i_read = 0 && data.i_called = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					else Type.map_expr drop_unused_vars e
+				with Not_found ->
+					Type.map_expr drop_unused_vars e
+				)
+			| _ -> Type.map_expr drop_unused_vars e
+		in
+		drop_unused_vars e
 end
 
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
@@ -535,7 +630,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| Some e -> Some e)
 	with Exit ->
 	let state = new inline_state ctx ethis params cf f p in
-	let vthis = state#initialize in
+	let vthis_opt = state#initialize in
 	let opt f = function
 		| None -> None
 		| Some e -> Some (f e)
@@ -548,7 +643,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		else if ExtType.is_void t then unify_min ctx el
 		else t
 	in
-	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
+	let map_pos =
+		if self_calling_closure || Common.defined ctx.com Define.KeepInlinePositions then (fun e -> e)
+		else (fun e -> { e with epos = p })
+	in
 	let rec map term in_call e =
 		let po = e.epos in
 		let e = map_pos e in
@@ -563,9 +661,14 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let e = { e with eexpr = TLocal l.i_subst } in
 			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
-			let l = state#read vthis in
-			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
-			{ e with eexpr = TLocal l.i_subst }
+			(match vthis_opt with
+			| Some vthis ->
+				let l = state#read vthis in
+				l.i_read <- l.i_read + (if !in_loop then 2 else 1);
+				{ e with eexpr = TLocal l.i_subst }
+			| None ->
+				error "Could not inline `this` outside of an instance context" po
+			)
 		| TVar (v,eo) ->
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
 		| TReturn eo when not state#in_local_fun ->
@@ -711,7 +814,13 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			Type.map_expr (map false false) e
 	in
 	let e = map true false f.tf_expr in
-	let tl = List.map (fun e -> "",false,e.etype) params in
+	let rec arg_types params tf_args =
+		match params, tf_args with
+		| e :: rest_params, _ :: rest_args -> ("",false,e.etype) :: arg_types rest_params rest_args
+		| [], (_, Some e) :: rest_args -> ("",true,mk_mono()) :: arg_types params rest_args
+		| _ -> []
+	in
+	let tl = arg_types params f.tf_args in
 	let e = state#finalize config e tl tret p in
 	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
 		let se t = s_expr_pretty true t true (s_type (print_context())) in

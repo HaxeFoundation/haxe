@@ -31,8 +31,7 @@ import haxe.extern.EitherType;
 	Documentation [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Promise")
-extern class Promise<T>
-{
+extern class Promise<T> {
 	/**
 		Returns a Promise object that is resolved with the given value. If the
 		value is Thenable, the returned promise will "follow" that
@@ -42,13 +41,13 @@ extern class Promise<T>
 		use `Promise.resolve(value)` instead and work with the return value as
 		a promise.
 	**/
-	@:overload(function<T>(?value : T) : Promise<T> {})
-	static function resolve<T>( thenable : Thenable<T> ) : Promise<T>;
+	@:overload(function<T>(?value:T):Promise<T> {})
+	static function resolve<T>(thenable:Thenable<T>):Promise<T>;
 
 	/**
 		Returns a Promise object that is rejected with the given reason.
 	**/
-	static function reject<T>( ?reason : Dynamic ) : Promise<T>;
+	static function reject<T>(?reason:Dynamic):Promise<T>;
 
 	/**
 		Returns a promise that either fulfills when all of the promises in the
@@ -60,17 +59,17 @@ extern class Promise<T>
 		the first promise in the iterable that rejected. This method can be
 		useful for aggregating results of multiple promises.
 	**/
-	static function all( iterable : Array<Dynamic> ) : Promise<Array<Dynamic>>;
+	static function all(iterable:Array<Dynamic>):Promise<Array<Dynamic>>;
 
 	/**
 		Returns a promise that fulfills or rejects as soon as one of the
 		promises in the iterable fulfills or rejects, with the value or reason
 		from that promise.
 	**/
-	static function race( iterable : Array<Dynamic> ) : Promise<Dynamic>;
+	static function race(iterable:Array<Dynamic>):Promise<Dynamic>;
 
 	/** @throws DOMError */
-	function new( init : (resolve : (value : T) -> Void, reject: (reason : Dynamic) -> Void) -> Void ) : Void;
+	function new(init:(resolve:(value:T) -> Void, reject:(reason:Dynamic) -> Void) -> Void):Void;
 
 	/**
 		Appends fulfillment and rejection handlers to the promise and returns a
@@ -78,7 +77,7 @@ extern class Promise<T>
 		its original settled value if the promise was not handled
 		(i.e. if the relevant handler onFulfilled or onRejected is not a function).
 	**/
-	function then<TOut>( onFulfilled : Null<PromiseHandler<T, TOut>>, ?onRejected : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
+	function then<TOut>(onFulfilled:Null<PromiseHandler<T, TOut>>, ?onRejected:PromiseHandler<Dynamic, TOut>):Promise<TOut>;
 
 	/**
 		Appends a rejection handler callback to the promise, and returns a new
@@ -86,13 +85,13 @@ extern class Promise<T>
 		or to its original fulfillment value if the promise is instead fulfilled.
 	**/
 	@:native("catch")
-	function catchError<TOut>( onRejected : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
+	function catchError<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<TOut>;
 }
 
 /**
 	Handler type for the Promise object.
 **/
-abstract PromiseHandler<T,TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
+abstract PromiseHandler<T, TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
 	from T->TOut // order is important, because Promise<TOut> return must have priority
 	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
 	from T->Promise<TOut> // support Promise explicitly as it doesn't work transitively through Thenable at the moment
@@ -102,8 +101,9 @@ abstract PromiseHandler<T,TOut>(T->Dynamic) // T->Dynamic, so the compiler alway
 	A value with a `then` method.
 **/
 @:forward
-abstract Thenable<T>(ThenableStruct<T>) from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
+abstract Thenable<T>(ThenableStruct<T>)
+	from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
 
 typedef ThenableStruct<T> = {
-	function then<TOut>( onFulfilled : Null<PromiseHandler<T, TOut>>, ?onRejected : PromiseHandler<Dynamic, TOut> ) : Thenable<TOut>;
+	function then<TOut>(onFulfilled:Null<PromiseHandler<T, TOut>>, ?onRejected:PromiseHandler<Dynamic, TOut>):Thenable<TOut>;
 }

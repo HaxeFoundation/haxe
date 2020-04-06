@@ -19,23 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 typedef SentinelHandle = hl.Abstract<"ui_sentinel">;
 
 abstract Sentinel(SentinelHandle) {
+	public var pause(get, set):Bool;
 
-	public var pause(get,set) : Bool;
-
-	public function new( timeout, callback ) {
-		this = create_sentinel(timeout,callback);
+	public function new(timeout, callback) {
+		this = create_sentinel(timeout, callback);
 	}
 
 	function get_pause() {
 		return is_paused(this);
 	}
 
-	function set_pause( p : Bool ) {
+	function set_pause(p:Bool) {
 		_pause(this, p);
 		return p;
 	}
@@ -44,27 +44,29 @@ abstract Sentinel(SentinelHandle) {
 		_tick(this);
 	}
 
-	@:hlNative("ui", "ui_start_sentinel") static function create_sentinel( timeout : Float, callb : Void -> Void ) : SentinelHandle {
+	@:hlNative("ui", "ui_start_sentinel") static function create_sentinel(timeout:Float, callb:Void->Void):SentinelHandle {
 		return null;
 	}
 
-	@:hlNative("ui","ui_sentinel_tick") static function _tick( h : SentinelHandle ) : Void {}
-	@:hlNative("ui","ui_sentinel_pause") static function _pause( h : SentinelHandle, b : Bool ) : Void {}
-	@:hlNative("ui","ui_sentinel_is_paused") static function is_paused( h : SentinelHandle ) : Bool { return false; }
+	@:hlNative("ui", "ui_sentinel_tick") static function _tick(h:SentinelHandle):Void {}
 
+	@:hlNative("ui", "ui_sentinel_pause") static function _pause(h:SentinelHandle, b:Bool):Void {}
+
+	@:hlNative("ui", "ui_sentinel_is_paused") static function is_paused(h:SentinelHandle):Bool {
+		return false;
+	}
 }
 
 typedef WinHandle = hl.Abstract<"ui_window">;
 
 class Window {
+	var h:WinHandle;
 
-	var h : WinHandle;
-
-	public function setText( text : String ) {
+	public function setText(text:String) {
 		win_set_text(h, @:privateAccess text.bytes);
 	}
 
-	public function setEnable( b : Bool ) {
+	public function setEnable(b:Bool) {
 		win_set_enable(h, b);
 	}
 
@@ -72,58 +74,45 @@ class Window {
 		win_destroy(h);
 	}
 
+	@:hlNative("ui", "ui_win_destroy")
+	static function win_destroy(win:WinHandle):Void {}
 
-	@:hlNative("ui","ui_win_destroy")
-	static function win_destroy( win : WinHandle ) : Void {
-	}
+	@:hlNative("ui", "ui_win_set_text")
+	static function win_set_text(win:WinHandle, text:hl.Bytes):Void {}
 
-	@:hlNative("ui","ui_win_set_text")
-	static function win_set_text( win : WinHandle, text : hl.Bytes ) : Void {
-	}
-
-	@:hlNative("ui","ui_win_set_enable")
-	static function win_set_enable( win : WinHandle, enable : Bool ) : Void {
-	}
-
-
+	@:hlNative("ui", "ui_win_set_enable")
+	static function win_set_enable(win:WinHandle, enable:Bool):Void {}
 }
 
 class Button extends Window {
-
-	public function new( parent : Window, text : String ) {
+	public function new(parent:Window, text:String) {
 		h = button_new(parent.h, @:privateAccess text.bytes, function() this.onClick());
 	}
 
-	public dynamic function onClick() {
-	}
+	public dynamic function onClick() {}
 
 	@:hlNative("ui", "ui_button_new")
-	static function button_new( parent : WinHandle, text : hl.Bytes, onClick : Void -> Void ) : WinHandle {
+	static function button_new(parent:WinHandle, text:hl.Bytes, onClick:Void->Void):WinHandle {
 		return null;
 	}
-
 }
 
 class WinLog extends Window {
-
-	public function new( title : String, width, height ) {
-		h = winlog_new(@:privateAccess title.bytes,width, height);
+	public function new(title:String, width, height) {
+		h = winlog_new(@:privateAccess title.bytes, width, height);
 	}
 
-	public function setTextContent( text : String, autoScroll = false ) {
-		winlog_set_text(h, @:privateAccess text.bytes,autoScroll);
+	public function setTextContent(text:String, autoScroll = false) {
+		winlog_set_text(h, @:privateAccess text.bytes, autoScroll);
 	}
 
-
-	@:hlNative("ui","ui_winlog_new")
-	static function winlog_new( text : hl.Bytes, width : Int, height : Int ) : WinHandle {
+	@:hlNative("ui", "ui_winlog_new")
+	static function winlog_new(text:hl.Bytes, width:Int, height:Int):WinHandle {
 		return null;
 	}
 
-	@:hlNative("ui","ui_winlog_set_text")
-	static function winlog_set_text( win : WinHandle, text : hl.Bytes, autoScroll : Bool ) : Void {
-	}
-
+	@:hlNative("ui", "ui_winlog_set_text")
+	static function winlog_set_text(win:WinHandle, text:hl.Bytes, autoScroll:Bool):Void {}
 }
 
 enum DialogFlags {
@@ -138,63 +127,59 @@ enum abstract LoopResult(Int) {
 }
 
 typedef FileOptions = {
-	var ?window : Window;
-	var ?filters : Array<{ name : String, exts : Array<String> }>;
-	var ?filterIndex : Int;
-	var ?fileName : String;
-	var ?title : String;
+	var ?window:Window;
+	var ?filters:Array<{name:String, exts:Array<String>}>;
+	var ?filterIndex:Int;
+	var ?fileName:String;
+	var ?title:String;
 }
 
 /**
 	These are the bindings for the HL `ui.hdll` library, which contains some low level system access.
 **/
 class UI {
-
-	@:hlNative("ui","ui_init") static function init() {}
+	@:hlNative("ui", "ui_init") static function init() {}
 
 	static function __init__() {
 		init();
 	}
 
-	@:hlNative("ui","ui_dialog")
-	static function _dialog( title : hl.Bytes, text : hl.Bytes, flags : Int ) : Int {
+	@:hlNative("ui", "ui_dialog")
+	static function _dialog(title:hl.Bytes, text:hl.Bytes, flags:Int):Int {
 		return 0;
 	}
 
-	public static function dialog( title : String, text : String, flags : haxe.EnumFlags<DialogFlags> ) {
-		@:privateAccess _dialog(title.bytes,text.bytes,flags.toInt());
+	public static function dialog(title:String, text:String, flags:haxe.EnumFlags<DialogFlags>) {
+		@:privateAccess _dialog(title.bytes, text.bytes, flags.toInt());
 	}
 
-	@:hlNative("ui","ui_loop")
-	public static function loop( blocking : Bool ) : LoopResult {
+	@:hlNative("ui", "ui_loop")
+	public static function loop(blocking:Bool):LoopResult {
 		return Quit;
 	}
 
-	@:hlNative("ui","ui_stop_loop")
-	public static function stopLoop() : Void {
-	}
+	@:hlNative("ui", "ui_stop_loop")
+	public static function stopLoop():Void {}
 
-	@:hlNative("ui","ui_close_console")
-	public static function closeConsole() : Void {
-	}
+	@:hlNative("ui", "ui_close_console")
+	public static function closeConsole():Void {}
 
-	public static function loadFile( opts : FileOptions ) {
+	public static function loadFile(opts:FileOptions) {
 		return chooseFile(false, opts);
 	}
 
-	public static function saveFile( opts : FileOptions ) {
+	public static function saveFile(opts:FileOptions) {
 		return chooseFile(true, opts);
 	}
 
-	static function chooseFile( save : Bool, opts : FileOptions ) @:privateAccess {
-		var out : Dynamic = {
-		};
-		if( opts.fileName != null ) {
+	static function chooseFile(save:Bool, opts:FileOptions) @:privateAccess {
+		var out:Dynamic = {};
+		if (opts.fileName != null) {
 			var file = sys.FileSystem.absolutePath(opts.fileName);
-			if( Sys.systemName() == "Windows" )
+			if (Sys.systemName() == "Windows")
 				file = file.split("/").join("\\");
 			var dir = null;
-			if( sys.FileSystem.isDirectory(file) ) {
+			if (sys.FileSystem.isDirectory(file)) {
 				dir = file;
 				file = null;
 			} else {
@@ -202,32 +187,31 @@ class UI {
 				dir = path.dir;
 				file = path.file + (path.ext == null ? "" : "." + path.ext);
 			}
-			if( file != null )
+			if (file != null)
 				out.fileName = file.bytes;
-			if( dir != null )
+			if (dir != null)
 				out.directory = dir.bytes;
 		}
-		if( opts.title != null )
+		if (opts.title != null)
 			out.title = opts.title.bytes;
-		if( opts.filters != null ) {
+		if (opts.filters != null) {
 			var filters = new hl.NativeArray<hl.Bytes>(opts.filters.length * 2);
 			var i = 0;
-			for( f in opts.filters ) {
+			for (f in opts.filters) {
 				filters[i++] = f.name.bytes;
-				filters[i++] = [for( e in f.exts ) "*."+e].join(";").bytes;
+				filters[i++] = [for (e in f.exts) "*." + e].join(";").bytes;
 			}
 			out.filters = filters;
 			out.filterIndex = opts.filterIndex;
 		}
-		if( opts.window != null )
+		if (opts.window != null)
 			out.window = opts.window.h;
 		var str = _chooseFile(save, out);
 		return str == null ? null : String.fromUCS2(str);
 	}
 
-	@:hlNative("ui","ui_choose_file")
-	static function _chooseFile( forSave : Bool, obj : Dynamic ) : hl.Bytes {
+	@:hlNative("ui", "ui_choose_file")
+	static function _chooseFile(forSave:Bool, obj:Dynamic):hl.Bytes {
 		return null;
 	}
-
 }

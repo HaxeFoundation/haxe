@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js;
 
 import js.html.Storage;
@@ -27,23 +28,33 @@ import js.html.XMLHttpRequest;
 class Browser {
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
-	extern inline static function get_window() return untyped __js__("window");
+
+	extern inline static function get_window()
+		return js.Syntax.code("window");
 
 	/** Shortcut to Window.document. */
 	public static var document(get, never):js.html.HTMLDocument;
-	extern inline static function get_document() return window.document;
+
+	extern inline static function get_document()
+		return window.document;
 
 	/** Shortcut to Window.location. */
 	public static var location(get, never):js.html.Location;
-	extern inline static function get_location() return window.location;
+
+	extern inline static function get_location()
+		return window.location;
 
 	/** Shortcut to Window.navigator. */
 	public static var navigator(get, never):js.html.Navigator;
-	extern inline static function get_navigator() return window.navigator;
+
+	extern inline static function get_navigator()
+		return window.navigator;
 
 	/** Shortcut to Window.console. */
 	public static var console(get, never):js.html.ConsoleInstance;
-	extern inline static function get_console() return window.console;
+
+	extern inline static function get_console()
+		return window.console;
 
 	/**
 	 * True if a window object exists, false otherwise.
@@ -52,24 +63,25 @@ class Browser {
 	 * environment such as node.js.
 	 */
 	public static var supported(get, never):Bool;
-	extern inline static function get_supported() return js.Syntax.typeof(window) != "undefined";
+
+	extern inline static function get_supported()
+		return js.Syntax.typeof(window) != "undefined";
 
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
 	 * disabled.
 	 */
-	public static function getLocalStorage() : Storage
-	{
+	public static function getLocalStorage():Storage {
 		try {
 			var s = window.localStorage;
 			s.getItem("");
 			if (s.length == 0) {
 				var key = "_hx_" + Math.random();
-				s.setItem(key,key);
+				s.setItem(key, key);
 				s.removeItem(key);
 			}
 			return s;
-		} catch( e : Dynamic ) {
+		} catch (e:Dynamic) {
 			return null;
 		}
 	}
@@ -78,18 +90,17 @@ class Browser {
 	 * Safely gets the browser's session storage, or returns null if sessionStorage is unsupported
 	 * or disabled.
 	 */
-	public static function getSessionStorage() : Storage
-	{
+	public static function getSessionStorage():Storage {
 		try {
 			var s = window.sessionStorage;
 			s.getItem("");
 			if (s.length == 0) {
 				var key = "_hx_" + Math.random();
-				s.setItem(key,key);
+				s.setItem(key, key);
 				s.removeItem(key);
 			}
 			return s;
-		} catch( e : Dynamic ) {
+		} catch (e:Dynamic) {
 			return null;
 		}
 	}
@@ -98,13 +109,12 @@ class Browser {
 	 * Creates an XMLHttpRequest, with a fallback to ActiveXObject for ancient versions of Internet
 	 * Explorer.
 	 */
-	public static function createXMLHttpRequest() : XMLHttpRequest
-	{
-		if( untyped __js__("typeof XMLHttpRequest") != "undefined" ) {
+	public static function createXMLHttpRequest():XMLHttpRequest {
+		if (js.Syntax.code("typeof XMLHttpRequest") != "undefined") {
 			return new XMLHttpRequest();
 		}
-		if( untyped __js__("typeof ActiveXObject") != "undefined" ) {
-			return js.Syntax.construct("ActiveXObject","Microsoft.XMLHTTP");
+		if (js.Syntax.code("typeof ActiveXObject") != "undefined") {
+			return js.Syntax.construct("ActiveXObject", "Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";
 	}
@@ -112,7 +122,7 @@ class Browser {
 	/**
 		Display an alert message box containing the given message. See also `Window.alert()`.
 	**/
-	public static inline function alert( v : Dynamic ) {
+	public static inline function alert(v:Dynamic) {
 		window.alert(Std.string(v));
 	}
 }

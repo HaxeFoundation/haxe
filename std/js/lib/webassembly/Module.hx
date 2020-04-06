@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 import js.lib.BufferSource;
@@ -47,7 +48,7 @@ extern class Module {
 	@:pure static function exports(module:Module):Array<ModuleExportDescriptor>;
 
 	/**
-		Given a `Module`, returns an array containing descriptions of all the declared imports. 
+		Given a `Module`, returns an array containing descriptions of all the declared imports.
 	**/
 	@:pure static function imports(module:Module):Array<ModuleImportDescriptor>;
 }

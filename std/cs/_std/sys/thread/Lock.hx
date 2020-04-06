@@ -30,43 +30,43 @@ class Lock {
 	final lockObj = {};
 	final releaseEvent = new ManualResetEvent(false);
 
-	var waitCount = 1; //initially locked
+	var waitCount = 1; // initially locked
 	var releaseCount = 0;
 
 	public function new():Void {}
 
 	public function wait(?timeout:Float):Bool {
 		var myTicket;
-		//Get a ticket in queue
+		// Get a ticket in queue
 		Lib.lock(lockObj, {
 			myTicket = waitCount;
 			waitCount++;
-			if(myTicket <= releaseCount) {
+			if (myTicket <= releaseCount) {
 				return true;
 			}
 			releaseEvent.Reset();
 		});
 
-		if(timeout == null) {
+		if (timeout == null) {
 			do {
 				releaseEvent.WaitOne();
-				if(myTicket <= releaseCount) {
+				if (myTicket <= releaseCount) {
 					return true;
 				}
-			} while(true);
+			} while (true);
 		} else {
 			var timeoutStamp = Timer.stamp() + timeout;
 			do {
 				var secondsLeft = timeoutStamp - Timer.stamp();
-				if(secondsLeft <= 0 || !releaseEvent.WaitOne(Std.int(secondsLeft * 1000))) {
-					//Timeout. Do not occupy a place in queue anymore
+				if (secondsLeft <= 0 || !releaseEvent.WaitOne(Std.int(secondsLeft * 1000))) {
+					// Timeout. Do not occupy a place in queue anymore
 					release();
 					return false;
 				}
-				if(myTicket <= releaseCount) {
+				if (myTicket <= releaseCount) {
 					return true;
 				}
-			} while(true);
+			} while (true);
 		}
 	}
 

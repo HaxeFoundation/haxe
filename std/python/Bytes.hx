@@ -19,13 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.Bytearray;
 
 @:native("bytes")
 extern class Bytes extends Bytearray {
-
-	//public function decode(encoding:String="utf-8", errors:String="strict"):String;
-
+	// function decode(encoding:String="utf-8", errors:String="strict"):String;
 }

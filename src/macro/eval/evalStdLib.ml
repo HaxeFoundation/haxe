@@ -30,8 +30,6 @@ open EvalHash
 open EvalString
 open EvalThread
 
-let macro_lib = Hashtbl.create 0
-
 let catch_unix_error f arg =
 	try
 		f arg
@@ -190,6 +188,11 @@ module StdArray = struct
 		vbool (EvalArray.remove this equals x)
 	)
 
+	let contains = vifun1 (fun vthis x ->
+		let this = this vthis in
+		vbool (EvalArray.contains this equals x)
+	)
+
 	let reverse = vifun0 (fun vthis ->
 		let this = this vthis in
 		EvalArray.reverse this;
@@ -302,7 +305,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let value = decode_int value in
-		(try Bytes.fill this pos len (char_of_int value) with _ -> outside_bounds());
+		(try Bytes.fill this pos len (char_of_int (value land 0xFF)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -534,7 +537,7 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdCallStack = struct
+module StdNativeStackTrace = struct
 	let make_stack envs =
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
@@ -646,7 +649,7 @@ module StdContext = struct
 
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
-		Hashtbl.find macro_lib f
+		Hashtbl.find GlobalState.macro_lib f
 	)
 
 	let plugin_data = ref None
@@ -674,6 +677,8 @@ module StdCrc32 = struct
 end
 
 module StdDate = struct
+	open Unix
+
 	let encode_date d = encode_instance key_Date ~kind:(IDate d)
 
 	let this vthis = match vthis with
@@ -688,29 +693,33 @@ module StdDate = struct
 		| 19 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\) \\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = int_of_string (Str.matched_group 4 s);
 				tm_min = int_of_string (Str.matched_group 5 s);
 				tm_sec = int_of_string (Str.matched_group 6 s);
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 10 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = 0;
 				tm_min = 0;
 				tm_sec = 0;
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 8 ->
 			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
@@ -723,15 +732,29 @@ module StdDate = struct
 			exc_string ("Invalid date format : " ^ s)
 	)
 
-	let getDate = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mday)
-	let getDay = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_wday)
-	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error Unix.localtime (this vthis)).tm_year) + 1900))
-	let getHours = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_hour)
-	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_min)
-	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mon)
-	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_sec)
+	let getDate = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mday)
+	let getDay = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_wday)
+	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error localtime (this vthis)).tm_year) + 1900))
+	let getHours = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_hour)
+	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_min)
+	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mon)
+	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_sec)
+	let getUTCDate = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mday)
+	let getUTCDay = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_wday)
+	let getUTCFullYear = vifun0 (fun vthis -> vint (((catch_unix_error gmtime (this vthis)).tm_year) + 1900))
+	let getUTCHours = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_hour)
+	let getUTCMinutes = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_min)
+	let getUTCMonth = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mon)
+	let getUTCSeconds = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_sec)
 	let getTime = vifun0 (fun vthis -> vfloat ((this vthis) *. 1000.))
-	let now = vfun0 (fun () -> encode_date (catch_unix_error Unix.time()))
+	let getTimezoneOffset = vifun0 (fun vthis ->
+		let tmLocal = catch_unix_error localtime (this vthis) in
+		let tmUTC = catch_unix_error gmtime (this vthis) in
+		let tsLocal = fst (catch_unix_error mktime tmLocal) in
+		let tsUTC = fst (catch_unix_error mktime tmUTC) in
+		vint (int_of_float ((tsUTC -. tsLocal) /. 60.))
+	)
+	let now = vfun0 (fun () -> encode_date (catch_unix_error time()))
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
@@ -856,7 +879,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~rex:this.r s in
+			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
@@ -914,7 +937,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~rex:this.r ~pos str in
+			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -927,17 +950,17 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [encode_string ""]
+		if String.length s = 0 then encode_array [v_empty_string]
 		else begin
 			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~max ~rex:this.r s in
+			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
 			let rec loop split cur acc l = match l with
 				| Text s :: l ->
 					loop split (cur ^ s) acc l
@@ -1169,6 +1192,7 @@ module StdFileSystem = struct
 
 	let patch_path s =
 		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
+		else if s = "/" then "/"
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
@@ -1521,10 +1545,15 @@ module StdIntMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = IntHashtbl.fold (fun key vvalue acc ->
-			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		IntHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1575,10 +1604,15 @@ module StdStringMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
-			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		StringHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1628,10 +1662,15 @@ module StdObjectMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
-			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		ValueHashtbl.reset (this vthis);
+		vnull
 	)
 end
 
@@ -1865,11 +1904,15 @@ module StdReflect = struct
 	)
 
 	let getProperty = vfun2 (fun o name ->
-		let name = decode_vstring name in
-		let name_get = hash (concat r_get_ name).sstring in
-		let vget = field o name_get in
-		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash name.sstring)
+		if o = VNull then
+			vnull
+		else begin
+			let name = decode_vstring name in
+			let name_get = hash (concat r_get_ name).sstring in
+			let vget = field o name_get in
+			if vget <> VNull then call_value_on o vget []
+			else dynamic_field o (hash name.sstring)
+		end
 	)
 
 	let hasField = vfun2 (fun o field ->
@@ -1961,7 +2004,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2107,11 +2150,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -2152,7 +2197,7 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_string ""
+		if i < 0 || i >= this.slength then v_empty_string
 		else vstring (from_char_code (char_at this i))
 	)
 
@@ -2250,7 +2295,7 @@ module StdString = struct
 		let cl_this = this.slength in
 		let c_pos = decode_int pos in
 		if c_pos >= cl_this then
-			encode_string ""
+			v_empty_string
 		else begin
 			let c_pos = if c_pos < 0 then begin
 				let c_pos = this.slength + c_pos in
@@ -2282,7 +2327,7 @@ module StdString = struct
 		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
 		let c_last = if c_last > cl_this then cl_this else c_last in
 		if c_first > cl_this || c_first = c_last then
-			encode_string ""
+			v_empty_string
 		else begin
 			begin
 				let b_offset1 = get_offset this c_first in
@@ -2561,11 +2606,11 @@ module StdSys = struct
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
 		match com.main_class with
-		| None -> assert false
+		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
 			| Some(Type.TInst (c, _)) -> create_unknown (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
-			| _ -> assert false
+			| _ -> vnull
 	)
 
 	let putEnv = vfun2 (fun s v ->
@@ -2970,7 +3015,7 @@ module StdUtf8 = struct
 		| v -> unexpected_value v "string"
 
 	let addChar = vifun1 (fun vthis c ->
-		UTF8.Buf.add_char (this vthis) (UChar.uchar_of_int (decode_int c));
+		UTF8.Buf.add_char (this vthis) (UCharExt.uchar_of_int (decode_int c));
 		vnull
 	)
 
@@ -2987,7 +3032,7 @@ module StdUtf8 = struct
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
-			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			Bytes.unsafe_set buf !i (UCharExt.char_of uc);
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
@@ -2996,12 +3041,12 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UCharExt.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
 		let s = decode_string s in
-		UTF8.iter (fun uc -> ignore(call_value f [vint (UChar.int_of_uchar uc)])) s;
+		UTF8.iter (fun uc -> ignore(call_value f [vint (UCharExt.int_of_uchar uc)])) s;
 		vnull
 	)
 
@@ -3044,6 +3089,7 @@ let init_maps builtins =
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
+		"clear",StdIntMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3055,6 +3101,7 @@ let init_maps builtins =
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
+		"clear",StdObjectMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3066,6 +3113,7 @@ let init_maps builtins =
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
+		"clear",StdStringMap.clear;
 	]
 
 let init_constructors builtins =
@@ -3134,9 +3182,9 @@ let init_constructors builtins =
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3187,7 +3235,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3195,7 +3244,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_string "");
+	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3219,6 +3268,7 @@ let init_standard_library builtins =
 		"push",StdArray.push;
 		"remove",StdArray.remove;
 		"resize",StdArray.resize;
+		"contains",StdArray.contains;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
@@ -3276,9 +3326,9 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"],"CallStack") [
-		"getCallStack",StdCallStack.getCallStack;
-		"getExceptionStack",StdCallStack.getExceptionStack;
+	init_fields builtins (["haxe"],"NativeStackTrace") [
+		"_callStack",StdNativeStackTrace.getCallStack;
+		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
@@ -3308,7 +3358,15 @@ let init_standard_library builtins =
 		"getMinutes",StdDate.getMinutes;
 		"getMonth",StdDate.getMonth;
 		"getSeconds",StdDate.getSeconds;
+		"getUTCDate",StdDate.getUTCDate;
+		"getUTCDay",StdDate.getUTCDay;
+		"getUTCFullYear",StdDate.getUTCFullYear;
+		"getUTCHours",StdDate.getUTCHours;
+		"getUTCMinutes",StdDate.getUTCMinutes;
+		"getUTCMonth",StdDate.getUTCMonth;
+		"getUTCSeconds",StdDate.getUTCSeconds;
 		"getTime",StdDate.getTime;
+		"getTimezoneOffset",StdDate.getTimezoneOffset;
 		"toString",StdDate.toString;
 	];
 	init_fields builtins (["sys";"thread"],"Deque") [] [
@@ -3475,7 +3533,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3499,6 +3557,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;
@@ -3611,4 +3670,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

@@ -206,11 +206,16 @@ let optimize_binop e op e1 e2 =
 		| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
 		| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
 		| _ -> e)
-	| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
-		(match op with
-		| OpAssign -> e
+	| e1, TCall ({ eexpr = TField (_,FEnum _) },el) | TCall ({ eexpr = TField (_,FEnum _) },el),e1 ->
+		begin match op,e1 with
+		| (OpEq | OpNotEq),TConst TNull ->
+			let e0 = {e with eexpr = TConst (TBool (op = OpNotEq))} in
+			{e with eexpr = TBlock (el @ [e0])}
+		| OpAssign,_ ->
+			e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos
+		end
 	| _ ->
 		e)
 

@@ -19,23 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 @:pythonImport("math")
 extern class Math {
+	static function isnan(f:Float):Bool;
 
-	public static function isnan (f:Float):Bool;
+	static var pi:Float;
 
-	public static var pi:Float;
-
-	public static function sqrt(f:Float):Float;
-	public static function log(f:Float):Float;
-	public static function cos(f:Float):Float;
-	public static function sin(f:Float):Float;
-	public static function tan(f:Float):Float;
+	static function sqrt(f:Float):Float;
+	static function log(f:Float):Float;
+	static function cos(f:Float):Float;
+	static function sin(f:Float):Float;
+	static function tan(f:Float):Float;
 	static function asin(v:Float):Float;
 	static function acos(v:Float):Float;
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
-
 }

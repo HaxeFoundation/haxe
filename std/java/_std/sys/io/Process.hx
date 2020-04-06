@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import haxe.SysTools;
@@ -31,12 +32,12 @@ import java.NativeArray;
 
 @:coreApi
 class Process {
-
-	public var stdout(default,null) : haxe.io.Input;
-	public var stderr(default,null) : haxe.io.Input;
-	public var stdin(default, null) : haxe.io.Output;
+	public var stdout(default, null):haxe.io.Input;
+	public var stderr(default, null):haxe.io.Input;
+	public var stdin(default, null):haxe.io.Output;
 
 	private var proc:java.lang.Process;
+
 	@:allow(Sys)
 	private static function createProcessBuilder(cmd:String, ?args:Array<String>):java.lang.ProcessBuilder {
 		var sysName = Sys.systemName();
@@ -63,14 +64,12 @@ class Process {
 			switch (sysName) {
 				case "Windows":
 					pargs[0] = SysTools.quoteWinArg(cmd, false);
-					for (i in 0...args.length)
-					{
+					for (i in 0...args.length) {
 						pargs[i + 1] = SysTools.quoteWinArg(args[i], false);
 					}
 				case _:
 					pargs[0] = cmd;
-					for (i in 0...args.length)
-					{
+					for (i in 0...args.length) {
 						pargs[i + 1] = args[i];
 					}
 			}
@@ -79,99 +78,84 @@ class Process {
 		return new java.lang.ProcessBuilder(pargs);
 	}
 
-	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void
-	{
-		if( detached ) throw "Detached process is not supported on this platform";
+	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
+		if (detached)
+			throw "Detached process is not supported on this platform";
 		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
 		stdin = new java.io.NativeOutput(p.getOutputStream());
 	}
 
-	public function getPid() : Int
-	{
+	public function getPid():Int {
 		if (Reflect.hasField(proc, "pid"))
 			return Reflect.field(proc, "pid");
 		return -1;
 	}
 
-	public function exitCode( block : Bool = true ) : Null<Int>
-	{
-		if( block == false ) {
+	public function exitCode(block:Bool = true):Null<Int> {
+		if (block == false) {
 			try {
 				return proc.exitValue();
-			} catch( e : Dynamic ) {
+			} catch (e:Dynamic) {
 				return null;
 			}
 		}
 
 		cast(stdout, ProcessInput).bufferContents();
 		cast(stderr, ProcessInput).bufferContents();
-		try
-		{
+		try {
 			proc.waitFor();
+		} catch (e:Dynamic) {
+			throw e;
 		}
-		catch (e:Dynamic) { throw e; }
 		return proc.exitValue();
 	}
 
-	public function close() : Void
-	{
+	public function close():Void {
 		proc.destroy();
 	}
 
-	public function kill() : Void
-	{
+	public function kill():Void {
 		proc.destroy();
 	}
-
 }
 
-
-private class ProcessInput extends java.io.NativeInput
-{
+private class ProcessInput extends java.io.NativeInput {
 	private var chained:BytesInput;
 
-	public function bufferContents():Void
-	{
-		if (chained != null) return;
+	public function bufferContents():Void {
+		if (chained != null)
+			return;
 		var b = this.readAll();
 		chained = new BytesInput(b);
 	}
 
-	override public function readByte():Int
-	{
+	override public function readByte():Int {
 		if (chained != null)
 			return chained.readByte();
 		var ret = 0;
-		try
-		{
+		try {
 			ret = stream.read();
-		}
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
-		if ( ret == -1 )
+		if (ret == -1)
 			throw new Eof();
 		return ret;
 	}
 
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
-	{
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
 		if (chained != null)
 			return chained.readBytes(s, pos, len);
 
 		var ret = -1;
-		try
-		{
+		try {
 			ret = stream.read(s.getData(), pos, len);
-		}
+		} catch (e:EOFException) {
 
-		catch (e:EOFException) {
 			throw new Eof();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 
@@ -180,16 +164,12 @@ private class ProcessInput extends java.io.NativeInput
 		return ret;
 	}
 
-	override public function close():Void
-	{
+	override public function close():Void {
 		if (chained != null)
 			chained.close();
-		try
-		{
+		try {
 			stream.close();
-		}
-
-		catch (e:IOException) {
+		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}

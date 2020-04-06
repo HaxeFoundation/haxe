@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.internal;
+
 #if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
@@ -27,11 +29,8 @@ import haxe.macro.Expr;
 
 @:noPackageRestrict
 class Internal {
-
 	#if macro
-
 	static var _prefix = "_hx_";
-
 
 	static var _className = _prefix + "class_name";
 	static var _class = _prefix + "class";
@@ -47,14 +46,12 @@ class Internal {
 
 	static var _dict = "__dict__";
 
-	static function _getPrefixed (x:Expr):Expr {
+	static function _getPrefixed(x:Expr):Expr {
 		return switch (x.expr) {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
+			case _: macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix}, "+", $x) : String);
 		}
 	}
-
-
 
 	static function withPos(x:String):Expr {
 		return macro @:pos(Context.currentPos()) $v{x};
@@ -64,91 +61,90 @@ class Internal {
 		return macro @:pos(Context.currentPos()) (untyped __define_feature__($v{"python." + x}, python.Syntax.field($o, $v{x})));
 	}
 
-	static function has (o:Expr, field:String):Expr {
-		return macro (untyped __define_feature__($v{"python." + field}, python.internal.UBuiltins.hasattr($o, $v{field})) : Bool);
+	static function has(o:Expr, field:String):Expr {
+		return macro(untyped __define_feature__($v{"python." + field}, python.internal.UBuiltins.hasattr($o, $v{field})) : Bool);
 	}
-
 	#end
 
-	macro public static function getPrefixed (x:ExprOf<String>):Expr {
+	macro public static function getPrefixed(x:ExprOf<String>):Expr {
 		return switch (x.expr) {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
+			case _: macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix}, "+", $x) : String);
 		}
 	}
 
-	macro public static function classRegistry ():Expr {
-		return macro (untyped __define_feature__($v{"python." + _classes}, python.Syntax.code($v{_classes})) : python.Dict<String, Class<Dynamic>>);
+	macro public static function classRegistry():Expr {
+		return macro(untyped __define_feature__($v{"python." + _classes}, python.Syntax.code($v{_classes})) : python.Dict<String, Class<Dynamic>>);
 	}
 
-	macro public static function callFieldPrefixed (o:Expr, x:String, params:Array<Expr>):Expr {
-		var args = [o,macro @:pos(Context.currentPos()) $v{_prefix + x}].concat(params);
+	macro public static function callFieldPrefixed(o:Expr, x:String, params:Array<Expr>):Expr {
+		var args = [o, macro @:pos(Context.currentPos()) $v{_prefix + x}].concat(params);
 		return macro @:pos(Context.currentPos()) python.Syntax.callField($a{args});
 	}
 
-	macro public static function fieldPrefixed (o:Expr, x:String):Expr {
-		var args = [o,macro @:pos(Context.currentPos()) $v{_prefix + x}];
+	macro public static function fieldPrefixed(o:Expr, x:String):Expr {
+		var args = [o, macro @:pos(Context.currentPos()) $v{_prefix + x}];
 		return macro @:pos(Context.currentPos()) python.Syntax.field($a{args});
 	}
 
-	macro public static function hasAttrPrefixed (o:Expr, x:String):Expr {
-		var args = [o,macro @:pos(Context.currentPos()) $v{_prefix + x}];
+	macro public static function hasAttrPrefixed(o:Expr, x:String):Expr {
+		var args = [o, macro @:pos(Context.currentPos()) $v{_prefix + x}];
 		return macro @:pos(Context.currentPos()) python.Syntax.field($a{args});
 	}
 
-	macro public static function importAsPrefixed (o:String, x:String) {
+	macro public static function importAsPrefixed(o:String, x:String) {
 		return macro @:pos(Context.currentPos()) python.Syntax.importAs($v{o}, $v{_prefix + x});
 	}
 
-	macro public static function prefix ():Expr {
+	macro public static function prefix():Expr {
 		return macro @:pos(Context.currentPos()) $v{_prefix};
 	}
 
-	macro public static function pythonCodePrefixed (x:String):Expr {
+	macro public static function pythonCodePrefixed(x:String):Expr {
 		return macro python.Syntax.code($v{_prefix + x});
 	}
 
-	macro public static function hasClassName (o:Expr):Expr {
+	macro public static function hasClassName(o:Expr):Expr {
 		return has(o, _className);
 	}
 
-	macro public static function hasInterfaces (o:Expr):Expr {
+	macro public static function hasInterfaces(o:Expr):Expr {
 		return has(o, _interfaces);
 	}
 
-	macro public static function hasClass (o:Expr):Expr {
+	macro public static function hasClass(o:Expr):Expr {
 		return has(o, _class);
 	}
 
-	macro public static function hasConstructs (o:Expr):Expr {
+	macro public static function hasConstructs(o:Expr):Expr {
 		return has(o, _constructs);
 	}
 
-	macro public static function hasEmptyInit (o:Expr):Expr {
+	macro public static function hasEmptyInit(o:Expr):Expr {
 		return has(o, _emptyInit);
 	}
 
-	macro public static function hasMethods (o:Expr):Expr {
+	macro public static function hasMethods(o:Expr):Expr {
 		return has(o, _methods);
 	}
 
-	macro public static function hasFields (o:Expr):Expr {
+	macro public static function hasFields(o:Expr):Expr {
 		return has(o, _fields);
 	}
 
-	macro public static function hasSuper (o:Expr):Expr {
+	macro public static function hasSuper(o:Expr):Expr {
 		return has(o, _super);
 	}
 
-	macro public static function hasStatics (o:Expr):Expr {
+	macro public static function hasStatics(o:Expr):Expr {
 		return has(o, _statics);
 	}
 
-	macro public static function classNameVal ():Expr {
+	macro public static function classNameVal():Expr {
 		return withPos(_className);
 	}
 
-	macro public static function methodsVal ():Expr {
+	macro public static function methodsVal():Expr {
 		return withPos(_methods);
 	}
 
@@ -180,47 +176,47 @@ class Internal {
 		return withPos(_emptyInit);
 	}
 
-	macro public static function fieldClassName (o:Expr):Expr {
+	macro public static function fieldClassName(o:Expr):Expr {
 		return fieldWithPos(o, _className);
 	}
 
-	macro public static function fieldInterfaces (o:Expr):Expr {
+	macro public static function fieldInterfaces(o:Expr):Expr {
 		return fieldWithPos(o, _interfaces);
 	}
 
-	macro public static function fieldClass (o:Expr):Expr {
+	macro public static function fieldClass(o:Expr):Expr {
 		return fieldWithPos(o, _class);
 	}
 
-	macro public static function fieldSuper (o:Expr):Expr {
+	macro public static function fieldSuper(o:Expr):Expr {
 		return fieldWithPos(o, _super);
 	}
 
-	macro public static function fieldStatics (o:Expr):Expr {
+	macro public static function fieldStatics(o:Expr):Expr {
 		return fieldWithPos(o, _statics);
 	}
 
-	macro public static function fieldMethods (o:Expr):Expr {
+	macro public static function fieldMethods(o:Expr):Expr {
 		return fieldWithPos(o, _methods);
 	}
 
-	macro public static function fieldFields (o:Expr):Expr {
+	macro public static function fieldFields(o:Expr):Expr {
 		return fieldWithPos(o, _fields);
 	}
 
-	macro public static function fieldConstructs (o:Expr):Expr {
+	macro public static function fieldConstructs(o:Expr):Expr {
 		return fieldWithPos(o, _constructs);
 	}
 
-	macro public static function fieldDict (o:Expr):Expr {
+	macro public static function fieldDict(o:Expr):Expr {
 		return macro @:pos(Context.currentPos()) python.Syntax.field($o, $v{_dict});
 	}
 
-	macro public static function fieldEmptyInit (o:Expr):Expr {
+	macro public static function fieldEmptyInit(o:Expr):Expr {
 		return fieldWithPos(o, _emptyInit);
 	}
 
-	macro public static function callEmptyInit (o:Expr, instance:Expr):Expr {
+	macro public static function callEmptyInit(o:Expr, instance:Expr):Expr {
 		return macro @:pos(Context.currentPos()) python.Syntax.callField($o, $v{_emptyInit}, $instance);
 	}
 }

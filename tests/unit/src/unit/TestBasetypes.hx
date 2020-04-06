@@ -31,13 +31,9 @@ class TestBasetypes extends Test {
 		unspec(function() String.fromCharCode(0));
 		unspec(function() String.fromCharCode(-1));
 		unspec(function() String.fromCharCode(256));
-#if php
-		eq( Std.string(null) + "x", "nullx" );
-		eq( "x" + Std.string(null), "xnull" );
-#else
+
 		eq( null + "x", "nullx" );
 		eq( "x" + null, "xnull" );
-#end
 
 		var abc = "abc".split("");
 		eq( abc.length, 3 );
@@ -186,7 +182,7 @@ class TestBasetypes extends Test {
 		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
 
 
-		#if (flash && !as3)
+		#if flash
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
 		eq( Math.ceil( -10000000000.7), 0xABF41C00);
 		eq( Math.round( -10000000000.7), 0xABF41BFF);
@@ -283,13 +279,12 @@ class TestBasetypes extends Test {
 	function testObjectKeyword() {
 		// new is a keyword in Haxe
 		var l = { "new": "test" };
-		var prefix = #if as3 "_" #else "" #end;
-		eq(Reflect.field(l, prefix + "new"), "test");
+		eq(Reflect.field(l, "new"), "test");
 		// const is a keyword on some platforms but not in Haxe
 		// check that with can still access it normally
 		var o = { const : 6 }
 		eq(o.const, 6);
-		eq(Reflect.field(o, prefix+"const"), 6);
+		eq(Reflect.field(o, "const"), 6);
 	}
 
 	function testFormat() {
@@ -310,7 +305,7 @@ class TestBasetypes extends Test {
 
 	function testAbstract() {
 		var a = new MyAbstract(33);
-		t( Std.is(a, Int) );
+		t( Std.isOfType(a, Int) );
 		eq( a.toInt(), 33 );
 		var b = a;
 		a.incr();
@@ -322,26 +317,26 @@ class TestBasetypes extends Test {
 		var s = "Abstract casting ::t::";
 		// var from
 		var tpl:unit.MyAbstract.TemplateWrap = s;
-		t(Std.is(tpl, haxe.Template));
-		t(Std.is(tpl.get(), haxe.Template));
+		t(Std.isOfType(tpl, haxe.Template));
+		t(Std.isOfType(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
 
 		//var to
 		var str:String = tpl;
-		t(Std.is(str, String));
+		t(Std.isOfType(str, String));
 		eq(str, "Abstract casting really works!");
 
 		// assign from
 		var tpl:unit.MyAbstract.TemplateWrap;
 		tpl = s;
-		t(Std.is(tpl, haxe.Template));
-		t(Std.is(tpl.get(), haxe.Template));
+		t(Std.isOfType(tpl, haxe.Template));
+		t(Std.isOfType(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
 
 		//assign to
 		var str:String;
 		str = tpl;
-		t(Std.is(str, String));
+		t(Std.isOfType(str, String));
 		eq(str, "Abstract casting really works!");
 
 		// call arg from

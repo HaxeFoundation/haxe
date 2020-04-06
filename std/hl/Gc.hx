@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 enum GcFlag {
@@ -26,14 +27,17 @@ enum GcFlag {
 		Activate profiling: regularly print on stdout gc allocation stats
 	**/
 	Profile;
+
 	/**
 		Allows one to dump a hlmemory.dump file when HL runs out of memory to be examined with hl memory inspector tool.
 	**/
 	DumpMem;
+
 	/**
 		Disable GC locking for multithreads
 	**/
 	NoThreads;
+
 	/**
 		Force major GC on each allocation
 	**/
@@ -41,27 +45,26 @@ enum GcFlag {
 }
 
 class Gc {
-
-	public static var flags(get,set) : haxe.EnumFlags<GcFlag>;
+	public static var flags(get, set):haxe.EnumFlags<GcFlag>;
 
 	public static function stats() {
 		var tot = 0., count = 0., mem = 0.;
 		_stats(tot, count, mem);
-		return { totalAllocated : tot, allocationCount : count, currentMemory : mem };
+		return {totalAllocated: tot, allocationCount: count, currentMemory: mem};
 	}
 
 	/**
 		Dump whole memory into target filename for analysis.
 	**/
-	public static function dumpMemory( ?fileName : String = "hlmemory.dump" ) {
+	public static function dumpMemory(?fileName:String = "hlmemory.dump") {
 		_dump(@:privateAccess fileName.toUtf8());
 	}
 
-	static function get_flags() : haxe.EnumFlags<GcFlag> {
+	static function get_flags():haxe.EnumFlags<GcFlag> {
 		return haxe.EnumFlags.ofInt(_get_flags());
 	}
 
-	static function set_flags(v : haxe.EnumFlags<GcFlag>) {
+	static function set_flags(v:haxe.EnumFlags<GcFlag>) {
 		_set_flags(v.toInt());
 		return v;
 	}
@@ -71,16 +74,19 @@ class Gc {
 		allocate any memory but other threads will not wait for it for collecting memory.
 	**/
 	@:hlNative("std", "blocking")
-	public static function blocking( b : Bool ) {
+	public static function blocking(b:Bool) {}
+
+	@:hlNative("std", "gc_dump_memory") static function _dump(b:hl.Bytes):Void {}
+
+	@:hlNative("std", "gc_enable") public static function enable(b:Bool):Void {}
+
+	@:hlNative("std", "gc_major") public static function major():Void {}
+
+	@:hlNative("std", "gc_stats") static function _stats(totalAllocated:hl.Ref<Float>, allocationCount:hl.Ref<Float>, currentMemory:hl.Ref<Float>):Void {}
+
+	@:hlNative("std", "gc_get_flags") static function _get_flags():Int {
+		return 0;
 	}
 
-	@:hlNative("std", "gc_dump_memory") static function _dump( b : hl.Bytes ) : Void {}
-
-	@:hlNative("std", "gc_enable") public static function enable( b : Bool ) : Void {}
-	@:hlNative("std", "gc_major") public static function major() : Void {}
-	@:hlNative("std", "gc_stats") static function _stats( totalAllocated : hl.Ref<Float>, allocationCount : hl.Ref<Float>, currentMemory : hl.Ref<Float> ) : Void {}
-
-	@:hlNative("std", "gc_get_flags") static function _get_flags() : Int { return 0; }
-	@:hlNative("std", "gc_set_flags") static function _set_flags( v : Int ) {}
-
+	@:hlNative("std", "gc_set_flags") static function _set_flags(v:Int) {}
 }

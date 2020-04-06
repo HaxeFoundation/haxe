@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import haxe.extern.EitherType;
@@ -35,7 +36,7 @@ import haxe.extern.EitherType;
  */
 @:forward
 abstract BufferSource(ArrayBuffer) to ArrayBuffer from ArrayBuffer {
-	@:from public static inline function fromBufferView(view: ArrayBufferView) {
+	@:from public static inline function fromBufferView(view:ArrayBufferView) {
 		return cast view.buffer;
 	}
 }

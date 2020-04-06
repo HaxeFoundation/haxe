@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.Dict;
@@ -34,22 +35,23 @@ import python.Dict;
 	f({a: 10});
 	```
 **/
-abstract KwArgs<T:{}>(Dict<String,Dynamic>) {
-	inline function new (d:Dict<String,Dynamic>) {
+abstract KwArgs<T:{}>(Dict<String, Dynamic>) {
+	inline function new(d:Dict<String, Dynamic>) {
 		this = d;
 	}
 
-	@:to public inline function toDict():Dict<String,Dynamic> {
+	@:to public inline function toDict():Dict<String, Dynamic> {
 		// pass null, it's just to have the type information available in genpy
 		return toDictHelper(null);
 	}
+
 	// this is a helper method (hack) which is matched in genpy to extract the type information for reverse mapping
 	// of keyword fields.
-	function toDictHelper(x:T):Dict<String,Dynamic> {
+	function toDictHelper(x:T):Dict<String, Dynamic> {
 		return this;
 	}
 
-	@:from static inline function fromDict(d:Dict<String,Dynamic>):KwArgs<Dynamic> {
+	@:from static inline function fromDict(d:Dict<String, Dynamic>):KwArgs<Dynamic> {
 		return new KwArgs(d);
 	}
 

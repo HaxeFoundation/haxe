@@ -23,55 +23,55 @@
 package haxe.ds;
 
 @:coreApi
-class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	var h:hl.types.IntMap;
 
-	var h : hl.types.IntMap;
-
-	public function new() : Void {
+	public function new():Void {
 		h = new hl.types.IntMap();
 	}
 
-	public function set( key : Int, value : T ) : Void {
-		@:privateAccess h.set(key,value);
+	public function set(key:Int, value:T):Void {
+		@:privateAccess h.set(key, value);
 	}
 
-	public function get( key : Int ) : Null<T> {
+	public function get(key:Int):Null<T> {
 		return @:privateAccess h.get(key);
 	}
 
-	public function exists( key : Int ) : Bool {
+	public function exists(key:Int):Bool {
 		return @:privateAccess h.exists(key);
 	}
 
-	public function remove( key : Int ) : Bool {
+	public function remove(key:Int):Bool {
 		return @:privateAccess h.remove(key);
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys():Iterator<Int> {
 		return new hl.NativeArray.NativeArrayIterator<Int>(h.keysArray());
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return h.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		var keys = h.keysArray();
 		var values = h.valuesArray();
 		s.addChar('{'.code);
-		for( i in 0...keys.length ) {
-			if( i > 0 )
+		for (i in 0...keys.length) {
+			if (i > 0)
 				s.add(", ");
 			s.add(keys[i]);
 			s.add(" => ");
@@ -81,4 +81,11 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 		return s.toString();
 	}
 
+	public function clear():Void {
+		#if (hl_ver >= version("1.11.0"))
+		@:privateAccess h.clear();
+		#else
+		h = new hl.types.IntMap();
+		#end
+	}
 }

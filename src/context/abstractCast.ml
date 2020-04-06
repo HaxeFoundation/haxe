@@ -7,25 +7,36 @@ open Error
 
 let cast_stack = new_rec_stack()
 
-let make_static_call ctx c cf a pl args t p =
+let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e WithType.value
+					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
 			| _ -> assert false
 	end else
-		make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-let do_check_cast ctx tleft eright p =
+and do_check_cast ctx tleft eright p =
 	let recurse cf f =
+		(*
+			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
+			unlike non-macro @:from methods, which generate unification errors if no other @:from methods are involved.
+		*)
+		if cf.cf_kind = Method MethMacro then begin
+			match cast_stack.rec_stack with
+			| previous_from :: _ when previous_from == cf ->
+				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+			| _ -> ()
+		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
@@ -80,7 +91,7 @@ let do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-let cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx tleft eright p =
 	try
 		(* can't do that anymore because this might miss macro calls (#4315) *)
 		(* if ctx.com.display <> DMNone then raise Not_found; *)
@@ -89,7 +100,7 @@ let cast_or_unify_raise ctx tleft eright p =
 		unify_raise ctx eright.etype tleft p;
 		eright
 
-let cast_or_unify ctx tleft eright p =
+and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error (Unify l,p) ->
@@ -177,7 +188,7 @@ let find_multitype_specialization com a pl p =
 							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
 								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 								Type.map loop t

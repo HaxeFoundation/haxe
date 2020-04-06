@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open Type
 open EvalValue
 open EvalHash
 open EvalString
@@ -60,6 +59,10 @@ type env_info = {
 	kind : env_kind;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	capture_infos : (int,var_info) Hashtbl.t;
+	(* The number of local variables. *)
+	num_locals : int;
+	(* The number of capture variables. *)
+	num_captures : int;
 }
 
 (* Per-environment debug information. These values are only modified while debugging. *)
@@ -71,7 +74,9 @@ type env_debug = {
 	(* The current line being executed. This in conjunction with `env_info.pfile` is used to find breakpoints. *)
 	mutable line : int;
 	(* The current expression being executed *)
-	mutable expr : texpr;
+	mutable debug_expr : string;
+	(* The current expression position being executed *)
+	mutable debug_pos : pos;
 }
 
 (* An environment in which code is executed. Environments are created whenever a function is called and when
@@ -155,7 +160,7 @@ type builtins = {
 }
 
 type debug_scope_info = {
-	ds_expr : texpr;
+	ds_expr : string;
 	ds_return : value option;
 }
 
@@ -201,6 +206,27 @@ class eval_debug_context = object(self)
 	method get id =
 		try DynArray.get lut id with _ -> NoSuchReference
 
+end
+
+class static_prototypes = object(self)
+	val mutable prototypes : vprototype IntMap.t = IntMap.empty
+	val mutable inits : (vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
+
+	method add proto =
+		prototypes <- IntMap.add proto.ppath proto prototypes
+
+	method remove path =
+		inits <- IntMap.remove path inits;
+		prototypes <- IntMap.remove path prototypes
+
+	method reset =
+		IntMap.iter (fun _ (proto, delays) -> List.iter (fun f -> f proto) delays) inits
+
+	method add_init proto delays =
+		inits <- IntMap.add proto.ppath (proto, delays) inits
+
+	method get path =
+		IntMap.find path prototypes
 end
 
 type exception_mode =
@@ -251,10 +277,9 @@ and context = {
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
-	mutable static_prototypes : vprototype IntMap.t;
+	mutable static_prototypes : static_prototypes;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
-	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
@@ -263,9 +288,25 @@ and context = {
 	max_stack_depth : int;
 }
 
-let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
-let get_ctx () = (!get_ctx_ref)()
-let select ctx = get_ctx_ref := (fun() -> ctx)
+module GlobalState = struct
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+
+	let sid : int ref = ref (-1)
+
+	let debug : debug option ref = ref None
+	let debugger_initialized : bool ref = ref false
+
+	let stdlib : builtins option ref = ref None
+	let macro_lib : (string,value) Hashtbl.t = Hashtbl.create 0
+
+	let cleanup ctx =
+		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
+		   context can be collected. *)
+		ctx.curapi <- Obj.magic ""
+end
+
+let get_ctx () = (!GlobalState.get_ctx_ref)()
+let select ctx = GlobalState.get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
 	| DbgRunning -> "DbgRunning"
@@ -358,26 +399,29 @@ let flush_core_context f =
 
 let no_timer = fun () -> ()
 let empty_array = [||]
-let no_expr = mk (TConst TNull) t_dynamic null_pos
+let no_expr = ""
 
 let no_debug = {
 	timer = no_timer;
 	scopes = [];
 	line = 0;
-	expr = no_expr;
+	debug_expr = no_expr;
+	debug_pos = null_pos;
 }
 
-let create_env_info static pfile kind capture_infos =
+let create_env_info static pfile kind capture_infos num_locals num_captures =
 	let info = {
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
 		pfile_unique = hash (Path.unique_full_path pfile);
 		capture_infos = capture_infos;
+		num_locals = num_locals;
+		num_captures = num_captures;
 	} in
 	info
 
-let push_environment ctx info num_locals num_captures =
+let push_environment ctx info =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
 		Timer.timer ["macro";"execution";kind_name eval info.kind]
@@ -389,15 +433,15 @@ let push_environment ctx info num_locals num_captures =
 	else
 		no_debug
 	in
-	let locals = if num_locals = 0 then
+	let locals = if info.num_locals = 0 then
 		empty_array
 	else
-		Array.make num_locals vnull
+		Array.make info.num_locals vnull
 	in
-	let captures = if num_captures = 0 then
+	let captures = if info.num_captures = 0 then
 		empty_array
 	else
-		Array.make num_captures vnull
+		Array.make info.num_captures vnull
 	in
 	let stack_depth = match eval.env with
 		| None -> 1;
@@ -440,7 +484,7 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	IntMap.find path ctx.static_prototypes
+	ctx.static_prototypes#get path
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path

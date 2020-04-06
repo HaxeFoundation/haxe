@@ -19,40 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.StdTypes;
 
 @:coreApi extern class String implements ArrayAccess<Char16> {
-
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
 
 	private static function CompareOrdinal(s1:String, s2:String):Int;
 
-	var length(default,null) : Int;
+	var length(default, null):Int;
 
-	function new(string:String) : Void;
+	function new(string:String):Void;
 
-	function toUpperCase() : String;
+	function toUpperCase():String;
 
-	function toLowerCase() : String;
+	function toLowerCase():String;
 
-	function charAt( index : Int) : String;
+	function charAt(index:Int):String;
 
-	function charCodeAt( index : Int) : Null<Int>;
+	function charCodeAt(index:Int):Null<Int>;
 
-	function indexOf( str : String, ?startIndex : Int ) : Int;
+	function indexOf(str:String, ?startIndex:Int):Int;
 
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+	function lastIndexOf(str:String, ?startIndex:Int):Int;
 
-	function split( delimiter : String ) : Array<String>;
+	function split(delimiter:String):Array<String>;
 
-	function substr( pos : Int, ?len : Int ) : String;
+	function substr(pos:Int, ?len:Int):String;
 
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
+	function substring(startIndex:Int, ?endIndex:Int):String;
 
-	function toString() : String;
+	function toString():String;
 
-	static function fromCharCode( code : Int ) : String;
+	static function fromCharCode(code:Int):String;
 
 	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;
@@ -64,5 +64,4 @@ import cs.StdTypes;
 	private function CompareTo(obj:Dynamic):Int;
 	@:overload(function(startIndex:Int):String {})
 	private function Substring(startIndex:Int, length:Int):String;
-
 }

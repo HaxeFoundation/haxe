@@ -19,64 +19,70 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl.types;
+
+import haxe.iterators.ArrayIterator;
 
 @:keep
 @:generic
-class BytesIterator<T> {
-	var pos : Int;
-	var a : ArrayBytes<T>;
+class BytesIterator<T> extends ArrayIterator<T> {
+	var a:ArrayBytes<T>;
+
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
 	}
-	public function hasNext() {
-		return pos < a.length;
+
+	override public function hasNext() {
+		return current < a.length;
 	}
-	public function next() : T {
-		return @:privateAccess a.bytes.get(pos++);
+
+	override public function next():T {
+		return @:privateAccess a.bytes.get(current++);
 	}
 }
 
 @:keep
 @:generic class ArrayBytes<T> extends ArrayBase {
-
-	var bytes : hl.BytesAccess<T>;
-	var size : Int;
+	var bytes:hl.BytesAccess<T>;
+	var size:Int;
 
 	public function new() {
 		size = length = 0;
 		bytes = null;
 	}
 
-	public function concat( a : ArrayBytes<T> ) : ArrayBytes<T> {
+	public function concat(a:ArrayBytes<T>):ArrayBytes<T> {
 		var ac = new ArrayBytes<T>();
 		ac.length = ac.size = length + a.length;
 		ac.bytes = new Bytes(ac.length << bytes.sizeBits);
 		var offset = length << bytes.sizeBits;
-		(ac.bytes:Bytes).blit(0, this.bytes, 0, offset);
-		(ac.bytes:Bytes).blit(offset, a.bytes, 0, a.length << bytes.sizeBits);
+		(ac.bytes : Bytes).blit(0, this.bytes, 0, offset);
+		(ac.bytes : Bytes).blit(offset, a.bytes, 0, a.length << bytes.sizeBits);
 		return ac;
 	}
 
-	override function join( sep : String ) : String {
+	override function join(sep:String):String {
 		var s = new StringBuf();
-		for( i in 0...length ) {
-			if( i > 0 ) s.add(sep);
+		for (i in 0...length) {
+			if (i > 0)
+				s.add(sep);
 			s.add(bytes[i]);
 		}
 		return s.toString();
 	}
 
-	public function pop() : Null<T> {
-		if( length == 0 )
+	public function pop():Null<T> {
+		if (length == 0)
 			return null;
 		length--;
 		return bytes[length];
 	}
 
-	public function push(x : T) : Int {
+	public function push(x:T):Int {
 		var len = length;
-		if( size == len )
+		if (size == len)
 			__expand(len);
 		else
 			length++;
@@ -84,8 +90,8 @@ class BytesIterator<T> {
 		return length;
 	}
 
-	override function reverse() : Void {
-		for( i in 0...length >> 1 ) {
+	override function reverse():Void {
+		for (i in 0...length >> 1) {
 			var k = length - 1 - i;
 			var tmp = bytes[i];
 			bytes[i] = bytes[k];
@@ -93,208 +99,245 @@ class BytesIterator<T> {
 		}
 	}
 
-	public function shift() : Null<T> {
-		if( length == 0 )
+	public function shift():Null<T> {
+		if (length == 0)
 			return null;
 		var v = bytes[0];
 		length--;
-		(bytes:Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
+		(bytes : Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
 		return v;
 	}
 
-	override function blit( pos : Int, src : ArrayBase.ArrayAccess, srcpos : Int, len : Int ) : Void {
+	override function blit(pos:Int, src:ArrayBase.ArrayAccess, srcpos:Int, len:Int):Void {
 		var src = (cast src : ArrayBytes<T>);
-		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
-		(bytes:Bytes).blit(pos << bytes.sizeBits,src.bytes,srcpos<<bytes.sizeBits,len<<bytes.sizeBits);
+		if (pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length)
+			throw haxe.io.Error.OutsideBounds;
+		(bytes : Bytes).blit(pos << bytes.sizeBits, src.bytes, srcpos << bytes.sizeBits, len << bytes.sizeBits);
 	}
 
-	override function slice( pos : Int, ?end : Int ) : ArrayBytes<T> {
-		if( pos < 0 ) {
+	override function slice(pos:Int, ?end:Int):ArrayBytes<T> {
+		if (pos < 0) {
 			pos = this.length + pos;
-			if( pos < 0 )
+			if (pos < 0)
 				pos = 0;
 		}
-		var pend : Int;
-		if( end == null )
+		var pend:Int;
+		if (end == null)
 			pend = this.length;
 		else {
 			pend = end;
-			if( pend < 0 )
+			if (pend < 0)
 				pend += this.length;
-			if( pend > this.length )
+			if (pend > this.length)
 				pend = this.length;
 		}
 		var len = pend - pos;
-		if( len < 0 )
+		if (len < 0)
 			return new ArrayBytes<T>();
 		var a = new ArrayBytes<T>();
 		a.length = a.size = len;
-		a.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
+		a.bytes = (bytes : Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
 		return a;
 	}
 
-	public function sort( f : T -> T -> Int ) : Void {
-		if( Type.get((cast null : T)) == Type.get(0) )
-			(bytes:Bytes).sortI32(0, length, cast f);
+	public function sort(f:T->T->Int):Void {
+		if (Type.get((cast null : T)) == Type.get(0))
+			(bytes : Bytes).sortI32(0, length, cast f);
 		else
-			(bytes:Bytes).sortF64(0, length, cast f);
+			(bytes : Bytes).sortF64(0, length, cast f);
 	}
 
-	override function splice( pos : Int, len : Int ) : ArrayBytes<T> {
-		if( len < 0 )
+	override function splice(pos:Int, len:Int):ArrayBytes<T> {
+		if (len < 0)
 			return new ArrayBytes<T>();
-		if( pos < 0 ){
+		if (pos < 0) {
 			pos = this.length + pos;
-			if( pos < 0 ) pos = 0;
+			if (pos < 0)
+				pos = 0;
 		}
-		if( pos > this.length ) {
+		if (pos > this.length) {
 			pos = 0;
 			len = 0;
-		} else if( pos + len > this.length ) {
+		} else if (pos + len > this.length) {
 			len = this.length - pos;
-			if( len < 0 ) len = 0;
+			if (len < 0)
+				len = 0;
 		}
-		if( len == 0 )
+		if (len == 0)
 			return new ArrayBytes<T>();
 		var ret = new ArrayBytes<T>();
-		ret.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
+		ret.bytes = (bytes : Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
 		ret.size = ret.length = len;
 		var end = pos + len;
-		(bytes:Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
+		(bytes : Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
 		length -= len;
 		return ret;
 	}
 
-	override function toString() : String {
+	override function toString():String {
 		var b = new StringBuf();
 		b.addChar("[".code);
-		for( i in 0...length ) {
-			if( i > 0 ) b.addChar(",".code);
+		for (i in 0...length) {
+			if (i > 0)
+				b.addChar(",".code);
 			b.add(bytes[i]);
 		}
 		b.addChar("]".code);
 		return b.toString();
 	}
 
-	public function unshift( x : T ) : Void {
-		if( length == size ) __expand(length) else length++;
-		(bytes:Bytes).blit(1<<bytes.sizeBits, bytes, 0, (length - 1) << bytes.sizeBits);
+	public function unshift(x:T):Void {
+		if (length == size)
+			__expand(length)
+		else
+			length++;
+		(bytes : Bytes).blit(1 << bytes.sizeBits, bytes, 0, (length - 1) << bytes.sizeBits);
 		bytes[0] = x;
 	}
 
-	public function insert( pos : Int, x : T ) : Void {
-		if( pos < 0 ) {
+	public function insert(pos:Int, x:T):Void {
+		if (pos < 0) {
 			pos = length + pos;
-			if( pos < 0 ) pos = 0;
-		} else if( pos > length ) pos = length;
-		if( length == size ) __expand(length) else length++;
-		(bytes:Bytes).blit((pos + 1)<<bytes.sizeBits, bytes, pos<<bytes.sizeBits, (length - pos - 1) << bytes.sizeBits);
+			if (pos < 0)
+				pos = 0;
+		} else if (pos > length)
+			pos = length;
+		if (length == size)
+			__expand(length)
+		else
+			length++;
+		(bytes : Bytes).blit((pos + 1) << bytes.sizeBits, bytes, pos << bytes.sizeBits, (length - pos - 1) << bytes.sizeBits);
 		bytes[pos] = x;
 	}
 
-	public function remove( x : T ) : Bool {
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
+	public function remove(x:T):Bool {
 		var idx = indexOf(x);
-		if( idx < 0 )
+		if (idx < 0)
 			return false;
 		length--;
-		(bytes : hl.Bytes).blit(idx<<bytes.sizeBits,bytes,(idx + 1)<<bytes.sizeBits,(length - idx)<<bytes.sizeBits);
+		(bytes : hl.Bytes).blit(idx << bytes.sizeBits, bytes, (idx + 1) << bytes.sizeBits, (length - idx) << bytes.sizeBits);
 		return true;
 	}
 
-	public function indexOf( x : T, ?fromIndex:Int ) : Int {
-		var idx : Int = fromIndex == null ? 0 : fromIndex;
-		if( idx < 0 ) {
+	public function indexOf(x:T, ?fromIndex:Int):Int {
+		var idx:Int = fromIndex == null ? 0 : fromIndex;
+		if (idx < 0) {
 			idx += length;
-			if( idx < 0 ) idx = 0;
+			if (idx < 0)
+				idx = 0;
 		}
-		for( i in idx...length )
-			if( bytes[i] == x )
+		for (i in idx...length)
+			if (bytes[i] == x)
 				return i;
 		return -1;
 	}
 
-	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
+	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
 		var len = length;
 		var i:Int = fromIndex != null ? fromIndex : len - 1;
-		if( i >= len )
+		if (i >= len)
 			i = len - 1;
-		else if( i  < 0 )
+		else if (i < 0)
 			i += len;
-		while( i >= 0 ) {
-			if( bytes[i] == x )
+		while (i >= 0) {
+			if (bytes[i] == x)
 				return i;
 			i--;
 		}
 		return -1;
 	}
 
-	public function copy() : ArrayBytes<T> {
+	public function copy():ArrayBytes<T> {
 		var a = new ArrayBytes<T>();
 		a.length = a.size = length;
 		a.bytes = new Bytes(length << bytes.sizeBits);
-		(a.bytes:Bytes).blit(0, bytes, 0, length << bytes.sizeBits);
+		(a.bytes : Bytes).blit(0, bytes, 0, length << bytes.sizeBits);
 		return a;
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
 	}
 
-	public function map<S>( f : T -> S ) : ArrayDyn @:privateAccess {
+	public function map<S>(f:T->S):ArrayDyn@:privateAccess {
 		var a = new ArrayObj();
-		if( length > 0 ) a.__expand(length - 1);
-		for( i in 0...length )
+		if (length > 0)
+			a.__expand(length - 1);
+		for (i in 0...length)
 			a.array[i] = f(bytes[i]);
-		return ArrayDyn.alloc(a,true);
+		return ArrayDyn.alloc(a, true);
 	}
 
-	public function filter( f : T -> Bool ) : ArrayBytes<T> {
+	public function filter(f:T->Bool):ArrayBytes<T> {
 		var a = new ArrayBytes<T>();
-		for( i in 0...length ) {
+		for (i in 0...length) {
 			var v = bytes[i];
-			if( f(v) ) a.push(v);
+			if (f(v))
+				a.push(v);
 		}
 		return a;
 	}
 
-	override public function resize( len : Int ) : Void {
+	override public function resize(len:Int):Void {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {
-			(bytes:Bytes).fill(len << bytes.sizeBits, (length - len) << bytes.sizeBits, 0);
+			(bytes : Bytes).fill(len << bytes.sizeBits, (length - len) << bytes.sizeBits, 0);
 			this.length = len;
 		}
 	}
 
-	override function getDyn( pos : Int ) : Dynamic {
-		var pos : UInt = pos;
-		if( pos >= length )
+	override function getDyn(pos:Int):Dynamic {
+		var pos:UInt = pos;
+		if (pos >= length)
 			return bytes.nullValue;
 		return bytes[pos];
 	}
 
-	override function setDyn( pos : Int, v : Dynamic ) {
-		var pos : UInt = pos;
-		if( pos >= length )
+	override function setDyn(pos:Int, v:Dynamic) {
+		var pos:UInt = pos;
+		if (pos >= length)
 			__expand(pos);
 		bytes[pos] = v;
 	}
 
-	override function pushDyn( v : Dynamic ) return push(v);
-	override function popDyn() : Null<Dynamic> return pop();
-	override function shiftDyn() : Null<Dynamic> return shift();
-	override function unshiftDyn( v : Dynamic ) unshift(v);
-	override function insertDyn( pos : Int, v : Dynamic ) insert(pos, v);
-	override function removeDyn( v : Dynamic ) return remove(v);
-	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
+	override function pushDyn(v:Dynamic)
+		return push(v);
+
+	override function popDyn():Null<Dynamic>
+		return pop();
+
+	override function shiftDyn():Null<Dynamic>
+		return shift();
+
+	override function unshiftDyn(v:Dynamic)
+		unshift(v);
+
+	override function insertDyn(pos:Int, v:Dynamic)
+		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
+
+	override function removeDyn(v:Dynamic)
+		return remove(v);
+
+	override function sortDyn(f:Dynamic->Dynamic->Int)
+		sort(f);
 
 	// called by compiler when accessing the array outside of its bounds, might trigger resize
-	function __expand( index : Int ) {
-		if( index < 0 ) throw "Invalid array index "+index;
+	function __expand(index:Int) {
+		if (index < 0)
+			throw "Invalid array index " + index;
 		var newlen = index + 1;
-		if( newlen > size ) {
+		if (newlen > size) {
 			var next = (size * 3) >> 1;
-			if( next < newlen ) next = newlen;
+			if (next < newlen)
+				next = newlen;
 			var bytes2 = new hl.Bytes(next << bytes.sizeBits);
 			var bsize = length << bytes.sizeBits;
 			bytes2.blit(0, bytes, 0, bsize);
@@ -304,7 +347,6 @@ class BytesIterator<T> {
 		}
 		length = newlen;
 	}
-
 }
 
 typedef ArrayI32 = ArrayBytes<Int>;

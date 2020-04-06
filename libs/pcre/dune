@@ -1,0 +1,7 @@
+(include_subdirs no)
+
+(library
+	(name pcre)
+	(c_names pcre_stubs)
+	(wrapped false)
+)
