@@ -396,6 +396,7 @@ class XmlParser {
 			doc: doc,
 			isPrivate: x.x.exists("private"),
 			isExtern: x.x.exists("extern"),
+			isFinal: x.x.exists("final"),
 			isInterface: x.x.exists("interface"),
 			params: mkTypeParams(x.att.params),
 			superClass: csuper,

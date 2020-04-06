@@ -235,6 +235,11 @@ typedef Classdef = TypeInfos & {
 	var isExtern:Bool;
 
 	/**
+		Whether or not the class is `final`.
+	**/
+	var isFinal:Bool;
+
+	/**
 		Whether or not the class is actually an [interface](https://haxe.org/manual/types-interfaces.html).
 	**/
 	var isInterface:Bool;
