@@ -326,7 +326,6 @@ var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
 a2 = [for (k=>v in it) k*v];
 a2 == [0,2,6,15,32];
 
-#if !cpp //see https://github.com/HaxeFoundation/hxcpp/issues/871
 // keyValueIterator through Structure
 var a : Array<Int> = [1,2,3,5,8];
 var it : KeyValueIterable<Int, Int> = a;
@@ -350,17 +349,4 @@ var itf : Void -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 var it = itf();
 a2 = [for (k=>v in it) k*v];
 a2 == [0,2,6,15,32];
-
-// keyValueIterator Dynamic closure lol
-var a : Dynamic = [1,2,3,5,8];
-var it = a.keyValueIterator();
-var a2 = [for (k=>v in it) k];
-a2 == [0,1,2,3,4];
-var it = a.keyValueIterator();
-a2 = [for (k=>v in it) v];
-a2 == [1,2,3,5,8];
-var it = a.keyValueIterator();
-a2 = [for (k=>v in it) k*v];
-a2 == [0,2,6,15,32];
 #end
-#end //if !cpp
