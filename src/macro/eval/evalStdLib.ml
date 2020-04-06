@@ -152,6 +152,15 @@ module StdArray = struct
 		vstring s
 	)
 
+	let keyValueIterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_array_key_value_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
 	let lastIndexOf = vifun2 (fun vthis x fromIndex ->
 		let this = this vthis in
 		let last = this.alength - 1 in
@@ -3262,6 +3271,7 @@ let init_standard_library builtins =
 		"insert",StdArray.insert;
 		"iterator",StdArray.iterator;
 		"join",StdArray.join;
+		"keyValueIterator",StdArray.keyValueIterator;
 		"lastIndexOf",StdArray.lastIndexOf;
 		"map",StdArray.map;
 		"pop",StdArray.pop;

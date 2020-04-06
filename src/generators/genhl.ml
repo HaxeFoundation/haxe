@@ -3990,7 +3990,7 @@ let create_context com is_macro dump =
 let add_types ctx types =
 	List.iter (fun t ->
 		match t with
-		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"ArrayBytes") } as c) ->
+		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
 			c.cl_extern <- true
 		| TClassDecl c ->
 			let rec loop p f =

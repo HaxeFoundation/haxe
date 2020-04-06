@@ -333,6 +333,8 @@ class Boot {
 					createClosure(o, ArrayImpl.copy);
 				case "iterator":
 					createClosure(o, ArrayImpl.iterator);
+				case "keyValueIterator":
+					createClosure(o, ArrayImpl.keyValueIterator);
 				case "insert":
 					createClosure(o, ArrayImpl.insert);
 				case "join":

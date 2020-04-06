@@ -443,6 +443,9 @@ and expr_field dce e fa is_call_expr =
 			| FDynamic _ ->
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
+			| FClosure _ ->
+				check_and_add_feature dce "closure_read";
+				check_and_add_feature dce ("closure_read." ^ n);
 			| _ -> ());
 			begin match follow e.etype, fa with
 				| TInst(c,_), _
