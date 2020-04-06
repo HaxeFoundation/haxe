@@ -273,7 +273,7 @@ module Initialize = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.raw_defined com "hl_ver") then Define.raw_define_value com.defines "hl_ver" (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
+				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
 				"hl"
 			| Eval ->
 				add_std "eval";
@@ -596,8 +596,7 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		DeprecationCheck.run com;
+	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
 
@@ -1019,7 +1018,7 @@ try
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin match com.display.dms_kind with
-		| DMDefault -> ()
+		| DMDefault | DMUsage _ -> ()
 		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)

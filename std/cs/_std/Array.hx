@@ -398,6 +398,17 @@ final class Array<T> implements ArrayAccess<T> {
 		return ret;
 	}
 
+	public function contains(x:T):Bool {
+		var __a = __a;
+		var i = -1;
+		var length = length;
+		while (++i < length) {
+			if (__a[i] == x)
+				return true;
+		}
+		return false;
+	}
+
 	public inline function filter(f:T->Bool):Array<T> {
 		var ret = [];
 		for (i in 0...length) {

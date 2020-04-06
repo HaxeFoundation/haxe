@@ -38,7 +38,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
@@ -1393,19 +1393,7 @@ module Printer = struct
 			| TContinue ->
 				"continue"
 			| TThrow e1 ->
-				let rec is_native_exception t =
-					match Abstract.follow_with_abstracts t with
-					| TInst ({ cl_path = [],"BaseException" }, _) ->
-						true
-					| TInst ({ cl_super = Some csup }, _) ->
-						is_native_exception (TInst(fst csup, snd csup))
-					| _ ->
-						false
-				in
-				if is_native_exception e1.etype then
-					Printf.sprintf "raise %s" (print_expr pctx e1)
-				else
-					Printf.sprintf "raise _HxException(%s)" (print_expr pctx e1)
+				Printf.sprintf "raise %s" (print_expr pctx e1)
 			| TCast(e1,None) ->
 				print_expr pctx e1
 			| TMeta((Meta.Custom ":ternaryIf",_,_),{eexpr = TIf(econd,eif,Some eelse)}) ->
@@ -1484,70 +1472,17 @@ module Printer = struct
 				do_default()
 
 	and print_try pctx e1 catches =
-		let has_catch_all = List.exists (fun (v,_) -> match follow v.v_type with
-			| TDynamic _ -> true
-			| _ -> false
-		) catches in
-		let has_only_catch_all = has_catch_all && begin match catches with
-			| [_] -> true
-			| _ -> false
-		end in
-		let print_catch pctx i (v,e) =
-			let is_empty_expr = begin match e.eexpr with
-				| TBlock [] -> true
-				| _ -> false
-			end in
-			let indent = pctx.pc_indent in
-			(* Don't generate assignment to catch variable when catch expression is an empty block *)
-			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
-			let handle_base_type bt =
-				let t = print_base_type bt in
-				let print_custom_check t_str =
-					Printf.sprintf "if %s:\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
-				in
-				let print_type_check t_str =
-					print_custom_check ("isinstance(_hx_e1, " ^ t_str ^ ")")
-				in
-				let res = match t with
-				| "str" -> print_type_check "str"
-				| "Bool" -> print_type_check "bool"
-				| "Int" -> print_custom_check "(isinstance(_hx_e1, int) and not isinstance(_hx_e1, bool))" (* for historic reasons bool extends int *)
-				| "Float" -> print_type_check "float"
-				| t -> print_type_check t
-				in
-				if i > 0 then
-					indent ^ "el" ^ res
-				else
-					res
-			in
-			match follow v.v_type with
-				| TDynamic _ ->
-					begin if has_only_catch_all then
-						Printf.sprintf "%s%s" assign (print_expr pctx e)
-					else
-						(* Dynamic is always the last block *)
-						Printf.sprintf "%selse:\n    %s%s    %s" indent indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
-					end
-				| TInst(c,_) ->
-					handle_base_type (t_infos (TClassDecl c))
-				| TEnum(en,_) ->
-					handle_base_type (t_infos (TEnumDecl en))
-				| TAbstract(a,_) ->
-					handle_base_type (t_infos (TAbstractDecl a))
-				| _ ->
-					assert false
+		let print_catch pctx (v,e) =
+			let s_type = print_module_type (module_type_of_type v.v_type)
+			and s_expr = pctx.pc_indent ^ (print_expr pctx e) in
+			Printf.sprintf "except %s as %s:\n%s" s_type v.v_name s_expr;
 		in
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s    %s\n%s" indent (print_expr_indented e1) indent in
-		let except = if has_feature pctx "has_throw" then
-			Printf.sprintf "except Exception as _hx_e:\n%s    _hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s    " indent indent
-		else
-			Printf.sprintf "except Exception as _hx_e:\n%s    _hx_e1 = _hx_e\n%s    " indent indent
-		in
-		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "    " ^ pctx.pc_indent} i catch) catches) in
-		let except_end = if not has_catch_all then Printf.sprintf "\n%s    else:\n%s        raise _hx_e" indent indent else "" in
-		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
+		let catch_pctx = {pctx with pc_indent = "    " ^ pctx.pc_indent} in
+		let catch_str = String.concat (Printf.sprintf "\n") (List.map (print_catch catch_pctx) catches) in
+		Printf.sprintf "%s%s" try_str catch_str
 
 	and print_call2 pctx e1 el =
 		let id = print_expr pctx e1 in
@@ -1872,12 +1807,12 @@ module Generator = struct
 	(* Generating functions *)
 
 	let gen_py_metas ctx metas indent =
-		List.iter (fun (n,el,_) ->
+		List.iter (fun (n,el,p) ->
 			match el with
-				| [EConst(String(s,_)),_] ->
-					print ctx "%s@%s\n" indent s
-				| _ ->
-					assert false
+			| [EConst(String(s,_)),_] ->
+				print ctx "%s@%s\n" indent s
+			| _ ->
+				abort "@:python metadata must have a string literal argument" p
 		) metas
 
 	let gen_expr ctx e field indent =
@@ -2110,6 +2045,8 @@ module Generator = struct
 			newline ctx;
 			newline ctx;
 			newline ctx;
+			let py_metas = filter_py_metas c.cl_meta in
+			gen_py_metas ctx py_metas "";
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
 			spr ctx ":";

@@ -782,40 +782,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let rec gen_loc_name n =
-		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
-		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
-	in
-	let loc = alloc_var VGenerated (gen_loc_name 0) e.etype e.epos in
-	let given_args = (loc,false,Some e) :: given_args in
-	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(inner_fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) ordered_args ret p in
-	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) ->
-			call
-		| TMono _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+	let var_decls = List.map (fun (v,_,e_opt) -> mk (TVar(v,e_opt)) ctx.t.tvoid v.v_pos) given_args in
+	let e,var_decls =
+		let is_immutable_method cf =
+			match cf.cf_kind with Method k -> k <> MethDynamic | _ -> false
+		in
+		match e.eexpr with
+		| TFunction _ | TLocal { v_kind = VUser TVOLocalFunction } ->
+			e,var_decls
+		| TField(_,(FStatic(_,cf) | FInstance(_,_,cf))) when is_immutable_method cf ->
+			e,var_decls
 		| _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some (Texpr.Builder.make_null v.v_type null_pos) else None) missing_args;
+	let call = make_call ctx e ordered_args ret p in
+	let body =
+		if ExtType.is_void (follow ret) then call
+		else mk (TReturn(Some call)) ret p
+	in
+	let arg_default optional t =
+		if optional then Some (Texpr.Builder.make_null t null_pos)
+		else None
+	in
+	let fn = {
+		tf_args = List.map (fun (v,o) -> v,arg_default o v.v_type) missing_args;
 		tf_type = ret;
-		tf_expr = e_ret;
-	}) t_inner p in
-	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
-		tf_type = t_inner;
-		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(outer_fun_args given_args, t_inner)) p in
-	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+		tf_expr = body;
+	} in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret) in
+	{
+		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
+		etype = t;
+		epos = p;
+	}
 
 let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
@@ -833,7 +838,7 @@ let array_access ctx e1 e2 mode p =
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
+		let base_ok = ref true in
 		let rec loop ?(skip_abstract=false) et =
 			match skip_abstract,follow et with
 			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
@@ -851,12 +856,31 @@ let array_access ctx e1 e2 mode p =
 			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
+				begin try
+					unify_raise ctx et t p
+				with Error(Unify _,_) ->
+					if not ctx.untyped then begin
+						let msg = if !has_abstract_array_access then
+							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
+						else
+							"Array access is not allowed on " ^ (s_type (print_context()) e1.etype)
+						in
+						base_ok := false;
+						raise_or_display_message ctx msg e1.epos;
+					end
+				end;
 				pt
 		in
 		let pt = loop e1.etype in
+		if !base_ok then unify ctx e2.etype ctx.t.tint e2.epos;
 		AKExpr (mk (TArray (e1,e2)) pt p)
+
+(*
+	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+	return a new `access_mode->access_kind` getter for the whole field access chain.
+*)
+let field_chain ctx path e =
+	List.fold_left (fun e (f,_,p) ->
+		let e = acc_get ctx (e MGet) p in
+		type_field_default_cfg ctx e f p
+	) e path

@@ -4,6 +4,13 @@
 
 	js : use abstract type name for generating its implementation class (#9006)
 	js : improve haxe.ds.StringMap implementation (#8909)
+	js : improve interface checking and make it more minifier-friendly (#9178)
+	lua : improve error handling behavior when throwing objects/instances.
+
+	Standard Library:
+
+	all : negative `startIndex` argument of `String.indexOf` and `String.lastIndexOf` is unspecified (#8365)
+	all : added Array.contains (#9179)
 
 2019-12-17: 4.0.5
 

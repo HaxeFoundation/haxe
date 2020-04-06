@@ -28,7 +28,6 @@ import python.internal.Internal;
 import python.internal.StringImpl;
 import python.internal.EnumImpl;
 import python.internal.HxOverrides;
-import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
@@ -352,6 +351,8 @@ class Boot {
 					createClosure(o, ArrayImpl.indexOf);
 				case "lastIndexOf":
 					createClosure(o, ArrayImpl.lastIndexOf);
+				case "contains":
+					createClosure(o, ArrayImpl.contains);
 				case "remove":
 					createClosure(o, ArrayImpl.remove);
 				case "reverse":

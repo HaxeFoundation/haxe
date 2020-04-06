@@ -25,79 +25,79 @@ package cpp;
 @:include("stdlib.h")
 extern class Native {
 	@:native("malloc")
-	public static function nativeMalloc(bytes:Int):cpp.Star<cpp.Void>;
+	static function nativeMalloc(bytes:Int):cpp.Star<cpp.Void>;
 	@:native("calloc")
-	public static function nativeCalloc(bytes:Int):cpp.Star<cpp.Void>;
+	static function nativeCalloc(bytes:Int):cpp.Star<cpp.Void>;
 	@:native("realloc")
-	public static function nativeRealloc(inPtr:cpp.Star<cpp.Void>, bytes:Int):cpp.RawPointer<cpp.Void>;
+	static function nativeRealloc(inPtr:cpp.Star<cpp.Void>, bytes:Int):cpp.RawPointer<cpp.Void>;
 	@:native("free")
-	public static function nativeFree(ptr:cpp.Star<cpp.Void>):Void;
+	static function nativeFree(ptr:cpp.Star<cpp.Void>):Void;
 	@:native("memcpy")
-	public static function nativeMemcpy(dest:cpp.Star<cpp.Void>, src:cpp.Star<cpp.Void>, bytes:Int):Void;
+	static function nativeMemcpy(dest:cpp.Star<cpp.Void>, src:cpp.Star<cpp.Void>, bytes:Int):Void;
 
 	@:native("hx::ClassSizeOf") @:templatedCall
-	public static function sizeof<T>(t:T):Int;
+	static function sizeof<T>(t:T):Int;
 
 	#if !cppia
 	@:native("hx::Dereference")
-	public static function star<T>(ptr:cpp.Star<T>):cpp.Reference<T>;
+	static function star<T>(ptr:cpp.Star<T>):cpp.Reference<T>;
 
 	@:generic
-	public static inline function set<T>(ptr:cpp.Star<T>, value:T):Void {
+	static inline function set<T>(ptr:cpp.Star<T>, value:T):Void {
 		var ref:cpp.Reference<T> = star(ptr);
 		ref = value;
 	}
 	@:generic
-	public static inline function get<T>(ptr:cpp.Star<T>):T {
+	static inline function get<T>(ptr:cpp.Star<T>):T {
 		var ref:cpp.Reference<T> = star(ptr);
 		return ref;
 	}
 
 	@:generic
-	public static inline function memcpy<DEST, SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int):Void
+	static inline function memcpy<DEST, SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int):Void
 		nativeMemcpy(cast dest, cast src, bytes);
 
 	@:generic
-	public static inline function malloc<T>(bytes:Int):cpp.Star<T>
+	static inline function malloc<T>(bytes:Int):cpp.Star<T>
 		return cast nativeMalloc(bytes);
 
 	@:generic
-	public static inline function calloc<T>(bytes:Int):cpp.Star<T>
+	static inline function calloc<T>(bytes:Int):cpp.Star<T>
 		return cast nativeCalloc(bytes);
 
 	@:generic
-	public static inline function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int):cpp.Star<T>
+	static inline function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int):cpp.Star<T>
 		return cast nativeRealloc(cast ioPtr, bytes);
 
 	@:generic
-	public static inline function free<T>(ptr:cpp.Star<T>):Void {
+	static inline function free<T>(ptr:cpp.Star<T>):Void {
 		if (ptr != null)
 			nativeFree(cast ptr);
 	}
 
 	@:native("hx::StarOf")
-	public static function addressOf<T>(inVariable:Reference<T>):Star<T>;
+	static function addressOf<T>(inVariable:Reference<T>):Star<T>;
 	#else
-	public static inline function addressOf<T>(inVariable:Reference<T>):Star<T> {
+	static inline function addressOf<T>(inVariable:Reference<T>):Star<T> {
 		throw "Native.addressOf not available in cppia";
 	}
-	public static inline function star<T>(ptr:cpp.Star<T>):cpp.Reference<T> {
+	static inline function star<T>(ptr:cpp.Star<T>):cpp.Reference<T> {
 		throw "Native.star not available in cppia";
 	}
 
-	public static inline function set<T>(ptr:cpp.Star<T>, value:T):Void {
+	static inline function set<T>(ptr:cpp.Star<T>, value:T):Void {
 		throw "Native.set not available in cppia";
 	}
-	public static inline function get<T>(ptr:cpp.Star<T>):T {
+	static inline function get<T>(ptr:cpp.Star<T>):T {
 		throw "Native.get not available in cppia";
 		var d:Dynamic = null;
 		return d;
 	}
 
-	public static function memcpy<DEST, SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int):Void;
-	public static function malloc<T>(bytes:Int):cpp.Star<T>;
-	public static function calloc<T>(bytes:Int):cpp.Star<T>;
-	public static function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int):cpp.Star<T>;
-	public static function free<T>(ptr:cpp.Star<T>):Void;
+	static function memcpy<DEST, SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int):Void;
+	static function malloc<T>(bytes:Int):cpp.Star<T>;
+	static function calloc<T>(bytes:Int):cpp.Star<T>;
+	static function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int):cpp.Star<T>;
+	static function free<T>(ptr:cpp.Star<T>):Void;
 	#end
 }

@@ -47,6 +47,14 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this, x);
 	}
 
+	inline function contains(x:T):Bool {
+		#if (js_es >= 6)
+		return (cast this).includes(x);
+		#else
+		return this.indexOf(x) != -1;
+		#end
+	}
+
 	#if (js_es >= 5)
 	@:pure function indexOf(x:T, ?fromIndex:Int):Int;
 	@:pure function lastIndexOf(x:T, ?fromIndex:Int):Int;

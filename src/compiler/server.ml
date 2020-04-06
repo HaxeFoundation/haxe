@@ -829,8 +829,19 @@ let init_wait_socket host port =
 let do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+	let rec display_stdin args =
+		match args with
+		| [] -> ""
+		| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
+			let accept = init_wait_stdio() in
+			let _, read, _, _ = accept() in
+			Option.default "" (read true)
+		| _ :: args ->
+			display_stdin args
+	in
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (Bytes.of_string (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000"));
+	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with

@@ -169,6 +169,38 @@ let rec is_suitable mode expr =
 		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when mode <> SMStrictThreaded -> is_suitable mode target
 		|_ -> false
 
+(**
+	Returns a list of metadata attached to `callee` arguments.
+	E.g. for
+	```
+	function(@:meta1 a:Type1, b:Type2, @:meta2 c:Type3)
+	```
+	will return `[ [@:meta1], [], [@:meta2] ]`
+*)
+let get_arguments_meta callee expected_args_count =
+	let rec empty_list n =
+		if n <= 0 then []
+		else [] :: (empty_list (n - 1))
+	in
+	match callee.eexpr with
+		| TField (_, FAnon field)
+		| TField (_, FClosure (_,field))
+		| TField (_, FStatic (_, field))
+		| TField (_, FInstance (_, _, field)) ->
+			(try
+				match get_meta Meta.HaxeArguments field.cf_meta with
+				| _,[EFunction(_,{ f_args = args }),_],_ when expected_args_count = List.length args ->
+					List.map (fun (_,_,m,_,_) -> m) args
+				| _ ->
+					raise Not_found
+			with Not_found ->
+				empty_list expected_args_count
+			)
+		| TFunction { tf_args = args } when expected_args_count = List.length args ->
+			List.map (fun (v,_) -> v.v_meta) args
+		| _ ->
+			empty_list expected_args_count
+
 class unificator =
 	object(self)
 		val stack = new_rec_stack()
@@ -1272,7 +1304,7 @@ class expr_checker mode immediate_execution report =
 					local_safety#process_and left_expr right_expr self#is_nullable_expr self#check_expr
 				| OpBoolOr ->
 					local_safety#process_or left_expr right_expr self#is_nullable_expr self#check_expr
-				(* String concatination is safe if one of operands is safe *)
+				(* String concatenation is safe if one of operands is safe *)
 				| OpAdd
 				| OpAssignOp OpAdd when is_string_type left_expr.etype || is_string_type right_expr.etype  ->
 					check_both();
@@ -1281,7 +1313,10 @@ class expr_checker mode immediate_execution report =
 				| OpAssign ->
 					check_both();
 					if not (self#can_pass_expr right_expr left_expr.etype p) then
-						self#error "Cannot assign nullable value here." [p; right_expr.epos; left_expr.epos]
+						match left_expr.eexpr with
+						| TLocal v when contains_unsafe_meta v.v_meta -> ()
+						| _ ->
+							self#error "Cannot assign nullable value here." [p; right_expr.epos; left_expr.epos]
 					else
 						local_safety#handle_assignment self#is_nullable_expr left_expr right_expr;
 				| _->
@@ -1309,10 +1344,6 @@ class expr_checker mode immediate_execution report =
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p
-					(* self#check_expr e;
-					local_safety#handle_assignment self#is_nullable_expr local e;
-					if not (self#can_pass_expr e v.v_type p) then
-						self#error "Cannot assign nullable value to not-nullable variable." p; *)
 		(**
 			Make sure nobody tries to access a field on a nullable value
 		*)
@@ -1374,8 +1405,9 @@ class expr_checker mode immediate_execution report =
 								| _ -> args
 						in
 						List.iter self#check_expr real_args
-					else
+					else begin
 						self#check_args callee args types
+					end
 				| _ ->
 					List.iter self#check_expr args
 			);
@@ -1383,22 +1415,32 @@ class expr_checker mode immediate_execution report =
 		(**
 			Check if specified expressions can be passed to a call which expects `types`.
 		*)
-		method private check_args ?(arg_num=0) callee args types =
-			match (args, types) with
-				| (arg :: args, (arg_name, optional, t) :: types) ->
-					if not optional && not (self#can_pass_expr arg t arg.epos) then begin
-						let fn_str = match symbol_name callee with "" -> "" | name -> " of function \"" ^ name ^ "\""
-						and arg_str = if arg_name = "" then "" else " \"" ^ arg_name ^ "\"" in
-						self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") [arg.epos; callee.epos]
-					end;
-					(match arg.eexpr with
-						| TFunction fn ->
-							self#check_function ~immediate_execution:(immediate_execution#check callee arg_num) fn
-						| _ ->
-							self#check_expr arg
-					);
-					self#check_args ~arg_num:(arg_num + 1) callee args types;
-				| _ -> ()
+		method private check_args callee args types =
+			let rec traverse arg_num args types meta =
+				match (args, types, meta) with
+					| (arg :: args, (arg_name, optional, t) :: types, arg_meta :: meta) ->
+						let unsafe_argument = contains_unsafe_meta arg_meta in
+						if
+							not optional && not unsafe_argument
+							&& not (self#can_pass_expr arg t arg.epos)
+						then begin
+							let fn_str = match symbol_name callee with "" -> "" | name -> " of function \"" ^ name ^ "\""
+							and arg_str = if arg_name = "" then "" else " \"" ^ arg_name ^ "\"" in
+							self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") [arg.epos; callee.epos]
+						end;
+						(match arg.eexpr with
+							| TFunction fn ->
+								self#check_function ~immediate_execution:(immediate_execution#check callee arg_num) fn
+							| TCast(e,None) when unsafe_argument && fast_eq arg.etype t ->
+								self#check_expr e
+							| _ ->
+								self#check_expr arg
+						);
+						traverse (arg_num + 1) args types meta;
+					| _ -> ()
+			in
+			let meta = get_arguments_meta callee (List.length types) in
+			traverse 0 args types meta
 	end
 
 class class_checker cls immediate_execution report =

@@ -131,7 +131,7 @@ module StrictMeta = struct
 			| _ ->
 				display_error ctx "Unexpected expression" texpr.epos; assert false
 
-	let get_strict_meta ctx params pos =
+	let get_strict_meta ctx meta params pos =
 		let pf = ctx.com.platform in
 		let changed_expr, fields_to_check, ctype = match params with
 			| [ECall(ef, el),p] ->
@@ -166,7 +166,7 @@ module StrictMeta = struct
 		let texpr = type_expr ctx changed_expr NoValue in
 		let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 		let extra = handle_fields ctx fields_to_check with_type_expr in
-		Meta.Meta, [make_meta ctx texpr extra], pos
+		meta, [make_meta ctx texpr extra], pos
 
 	let check_strict_meta ctx metas =
 		let pf = ctx.com.platform in
@@ -174,8 +174,11 @@ module StrictMeta = struct
 			| Cs | Java ->
 				let ret = ref [] in
 				List.iter (function
+					| Meta.AssemblyStrict,params,pos -> (try
+						ret := get_strict_meta ctx Meta.AssemblyMeta params pos :: !ret
+					with | Exit -> ())
 					| Meta.Strict,params,pos -> (try
-						ret := get_strict_meta ctx params pos :: !ret
+						ret := get_strict_meta ctx Meta.Meta params pos :: !ret
 					with | Exit -> ())
 					| _ -> ()
 				) metas;
@@ -189,8 +192,13 @@ end
 let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
-	let make_path name priv =
-		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
+	let make_path name priv p =
+		List.iter (fun (t2,(_,p2)) ->
+			if snd (t_path t2) = name then begin
+				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
+				error "Previous declaration here" p2;
+			end
+		) !decls;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
 	let pt = ref None in
@@ -209,7 +217,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -230,7 +238,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -256,7 +264,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -281,7 +289,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 	let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -680,10 +688,7 @@ let init_module_type ctx context_init (decl,p) =
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- TAnon {
-			a_fields = !fields;
-			a_status = ref (EnumStatics e);
-		};
+		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then

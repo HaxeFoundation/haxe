@@ -5,6 +5,9 @@ open TType
 let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
 let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> assert false)
 
+let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
+
 (* Flags *)
 
 let has_flag flags flag =
@@ -66,7 +69,9 @@ let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_anon fl = TAnon { a_fields = fl; a_status = ref Closed; }
+let mk_anon ?fields status =
+	let fields = match fields with Some fields -> fields | None -> PMap.empty in
+	TAnon { a_fields = fields; a_status = status; }
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
@@ -242,10 +247,7 @@ let map loop t =
 				a.a_fields <- fields;
 				t
 			| _ ->
-				TAnon {
-					a_fields = fields;
-					a_status = a.a_status;
-				}
+				mk_anon ~fields a.a_status
 		end
 	| TLazy f ->
 		let ft = lazy_type f in
@@ -375,10 +377,7 @@ let apply_params ?stack cparams params t =
 					a.a_fields <- fields;
 					t
 				| _ ->
-					TAnon {
-						a_fields = fields;
-						a_status = a.a_status;
-					}
+					mk_anon ~fields a.a_status
 			end
 		| TLazy f ->
 			let ft = lazy_type f in
@@ -732,3 +731,16 @@ let resolve_typedef t =
 		| TInst (c,_) -> TClassDecl c
 		| TAbstract (a,_) -> TAbstractDecl a
 		| _ -> t
+
+(**
+	Check if type `t` has meta `m`.
+	Does not follow typedefs, monomorphs etc.
+*)
+let type_has_meta t m =
+	match t with
+		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
+		| TEnum ({ e_meta = metadata }, _)
+		| TInst ({ cl_meta = metadata }, _)
+		| TType ({ t_meta = metadata }, _)
+		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
+

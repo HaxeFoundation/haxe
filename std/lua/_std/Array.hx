@@ -192,6 +192,14 @@ class Array<T> {
 		return false;
 	}
 
+	public function contains(x:T):Bool {
+		for (i in 0...length) {
+			if (this[i] == x)
+				return true;
+		}
+		return false;
+	}
+
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var end = length;
 		if (fromIndex == null)

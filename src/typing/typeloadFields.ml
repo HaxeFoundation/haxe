@@ -115,11 +115,13 @@ let dump_field_context fctx =
 	]
 
 
-let is_java_native_function meta = try
+let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
-		| (Meta.Native,[],_) -> true
+		| (Meta.Native,[],_) ->
+			ctx.com.warning "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			true
 		| _ -> false
-	with | Not_found -> false
+	with | Not_found -> Meta.has Meta.NativeJni meta
 
 (**** end of strict meta handling *****)
 
@@ -137,7 +139,10 @@ let get_struct_init_super_info ctx c p =
 			let args = (try get_method_args ctor with Not_found -> []) in
 			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = match value with Some _ -> true | None -> false in
+					let opt = match value with
+						| Some _ -> true
+						| None -> Meta.has Meta.Optional v.v_meta
+					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
@@ -179,6 +184,8 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
+				if opt && not (Meta.has Meta.Optional v.v_meta) then
+					v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta;
 				(* this.field = <constructor_argument> *)
 				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
@@ -630,6 +637,24 @@ let type_opt (ctx,cctx) p t =
 	| _ ->
 		load_type_hint ctx p t
 
+let transform_field (ctx,cctx) c f fields p =
+	let f = match cctx.abstract with
+		| Some a ->
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+			transform_abstract_field ctx.com this_t a_t a f
+		| None ->
+			f
+	in
+	if List.mem_assoc AMacro f.cff_access then
+		(match ctx.g.macros with
+		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
+			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
+				error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
+		| _ -> ());
+	f
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -638,24 +663,7 @@ let build_fields (ctx,cctx) c fields =
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
 		| EVars [_,_,Some (CTAnonymous f,p),None] ->
-			let f = List.map (fun f ->
-				let f = match cctx.abstract with
-					| Some a ->
-						let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
-						let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-						transform_abstract_field ctx.com this_t a_t a f
-					| None ->
-						f
-				in
-				if List.mem_assoc AMacro f.cff_access then
-					(match ctx.g.macros with
-					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
-						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
-						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
-							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
-					| _ -> ());
-				f
-			) f in
+			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
 			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
@@ -1097,7 +1105,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
+	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
+	let is_override = Option.is_some fctx.override in
+	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
+
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
@@ -1141,7 +1152,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			with Not_found ->
 				()
 	) parent;
-	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
+	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
@@ -1161,9 +1172,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
 			begin match ctx.com.platform with
-				| Java when is_java_native_function cf.cf_meta ->
+				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if fd.f_expr <> None then
-						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->

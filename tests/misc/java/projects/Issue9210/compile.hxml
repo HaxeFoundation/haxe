@@ -1,0 +1,11 @@
+--java bin
+-D jvm
+haxe.ds.Option
+
+--next
+
+--cmd javac -d bin -cp "bin/*" Main.java
+
+--next
+
+--run Run

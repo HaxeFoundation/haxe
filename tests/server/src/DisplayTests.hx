@@ -1,3 +1,4 @@
+import haxe.display.JsonModuleTypes;
 import haxe.display.Protocol;
 import haxe.PosInfos;
 import haxe.display.Server;
@@ -9,6 +10,23 @@ import haxe.display.FsPath;
 @:timeout(5000)
 // TODO: somebody has to clean this up
 class DisplayTests extends HaxeServerTestCase {
+	function testIssue7262() {
+		var content = 'class Main {
+			static public function main() {
+				var x:haxe.extern.EitherType<haxe.PosInfos, () -> Void> = {-1-}
+			}
+		}';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		equals("TAnonymous", result.mode.args.expectedTypeFollowed.args.params[0].kind);
+	}
+
 	function testIssue7305() {
 		var content = 'class Main {
 	static public function main() {
@@ -45,6 +63,23 @@ class DisplayTests extends HaxeServerTestCase {
 		});
 		var result = parseCompletion();
 		Assert.equals("obj", result.result.mode.args.item.args.name);
+	}
+
+	function testIssue7923() {
+		vfs.putContent("TreeItem.hx", getTemplate("issues/Issue7923/TreeItem.hx"));
+		var content = getTemplate("issues/Issue7923/Main.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, item -> switch (item.kind) {
+			case EnumAbstractField: item.args.field.name == "Collapsed";
+			case _: false;
+		});
 	}
 
 	function testIssue8061() {
@@ -251,10 +286,10 @@ typedef Foo = {
 		var args = ["-main", "Main"];
 		runHaxeJson(args, DisplayMethods.GotoDefinition, {file: new FsPath("Main.hx"), offset: 56});
 		var result = parseGotoDefinition();
-		if(result.result.length == 0) {
+		if (result.result.length == 0) {
 			Assert.fail('display/definition failed');
 		} else {
-			Assert.same({"start":{"line":7, "character":12}, "end":{"line":7, "character":15}}, result.result[0].range);
+			Assert.same({"start": {"line": 7, "character": 12}, "end": {"line": 7, "character": 15}}, result.result[0].range);
 		}
 	}
 
@@ -393,5 +428,88 @@ typedef Foo = {
 		// 		}
 		// 	}
 		// ], result);
+	}
+
+	function testIssue9115() {
+		var content = getTemplate("issues/Issue9115/A.hx");
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("A.hx", transform.source);
+		runHaxe(["--no-output", "A"]);
+		runHaxeJson([], DisplayMethods.Hover, {
+			file: new FsPath("A.hx"),
+			offset: transform.markers[1]
+		});
+		var result = parseHover();
+		Assert.equals("A", result.result.item.type.args.path.typeName /* lol */);
+	}
+
+	function testIssue7754() {
+		var content = '
+			class Main {
+				static function main() {
+					Foo.foo({-1-});
+				}
+			}
+			extern class Foo {
+				@:overload(function(?s:String):Void {})
+				static function foo(?i:Int):Void;
+			}
+		';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.SignatureHelp, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseSignatureHelp();
+		var sigs = result.result.signatures;
+		Assert.equals(2, sigs.length);
+		Assert.equals('Null<String>', strType(sigs[0].args[0].t));
+		Assert.equals('Null<Int>', strType(sigs[1].args[0].t));
+	}
+
+	function testIssue9159() {
+		var content = '
+			@:structInit
+			class CustomConstructor {
+				public var nope1:String;
+				public function new(x:Int = 0) {}
+				public function nope2() {}
+			}
+
+			@:structInit
+			class AutoConstructor {
+				public var y:Float;
+				public function nope() {}
+			}
+
+			class Main {
+				static function main() {
+					var a:CustomConstructor = {-1-}{};
+					var b:AutoConstructor = {-2-}{};
+				}
+			}
+		';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		Assert.equals(1, result.items.length);
+		Assert.equals('x', result.items[0].args.field.name);
+
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[2],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion().result;
+		Assert.equals(1, result.items.length);
+		Assert.equals('y', result.items[0].args.field.name);
 	}
 }

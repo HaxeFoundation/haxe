@@ -61,6 +61,7 @@ type ctx = {
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
 	mutable found_expose : bool;
+	mutable catch_vars : texpr list;
 }
 
 type object_store = {
@@ -68,14 +69,15 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
-let get_exposed ctx path meta =
+let process_expose meta f_default f =
 	try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
-		(match args with
-			| [ EConst (String(s,_)), _ ] -> [s]
-			| [] -> [path]
-			| _ -> abort "Invalid @:expose parameters" pos)
-	with Not_found -> []
+		match args with
+		| [ EConst (String(s,_)), _ ] -> f s
+		| [] -> f (f_default ())
+		| _ -> abort "Invalid @:expose parameters" pos
+	with Not_found ->
+		()
 
 let dot_path = s_type_path
 
@@ -137,21 +139,17 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
-let static_field ctx c s =
-		match s with
-		| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta->
-			let with_dollar = ".$" ^ s in
-			if get_es_version ctx.com >= 6 then
-				try
-					let f = PMap.find s c.cl_statics in
-					match f.cf_kind with
-					| Method _ -> "." ^ s
-					| _ -> with_dollar
-				with Not_found ->
-					with_dollar
-			else
-				with_dollar
-		| s -> field s
+let static_field ctx c f =
+	let s = f.cf_name in
+	match s with
+	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta ->
+		(match f.cf_kind with
+		| Method _ when ctx.es_version >= 6 ->
+			"." ^ s
+		| _ ->
+			".$" ^ s)
+	| s ->
+		field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -372,8 +370,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert (ctx.es_version >= 6); spr ctx "super"
 
-let print_deprecation_message com msg p =
-	com.warning msg p
+let print_deprecation_message = DeprecationCheck.warn_deprecation
 
 let is_code_injection_function e =
 	match e.eexpr with
@@ -411,11 +408,26 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
+	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "rethrow" })), [] ->
+		(match ctx.catch_vars with
+			| e :: _ ->
+				spr ctx "throw ";
+				gen_value ctx e
+			| _ ->
+				abort "js.Lib.rethrow can only be called inside a catch block" e.epos
+		)
+	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "getOriginalException" })), [] ->
+		(match ctx.catch_vars with
+			| e :: _ ->
+				gen_value ctx e
+			| _ ->
+				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
+		)
 	| TIdent "__new__", args ->
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
 		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
@@ -586,8 +598,7 @@ and gen_expr ctx e =
 		in
 		let x = skip x in
 		gen_value ctx x;
-		let name = field_name f in
-		spr ctx (match f with FStatic(c,_) -> static_field ctx c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic(c,f) -> static_field ctx c f | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field (field_name f))
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -730,7 +741,9 @@ and gen_expr ctx e =
 		gen_expr ctx etry;
 		check_var_declaration v;
 		print ctx " catch( %s ) " v.v_name;
-		gen_expr ctx ecatch
+		ctx.catch_vars <- (mk (TLocal v) v.v_type v.v_pos) :: ctx.catch_vars;
+		gen_expr ctx ecatch;
+		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch (e,cases,def) ->
@@ -1068,16 +1081,15 @@ let gen_class_static_field ctx c cl_path f =
 	| None when not (is_physical_field f) ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx cl_path) (static_field ctx c f.cf_name);
+		print ctx "%s%s = null" (s_path ctx cl_path) (static_field ctx c f);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx cl_path) ^ (static_field ctx c f.cf_name) in
-			let dot_path = (dot_path cl_path) ^ (static_field ctx c f.cf_name) in
+			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
+			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -1152,9 +1164,7 @@ let generate_class_es3 ctx c =
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
 
-	(match (get_exposed ctx dotp c.cl_meta) with
-	| [s] -> print ctx "$hx_exports%s = " (path_to_brackets s)
-	| _ -> ());
+	process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 
 	if is_abstract_impl then begin
 		(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -1299,9 +1309,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				(match get_exposed ctx (dotp ^ (static_field ctx c cf.cf_name)) cf.cf_meta with
-				| [s] -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods;
-				| _ -> ());
+				process_expose cf.cf_meta (fun () -> dotp  ^ "." ^ cf.cf_name) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
 
 				false
 			| _ -> true
@@ -1321,18 +1329,18 @@ let generate_class_es6 ctx c =
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
 
 	let is_abstract_impl = is_abstract_impl c in
-	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
 
-	let expose = (match get_exposed ctx dotp c.cl_meta with [s] -> "$hx_exports" ^ (path_to_brackets s) | _ -> "") in
-	if expose <> "" || added_to_hxClasses then begin
-		if added_to_hxClasses then begin
+	begin
+		let added = ref false in
+		if ctx.has_resolveClass && not is_abstract_impl then begin
+			added := true;
 			print ctx "$hxClasses[\"%s\"] = " dotp
 		end;
-		if expose <> "" then begin
-			print ctx "%s = " expose
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> added := true; print ctx "$hx_exports%s = " (path_to_brackets s));
+		if !added then begin
+			spr ctx p;
+			newline ctx;
 		end;
-		spr ctx p;
-		newline ctx;
 	end;
 
 	if not is_abstract_impl then begin
@@ -1519,9 +1527,8 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	let cl_path = get_generated_class_path c in
-	let dot_path = (dot_path cl_path) ^ (static_field ctx c f.cf_name) in
-	(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports%s = " (path_to_brackets s) | _ -> ());
-	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f.cf_name);
+	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
 	gen_value ctx e;
 	newline ctx
 
@@ -1616,6 +1623,7 @@ let alloc_ctx com es_version =
 		type_accessor = (fun _ -> assert false);
 		separator = false;
 		found_expose = false;
+		catch_vars = [];
 	} in
 
 	ctx.type_accessor <- (fun t ->
@@ -1659,38 +1667,46 @@ let generate com =
 
 	setup_kwds com;
 
-	let exposed = List.concat (List.map (fun t ->
-		match t with
+	let exposed = begin
+		let r = ref [] in
+		List.iter (
+			function
 			| TClassDecl c ->
 				let path = dot_path c.cl_path in
-				let class_exposed = get_exposed ctx path c.cl_meta in
-				let static_exposed = List.map (fun f ->
-					get_exposed ctx (path ^ static_field ctx c f.cf_name) f.cf_meta
-				) c.cl_ordered_statics in
-				List.concat (class_exposed :: static_exposed)
-			| _ -> []
-		) com.types) in
+				let add s = r := s :: !r in
+				process_expose c.cl_meta (fun () -> path) add;
+				List.iter (fun f ->
+					process_expose f.cf_meta (fun () -> path ^ "." ^ f.cf_name) add
+				) c.cl_ordered_statics
+			| _ -> ()
+		) com.types;
+		!r
+	end in
 	let anyExposed = exposed <> [] in
-	let exportMap = ref (PMap.create String.compare) in
 	let exposedObject = { os_name = ""; os_fields = [] } in
 	let toplevelExposed = ref [] in
-	List.iter (fun path -> (
-		let parts = ExtString.String.nsplit path "." in
-		let rec loop p pre = match p with
-			| f :: g :: ls ->
-				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
-				if not (PMap.exists path !exportMap) then (
-					let elts = { os_name = f; os_fields = [] } in
-					exportMap := PMap.add path elts !exportMap;
-					let cobject = match pre with "" -> exposedObject | pre -> PMap.find pre !exportMap in
-					cobject.os_fields <- elts :: cobject.os_fields
-				);
-				loop (g :: ls) path;
-			| f :: [] when pre = "" ->
-				toplevelExposed := f :: !toplevelExposed;
-			| _ -> ()
-		in loop parts "";
-	)) exposed;
+	if anyExposed then begin
+		let exportMap = Hashtbl.create 0 in
+		List.iter (fun path ->
+			let parts = ExtString.String.nsplit path "." in
+			let rec loop p pre =
+				match p with
+				| f :: g :: ls ->
+					let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
+					if not (Hashtbl.mem exportMap path) then (
+						let elts = { os_name = f; os_fields = [] } in
+						Hashtbl.add exportMap path elts;
+						let cobject = match pre with "" -> exposedObject | pre -> Hashtbl.find exportMap pre in
+						cobject.os_fields <- elts :: cobject.os_fields
+					);
+					loop (g :: ls) path;
+				| f :: [] when pre = "" ->
+					toplevelExposed := f :: !toplevelExposed;
+				| _ -> ()
+			in
+			loop parts ""
+		) exposed
+	end;
 
 	let include_files = List.rev com.include_files in
 

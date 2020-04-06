@@ -96,7 +96,7 @@ let prepare_field dctx com cf = match cf.cf_expr with
 	| Some e ->
 		find_unused_variables dctx e;
 		check_other_things com e;
-		DeprecationCheck.run_on_expr com e
+		DeprecationCheck.run_on_expr ~force:true com e
 
 let prepare com =
 	let dctx = {

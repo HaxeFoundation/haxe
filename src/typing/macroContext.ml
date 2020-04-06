@@ -248,9 +248,9 @@ let make_macro_api ctx p =
 			tp.tp_meta <- tp.tp_meta @ (List.map (fun (m,el,_) -> (m,el,p)) ml);
 		);
 		MacroApi.set_js_generator = (fun gen ->
-			Path.mkdir_from_path ctx.com.file;
-			let js_ctx = Genjs.alloc_ctx ctx.com (get_es_version ctx.com) in
 			ctx.com.js_gen <- Some (fun() ->
+				Path.mkdir_from_path ctx.com.file;
+				let js_ctx = Genjs.alloc_ctx ctx.com (get_es_version ctx.com) in
 				let t = macro_timer ctx ["jsGenerator"] in
 				gen js_ctx;
 				t()
@@ -516,17 +516,17 @@ let load_macro_module ctx cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro ctx display cpath f p =
+let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let cpath, sub = (match List.rev (fst cpath) with
+	let mpath, sub = (match List.rev (fst cpath) with
 		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 		| _ -> cpath, None
 	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded,restore = load_macro_module ctx cpath display p in
-		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
+		let mloaded,restore = load_macro_module ctx mpath display p in
+		let mt = Typeload.load_type_def mctx p { tpackage = fst mpath; tname = snd mpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
 				mctx.g.do_finalize mctx;
@@ -534,8 +534,7 @@ let load_macro ctx display cpath f p =
 			| _ -> error "Macro should be called on a class" p
 		) in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
-		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-			DeprecationCheck.check_cf mctx.com meth p;
+		DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
 		restore();
 		if not ctx.in_macro then flush_macro_context mint ctx;
@@ -552,11 +551,17 @@ let load_macro ctx display cpath f p =
 		meth
 	in
 	add_dependency ctx.m.curmod mloaded;
+	meth
+
+let load_macro ctx display cpath f p =
+	let meth = load_macro' ctx display cpath f p in
+	let api, mctx = get_macro_context ctx p in
+	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
-		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
+		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
 		t();
 		if ctx.com.verbose then Common.log ctx.com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 		r

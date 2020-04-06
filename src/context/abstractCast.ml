@@ -188,7 +188,7 @@ let find_multitype_specialization com a pl p =
 							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
 								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 								Type.map loop t
