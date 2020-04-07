@@ -414,7 +414,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let acc = match is_final with
-		| None | Some true when not force_check ->
+		| None | Some true when not force_check && not !is_static ->
 			(AFinal,null_pos) :: acc
 		| _ ->
 			acc
