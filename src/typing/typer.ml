@@ -626,12 +626,43 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
-				| _ ->  error "Invalid field type for abstract setter" p
+				| _ -> error "Invalid field type for abstract setter" p
 			in
 			let l = save_locals ctx in
-			let v,is_temp = match et.eexpr with
-				| TLocal v when not (v.v_name = "this") -> v,false
-				| _ -> gen_local ctx ta ef.epos,true
+			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
+				| TLocal v when not (v.v_name = "this") -> v,[],None
+				| _ ->
+					let v = gen_local ctx ta ef.epos in
+					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
+					let rec needs_temp_var e =
+						match e.eexpr with
+						| TConst TThis | TTypeExpr _ -> false
+						| TField (e1,(FInstance(_,_,cf) | FStatic(_,cf)))
+							when has_class_field_flag cf CfFinal ->
+							needs_temp_var e1
+						| TParenthesis e1 ->
+							needs_temp_var e1
+						| _ -> true
+					in
+					if has_class_field_flag cf CfModifiesThis then
+						match et.eexpr with
+						| TField (target,fa) when needs_temp_var target->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TField (etmp,fa)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| TArray (target,index) when needs_temp_var target ->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TArray (etmp,index)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| _ ->
+							check_assign ctx et;
+							v,[decl_v et],(Some et)
+					else
+						v,[decl_v et],None
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
@@ -640,13 +671,28 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx get.etype ret p;
 			l();
 			let e_call = make_call ctx ef [ev;get] ret p in
-			if is_temp then
-				mk (TBlock [
-					mk (TVar (v,Some et)) ctx.t.tvoid p;
+			let e_call =
+				(*
+					If this method modifies abstract `this`, we should also apply temp var
+					modifications to the original tempvar-ed expression.
+					Find code like `v = value` and change it to `et = v = value`,
+					where `v` is the temp var and `et` is the original expression stored to the temp var.
+				*)
+				match abstr_this_to_modify with
+				| None ->
 					e_call
-				]) ret p
-			else
-				e_call
+				| Some athis ->
+					let rec loop e =
+						match e.eexpr with
+						| TBinop(OpAssign,({ eexpr = TLocal v1 } as left),right) when v1 == v ->
+							let right = { e with eexpr = TBinop(OpAssign,left,loop right) } in
+							mk (TBinop(OpAssign,athis,right)) e.etype e.epos
+						| _ ->
+							map_expr loop e
+					in
+					loop e_call
+			in
+			mk (TBlock (init_exprs @ [e_call])) ret p
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
