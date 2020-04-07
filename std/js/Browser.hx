@@ -32,7 +32,6 @@ class Browser {
 	static inline function get_self():js.html.WorkerGlobalScope {
 		return js.Lib.global;
 	}
-		
 
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
@@ -50,19 +49,19 @@ class Browser {
 	public static var location(get, never):js.html.Location;
 
 	extern inline static function get_location()
-		return window.location;
+		return js.Lib.global.location;
 
 	/** Shortcut to Window.navigator. */
 	public static var navigator(get, never):js.html.Navigator;
 
 	extern inline static function get_navigator()
-		return window.navigator;
+		return js.Lib.global.navigator;
 
 	/** Shortcut to Window.console. */
 	public static var console(get, never):js.html.ConsoleInstance;
 
 	extern inline static function get_console()
-		return window.console;
+		return js.Lib.global.console;
 
 	/**
 	 * True if a window object exists, false otherwise.
@@ -118,10 +117,10 @@ class Browser {
 	 * Explorer.
 	 */
 	public static function createXMLHttpRequest():XMLHttpRequest {
-		if (untyped __js__("typeof XMLHttpRequest") != "undefined") {
+		if (js.Syntax.code("typeof XMLHttpRequest") != "undefined") {
 			return new XMLHttpRequest();
 		}
-		if (untyped __js__("typeof ActiveXObject") != "undefined") {
+		if (js.Syntax.code("typeof ActiveXObject") != "undefined") {
 			return js.Syntax.construct("ActiveXObject", "Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";
