@@ -52,9 +52,9 @@ class File {
 
 	public static function read(path:String, binary:Bool = true):FileInput {
 		try {
-			return new FileInput(new java.io.RandomAccessFile(new java.io.File(path), "r"));
-		} catch (e:Dynamic) // swallow checked exceptions
-		{
+			return @:privateAccess new FileInput(new java.io.RandomAccessFile(new java.io.File(path), "r"));
+		} catch (e:Dynamic) {
+			// swallow checked exceptions
 			throw e;
 		}
 	}
@@ -66,9 +66,9 @@ class File {
 		}
 
 		try {
-			return new FileOutput(new java.io.RandomAccessFile(f, "rw"));
-		} catch (e:Dynamic) // swallow checked exceptions
-		{
+			return @:privateAccess new FileOutput(new java.io.RandomAccessFile(f, "rw"));
+		} catch (e:Dynamic) {
+			// swallow checked exceptions
 			throw e;
 		}
 	}
@@ -81,9 +81,9 @@ class File {
 			if (f.exists()) {
 				ra.seek(f.length());
 			}
-			return new FileOutput(ra);
-		} catch (e:Dynamic) // swallow checked exceptions
-		{
+			return @:privateAccess new FileOutput(ra);
+		} catch (e:Dynamic) {
+			// swallow checked exceptions
 			throw e;
 		}
 	}
@@ -93,9 +93,9 @@ class File {
 
 		try {
 			var ra = new java.io.RandomAccessFile(f, "rw");
-			return new FileOutput(ra);
-		} catch (e:Dynamic) // swallow checked exceptions
-		{
+			return @:privateAccess new FileOutput(ra);
+		} catch (e:Dynamic) {
+			// swallow checked exceptions
 			throw e;
 		}
 	}
