@@ -29,14 +29,14 @@ class Browser {
 	/** The global scope with additional fields available only in a worker context. */
 	public static var self(get, never):js.html.WorkerGlobalScope;
 
-	extern inline static function get_self():js.html.WorkerGlobalScope
-		return untyped __js__("self");
+	extern static function get_self():js.html.WorkerGlobalScope
+		return js.Syntax.code("self");
 
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
 
 	extern inline static function get_window()
-		return untyped __js__("window");
+		return js.Syntax.code("window");
 
 	/** Shortcut to Window.document. */
 	public static var document(get, never):js.html.HTMLDocument;
