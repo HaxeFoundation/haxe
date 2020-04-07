@@ -26,7 +26,7 @@ import js.html.Storage;
 import js.html.XMLHttpRequest;
 
 class Browser {
-	/** The global scope with additional fields available only in a worker context. */
+	/** The global scope typed with fields available only in a worker context. */
 	public static var self(get, never):js.html.WorkerGlobalScope;
 
 	static inline function get_self():js.html.WorkerGlobalScope {
