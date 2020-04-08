@@ -633,6 +633,10 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
 				| _ ->
 					let v = gen_local ctx ta ef.epos in
+					(match et.eexpr with
+					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
+					| _ -> ()
+					);
 					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
 					let rec needs_temp_var e =
 						match e.eexpr with
