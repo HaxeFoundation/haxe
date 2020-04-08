@@ -350,8 +350,8 @@ let default_config =
 		pf_exceptions = {
 			ec_native_throws = [];
 			ec_native_catches = [];
-			ec_wildcard_catch = ([],"Dynamic");
-			ec_base_throw = ([],"Dynamic");
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
 		};
 		pf_nested_function_scoping = Independent;
 	}
@@ -369,14 +369,11 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["js";"lib"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_native_catches = [];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			};
 			pf_nested_function_scoping = Hoisted;
 		}
@@ -403,7 +400,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
@@ -412,8 +409,6 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			}
 		}
 	| Php ->
@@ -509,15 +504,13 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["haxe"],"Exception";
 				];
 				ec_native_catches = [
 					["haxe"],"Exception";
 				];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			}
 		}
 	| Eval ->

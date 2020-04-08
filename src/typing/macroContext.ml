@@ -420,8 +420,12 @@ and flush_macro_context mint ctx =
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	let expr_filters = [VarLazifier.apply mctx.com;AbstractCast.handle_abstract_casts mctx; CapturedVars.captured_vars mctx.com;] in
-
+	let expr_filters = [
+		VarLazifier.apply mctx.com;
+		AbstractCast.handle_abstract_casts mctx;
+		Exceptions.filter mctx;
+		CapturedVars.captured_vars mctx.com;
+	] in
 	(*
 		some filters here might cause side effects that would break compilation server.
 		let's save the minimal amount of information we need
@@ -436,6 +440,7 @@ and flush_macro_context mint ctx =
 			()
 	in
 	let type_filters = [
+		Exceptions.patch_constructors mctx;
 		Filters.add_field_inits (StringMap.empty) mctx;
 		minimal_restore;
 		Filters.apply_native_paths mctx
