@@ -20,7 +20,7 @@ let extend_remoting ctx c t p async prot =
 	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
 	(* check if the proxy already exists *)
 	let t = (try
-		load_type_def ctx p (mk_type_path path)
+		load_type_def ctx p (mk_type_path (fst path,new_name))
 	with
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
