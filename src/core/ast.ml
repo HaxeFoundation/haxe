@@ -328,6 +328,11 @@ type type_decl = type_def * pos
 
 type package = string list * type_decl list
 
+let mk_type_path ?(params=[]) ?sub (pack,name) =
+	if name = "" then
+		raise (Invalid_argument "Empty module name is not allowed");
+	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
+
 let is_lower_ident i =
 	if String.length i = 0 then
 		raise (Invalid_argument "Identifier name must not be empty")
