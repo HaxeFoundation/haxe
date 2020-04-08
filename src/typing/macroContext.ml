@@ -152,9 +152,9 @@ let make_macro_api ctx p =
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
-						{ tpackage = List.rev sl; tname = s; tparams = []; tsub = Some (snd path) }
+						mk_type_path ~sub:(snd path) (List.rev sl,s)
 					| _ ->
-						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
+						mk_type_path path
 				in
 				try
 					let m = Some (Typeload.load_instance ctx (tp,p) true) in
@@ -299,7 +299,7 @@ let make_macro_api ctx p =
 			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
 		MacroApi.define_type = (fun v mdep ->
-			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
+			let cttype = mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr") in
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
@@ -526,7 +526,7 @@ let load_macro' ctx display cpath f p =
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 		let mloaded,restore = load_macro_module ctx mpath display p in
-		let mt = Typeload.load_type_def mctx p { tpackage = fst mpath; tname = snd mpath; tparams = []; tsub = sub } in
+		let mt = Typeload.load_type_def mctx p (mk_type_path ?sub mpath) in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
 				mctx.g.do_finalize mctx;
@@ -576,7 +576,7 @@ type macro_arg_type =
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
 	let mpos = mfield.cf_pos in
-	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+	let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
 	let expr = Typeload.load_instance mctx (ctexpr,p) false in
 	(match mode with
 	| MDisplay ->
@@ -584,18 +584,19 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	| MExpr ->
 		unify mctx mret expr mpos;
 	| MBuild ->
-		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" },null_pos)]; tsub = None } in
+		let params = [TPType (CTPath (mk_type_path ~sub:"Field" (["haxe";"macro"],"Expr")),null_pos)] in
+		let ctfields = mk_type_path ~params ([],"Array") in
 		let tfields = Typeload.load_instance mctx (ctfields,p) false in
 		unify mctx mret tfields mpos
 	| MMacroType ->
-		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
+		let cttype = mk_type_path (["haxe";"macro"],"Type") in
 		let ttype = Typeload.load_instance mctx (cttype,p) false in
 		try
 			unify_raise mctx mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
-			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("ComplexType") } in
+			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mctx mret ttype mpos;
 	);

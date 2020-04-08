@@ -316,15 +316,20 @@ let parse_module ctx m p =
 					d_meta = [];
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = CTPath (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
-						{
-							tpackage = !remap;
-							tname = fst d.d_name;
-							tparams = List.map (fun tp ->
-								TPType (CTPath { tpackage = []; tname = fst tp.tp_name; tparams = []; tsub = None; },null_pos)
-							) d.d_params;
-							tsub = None;
-						}),null_pos;
+					d_data = begin
+						let tp =
+							if priv then
+								mk_type_path ([],"Dynamic")
+							else
+								let params =
+									List.map (fun tp ->
+										TPType (CTPath (mk_type_path ([],fst tp.tp_name)),null_pos)
+									) d.d_params
+								in
+								mk_type_path ~params (!remap,fst d.d_name)
+						in
+						CTPath (tp),null_pos;
+					end
 				},p) :: acc
 			in
 			match t with

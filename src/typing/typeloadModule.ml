@@ -319,8 +319,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = fst t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
-					CTPath { tpackage = []; tname = fst d.d_name; tparams = params; tsub = None },null_pos
+					let params = List.map (fun t -> TPType (CTPath (mk_type_path ([],fst t.tp_name)),null_pos)) d.d_params in
+					CTPath (mk_type_path ~params ([],fst d.d_name)),null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -949,7 +949,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx (mk_type_path ([],s)) p
 		| _ ->
 			()
 	end;

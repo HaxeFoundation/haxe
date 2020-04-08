@@ -1,0 +1,5 @@
+Main.hx:3: characters 3-9 : Uncaught exception Empty module name is not allowed
+/usr/share/haxe/std/haxe/macro/Context.hx:284: characters 10-35 : Called from here
+Main.hx:7: characters 3-33 : Called from here
+Main.hx:3: characters 3-9 : Called from here
+Main.hx:1: lines 1-10 : Defined in this class
