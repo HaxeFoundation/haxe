@@ -168,8 +168,8 @@ class XmlParser {
 					break;
 				}
 			if (found == null)
-				return false; // don't allow by-platform constructor ?
-			if (curplatform != null)
+				e.constructors.push(c2);
+			else if (curplatform != null)
 				found.platforms.push(curplatform);
 		}
 		return true;
