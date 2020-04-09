@@ -102,6 +102,14 @@ type nested_function_scoping =
 	(** TFunction nodes are nested in the output and there is var hoisting **)
 	| Hoisted
 
+type var_scoping_flags =
+	| ReserveAllClassNames
+	| ReserveNames of string list
+
+type var_scoping = {
+	vs_flags : var_scoping_flags list;
+}
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -133,6 +141,8 @@ type platform_config = {
 	pf_exceptions : exceptions_config;
 	(** the scoping behavior of nested functions **)
 	pf_nested_function_scoping : nested_function_scoping;
+	(** the scoping of local variables *)
+	pf_scoping : var_scoping;
 }
 
 class compiler_callbacks = object(self)
@@ -354,6 +364,9 @@ let default_config =
 			ec_base_throw = (["StdTypes"],"Dynamic");
 		};
 		pf_nested_function_scoping = Independent;
+		pf_scoping = {
+			vs_flags = [];
+		}
 	}
 
 let get_config com =
@@ -376,6 +389,9 @@ let get_config com =
 				];
 			};
 			pf_nested_function_scoping = Hoisted;
+			pf_scoping = {
+				vs_flags = [ReserveAllClassNames];
+			}
 		}
 	| Lua ->
 		{
@@ -478,6 +494,9 @@ let get_config com =
 				];
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
+			};
+			pf_scoping = {
+				vs_flags = [ReserveNames(["_"])];
 			}
 		}
 	| Python ->
