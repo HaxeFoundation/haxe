@@ -103,7 +103,11 @@ type nested_function_scoping =
 	| Hoisted
 
 type var_scoping_flags =
+	(** Local vars cannot have a name used for a class *)
 	| ReserveAllClassNames
+	(** Local vars cannot have the same name as the current top-level package or (if in root package) current class name  *)
+	| ReserveTopLevelSymbol
+	(** List of names cannot be taken by local vars *)
 	| ReserveNames of string list
 
 type var_scoping = {
