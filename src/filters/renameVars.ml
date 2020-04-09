@@ -5,9 +5,15 @@ open Common
 open Ast
 
 type rename_init = {
-	mutable ri_reserve_top_level_symbol : bool;
+	mutable ri_reserve_current_top_level_symbol : bool;
 	mutable ri_reserved : bool StringMap.t;
 }
+
+(* TODO: remove this when all targets are supported *)
+let enable_new platform =
+	match platform with
+	| Php | Js -> true
+	| _ -> false
 
 (**
 	For initialization.
@@ -21,10 +27,10 @@ let reserve_init ri name =
 	Make all class names reserved names.
 	No local variable will have a name matching a class.
 *)
-let reserve_all_class_names ri com =
+let reserve_all_types ri com path_to_name =
 	List.iter (fun mt ->
 		let tinfos = t_infos mt in
-		let native_name = try fst (TypeloadCheck.get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
+		let native_name = try fst (TypeloadCheck.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
 		if native_name = "" then
 			match mt with
 			| TClassDecl c ->
@@ -42,22 +48,24 @@ let reserve_all_class_names ri com =
 *)
 let init com =
 	let ri = {
-		ri_reserve_top_level_symbol = false;
+		ri_reserve_current_top_level_symbol = false;
 		ri_reserved = StringMap.empty
 	} in
-	(match com.platform with
-	| Php ->
+	if enable_new com.platform then begin
 		reserve_init ri "this";
 		List.iter (fun flag ->
 			match flag with
-			| ReserveNames names -> List.iter (reserve_init ri) names
-			| ReserveAllClassNames -> reserve_all_class_names ri com
-			| ReserveTopLevelSymbol -> ri.ri_reserve_top_level_symbol <- true
+			| ReserveNames names ->
+				List.iter (reserve_init ri) names
+			| ReserveAllTopLevelSymbols ->
+				reserve_all_types ri com (fun (pack,name) -> if pack = [] then name else List.hd pack)
+			| ReserveAllTypesFlat ->
+				reserve_all_types ri com Path.flat_path
+			| ReserveCurrentTopLevelSymbol -> ri.ri_reserve_current_top_level_symbol <- true
 		) com.config.pf_scoping.vs_flags
-	(* Old behavior *)
-	| _ ->
-		ri.ri_reserved <- RenameVarsOld.collect_reserved_local_names com
-	);
+	end else
+		(* Old behavior *)
+		ri.ri_reserved <- RenameVarsOld.collect_reserved_local_names com;
 	ri
 
 type scope = {
@@ -86,7 +94,7 @@ type scope = {
 
 type rename_context = {
 	mutable rc_reserved : bool StringMap.t;
-	mutable rc_captured : tvar list;
+	mutable rc_used_names : bool StringMap.t;
 }
 
 (**
@@ -117,15 +125,12 @@ let declare_var rc scope v =
 	in
 	scope.vars <- (v, ref overlaps) :: scope.vars;
 	if scope.loop_count > 0 then
-		scope.loop_vars := v :: !(scope.loop_vars);
-	if v.v_capture then
-		rc.rc_captured <- v :: rc.rc_captured
+		scope.loop_vars := v :: !(scope.loop_vars)
 
 (**
 	Invoked for each `TLocal v` texr_expr
 *)
 let rec use_var rc scope v =
-
 	let rec loop declarations =
 		match declarations with
 		| [] ->
@@ -139,8 +144,13 @@ let rec use_var rc scope v =
 				overlaps := v :: !overlaps;
 			loop rest
 	in
-	loop scope.vars
+	loop scope.vars;
+	if scope.loop_count > 0 && not (List.memq v !(scope.loop_vars)) then
+		scope.loop_vars := v :: !(scope.loop_vars)
 
+(**
+	Collect all the variables declared and used in `e` expression.
+*)
 let rec collect_vars rc scope e =
 	match e.eexpr with
 	| TVar (v, e_opt) ->
@@ -148,34 +158,86 @@ let rec collect_vars rc scope e =
 		Option.may (collect_vars rc scope) e_opt
 	| TLocal v ->
 		use_var rc scope v
+	| TFunction fn ->
+		List.iter (fun (v,_) -> declare_var rc scope v) fn.tf_args;
+		List.iter (fun (v,_) -> use_var rc scope v) fn.tf_args;
+		collect_vars rc scope fn.tf_expr
+	| TTry (try_expr, catches) ->
+		collect_vars rc scope try_expr;
+		List.iter (fun (v, catch_expr) ->
+			declare_var rc scope v;
+			collect_vars rc scope catch_expr
+		) catches
 	| TWhile (condition, body, NormalWhile) ->
 		scope.loop_count <- scope.loop_count + 1;
 		collect_vars rc scope condition;
 		collect_vars rc scope body;
 		scope.loop_count <- scope.loop_count - 1;
+		if scope.loop_count <= 0 then
+			scope.loop_vars := [];
 	(* At this point all loops are expected to be transformed into normal `while` loops *)
 	| TFor _ | TWhile _ ->
 		assert false
 	| _ ->
 		iter (collect_vars rc scope) e
 
+let trailing_numbers = Str.regexp "[0-9]+$"
+
+(**
+	Check if `name` can be used for a local variable
+*)
+let is_name_available rc is_capture_var name =
+	not (
+		StringMap.mem name rc.rc_reserved
+		|| (is_capture_var && StringMap.mem name rc.rc_used_names)
+	)
+
+(**
+	Rename `v` if needed
+*)
+let maybe_rename_var rc (v,overlaps) =
+	(* chop escape char for all local variables generated *)
+	if is_gen_local v then begin
+		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
+		v.v_name <- "_g" ^ (Str.replace_first trailing_numbers "" name)
+	end;
+	let name = ref v.v_name in
+	let count = ref 0 in
+	let same_name o = !name = o.v_name in
+	while (
+		StringMap.mem !name rc.rc_reserved
+		|| (v.v_capture && StringMap.mem !name rc.rc_used_names)
+		|| List.exists same_name !overlaps
+	) do
+		incr count;
+		name := v.v_name ^ (string_of_int !count);
+	done;
+	v.v_name <- !name;
+	if v.v_capture then reserve rc v.v_name
+
+(**
+	Rename variables found in `scope`
+*)
+let rename_vars rc scope =
+	List.iter (maybe_rename_var rc) (List.rev scope.vars)
+
 (**
 	Rename local variables in `e` expression if needed.
 *)
 let run ctx ri e =
-	match ctx.com.platform with
-	| Php ->
+	if enable_new ctx.com.platform then begin
 		let rc = {
 			rc_reserved = ri.ri_reserved;
-			rc_captured = [];
+			rc_used_names = StringMap.empty;
 		} in
-		if ri.ri_reserve_top_level_symbol then begin
+		if ri.ri_reserve_current_top_level_symbol then begin
 			match ctx.curclass.cl_path with
 			| s :: _,_ | [],s -> reserve rc s
 		end;
 		let scope = create_scope None in
 		collect_vars rc scope e;
+		rename_vars rc scope;
 		e
-	(* Old behavior *)
-	| _ ->
+	end else
+		(* Old behavior *)
 		RenameVarsOld.rename_local_vars ctx ri.ri_reserved e

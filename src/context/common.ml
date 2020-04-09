@@ -103,11 +103,23 @@ type nested_function_scoping =
 	| Hoisted
 
 type var_scoping_flags =
-	(** Local vars cannot have a name used for a class *)
-	| ReserveAllClassNames
-	(** Local vars cannot have the same name as the current top-level package or (if in root package) current class name  *)
-	| ReserveTopLevelSymbol
-	(** List of names cannot be taken by local vars *)
+	(**
+		Local vars cannot have the same name as the current top-level package or
+		(if in root package) current class name
+	*)
+	| ReserveCurrentTopLevelSymbol
+	(**
+		Local vars cannot have a name used for any top-level symbol
+		(packages and classes in the root package)
+	*)
+	| ReserveAllTopLevelSymbols
+	(**
+		Reserve all type paths converted to "flat path" with `Path.flat_path`
+	*)
+	| ReserveAllTypesFlat
+	(**
+		List of names cannot be taken by local vars
+	*)
 	| ReserveNames of string list
 
 type var_scoping = {
@@ -394,7 +406,7 @@ let get_config com =
 			};
 			pf_nested_function_scoping = Hoisted;
 			pf_scoping = {
-				vs_flags = [ReserveAllClassNames];
+				vs_flags = [if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat];
 			}
 		}
 	| Lua ->
