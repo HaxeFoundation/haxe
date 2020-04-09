@@ -41,4 +41,7 @@ extern class Api {
 	@:hlNative("std", "breakpoint") static function breakPoint():Void;
 	@:hlNative("std", "sys_is64") static function is64():Bool;
 	@:hlNative("std", "ptr_compare") static function comparePointer(a:Dynamic, b:Dynamic):Int;
+	#if (hl_ver >= version("1.12.0"))
+	@:hlNative("std", "is_prim_loaded") static function isPrimLoaded(f:haxe.Constraints.Function):Bool;
+	#end
 }

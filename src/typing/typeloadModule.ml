@@ -192,8 +192,13 @@ end
 let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
-	let make_path name priv =
-		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
+	let make_path name priv p =
+		List.iter (fun (t2,(_,p2)) ->
+			if snd (t_path t2) = name then begin
+				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
+				error "Previous declaration here" p2;
+			end
+		) !decls;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
 	let pt = ref None in
@@ -212,7 +217,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -233,7 +238,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -259,7 +264,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -284,7 +289,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 	let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -314,8 +319,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = fst t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
-					CTPath { tpackage = []; tname = fst d.d_name; tparams = params; tsub = None },null_pos
+					let params = List.map (fun t -> TPType (CTPath (mk_type_path ([],fst t.tp_name)),null_pos)) d.d_params in
+					CTPath (mk_type_path ~params ([],fst d.d_name)),null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -683,10 +688,7 @@ let init_module_type ctx context_init (decl,p) =
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- TAnon {
-			a_fields = !fields;
-			a_status = ref (EnumStatics e);
-		};
+		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
@@ -947,7 +949,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx (mk_type_path ([],s)) p
 		| _ ->
 			()
 	end;

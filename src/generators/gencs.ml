@@ -690,7 +690,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"; "await"];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = mk_anon (ref Closed)
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -2582,30 +2582,26 @@ let generate con =
 
 			gen_attributes w cl.cl_meta;
 
-			let is_main =
-				match gen.gcon.main_class with
-					| Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
-						(*
-							for cases where the main class is called Main, there will be a problem with creating the entry point there.
-							In this special case, a special entry point class will be created
-						*)
-						write w "public class EntryPoint__Main ";
-						begin_block w;
-						write w "public static void Main() ";
-						begin_block w;
-						(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-						(match gen.gcon.main with
-							| None ->
-								expr_s true w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
-								write w ".main();"
-							| Some expr ->
-								expr_s false w (mk_block expr));
-						end_block w;
-						end_block w;
-						newline w;
-						false
-					| Some path when path = cl.cl_path && not cl.cl_interface -> true
-					| _ -> false
+			let main_expr =
+				match gen.gentry_point with
+				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not cl.cl_interface ->
+					(*
+						for cases where the main class is called Main, there will be a problem with creating the entry point there.
+						In this special case, a special entry point class will be created
+					*)
+					write w "public class EntryPoint__Main ";
+					begin_block w;
+					write w "public static void Main() ";
+					begin_block w;
+					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
+					expr_s false w expr;
+					write w ";";
+					end_block w;
+					end_block w;
+					newline w;
+					None
+				| Some (_, cl_main,expr) when cl == cl_main && not cl.cl_interface -> Some expr
+				| _ -> None
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
@@ -2636,17 +2632,14 @@ let generate con =
 			in
 			loop cl.cl_meta;
 
-			if is_main then begin
+			Option.may (fun expr ->
 				write w "public static void Main()";
 				begin_block w;
 				(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-				(match gen.gcon.main with
-					| None ->
-						write w "main();";
-					| Some expr ->
-							expr_s false w (mk_block expr));
+				expr_s false w expr;
+				write w ";";
 				end_block w
-			end;
+			) main_expr;
 
 			(match cl.cl_init with
 				| None -> ()
@@ -3004,7 +2997,7 @@ let generate con =
 
 		let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
 		let empty_ctor_type = TEnum(empty_en, []) in
-		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (mk_anon (ref (EnumStatics empty_en))) null_pos in
 		let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 		OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 

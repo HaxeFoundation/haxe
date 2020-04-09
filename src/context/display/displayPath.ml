@@ -214,7 +214,7 @@ let handle_path_display ctx path p =
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->
-			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
+			resolve_position_by_path ctx (Ast.mk_type_path ~sub:st (sl,sm)) p
 		| (IDKSubType(sl,sm,st),p),_ ->
 			raise (Parser.TypePath(sl,Some(sm,false),true,p))
 		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),DMDefault ->

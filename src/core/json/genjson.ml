@@ -604,6 +604,7 @@ let generate_class ctx c =
 		"init",jopt (generate_texpr ctx) c.cl_init;
 		"overrides",jlist (classfield_ref ctx) c.cl_overrides;
 		"isExtern",jbool c.cl_extern;
+		"isFinal",jbool c.cl_final;
 	]
 
 let generate_enum ctx e =

@@ -138,13 +138,27 @@ class HxOverrides {
 			};
 		}
 
+	@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator", "closure_read.keyValueIterator")
+	static function keyValueIter<T>( a : Array<T> ) {
+		return new haxe.iterators.ArrayKeyValueIterator(a);
+	}
+
+	@:pure
+	static function now(): Float return js.lib.Date.now();
+
 	static function __init__()
 		untyped {
 			#if (js_es < 5)
 			__feature__('HxOverrides.indexOf',
-				if (Array.prototype.indexOf) __js__("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
+				if (Array.prototype.indexOf) js.Syntax.code("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
 			__feature__('HxOverrides.lastIndexOf',
-				if (Array.prototype.lastIndexOf) __js__("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
+				if (Array.prototype.lastIndexOf) js.Syntax.code("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
 			#end
+
+			__feature__('HxOverrides.now',
+				if (js.Syntax.typeof(performance) != 'undefined' && js.Syntax.typeof(performance.now) == 'function') {
+					HxOverrides.now = performance.now.bind(performance);
+				}
+			);
 		}
 }

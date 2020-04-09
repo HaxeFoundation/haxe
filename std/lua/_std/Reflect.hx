@@ -89,7 +89,7 @@ import lua.Boot;
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {
-			return [for (f in lua.Boot.fieldIterator(o)) f];
+			return untyped _hx_field_arr(o);
 		}
 	}
 

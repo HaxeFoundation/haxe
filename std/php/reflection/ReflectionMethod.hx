@@ -34,23 +34,23 @@ extern class ReflectionMethod extends ReflectionFunctionAbstract {
 	@:phpClassConst static final IS_ABSTRACT:Int;
 	@:phpClassConst static final IS_FINAL:Int;
 
-	// public var class : String;
-	public static function export(className:String, name:String, ?returnValue:Bool):String;
+	// var class : String;
+	static function export(className:String, name:String, ?returnValue:Bool):String;
 
-	public function new(cls:Dynamic, name:String):Void;
-	public function getClosure(object:{}):Function;
-	public function getDeclaringClass():ReflectionClass;
-	public function getModifiers():Int;
-	public function getPrototype():ReflectionMethod;
-	public function invoke(object:{}, args:Rest<Dynamic>):Dynamic;
-	public function invokeArgs(object:{}, args:NativeIndexedArray<Dynamic>):Dynamic;
-	public function isAbstract():Bool;
-	public function isConstructor():Bool;
-	public function isDestructor():Bool;
-	public function isFinal():Bool;
-	public function isPrivate():Bool;
-	public function isProtected():Bool;
-	public function isPublic():Bool;
-	public function isStatic():Bool;
-	public function setAccessible(accessible:Bool):Void;
+	function new(cls:Dynamic, name:String):Void;
+	function getClosure(object:{}):Function;
+	function getDeclaringClass():ReflectionClass;
+	function getModifiers():Int;
+	function getPrototype():ReflectionMethod;
+	function invoke(object:{}, args:Rest<Dynamic>):Dynamic;
+	function invokeArgs(object:{}, args:NativeIndexedArray<Dynamic>):Dynamic;
+	function isAbstract():Bool;
+	function isConstructor():Bool;
+	function isDestructor():Bool;
+	function isFinal():Bool;
+	function isPrivate():Bool;
+	function isProtected():Bool;
+	function isPublic():Bool;
+	function isStatic():Bool;
+	function setAccessible(accessible:Bool):Void;
 }

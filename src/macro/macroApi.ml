@@ -609,12 +609,11 @@ let decode_opt_array f v =
 
 let rec decode_path t =
 	let p = field t "pos" in
-	{
-		tpackage = List.map decode_string (decode_array (field t "pack"));
-		tname = decode_string (field t "name");
-		tparams = decode_opt_array decode_tparam (field t "params");
-		tsub = opt decode_string (field t "sub");
-	},if p = vnull then Globals.null_pos else decode_pos p
+	let pack = List.map decode_string (decode_array (field t "pack"))
+	and name = decode_string (field t "name")
+	and params = decode_opt_array decode_tparam (field t "params")
+	and sub = opt decode_string (field t "sub") in
+	mk_type_path ~params ?sub (pack,name), if p = vnull then Globals.null_pos else decode_pos p
 
 and decode_tparam v =
 	match decode_enum v with
@@ -1971,6 +1970,13 @@ let macro_api ccom get_api =
 			let stop = Timer.timer full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
+		"map_anon_ref", vfun2 (fun a_ref fn ->
+			let a = decode_ref a_ref
+			and fn = prepare_callback fn 1 in
+			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
+			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
+			| _ -> assert false
+		)
 	]
 
 

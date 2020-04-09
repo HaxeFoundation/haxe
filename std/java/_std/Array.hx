@@ -22,6 +22,7 @@
 
 import java.lang.System;
 import java.NativeArray;
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:classCode('
 	public Array(T[] _native)
@@ -375,6 +376,17 @@ import java.NativeArray;
 		return false;
 	}
 
+	public function contains(x:T):Bool {
+		var __a = __a;
+		var i = -1;
+		var length = length;
+		while (++i < length) {
+			if (__a[i] == x)
+				return true;
+		}
+		return false;
+	}
+		
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;
 		if (i < 0) {
@@ -416,6 +428,10 @@ import java.NativeArray;
 
 	public inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize(len:Int):Void {

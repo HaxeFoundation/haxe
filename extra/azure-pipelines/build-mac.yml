@@ -1,6 +1,6 @@
 parameters:
   name: 'BuildMac'
-  vmImage: 'macOS-10.13'
+  vmImage: 'macOS-10.14'
 
 jobs:
   - job: ${{ parameters.name }}

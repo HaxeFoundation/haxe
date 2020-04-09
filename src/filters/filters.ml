@@ -69,7 +69,7 @@ let rec add_final_return e =
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init e =
+let check_local_vars_init com e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -88,9 +88,13 @@ let check_local_vars_init e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init && not (IntMap.mem v.v_id !outside_vars) then begin
-				if v.v_name = "this" then error "Missing this = value" e.epos
-				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+			if not init then begin
+				if IntMap.mem v.v_id !outside_vars then
+					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
+					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+				else
+					if v.v_name = "this" then error "Missing this = value" e.epos
+					else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -213,10 +217,18 @@ let collect_reserved_local_names com =
 		!h
 	| _ -> StringMap.empty
 
-let rename_local_vars ctx reserved e =
-	let vars = ref [] in
+let rec rename_local_vars_aux ctx reserved e =
+	let initial_reserved = reserved in
+	let own_vars = Hashtbl.create 10 in
+	let own_vars_ordered = ref [] in
+	let foreign_vars = Hashtbl.create 5 in (* Variables which are declared outside of `e` *)
 	let declare v =
-		vars := v :: !vars
+		own_vars_ordered := v :: !own_vars_ordered;
+		Hashtbl.add own_vars v.v_id v
+	in
+	let referenced v =
+		if not (Hashtbl.mem own_vars v.v_id) && not (Hashtbl.mem foreign_vars v.v_name) then
+			Hashtbl.add foreign_vars v.v_name ()
 	in
 	let reserved = ref reserved in
 	let reserve name =
@@ -234,7 +246,10 @@ let rename_local_vars ctx reserved e =
 		| TAbstract (a,_) -> check (TAbstractDecl a)
 		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
 	in
+	let funcs = ref [] in
 	let rec collect e = match e.eexpr with
+		| TLocal v ->
+			referenced v
  		| TVar(v,eo) ->
 			declare v;
 			(match eo with None -> () | Some e -> collect e)
@@ -250,8 +265,13 @@ let rename_local_vars ctx reserved e =
 				collect e
 			) catches
 		| TFunction tf ->
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
-			collect tf.tf_expr
+			begin match ctx.com.config.pf_nested_function_scoping with
+			| Hoisted ->
+				funcs := tf :: !funcs;
+			| Nested | Independent ->
+				List.iter (fun (v,_) -> declare v) tf.tf_args;
+				collect tf.tf_expr
+			end
 		| TTypeExpr t ->
 			check t
 		| TNew (c,_,_) ->
@@ -266,11 +286,6 @@ let rename_local_vars ctx reserved e =
 			Type.iter collect e
 	in
 	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
 	collect e;
 	(* Pass 2: Check and rename variables. *)
 	let count_table = Hashtbl.create 0 in
@@ -289,7 +304,28 @@ let rename_local_vars ctx reserved e =
 			v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),e.epos],e.epos) :: v.v_meta;
 		v.v_name <- !name;
 	in
-	List.iter maybe_rename (List.rev !vars);
+	Hashtbl.iter (fun name _ -> reserve name) foreign_vars;
+	List.iter maybe_rename (List.rev !own_vars_ordered);
+	(* Pass 3: Recurse into nested functions. *)
+	List.iter (fun tf ->
+		reserved := initial_reserved;
+		List.iter (fun (v,_) ->
+			maybe_rename v;
+		) tf.tf_args;
+		ignore(rename_local_vars_aux ctx !reserved tf.tf_expr);
+	) !funcs
+
+let rename_local_vars ctx reserved e =
+	let reserved = ref reserved in
+	let reserve name =
+		reserved := StringMap.add name true !reserved
+	in
+	reserve "this";
+	if ctx.com.platform = Java then reserve "_";
+	begin match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> reserve s
+	end;
+	rename_local_vars_aux ctx !reserved e;
 	e
 
 let mark_switch_break_loops e =
@@ -818,27 +854,22 @@ let run com tctx main =
 	t();
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
-		check_local_vars_init;
+		check_local_vars_init tctx.com;
 		check_abstract_as_value;
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -913,7 +944,9 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
+		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
@@ -926,7 +959,6 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

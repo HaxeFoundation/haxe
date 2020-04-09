@@ -7,18 +7,9 @@ open TPrinting
 module TExprToExpr = struct
 	let tpath p mp pl =
 		if snd mp = snd p then
-			CTPath {
-				tpackage = fst p;
-				tname = snd p;
-				tparams = pl;
-				tsub = None;
-			}
-		else CTPath {
-				tpackage = fst mp;
-				tname = snd mp;
-				tparams = pl;
-				tsub = Some (snd p);
-			}
+			CTPath (mk_type_path ~params:pl p)
+		else
+			CTPath (mk_type_path ~params:pl ~sub:(snd p) mp)
 
 	let rec convert_type = function
 		| TMono r ->
@@ -29,12 +20,7 @@ module TExprToExpr = struct
 		| TEnum ({e_private = true; e_path=_,name},tl)
 		| TType ({t_private = true; t_path=_,name},tl)
 		| TAbstract ({a_private = true; a_path=_,name},tl) ->
-			CTPath {
-				tpackage = [];
-				tname = name;
-				tparams = List.map tparam tl;
-				tsub = None;
-			}
+			CTPath (mk_type_path ~params:(List.map tparam tl) ([],name))
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map tparam pl)
 		| TInst({cl_kind = KExpr e} as c,pl) ->
@@ -234,10 +220,7 @@ let class_module_type c = {
 	t_doc = None;
 	t_pos = c.cl_pos;
 	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = c.cl_statics;
-		a_status = ref (Statics c);
-	};
+	t_type = mk_anon ~fields:c.cl_statics (ref (Statics c));
 	t_private = true;
 	t_params = [];
 	t_using = [];
@@ -263,10 +246,7 @@ let abstract_module_type a tl = {
 	t_doc = None;
 	t_pos = a.a_pos;
 	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
+	t_type = mk_anon (ref (AbstractStatics a));
 	t_private = true;
 	t_params = [];
 	t_using = [];

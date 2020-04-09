@@ -23,8 +23,6 @@
 package php;
 
 /**
-	@see http://php.net/manual/en/class.generator.php
-
 	Generator is not a Haxe Iterable. It can be iterated one time only.
 	Unfortunately Haxe does not know that in PHP generators may have no `return` expression or `return value` with any type of `value`.
 	Use `return null` or untyped cast to workaround this issue:
@@ -45,6 +43,8 @@ package php;
 	}
 	trace(g.getReturn()); // "hello"
 	```
+
+	@see http://php.net/manual/en/class.generator.php
 **/
 @:native('Generator')
 extern class Generator {

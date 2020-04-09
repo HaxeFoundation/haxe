@@ -610,7 +610,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let add_field name get_t =
 			let fid = DynArray.length fa + start_field in
-			let str = if name = "" then 0 else alloc_string ctx name in
+			let str = alloc_string ctx name in
 			p.pindex <- PMap.add name (fid, HVoid) p.pindex;
 			DynArray.add fa (name, str, HVoid);
 			ctx.ct_delayed <- (fun() ->
@@ -3309,7 +3309,7 @@ let generate_static ctx c f =
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
 			| (Meta.HlNative,[(EConst(Float(ver)),_)] ,_ ) :: _ ->
-				let cur_ver = (try Common.raw_defined_value ctx.com "hl-ver" with Not_found -> "") in
+				let cur_ver = (try Common.defined_value ctx.com Define.HlVer with Not_found -> "") in
 				if cur_ver < ver then
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
@@ -3990,7 +3990,7 @@ let create_context com is_macro dump =
 let add_types ctx types =
 	List.iter (fun t ->
 		match t with
-		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"ArrayBytes") } as c) ->
+		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
 			c.cl_extern <- true
 		| TClassDecl c ->
 			let rec loop p f =
