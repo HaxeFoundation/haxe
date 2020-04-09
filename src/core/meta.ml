@@ -75,3 +75,7 @@ let get_all () =
 		else []
 	in
 	loop 0
+
+let copy_from_to m src dst =
+	try (get m src) :: dst
+	with Not_found -> dst

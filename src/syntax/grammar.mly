@@ -612,12 +612,7 @@ and parse_type_path2 p0 pack name p1 s =
 			| Some p -> punion p p1
 		in
 		if !in_display_file && display_position#enclosed_in p then begin
-			{
-				tpackage = List.rev pack;
-				tname = name;
-				tsub = None;
-				tparams = [];
-			},p
+			mk_type_path (List.rev pack,name), p
 		end else
 			f()
 	in
@@ -650,12 +645,9 @@ and parse_type_path2 p0 pack name p1 s =
 				end
 			| [< >] -> [],p2
 		) in
-		{
-			tpackage = List.rev pack;
-			tname = name;
-			tparams = params;
-			tsub = sub;
-		},punion (match p0 with None -> p1 | Some p -> p) p2
+		let tp = mk_type_path ~params ?sub (List.rev pack,name)
+		and pos = punion (match p0 with None -> p1 | Some p -> p) p2 in
+		tp,pos
 
 and type_name = parser
 	| [< '(Const (Ident name),p); s >] ->
@@ -669,6 +661,8 @@ and parse_type_path_or_const plt = parser
 	(* we can't allow (expr) here *)
 	| [< '(BkOpen,p1); e = parse_array_decl p1 >] -> TPExpr (e)
 	| [< t = parse_complex_type >] -> TPType t
+	| [< '(Unop op,p1); '(Const c,p2) >] -> TPExpr (make_unop op (EConst c,p2) p1)
+	| [< '(Binop OpSub,p1); '(Const c,p2) >] -> TPExpr (make_unop Neg (EConst c,p2) p1)
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
@@ -1127,14 +1121,14 @@ and parse_macro_expr p = parser
 	| [< '(DblDot,_); t = parse_complex_type >] ->
 		let _, to_type, _  = reify !in_macro in
 		let t = to_type t p in
-		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
+		(ECheckType (t,(CTPath (mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr")),null_pos)),p)
 	| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
 		reify_expr (EVars vl,p1) !in_macro
 	| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
 		reify_expr (EVars vl,p1) !in_macro
 	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
-		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] },null_pos)),p)
+		(ECheckType (to_type d,(CTPath (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")),null_pos)),p)
 	| [< e = secure_expr >] ->
 		reify_expr e !in_macro
 

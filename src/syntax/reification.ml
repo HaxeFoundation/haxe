@@ -395,4 +395,4 @@ let reify in_macro =
 let reify_expr e in_macro =
 	let to_expr,_,_ = reify in_macro in
 	let e = to_expr e in
-	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] },null_pos)),pos e)
+	(ECheckType (e,(CTPath (mk_type_path (["haxe";"macro"],"Expr")),null_pos)),pos e)

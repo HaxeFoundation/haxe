@@ -26,5 +26,5 @@ import python.Bytearray;
 
 @:native("bytes")
 extern class Bytes extends Bytearray {
-	// public function decode(encoding:String="utf-8", errors:String="strict"):String;
+	// function decode(encoding:String="utf-8", errors:String="strict"):String;
 }

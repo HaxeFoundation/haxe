@@ -525,7 +525,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ((Type_not_found (path,_,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
@@ -630,7 +630,7 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 						in
 						handle_structure_display ctx e an.a_fields origin
 					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
-						let fields = PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl cf.cf_type}) c.cl_fields in
+						let fields = get_struct_init_anon_fields c tl in
 						handle_structure_display ctx e fields (Self (TClassDecl c))
 					| _ -> handle_display ctx e dk with_type
 				end

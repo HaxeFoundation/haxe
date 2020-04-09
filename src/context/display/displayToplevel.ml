@@ -30,7 +30,7 @@ open Globals
 let maybe_resolve_macro_field ctx t c cf =
 	try
 		if cf.cf_kind <> Method MethMacro then raise Exit;
-		let _,_,(tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
+		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
 		(TFun(tl,tr)),c,cf
 	with _ ->
 		t,c,cf

@@ -208,24 +208,19 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
-			try
-				let e,submit_messages = hold_messages ctx.com (fun() -> type_against name t e) in
-				submit_messages();
+			begin try
+				let e = type_against name t e in
 				(e,opt) :: loop el args
-			with HoldMessages (err,submit_messages) ->
-				match err with
-				| WithTypeError (ul,p)->
+			with
+				WithTypeError (ul,p)->
 					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						(match List.rev !skipped with
+						match List.rev !skipped with
 						| [] -> arg_error ul name opt p
 						| (s,ul,p) :: _ -> arg_error ul s true p
-						)
-				| _ ->
-					submit_messages();
-					raise err
+			end
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
 	ctx.in_call_args <- in_call_args;
@@ -787,40 +782,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let rec gen_loc_name n =
-		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
-		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
-	in
-	let loc = alloc_var VGenerated (gen_loc_name 0) e.etype e.epos in
-	let given_args = (loc,false,Some e) :: given_args in
-	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(inner_fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) ordered_args ret p in
-	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) ->
-			call
-		| TMono _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+	let var_decls = List.map (fun (v,_,e_opt) -> mk (TVar(v,e_opt)) ctx.t.tvoid v.v_pos) given_args in
+	let e,var_decls =
+		let is_immutable_method cf =
+			match cf.cf_kind with Method k -> k <> MethDynamic | _ -> false
+		in
+		match e.eexpr with
+		| TFunction _ | TLocal { v_kind = VUser TVOLocalFunction } ->
+			e,var_decls
+		| TField(_,(FStatic(_,cf) | FInstance(_,_,cf))) when is_immutable_method cf ->
+			e,var_decls
 		| _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some (Texpr.Builder.make_null v.v_type null_pos) else None) missing_args;
+	let call = make_call ctx e ordered_args ret p in
+	let body =
+		if ExtType.is_void (follow ret) then call
+		else mk (TReturn(Some call)) ret p
+	in
+	let arg_default optional t =
+		if optional then Some (Texpr.Builder.make_null t null_pos)
+		else None
+	in
+	let fn = {
+		tf_args = List.map (fun (v,o) -> v,arg_default o v.v_type) missing_args;
 		tf_type = ret;
-		tf_expr = e_ret;
-	}) t_inner p in
-	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
-		tf_type = t_inner;
-		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(outer_fun_args given_args, t_inner)) p in
-	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+		tf_expr = body;
+	} in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret) in
+	{
+		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
+		etype = t;
+		epos = p;
+	}
 
 let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
@@ -878,20 +878,9 @@ let array_access ctx e1 e2 mode p =
 (*
 	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
 	return a new `access_mode->access_kind` getter for the whole field access chain.
-
-	if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
-	cases, normal type errors will be raised if a field can't be accessed.
 *)
-let field_chain ?(resume=false) ctx path e =
-	let resume = ref resume in
-	let force = ref false in
-	let e = List.fold_left (fun e (f,_,p) ->
+let field_chain ctx path e =
+	List.fold_left (fun e (f,_,p) ->
 		let e = acc_get ctx (e MGet) p in
-		let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
-		force := !resume;
-		resume := false;
-		f
-	) e path in
-	if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
-	e
-
+		type_field_default_cfg ctx e f p
+	) e path

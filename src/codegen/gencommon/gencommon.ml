@@ -116,7 +116,7 @@ let follow_once t =
 	| _ ->
 		t
 
-let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
+let t_empty = mk_anon (ref Closed)
 
 let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
@@ -378,6 +378,8 @@ type generator_ctx =
 	(* this is all you need to care about *)
 	gcon : Common.context;
 
+	gentry_point : (string * tclass * texpr) option;
+
 	gclasses : gen_classes;
 
 	gtools : gen_tools;
@@ -571,6 +573,7 @@ let new_ctx con =
 
 	let rec gen = {
 		gcon = con;
+		gentry_point = get_entry_point con;
 		gclasses = {
 			cl_reflect = get_cl (get_type ([], "Reflect"));
 			cl_type = get_cl (get_type ([], "Type"));
@@ -915,19 +918,19 @@ let dump_descriptor gen name path_s module_s =
 	SourceWriter.write w "end modules";
 	SourceWriter.newline w;
 	(* dump all resources *)
-	(match gen.gcon.main_class with
-		| Some path ->
-			SourceWriter.write w "begin main";
-			SourceWriter.newline w;
-			(try
-				SourceWriter.write w (Hashtbl.find main_paths path)
-			with
-				| Not_found -> SourceWriter.write w (path_s path));
-			SourceWriter.newline w;
-			SourceWriter.write w "end main";
-			SourceWriter.newline w
-	| _ -> ()
-	);
+	(match gen.gentry_point with
+	| Some (_,cl,_) ->
+		SourceWriter.write w "begin main";
+		SourceWriter.newline w;
+		let path = cl.cl_path in
+		(try
+			SourceWriter.write w (Hashtbl.find main_paths path)
+		with Not_found ->
+			SourceWriter.write w (path_s path));
+		SourceWriter.newline w;
+		SourceWriter.write w "end main";
+		SourceWriter.newline w
+	| _ -> ());
 	SourceWriter.write w "begin resources";
 	SourceWriter.newline w;
 	Hashtbl.iter (fun name _ ->

@@ -24,29 +24,30 @@ package cpp;
 
 @:native("cpp::VirtualArray")
 @:coreType extern class NativeVirtualArray implements ArrayAccess<Dynamic> {
-	public function new():Void;
-	public var length(get, null):Int;
+	function new():Void;
+	var length(get, null):Int;
 	// concat<T>( a:Array<T> ) : Array<T> ?
-	public function concat(a:VirtualArray):VirtualArray;
-	public function join(sep:String):String;
-	public function pop():Dynamic;
-	public function push(x:Dynamic):Int;
-	public function reverse():Void;
-	public function shift():Dynamic;
-	public function slice(pos:Int, ?end:Int):VirtualArray;
-	public function sort(f:Dynamic->Dynamic->Int):Void;
-	public function splice(pos:Int, len:Int):VirtualArray;
-	public function toString():String;
-	public function unshift(x:Dynamic):Void;
-	public function insert(pos:Int, x:Dynamic):Void;
-	public function remove(x:Dynamic):Bool;
-	public function indexOf(x:Dynamic, ?fromIndex:Int):Int;
-	public function lastIndexOf(x:Dynamic, ?fromIndex:Int):Int;
-	public function copy():VirtualArray;
-	public function iterator():Iterator<Dynamic>;
-	public function map<S>(f:Dynamic->S):VirtualArray;
-	public function filter(f:Dynamic->Bool):VirtualArray;
-	public function resize(len:Int):Void;
+	function concat(a:VirtualArray):VirtualArray;
+	function join(sep:String):String;
+	function pop():Dynamic;
+	function push(x:Dynamic):Int;
+	function reverse():Void;
+	function shift():Dynamic;
+	function slice(pos:Int, ?end:Int):VirtualArray;
+	function sort(f:Dynamic->Dynamic->Int):Void;
+	function splice(pos:Int, len:Int):VirtualArray;
+	function toString():String;
+	function unshift(x:Dynamic):Void;
+	function insert(pos:Int, x:Dynamic):Void;
+	function remove(x:Dynamic):Bool;
+	function indexOf(x:Dynamic, ?fromIndex:Int):Int;
+	function lastIndexOf(x:Dynamic, ?fromIndex:Int):Int;
+	function copy():VirtualArray;
+	function iterator():Iterator<Dynamic>;
+	function keyValueIterator():KeyValueIterator<Int, Dynamic>;
+	function map<S>(f:Dynamic->S):VirtualArray;
+	function filter(f:Dynamic->Bool):VirtualArray;
+	function resize(len:Int):Void;
 }
 
 abstract VirtualArray(NativeVirtualArray) {
@@ -120,6 +121,9 @@ abstract VirtualArray(NativeVirtualArray) {
 
 	extern inline public function iterator():Iterator<Dynamic>
 		return this.iterator();
+
+	extern inline public function keyValueIterator():KeyValueIterator<Int, Dynamic>
+		return this.keyValueIterator();
 
 	extern inline public function map<S>(f:Dynamic->S):VirtualArray
 		return this.map(f);

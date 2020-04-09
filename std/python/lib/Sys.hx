@@ -33,26 +33,26 @@ extern class Frame {}
 
 @:pythonImport("sys")
 extern class Sys {
-	public static var argv(default, never):Array<String>;
+	static var argv(default, never):Array<String>;
 
-	public static var executable(default, never):String;
+	static var executable(default, never):String;
 
-	public static function exit(x:Int):Void;
+	static function exit(x:Int):Void;
 
-	public static function getfilesystemencoding():String;
+	static function getfilesystemencoding():String;
 
-	public static var version:String;
-	public static var platform:String;
+	static var version:String;
+	static var platform:String;
 
-	public static var stdout(default, never):TextIOBase;
-	public static var stdin(default, never):TextIOBase;
-	public static var stderr(default, never):TextIOBase;
+	static var stdout(default, never):TextIOBase;
+	static var stdin(default, never):TextIOBase;
+	static var stderr(default, never):TextIOBase;
 
-	public static function getsizeof(t:Dynamic):Int;
+	static function getsizeof(t:Dynamic):Int;
 
-	public static var maxsize:Int;
+	static var maxsize:Int;
 
-	public static function exc_info<T:BaseException>():Tuple3<Class<T>, T, TB>;
+	static function exc_info<T:BaseException>():Tuple3<Class<T>, T, TB>;
 
-	public static var version_info:Tuple5<Int, Int, Int, String, Int>;
+	static var version_info:Tuple5<Int, Int, Int, String, Int>;
 }

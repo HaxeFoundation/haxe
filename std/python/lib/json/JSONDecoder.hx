@@ -35,8 +35,8 @@ typedef JSONDecoderOptions = {
 
 @:pythonImport("json", "JSONDecoder")
 extern class JSONDecoder {
-	public function new(?options:KwArgs<JSONDecoderOptions>):Void;
+	function new(?options:KwArgs<JSONDecoderOptions>):Void;
 
-	public function decode(o:String):Dynamic;
-	public function raw_decode(o:String):Tuple2<Dynamic, Int>;
+	function decode(o:String):Dynamic;
+	function raw_decode(o:String):Tuple2<Dynamic, Int>;
 }

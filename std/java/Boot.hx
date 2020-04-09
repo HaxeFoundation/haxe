@@ -22,7 +22,6 @@
 
 package java;
 
-import java.internal.Exceptions;
 import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;

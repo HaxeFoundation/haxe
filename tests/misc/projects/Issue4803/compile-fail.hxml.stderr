@@ -4,7 +4,7 @@ Main.hx:16: lines 16-19 : Too many arguments
 Main.hx:16: lines 16-19 : Overload resolution failed for (handler : (Event -> Void)) -> JQuery
 Main.hx:18: characters 8-17 : Object requires field y
 Main.hx:18: characters 8-17 : For function argument 'handler'
-Main.hx:16: lines 16-19 : Overload resolution failed for (?eventData : Dynamic, handler : (Event -> Void)) -> JQuery
+Main.hx:16: lines 16-19 : Overload resolution failed for (?eventData : Null<Dynamic>, handler : (Event -> Void)) -> JQuery
 Main.hx:18: characters 8-17 : Object requires field y
 Main.hx:18: characters 8-17 : For optional function argument 'eventData'
 Main.hx:16: lines 16-19 : End of overload failure reasons

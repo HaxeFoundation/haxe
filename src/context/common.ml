@@ -79,6 +79,29 @@ type capture_policy =
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
 	| CPLoopVars
 
+type exceptions_config = {
+	(* Base types which may be thrown from Haxe code without wrapping. *)
+	ec_native_throws : path list;
+	(* Base types which may be caught from Haxe code without wrapping. *)
+	ec_native_catches : path list;
+	(* Path of a native class or interface, which can be used for wildcard catches. *)
+	ec_wildcard_catch : path;
+	(*
+		Path of a native base class or interface, which can be thrown.
+		This type is used to cast `haxe.Exception.thrown(v)` calls to.
+		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
+	*)
+	ec_base_throw : path;
+}
+
+type nested_function_scoping =
+	(** each TFunction has its own scope in the output **)
+	| Independent
+	(** TFunction nodes are nested in the output **)
+	| Nested
+	(** TFunction nodes are nested in the output and there is var hoisting **)
+	| Hoisted
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -106,6 +129,10 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** exceptions handling config **)
+	pf_exceptions : exceptions_config;
+	(** the scoping behavior of nested functions **)
+	pf_nested_function_scoping : nested_function_scoping;
 }
 
 class compiler_callbacks = object(self)
@@ -212,7 +239,6 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
-	mutable pending_messages : ((unit->unit)->unit) option;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -321,6 +347,13 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_exceptions = {
+			ec_native_throws = [];
+			ec_native_catches = [];
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
+		};
+		pf_nested_function_scoping = Independent;
 	}
 
 let get_config com =
@@ -336,6 +369,13 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["js";"lib"],"Error";
+					["haxe"],"Exception";
+				];
+			};
+			pf_nested_function_scoping = Hoisted;
 		}
 	| Lua ->
 		{
@@ -360,12 +400,35 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Php ->
 		{
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["php"],"Throwable");
+				ec_base_throw = (["php"],"Throwable");
+			};
+			pf_nested_function_scoping = Nested;
 		}
 	| Cpp ->
 		{
@@ -383,6 +446,18 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_exceptions = {
+				ec_native_throws = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs";"system"],"Exception");
+				ec_base_throw = (["cs";"system"],"Exception");
+			}
 		}
 	| Java ->
 		{
@@ -392,6 +467,18 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_this_before_super = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["java";"lang"],"RuntimeException";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["java";"lang"],"Throwable");
+				ec_base_throw = (["java";"lang"],"RuntimeException");
+			}
 		}
 	| Python ->
 		{
@@ -399,6 +486,17 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_native_catches = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
+				ec_base_throw = ["python";"Exceptions"],"BaseException";
+			};
+			pf_nested_function_scoping = Nested;
 		}
 	| Hl ->
 		{
@@ -406,6 +504,14 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Eval ->
 		{
@@ -497,24 +603,7 @@ let create version s_version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
-		pending_messages = None;
 	}
-
-exception HoldMessages of exn * (unit->unit)
-
-let hold_messages com action =
-	let old_pending = com.pending_messages in
-	let messages = ref [] in
-	com.pending_messages <- Some (fun submit -> messages := submit :: !messages);
-	let submit_all() = List.iter (fun f -> f()) (List.rev !messages) in
-	let restore() = com.pending_messages <- old_pending; in
-	try
-		let result = action() in
-		restore();
-		result,submit_all
-	with err ->
-		restore();
-		raise (HoldMessages (err,submit_all))
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
@@ -835,12 +924,9 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let rec add_diagnostics_message com s p kind sev =
-	match com.pending_messages with
-	| Some add -> add (fun() -> add_diagnostics_message com s p kind sev)
-	| None ->
-		let di = com.shared.shared_display_information in
-		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+let add_diagnostics_message com s p kind sev =
+	let di = com.shared.shared_display_information in
+	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 
@@ -871,3 +957,11 @@ let adapt_defines_to_macro_context defines =
 let is_legacy_completion com = match com.json_out with
 	| None -> true
 	| Some api -> !ServerConfig.legacy_completion
+
+let get_entry_point com =
+	Option.map (fun path ->
+		let m = List.find (fun m -> m.m_path = path) com.modules in
+		let c = ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types in
+		let e = Option.get com.main in (* must be present at this point *)
+		(snd path, c, e)
+	) com.main_class

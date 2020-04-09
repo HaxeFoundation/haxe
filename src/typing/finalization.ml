@@ -13,7 +13,7 @@ let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
 	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
+		let t = Typeload.load_type_def ctx null_pos (mk_type_path cl) in
 		let fmode, ft, r = (match t with
 		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
@@ -35,7 +35,7 @@ let get_main ctx types =
 			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
 			let ef = PMap.find "run" ec.cl_statics in
 			let p = null_pos in
-			let et = mk (TTypeExpr et) (TAnon { a_fields = PMap.empty; a_status = ref (Statics ec) }) p in
+			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
 			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
 			mk (TBlock [main;call]) ctx.t.tvoid p
 		with Not_found ->
