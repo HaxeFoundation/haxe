@@ -94,14 +94,6 @@ type exceptions_config = {
 	ec_base_throw : path;
 }
 
-type nested_function_scoping =
-	(** each TFunction has its own scope in the output **)
-	| Independent
-	(** TFunction nodes are nested in the output **)
-	| Nested
-	(** TFunction nodes are nested in the output and there is var hoisting **)
-	| Hoisted
-
 type var_scope =
 	| FunctionScope
 	| BlockScope
@@ -168,8 +160,6 @@ type platform_config = {
 	pf_supports_unicode : bool;
 	(** exceptions handling config **)
 	pf_exceptions : exceptions_config;
-	(** the scoping behavior of nested functions **)
-	pf_nested_function_scoping : nested_function_scoping;
 	(** the scoping of local variables *)
 	pf_scoping : var_scoping_config;
 }
@@ -392,7 +382,6 @@ let default_config =
 			ec_wildcard_catch = (["StdTypes"],"Dynamic");
 			ec_base_throw = (["StdTypes"],"Dynamic");
 		};
-		pf_nested_function_scoping = Independent;
 		pf_scoping = {
 			vs_scope = BlockScope;
 			vs_flags = [];
@@ -418,7 +407,6 @@ let get_config com =
 					["haxe"],"Exception";
 				];
 			};
-			pf_nested_function_scoping = Hoisted;
 			pf_scoping = {
 				vs_scope = FunctionScope;
 				vs_flags = [
@@ -481,7 +469,6 @@ let get_config com =
 				ec_wildcard_catch = (["php"],"Throwable");
 				ec_base_throw = (["php"],"Throwable");
 			};
-			pf_nested_function_scoping = Nested;
 			pf_scoping = {
 				vs_scope = FunctionScope;
 				vs_flags = [VarHoisting]
@@ -567,7 +554,6 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [VarHoisting]
 			};
-			pf_nested_function_scoping = Nested;
 		}
 	| Hl ->
 		{
