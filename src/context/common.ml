@@ -442,6 +442,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [ReserveCurrentTopLevelSymbol];
+			}
 		}
 	| Flash ->
 		{
@@ -492,6 +495,9 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [NoShadowing]
+			}
 		}
 	| Cs ->
 		{

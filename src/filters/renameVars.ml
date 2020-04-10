@@ -12,12 +12,6 @@ type rename_init = {
 	mutable ri_reserve_current_top_level_symbol : bool;
 }
 
-(* TODO: remove this when all targets are supported *)
-let enable_new platform =
-	match platform with
-	| Php | Js | Eval | Lua | Hl | Python | Java | Cs -> true
-	| _ -> false
-
 (**
 	For initialization.
 	Make the `name` a reserved word.
@@ -57,25 +51,21 @@ let init com =
 		ri_no_shadowing = false;
 		ri_reserve_current_top_level_symbol = false;
 	} in
-	if enable_new com.platform then begin
-		reserve_init ri "this";
-		List.iter (fun flag ->
-			match flag with
-			| VarHoisting ->
-				ri.ri_hoisting <- true;
-			| NoShadowing ->
-				ri.ri_no_shadowing <- true;
-			| ReserveNames names ->
-				List.iter (reserve_init ri) names
-			| ReserveAllTopLevelSymbols ->
-				reserve_all_types ri com (fun (pack,name) -> if pack = [] then name else List.hd pack)
-			| ReserveAllTypesFlat ->
-				reserve_all_types ri com Path.flat_path
-			| ReserveCurrentTopLevelSymbol -> ri.ri_reserve_current_top_level_symbol <- true
-		) com.config.pf_scoping.vs_flags
-	end else
-		(* Old behavior *)
-		ri.ri_reserved <- RenameVarsOld.collect_reserved_local_names com;
+	reserve_init ri "this";
+	List.iter (fun flag ->
+		match flag with
+		| VarHoisting ->
+			ri.ri_hoisting <- true;
+		| NoShadowing ->
+			ri.ri_no_shadowing <- true;
+		| ReserveNames names ->
+			List.iter (reserve_init ri) names
+		| ReserveAllTopLevelSymbols ->
+			reserve_all_types ri com (fun (pack,name) -> if pack = [] then name else List.hd pack)
+		| ReserveAllTypesFlat ->
+			reserve_all_types ri com Path.flat_path
+		| ReserveCurrentTopLevelSymbol -> ri.ri_reserve_current_top_level_symbol <- true
+	) com.config.pf_scoping.vs_flags;
 	ri
 
 type scope = {
@@ -267,21 +257,17 @@ let rec rename_vars rc scope =
 	Rename local variables in `e` expression if needed.
 *)
 let run ctx ri e =
-	if enable_new ctx.com.platform then begin
-		let rc = {
-			rc_scope = ri.ri_scope;
-			rc_hoisting = ri.ri_hoisting;
-			rc_no_shadowing = ri.ri_no_shadowing;
-			rc_reserved = ri.ri_reserved;
-		} in
-		if ri.ri_reserve_current_top_level_symbol then begin
-			match ctx.curclass.cl_path with
-			| s :: _,_ | [],s -> reserve_ctx rc s
-		end;
-		let scope = create_scope None in
-		collect_vars rc scope e;
-		rename_vars rc scope;
-		e
-	end else
-		(* Old behavior *)
-		RenameVarsOld.rename_local_vars ctx ri.ri_reserved e
+	let rc = {
+		rc_scope = ri.ri_scope;
+		rc_hoisting = ri.ri_hoisting;
+		rc_no_shadowing = ri.ri_no_shadowing;
+		rc_reserved = ri.ri_reserved;
+	} in
+	if ri.ri_reserve_current_top_level_symbol then begin
+		match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> reserve_ctx rc s
+	end;
+	let scope = create_scope None in
+	collect_vars rc scope e;
+	rename_vars rc scope;
+	e
