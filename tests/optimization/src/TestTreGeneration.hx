@@ -5,9 +5,9 @@ class TestTreGeneration {
 		}
 		while(true) {
 			if(Std.random(2) == 0) {
-				var _gtmp1 = a;
+				var _gtmp = a;
 				a = b + a;
-				b = _gtmp1;
+				b = _gtmp;
 				s += "?";
 				continue;
 			}
@@ -59,9 +59,9 @@ class TestTreGeneration {
 			}
 			while(true) {
 				if(Std.random(2) == 0) {
-					var _gtmp1 = a;
+					var _gtmp = a;
 					a = b + a;
-					b = _gtmp1;
+					b = _gtmp;
 					s += "?";
 					continue;
 				}
@@ -134,7 +134,7 @@ class TestTreGeneration {
 					throw haxe_Exception.thrown("exit");
 				}
 				return TestTreGeneration.testTryCancelsTre(n - 1);
-			} catch( _g24 ) {
+			} catch( _g ) {
 				if(n == 0) {
 					n -= 1;
 					continue;
