@@ -5,15 +5,16 @@ open Common
 open Ast
 
 type rename_init = {
-	mutable ri_reserved : bool StringMap.t;
+	mutable ri_scope : var_scope;
 	mutable ri_hoisting : bool;
+	mutable ri_reserved : bool StringMap.t;
 	mutable ri_reserve_current_top_level_symbol : bool;
 }
 
 (* TODO: remove this when all targets are supported *)
 let enable_new platform =
 	match platform with
-	| Php | Js -> true
+	| Php | Js | Eval -> true
 	| _ -> false
 
 (**
@@ -49,6 +50,7 @@ let reserve_all_types ri com path_to_name =
 *)
 let init com =
 	let ri = {
+		ri_scope = com.config.pf_scoping.vs_scope;
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
 		ri_reserve_current_top_level_symbol = false;
@@ -100,6 +102,7 @@ type scope = {
 
 type rename_context = {
 	rc_hoisting : bool;
+	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
 }
 
@@ -160,7 +163,7 @@ let rec use_var rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
-			if not (IntMap.mem v.v_id scope.foreign_vars) then
+			if rc.rc_hoisting && not (IntMap.mem v.v_id scope.foreign_vars) then
 				scope.foreign_vars <- IntMap.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
@@ -197,6 +200,9 @@ let rec collect_vars rc scope e =
 			declare_var rc scope v;
 			collect_vars rc scope catch_expr
 		) catches
+	| TBlock exprs when rc.rc_scope = BlockScope ->
+		let scope = create_scope (Some scope) in
+		List.iter (collect_vars rc scope) exprs
 	| TWhile (condition, body, NormalWhile) ->
 		scope.loop_count <- scope.loop_count + 1;
 		collect_vars rc scope condition;
@@ -252,6 +258,7 @@ let rec rename_vars rc scope =
 let run ctx ri e =
 	if enable_new ctx.com.platform then begin
 		let rc = {
+			rc_scope = ri.ri_scope;
 			rc_hoisting = ri.ri_hoisting;
 			rc_reserved = ri.ri_reserved;
 		} in
