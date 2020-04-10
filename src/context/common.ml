@@ -549,6 +549,10 @@ let get_config com =
 				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
 				ec_base_throw = ["python";"Exceptions"],"BaseException";
 			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			};
 			pf_nested_function_scoping = Nested;
 		}
 	| Hl ->

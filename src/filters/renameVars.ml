@@ -14,7 +14,7 @@ type rename_init = {
 (* TODO: remove this when all targets are supported *)
 let enable_new platform =
 	match platform with
-	| Php | Js | Eval | Lua -> true
+	| Php | Js | Eval | Lua | Hl | Python | Java -> true
 	| _ -> false
 
 (**
