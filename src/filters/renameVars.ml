@@ -174,6 +174,15 @@ let rec use_var rc scope v =
 	if scope.loop_count > 0 && not (IntMap.mem v.v_id !(scope.loop_vars)) then
 		scope.loop_vars := IntMap.add v.v_id v !(scope.loop_vars)
 
+let collect_loop scope fn =
+	scope.loop_count <- scope.loop_count + 1;
+	fn();
+	scope.loop_count <- scope.loop_count - 1;
+	if scope.loop_count < 0 then
+		assert false;
+	if scope.loop_count = 0 then
+		scope.loop_vars := IntMap.empty
+
 (**
 	Collect all the variables declared and used in `e` expression.
 *)
@@ -204,18 +213,27 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			else create_scope (Some scope)
 		in
 		List.iter (collect_vars ~in_block:true rc scope) exprs
-	| TWhile (condition, body, NormalWhile) ->
-		scope.loop_count <- scope.loop_count + 1;
-		collect_vars rc scope condition;
-		collect_vars rc scope body;
-		scope.loop_count <- scope.loop_count - 1;
-		if scope.loop_count < 0 then
-			assert false;
-		if scope.loop_count = 0 then
-			scope.loop_vars := IntMap.empty;
-	(* At this point all loops are expected to be transformed into normal `while` loops *)
-	| TFor _ | TWhile _ ->
-		assert false
+	| TWhile (condition, body, flag) ->
+		collect_loop scope (fun() ->
+			if flag = NormalWhile then
+				collect_vars rc scope condition;
+			collect_vars rc scope body;
+			if flag = DoWhile then
+				collect_vars rc scope condition;
+		)
+	(*
+		This only happens for `cross` target, because for real targets all loops are converted to `while` at this point
+		Idk if this works correctly.
+	*)
+	| TFor (v, iterator, body) ->
+		collect_loop scope (fun() ->
+			if rc.rc_hoisting then
+				declare_var rc scope v;
+			collect_vars rc scope iterator;
+			if not rc.rc_hoisting then
+				declare_var rc scope v;
+			collect_vars
+		)
 	| _ ->
 		iter (collect_vars rc scope) e
 
