@@ -168,7 +168,7 @@ let rec use_var rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
-			if rc.rc_hoisting && not (IntMap.mem v.v_id scope.foreign_vars) then
+			if (rc.rc_no_shadowing || rc.rc_hoisting) && not (IntMap.mem v.v_id scope.foreign_vars) then
 				scope.foreign_vars <- IntMap.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
