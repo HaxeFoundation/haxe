@@ -112,6 +112,10 @@ type var_scoping_flags =
 	*)
 	| VarHoisting
 	(**
+		It's not allowed to shadow existing variables in a scope.
+	*)
+	| NoShadowing
+	(**
 		Local vars cannot have the same name as the current top-level package or
 		(if in the root package) current class name
 	*)
@@ -507,7 +511,11 @@ let get_config com =
 				];
 				ec_wildcard_catch = (["cs";"system"],"Exception");
 				ec_base_throw = (["cs";"system"],"Exception");
-			}
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Java ->
 		{

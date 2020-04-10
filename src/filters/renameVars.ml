@@ -7,6 +7,7 @@ open Ast
 type rename_init = {
 	mutable ri_scope : var_scope;
 	mutable ri_hoisting : bool;
+	mutable ri_no_shadowing : bool;
 	mutable ri_reserved : bool StringMap.t;
 	mutable ri_reserve_current_top_level_symbol : bool;
 }
@@ -14,7 +15,7 @@ type rename_init = {
 (* TODO: remove this when all targets are supported *)
 let enable_new platform =
 	match platform with
-	| Php | Js | Eval | Lua | Hl | Python | Java -> true
+	| Php | Js | Eval | Lua | Hl | Python | Java | Cs -> true
 	| _ -> false
 
 (**
@@ -53,6 +54,7 @@ let init com =
 		ri_scope = com.config.pf_scoping.vs_scope;
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
+		ri_no_shadowing = false;
 		ri_reserve_current_top_level_symbol = false;
 	} in
 	if enable_new com.platform then begin
@@ -61,6 +63,8 @@ let init com =
 			match flag with
 			| VarHoisting ->
 				ri.ri_hoisting <- true;
+			| NoShadowing ->
+				ri.ri_no_shadowing <- true;
 			| ReserveNames names ->
 				List.iter (reserve_init ri) names
 			| ReserveAllTopLevelSymbols ->
@@ -102,6 +106,7 @@ type scope = {
 
 type rename_context = {
 	rc_hoisting : bool;
+	rc_no_shadowing : bool;
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
 }
@@ -229,7 +234,7 @@ let trailing_numbers = Str.regexp "[0-9]+$"
 (**
 	Rename `v` if needed
 *)
-let maybe_rename_var hoisting reserved (v,overlaps) =
+let maybe_rename_var rc reserved (v,overlaps) =
 	(* chop escape char for all local variables generated *)
 	if is_gen_local v then begin
 		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
@@ -246,16 +251,16 @@ let maybe_rename_var hoisting reserved (v,overlaps) =
 		name := v.v_name ^ (string_of_int !count);
 	done;
 	v.v_name <- !name;
-	if v.v_capture && hoisting then reserve reserved v.v_name
+	if rc.rc_no_shadowing || (v.v_capture && rc.rc_hoisting) then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`
 *)
 let rec rename_vars rc scope =
 	let reserved = ref rc.rc_reserved in
-	if rc.rc_hoisting && not (IntMap.is_empty scope.foreign_vars) then
+	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (IntMap.is_empty scope.foreign_vars) then
 		IntMap.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
-	List.iter (maybe_rename_var rc.rc_hoisting reserved) (List.rev scope.own_vars);
+	List.iter (maybe_rename_var rc reserved) (List.rev scope.own_vars);
 	List.iter (rename_vars rc) scope.children
 
 (**
@@ -266,6 +271,7 @@ let run ctx ri e =
 		let rc = {
 			rc_scope = ri.ri_scope;
 			rc_hoisting = ri.ri_hoisting;
+			rc_no_shadowing = ri.ri_no_shadowing;
 			rc_reserved = ri.ri_reserved;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
