@@ -14,7 +14,7 @@ type rename_init = {
 (* TODO: remove this when all targets are supported *)
 let enable_new platform =
 	match platform with
-	| Php | Js | Eval -> true
+	| Php | Js | Eval | Lua -> true
 	| _ -> false
 
 (**
@@ -182,11 +182,14 @@ let rec use_var rc scope v =
 (**
 	Collect all the variables declared and used in `e` expression.
 *)
-let rec collect_vars rc scope e =
+let rec collect_vars ?(in_block=false) rc scope e =
 	match e.eexpr with
-	| TVar (v, e_opt) ->
+	| TVar (v, e_opt) when rc.rc_hoisting ->
 		declare_var rc scope v;
 		Option.may (collect_vars rc scope) e_opt
+	| TVar (v, e_opt) ->
+		Option.may (collect_vars rc scope) e_opt;
+		declare_var rc scope v
 	| TLocal v ->
 		use_var rc scope v
 	| TFunction fn ->
@@ -201,8 +204,11 @@ let rec collect_vars rc scope e =
 			collect_vars rc scope catch_expr
 		) catches
 	| TBlock exprs when rc.rc_scope = BlockScope ->
-		let scope = create_scope (Some scope) in
-		List.iter (collect_vars rc scope) exprs
+		let scope =
+			if in_block then scope (* parent expression is a block too, that means current block will be merged into the parent one *)
+			else create_scope (Some scope)
+		in
+		List.iter (collect_vars ~in_block:true rc scope) exprs
 	| TWhile (condition, body, NormalWhile) ->
 		scope.loop_count <- scope.loop_count + 1;
 		collect_vars rc scope condition;
