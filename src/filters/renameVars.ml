@@ -5,8 +5,9 @@ open Common
 open Ast
 
 type rename_init = {
-	mutable ri_reserve_current_top_level_symbol : bool;
 	mutable ri_reserved : bool StringMap.t;
+	mutable ri_hoisting : bool;
+	mutable ri_reserve_current_top_level_symbol : bool;
 }
 
 (* TODO: remove this when all targets are supported *)
@@ -48,13 +49,16 @@ let reserve_all_types ri com path_to_name =
 *)
 let init com =
 	let ri = {
+		ri_reserved = StringMap.empty;
+		ri_hoisting = false;
 		ri_reserve_current_top_level_symbol = false;
-		ri_reserved = StringMap.empty
 	} in
 	if enable_new com.platform then begin
 		reserve_init ri "this";
 		List.iter (fun flag ->
 			match flag with
+			| VarHoisting ->
+				ri.ri_hoisting <- true;
 			| ReserveNames names ->
 				List.iter (reserve_init ri) names
 			| ReserveAllTopLevelSymbols ->
@@ -85,32 +89,42 @@ type scope = {
 		```
 		in this example `b` overlaps with `a`.
 	*)
-	mutable vars : (tvar * (tvar list ref)) list;
+	mutable own_vars : (tvar * (tvar IntMap.t ref)) list;
+	(** Variables declared outside of this scope, but used inside of it *)
+	mutable foreign_vars : tvar IntMap.t;
 	(** List of variables used in current loop *)
-	loop_vars : tvar list ref;
+	loop_vars : tvar IntMap.t ref;
 	(** Current loops depth *)
 	mutable loop_count : int;
 }
 
 type rename_context = {
+	rc_hoisting : bool;
 	mutable rc_reserved : bool StringMap.t;
-	mutable rc_used_names : bool StringMap.t;
 }
 
 (**
 	Make `name` a reserved word.
 	No local variable will be allowed to have such name.
 *)
-let reserve rc name =
+let reserve_ctx rc name =
 	rc.rc_reserved <- StringMap.add name true rc.rc_reserved
+
+(**
+	Make `name` a reserved word.
+	No local variable will be allowed to have such name.
+*)
+let reserve reserved name =
+	reserved := StringMap.add name true !reserved
 
 let create_scope parent =
 	let scope = {
 		parent = parent;
 		children = [];
-		vars = [];
-		loop_vars = (match parent with Some p -> p.loop_vars | None -> ref []);
-		loop_count = (match parent with Some p -> p.loop_count | None -> 0);
+		own_vars = [];
+		foreign_vars = IntMap.empty;
+		loop_vars = ref IntMap.empty;
+		loop_count = 0;
 	} in
 	Option.may (fun p -> p.children <- scope :: p.children) parent;
 	scope
@@ -120,12 +134,24 @@ let create_scope parent =
 *)
 let declare_var rc scope v =
 	let overlaps =
-		if scope.loop_count = 0 then []
-		else !(scope.loop_vars)
+		if not rc.rc_hoisting || IntMap.is_empty scope.foreign_vars then
+			if scope.loop_count = 0 then IntMap.empty
+			else !(scope.loop_vars)
+		else
+			if scope.loop_count = 0 then
+				scope.foreign_vars
+			else begin
+				let overlaps = ref !(scope.loop_vars) in
+				IntMap.iter (fun i o ->
+					if not (IntMap.mem i !overlaps) then
+						overlaps := IntMap.add i o !overlaps
+				) scope.foreign_vars;
+				!overlaps
+			end
 	in
-	scope.vars <- (v, ref overlaps) :: scope.vars;
+	scope.own_vars <- (v, ref overlaps) :: scope.own_vars;
 	if scope.loop_count > 0 then
-		scope.loop_vars := v :: !(scope.loop_vars)
+		scope.loop_vars := IntMap.add v.v_id v !(scope.loop_vars)
 
 (**
 	Invoked for each `TLocal v` texr_expr
@@ -134,19 +160,21 @@ let rec use_var rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
+			if not (IntMap.mem v.v_id scope.foreign_vars) then
+				scope.foreign_vars <- IntMap.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
 			| None -> assert false
 			)
 		| (d, _) :: _ when d == v -> ()
 		| (d, overlaps) :: rest ->
-			if not (List.memq v !overlaps) then
-				overlaps := v :: !overlaps;
+			if not (IntMap.mem v.v_id !overlaps) then
+				overlaps := IntMap.add v.v_id v !overlaps;
 			loop rest
 	in
-	loop scope.vars;
-	if scope.loop_count > 0 && not (List.memq v !(scope.loop_vars)) then
-		scope.loop_vars := v :: !(scope.loop_vars)
+	loop scope.own_vars;
+	if scope.loop_count > 0 && not (IntMap.mem v.v_id !(scope.loop_vars)) then
+		scope.loop_vars := IntMap.add v.v_id v !(scope.loop_vars)
 
 (**
 	Collect all the variables declared and used in `e` expression.
@@ -159,6 +187,7 @@ let rec collect_vars rc scope e =
 	| TLocal v ->
 		use_var rc scope v
 	| TFunction fn ->
+		let scope = create_scope (Some scope) in
 		List.iter (fun (v,_) -> declare_var rc scope v) fn.tf_args;
 		List.iter (fun (v,_) -> use_var rc scope v) fn.tf_args;
 		collect_vars rc scope fn.tf_expr
@@ -173,8 +202,10 @@ let rec collect_vars rc scope e =
 		collect_vars rc scope condition;
 		collect_vars rc scope body;
 		scope.loop_count <- scope.loop_count - 1;
-		if scope.loop_count <= 0 then
-			scope.loop_vars := [];
+		if scope.loop_count < 0 then
+			assert false;
+		if scope.loop_count = 0 then
+			scope.loop_vars := IntMap.empty;
 	(* At this point all loops are expected to be transformed into normal `while` loops *)
 	| TFor _ | TWhile _ ->
 		assert false
@@ -184,18 +215,9 @@ let rec collect_vars rc scope e =
 let trailing_numbers = Str.regexp "[0-9]+$"
 
 (**
-	Check if `name` can be used for a local variable
-*)
-let is_name_available rc is_capture_var name =
-	not (
-		StringMap.mem name rc.rc_reserved
-		|| (is_capture_var && StringMap.mem name rc.rc_used_names)
-	)
-
-(**
 	Rename `v` if needed
 *)
-let maybe_rename_var rc (v,overlaps) =
+let maybe_rename_var hoisting reserved (v,overlaps) =
 	(* chop escape char for all local variables generated *)
 	if is_gen_local v then begin
 		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
@@ -203,23 +225,26 @@ let maybe_rename_var rc (v,overlaps) =
 	end;
 	let name = ref v.v_name in
 	let count = ref 0 in
-	let same_name o = !name = o.v_name in
+	let same_name _ o = !name = o.v_name in
 	while (
-		StringMap.mem !name rc.rc_reserved
-		|| (v.v_capture && StringMap.mem !name rc.rc_used_names)
-		|| List.exists same_name !overlaps
+		StringMap.mem !name !reserved
+		|| IntMap.exists same_name !overlaps
 	) do
 		incr count;
 		name := v.v_name ^ (string_of_int !count);
 	done;
 	v.v_name <- !name;
-	if v.v_capture then reserve rc v.v_name
+	if v.v_capture && hoisting then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`
 *)
-let rename_vars rc scope =
-	List.iter (maybe_rename_var rc) (List.rev scope.vars)
+let rec rename_vars rc scope =
+	let reserved = ref rc.rc_reserved in
+	if rc.rc_hoisting && not (IntMap.is_empty scope.foreign_vars) then
+		IntMap.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
+	List.iter (maybe_rename_var rc.rc_hoisting reserved) (List.rev scope.own_vars);
+	List.iter (rename_vars rc) scope.children
 
 (**
 	Rename local variables in `e` expression if needed.
@@ -227,12 +252,12 @@ let rename_vars rc scope =
 let run ctx ri e =
 	if enable_new ctx.com.platform then begin
 		let rc = {
+			rc_hoisting = ri.ri_hoisting;
 			rc_reserved = ri.ri_reserved;
-			rc_used_names = StringMap.empty;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
 			match ctx.curclass.cl_path with
-			| s :: _,_ | [],s -> reserve rc s
+			| s :: _,_ | [],s -> reserve_ctx rc s
 		end;
 		let scope = create_scope None in
 		collect_vars rc scope e;

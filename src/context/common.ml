@@ -102,10 +102,18 @@ type nested_function_scoping =
 	(** TFunction nodes are nested in the output and there is var hoisting **)
 	| Hoisted
 
+type var_scope =
+	| FunctionScope
+	| BlockScope
+
 type var_scoping_flags =
 	(**
+		Variables are hoisted in their scope
+	*)
+	| VarHoisting
+	(**
 		Local vars cannot have the same name as the current top-level package or
-		(if in root package) current class name
+		(if in the root package) current class name
 	*)
 	| ReserveCurrentTopLevelSymbol
 	(**
@@ -114,7 +122,7 @@ type var_scoping_flags =
 	*)
 	| ReserveAllTopLevelSymbols
 	(**
-		Reserve all type paths converted to "flat path" with `Path.flat_path`
+		Reserve all type-paths converted to "flat path" with `Path.flat_path`
 	*)
 	| ReserveAllTypesFlat
 	(**
@@ -122,8 +130,9 @@ type var_scoping_flags =
 	*)
 	| ReserveNames of string list
 
-type var_scoping = {
+type var_scoping_config = {
 	vs_flags : var_scoping_flags list;
+	vs_scope : var_scope;
 }
 
 type platform_config = {
@@ -158,7 +167,7 @@ type platform_config = {
 	(** the scoping behavior of nested functions **)
 	pf_nested_function_scoping : nested_function_scoping;
 	(** the scoping of local variables *)
-	pf_scoping : var_scoping;
+	pf_scoping : var_scoping_config;
 }
 
 class compiler_callbacks = object(self)
@@ -381,6 +390,7 @@ let default_config =
 		};
 		pf_nested_function_scoping = Independent;
 		pf_scoping = {
+			vs_scope = BlockScope;
 			vs_flags = [];
 		}
 	}
@@ -406,7 +416,11 @@ let get_config com =
 			};
 			pf_nested_function_scoping = Hoisted;
 			pf_scoping = {
-				vs_flags = [if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat];
+				vs_scope = FunctionScope;
+				vs_flags = [
+					VarHoisting;
+					if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat
+				];
 			}
 		}
 	| Lua ->
@@ -461,6 +475,10 @@ let get_config com =
 				ec_base_throw = (["php"],"Throwable");
 			};
 			pf_nested_function_scoping = Nested;
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			}
 		}
 	| Cpp ->
 		{
@@ -511,7 +529,7 @@ let get_config com =
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
 			};
-			pf_scoping = {
+			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [ReserveNames(["_"])];
 			}
 		}
