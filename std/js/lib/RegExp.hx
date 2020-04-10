@@ -22,6 +22,8 @@
 
 package js.lib;
 
+import haxe.DynamicAccess;
+
 /**
 	Native JavaScript regular expressions.
 
@@ -44,4 +46,5 @@ extern class RegExp {
 extern class RegExpMatch extends Array<String> {
 	var index:Int;
 	var input:String;
+	var groups:DynamicAccess<String>;
 }
