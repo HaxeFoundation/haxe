@@ -192,12 +192,17 @@ let collect_loop scope fn =
 	Collect all the variables declared and used in `e` expression.
 *)
 let rec collect_vars ?(in_block=false) rc scope e =
+	let collect_vars =
+		match e.eexpr with
+		| TBlock _ -> collect_vars ~in_block:true rc
+		| _ -> collect_vars ~in_block:false rc
+	in
 	match e.eexpr with
 	| TVar (v, e_opt) when rc.rc_hoisting ->
 		declare_var rc scope v;
-		Option.may (collect_vars rc scope) e_opt
+		Option.may (collect_vars scope) e_opt
 	| TVar (v, e_opt) ->
-		Option.may (collect_vars rc scope) e_opt;
+		Option.may (collect_vars scope) e_opt;
 		declare_var rc scope v
 	| TLocal v ->
 		use_var rc scope v
@@ -205,33 +210,30 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		let scope = create_scope (Some scope) in
 		List.iter (fun (v,_) -> declare_var rc scope v) fn.tf_args;
 		List.iter (fun (v,_) -> use_var rc scope v) fn.tf_args;
-		collect_vars rc scope fn.tf_expr
+		collect_vars scope fn.tf_expr
 	| TTry (try_expr, catches) ->
-		collect_vars rc scope try_expr;
+		collect_vars scope try_expr;
 		List.iter (fun (v, catch_expr) ->
 			declare_var rc scope v;
-			collect_vars rc scope catch_expr
+			collect_vars scope catch_expr
 		) catches
 	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
-		collect_vars rc scope target;
+		collect_vars scope target;
 		List.iter (fun (el,e) ->
-			List.iter (collect_vars rc scope) el;
-			collect_ignore_block ~in_block rc scope e
+			List.iter (collect_vars scope) el;
+			collect_ignore_block ~in_block:true rc scope e
 		) cases;
-		Option.may (collect_ignore_block ~in_block rc scope) default_opt
-	| TBlock exprs when rc.rc_scope = BlockScope ->
-		let scope =
-			if in_block then scope (* parent expression is a block too, that means current block will be merged into the parent one *)
-			else create_scope (Some scope)
-		in
-		List.iter (collect_vars ~in_block:true rc scope) exprs
+		Option.may (collect_ignore_block ~in_block:true rc scope) default_opt
+	| TBlock exprs when rc.rc_scope = BlockScope && not in_block ->
+		let scope = create_scope (Some scope) in
+		List.iter (collect_vars scope) exprs
 	| TWhile (condition, body, flag) ->
 		collect_loop scope (fun() ->
 			if flag = NormalWhile then
-				collect_vars rc scope condition;
-			collect_vars rc scope body;
+				collect_vars scope condition;
+			collect_vars scope body;
 			if flag = DoWhile then
-				collect_vars rc scope condition;
+				collect_vars scope condition;
 		)
 	(*
 		This only happens for `cross` target, because for real targets all loops are converted to `while` at this point
@@ -241,13 +243,13 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		collect_loop scope (fun() ->
 			if rc.rc_hoisting then
 				declare_var rc scope v;
-			collect_vars rc scope iterator;
+			collect_vars scope iterator;
 			if not rc.rc_hoisting then
 				declare_var rc scope v;
-			collect_vars
+			collect_vars scope body
 		)
 	| _ ->
-		iter (collect_vars rc scope) e
+		iter (collect_vars scope) e
 
 and collect_ignore_block ?(in_block=false) rc scope e =
 	match e.eexpr with
