@@ -380,6 +380,9 @@ let is_code_injection_function e =
 	| _ ->
 		false
 
+let var ctx =
+	if ctx.es_version >= 6 then "let" else "var"
+
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
@@ -648,7 +651,7 @@ and gen_expr ctx e =
 		spr ctx "throw ";
 		gen_value ctx e;
 	| TVar (v,eo) ->
-		spr ctx "var ";
+		spr ctx ((var ctx) ^ " ");
 		check_var_declaration v;
 		spr ctx (ident v.v_name);
 		begin match eo with
@@ -722,7 +725,7 @@ and gen_expr ctx e =
 				let id = ctx.id_counter in
 				ctx.id_counter <- ctx.id_counter + 1;
 				let name = "$it" ^ string_of_int id in
-				print ctx "var %s = " name;
+				print ctx "%s %s = " (var ctx) name;
 				gen_value ctx it;
 				newline ctx;
 				name
@@ -730,7 +733,7 @@ and gen_expr ctx e =
 		print ctx "while( %s.hasNext() ) {" it;
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "var %s = %s.next()" (ident v.v_name) it;
+		print ctx "%s %s = %s.next()" (var ctx) (ident v.v_name) it;
 		gen_block_element ctx e;
 		bend();
 		newline ctx;
