@@ -48,6 +48,7 @@ class Exception {
 		return __nativeException;
 	}
 
+	@:ifFeature("haxe.Exception.thrown")
 	public function toString():String {
 		return inline CallStack.exceptionToString(this);
 	}

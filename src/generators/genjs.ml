@@ -337,6 +337,10 @@ let rec needs_switch_break e =
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
+let is_iterator_field_access fa = match field_name fa with
+	| "iterator" | "keyValueIterator" -> true
+	| _ -> true
+
 let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
@@ -353,7 +357,7 @@ let is_dynamic_iterator ctx e =
 		has_feature ctx "haxe.iterators.ArrayIterator.*" && loop x.etype
 	in
 	match e.eexpr with
-	| TField (x,f) when field_name f = "iterator" -> check x
+	| TField (x,f) when is_iterator_field_access f -> check x
 	| _ ->
 		false
 
@@ -485,6 +489,11 @@ let rec gen_call ctx e el in_value =
 		print ctx "$getIterator(";
 		gen_value ctx x;
 		print ctx ")";
+	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$getKeyValueIterator";
+		print ctx "$getKeyValueIterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -517,9 +526,9 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
-	| TBinop (op,{ eexpr = TField (x,f) },e2) when field_name f = "iterator" ->
+	| TBinop (op,{ eexpr = TField (x,f) },e2) when is_iterator_field_access f ->
 		gen_value ctx x;
-		spr ctx (field "iterator");
+		spr ctx (field (field_name f));
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
 	| TBinop (op,e1,e2) ->
@@ -531,16 +540,21 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	| TField (x,f) when field_name f = "keyValueIterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$keyValueIterator";
+		print ctx "$keyValueIterator(";
+		gen_value ctx x;
+		print ctx ")";
 	(* Don't generate `$iterator(value)` for exprs like `value.iterator--` *)
-	| TUnop (op,flag,({eexpr = TField (x,f)} as fe)) when field_name f = "iterator" && is_dynamic_iterator ctx fe ->
+	| TUnop (op,flag,({eexpr = TField (x,f)} as fe)) when is_iterator_field_access f && is_dynamic_iterator ctx fe ->
 		(match flag with
 			| Prefix ->
 				spr ctx (Ast.s_unop op);
 				gen_value ctx x;
-				spr ctx ".iterator"
+				print ctx ".%s" (field_name f)
 			| Postfix ->
 				gen_value ctx x;
-				spr ctx ".iterator";
+				print ctx ".%s" (field_name f);
 				spr ctx (Ast.s_unop op))
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
@@ -1838,9 +1852,18 @@ let generate com =
 		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return new %s(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }" array_iterator;
 		newline ctx;
 	end;
+	if has_feature ctx "use.$keyValueIterator" then begin
+		add_feature ctx "use.$bind";
+		print ctx "function $keyValueIterator(o) { if( o instanceof Array ) return function() { return HxOverrides.keyValueIter(o); }; return typeof(o.keyValueIterator) == 'function' ? $bind(o,o.keyValueIterator) : o.keyValueIterator; }";
+		newline ctx;
+	end;
 	if has_feature ctx "use.$getIterator" then begin
 		let array_iterator = s_path ctx (["haxe"; "iterators"], "ArrayIterator") in
 		print ctx "function $getIterator(o) { if( o instanceof Array ) return new %s(o); else return o.iterator(); }" array_iterator;
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getKeyValueIterator" then begin
+		print ctx "function $getKeyValueIterator(o) { if( o instanceof Array ) return HxOverrides.keyValueIter(o); else return o.keyValueIterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

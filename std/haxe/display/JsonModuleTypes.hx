@@ -299,6 +299,7 @@ typedef JsonClass = {
 	var kind:JsonClassKind<Dynamic>;
 	var isInterface:Bool;
 	var isExtern:Bool;
+	var isFinal:Bool;
 	var superClass:Null<JsonTypePathWithParams>;
 	var interfaces:Array<JsonTypePathWithParams>;
 	var fields:JsonClassFields;

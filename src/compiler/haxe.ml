@@ -273,7 +273,7 @@ module Initialize = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.raw_defined com "hl_ver") then Define.raw_define_value com.defines "hl_ver" (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
+				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
 				"hl"
 			| Eval ->
 				add_std "eval";

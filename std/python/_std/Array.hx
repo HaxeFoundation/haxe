@@ -24,6 +24,7 @@
 import python.internal.ArrayImpl;
 import python.NativeIterator;
 #end
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:native("list")
 @:coreApi
@@ -42,6 +43,10 @@ extern class Array<T> implements ArrayAccess<T> {
 
 	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	@:runtime inline public function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	inline function insert(pos:Int, x:T):Void {

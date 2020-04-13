@@ -23,6 +23,7 @@
 package hl.types;
 
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:keep
 @:generic
@@ -40,6 +41,26 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	override public function next():T {
 		return @:privateAccess a.bytes.get(current++);
+	}
+}
+
+@:keep
+@:generic
+class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
+	var a : ArrayBytes<T>;
+
+	public function new(a) {
+		super((null:Dynamic));
+		this.a = a;
+	}
+
+	override public function hasNext():Bool {
+		return current < a.length;
+	}
+
+	override public function next():{key:Int, value:T} {
+		var v = @:privateAccess a.bytes.get(current);
+		return {key:current++, value:v};
 	}
 }
 
@@ -261,6 +282,10 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new BytesKeyValueIterator<T>(this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn@:privateAccess {

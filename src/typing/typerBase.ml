@@ -111,7 +111,7 @@ let rec type_module_type ctx t tparams p =
 		let mt = try
 			module_type_of_type t
 		with Exit ->
-			if follow t == t_dynamic then Typeload.load_type_def ctx p { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
 			else error "Invalid module type" p
 		in
 		type_module_type ctx mt None p
@@ -141,7 +141,7 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
 let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
+	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
 let mk_module_type_access ctx t p : access_mode -> access_kind =
 	let e = type_module_type ctx t None p in

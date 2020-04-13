@@ -94,13 +94,42 @@ type exceptions_config = {
 	ec_base_throw : path;
 }
 
-type nested_function_scoping =
-	(** each TFunction has its own scope in the output **)
-	| Independent
-	(** TFunction nodes are nested in the output **)
-	| Nested
-	(** TFunction nodes are nested in the output and there is var hoisting **)
-	| Hoisted
+type var_scope =
+	| FunctionScope
+	| BlockScope
+
+type var_scoping_flags =
+	(**
+		Variables are hoisted in their scope
+	*)
+	| VarHoisting
+	(**
+		It's not allowed to shadow existing variables in a scope.
+	*)
+	| NoShadowing
+	(**
+		Local vars cannot have the same name as the current top-level package or
+		(if in the root package) current class name
+	*)
+	| ReserveCurrentTopLevelSymbol
+	(**
+		Local vars cannot have a name used for any top-level symbol
+		(packages and classes in the root package)
+	*)
+	| ReserveAllTopLevelSymbols
+	(**
+		Reserve all type-paths converted to "flat path" with `Path.flat_path`
+	*)
+	| ReserveAllTypesFlat
+	(**
+		List of names cannot be taken by local vars
+	*)
+	| ReserveNames of string list
+
+type var_scoping_config = {
+	vs_flags : var_scoping_flags list;
+	vs_scope : var_scope;
+}
 
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
@@ -131,8 +160,8 @@ type platform_config = {
 	pf_supports_unicode : bool;
 	(** exceptions handling config **)
 	pf_exceptions : exceptions_config;
-	(** the scoping behavior of nested functions **)
-	pf_nested_function_scoping : nested_function_scoping;
+	(** the scoping of local variables *)
+	pf_scoping : var_scoping_config;
 }
 
 class compiler_callbacks = object(self)
@@ -350,10 +379,13 @@ let default_config =
 		pf_exceptions = {
 			ec_native_throws = [];
 			ec_native_catches = [];
-			ec_wildcard_catch = ([],"Dynamic");
-			ec_base_throw = ([],"Dynamic");
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
 		};
-		pf_nested_function_scoping = Independent;
+		pf_scoping = {
+			vs_scope = BlockScope;
+			vs_flags = [];
+		}
 	}
 
 let get_config com =
@@ -369,16 +401,19 @@ let get_config com =
 			pf_capture_policy = if get_es_version com >= 6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["js";"lib"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_native_catches = [];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			};
-			pf_nested_function_scoping = Hoisted;
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [
+					VarHoisting;
+					if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat
+				];
+			}
 		}
 	| Lua ->
 		{
@@ -395,6 +430,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [ReserveCurrentTopLevelSymbol];
+			}
 		}
 	| Flash ->
 		{
@@ -403,7 +441,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
@@ -412,8 +450,6 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			}
 		}
 	| Php ->
@@ -433,7 +469,10 @@ let get_config com =
 				ec_wildcard_catch = (["php"],"Throwable");
 				ec_base_throw = (["php"],"Throwable");
 			};
-			pf_nested_function_scoping = Nested;
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			}
 		}
 	| Cpp ->
 		{
@@ -443,6 +482,9 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [NoShadowing]
+			}
 		}
 	| Cs ->
 		{
@@ -462,7 +504,11 @@ let get_config com =
 				];
 				ec_wildcard_catch = (["cs";"system"],"Exception");
 				ec_base_throw = (["cs";"system"],"Exception");
-			}
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Java ->
 		{
@@ -483,7 +529,15 @@ let get_config com =
 				];
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
-			}
+			};
+			pf_scoping =
+				if defined Jvm then
+					default_config.pf_scoping
+				else
+					{
+						vs_scope = FunctionScope;
+						vs_flags = [NoShadowing; ReserveCurrentTopLevelSymbol; ReserveNames(["_"])];
+					}
 		}
 	| Python ->
 		{
@@ -501,7 +555,10 @@ let get_config com =
 				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
 				ec_base_throw = ["python";"Exceptions"],"BaseException";
 			};
-			pf_nested_function_scoping = Nested;
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			};
 		}
 	| Hl ->
 		{
@@ -509,15 +566,13 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["haxe"],"Exception";
 				];
 				ec_native_catches = [
 					["haxe"],"Exception";
 				];
-				ec_wildcard_catch = ([],"Dynamic");
-				ec_base_throw = ([],"Dynamic");
 			}
 		}
 	| Eval ->

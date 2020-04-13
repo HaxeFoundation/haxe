@@ -1,0 +1,4 @@
+Main.hx:7: characters 3-8 : Uncaught exception Exception: !
+Called from Main.level3 (Main.hx line 7 column 3)
+Called from Main.level2 (Main.hx line 3 column 3)
+Called from Main.main (Main.hx line 11 column 3)
