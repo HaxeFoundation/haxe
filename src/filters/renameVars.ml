@@ -8,6 +8,7 @@ type rename_init = {
 	mutable ri_scope : var_scope;
 	mutable ri_hoisting : bool;
 	mutable ri_no_shadowing : bool;
+	mutable ri_switch_cases_no_blocks : bool;
 	mutable ri_reserved : bool StringMap.t;
 	mutable ri_reserve_current_top_level_symbol : bool;
 }
@@ -49,6 +50,7 @@ let init com =
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
 		ri_no_shadowing = false;
+		ri_switch_cases_no_blocks = false;
 		ri_reserve_current_top_level_symbol = false;
 	} in
 	reserve_init ri "this";
@@ -58,6 +60,8 @@ let init com =
 			ri.ri_hoisting <- true;
 		| NoShadowing ->
 			ri.ri_no_shadowing <- true;
+		| SwitchCasesNoBlocks ->
+			ri.ri_switch_cases_no_blocks <- true;
 		| ReserveNames names ->
 			List.iter (reserve_init ri) names
 		| ReserveAllTopLevelSymbols ->
@@ -97,6 +101,7 @@ type scope = {
 type rename_context = {
 	rc_hoisting : bool;
 	rc_no_shadowing : bool;
+	rc_switch_cases_no_blocks : bool;
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
 }
@@ -207,6 +212,13 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			declare_var rc scope v;
 			collect_vars rc scope catch_expr
 		) catches
+	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
+		collect_vars rc scope target;
+		List.iter (fun (el,e) ->
+			List.iter (collect_vars rc scope) el;
+			collect_ignore_block ~in_block rc scope e
+		) cases;
+		Option.may (collect_ignore_block ~in_block rc scope) default_opt
 	| TBlock exprs when rc.rc_scope = BlockScope ->
 		let scope =
 			if in_block then scope (* parent expression is a block too, that means current block will be merged into the parent one *)
@@ -236,6 +248,11 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		)
 	| _ ->
 		iter (collect_vars rc scope) e
+
+and collect_ignore_block ?(in_block=false) rc scope e =
+	match e.eexpr with
+	| TBlock el -> List.iter (collect_vars ~in_block rc scope) el
+	| _ -> collect_vars ~in_block rc scope e
 
 let trailing_numbers = Str.regexp "[0-9]+$"
 
@@ -279,6 +296,7 @@ let run ctx ri e =
 		rc_scope = ri.ri_scope;
 		rc_hoisting = ri.ri_hoisting;
 		rc_no_shadowing = ri.ri_no_shadowing;
+		rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
 		rc_reserved = ri.ri_reserved;
 	} in
 	if ri.ri_reserve_current_top_level_symbol then begin

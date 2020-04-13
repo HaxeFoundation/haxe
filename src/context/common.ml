@@ -125,6 +125,10 @@ type var_scoping_flags =
 		List of names cannot be taken by local vars
 	*)
 	| ReserveNames of string list
+	(**
+		Cases in a `switch` won't have blocks, but will share the same outer scope.
+	*)
+	| SwitchCasesNoBlocks
 
 type var_scoping_config = {
 	vs_flags : var_scoping_flags list;
@@ -394,13 +398,14 @@ let get_config com =
 	| Cross ->
 		default_config
 	| Js ->
+		let es6 = get_es_version com >= 6 in
 		{
 			default_config with
 			pf_static = false;
 			pf_sys = false;
-			pf_capture_policy = if get_es_version com >= 6 then CPNone else CPLoopVars;
+			pf_capture_policy = if es6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_this_before_super = not es6; (* cannot access `this` before `super()` when generating ES6 classes *)
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["js";"lib"],"Error";
@@ -408,11 +413,10 @@ let get_config com =
 				];
 			};
 			pf_scoping = {
-				vs_scope = FunctionScope;
-				vs_flags = [
-					VarHoisting;
-					if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat
-				];
+				vs_scope = if es6 then BlockScope else FunctionScope;
+				vs_flags =
+					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
+					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting];
 			}
 		}
 	| Lua ->
