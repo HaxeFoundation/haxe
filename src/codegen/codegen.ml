@@ -420,7 +420,7 @@ module Dump = struct
 			| None -> platform_name_macro com
 			| Some s -> s
 		in
-		let dump_dependencies_path = [dump_path com;target_name;".dependencies"] in
+		let dump_dependencies_path = [dump_path com;target_name;"dependencies"] in
 		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
@@ -433,7 +433,7 @@ module Dump = struct
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
-		let dump_dependants_path = [dump_path com;target_name;".dependants"] in
+		let dump_dependants_path = [dump_path com;target_name;"dependants"] in
 		let buf,close = create_dumpfile [] dump_dependants_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		Hashtbl.iter (fun n ml ->

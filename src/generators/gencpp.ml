@@ -3092,6 +3092,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             else (match return_type with
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
                | TCppPointer(_,_)
+               | TCppRawPointer(_,_)
                | TCppStar(_)
                | TCppInst(_) -> CppCast(baseCpp,return_type), return_type
                | TCppString -> CppCastScalar(baseCpp,"::String"), return_type

@@ -19,45 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.crypto;
 
-package cs.internal;
+import haxe.io.Bytes;
+import haxe.io.BytesData;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 
-import cs.system.Exception;
-
-@:nativeGen @:keep @:native("haxe.lang.Exceptions") class Exceptions {
-	@:allow(haxe.CallStack)
-	@:meta(System.ThreadStaticAttribute)
-	static var exception:cs.system.Exception;
-}
-
-// should NOT be usable inside Haxe code
-
-@:classCode('override public string Message { get { return this.toString(); } }\n\n')
-@:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception {
-	private var obj:Dynamic;
-
-	public function new(obj:Dynamic) {
-		super();
-
-		if (Std.isOfType(obj, HaxeException)) {
-			var _obj:HaxeException = cast obj;
-			obj = _obj.getObject();
-		}
-		this.obj = obj;
+@:coreApi
+class Sha256 {
+	public static function encode(s:String):String {
+		return Bytes.ofData(digest((cast s : java.NativeString).getBytes(StandardCharsets.UTF_8))).toHex();
 	}
 
-	public function getObject():Dynamic {
-		return obj;
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
+		return Bytes.ofData(digest(b.getData()));
 	}
 
-	public function toString():String {
-		return Std.string(obj);
-	}
-
-	public static function wrap(obj:Dynamic):Exception {
-		if (Std.isOfType(obj, Exception))
-			return obj;
-
-		return new HaxeException(obj);
+	inline static function digest(b:BytesData):BytesData {
+		return MessageDigest.getInstance("SHA-256").digest(b);
 	}
 }

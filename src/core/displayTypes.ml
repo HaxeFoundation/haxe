@@ -10,7 +10,7 @@ module SymbolKind = struct
 		| Class
 		| Interface
 		| Enum
-		| Typedef
+		| TypeAlias
 		| Abstract
 		| Field
 		| Property
@@ -18,12 +18,17 @@ module SymbolKind = struct
 		| Constructor
 		| Function
 		| Variable
+		| Struct
+		| EnumAbstract
+		| Operator
+		| EnumMember
+		| Constant
 
 	let to_int = function
 		| Class -> 1
 		| Interface -> 2
 		| Enum -> 3
-		| Typedef -> 4
+		| TypeAlias -> 4
 		| Abstract -> 5
 		| Field -> 6
 		| Property -> 7
@@ -31,6 +36,11 @@ module SymbolKind = struct
 		| Constructor -> 9
 		| Function -> 10
 		| Variable -> 11
+		| Struct -> 12
+		| EnumAbstract -> 13
+		| Operator -> 14
+		| EnumMember -> 15
+		| Constant -> 16
 end
 
 module SymbolInformation = struct

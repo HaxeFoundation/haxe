@@ -19,19 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.crypto;
 
-package python.internal;
+import haxe.io.Bytes;
+import haxe.io.BytesData;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 
-@:ifFeature("has_throw")
-@:native("_HxException")
-class HxException extends python.Exceptions.Exception {
-	@:ifFeature("has_throw")
-	public var val:Dynamic;
+@:coreApi
+class Md5 {
+	public static function encode(s:String):String {
+		return Bytes.ofData(digest((cast s : java.NativeString).getBytes(StandardCharsets.UTF_8))).toHex();
+	}
 
-	@:ifFeature("has_throw")
-	public function new(val:Dynamic) {
-		var message = UBuiltins.str(val);
-		super(message);
-		this.val = val;
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
+		return Bytes.ofData(digest(b.getData()));
+	}
+
+	inline static function digest(b:BytesData):BytesData {
+		return MessageDigest.getInstance("MD5").digest(b);
 	}
 }

@@ -1,3 +1,4 @@
+open JvmGlobals.MethodAccessFlags
 open JvmSignature
 open NativeSignatures
 
@@ -93,10 +94,9 @@ class typed_functions = object(self)
 				(String.concat ", " (List.map string_of_classification cl))
 				(Option.map_default string_of_classification "CVoid" cr)
 		in
-		let suffix = Option.map_default string_of_classification "Void" cr in
 		let meth = {
 			arity = List.length cl;
-			name = Printf.sprintf "invoke%s" suffix;
+			name = "invoke";
 			has_nonobject = List.exists (function CObject -> false | _ -> true) cl;
 			sort_string = to_string (cl,cr);
 			cargs = cl;
@@ -176,7 +176,7 @@ class typed_functions = object(self)
 					jm#get_code#aaload array_sig object_sig;
 					object_sig
 				) in
-				jm#invokevirtual jc#get_this_path "invokeObject" (method_sig args (Some object_sig));
+				jm#invokevirtual jc#get_this_path "invoke" (method_sig args (Some object_sig));
 				jm#return;
 			)
 		) in
@@ -198,7 +198,7 @@ class typed_functions = object(self)
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -222,7 +222,7 @@ class typed_functions = object(self)
 		jm_ctor#return;
 		let rec loop args i =
 			let jsig = method_sig args (Some object_sig) in
-			let jm = jc#spawn_method "invokeObject" jsig [MPublic] in
+			let jm = jc#spawn_method "invoke" jsig [MPublic;MBridge;MSynthetic] in
 			let vars = ExtList.List.init i (fun i ->
 				jm#add_local (Printf.sprintf "arg%i" i) object_sig VarArgument
 			) in
@@ -230,7 +230,7 @@ class typed_functions = object(self)
 			jm#getfield jc#get_this_path "func" haxe_function_sig;
 			jm#new_native_array object_sig (List.map (fun (_,load,_) () -> load()) vars);
 			jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
-			jm#invokevirtual haxe_function_path "invokeObject" (method_sig [object_sig] (Some object_sig));
+			jm#invokevirtual haxe_function_path "invoke" (method_sig [object_sig] (Some object_sig));
 			jm#return;
 			if i < max_arity then loop (object_sig :: args) (i + 1)
 		in
@@ -243,7 +243,7 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder haxe_function_path object_path in
 		jc#add_access_flag 1; (* public *)
 		List.iter (fun meth ->
-			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic] in
+			let jm = jc#spawn_method meth.name (method_sig meth.dargs meth.dret) [MPublic;MBridge;MSynthetic] in
 			begin match meth.next with
 			| Some meth_next ->
 				self#make_forward_method jc jm meth meth_next;
@@ -318,6 +318,7 @@ module JavaFunctionalInterfaces = struct
 			| want1 :: want,have1 :: have ->
 				begin match want1 with
 				| TTypeParameter n ->
+					let have1 = get_boxed_type have1 in
 					loop ((n,have1) :: params) want have
 				| _ ->
 					if have1 <> want1 then None
@@ -330,6 +331,7 @@ module JavaFunctionalInterfaces = struct
 		| None,None ->
 			loop [] jfi.jargs args
 		| Some (TTypeParameter n),Some jsig ->
+			let jsig = get_boxed_type jsig in
 			loop [n,jsig] jfi.jargs args
 		| Some jsig1,Some jsig2 ->
 			if jsig1 <> jsig2 then None
@@ -361,13 +363,18 @@ class typed_function
 = object(self)
 
 	val jc_closure =
+		let patch_name name = match name with
+			| "<init>" -> "new"
+			| "<clinit>" -> "__init__"
+			| name -> name
+		in
 		let name = match kind with
 			| FuncLocal ->
-				Printf.sprintf "Closure_%s_%i" host_method#get_name host_method#get_next_closure_id
+				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id
 			| FuncStatic(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 			| FuncMember(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) name
+				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 		in
 		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_access_flag 0x10; (* final *)
@@ -398,8 +405,10 @@ class typed_function
 				Hashtbl.add implemented_interfaces path true;
 			end
 		in
-		let spawn_forward_function meth_from meth_to =
-			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) [MPublic] in
+		let spawn_forward_function meth_from meth_to is_bridge =
+			let flags = [MPublic] in
+			let flags = if is_bridge then MBridge :: MSynthetic :: flags else flags in
+			let jm_invoke_next = jc_closure#spawn_method meth_from.name (method_sig meth_from.dargs meth_from.dret) flags in
 			functions#make_forward_method jc_closure jm_invoke_next meth_from meth_to;
 		in
 		let check_functional_interfaces meth =
@@ -407,7 +416,7 @@ class typed_function
 				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
 				List.iter (fun (jfi,params) ->
 					add_interface jfi.jpath params;
-					spawn_forward_function {meth with name=jfi.jname} meth;
+					spawn_forward_function {meth with name=jfi.jname} meth false;
 				) l
 			with Not_found ->
 				()
@@ -416,7 +425,7 @@ class typed_function
 			check_functional_interfaces meth;
 			begin match meth.next with
 			| Some meth_next ->
-				spawn_forward_function meth_next meth;
+				spawn_forward_function meth_next meth true;
 				loop meth_next;
 			| None ->
 				()

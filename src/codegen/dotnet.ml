@@ -220,10 +220,8 @@ let ilpath_s = function
 let get_cls = function
 	| _,_,c -> c
 
-(* TODO: When possible on Haxe, use this to detect flag enums, and make an abstract with @:op() *)
-(* that behaves like an enum, and with an enum as its underlying type *)
-let enum_is_flag ilcls =
-	let check_flag name ns = name = "FlagsAttribute" && ns = ["System"] in
+let has_attr expected_name expected_ns ilcls =
+	let check_flag name ns = (name = expected_name && ns = expected_ns) in
 	List.exists (fun a ->
 		match a.ca_type with
 			| TypeRef r ->
@@ -245,6 +243,12 @@ let enum_is_flag ilcls =
 			| _ ->
 				false
 	) ilcls.cattrs
+
+(* TODO: When possible on Haxe, use this to detect flag enums, and make an abstract with @:op() *)
+(* that behaves like an enum, and with an enum as its underlying type *)
+let enum_is_flag = has_attr "FlagsAttribute" ["System"]
+
+let is_compiler_generated = has_attr "CompilerGeneratedAttribute" ["System"; "Runtime"; "CompilerServices"]
 
 let convert_ilenum ctx p ?(is_flag=false) ilcls =
 	let meta = ref [
@@ -414,7 +418,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let acc = match is_final with
-		| None | Some true when not force_check ->
+		| None | Some true when not force_check && not !is_static ->
 			(AFinal,null_pos) :: acc
 		| _ ->
 			acc
@@ -1188,7 +1192,7 @@ class net_library com name file_path std = object(self)
 					let path = netpath_to_hx std ilpath in
 					build path
 				) cls.cnested
-			| Some cls ->
+			| Some cls when not (is_compiler_generated cls) ->
 				let ctx = self#get_ctx in
 				let hxcls = convert_ilclass ctx p cls in
 				cp := (hxcls,p) :: !cp;

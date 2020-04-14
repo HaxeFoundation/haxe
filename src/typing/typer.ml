@@ -626,12 +626,47 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
-				| _ ->  error "Invalid field type for abstract setter" p
+				| _ -> error "Invalid field type for abstract setter" p
 			in
 			let l = save_locals ctx in
-			let v,is_temp = match et.eexpr with
-				| TLocal v when not (v.v_name = "this") -> v,false
-				| _ -> gen_local ctx ta ef.epos,true
+			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
+				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
+				| _ ->
+					let v = gen_local ctx ta ef.epos in
+					(match et.eexpr with
+					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
+					| _ -> ()
+					);
+					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
+					let rec needs_temp_var e =
+						match e.eexpr with
+						| TConst TThis | TTypeExpr _ -> false
+						| TField (e1,(FInstance(_,_,cf) | FStatic(_,cf)))
+							when has_class_field_flag cf CfFinal ->
+							needs_temp_var e1
+						| TParenthesis e1 ->
+							needs_temp_var e1
+						| _ -> true
+					in
+					if has_class_field_flag cf CfModifiesThis then
+						match et.eexpr with
+						| TField (target,fa) when needs_temp_var target->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TField (etmp,fa)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| TArray (target,index) when needs_temp_var target ->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TArray (etmp,index)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| _ ->
+							check_assign ctx et;
+							v,[decl_v et],(Some et)
+					else
+						v,[decl_v et],None
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
@@ -640,13 +675,28 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx get.etype ret p;
 			l();
 			let e_call = make_call ctx ef [ev;get] ret p in
-			if is_temp then
-				mk (TBlock [
-					mk (TVar (v,Some et)) ctx.t.tvoid p;
+			let e_call =
+				(*
+					If this method modifies abstract `this`, we should also apply temp var
+					modifications to the original tempvar-ed expression.
+					Find code like `v = value` and change it to `et = v = value`,
+					where `v` is the temp var and `et` is the original expression stored to the temp var.
+				*)
+				match abstr_this_to_modify with
+				| None ->
 					e_call
-				]) ret p
-			else
-				e_call
+				| Some athis ->
+					let rec loop e =
+						match e.eexpr with
+						| TBinop(OpAssign,({ eexpr = TLocal v1 } as left),right) when v1 == v ->
+							let right = { e with eexpr = TBinop(OpAssign,left,loop right) } in
+							mk (TBinop(OpAssign,athis,right)) e.etype e.epos
+						| _ ->
+							map_expr loop e
+					in
+					loop e_call
+			in
+			mk (TBlock (init_exprs @ [e_call])) ret p
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -1293,7 +1343,7 @@ and handle_efield ctx e p0 mode =
 							let mpath = (pack,name) in
 							if Hashtbl.mem ctx.g.modules mpath then
 								let tname = Option.default name sub in
-								raise (Error (Type_not_found (mpath,tname),p))
+								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
 							else
 								raise (Error (Module_not_found mpath,p))
 						end
@@ -1663,7 +1713,19 @@ and type_object_decl ctx fl with_type p =
 		) ([],[],false) (List.rev fl) in
 		let el = List.map (fun (n,_,t) ->
 			try Expr.field_assoc n fl
-			with Not_found -> mk (TConst TNull) t p
+			with Not_found ->
+				try
+					match ctor.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						Option.get (snd (List.find (fun (v,e) -> n = v.v_name && Option.is_some e) fn.tf_args))
+					| _ ->
+						raise Not_found
+				with Not_found | Option.No_value ->
+					let t =
+						if type_has_meta (Abstract.follow_with_abstracts_without_null t) Meta.NotNull then ctx.t.tnull t
+						else t
+					in
+					mk (TConst TNull) t p
 		) args in
 		let e = mk (TNew(c,tl,el)) (TInst(c,tl)) p in
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
@@ -1773,11 +1835,14 @@ and type_try ctx e1 catches with_type p =
 			let unreachable () =
 				display_error ctx "This block is unreachable" p;
 				let st = s_type (print_context()) in
-				display_error ctx (Printf.sprintf "%s can be assigned to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				display_error ctx (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| TDynamic _, TDynamic _ ->
+					| _, TDynamic _
+					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
+						unreachable()
+					| _, TInst({ cl_path = path },_) when path = ctx.com.config.pf_exceptions.ec_wildcard_catch ->
 						unreachable()
 					| TDynamic _,_ ->
 						()
@@ -1947,8 +2012,9 @@ and type_local_function ctx kind f with_type p =
 					| _ -> ()
 				) args args2;
 				(* unify for top-down inference unless we are expecting Void *)
-				begin match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ -> ()
+				begin
+					match follow tr,follow rt with
+					| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
@@ -2131,21 +2197,24 @@ and type_return ?(implicit=false) ctx e with_type p =
 				else WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
-			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-			begin match follow e.etype with
-			| TAbstract({a_path=[],"Void"},_) ->
-				begin match (Texpr.skip e).eexpr with
-				| TConst TNull -> error "Cannot return `null` from Void-function" p
-				| _ -> ()
-				end;
-				(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-				mk (TBlock [
-					e;
-					mk (TReturn None) t_dynamic p
-				]) t_dynamic e.epos;
+			match follow ctx.ret with
+			| TAbstract({a_path=[],"Void"},_) when implicit ->
+				e
 			| _ ->
-				mk (TReturn (Some e)) t_dynamic p
-			end
+				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+				match follow e.etype with
+				| TAbstract({a_path=[],"Void"},_) ->
+					begin match (Texpr.skip e).eexpr with
+					| TConst TNull -> error "Cannot return `null` from Void-function" p
+					| _ -> ()
+					end;
+					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					mk (TBlock [
+						e;
+						mk (TReturn None) t_dynamic p
+					]) t_dynamic e.epos;
+				| _ ->
+					mk (TReturn (Some e)) t_dynamic p
 		with Error(err,p) ->
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
@@ -2652,6 +2721,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx
 

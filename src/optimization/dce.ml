@@ -111,7 +111,7 @@ let mk_keep_meta pos =
 let rec keep_field dce cf c is_static =
 	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| not (is_physical_field cf)
+	|| has_class_field_flag cf CfExtern
 	|| (not is_static && overrides_extern_field cf c)
 	|| (
 		cf.cf_name = "new"
@@ -464,6 +464,9 @@ and expr_field dce e fa is_call_expr =
 			| FDynamic _ ->
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
+			| FClosure _ ->
+				check_and_add_feature dce "closure_read";
+				check_and_add_feature dce ("closure_read." ^ n);
 			| _ -> ());
 			begin match follow e.etype, fa with
 				| TInst(c,_), _

@@ -88,9 +88,18 @@ let find_type_in_module m tname =
 (* raises Type_not_found *)
 let find_type_in_module_raise m tname p =
 	try
-		find_type_in_module m tname
+		List.find (fun mt ->
+			let infos = t_infos mt in
+			if snd infos.mt_path = tname then
+				if infos.mt_private then
+					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
+				else
+					true
+			else
+				false
+		) m.m_types
 	with Not_found ->
-		raise_error (Type_not_found (m.m_path,tname)) p
+		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
@@ -206,8 +215,8 @@ let load_qualified_type_def ctx pack mname tname p =
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
-
+	if t = Parser.magic_type_path then
+		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 
@@ -687,7 +696,7 @@ let hide_params ctx =
 *)
 let load_core_type ctx name =
 	let show = hide_params ctx in
-	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false in
+	let t = load_instance ctx (mk_type_path ([],name),null_pos) false in
 	show();
 	add_dependency ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
@@ -699,7 +708,7 @@ let load_core_type ctx name =
 
 let t_iterator ctx =
 	let show = hide_params ctx in
-	match load_type_def ctx null_pos { tpackage = []; tname = "Iterator"; tparams = []; tsub = None } with
+	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
 	| TTypeDecl t ->
 		show();
 		add_dependency ctx.m.curmod t.t_module;
@@ -819,8 +828,8 @@ let load_core_class ctx c =
 			c
 	) in
 	let tpath = match c.cl_kind with
-		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
-		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
+		| KAbstractImpl a -> mk_type_path a.a_path
+		| _ -> mk_type_path c.cl_path
 	in
 	let t = load_instance ctx2 (tpath,c.cl_pos) true in
 	flush_pass ctx2 PFinal "core_final";
@@ -907,10 +916,10 @@ let string_list_of_expr_path (e,p) =
 let handle_using ctx path p =
 	let t = match List.rev path with
 		| (s1,_) :: (s2,_) :: sl ->
-			if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
-			else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+			if is_lower_ident s2 then mk_type_path ((List.rev (s2 :: List.map fst sl)),s1)
+			else mk_type_path ~sub:s1 (List.rev (List.map fst sl),s2)
 		| (s1,_) :: sl ->
-			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+			mk_type_path (List.rev (List.map fst sl),s1)
 		| [] ->
 			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in

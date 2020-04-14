@@ -28,7 +28,7 @@ import haxe.io.Bytes;
 class FileOutput extends haxe.io.Output {
 	var f:FileHandle;
 
-	public function new(f:FileHandle) {
+	function new(f:FileHandle) {
 		if (f == null)
 			throw 'Invalid filehandle : $f';
 		this.f = f;

@@ -79,6 +79,62 @@ type capture_policy =
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
 	| CPLoopVars
 
+type exceptions_config = {
+	(* Base types which may be thrown from Haxe code without wrapping. *)
+	ec_native_throws : path list;
+	(* Base types which may be caught from Haxe code without wrapping. *)
+	ec_native_catches : path list;
+	(* Path of a native class or interface, which can be used for wildcard catches. *)
+	ec_wildcard_catch : path;
+	(*
+		Path of a native base class or interface, which can be thrown.
+		This type is used to cast `haxe.Exception.thrown(v)` calls to.
+		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
+	*)
+	ec_base_throw : path;
+}
+
+type var_scope =
+	| FunctionScope
+	| BlockScope
+
+type var_scoping_flags =
+	(**
+		Variables are hoisted in their scope
+	*)
+	| VarHoisting
+	(**
+		It's not allowed to shadow existing variables in a scope.
+	*)
+	| NoShadowing
+	(**
+		Local vars cannot have the same name as the current top-level package or
+		(if in the root package) current class name
+	*)
+	| ReserveCurrentTopLevelSymbol
+	(**
+		Local vars cannot have a name used for any top-level symbol
+		(packages and classes in the root package)
+	*)
+	| ReserveAllTopLevelSymbols
+	(**
+		Reserve all type-paths converted to "flat path" with `Path.flat_path`
+	*)
+	| ReserveAllTypesFlat
+	(**
+		List of names cannot be taken by local vars
+	*)
+	| ReserveNames of string list
+	(**
+		Cases in a `switch` won't have blocks, but will share the same outer scope.
+	*)
+	| SwitchCasesNoBlocks
+
+type var_scoping_config = {
+	vs_flags : var_scoping_flags list;
+	vs_scope : var_scope;
+}
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -106,6 +162,10 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** exceptions handling config **)
+	pf_exceptions : exceptions_config;
+	(** the scoping of local variables *)
+	pf_scoping : var_scoping_config;
 }
 
 class compiler_callbacks = object(self)
@@ -320,6 +380,16 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_exceptions = {
+			ec_native_throws = [];
+			ec_native_catches = [];
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
+		};
+		pf_scoping = {
+			vs_scope = BlockScope;
+			vs_flags = [];
+		}
 	}
 
 let get_config com =
@@ -328,13 +398,26 @@ let get_config com =
 	| Cross ->
 		default_config
 	| Js ->
+		let es6 = get_es_version com >= 6 in
 		{
 			default_config with
 			pf_static = false;
 			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
+			pf_capture_policy = if es6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_this_before_super = not es6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["js";"lib"],"Error";
+					["haxe"],"Exception";
+				];
+			};
+			pf_scoping = {
+				vs_scope = if es6 then BlockScope else FunctionScope;
+				vs_flags =
+					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
+					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting];
+			}
 		}
 	| Lua ->
 		{
@@ -351,6 +434,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [ReserveCurrentTopLevelSymbol];
+			}
 		}
 	| Flash ->
 		{
@@ -359,12 +445,38 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Php ->
 		{
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["php"],"Throwable");
+				ec_base_throw = (["php"],"Throwable");
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			}
 		}
 	| Cpp ->
 		{
@@ -374,6 +486,9 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [NoShadowing]
+			}
 		}
 	| Cs ->
 		{
@@ -382,6 +497,22 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_exceptions = {
+				ec_native_throws = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs";"system"],"Exception");
+				ec_base_throw = (["cs";"system"],"Exception");
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Java ->
 		{
@@ -391,6 +522,26 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_this_before_super = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["java";"lang"],"RuntimeException";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["java";"lang"],"Throwable");
+				ec_base_throw = (["java";"lang"],"RuntimeException");
+			};
+			pf_scoping =
+				if defined Jvm then
+					default_config.pf_scoping
+				else
+					{
+						vs_scope = FunctionScope;
+						vs_flags = [NoShadowing; ReserveCurrentTopLevelSymbol; ReserveNames(["_"])];
+					}
 		}
 	| Python ->
 		{
@@ -398,6 +549,20 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_native_catches = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
+				ec_base_throw = ["python";"Exceptions"],"BaseException";
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			};
 		}
 	| Hl ->
 		{
@@ -405,6 +570,14 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Eval ->
 		{

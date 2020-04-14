@@ -51,6 +51,7 @@ exception HarderFailure of string
 type generation_context = {
 	com : Common.context;
 	jar : Zip.out_file;
+	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
 	t_throwable : Type.t;
@@ -159,7 +160,9 @@ let rec jsignature_of_type gctx stack t =
 	| TLazy f -> jsignature_of_type (lazy_type f)
 
 and jtype_argument_of_type gctx stack t =
-	TType(WNone,jsignature_of_type gctx stack t)
+	let jsig = jsignature_of_type gctx stack t in
+	let jsig = get_boxed_type jsig in
+	TType(WNone,jsig)
 
 and return_of_type gctx stack t =
 	if ExtType.is_void (follow t) then None else Some (jsignature_of_type gctx stack t)
@@ -292,45 +295,26 @@ let type_unifies a b =
 
 let follow = Abstract.follow_with_abstracts
 
-class haxe_exception gctx (t : Type.t) = object(self)
-	val native_exception =
-		if follow t == t_dynamic then
-			throwable_sig,false
-		else if type_unifies t gctx.t_exception then
-			jsignature_of_type gctx t,true
-		else
-			haxe_exception_sig,false
-
-	val mutable native_exception_path = None
+class haxe_exception gctx (t : Type.t) =
+	let is_haxe_exception = Exceptions.is_haxe_exception t
+	and native_type = jsignature_of_type gctx t in
+object(self)
+	val native_path = (match native_type with TObject(path,_) -> path | _ -> assert false)
 
 	method is_assignable_to (exc2 : haxe_exception) =
-		match self#is_native_exception,exc2#is_native_exception with
-		| true, true ->
-			(* Native exceptions are assignable if they unify *)
+		match self#is_haxe_exception,exc2#is_haxe_exception with
+		| true, true | false, false ->
 			type_unifies t exc2#get_type
-		| false,false ->
-			(* Haxe exceptions are always assignable to each other *)
-			true
+		(* `haxe.Exception` is assignable to java.lang.RuntimeException/Exception/Throwable *)
 		| false,true ->
-			(* Haxe exception is assignable to native only if caught type is java.lang.Exception/Throwable *)
-			let exc2_native_exception_type = exc2#get_native_exception_type in
-			exc2_native_exception_type = throwable_sig || exc2_native_exception_type = exception_sig
+			List.mem exc2#get_native_type [throwable_sig; exception_sig; runtime_exception_sig]
 		| _ ->
-			(* Native to Haxe is never assignable *)
 			false
 
-	method is_native_exception = snd native_exception
-	method get_native_exception_type = fst native_exception
+	method is_haxe_exception = is_haxe_exception
 
-	method get_native_exception_path =
-		match native_exception_path with
-		| None ->
-			let path = (match (fst native_exception) with TObject(path,_) -> path | _ -> assert false) in
-			native_exception_path <- Some path;
-			path
-		| Some path ->
-			path
-
+	method get_native_type = native_type
+	method get_native_path = native_path
 	method get_type = t
 end
 
@@ -565,12 +549,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			cast();
 		in
 		match gctx.anon_identification#identify true t with
-		| Some td ->
-			let cf = match follow td.t_type with
-				| TAnon an -> PMap.find cf.cf_name an.a_fields
-				| _ -> assert false
-			in
-			let path = td.t_path in
+		| Some pfm ->
+			let cf = PMap.find cf.cf_name pfm.pfm_fields in
+			let path = pfm.pfm_path in
 			code#dup;
 			code#instanceof path;
 			jm#if_then_else
@@ -703,12 +684,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
 			begin match gctx.anon_identification#identify true e1.etype with
-			| Some td ->
-				let cf = match follow td.t_type with
-					| TAnon an -> PMap.find cf.cf_name an.a_fields
-					| _ -> assert false
-				in
-				let path = td.t_path in
+			| Some pfm ->
+				let cf = PMap.find cf.cf_name pfm.pfm_fields in
+				let path = pfm.pfm_path in
 				code#dup;
 				code#instanceof path;
 				let jsig_cf = self#vtype cf.cf_type in
@@ -1530,7 +1508,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			Some tr
 		| TField(e11,FAnon cf) ->
 			begin match gctx.anon_identification#identify false e11.etype with
-			| Some {t_path=path_anon} ->
+			| Some {pfm_path=path_anon} ->
 				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
 					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
@@ -1633,11 +1611,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	(* exceptions *)
 
-	method throw vt =
-		jm#expect_reference_type;
-		jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
-		code#athrow;
-
 	method try_catch ret e1 catches =
 		let restore = jm#start_branch in
 		let fp_from = code#get_fp in
@@ -1652,17 +1625,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let term_try = jm#is_terminated in
 		let r_try = jm#maybe_make_jump in
 		let fp_to = code#get_fp in
-		let unwrap () =
-			code#dup;
-			code#instanceof haxe_exception_path;
-			jm#if_then_else
-				(code#if_ CmpEq)
-				(fun () ->
-					jm#cast haxe_exception_sig;
-					jm#getfield (["haxe";"jvm"],"Exception") "value" object_sig;
-				)
-				(fun () -> jm#cast object_sig);
-		in
 		let start_exception_block path jsig =
 			restore();
 			let fp_target = code#get_fp in
@@ -1675,8 +1637,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			};
 			code#get_stack#push jsig;
 			jm#add_stack_frame;
-			jm#get_code#dup;
-			jm#invokestatic haxe_exception_path "setException" (method_sig [throwable_sig] None);
 		in
 		let run_catch_expr v e =
 			let pop_scope = jm#push_scope in
@@ -1687,63 +1647,15 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#is_terminated
 		in
 		let add_catch (exc,v,e) =
-			start_exception_block exc#get_native_exception_path exc#get_native_exception_type;
-			if not exc#is_native_exception then begin
-				unwrap();
-				self#cast v.v_type
-			end;
+			start_exception_block exc#get_native_path exc#get_native_type;
 			let term = run_catch_expr v e in
 			let r = jm#maybe_make_jump in
 			term,r
 		in
-		let commit_instanceof_checks excl =
-			start_exception_block throwable_path throwable_sig;
-			let pop_scope = jm#push_scope in
-			let _,load,save = jm#add_local "exc" throwable_sig VarWillInit in
-			code#dup;
-			save();
-			unwrap();
-			let restore = jm#start_branch in
-			let rl = ref [] in
-			let rec loop excl = match excl with
-				| [] ->
-					code#pop;
-					load();
-					code#athrow;
-				| (_,v,e) :: excl ->
-					code#dup;
-					let path = match self#vtype (self#mknull v.v_type) with TObject(path,_) -> path | _ -> assert false in
-					if path = object_path then begin
-						code#pop;
-						restore();
-						let term = run_catch_expr v e in
-						rl := (term,ref 0) :: !rl;
-					end else begin
-						code#instanceof path;
-						jm#if_then_else
-							(code#if_ CmpEq)
-							(fun () ->
-								restore();
-								self#cast v.v_type;
-								let term = run_catch_expr v e in
-								rl := (term,ref 0) :: !rl;
-							)
-							(fun () -> loop excl)
-					end
-			in
-			loop excl;
-			pop_scope();
-			!rl
-		in
 		let rec loop acc excl = match excl with
 			| (exc,v,e) :: excl ->
-				if List.exists (fun (exc',_,_) -> exc'#is_assignable_to exc) excl || excl = [] && not exc#is_native_exception then begin
-					let res = commit_instanceof_checks ((exc,v,e) :: excl) in
-					acc @ res
-				end else begin
-					let res = add_catch (exc,v,e) in
-					loop (res :: acc) excl
-				end
+				let res = add_catch (exc,v,e) in
+				loop (res :: acc) excl
 			| [] ->
 				acc
 		in
@@ -1787,38 +1699,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method new_native_array jsig el =
 		jm#new_native_array jsig (List.map (fun e -> fun () -> self#texpr (rvalue_sig jsig) e) el)
 
-	method basic_type_path name =
-		let offset = pool#add_field (["java";"lang"],name) "TYPE" java_class_sig FKField in
-		code#getstatic offset java_class_sig
-
-	method type_expr = function
-		| TByte -> self#basic_type_path "Byte"
-		| TChar -> self#basic_type_path "Character"
-		| TDouble -> self#basic_type_path "Double"
-		| TFloat -> self#basic_type_path "Float"
-		| TInt -> self#basic_type_path "Integer"
-		| TLong -> self#basic_type_path "Long"
-		| TShort -> self#basic_type_path "Short"
-		| TBool -> self#basic_type_path "Boolean"
-		| TObject(path,_) ->
-			let offset = pool#add_path path in
-			let t = object_path_sig path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,t)]))
-		| TMethod _ ->
-			assert false
-			(* let offset = pool#add_path method_handle_path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,method_handle_sig)])) *)
-		| TTypeParameter _ ->
-			let offset = pool#add_path object_path in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
-		| TArray _ as t ->
-			(* TODO: this seems hacky *)
-			let offset = pool#add_path ([],generate_signature false t) in
-			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
-		| jsig ->
-			print_endline (generate_signature false jsig);
-			assert false
-
 	method texpr ret e =
 		try
 			if not jm#is_terminated then self#texpr' ret e
@@ -1842,8 +1722,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			load()
 		| TTypeExpr mt ->
 			let t = type_of_module_type mt in
-			if ExtType.is_void (follow t) then self#basic_type_path "Void"
-			else self#type_expr (jsignature_of_type gctx t)
+			if ExtType.is_void (follow t) then jm#get_basic_type_class "Void"
+			else jm#get_class (jsignature_of_type gctx t)
 		| TUnop(op,flag,e1) ->
 			begin match op with
 			| Not | Neg | NegBits when not (need_val ret) -> self#texpr ret e1
@@ -2063,25 +1943,21 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#cast e.etype;
 		| TThrow e1 ->
 			self#texpr rvalue_any e1;
-			let exc = new haxe_exception gctx e1.etype in
-			if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then jm#add_thrown_exception exc#get_native_exception_path;
-			if not exc#is_native_exception then begin
-				let vt = self#vtype (self#mknull e1.etype) in
-				self#throw vt
-			end else begin
-				code#athrow;
-			end
+			if not (Exceptions.is_haxe_exception e1.etype) && not (type_unifies e1.etype gctx.t_runtime_exception) then begin
+				let exc = new haxe_exception gctx e1.etype in
+				if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
+					jm#add_thrown_exception exc#get_native_path;
+			end;
+			code#athrow;
+			jm#set_terminated true
 		| TObjectDecl fl ->
 			let td = gctx.anon_identification#identify true e.etype in
 			begin match follow e.etype,td with
 			(* The guard is here because in the case of quoted fields like `"a-b"`, the field is not part of the
 			   type. In this case we have to do full dynamic construction. *)
-			| TAnon an,Some td when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
-				let fl' = match follow td.t_type with
-					| TAnon an -> convert_fields gctx an.a_fields
-					| _ -> assert false
-				in
-				jm#construct ConstructInit td.t_path (fun () ->
+			| TAnon an,Some pfm when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
+				let fl' = convert_fields gctx pfm.pfm_fields in
+				jm#construct ConstructInit pfm.pfm_path (fun () ->
 					(* We have to respect declaration order, so let's temp var where necessary *)
 					let rec loop fl fl' ok acc = match fl,fl' with
 						| ((name,_,_),e) :: fl,(name',jsig) :: fl' ->
@@ -2161,15 +2037,19 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let jm = jc#spawn_method "_hx_getField" jsig [MPublic;MSynthetic] in
 		let _,load,_ = jm#add_local "name" string_sig VarArgument in
 		jm#finalize_arguments;
-		let fields = List.filter (fun (_,_,kind) -> match kind with
-			| Method (MethNormal | MethInline) -> false
-			| _ -> true
-		) fields in
 		let cases = List.map (fun (name,jsig,kind) ->
 			[name],(fun () ->
-				jm#load_this;
-				jm#getfield jc#get_this_path name jsig;
-				jm#expect_reference_type;
+			begin match kind,jsig with
+					| Method (MethNormal | MethInline),TMethod(args,_) ->
+						jm#load_this;
+						jm#string name;
+						jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
+						jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
+					| _ ->
+						jm#load_this;
+						jm#getfield jc#get_this_path name jsig;
+						jm#expect_reference_type;
+				end;
 				ignore(jm#get_code#get_stack#pop);
 				jm#get_code#get_stack#push object_sig;
 			)
@@ -2450,6 +2330,7 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
+		let flags = if Meta.has Meta.NativeJni cf.cf_meta then MNative :: flags else flags in
 		let name,scmode,flags = match mtype with
 			| MConstructor ->
 				let rec has_super_ctor c = match c.cl_super with
@@ -2780,12 +2661,8 @@ let generate_module_type ctx mt =
 	)
 
 let generate_anons gctx =
-	Hashtbl.iter (fun path td ->
-		let fields = match follow td.t_type with
-			| TAnon an -> an.a_fields
-			| _ -> assert false
-		in
-		let fields = convert_fields gctx fields in
+	Hashtbl.iter (fun path pfm ->
+		let fields = convert_fields gctx pfm.pfm_fields in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin
@@ -2935,6 +2812,7 @@ let generate com =
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
+		t_runtime_exception = TInst(resolve_class com (["java";"lang"],"RuntimeException"),[]);
 		entry_point = entry_point;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
 		t_throwable = TInst(resolve_class com (["java";"lang"],"Throwable"),[]);
@@ -2951,6 +2829,7 @@ let generate com =
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
+	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd then None
 		else begin

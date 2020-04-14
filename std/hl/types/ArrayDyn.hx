@@ -24,6 +24,7 @@ package hl.types;
 
 import hl.types.ArrayBase;
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	var a:ArrayBase;
@@ -39,6 +40,24 @@ class ArrayDynIterator extends ArrayIterator<Dynamic> {
 
 	override public function next() {
 		return a.getDyn(current++);
+	}
+}
+
+class ArrayDynKeyValueIterator extends ArrayKeyValueIterator<Dynamic> {
+	var a : ArrayBase;
+
+	public function new(a) {
+		super((null:Dynamic));
+		this.a = a;
+	}
+
+	override public function hasNext() {
+		return current < a.length;
+	}
+
+	override public function next() {
+		var v = a.getDyn(current);
+		return {key:current++, value:v};
 	}
 }
 
@@ -173,6 +192,10 @@ class ArrayDyn extends ArrayAccess {
 
 	public function iterator():ArrayIterator<Dynamic> {
 		return new ArrayDynIterator(array);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<Dynamic> {
+		return new ArrayDynKeyValueIterator(array);
 	}
 
 	public function map(f:Dynamic->Dynamic):ArrayDyn {

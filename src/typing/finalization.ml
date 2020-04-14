@@ -13,7 +13,7 @@ let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
 	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
+		let t = Typeload.load_type_def ctx null_pos (mk_type_path cl) in
 		let fmode, ft, r = (match t with
 		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos

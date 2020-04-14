@@ -905,11 +905,13 @@ let rec handle_throws gen cf =
 			Type.iter iter e
 		with | Exit -> (* needs typed exception to be caught *)
 			let throwable = get_cl (get_type gen (["java";"lang"],"Throwable")) in
+			let cast_cl = get_cl (get_type gen (["java";"lang"],"RuntimeException")) in
 			let catch_var = alloc_var "typedException" (TInst(throwable,[])) in
 			let rethrow = mk_local catch_var e.epos in
-			let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
-			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
-			let wrapped = { rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; } in
+			let hx_exception = get_cl (get_type gen (["haxe"], "Exception")) in
+			let wrap_static = mk_static_field_access (hx_exception) "thrown" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
+			let thrown_value = mk_cast (TInst(cast_cl,[])) { rethrow with eexpr = TCall(wrap_static, [rethrow]) } in
+			let wrapped = { rethrow with eexpr = TThrow thrown_value; } in
 			let map_throws cl =
 				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_params)) in
 				var, { tf.tf_expr with eexpr = TThrow (mk_local var e.epos) }
@@ -958,6 +960,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
 		| (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
 		| (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
+		| (Meta.NativeJni,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 let generate con =

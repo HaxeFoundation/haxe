@@ -138,6 +138,11 @@ class HxOverrides {
 			};
 		}
 
+	@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator", "closure_read.keyValueIterator")
+	static function keyValueIter<T>( a : Array<T> ) {
+		return new haxe.iterators.ArrayKeyValueIterator(a);
+	}
+
 	@:pure
 	static function now(): Float return js.lib.Date.now();
 

@@ -265,6 +265,18 @@ class ServerTests extends HaxeServerTestCase {
 		Assert.isTrue(messages.exists(message -> r.match(message)));
 	}
 
+	function testIssue9029_analyzer_preventPurityOnOverridden() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue9029/Main.hx"));
+		vfs.putContent("Game.hx", getTemplate("issues/Issue9029/Game.hx"));
+		vfs.putContent("Screen.hx", getTemplate("issues/Issue9029/Screen.hx"));
+		var args = ["-main", "Main", "-D", "analyzer-optimize", "--interp"];
+		runHaxe(args);
+		vfs.putContent("Game.hx", getTemplate("issues/Issue9029/Game.hx.modified"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Game.hx")});
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	// function testIssue8616() {
 	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
 	// 	vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));

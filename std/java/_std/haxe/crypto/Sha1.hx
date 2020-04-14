@@ -19,42 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.crypto;
 
-package jvm;
+import haxe.io.Bytes;
+import haxe.io.BytesData;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 
-@:keep
-@:native('haxe.jvm.Exception')
-class Exception<T> extends java.lang.Exception {
-	static public var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
-
-	static public function setException(exc:java.lang.Throwable) {
-		exception.set(exc);
+@:coreApi
+class Sha1 {
+	public static function encode(s:String):String {
+		return Bytes.ofData(digest((cast s : java.NativeString).getBytes(StandardCharsets.UTF_8))).toHex();
 	}
 
-	static public function currentException() {
-		return exception.get();
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
+		return Bytes.ofData(digest(b.getData()));
 	}
 
-	public var value:T;
-
-	public function new(value:T) {
-		super();
-		this.value = value;
-	}
-
-	@:overload override public function toString() {
-		return Std.string(value);
-	}
-
-	public function unwrap() {
-		return value;
-	}
-
-	static public function wrap<T>(t:Null<T>) {
-		if (Jvm.instanceof(t, java.lang.Exception)) {
-			return (cast t : java.lang.Exception);
-		} else {
-			return new Exception(t);
-		}
+	inline static function digest(b:BytesData):BytesData {
+		return MessageDigest.getInstance("SHA-1").digest(b);
 	}
 }

@@ -940,7 +940,6 @@ and gen_expr ?(local=true) ctx e = begin
         println ctx "local _hx_status, _hx_result = pcall(function() ";
         let b = open_block ctx in
         gen_expr ctx e;
-        let vname = temp ctx in
         b();
         println ctx "return _hx_pcall_default";
         println ctx "end)";
@@ -953,58 +952,12 @@ and gen_expr ?(local=true) ctx e = begin
                 println ctx "  break";
         println ctx "elseif not _hx_status then ";
         let bend = open_block ctx in
-        newline ctx;
-        print ctx "local %s = _hx_result" vname;
-        let last = ref false in
-        let else_block = ref false in
-        List.iter (fun (v,e) ->
-            if !last then () else
-                let t = (match follow v.v_type with
-                    | TEnum (e,_) -> Some (TEnumDecl e)
-                    | TInst (c,_) -> Some (TClassDecl c)
-                    | TAbstract (a,_) -> Some (TAbstractDecl a)
-                    | TFun _
-                    | TLazy _
-                    | TType _
-                    | TAnon _ ->
-                        assert false
-                    | TMono _
-                    | TDynamic _ ->
-                        None
-                ) in
-                match t with
-                | None ->
-                    last := true;
-                    if !else_block then print ctx "";
-                    if vname <> v.v_name then begin
-                        newline ctx;
-                        print ctx "local %s = %s" v.v_name vname;
-                    end;
-                    gen_block_element ctx e;
-                    if !else_block then begin
-                        newline ctx;
-                        print ctx " end ";
-                    end
-                | Some t ->
-                    if not !else_block then newline ctx;
-                    print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) vname;
-                    gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
-                    spr ctx ") ) then ";
-                    let bend = open_block ctx in
-                    if vname <> v.v_name then begin
-                        newline ctx;
-                        print ctx "local %s = %s" v.v_name vname;
-                    end;
-                    gen_block_element ctx e;
-                    bend();
-                    newline ctx;
-                    spr ctx "else";
-                    else_block := true
-        ) catchs;
-        if not !last then begin
-            println ctx " _G.error(%s)" vname;
-            spr ctx "end";
-        end;
+        (match catchs with
+        | [v,e] ->
+            print ctx "  local %s = _hx_result;" v.v_name;
+            gen_block_element ctx e;
+        | _ -> assert false
+        );
         bend();
         newline ctx;
         println ctx "elseif _hx_result ~= _hx_pcall_default then";
