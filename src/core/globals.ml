@@ -79,8 +79,17 @@ let starts_with s c =
 	String.length s > 0 && s.[0] = c
 
 let get_error_pos_ref : ((string -> int -> string) -> pos -> string) ref = ref (fun printer p ->
-	Printf.sprintf "%s characters %d-%d" (printer p.pfile (-1)) p.pmin p.pmax
+	Printf.sprintf "%s: characters %d-%d" p.pfile p.pmin p.pmax
 )
+
+let s_version with_build =
+	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
+	let build =
+		match with_build, Version.version_extra with
+			| true, Some (_,build) -> "+" ^ build
+			| _, _ -> ""
+	in
+	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
@@ -93,12 +102,15 @@ let die ?p msg =
 			| Some p -> ((!get_error_pos_ref (Printf.sprintf "%s:%d:") p) ^ " "), "the expression example and "
 		in
 		str_pos ^ "Compiler failure" ^ (if msg = "" then "" else ": " ^ msg) ^ "\n"
-		^ str_pos ^ "Please submit an issue with " ^ expr_msg ^ "the following information:"
+		^ str_pos ^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
+		^ str_pos ^ "Attach " ^ expr_msg ^ "the following information:"
 	in
 	let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_callstack 50) in
 	let backtrace =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
 	in
-	Printf.eprintf "%s\n%s" msg backtrace;
+	let ver = s_version true
+	and os_type = if Sys.unix then "unix" else "windows" in
+	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace;
 	assert false
