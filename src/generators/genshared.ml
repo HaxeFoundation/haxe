@@ -130,7 +130,7 @@ let pfm_of_typedef td = match follow td.t_type with
 		pfm_fields = an.a_fields;
 	}
 	| _ ->
-		assert false
+		die ""
 
 exception Typedef_result of path_field_mapping
 
@@ -302,7 +302,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		let find_super_ctor el =
 			let csup,map_type = match c.cl_super with
 				| Some(c,tl) -> c,apply_params c.cl_params tl
-				| _ -> assert false
+				| _ -> die ""
 			in
 			match find_overload_rec' true map_type csup "new" el with
 			| Some(c,cf,_) ->
@@ -312,7 +312,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 						| Some(c',_) ->
 							self#add_implicit_ctor csup c' cf;
 							loop c'
-						| None -> assert false
+						| None -> die ""
 					end
 				in
 				loop csup;
@@ -324,7 +324,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			(* This is a bit hacky: We always want the direct super class, not the one that actually holds
 			   the ctor. It will be implicitly copied to it anyway. *)
 			match c.cl_super with
-			| None -> assert false
+			| None -> die ""
 			| Some(c,_) -> c,cf
 		in
 		let rec promote_this_before_super c cf = match self#get_field_info cf.cf_meta with
@@ -370,18 +370,18 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		| fields ->
 			let csup,map_type = match c.cl_super with
 				| Some(c,tl) -> c,apply_params c.cl_params tl
-				| None -> assert false
+				| None -> die ""
 			in
 			let fix_covariant_return cf =
 				let tl = match follow cf.cf_type with
 					| TFun(tl,_) -> tl
-					| _ -> assert false
+					| _ -> die ""
 				in
 				match find_overload_rec' false map_type csup cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
 				| Some(_,cf',_) ->
 					let tr = match follow cf'.cf_type with
 						| TFun(_,tr) -> tr
-						| _ -> assert false
+						| _ -> die ""
 					in
 					cf.cf_type <- TFun(tl,tr);
 					cf.cf_expr <- begin match cf.cf_expr with

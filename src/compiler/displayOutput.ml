@@ -78,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> die ""
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -354,7 +354,7 @@ let process_display_file com classes =
 						classes := path :: !classes;
 						DPKNormal path
 					| e ->
-						assert false
+						die ""
 				in
 				path
 			| None ->
@@ -490,7 +490,7 @@ let handle_syntax_completion com kind subj =
 			Buffer.add_string b "<il>\n";
 			List.iter (fun item -> match item.ci_kind with
 				| ITKeyword kwd -> Buffer.add_string b (Printf.sprintf "<i k=\"keyword\">%s</i>" (s_keyword kwd));
-				| _ -> assert false
+				| _ -> die ""
 			) l;
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in

@@ -257,7 +257,7 @@ and generate_type_path_with_params ctx mpath tpath tl =
 and generate_type_parameter ctx (s,t) =
 	let generate_constraints () = match follow t with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
-		| _ -> assert false
+		| _ -> die ""
 	in
 	jobject [
 		"name",jstring s;

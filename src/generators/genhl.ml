@@ -199,7 +199,7 @@ let type_size_bits = function
 	| HUI16 -> 1
 	| HI32 | HF32 -> 2
 	| HI64 | HF64 -> 3
-	| _ -> assert false
+	| _ -> die ""
 
 let new_lookup() =
 	{
@@ -293,7 +293,7 @@ let array_class ctx t =
 let member_fun c t =
 	match follow t with
 	| TFun (args, ret) -> TFun (("this",false,TInst(c,[])) :: args, ret)
-	| _ -> assert false
+	| _ -> die ""
 
 let rec unsigned t =
 	match follow t with
@@ -397,7 +397,7 @@ let rec to_type ?tref ctx t =
 			class_type ctx c (List.map snd c.cl_params) true
 		| EnumStatics e ->
 			enum_class ctx e
-		| _ -> assert false)
+		| _ -> die "")
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
 		(try
@@ -477,7 +477,7 @@ and resolve_class ctx c pl statics =
 	| ([],"Array"), [t] ->
 		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
-		assert false
+		die ""
 	| _, _ when c.cl_extern ->
 		not_supported()
 	| _ ->
@@ -589,9 +589,9 @@ and class_type ?(tref=None) ctx c pl statics =
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
-		if c.cl_path = ([],"Array") then assert false;
+		if c.cl_path = ([],"Array") then die "";
 		if c == ctx.base_class then begin
-			if statics then assert false;
+			if statics then die "";
 			p.pnfields <- 1;
 		end;
 		let tsup = (match c.cl_super with
@@ -602,10 +602,10 @@ and class_type ?(tref=None) ctx c pl statics =
 			| None -> 0, [||]
 			| Some ((HObj psup | HStruct psup) as pt) ->
 				if is_struct t <> is_struct pt then abort (if is_struct t then "Struct cannot extend a not struct class" else "Class cannot extend a struct") c.cl_pos;
-				if psup.pnfields < 0 then assert false;
+				if psup.pnfields < 0 then die "";
 				p.psuper <- Some psup;
 				psup.pnfields, psup.pvirtuals
-			| _ -> assert false
+			| _ -> die ""
 		) in
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let add_field name get_t =
@@ -627,7 +627,7 @@ and class_type ?(tref=None) ctx c pl statics =
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
 				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
-					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> assert false) in
+					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> die "") in
 					DynArray.set virtuals vid g;
 					Some vid
 				else if is_overridden ctx c f then begin
@@ -641,7 +641,7 @@ and class_type ?(tref=None) ctx c pl statics =
 				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; };
 				None
 			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
-				Some (try fst (get_index f.cf_name p) with Not_found -> assert false)
+				Some (try fst (get_index f.cf_name p) with Not_found -> die "")
 			| _ ->
 				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
 				Some fid
@@ -670,7 +670,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		end else begin
 			(match c.cl_constructor with
 			| Some f when not (is_extern_field f) ->
-				p.pbindings <- ((try fst (get_index "__constructor__" p) with Not_found -> assert false),alloc_fid ctx c f) :: p.pbindings
+				p.pbindings <- ((try fst (get_index "__constructor__" p) with Not_found -> die ""),alloc_fid ctx c f) :: p.pbindings
 			| _ -> ());
 		end;
 		p.pnfields <- DynArray.length fa + start_field;
@@ -712,7 +712,7 @@ and enum_type ?(tref=None) ctx e =
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
 		let ct = enum_class ctx e in
-		et.eglobal <- Some (alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct);
+		et.eglobal <- Some (alloc_global ctx (match ct with HObj o -> o.pname | _ -> die "") ct);
 		t
 
 and enum_class ctx e =
@@ -737,7 +737,7 @@ and enum_class ctx e =
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
-		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> assert false);
+		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "");
 		t
 
 and alloc_fun_path ctx path name =
@@ -745,7 +745,7 @@ and alloc_fun_path ctx path name =
 
 and alloc_fid ctx c f =
 	match f.cf_kind with
-	| Var _ -> assert false
+	| Var _ -> die ""
 	| _ -> alloc_fun_path ctx c.cl_path f.cf_name
 
 and alloc_eid ctx e f =
@@ -765,7 +765,7 @@ and class_global ?(resolve=true) ctx c =
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
 
 let resolve_class_global ctx cpath =
-	lookup ctx.cglobals ("$" ^ cpath) (fun() -> assert false)
+	lookup ctx.cglobals ("$" ^ cpath) (fun() -> die "")
 
 let resolve_type ctx path =
 	PMap.find path ctx.cached_types
@@ -816,7 +816,7 @@ let hold ctx r =
 	let a = PMap.find t ctx.m.mallocs in
 	let rec loop l =
 		match l with
-		| [] -> if List.mem r a.a_hold then [] else assert false
+		| [] -> if List.mem r a.a_hold then [] else die ""
 		| n :: l when n = r -> l
 		| n :: l -> n :: loop l
 	in
@@ -830,7 +830,7 @@ let free ctx r =
 	let last = ref true in
 	let rec loop l =
 		match l with
-		| [] -> assert false
+		| [] -> die ""
 		| n :: l when n = r ->
 			if List.mem r l then last := false;
 			l
@@ -923,7 +923,7 @@ let read_mem ctx rdst bytes index t =
 	| HI32 | HI64 | HF32 | HF64 ->
 		op ctx (OGetMem (rdst,bytes,index))
 	| _ ->
-		assert false
+		die ""
 
 let write_mem ctx bytes index t r =
 	match t with
@@ -934,7 +934,7 @@ let write_mem ctx bytes index t r =
 	| HI32 | HI64 | HF32 | HF64 ->
 		op ctx (OSetMem (bytes,index,r))
 	| _ ->
-		assert false
+		die ""
 
 let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
@@ -1032,10 +1032,10 @@ let type_value ctx t p =
 	| TEnumDecl e ->
 		let r = alloc_tmp ctx (enum_class ctx e) in
 		let rt = rtype ctx r in
-		op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> assert false) rt));
+		op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> die "") rt));
 		r
 	| TTypeDecl _ ->
-		assert false
+		die ""
 
 let rec eval_to ctx e (t:ttype) =
 	match e.eexpr, t with
@@ -1326,7 +1326,7 @@ and get_access ctx e =
 		(match a, follow ethis.etype with
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
 			let g, t = class_global ctx c in
-			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> assert false) | _ -> assert false))
+			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die "") | _ -> die ""))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), f), TInst (c,_)
@@ -1400,7 +1400,7 @@ and array_read ctx ra (at,vt) ridx p =
 		| HF32 | HF64 ->
 			op ctx (OFloat (r,alloc_float ctx 0.));
 		| _ ->
-			assert false);
+			die "");
 		let jend = jump ctx (fun i -> OJAlways i) in
 		j();
 		let hbytes = alloc_tmp ctx HBytes in
@@ -1471,7 +1471,7 @@ and jump_expr ctx e jcond =
 			| OpGte -> if jcond then gte r1 r2 else lt r1 r2
 			| OpLt -> if jcond then lt r1 r2 else gte r1 r2
 			| OpLte -> if jcond then gte r2 r1 else lt r2 r1
-			| _ -> assert false
+			| _ -> die ""
 		)
 	| TBinop (OpBoolAnd, e1, e2) ->
 		let j = jump_expr ctx e1 false in
@@ -1499,7 +1499,7 @@ and eval_args ctx el t p =
 		) in
 		hold ctx r;
 		r
-	) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> assert false) in
+	) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> die "") in
 	List.iter (free ctx) rl;
 	set_curpos ctx p;
 	rl
@@ -1632,14 +1632,14 @@ and eval_expr ctx e =
 		(match follow s.etype with
 		| TInst (csup,_) ->
 			(match csup.cl_constructor with
-			| None -> assert false
+			| None -> die ""
 			| Some f ->
 				let r = alloc_tmp ctx HVoid in
 				let el = eval_args ctx el (to_type ctx f.cf_type) e.epos in
 				op ctx (OCallN (r, alloc_fid ctx csup f, 0 :: el));
 				r
 			)
-		| _ -> assert false);
+		| _ -> die "");
 	| TCall ({ eexpr = TIdent s }, el) when s.[0] = '$' ->
 		let invalid() = abort "Invalid native call" e.epos in
 		(match s, el with
@@ -1986,8 +1986,8 @@ and eval_expr ctx e =
 			op ctx (OGetTID (r,eval_to ctx v HType));
 			r
 		| "$resources", [] ->
-			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> assert false) in
-			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> assert false) [] false in
+			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> die "") in
+			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> die "") [] false in
 			let arr = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,t));
@@ -1998,7 +1998,7 @@ and eval_expr ctx e =
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
 			hold ctx ridx;
-			let has_len = (match t with HObj p -> PMap.mem "dataLen" p.pindex | _ -> assert false) in
+			let has_len = (match t with HObj p -> PMap.mem "dataLen" p.pindex | _ -> die "") in
 			list_iteri (fun i (k,v) ->
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
@@ -2176,7 +2176,7 @@ and eval_expr ctx e =
 				let _, sid, _ = vp.vfields.(fid) in
 				op ctx (ODynGet (r,robj, sid))
 			| _ ->
-				assert false)
+				die "")
 		| ADynamic (ethis, f) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))
@@ -2186,7 +2186,7 @@ and eval_expr ctx e =
 			let fid = alloc_fun_path ctx en.e_path name in
 			if fid = cur_fid then begin
 				let ef = PMap.find name en.e_constrs in
-				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
+				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> die "") in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
 				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
@@ -2212,7 +2212,7 @@ and eval_expr ctx e =
 			op ctx (ONew r);
 			hold ctx r;
 			List.iter (fun ((s,_,_),ev) ->
-				let fidx = (try PMap.find s vp.vindex with Not_found -> assert false) in
+				let fidx = (try PMap.find s vp.vindex with Not_found -> die "") in
 				let _, _, ft = vp.vfields.(fidx) in
 				let v = eval_to ctx ev ft in
 				op ctx (OSetField (r,fidx,v));
@@ -2223,7 +2223,7 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx HDynObj in
 			op ctx (ONew r);
 			hold ctx r;
-			let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else assert false) in
+			let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else die "") in
 			List.iter (fun ((s,_,_),ev) ->
 				let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> ev.etype) in
 				let v = eval_to ctx ev (to_type ctx ft) in
@@ -2242,7 +2242,7 @@ and eval_expr ctx e =
 		op ctx (ONew r);
 		hold ctx r;
 		(match c.cl_constructor with
-		| None -> if c.cl_implements <> [] then assert false
+		| None -> if c.cl_implements <> [] then die ""
 		| Some { cf_expr = None } -> abort (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
@@ -2308,11 +2308,11 @@ and eval_expr ctx e =
 						| OpMult -> op ctx (OMul (r,a,b))
 						| OpMod -> op ctx (if unsigned e1.etype then OUMod (r,a,b) else OSMod (r,a,b))
 						| OpDiv -> op ctx (OSDiv (r,a,b)) (* don't use UDiv since both operands are float already *)
-						| _ -> assert false)
+						| _ -> die "")
 					| HDyn ->
-						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpSub -> 1 | OpMult -> 2 | OpMod -> 3 | OpDiv -> 4 | _ -> assert false), a, b))
+						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpSub -> 1 | OpMult -> 2 | OpMod -> 3 | OpDiv -> 4 | _ -> die ""), a, b))
 					| _ ->
-						assert false)
+						die "")
 				| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 					(match rtype ctx r with
 					| HUI8 | HUI16 | HI32 | HI64 ->
@@ -2325,13 +2325,13 @@ and eval_expr ctx e =
 						| OpXor -> op ctx (OXor (r,a,b))
 						| _ -> ())
 					| HDyn ->
-						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpShl -> 5 | OpShr -> 6 | OpUShr -> 7 | OpAnd -> 8 | OpOr -> 9 | OpXor -> 10 | _ -> assert false), a, b))
+						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpShl -> 5 | OpShr -> 6 | OpUShr -> 7 | OpAnd -> 8 | OpOr -> 9 | OpXor -> 10 | _ -> die ""), a, b))
 					| _ ->
-						assert false)
+						die "")
 				| OpAssignOp bop ->
 					loop bop
 				| _ ->
-					assert false
+					die ""
 			in
 			loop bop
 		in
@@ -2444,7 +2444,7 @@ and eval_expr ctx e =
 				op ctx (OSetEnumField (ctx.m.mcaptreg,index,r));
 				r
 			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
-				assert false)
+				die "")
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
 			let j = jump_expr ctx e1 true in
@@ -2482,7 +2482,7 @@ and eval_expr ctx e =
 					binop r r b;
 					r))
 		| OpInterval | OpArrow | OpIn ->
-			assert false)
+			die "")
 	| TUnop (Not,_,v) ->
 		let tmp = alloc_tmp ctx HBool in
 		let r = eval_to ctx v HBool in
@@ -2544,7 +2544,7 @@ and eval_expr ctx e =
 				op ctx (OSub (r2, r2, tmp));
 				op ctx (OSafeCast (r, r2));
 			| _ ->
-				assert false
+				die ""
 		in
 		(match get_access ctx v, fix with
 		| ALocal (v,r), Prefix ->
@@ -2655,7 +2655,7 @@ and eval_expr ctx e =
 			cast_to ~force:true ctx rv t e.epos)
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
-		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
+		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> die "") in
 		let array_bytes bits t tname get_op =
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) lsl bits) in
@@ -2712,7 +2712,7 @@ and eval_expr ctx e =
 		| AArray (a,at,idx) ->
 			array_read ctx a at idx e.epos
 		| _ ->
-			assert false)
+			die "")
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor (v,it,loop) ->
@@ -2828,7 +2828,7 @@ and eval_expr ctx e =
 			| HEnum e ->
 				let _,_,args = e.efields.(f.ef_index) in
 				args.(index), Array.length e.efields = 1
-			| _ -> assert false
+			| _ -> die ""
 		) in
 		let er = eval_expr ctx ec in
 		if is_single then op ctx (ONullCheck er); (* #7560 *)
@@ -2875,7 +2875,7 @@ and eval_expr ctx e =
 					| TInst (c,_) -> TClassDecl c
 					| TAbstract (a,_) -> TAbstractDecl a
 					| TEnum (e,_) -> TEnumDecl e
-					| _ -> assert false
+					| _ -> die ""
 					) in
 					hold ctx rtrap;
 					let r = type_value ctx ct ec.epos in
@@ -3031,7 +3031,7 @@ and gen_assign_op ctx acc e1 f =
 		op ctx (ODynSet (robj,fid,r));
 		r
 	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
-		assert false
+		die ""
 
 and build_capture_vars ctx f =
 	let ignored_vars = ref PMap.empty in
@@ -3087,8 +3087,8 @@ and gen_method_wrapper ctx rt t p =
 		let fid = lookup_alloc ctx.cfids () in
 		ctx.method_wrappers <- PMap.add (rt,t) fid ctx.method_wrappers;
 		let old = ctx.m in
-		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> assert false) in
-		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> assert false) in
+		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> die "") in
+		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> die "") in
 		ctx.m <- method_context fid HDyn null_capture false;
 		let rfun = alloc_tmp ctx rt in
 		let rargs = List.map (fun t ->
@@ -3182,18 +3182,18 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
 				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
-				| _ -> assert false)
+				| _ -> die "")
 			| HF32 | HF64 ->
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
 				| TConst (TFloat s) -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
-				| _ -> assert false)
+				| _ -> die "")
 			| HBool ->
 				(match c.eexpr with
 				| TConst (TBool b) -> op ctx (OBool (t,b))
-				| _ -> assert false)
+				| _ -> die "")
 			| _ ->
-				assert false);
+				die "");
 			if capt = None then add_assign ctx v;
 			let jend = jump ctx (fun n -> OJAlways n) in
 			j();
@@ -3206,7 +3206,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		| Some c ->
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c.eexpr with
-			| TConst (TNull | TThis | TSuper) -> assert false
+			| TConst (TNull | TThis | TSuper) -> die ""
 			| TConst (TInt i) when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
@@ -3338,7 +3338,7 @@ let rec generate_member ctx c f =
 
 			let o = (match class_type ctx c (List.map snd c.cl_params) false with
 				| HObj o | HStruct o -> o
-				| _ -> assert false
+				| _ -> die ""
 			) in
 
 			(*
@@ -3348,7 +3348,7 @@ let rec generate_member ctx c f =
 				match f.cf_kind with
 				| Method MethDynamic ->
 					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
-					let fid = (try fst (get_index f.cf_name o) with Not_found -> assert false) in
+					let fid = (try fst (get_index f.cf_name o) with Not_found -> die "") in
 					op ctx (OGetThis (r,fid));
 					op ctx (OJNotNull (r,2));
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
@@ -3362,7 +3362,7 @@ let rec generate_member ctx c f =
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
-			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> assert false) with Not_found -> assert false) in
+			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> die "") with Not_found -> die "") in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
 			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
@@ -3425,9 +3425,9 @@ let generate_static_init ctx types main =
 				let index name =
 					match ct with
 					| HObj o ->
-						fst (try get_index name o with Not_found -> assert false)
+						fst (try get_index name o with Not_found -> die "")
 					| _ ->
-						assert false
+						die ""
 				in
 
 				let rc = (match t with
@@ -3523,9 +3523,9 @@ let generate_static_init ctx types main =
 				let index name =
 					match et with
 					| HObj o ->
-						fst (try get_index name o with Not_found -> assert false)
+						fst (try get_index name o with Not_found -> die "")
 					| _ ->
-						assert false
+						die ""
 				in
 
 				let avalues = alloc_tmp ctx HArray in
@@ -3558,16 +3558,16 @@ let generate_static_init ctx types main =
 					let index name =
 						match t with
 						| HObj o ->
-							fst (try get_index name o with Not_found -> assert false)
+							fst (try get_index name o with Not_found -> die "")
 						| _ ->
-							assert false
+							die ""
 					in
 
 					let g = alloc_global ctx ("$" ^ name) t in
 					let r = alloc_tmp ctx t in
 					let rt = alloc_tmp ctx HType in
 					op ctx (ONew r);
-					op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> assert false)));
+					op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> die "")));
 					op ctx (OSetField (r,index "__type__",rt));
 					op ctx (OSetField (r,index (if is_bool then "__ename__" else "__name__"),make_string ctx name pos));
 					op ctx (OSetGlobal (g,r));
@@ -3623,7 +3623,7 @@ let write_index_gen b i =
 		if i < 0x2000 then begin
 			b ((i lsr 8) lor 0xA0);
 			b (i land 0xFF);
-		end else if i >= 0x20000000 then assert false else begin
+		end else if i >= 0x20000000 then die "" else begin
 			b ((i lsr 24) lor 0xE0);
 			b ((i lsr 16) land 0xFF);
 			b ((i lsr 8) land 0xFF);
@@ -3634,7 +3634,7 @@ let write_index_gen b i =
 	else if i < 0x2000 then begin
 		b ((i lsr 8) lor 0x80);
 		b (i land 0xFF);
-	end else if i >= 0x20000000 then assert false else begin
+	end else if i >= 0x20000000 then die "" else begin
 		b ((i lsr 24) lor 0xC0);
 		b ((i lsr 16) land 0xFF);
 		b ((i lsr 8) land 0xFF);
@@ -3648,7 +3648,7 @@ let write_code ch code debug =
 	let write_index = write_index_gen byte in
 
 	let rec write_type t =
-		write_index (try PMap.find t htypes with Not_found -> assert false)
+		write_index (try PMap.find t htypes with Not_found -> die "")
 	in
 
 	let write_op op =
@@ -3685,7 +3685,7 @@ let write_code ch code debug =
 			write_index r;
 			write_index f;
 			let n = List.length rl in
-			if n > 0xFF then assert false;
+			if n > 0xFF then die "";
 			byte n;
 			List.iter write_index rl
 		| OType (r,t) ->
@@ -3726,7 +3726,7 @@ let write_code ch code debug =
 				write_index b;
 				write_index c;
 			| _ ->
-				assert false
+				die ""
 	in
 
 	IO.nwrite_string ch "HLB";
@@ -3791,7 +3791,7 @@ let write_code ch code debug =
 		| HDyn -> byte 9
 		| HFun (args,ret) | HMethod (args,ret) ->
 			let n = List.length args in
-			if n > 0xFF then assert false;
+			if n > 0xFF then die "";
 			byte (match t with HFun _ -> 10 | _ -> 20);
 			byte n;
 			List.iter write_type args;
@@ -3836,7 +3836,7 @@ let write_code ch code debug =
 			write_index (Array.length e.efields);
 			Array.iter (fun (_,nid,tl) ->
 				write_index nid;
-				if Array.length tl > 0xFF then assert false;
+				if Array.length tl > 0xFF then die "";
 				byte (Array.length tl);
 				Array.iter write_type tl;
 			) e.efields
@@ -3931,12 +3931,12 @@ let create_context com is_macro dump =
 	let get_class name =
 		match get_type name with
 		| TClassDecl c -> c
-		| _ -> assert false
+		| _ -> die ""
 	in
 	let get_abstract name =
 		match get_type name with
 		| TAbstractDecl a -> a
-		| _ -> assert false
+		| _ -> die ""
 	in
 	let ctx = {
 		com = com;

@@ -59,7 +59,7 @@ let has_this_before_super e =
 let get_num_args cf =
 	match follow cf.cf_type with
 	| TFun (args, _) -> List.length args
-	| _ -> assert false
+	| _ -> die ""
 
 (*
 	the filter works in two passes:
@@ -239,5 +239,5 @@ let rewrite_ctors com =
 		| { cl_constructor = Some ({ cf_expr = Some ({ eexpr = TFunction tf } as e_ctor) } as cf_ctor); cl_super = Some (cl_super,_) } ->
 			cl.cl_constructor <- Some { cf_ctor with cf_expr = Some { e_ctor with eexpr = TFunction { tf with tf_expr = { tf.tf_expr with eexpr = TBlock [e_empty_super_call; tf.tf_expr] } } } };
 		| _ ->
-			assert false
+			die ""
 	) inject_super;

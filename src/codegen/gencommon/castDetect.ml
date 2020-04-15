@@ -86,7 +86,7 @@ struct
 			match e.eexpr with
 			| TReturn (eopt) ->
 				(* a return must be inside a function *)
-				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
+				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; die "" in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
 					Texpr.Builder.mk_return (null ret_type e.epos)
@@ -428,7 +428,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 			in
 			let tclass = match get_type gen ([],"Class") with
 			| TAbstractDecl(a) -> a
-			| _ -> assert false in
+			| _ -> die "" in
 			handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
 		with | Not_found ->
 			mk_cast false to_t e)
@@ -570,13 +570,13 @@ let select_overload gen applied_f overloads types params =
 						cf,t,true (* no compatible overload was found *)
 					else
 						check_overload overloads
-			| [] -> assert false
+			| [] -> die ""
 		in
 		check_overload overloads
 	| _ -> match overloads with  (* issue #1742 *)
 	| (t,cf) :: [] -> cf,t,true
 	| (t,cf) :: _ -> cf,t,false
-	| _ -> assert false
+	| _ -> die ""
 
 let rec cur_ctor c tl =
 	match c.cl_constructor with
@@ -888,7 +888,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 	| FClassField (cl,params,_,cf,_,actual_t,_) ->
 		return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
 	| FEnumField (en, efield, true) ->
-		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
+		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; die "" | Some ecall -> ecall in
 		(match en.e_params with
 			(*
 			| [] ->
@@ -898,7 +898,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 		*)
 			| _ ->
 				let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
-				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
+				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; die "" in
 				let args, ret = get_fun efield.ef_type in
 				let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
 				(*
@@ -917,7 +917,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 
 				handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
 		)
-	| FEnumField _ when is_some e -> assert false
+	| FEnumField _ when is_some e -> die ""
 	| FEnumField (en,efield,_) ->
 			return_var { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); },FEnum(en,efield)) }
 	(* no target by date will uses this.so this code may not be correct at all *)
@@ -1049,7 +1049,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 					| TInt _ -> gen.gcon.basic.tint
 					| TFloat _ -> gen.gcon.basic.tfloat
 					| TBool _ -> gen.gcon.basic.tbool
-					| _ -> assert false
+					| _ -> die ""
 				in
 				handle e t real_t
 			| TCast( { eexpr = TConst TNull }, _ ) ->
@@ -1086,7 +1086,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 						(match gen.gcurrent_class with
 							| Some cl -> print_endline (s_type_path cl.cl_path)
 							| _ -> ());
-						assert false
+						die ""
 				in
 				let base_type = List.hd base_type in
 				{ e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
@@ -1094,7 +1094,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let et = e.etype in
 				let base_type = match follow et with
 					| TInst(cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
-					| _ -> assert false
+					| _ -> die ""
 				in
 				let base_type = List.hd base_type in
 				{ e with eexpr = TCall(arr_local, List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
@@ -1107,7 +1107,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let cl, tparams = match follow ef.etype with
 				| TInst(cl,p) ->
 					cl,p
-				| _ -> assert false in
+				| _ -> die "" in
 				(try
 					let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
 					let handle e t1 t2 =

@@ -416,7 +416,7 @@ let gather_types (code:code) =
 	DynArray.to_array arr, !types
 
 let lookup_type types t =
-	try PMap.find t types with Not_found -> assert false
+	try PMap.find t types with Not_found -> Globals.die ""
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)

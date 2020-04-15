@@ -18,7 +18,7 @@ let rec assign_args vars exprs =
 	| (v, Some e) :: rest_vars, rest_exprs ->
 		let arg = { e with eexpr = TLocal v } in
 		{ e with eexpr = TBinop (OpAssign, arg, e) } :: assign_args rest_vars rest_exprs
-	| _ -> assert false
+	| _ -> die ""
 
 let replacement_for_TReturn ctx fn args p =
 	let temps_rev, args_rev = collect_new_args_values ctx args [] [] 0

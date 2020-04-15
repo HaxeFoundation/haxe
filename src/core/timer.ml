@@ -63,9 +63,9 @@ let rec close now t =
 				| current :: _ ->
 					match current.pauses with
 					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
-					| _ -> assert false
+					| _ -> Globals.die ""
 				)
-			| _ -> assert false
+			| _ -> Globals.die ""
 		end else
 			close now tt
 
@@ -115,7 +115,7 @@ let build_times_tree () =
 	} in
 	Hashtbl.iter (fun _ timer ->
 		let rec loop parent sl = match sl with
-			| [] -> assert false
+			| [] -> Globals.die ""
 			| s :: sl ->
 				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
 				let node = try

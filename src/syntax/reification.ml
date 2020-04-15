@@ -388,7 +388,7 @@ let reify in_macro =
 				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p] p;
 				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
 			] p
-		| _ -> assert false
+		| _ -> die ""
 	in
 	(fun e -> to_expr e (snd e)), to_ctype, to_type_def
 
