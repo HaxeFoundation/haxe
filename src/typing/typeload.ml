@@ -36,7 +36,7 @@ open Filename
 
 let build_count = ref 0
 
-let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
+let type_function_params_rec = ref (fun _ _ _ _ -> die())
 
 let check_field_access ctx cff =
 	let display_access = ref None in
@@ -343,7 +343,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let t = mk_mono() in
 					if c.cl_kind <> KTypeParameter [] || is_generic then delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
-				| _ -> assert false
+				| _ -> die()
 			) types;
 			f (!pl)
 		end else if path = ([],"Dynamic") then
@@ -395,7 +395,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 								t
 							) "constraint" in
 							TLazy r
-						| _ -> assert false
+						| _ -> die()
 					in
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
@@ -505,7 +505,7 @@ and load_complex_type' ctx allow_display (t,p) =
 				t
 			) "constraint" in
 			TLazy r
-		| _ -> assert false
+		| _ -> die()
 		end
 	| CTAnonymous l ->
 		let displayed_field = ref None in
@@ -703,7 +703,7 @@ let load_core_type ctx name =
 	| TType (t,_) -> t.t_module
 	| TAbstract (a,_) -> a.a_module
 	| TEnum (e,_) -> e.e_module
-	| _ -> assert false);
+	| _ -> die());
 	t
 
 let t_iterator ctx =
@@ -712,11 +712,11 @@ let t_iterator ctx =
 	| TTypeDecl t ->
 		show();
 		add_dependency ctx.m.curmod t.t_module;
-		if List.length t.t_params <> 1 then assert false;
+		if List.length t.t_params <> 1 then die();
 		let pt = mk_mono() in
 		apply_params t.t_params [pt] t.t_type, pt
 	| _ ->
-		assert false
+		die()
 
 (*
 	load either a type t or Null<Unknown> if not defined
@@ -756,7 +756,7 @@ let field_to_type_path ctx e =
 				| [name; sub] ->
 					f :: pack, name, Some sub
 				| _ ->
-					assert false
+					die()
 			in
 			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
 		| _,pos ->
@@ -837,7 +837,7 @@ let load_core_class ctx c =
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
 		ccore
 	| _ ->
-		assert false
+		die()
 
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
@@ -855,7 +855,7 @@ let init_core_api ctx c =
 				end
 			| t1,t2 ->
 				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
-				assert false
+				die()
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
 		error "Class must have the same number of type parameters as core type" c.cl_pos

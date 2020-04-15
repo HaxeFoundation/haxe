@@ -353,7 +353,7 @@ let emit_special_super_call fnew execs env =
 	(* This isn't very elegant, but it's probably a rare case to extend these types. *)
 	begin match vthis,vi' with
 		| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
-		| _ -> assert false
+		| _ -> die()
 	end;
 	vnull
 

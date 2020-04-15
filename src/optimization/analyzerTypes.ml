@@ -241,7 +241,7 @@ module Graph = struct
 		in
 		match (get_texpr bb is_phi i).eexpr with
 		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
-		| _ -> assert false
+		| _ -> die()
 
 	let add_var_origin g v v_origin =
 		(get_var_info g v).vi_origin <- v_origin
@@ -381,7 +381,7 @@ module Graph = struct
 							(bbi_desc,bbi.semi)
 					) (a,a.label.semi) worklist)
 				| [] ->
-					assert false
+					die()
 		in
 		let eval v =
 			let bbi = get_info v in
@@ -393,7 +393,7 @@ module Graph = struct
 		in
 		let rec loop nodes' = match nodes' with
 			| [_] -> ()
-			| [] -> assert false
+			| [] -> die()
 			| w :: nodes' ->
 				let semi = List.fold_left (fun acc v ->
 					min acc (eval v.cfg_from.bb_id).semi) w.semi w.bb.bb_incoming

@@ -196,7 +196,7 @@ let generate_type com t =
 						a,(if o then Some (loop f.cf_meta) else None ),t
 					) args, ret
 				| _ ->
-					assert false
+					die()
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);

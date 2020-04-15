@@ -1101,7 +1101,7 @@ module Expr = struct
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
 			| EDisplayNew _ ->
-				assert false
+				die()
 		in
 		loop' "" e;
 		Buffer.contents buf

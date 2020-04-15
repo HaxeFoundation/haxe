@@ -109,7 +109,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									(* override return type and cast implemented function *)
 									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map snd f2.cf_params) real_ftype) with
 										| TFun(a,_), TFun(_,r) -> a,r
-										| _ -> assert false
+										| _ -> Globals.die()
 									in
 									f2.cf_type <- TFun(args,newr);
 									(match f2.cf_expr with
@@ -153,7 +153,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								with | Not_found ->
 									c.cl_fields <- PMap.add name newf c.cl_fields;
 									c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
-							| _ -> assert false
+							| _ -> Globals.die()
 						end
 					with | Not_found -> ()
 				in
@@ -201,7 +201,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 											with Unify_error _ ->
 												true
 										with Unify_error _ -> false) current_args original_args
-								| _ -> assert false
+								| _ -> Globals.die()
 							in
 							if (not (Meta.has Meta.Overload f.cf_meta) && has_contravariant_args) then
 								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;

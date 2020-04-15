@@ -99,7 +99,7 @@ and s_enum_value depth ve =
 and s_proto_kind proto = match proto.pkind with
 	| PClass _ -> join empty_string [create_ascii "Class<"; s_hash proto.ppath; rgt]
 	| PEnum _ -> join empty_string [create_ascii "Enum<"; s_hash proto.ppath; rgt]
-	| PInstance | PObject -> assert false
+	| PInstance | PObject -> die()
 
 and s_value depth v =
 	let call_to_string () =

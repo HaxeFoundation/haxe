@@ -102,17 +102,17 @@ let rec make_tpath = function
 			tsub = None;
 		}
 	| HMMultiName _ ->
-		assert false
+		die()
 	| HMRuntimeName _ ->
-		assert false
+		die()
 	| HMRuntimeNameLate ->
-		assert false
+		die()
 	| HMMultiNameLate _ ->
-		assert false
+		die()
 	| HMAttrib _ ->
-		assert false
+		die()
 	| HMAny ->
-		assert false
+		die()
 	| HMParams (t,params) ->
 		let params = List.map (fun t -> TPType (CTPath (make_tpath t),null_pos)) params in
 		{ (make_tpath t) with tparams = params }
@@ -173,7 +173,7 @@ let build_class com c file =
 				in
 				loop ns
 			| HMPath _ -> i
-			| _ -> assert false
+			| _ -> die()
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
@@ -298,7 +298,7 @@ let build_class com c file =
 				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> die()),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -318,7 +318,7 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
 		let get, set, t, meta = (match tget, tset with
-			| None, None -> assert false
+			| None, None -> die()
 			| Some (t,meta), None -> true, false, t, meta
 			| None, Some (t,meta) -> false, true, t, meta
 			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)

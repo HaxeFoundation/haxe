@@ -109,12 +109,12 @@ let rec jsignature_of_type gctx stack t =
 			| [],"Null" ->
 				begin match tl with
 				| [t] -> get_boxed_type (jsignature_of_type t)
-				| _ -> assert false
+				| _ -> die()
 				end
 			| (["haxe";"ds"],"Vector") | (["haxe";"extern"],"Rest") ->
 				begin match tl with
 				| [t] -> TArray(jsignature_of_type t,None)
-				| _ -> assert false
+				| _ -> die()
 				end
 			| [],"Dynamic" ->
 				object_sig
@@ -240,7 +240,7 @@ let convert_cmp_op = function
 	| OpLte -> CmpLe
 	| OpGt -> CmpGt
 	| OpGte -> CmpGe
-	| _ -> assert false
+	| _ -> die()
 
 let flip_cmp_op = function
 	| CmpEq -> CmpNe
@@ -299,7 +299,7 @@ class haxe_exception gctx (t : Type.t) =
 	let is_haxe_exception = Exceptions.is_haxe_exception t
 	and native_type = jsignature_of_type gctx t in
 object(self)
-	val native_path = (match native_type with TObject(path,_) -> path | _ -> assert false)
+	val native_path = (match native_type with TObject(path,_) -> path | _ -> die())
 
 	method is_assignable_to (exc2 : haxe_exception) =
 		match self#is_haxe_exception,exc2#is_haxe_exception with
@@ -347,7 +347,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		| TMethod(args,ret) ->
 			List.mapi (fun i jsig -> (Printf.sprintf "arg%i" i,jsig)) args,ret
 		| _ ->
-			assert false
+			die()
 	in
 	let jm_invoke = wf#generate_invoke args ret in
 	let vars = List.map (fun (name,jsig) ->
@@ -431,7 +431,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method get_local_by_id (vid,vname) =
 		if vid = 0 && env = None then
-			(0,(fun () -> jm#load_this),(fun () -> assert false))
+			(0,(fun () -> jm#load_this),(fun () -> die()))
 		else try
 			Hashtbl.find local_lookup vid
 		with Not_found -> try
@@ -595,7 +595,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let read_static_closure path cf =
 			let args,ret = match follow cf.cf_type with
 				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
-				| _ -> assert false
+				| _ -> die()
 			in
 			self#read_static_closure path cf.cf_name args ret
 		in
@@ -756,7 +756,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				end
 		| _ ->
 			print_endline (s_expr_ast false "" (s_type (print_context())) e);
-			assert false
+			die()
 
 	(* branching *)
 
@@ -820,7 +820,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let cases = List.map (fun (el,e) ->
 				let il = List.map (fun e -> match e.eexpr with
 					| TConst (TInt i32) -> i32
-					| _ -> assert false
+					| _ -> die()
 				) el in
 				(il,(fun () -> self#texpr ret e))
 			) cases in
@@ -835,7 +835,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let cases = List.map (fun (el,e) ->
 				let sl = List.map (fun e -> match e.eexpr with
 					| TConst (TString s) -> s
-					| _ -> assert false
+					| _ -> die()
 				) el in
 				(sl,(fun () -> self#texpr ret e))
 			) cases in
@@ -860,7 +860,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let el = List.rev_map (fun (el,e) ->
 				let f e' = mk (TBinop(OpEq,ev,e')) com.basic.tbool e'.epos in
 				let e_cond = match el with
-					| [] -> assert false
+					| [] -> die()
 					| [e] -> f e
 					| e :: el ->
 						List.fold_left (fun eacc e ->
@@ -870,7 +870,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(e_cond,e)
 			) cases in
 			(* If we rewrite an exhaustive switch that has no default value, treat the last case as the default case to satisfy control flow. *)
-			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> assert false) else cases,def in
+			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> die()) else cases,def in
 			let e = List.fold_left (fun e_else (e_cond,e_then) -> Some (mk (TIf(e_cond,e_then,e_else)) e_then.etype e_then.epos)) def el in
 			self#texpr ret (Option.get e);
 			pop_scope()
@@ -1076,7 +1076,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| OpShl -> "opShl"
 			| OpShr -> "opShr"
 			| OpUShr -> "opUshr"
-			| _ -> assert false
+			| _ -> die()
 		in
 		begin match cast_type with
 			| TByte | TShort | TInt ->
@@ -1377,7 +1377,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let tl,tr = self#call_arguments cf.cf_type el in
 			begin match tl with
 				| [t1;t2] -> self#boolop (CmpSpecial (code#if_acmp_ne t1 t2))
-				| _ -> assert false
+				| _ -> die()
 			end;
 			tr
 		| TField(_,FStatic({cl_path = ["haxe";"jvm"],"Jvm"},({cf_name = "instanceof"}))) ->
@@ -1401,7 +1401,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#invokestatic (["java";"lang"],"Double") name (method_sig [TDouble] (Some TBool));
 				Some TBool
 			| _ ->
-				assert false
+				die()
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")},{cf_name = ("floor" | "ceil" | "round") as name})) ->
 			begin match el with
@@ -1413,7 +1413,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#cast TInt;
 				Some TInt
 			| _ ->
-				assert false
+				die()
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")} as c,({cf_name = ("ffloor" | "fceil")} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
@@ -1441,7 +1441,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#get_code#lor_;
 				Some TLong
 			| _ ->
-				assert false
+				die()
 			end
 		| TIdent "__array__" | TField(_,FStatic({cl_path = (["java"],"NativeArray")},{cf_name = "make"})) ->
 			begin match follow tr with
@@ -1514,7 +1514,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
 					let path_inner = match c with
 						| Some(c,_) -> c.cl_path
-						| _ -> assert false
+						| _ -> die()
 					in
 					self#texpr rvalue_any e11;
 					let tl,tr = self#call_arguments cf.cf_type el in
@@ -1597,7 +1597,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					if not term_try then jm#add_stack_frame;
 					jm#close_jumps true ([term_try,r_try]);
 					None
-				| _ -> assert false
+				| _ -> die()
 			end
 		| _ ->
 			self#texpr rvalue_any e1;
@@ -1607,7 +1607,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| false,Some _ -> code#pop
 		| false,None -> ()
 		| true,Some _ -> self#cast tr;
-		| true,None -> assert false
+		| true,None -> die()
 
 	(* exceptions *)
 
@@ -1870,7 +1870,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
 				self#cast e.etype
 			| _ ->
-				assert false
+				die()
 			end
 		| TArray(e1,e2) when not (need_val ret) ->
 			(* Array access never throws so this should be fine... *)
@@ -1901,7 +1901,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			if ret = RReturn && not jm#is_terminated then jm#return;
 		| TBlock el ->
 			let rec loop el = match el with
-				| [] -> assert false
+				| [] -> die()
 				| [e1] ->
 					self#texpr ret e1;
 					if ret = RReturn && not jm#is_terminated then jm#return;
@@ -1934,7 +1934,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				| TFun(tl,TEnum(en,_)) ->
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
-				| _ -> assert false
+				| _ -> die()
 			in
 			let cpath = ((fst path),Printf.sprintf "%s$%s" (snd path) ef.ef_name) in
 			let jsig = (object_path_sig cpath) in
@@ -2151,7 +2151,7 @@ class tclass_to_jvm gctx c = object(self)
 					let tr = loop tr in
 					TFun(tl,tr)
 				| _ ->
-					assert false
+					die()
 			in
 			if !has_type_param then Some t else None
 		in
@@ -2163,7 +2163,7 @@ class tclass_to_jvm gctx c = object(self)
 					let jm = jc#spawn_method cf_impl.cf_name jsig [MPublic;MSynthetic;MBridge] in
 					jm#load_this;
 					let jsig_impl = jsignature_of_type gctx cf_impl.cf_type in
-					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> assert false in
+					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> die() in
 					List.iter2 (fun (n,_,t) jsig ->
 						let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 						load();
@@ -2199,7 +2199,7 @@ class tclass_to_jvm gctx c = object(self)
 					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c ->
 						let tl = match follow (map_type cf.cf_type) with
 							| TFun(tl,_) -> tl
-							| _ -> assert false
+							| _ -> die()
 						in
 						begin match find_overload_rec' false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
 							| Some(_,cf_impl,_) -> check true cf cf_impl
@@ -2222,7 +2222,7 @@ class tclass_to_jvm gctx c = object(self)
 				| _ -> ()
 			) fields
 		| _ ->
-			assert false
+			die()
 		end
 
 	method private set_interfaces =
@@ -2273,7 +2273,7 @@ class tclass_to_jvm gctx c = object(self)
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
 				) field_inits;
-				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> assert false in
+				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> die() in
 				List.iter (fun (n,_,t) ->
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
@@ -2705,7 +2705,7 @@ let generate_anons gctx =
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
 				let tl,tr = match follow cf.cf_type with
 					| TFun(tl,tr) -> tl,tr
-					| _ -> assert false
+					| _ -> die()
 				in
 				let locals = List.map (fun (n,_,t) ->
 					let jsig = jsignature_of_type gctx t in
@@ -2792,7 +2792,7 @@ end
 let file_name_and_extension file =
 	match List.rev (ExtString.String.nsplit file "/") with
 	| e1 :: _ -> e1
-	| _ -> assert false
+	| _ -> die()
 
 let generate com =
 	mkdir_from_path com.file;

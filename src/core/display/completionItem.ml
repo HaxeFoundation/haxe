@@ -199,7 +199,7 @@ module CompletionModuleType = struct
 				tp_meta = c.cl_meta
 			}
 			| _ ->
-				assert false
+				die()
 		in
 		{
 			pack = fst infos.mt_path;
@@ -769,7 +769,7 @@ let to_json ctx index item =
 					"meta",generate_metadata ctx c.cl_meta;
 					"constraints",jlist (generate_type ctx) tl;
 				]
-			| _ -> assert false
+			| _ -> die()
 			end
 		| ITDefine(n,v) -> "Define",jobject [
 			"name",jstring n;

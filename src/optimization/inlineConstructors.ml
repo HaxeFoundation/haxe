@@ -421,7 +421,7 @@ let inline_constructors ctx e =
 			| None ->
 				let rve = make_expr_for_rev_list rvel rve.etype rve.epos in
 				begin match lvel with
-				| [] -> assert false
+				| [] -> die()
 				| e::el ->
 					let e = mk (TBinop(OpAssign, e, rve)) e.etype e.epos in
 					(e::el), None

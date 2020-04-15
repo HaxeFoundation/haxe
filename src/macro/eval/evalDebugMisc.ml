@@ -72,7 +72,7 @@ let find_breakpoint ctx sid =
 		);
 		raise Not_found
 	with Exit ->
-		match !found with None -> assert false | Some breakpoint -> breakpoint
+		match !found with None -> die() | Some breakpoint -> breakpoint
 
 (* Helper *)
 
@@ -114,7 +114,7 @@ let get_capture_slot_by_name capture_infos name =
 		) capture_infos;
 		raise Not_found
 	with Exit ->
-		match !ret with None -> assert false | Some name -> name
+		match !ret with None -> die() | Some name -> name
 
 let get_variable env capture_infos scopes name env =
 	try
@@ -142,7 +142,7 @@ let resolve_ident ctx env s =
 		let rec loop env = match env.env_info.kind with
 			| EKLocalFunction _ ->
 				begin match env.env_parent with
-					| None -> assert false
+					| None -> die()
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env

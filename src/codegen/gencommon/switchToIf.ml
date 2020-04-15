@@ -81,7 +81,7 @@ let configure gen (should_convert:texpr->bool) =
 					| cond :: tl ->
 						mk (TBinop (Ast.OpBoolOr, mk_eq (run cond), mk_many_cond tl)) basic.tbool cond.epos
 					| [] ->
-						assert false
+						Globals.die()
 				in
 
 				let mk_many_cond conds =

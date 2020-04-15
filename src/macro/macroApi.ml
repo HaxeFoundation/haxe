@@ -406,7 +406,7 @@ and encode_message msg =
 	let tag, pl = match msg with
 		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
 		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
-		| CMError(_,_) -> assert false
+		| CMError(_,_) -> Globals.die()
 	in
 	encode_enum ~pos:None IMessage tag pl
 
@@ -1725,7 +1725,7 @@ let macro_api ccom get_api =
 						vnull
 					);
 					"setCurrentClass", vfun1 (fun c ->
-						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> assert false);
+						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> Globals.die());
 						vnull
 					);
 				] in
@@ -1975,7 +1975,7 @@ let macro_api ccom get_api =
 			and fn = prepare_callback fn 1 in
 			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
 			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
-			| _ -> assert false
+			| _ -> Globals.die()
 		)
 	]
 

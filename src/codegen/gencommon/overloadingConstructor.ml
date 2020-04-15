@@ -132,7 +132,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
-		| _ -> assert false
+		| _ -> Globals.die()
 		in
 
 		let changed_tf_args = List.map (fun (v,_) -> (v,None)) cur_tf_args in
@@ -185,7 +185,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let expr = match expr.eexpr with
 		| TFunction(tf) ->
 			{ expr with etype = fn_type; eexpr = TFunction({ tf with tf_args = static_tf_args }) }
-		| _ -> assert false in
+		| _ -> Globals.die() in
 		static_ctor.cf_expr <- Some expr;
 		(* add to the statics *)
 		(try
@@ -217,7 +217,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				epos = p
 			}] in
 			ctor.cf_expr <- Some { e with eexpr = TFunction({ tf with tf_expr = { tf.tf_expr with eexpr = TBlock block_contents }; tf_args = changed_tf_args }) }
-		| _ -> assert false
+		| _ -> Globals.die()
 
 (* makes constructors that only call super() for the 'ctor' argument *)
 let clone_ctors com ctor sup stl cl =
@@ -257,7 +257,7 @@ let clone_ctors com ctor sup stl cl =
 	match clones with
 	| [] ->
 		(* raise Not_found *)
-		assert false (* should never happen *)
+		Globals.die() (* should never happen *)
 	| cf :: [] -> cf
 	| cf :: overl ->
 		cf.cf_meta <- (Meta.Overload,[],cf.cf_pos) :: cf.cf_meta;

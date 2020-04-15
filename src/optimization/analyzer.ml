@@ -129,7 +129,7 @@ module Ssa = struct
 						add_ssa_edge ctx.graph v' bb true i;
 						{e with eexpr = TLocal v'}
 					| _ ->
-						assert false
+						die()
 				) el edge.cfg_to.bb_incoming in
 				let ephi = {ecall with eexpr = TCall(ephi,el)} in
 				set_var_value ctx.graph v0 bb true i;
@@ -302,7 +302,7 @@ module DataFlow (M : DataFlowApi) = struct
 				match e.eexpr with
 					| TBinop(OpAssign,{eexpr = TLocal v},{eexpr = TCall({eexpr = TConst (TString "phi")},el)}) ->
 						set_lattice_cell v (visit_phi bb v el)
-					| _ -> assert false
+					| _ -> die()
 			) bb.bb_phi
 		in
 		let rec loop () = match !cfg_work_list,!ssa_work_list with
@@ -1005,7 +1005,7 @@ module Run = struct
 				in
 				(try loop tf.tf_expr with Exit -> mk (TCall(e,[])) tf.tf_type e.epos)
 			| _ ->
-				assert false
+				die()
 		end in
 		e
 
@@ -1081,7 +1081,7 @@ module Run = struct
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
-					| _ -> assert false
+					| _ -> die()
 				in
 				c.cl_init <- Some e
 		end

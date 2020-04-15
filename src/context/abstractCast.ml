@@ -21,7 +21,7 @@ let rec make_static_call ctx c cf a pl args t p =
 				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
-			| _ -> assert false
+			| _ -> die()
 	end else
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
@@ -49,7 +49,7 @@ and do_check_cast ctx tleft eright p =
 				let ret = make_static_call ctx c cf a tl [eright] tleft p in
 				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
 			)
-			| None -> assert false
+			| None -> die()
 	in
 	if type_iseq tleft eright.etype then
 		eright
@@ -197,7 +197,7 @@ let find_multitype_specialization com a pl p =
 						end
 					in
 					ignore(loop t1)
-				| _ -> assert false
+				| _ -> die()
 			end;
 			tl
 	in
@@ -239,7 +239,7 @@ let handle_abstract_casts ctx e =
 						e
 					end
 				| _ ->
-					assert false
+					die()
 			end
 		| TCall(e1, el) ->
 			begin try

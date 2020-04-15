@@ -152,9 +152,9 @@ and convert_signature ctx p jsig =
 	| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
-			| _ -> assert false in
+			| _ -> die() in
 			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
-	| TObjectInner (pack, inners) -> assert false
+	| TObjectInner (pack, inners) -> die()
 	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
@@ -205,7 +205,7 @@ let convert_param ctx p parent param =
 			tp_meta = [];
 		}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die()
 
 let is_override field =
 	List.exists (function | AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), _ ) }] -> true | _ -> false) field.jf_attributes
@@ -472,7 +472,7 @@ let convert_java_enum ctx p pe =
 						| CTPath path ->
 							let pos = { p with pfile = p.pfile ^ " (" ^ f.jf_name ^" @:throws)" } in
 							EImport( List.map (fun s -> s,pos) (path.tpackage @ [path.tname]), INormal )
-						| _ -> assert false
+						| _ -> die()
 				) f.jf_throws
 			) jc.cmethods) in
 
@@ -638,7 +638,7 @@ let compare_type com s1 s2 =
 					p1, p2
 				| TObjectInner(_, npl1), TObjectInner(_, npl2) ->
 					snd (List.hd (List.rev npl1)), snd (List.hd (List.rev npl2))
-				| _ -> assert false (* not tobject *)
+				| _ -> die() (* not tobject *)
 				in
 				let p1, p2 = simplify_args p1, simplify_args p2 in
 				let lp1 = List.length p1 in
@@ -697,7 +697,7 @@ let select_best com flist =
 					if com.verbose then print_endline (f.jf_name ^ ": The types " ^ (s_sig r) ^ " and " ^ (s_sig r2) ^ " are incompatible");
 					(* bet that the current best has "beaten" other types *)
 					loop cur_best flist
-				| _ -> assert false
+				| _ -> die()
 			with | Exit -> (* incompatible type parameters *)
 				(* error mode *)
 				if com.verbose then print_endline (f.jf_name ^ ": Incompatible argument return signatures: " ^ (s_sig r) ^ " and " ^ (s_sig r2));
@@ -994,7 +994,7 @@ class virtual java_library com name file_path = object(self)
 									match ncls with
 									| EClass c :: imports ->
 										(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
-									| _ -> assert false
+									| _ -> die()
 								with | Not_found ->
 									inner
 								in

@@ -269,7 +269,7 @@ let get () =
 let runs () =
 	!instance <> None
 
-let force () = match !instance with None -> assert false | Some i -> i
+let force () = match !instance with None -> die() | Some i -> i
 
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->

@@ -749,7 +749,7 @@ module Fusion = struct
 					in
 					let e,_ = map_values check_assign e1 in
 					let e = match !e' with
-						| None -> assert false
+						| None -> die()
 						| Some(e1,f) ->
 							begin match e1.eexpr with
 								| TLocal v -> state#change_writes v (- !i + 1)

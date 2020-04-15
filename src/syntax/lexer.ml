@@ -320,7 +320,7 @@ let rec skip_header lexbuf =
 	| 0xfeff -> skip_header lexbuf
 	| "#!", Star (Compl ('\n' | '\r')) -> skip_header lexbuf
 	| "" | eof -> ()
-	| _ -> assert false
+	| _ -> die()
 
 let rec token lexbuf =
 	match%sedlex lexbuf with
@@ -486,7 +486,7 @@ and comment lexbuf =
 	| "*/" -> lexeme_end lexbuf
 	| '*' -> store lexbuf; comment lexbuf
 	| Plus (Compl ('*' | '\n' | '\r')) -> store lexbuf; comment lexbuf
-	| _ -> assert false
+	| _ -> die()
 
 and string lexbuf =
 	match%sedlex lexbuf with
@@ -497,7 +497,7 @@ and string lexbuf =
 	| '\\' -> store lexbuf; string lexbuf
 	| '"' -> lexeme_end lexbuf
 	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store lexbuf; string lexbuf
-	| _ -> assert false
+	| _ -> die()
 
 and string2 lexbuf =
 	match%sedlex lexbuf with
@@ -514,7 +514,7 @@ and string2 lexbuf =
 		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
 		string2 lexbuf;
 	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
-	| _ -> assert false
+	| _ -> die()
 
 and code_string lexbuf open_braces =
 	match%sedlex lexbuf with
@@ -548,7 +548,7 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
-	| _ -> assert false
+	| _ -> die()
 
 and regexp lexbuf =
 	match%sedlex lexbuf with
@@ -563,7 +563,7 @@ and regexp lexbuf =
 	| '\\', Compl '\\' -> error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
 	| '/' -> regexp_options lexbuf, lexeme_end lexbuf
 	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store lexbuf; regexp lexbuf
-	| _ -> assert false
+	| _ -> die()
 
 and regexp_options lexbuf =
 	match%sedlex lexbuf with
@@ -572,7 +572,7 @@ and regexp_options lexbuf =
 		l ^ regexp_options lexbuf
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
-	| _ -> assert false
+	| _ -> die()
 
 and not_xml ctx depth in_open =
 	let lexbuf = ctx.lexbuf in
@@ -616,7 +616,7 @@ and not_xml ctx depth in_open =
 		store lexbuf;
 		not_xml ctx depth in_open
 	| _ ->
-		assert false
+		die()
 
 let rec sharp_token lexbuf =
 	match%sedlex lexbuf with
