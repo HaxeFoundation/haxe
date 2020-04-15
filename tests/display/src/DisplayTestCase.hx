@@ -26,8 +26,8 @@ class DisplayTestCase implements utest.ITest {
 	inline function position(pos)
 		return ctx.position(pos);
 
-	inline function usage(pos)
-		return ctx.usage(pos);
+	inline function usage(pos, base:Bool = false)
+		return ctx.usage(pos, base);
 
 	inline function range(pos1, pos2)
 		return ctx.range(pos1, pos2);

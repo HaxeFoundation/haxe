@@ -93,18 +93,54 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 		raise_hover (make_ci_local v (v.v_type,ct)) None p
 	| _ -> ()
 
+let add_reference_position cf origin =
+	let name,kind = match cf.cf_name,origin with
+		| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+			(* For constructors, we care about the class name so we don't end up looking for "new". *)
+			snd c.cl_path,SKConstructor cf
+		| _ ->
+			cf.cf_name,SKField cf
+	in
+	ReferencePosition.add (name,cf.cf_name_pos,kind)
+
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_positions [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type cf.cf_type
-	| DMUsage _ | DMImplementation ->
-		let name,kind = match cf.cf_name,origin with
-			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
-				(* For constructors, we care about the class name so we don't end up looking for "new". *)
-				snd c.cl_path,SKConstructor cf
+	| DMUsage (_,find_descendants,find_base) ->
+		let cf,origin =
+			match find_base,origin with
+			| true,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				let rec loop c =
+					match c.cl_super with
+					| None -> (PMap.find cf.cf_name c.cl_fields),Self (TClassDecl c)
+					| Some (c,_) ->
+						try loop c
+						with Not_found -> (PMap.find cf.cf_name c.cl_fields),Self (TClassDecl c)
+				in
+				(try loop c
+				with Not_found -> cf,origin)
 			| _ ->
-				cf.cf_name,SKField cf
+				cf,origin
 		in
-		ReferencePosition.set (name,cf.cf_name_pos,kind)
+		ReferencePosition.reset();
+		add_reference_position cf origin;
+		(match find_descendants,origin with
+		| true,(Self (TClassDecl csup) | Parent(TClassDecl csup)) ->
+			List.iter (fun t ->
+				match t with
+				| TClassDecl c ->
+					if is_parent csup c then
+					(try
+						let cf = PMap.find cf.cf_name c.cl_fields in
+						add_reference_position cf (Self (TClassDecl c))
+					with Not_found -> ())
+				| _ -> ()
+			) ctx.com.types
+		| _ -> ()
+		)
+	| DMImplementation ->
+		ReferencePosition.reset();
+		add_reference_position cf origin
 	| DMHover ->
 		let cf = if Meta.has Meta.Impl cf.cf_meta then
 			prepare_using_field cf

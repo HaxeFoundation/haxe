@@ -243,7 +243,13 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				DMDefinition
 			| "usage" ->
 				Common.define com Define.NoCOpt;
-				DMUsage false
+				DMUsage (false,false,false)
+			| "usage@descendants" ->
+				Common.define com Define.NoCOpt;
+				DMUsage (false,true,false)
+			| "usage@base" ->
+				Common.define com Define.NoCOpt;
+				DMUsage (false,true,true)
 			(*| "rename" ->
 				Common.define com Define.NoCOpt;
 				DMUsage true*)
@@ -413,7 +419,7 @@ let promote_type_hints tctx =
 let process_global_display_mode com tctx =
 	promote_type_hints tctx;
 	match com.display.dms_kind with
-	| DMUsage with_definition ->
+	| DMUsage (with_definition,_,_) ->
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com

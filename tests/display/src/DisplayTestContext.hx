@@ -72,8 +72,8 @@ class DisplayTestContext {
 		return positions(pos)[0];
 	}
 
-	public function usage(pos:Position):Array<String> {
-		return extractPositions(callHaxe('$pos@usage'));
+	public function usage(pos:Position, base:Bool = false):Array<String> {
+		return extractPositions(callHaxe('$pos@usage' + (base ? '@base' : '')));
 	}
 
 	public function documentSymbols():Array<ModuleSymbolEntry> {

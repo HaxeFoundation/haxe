@@ -190,7 +190,13 @@ module DisplayMode = struct
 	type t =
 		| DMNone
 		| DMDefault
-		| DMUsage of bool (* true = also report definition *)
+		(**
+			Find usages/references of the requested symbol.
+			@param bool - add symbol definition to the response
+			@param bool - also find usages of descendants of the symbol (e.g methods, which override the requested one)
+			@param bool - look for a base method if requested for a method with `override` accessor.
+		*)
+		| DMUsage of bool * bool * bool
 		| DMDefinition
 		| DMTypeDefinition
 		| DMImplementation
@@ -292,8 +298,8 @@ module DisplayMode = struct
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
+		| DMUsage (true,_,_) -> "rename"
+		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
 		| DMDiagnostics _ -> "diagnostics"
