@@ -237,7 +237,7 @@ let mk_mr_box ctx e =
         match follow e.etype with
         | TInst (c,_) ->
             String.concat ", " (List.map (fun f -> "\"" ^ f.cf_name ^ "\"") c.cl_ordered_fields)
-        | _ -> Globals.die()
+        | _ -> Globals.die ""
     in
     add_feature ctx "use._hx_box_mr";
     add_feature ctx "use._hx_table";
@@ -251,7 +251,7 @@ let mk_mr_select com e ecall name =
         | TInst (c,_) ->
             index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
         | _ ->
-            Globals.die()
+            Globals.die ""
     in
     if i == 0 then
         mk_lua_code com "{0}" [ecall] e.etype e.epos
@@ -320,7 +320,7 @@ let gen_constant ctx p = function
     | TBool b -> spr ctx (if b then "true" else "false")
     | TNull -> spr ctx "nil"
     | TThis -> spr ctx (this ctx)
-    | TSuper -> Globals.die()
+    | TSuper -> Globals.die ""
 
 
 
@@ -460,7 +460,7 @@ and gen_call ctx e el =
          print ctx "}, %i)" !count;
      | TIdent "`trace", [e;infos] ->
          if has_feature ctx "haxe.Log.trace" then begin
-             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> Globals.die()) in
+             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> Globals.die "") in
              spr ctx (ctx.type_accessor t);
              spr ctx ".trace(";
              gen_value ctx e;
@@ -691,7 +691,7 @@ and gen_expr ?(local=true) ctx e = begin
          | [(EConst(String(id,_)), _)] ->
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
-             Globals.die());
+             Globals.die "");
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
@@ -781,7 +781,7 @@ and gen_expr ?(local=true) ctx e = begin
                         | TInst (c, _) ->
                             List.map (fun f -> id ^ "_" ^name ^ "_" ^ f.cf_name) c.cl_ordered_fields
                         | _ ->
-                            Globals.die()
+                            Globals.die ""
                     in
                     spr ctx "local ";
                     spr ctx (String.concat ", " names);
@@ -956,7 +956,7 @@ and gen_expr ?(local=true) ctx e = begin
         | [v,e] ->
             print ctx "  local %s = _hx_result;" v.v_name;
             gen_block_element ctx e;
-        | _ -> Globals.die()
+        | _ -> Globals.die ""
         );
         bend();
         newline ctx;
@@ -1058,7 +1058,7 @@ and gen_block_element ctx e  =
             else (match eelse with
                 | [] -> ()
                 | [e] -> gen_block_element ctx e
-                | _ -> Globals.die())
+                | _ -> Globals.die "")
         | _ ->
             newline ctx;
             gen_expr ctx e;
@@ -1104,7 +1104,7 @@ and gen_anon_value ctx e =
 and gen_value ctx e =
     let assign e =
         mk (TBinop (Ast.OpAssign,
-                    mk (TLocal (match ctx.in_value with None -> Globals.die() | Some v -> v)) t_dynamic e.epos,
+                    mk (TLocal (match ctx.in_value with None -> Globals.die "" | Some v -> v)) t_dynamic e.epos,
                     e
                    )) e.etype e.epos
     in
@@ -1815,7 +1815,7 @@ let alloc_ctx com =
         break_depth = 0;
         handle_continue = false;
         id_counter = 0;
-        type_accessor = (fun _ -> Globals.die());
+        type_accessor = (fun _ -> Globals.die "");
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;

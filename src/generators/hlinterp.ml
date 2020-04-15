@@ -134,7 +134,7 @@ let get_type = function
 	| VVirtual v -> Some (HVirtual v.vtype)
 	| VArray _ -> Some HArray
 	| VClosure (f,None) -> Some (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t)
-	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> Globals.die())
+	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> Globals.die "")
 	| VVarArgs _ -> Some (HFun ([],HDyn))
 	| VEnum (e,_,_) -> Some (HEnum e)
 	| _ -> None
@@ -152,7 +152,7 @@ let rec is_compatible v t =
 	| _, HVoid -> true
 	| VNull, t -> is_nullable t
 	| VObj o, HObj _ -> safe_cast (HObj o.oproto.pclass) t
-	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> Globals.die() | Some t -> t) t
+	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> Globals.die "" | Some t -> t) t
 	| VBytes _, HBytes -> true
 	| VDyn (_,t1), HNull t2 -> tsame t1 t2
 	| v, HNull t -> is_compatible v t
@@ -187,8 +187,8 @@ let rec get_proto ctx p =
 		let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
 		let bindings = List.fold_left (fun acc (fid,fidx) ->
 			let f = get_function ctx fidx in
-			let ft = (match f with FFun f -> f.ftype | FNativeFun _ -> Globals.die()) in
-			let need_closure = (match ft, fields.(fid) with HFun (args,_), HFun(args2,_) -> List.length args > List.length args2 | HFun _, HDyn -> false | _ -> Globals.die()) in
+			let ft = (match f with FFun f -> f.ftype | FNativeFun _ -> Globals.die "") in
+			let need_closure = (match ft, fields.(fid) with HFun (args,_), HFun(args2,_) -> List.length args > List.length args2 | HFun _, HDyn -> false | _ -> Globals.die "") in
 			let acc = List.filter (fun (fid2,_) -> fid2 <> fid) acc in
 			(fid, (fun v -> VClosure (f,if need_closure then Some v else None))) :: acc
 		) bindings p.pbindings in
@@ -222,7 +222,7 @@ let alloc_obj ctx t =
 		o.dvirtuals <- [v];
 		VVirtual v
 	| _ ->
-		Globals.die()
+		Globals.die ""
 
 let float_to_string f =
 	let s = string_of_float f in
@@ -417,7 +417,7 @@ let rec to_virtual ctx v vp =
 		if vd.vtype == vp then
 			v
 		else if vd.vvalue = VNull then
-			Globals.die()
+			Globals.die ""
 		else
 			to_virtual ctx vd.vvalue vp
 	| _ ->
@@ -438,9 +438,9 @@ let rec dyn_cast ctx v t rt =
 		default()
 	else match t, rt with
 	| (HUI8|HUI16|HI32), (HF32|HF64) ->
-		(match v with VInt i -> VFloat (Int32.to_float i) | _ -> Globals.die())
+		(match v with VInt i -> VFloat (Int32.to_float i) | _ -> Globals.die "")
 	| (HF32|HF64), (HUI8|HUI16|HI32) ->
-		(match v with VFloat f -> VInt (Int32.of_float f) | _ -> Globals.die())
+		(match v with VFloat f -> VInt (Int32.of_float f) | _ -> Globals.die "")
 	| (HUI8|HUI16|HI32|HF32|HF64), HNull ((HUI8|HUI16|HI32|HF32|HF64) as rt) ->
 		let v = dyn_cast ctx v t rt in
 		VDyn (v,rt)
@@ -474,35 +474,35 @@ let rec dyn_cast ctx v t rt =
 				convert ret rconv
 			),rt),None)
 		| _ ->
-			Globals.die())
+			Globals.die "")
 	| HDyn, HFun (targs,tret) when (match v with VVarArgs _ -> true | _ -> false) ->
 		VClosure (FNativeFun ("~varargs",(fun args ->
 			dyn_call ctx v (List.map2 (fun v t -> (v,t)) args targs) tret
 		),rt),None)
 	| HDyn, _ ->
 		(match get_type v with
-		| None -> Globals.die()
+		| None -> Globals.die ""
 		| Some t -> dyn_cast ctx (match v with VDyn (v,_) -> v | _ -> v) t rt)
 	| HNull t, _ ->
 		(match v with
 		| VDyn (v,t) -> dyn_cast ctx v t rt
-		| _ -> Globals.die())
-	| HObj _, HObj b when safe_cast rt t && (match get_type v with Some t -> safe_cast t rt | None -> Globals.die()) ->
+		| _ -> Globals.die "")
+	| HObj _, HObj b when safe_cast rt t && (match get_type v with Some t -> safe_cast t rt | None -> Globals.die "") ->
 		(* downcast *)
 		v
 	| (HObj _ | HDynObj | HVirtual _), HVirtual vp ->
 		to_virtual ctx v vp
 	| HVirtual _, _ ->
 		(match v with
-		| VVirtual v -> dyn_cast ctx v.vvalue (match get_type v.vvalue with None -> Globals.die() | Some t -> t) rt
-		| _ -> Globals.die())
+		| VVirtual v -> dyn_cast ctx v.vvalue (match get_type v.vvalue with None -> Globals.die "" | Some t -> t) rt
+		| _ -> Globals.die "")
 	| HObj p, _ ->
 		(match get_method p "__cast" with
 		| None -> invalid()
 		| Some f ->
 			if v = VNull then VNull else
 			let ret = ctx.fcall (get_function ctx f) [v;VType rt] in
-			if ret <> VNull && (match get_type ret with None -> Globals.die() | Some vt -> safe_cast vt rt) then ret else invalid())
+			if ret <> VNull && (match get_type ret with None -> Globals.die "" | Some vt -> safe_cast vt rt) then ret else invalid())
 	| _ ->
 		invalid()
 
@@ -510,7 +510,7 @@ and dyn_call ctx v args tret =
 	match v with
 	| VClosure (f,a) ->
 		let ft = (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t) in
-		let fargs, fret = (match ft with HFun (a,t) -> a, t | _ -> Globals.die()) in
+		let fargs, fret = (match ft with HFun (a,t) -> a, t | _ -> Globals.die "") in
 		let full_args = args and full_fargs = (match a with None -> fargs | Some _ -> List.tl fargs) in
 		let rec loop args fargs =
 			match args, fargs with
@@ -549,7 +549,7 @@ let rec dyn_compare ctx a at b bt =
 		if oa == ob then 0 else
 		(match get_method oa.oproto.pclass "__compare" with
 		| None -> invalid_comparison
-		| Some f -> (match ctx.fcall (get_function ctx f) [a;b] with VInt i -> Int32.to_int i | _ -> Globals.die()));
+		| Some f -> (match ctx.fcall (get_function ctx f) [a;b] with VInt i -> Int32.to_int i | _ -> Globals.die ""));
 	| VDyn (v,t), _ ->
 		dyn_compare ctx v t b bt
 	| _, VDyn (v,t) ->
@@ -581,8 +581,8 @@ let rec dyn_get_field ctx obj field rt =
 			try
 				let fid = PMap.find field p.pfunctions in
 				(match get_function ctx fid with
-				| FFun fd as f -> get_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> Globals.die())
-				| FNativeFun _ -> Globals.die())
+				| FFun fd as f -> get_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> Globals.die "")
+				| FNativeFun _ -> Globals.die "")
 			with Not_found ->
 				match p.psuper with
 				| None -> default rt
@@ -614,7 +614,7 @@ let rebuild_virtuals ctx d =
 	let old = d.dvirtuals in
 	d.dvirtuals <- [];
 	List.iter (fun v ->
-		let v2 = (match to_virtual ctx (VDynObj d) v.vtype with VVirtual v -> v | _ -> Globals.die()) in
+		let v2 = (match to_virtual ctx (VDynObj d) v.vtype with VVirtual v -> v | _ -> Globals.die "") in
 		v.vindexes <- v2.vindexes;
 		v.vtable <- d.dvalues;
 	) old;
@@ -624,7 +624,7 @@ let rec dyn_set_field ctx obj field v vt =
 	let v, vt = (match vt with
 		| HDyn ->
 			(match get_type v with
-			| None -> if v = VNull then VNull, HDyn else Globals.die()
+			| None -> if v = VNull then VNull, HDyn else Globals.die ""
 			| Some t -> (match v with VDyn (v,_) -> v | _ -> v), t)
 		| t -> v, t
 	) in
@@ -765,7 +765,7 @@ let interp ctx f args =
 		| HFun (fargs,fret) ->
 			if ctx.checked && List.length fargs <> List.length args then error (Printf.sprintf "Invalid args: (%s) should be (%s)" (String.concat "," (List.map (vstr_d ctx) args)) (String.concat "," (List.map tstr fargs)));
 			fret
-		| _ -> Globals.die()
+		| _ -> Globals.die ""
 	) in
 	let fcall = ctx.fcall in
 	let rtype i = Array.unsafe_get f.regs i in
@@ -797,13 +797,13 @@ let interp ctx f args =
 		| HUI8 | HUI16 | HI32 ->
 			(match get a, get b with
 			| VInt a, VInt b -> VInt (iop a b)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| HF32 | HF64 ->
 			(match get a, get b with
 			| VFloat a, VFloat b -> VFloat (fop a b)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| _ ->
-			Globals.die()
+			Globals.die ""
 	in
 	let iop f a b =
 		match rtype a with
@@ -811,25 +811,25 @@ let interp ctx f args =
 		| HUI8 | HUI16 | HI32 ->
 			(match get a, get b with
 			| VInt a, VInt b -> VInt (f a b)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| _ ->
-			Globals.die()
+			Globals.die ""
 	in
 	let iunop iop r =
 		match rtype r with
 		| HUI8 | HUI16 | HI32 ->
 			(match get r with
 			| VInt a -> VInt (iop a)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| _ ->
-			Globals.die()
+			Globals.die ""
 	in
 	let ucompare a b =
 		match a, b with
 		| VInt a, VInt b ->
 			let d = Int32.sub (Int32.shift_right_logical a 16) (Int32.shift_right_logical b 16) in
 			Int32.to_int (if d = 0l then Int32.sub (Int32.logand a 0xFFFFl) (Int32.logand b 0xFFFFl) else d)
-		| _ -> Globals.die()
+		| _ -> Globals.die ""
 	in
 	let vcompare ra rb op =
 		let a = get ra in
@@ -865,8 +865,8 @@ let interp ctx f args =
 		| OAnd (r,a,b) -> set r (iop Int32.logand a b)
 		| OOr (r,a,b) -> set r (iop Int32.logor a b)
 		| OXor (r,a,b) -> set r (iop Int32.logxor a b)
-		| ONeg (r,v) -> set r (match get v with VInt v -> VInt (Int32.neg v) | VFloat f -> VFloat (-. f) | _ -> Globals.die())
-		| ONot (r,v) -> set r (match get v with VBool b -> VBool (not b) | _ -> Globals.die())
+		| ONeg (r,v) -> set r (match get v with VInt v -> VInt (Int32.neg v) | VFloat f -> VFloat (-. f) | _ -> Globals.die "")
+		| ONot (r,v) -> set r (match get v with VBool b -> VBool (not b) | _ -> Globals.die "")
 		| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 		| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
 		| OCall0 (r,f) -> set r (fcall (func f) [])
@@ -897,9 +897,9 @@ let interp ctx f args =
 		| OJNotEq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
 		| OJAlways i -> pos := !pos + i
 		| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
-		| OToSFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> Globals.die())
-		| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (ufloat v) | VFloat _ as v -> v | _ -> Globals.die())
-		| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt i when rtype r = HI64 -> VInt64 (Int64.of_int32 i) | VInt _ as v -> v | _ -> Globals.die())
+		| OToSFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> Globals.die "")
+		| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (ufloat v) | VFloat _ as v -> v | _ -> Globals.die "")
+		| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt i when rtype r = HI64 -> VInt64 (Int64.of_int32 i) | VInt _ as v -> v | _ -> Globals.die "")
 		| OLabel _ -> ()
 		| ONew r ->
 			set r (alloc_obj ctx (rtype r))
@@ -911,7 +911,7 @@ let interp ctx f args =
 					| VFNone -> dyn_get_field ctx obj (let n,_,_ = v.vtype.vfields.(fid) in n) (rtype r)
 					| VFIndex i -> v.vtable.(i))
 				| VNull -> null_access()
-				| _ -> Globals.die())
+				| _ -> Globals.die "")
 		| OSetField (o,fid,r) ->
 			let rv = get r in
 			let o = get o in
@@ -927,16 +927,16 @@ let interp ctx f args =
 					check_obj rv o fid;
 					v.vtable.(i) <- rv)
 			| VNull -> null_access()
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OGetThis (r, fid) ->
-			set r (match get 0 with VObj v | VStruct v -> v.ofields.(fid) | _ -> Globals.die())
+			set r (match get 0 with VObj v | VStruct v -> v.ofields.(fid) | _ -> Globals.die "")
 		| OSetThis (fid, r) ->
 			(match get 0 with
 			| (VObj v | VStruct v) as o ->
 				let rv = get r in
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OCallMethod (r,m,rl) ->
 			(match get (List.hd rl) with
 			| VObj v -> set r (fcall v.oproto.pmethods.(m) (List.map get rl))
@@ -948,17 +948,17 @@ let interp ctx f args =
 						let m = PMap.find name o.oproto.pclass.pfunctions in
 						set r (dyn_call ctx (VClosure (get_function ctx m,Some obj)) (List.map (fun r -> get r, rtype r) (List.tl rl)) (rtype r))
 					with Not_found ->
-						Globals.die())
+						Globals.die "")
 				| VDynObj _ ->
 					set r (dyn_call ctx v.vvalue (List.map (fun r -> get r, rtype r) (List.tl rl)) (rtype r))
 				| _ ->
-					Globals.die())
+					Globals.die "")
 			| VNull -> null_access()
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OCallThis (r,m,rl) ->
 			(match get 0 with
 			| VObj v as o -> set r (fcall v.oproto.pmethods.(m) (o :: List.map get rl))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OCallClosure (r,v,rl) ->
 			if rtype v = HDyn then
 				set r (dyn_call ctx (get v) (List.map (fun r -> get r, rtype r) rl) (rtype r))
@@ -977,9 +977,9 @@ let interp ctx f args =
 			let m = (match get o with
 			| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 			| VNull -> null_access()
-			| _ -> Globals.die()
+			| _ -> Globals.die ""
 			) in
-			set r (if m = VNull then m else dyn_cast ctx m (match get_type m with None -> Globals.die() | Some v -> v) (rtype r))
+			set r (if m = VNull then m else dyn_cast ctx m (match get_type m with None -> Globals.die "" | Some v -> v) (rtype r))
 		| OThrow r ->
 			throw ctx (get r)
 		| ORethrow r ->
@@ -988,14 +988,14 @@ let interp ctx f args =
 		| OGetUI8 (r,b,p) ->
 			(match get b, get p with
 			| VBytes b, VInt p -> set r (VInt (Int32.of_int (int_of_char (String.get b (Int32.to_int p)))))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OGetUI16 (r,b,p) ->
 			(match get b, get p with
 			| VBytes b, VInt p ->
 				let a = int_of_char (String.get b (Int32.to_int p)) in
 				let b = int_of_char (String.get b (Int32.to_int p + 1)) in
 				set r (VInt (Int32.of_int (a lor (b lsl 8))))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OGetMem (r,b,p) ->
 			(match get b, get p with
 			| VBytes b, VInt p ->
@@ -1005,23 +1005,23 @@ let interp ctx f args =
 				| HI64 -> VInt64 (get_i64 b p)
 				| HF32 -> VFloat (Int32.float_of_bits (get_i32 b p))
 				| HF64 -> VFloat (Int64.float_of_bits (get_i64 b p))
-				| _ -> Globals.die())
+				| _ -> Globals.die "")
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| OGetArray (r,a,i) ->
 			(match get a, get i with
 			| VArray (a,_), VInt i -> set r a.(Int32.to_int i)
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 		| OSetUI8 (r,p,v) ->
 			(match get r, get p, get v with
 			| VBytes b, VInt p, VInt v -> Bytes.set (Bytes.unsafe_of_string b) (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OSetUI16 (r,p,v) ->
 			(match get r, get p, get v with
 			| VBytes b, VInt p, VInt v ->
 				Bytes.set (Bytes.unsafe_of_string b) (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF));
 				Bytes.set (Bytes.unsafe_of_string b) (Int32.to_int p + 1) (char_of_int (((Int32.to_int v) lsr 8) land 0xFF))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OSetMem (r,p,v) ->
 			(match get r, get p with
 			| VBytes b, VInt p ->
@@ -1031,9 +1031,9 @@ let interp ctx f args =
 				| HI64, VInt64 v -> set_i64 b p v
 				| HF32, VFloat f -> set_i32 b p (Int32.bits_of_float f)
 				| HF64, VFloat f -> set_i64 b p (Int64.bits_of_float f)
-				| _ -> Globals.die())
+				| _ -> Globals.die "")
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| OSetArray (a,i,v) ->
 			(match get a, get i with
 			| VArray (a,t), VInt i ->
@@ -1042,7 +1042,7 @@ let interp ctx f args =
 				let idx = Int32.to_int i in
 				if ctx.checked && (idx < 0 || idx >= Array.length a) then error (Printf.sprintf "Can't set array index %d with %s" idx (vstr_d ctx v));
 				a.(Int32.to_int i) <- v
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 		| OSafeCast (r, v) ->
 			set r (dyn_cast ctx (get v) (rtype v) (rtype r))
 		| OUnsafeCast (r,v) ->
@@ -1050,13 +1050,13 @@ let interp ctx f args =
 		| OArraySize (r,a) ->
 			(match get a with
 			| VArray (a,_) -> set r (VInt (Int32.of_int (Array.length a)));
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OType (r,t) ->
 			set r (VType t)
 		| OGetType (r,v) ->
 			let v = get v in
-			let v = (match v with VVirtual { vvalue = VNull } -> Globals.die() | VVirtual v -> v.vvalue | _ -> v) in
-			set r (VType (if v = VNull then HVoid else match get_type v with None -> Globals.die() | Some t -> t));
+			let v = (match v with VVirtual { vvalue = VNull } -> Globals.die "" | VVirtual v -> v.vvalue | _ -> v) in
+			set r (VType (if v = VNull then HVoid else match get_type v with None -> Globals.die "" | Some t -> t));
 		| OGetTID (r,v) ->
 			set r (match get v with
 				| VType t ->
@@ -1083,44 +1083,44 @@ let interp ctx f args =
 					| HNull _ -> 19
 					| HMethod _ -> 20
 					| HStruct _ -> 21)))
-				| _ -> Globals.die());
+				| _ -> Globals.die "");
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))
 		| OUnref (v,r) ->
 			set v (match get r with
 			| VRef (r,_) -> get_ref ctx r
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OSetref (r,v) ->
 			(match get r with
 			| VRef (r,t) ->
 				let v = get v in
 				check v t (fun() -> "ref");
 				set_ref ctx r v
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OToVirtual (r,rv) ->
-			set r (to_virtual ctx (get rv) (match rtype r with HVirtual vp -> vp | _ -> Globals.die()))
+			set r (to_virtual ctx (get rv) (match rtype r with HVirtual vp -> vp | _ -> Globals.die ""))
 		| ODynGet (r,o,f) ->
 			set r (dyn_get_field ctx (get o) ctx.code.strings.(f) (rtype r))
 		| ODynSet (o,fid,vr) ->
 			dyn_set_field ctx (get o) ctx.code.strings.(fid) (get vr) (rtype vr)
 		| OMakeEnum (r,e,pl) ->
-			set r (VEnum ((match rtype r with HEnum e -> e | _ -> Globals.die()),e,Array.map get (Array.of_list pl)))
+			set r (VEnum ((match rtype r with HEnum e -> e | _ -> Globals.die ""),e,Array.map get (Array.of_list pl)))
 		| OEnumAlloc (r,f) ->
 			(match rtype r with
 			| HEnum e ->
 				let _, _, fl = e.efields.(f) in
 				let vl = Array.create (Array.length fl) VUndef in
 				set r (VEnum (e, f, vl))
-			| _ -> Globals.die()
+			| _ -> Globals.die ""
 			)
 		| OEnumIndex (r,v) ->
 			(match get v with
 			| VEnum (_,i,_) -> set r (VInt (Int32.of_int i))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OEnumField (r, v, _, i) ->
 			(match get v with
 			| VEnum (_,_,vl) -> set r vl.(i)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OSetEnumField (v, i, r) ->
 			(match get v, rtype v with
 			| VEnum (_,id,vl), HEnum e ->
@@ -1128,13 +1128,13 @@ let interp ctx f args =
 				let _, _, fields = e.efields.(id) in
 				check rv fields.(i) (fun() -> "enumfield");
 				vl.(i) <- rv
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| OSwitch (r, indexes, _) ->
 			(match get r with
 			| VInt i ->
 				let i = Int32.to_int i in
 				if i >= 0 && i < Array.length indexes then pos := !pos + indexes.(i)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| ONullCheck r ->
 			if get r = VNull then throw_msg ctx "Null access"
 		| OTrap (r,j) ->
@@ -1147,11 +1147,11 @@ let interp ctx f args =
 		| ORefData (r,d) ->
 			(match get d with
 			| VArray (a,t) -> set r (VRef (RArray (a,0),t))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| ORefOffset (r,r2,off) ->
 			(match get r2, get off with
 			| VRef (RArray (a,pos),t), VInt i -> set r (VRef (RArray (a,pos + Int32.to_int i),t))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| ONop _ ->
 			()
 		);
@@ -1252,15 +1252,15 @@ let load_native ctx lib name t =
 		| "alloc_bytes" ->
 			(function
 			| [VInt i] -> VBytes (Bytes.unsafe_to_string (Bytes.create (int i)))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "alloc_array" ->
 			(function
 			| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "alloc_obj" ->
 			(function
 			| [VType t] -> alloc_obj ctx t
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "alloc_enum_dyn" ->
 			(function
 			| [VType (HEnum e); VInt idx; VArray (vl,vt); VInt len] ->
@@ -1272,13 +1272,13 @@ let load_native ctx lib name t =
 				else
 					VEnum (e,idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len))
 			| vl ->
-				Globals.die())
+				Globals.die "")
 		| "array_blit" ->
 			(function
 			| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
 				Array.blit src (int sp) dst (int dp) (int len);
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "bytes_blit" ->
 			(function
 			| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
@@ -1286,7 +1286,7 @@ let load_native ctx lib name t =
 				VUndef
 			| [(VBytes _ | VNull); VInt _; (VBytes _ | VNull); VInt _; VInt len] ->
 				if len = 0l then VUndef else error "bytes_blit to NULL bytes";
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "bsort_i32" ->
 			(function
 			| [VBytes b; VInt pos; VInt len; VClosure (f,c)] ->
@@ -1295,59 +1295,59 @@ let load_native ctx lib name t =
 				Array.stable_sort (fun a b ->
 					match ctx.fcall f (match c with None -> [VInt a;VInt b] | Some v -> [v;VInt a;VInt b]) with
 					| VInt i -> int i
-					| _ -> Globals.die()
+					| _ -> Globals.die ""
 				) a;
 				Array.iteri (fun i v -> set_i32 b (pos + i * 4) v) a;
 				VUndef;
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| "bsort_f64" ->
 			(function
 			| [VBytes b; VInt pos; VInt len; VClosure _] ->
-				Globals.die()
+				Globals.die ""
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| "itos" ->
 			(function
 			| [VInt v; VRef (r,_)] ->
 				let str = Int32.to_string v in
 				set_ref r (to_int (String.length str));
 				VBytes (caml_to_hl str)
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 		| "ftos" ->
 			(function
 			| [VFloat f; VRef (r,_)] ->
 				let str = float_to_string f in
 				set_ref r (to_int (String.length str));
 				VBytes (caml_to_hl str)
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 		| "value_to_string" ->
 			(function
 			| [v; VRef (r,_)] ->
 				let str = caml_to_hl (vstr ctx v HDyn) in
 				set_ref r (to_int ((String.length str) lsr 1 - 1));
 				VBytes str
-			| _ -> Globals.die());
-		| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> Globals.die())
-		| "math_isfinite" -> (function [VFloat f] -> VBool (match classify_float f with FP_infinite | FP_nan -> false | _ -> true) | _ -> Globals.die())
-		| "math_round" -> (function [VFloat f] -> VInt (Int32.of_float (floor (f +. 0.5))) | _ -> Globals.die())
-		| "math_floor" -> (function [VFloat f] -> VInt (Int32.of_float (floor f)) | _ -> Globals.die())
-		| "math_ceil" -> (function [VFloat f] -> VInt (Int32.of_float (ceil f)) | _ -> Globals.die())
-		| "math_ffloor" -> (function [VFloat f] -> VFloat (floor f) | _ -> Globals.die())
-		| "math_fceil" -> (function [VFloat f] -> VFloat (ceil f) | _ -> Globals.die())
-		| "math_fround" -> (function [VFloat f] -> VFloat (floor (f +. 0.5)) | _ -> Globals.die())
-		| "math_abs" -> (function [VFloat f] -> VFloat (abs_float f) | _ -> Globals.die())
-		| "math_sqrt" -> (function [VFloat f] -> VFloat (if f < 0. then nan else sqrt f) | _ -> Globals.die())
-		| "math_cos" -> (function [VFloat f] -> VFloat (cos f) | _ -> Globals.die())
-		| "math_sin" -> (function [VFloat f] -> VFloat (sin f) | _ -> Globals.die())
-		| "math_tan" -> (function [VFloat f] -> VFloat (tan f) | _ -> Globals.die())
-		| "math_acos" -> (function [VFloat f] -> VFloat (acos f) | _ -> Globals.die())
-		| "math_asin" -> (function [VFloat f] -> VFloat (asin f) | _ -> Globals.die())
-		| "math_atan" -> (function [VFloat f] -> VFloat (atan f) | _ -> Globals.die())
-		| "math_atan2" -> (function [VFloat a; VFloat b] -> VFloat (atan2 a b) | _ -> Globals.die())
-		| "math_log" -> (function [VFloat f] -> VFloat (Pervasives.log f) | _ -> Globals.die())
-		| "math_exp" -> (function [VFloat f] -> VFloat (exp f) | _ -> Globals.die())
-		| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> Globals.die())
+			| _ -> Globals.die "");
+		| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> Globals.die "")
+		| "math_isfinite" -> (function [VFloat f] -> VBool (match classify_float f with FP_infinite | FP_nan -> false | _ -> true) | _ -> Globals.die "")
+		| "math_round" -> (function [VFloat f] -> VInt (Int32.of_float (floor (f +. 0.5))) | _ -> Globals.die "")
+		| "math_floor" -> (function [VFloat f] -> VInt (Int32.of_float (floor f)) | _ -> Globals.die "")
+		| "math_ceil" -> (function [VFloat f] -> VInt (Int32.of_float (ceil f)) | _ -> Globals.die "")
+		| "math_ffloor" -> (function [VFloat f] -> VFloat (floor f) | _ -> Globals.die "")
+		| "math_fceil" -> (function [VFloat f] -> VFloat (ceil f) | _ -> Globals.die "")
+		| "math_fround" -> (function [VFloat f] -> VFloat (floor (f +. 0.5)) | _ -> Globals.die "")
+		| "math_abs" -> (function [VFloat f] -> VFloat (abs_float f) | _ -> Globals.die "")
+		| "math_sqrt" -> (function [VFloat f] -> VFloat (if f < 0. then nan else sqrt f) | _ -> Globals.die "")
+		| "math_cos" -> (function [VFloat f] -> VFloat (cos f) | _ -> Globals.die "")
+		| "math_sin" -> (function [VFloat f] -> VFloat (sin f) | _ -> Globals.die "")
+		| "math_tan" -> (function [VFloat f] -> VFloat (tan f) | _ -> Globals.die "")
+		| "math_acos" -> (function [VFloat f] -> VFloat (acos f) | _ -> Globals.die "")
+		| "math_asin" -> (function [VFloat f] -> VFloat (asin f) | _ -> Globals.die "")
+		| "math_atan" -> (function [VFloat f] -> VFloat (atan f) | _ -> Globals.die "")
+		| "math_atan2" -> (function [VFloat a; VFloat b] -> VFloat (atan2 a b) | _ -> Globals.die "")
+		| "math_log" -> (function [VFloat f] -> VFloat (Pervasives.log f) | _ -> Globals.die "")
+		| "math_exp" -> (function [VFloat f] -> VFloat (exp f) | _ -> Globals.die "")
+		| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> Globals.die "")
 		| "parse_int" ->
 			(function
 			| [VBytes str; VInt pos; VInt len] ->
@@ -1355,15 +1355,15 @@ let load_native ctx lib name t =
 					VDyn (VInt (Numeric.parse_int (hl_to_caml_sub str (int pos) (int len))),HI32)
 				with _ ->
 					VNull)
-			| l -> Globals.die())
+			| l -> Globals.die "")
 		| "parse_float" ->
 			(function
 			| [VBytes str; VInt pos; VInt len] -> (try VFloat (Numeric.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "dyn_compare" ->
 			(function
 			| [a;b] -> to_int (dyn_compare ctx a HDyn b HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "fun_compare" ->
 			let ocompare o1 o2 =
 				match o1, o2 with
@@ -1378,91 +1378,91 @@ let load_native ctx lib name t =
 		| "array_type" ->
 			(function
 			| [VArray (_,t)] -> VType t
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "value_cast" ->
 			(function
 			| [v;VType t] -> if is_compatible v t then v else throw_msg ctx ("Cannot cast " ^ vstr_d ctx v ^ " to " ^ tstr t);
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hballoc" ->
 			(function
 			| [] -> VAbstract (AHashBytes (Hashtbl.create 0))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbset" ->
 			(function
 			| [VAbstract (AHashBytes h);VBytes b;v] ->
 				Hashtbl.replace h (hl_to_caml b) v;
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbget" ->
 			(function
 			| [VAbstract (AHashBytes h);VBytes b] ->
 				(try Hashtbl.find h (hl_to_caml b) with Not_found -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbvalues" ->
 			(function
 			| [VAbstract (AHashBytes h)] ->
 				let values = Hashtbl.fold (fun _ v acc -> v :: acc) h [] in
 				VArray (Array.of_list values, HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbkeys" ->
 			(function
 			| [VAbstract (AHashBytes h)] ->
 				let keys = Hashtbl.fold (fun s _ acc -> VBytes (caml_to_hl s) :: acc) h [] in
 				VArray (Array.of_list keys, HBytes)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbexists" ->
 			(function
 			| [VAbstract (AHashBytes h);VBytes b] -> VBool (Hashtbl.mem h (hl_to_caml b))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hbremove" ->
 			(function
 			| [VAbstract (AHashBytes h);VBytes b] ->
 				let m = Hashtbl.mem h (hl_to_caml b) in
 				if m then Hashtbl.remove h (hl_to_caml b);
 				VBool m
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hialloc" ->
 			(function
 			| [] -> VAbstract (AHashInt (Hashtbl.create 0))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hiset" ->
 			(function
 			| [VAbstract (AHashInt h);VInt i;v] ->
 				Hashtbl.replace h i v;
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "higet" ->
 			(function
 			| [VAbstract (AHashInt h);VInt i] ->
 				(try Hashtbl.find h i with Not_found -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hivalues" ->
 			(function
 			| [VAbstract (AHashInt h)] ->
 				let values = Hashtbl.fold (fun _ v acc -> v :: acc) h [] in
 				VArray (Array.of_list values, HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hikeys" ->
 			(function
 			| [VAbstract (AHashInt h)] ->
 				let keys = Hashtbl.fold (fun i _ acc -> VInt i :: acc) h [] in
 				VArray (Array.of_list keys, HI32)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hiexists" ->
 			(function
 			| [VAbstract (AHashInt h);VInt i] -> VBool (Hashtbl.mem h i)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hiremove" ->
 			(function
 			| [VAbstract (AHashInt h);VInt i] ->
 				let m = Hashtbl.mem h i in
 				if m then Hashtbl.remove h i;
 				VBool m
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hoalloc" ->
 			(function
 			| [] -> VAbstract (AHashObject (ref []))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hoset" ->
 			(function
 			| [VAbstract (AHashObject l);o;v] ->
@@ -1475,26 +1475,26 @@ let load_native ctx lib name t =
 				in
 				l := replace !l;
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hoget" ->
 			(function
 			| [VAbstract (AHashObject l);o] ->
 				(try List.assq (no_virtual o) !l with Not_found -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hovalues" ->
 			(function
 			| [VAbstract (AHashObject l)] ->
 				VArray (Array.of_list (List.map snd !l), HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hokeys" ->
 			(function
 			| [VAbstract (AHashObject l)] ->
 				VArray (Array.of_list (List.map fst !l), HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hoexists" ->
 			(function
 			| [VAbstract (AHashObject l);o] -> VBool (List.mem_assq (no_virtual o) !l)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "horemove" ->
 			(function
 			| [VAbstract (AHashObject rl);o] ->
@@ -1506,23 +1506,23 @@ let load_native ctx lib name t =
 					| p :: l -> loop (p :: acc) l
 				in
 				VBool (loop [] !rl)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "sys_print" ->
 			(function
 			| [VBytes str] -> print_string (hl_to_caml str); VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "sys_time" ->
 			(function
 			| [] -> VFloat (Unix.gettimeofday())
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "sys_exit" ->
 			(function
 			| [VInt code] -> raise (Sys_exit (Int32.to_int code))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "sys_utf8_path" ->
 			(function
 			| [] -> VBool true
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "sys_string" ->
 			let cached_sys_name = ref None in
 			(function
@@ -1543,27 +1543,27 @@ let load_native ctx lib name t =
 				| "Win32" | "Cygwin" -> "Windows"
 				| s -> s))
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| "sys_is64" ->
 			(function
 			| [] -> VBool (Sys.word_size = 64)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "hash" ->
 			(function
 			| [VBytes str] -> VInt (hash ctx (hl_to_caml str))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_safe_cast" ->
 			(function
 			| [VType a; VType b] -> VBool (safe_cast a b)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_super" ->
 			(function
 			| [VType t] -> VType (match t with HObj { psuper = Some o } -> HObj o | _ -> HVoid)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_args_count" ->
 			(function
 			| [VType t] -> to_int (match t with HFun (args,_) -> List.length args | _ -> 0)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_get_global" ->
 			(function
 			| [VType t] ->
@@ -1571,7 +1571,7 @@ let load_native ctx lib name t =
 				| HObj c -> (match c.pclassglobal with None -> VNull | Some g -> ctx.t_globals.(g))
 				| HEnum e -> (match e.eglobal with None -> VNull | Some g -> ctx.t_globals.(g))
 				| _ -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_set_global" ->
 			(function
 			| [VType t; v] ->
@@ -1579,15 +1579,15 @@ let load_native ctx lib name t =
 				| HObj c -> (match c.pclassglobal with None -> false | Some g -> ctx.t_globals.(g) <- v; true)
 				| HEnum e -> (match e.eglobal with None -> false | Some g -> ctx.t_globals.(g) <- v; true)
 				| _ -> false)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_name" ->
 			(function
 			| [VType t] ->
 				VBytes (caml_to_hl (match t with
 				| HObj o -> o.pname
 				| HEnum e -> e.ename
-				| _ -> Globals.die()))
-			| _ -> Globals.die())
+				| _ -> Globals.die ""))
+			| _ -> Globals.die "")
 		| "obj_fields" ->
 			let rec get_fields v isRec =
 				match v with
@@ -1606,20 +1606,20 @@ let load_native ctx lib name t =
 			in
 			(function
 			| [v] -> get_fields v true
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "obj_copy" ->
 			(function
 			| [VDynObj d | VVirtual { vvalue = VDynObj d }] ->
 				VDynObj { dfields = Hashtbl.copy d.dfields; dvalues = Array.copy d.dvalues; dtypes = Array.copy d.dtypes; dvirtuals = [] }
 			| [_] -> VNull
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "enum_parameters" ->
 			(function
 			| [VEnum (e,idx,pl)] ->
 				let _,_, ptypes = e.efields.(idx) in
 				VArray (Array.mapi (fun i v -> make_dyn v ptypes.(i)) pl,HDyn)
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| "type_instance_fields" ->
 			(function
 			| [VType t] ->
@@ -1638,19 +1638,19 @@ let load_native ctx lib name t =
 					in
 					VArray (fields o,HBytes)
 				| _ -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_enum_fields" ->
 			(function
 			| [VType t] ->
 				(match t with
 				| HEnum e -> VArray (Array.map (fun (f,_,_) -> VBytes (caml_to_hl f)) e.efields,HBytes)
 				| _ -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_enum_values" ->
 			(function
 			| [VType (HEnum e)] ->
 				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VEnum (e,i,[||])) e.efields,HDyn)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "type_enum_eq" ->
 			(function
 			| [VEnum _; VNull] | [VNull; VEnum _] -> VBool false
@@ -1669,29 +1669,29 @@ let load_native ctx lib name t =
 							| t -> dyn_compare ctx vl1.(i) t vl2.(i) t = 0) && chk (i + 1)
 						in
 						chk 0
-					| _ -> Globals.die()
+					| _ -> Globals.die ""
 				in
 				VBool (if e1 != e2 then false else loop v1 v2 e1)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "obj_get_field" ->
 			(function
 			| [o;VInt hash] ->
-				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die()) in
+				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die "") in
 				(match o with
 				| VObj _ | VDynObj _ | VVirtual _ -> dyn_get_field ctx o f HDyn
 				| _ -> VNull)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "obj_set_field" ->
 			(function
 			| [o;VInt hash;v] ->
-				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die()) in
+				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die "") in
 				dyn_set_field ctx o f v HDyn;
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "obj_has_field" ->
 			(function
 			| [o;VInt hash] ->
-				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die()) in
+				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die "") in
 				let rec loop o =
 					match o with
 					| VDynObj d -> Hashtbl.mem d.dfields f
@@ -1704,11 +1704,11 @@ let load_native ctx lib name t =
 					| _ -> false
 				in
 				VBool (loop o)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "obj_delete_field" ->
 			(function
 			| [o;VInt hash] ->
-				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die()) in
+				let f = (try Hashtbl.find ctx.cached_hashes hash with Not_found -> Globals.die "") in
 				let rec loop o =
 					match o with
 					| VDynObj d when Hashtbl.mem d.dfields f ->
@@ -1733,11 +1733,11 @@ let load_native ctx lib name t =
 					| _ -> false
 				in
 				VBool (loop o)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "get_virtual_value" ->
 			(function
 			| [VVirtual v] -> v.vvalue
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "ucs2length" ->
 			(function
 			| [VBytes s; VInt pos] ->
@@ -1747,15 +1747,15 @@ let load_native ctx lib name t =
 					if c = 0 then p lsr 1 else loop (p + 2)
 				in
 				to_int (loop 0)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "utf8_to_utf16" ->
 			(function
 			| [VBytes s; VInt pos; VRef (r,HI32)] ->
 				let s = String.sub s (int pos) (String.length s - (int pos)) in
-				let u16 = caml_to_hl (try String.sub s 0 (String.index s '\000') with Not_found -> Globals.die()) in
+				let u16 = caml_to_hl (try String.sub s 0 (String.index s '\000') with Not_found -> Globals.die "") in
 				set_ref r (to_int (String.length u16 - 2));
 				VBytes u16
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "utf16_to_utf8" ->
 			(function
 			| [VBytes s; VInt pos; VRef (r,HI32)] ->
@@ -1763,7 +1763,7 @@ let load_native ctx lib name t =
 				let u8 = hl_to_caml s in
 				set_ref r (to_int (String.length u8));
 				VBytes (u8 ^ "\x00")
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "ucs2_upper" ->
 			(function
 			| [VBytes s; VInt pos; VInt len] ->
@@ -1777,7 +1777,7 @@ let load_native ctx lib name t =
 				) (String.sub s (int pos) ((int len) lsl 1));
 				Common.utf16_add buf 0;
 				VBytes (Buffer.contents buf)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "ucs2_lower" ->
 			(function
 			| [VBytes s; VInt pos; VInt len] ->
@@ -1791,7 +1791,7 @@ let load_native ctx lib name t =
 				) (String.sub s (int pos) ((int len) lsl 1));
 				Common.utf16_add buf 0;
 				VBytes (Buffer.contents buf)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "url_encode" ->
 			(function
 			| [VBytes s; VRef (r, HI32)] ->
@@ -1802,7 +1802,7 @@ let load_native ctx lib name t =
 				let str = Buffer.contents buf in
 				set_ref r (to_int (String.length str lsr 1 - 1));
 				VBytes str
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "url_decode" ->
 			(function
 			| [VBytes s; VRef (r, HI32)] ->
@@ -1840,47 +1840,47 @@ let load_native ctx lib name t =
 				let str = Buffer.contents b in
 				set_ref r (to_int (UTF8.length str));
 				VBytes (caml_to_hl str)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "call_method" ->
 			(function
 			| [f;VArray (args,HDyn)] -> dyn_call ctx f (List.map (fun v -> v,HDyn) (Array.to_list args)) HDyn
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "no_closure" ->
 			(function
 			| [VClosure (f,_)] -> VClosure (f,None)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "get_closure_value" ->
 			(function
 			| [VClosure (_,None)] -> VNull
 			| [VClosure (_,Some v)] -> v
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "make_var_args" ->
 			(function
 			| [VClosure (f,arg)] -> VVarArgs (f,arg)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "bytes_find" ->
 			(function
 			| [VBytes src; VInt pos; VInt len; VBytes chk; VInt cpos; VInt clen; ] ->
 				to_int (try int pos + ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "bytes_compare" ->
 			(function
 			| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "string_compare" ->
 			(function
 			| [VBytes a; VBytes b; VInt len] -> to_int (String.compare (String.sub a 0 ((int len) * 2)) (String.sub b 0 ((int len)*2)))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "bytes_fill" ->
 			(function
 			| [VBytes a; VInt pos; VInt len; VInt v] ->
 				Bytes.fill (Bytes.unsafe_of_string a) (int pos) (int len) (char_of_int ((int v) land 0xFF));
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "exception_stack" ->
 			(function
 			| [] -> VArray (Array.map (fun e -> VBytes (caml_to_hl (stack_frame ctx e))) (Array.of_list (List.rev ctx.error_stack)),HBytes)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "date_new" ->
 			(function
 			| [VInt y; VInt mo; VInt d; VInt h; VInt m; VInt s] ->
@@ -1895,19 +1895,19 @@ let load_native ctx lib name t =
 				} in
 				to_date t
 			| _ ->
-				Globals.die())
+				Globals.die "")
 		| "date_now" ->
 			(function
 			| [] -> to_date (Unix.localtime (Unix.time()))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "date_get_time" ->
 			(function
 			| [VInt v] -> VFloat (fst (Unix.mktime (date v)) *. 1000.)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "date_from_time" ->
 			(function
 			| [VFloat f] -> to_date (Unix.localtime (f /. 1000.))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "date_get_inf" ->
 			(function
 			| [VInt d;year;month;day;hours;minutes;seconds;wday] ->
@@ -1916,7 +1916,7 @@ let load_native ctx lib name t =
 					match r with
 					| VNull -> ()
 					| VRef (r,HI32) -> set_ref r (to_int v)
-					| _ -> Globals.die()
+					| _ -> Globals.die ""
 				in
 				set year (d.tm_year + 1900);
 				set month d.tm_mon;
@@ -1926,7 +1926,7 @@ let load_native ctx lib name t =
 				set seconds d.tm_sec;
 				set wday d.tm_wday;
 				VUndef
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "date_to_string" ->
 			(function
 			| [VInt d; VRef (r,HI32)] ->
@@ -1934,19 +1934,19 @@ let load_native ctx lib name t =
 				let str = Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec in
 				set_ref r (to_int (String.length str));
 				VBytes (caml_to_hl str)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "rnd_init_system" ->
 			(function
 			| [] -> Random.self_init(); VAbstract ARandom
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "rnd_int" ->
 			(function
 			| [VAbstract ARandom] -> VInt (Int32.of_int (Random.bits()))
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "rnd_float" ->
 			(function
 			| [VAbstract ARandom] -> VFloat (Random.float 1.)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "regexp_new_options" ->
 			(function
 			| [VBytes str; VBytes opt] ->
@@ -1998,7 +1998,7 @@ let load_native ctx lib name t =
 				} in
 				VAbstract (AReg r)
 			| _ ->
-				Globals.die());
+				Globals.die "");
 		| "regexp_match" ->
 			(function
 			| [VAbstract (AReg r);VBytes str;VInt pos;VInt len] ->
@@ -2021,7 +2021,7 @@ let load_native ctx lib name t =
 					VBool true;
 				with Not_found ->
 					VBool false)
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 		| "regexp_matched_pos" ->
 			(function
 			| [VAbstract (AReg r); VInt n; VRef (rr,HI32)] ->
@@ -2034,12 +2034,12 @@ let load_native ctx lib name t =
 				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 				| None -> to_int (-1)
 				| Some (pos,pend) -> to_int pos)
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "make_macro_pos" ->
 			(function
 			| [VBytes file;VInt min;VInt max] ->
 				VAbstract (APos { Globals.pfile = String.sub file 0 (String.length file - 1); pmin = Int32.to_int min; pmax = Int32.to_int max })
-			| _ -> Globals.die())
+			| _ -> Globals.die "")
 		| "dyn_op" ->
 			let op_names = [|"+";"-";"*";"%";"/";"<<";">>";">>>";"&";"|";"^"|] in
 			(function
@@ -2060,7 +2060,7 @@ let load_native ctx lib name t =
 						let b = dyn_cast ctx b HDyn HF64 in
 						match a, b with
 						| VFloat a, VFloat b -> VDyn (VFloat (op a b),HF64)
-						| _ -> Globals.die()
+						| _ -> Globals.die ""
 					end else
 						error();
 				in
@@ -2070,7 +2070,7 @@ let load_native ctx lib name t =
 						let b = dyn_cast ctx b HDyn HI32 in
 						match a, b with
 						| VInt a, VInt b -> VDyn (VInt (op a b),HI32)
-						| _ -> Globals.die()
+						| _ -> Globals.die ""
 					end else
 						error();
 				in
@@ -2086,8 +2086,8 @@ let load_native ctx lib name t =
 				| 8 -> iop Int32.logand
 				| 9 -> iop Int32.logor
 				| 10 -> iop Int32.logxor
-				| _ -> Globals.die())
-			| _ -> Globals.die())
+				| _ -> Globals.die "")
+			| _ -> Globals.die "")
 		| _ ->
 			unresolved())
 	| "macro" ->
@@ -2124,8 +2124,8 @@ let create checked =
 			constants = [||];
 		};
 		checked = checked;
-		fcall = (fun _ _ -> Globals.die());
-		on_error = (fun _ _ -> Globals.die());
+		fcall = (fun _ _ -> Globals.die "");
+		on_error = (fun _ _ -> Globals.die "");
 		resolve_macro_api = (fun _ -> None);
 	} in
 	ctx.on_error <- (fun msg stack -> failwith (vstr ctx msg HDyn ^ "\n" ^ String.concat "\n" (List.map (stack_frame ctx) stack)));
@@ -2145,7 +2145,7 @@ let add_code ctx code =
 	ctx.t_globals <- globals;
 	(* expand function table *)
 	let nfunctions = Array.length code.functions + Array.length code.natives in
-	let functions = Array.create nfunctions (FNativeFun ("",(fun _ -> Globals.die()),HDyn)) in
+	let functions = Array.create nfunctions (FNativeFun ("",(fun _ -> Globals.die ""),HDyn)) in
 	Array.blit ctx.t_functions 0 functions 0 (Array.length ctx.t_functions);
 	let rec loop i =
 		if i = Array.length code.natives then () else
@@ -2169,17 +2169,17 @@ let add_code ctx code =
 			match t with
 			| HI32 -> VInt code.ints.(idx)
 			| HBytes -> VBytes (cached_string ctx idx)
-			| _ -> Globals.die()
+			| _ -> Globals.die ""
 		in
 		let v = (match t with
 		| HObj o ->
-			if Array.length o.pfields <> Array.length fields then Globals.die();
+			if Array.length o.pfields <> Array.length fields then Globals.die "";
 			let proto,_,_ = get_proto ctx o in
 			VObj {
 				oproto = proto;
 				ofields = Array.mapi (fun i (_,_,t) -> get_const_val t fields.(i)) o.pfields;
 			}
-		| _ -> Globals.die()
+		| _ -> Globals.die ""
 		) in
 		ctx.t_globals.(g) <- v;
 	) code.constants;
@@ -2209,7 +2209,7 @@ let check code macros =
 			end else
 				failwith (Printf.sprintf "\n%s:%d: %s" file dline msg)
 		in
-		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> Globals.die()) in
+		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> Globals.die "") in
 		let rtype i = try f.regs.(i) with _ -> HObj { null_proto with pname = "OUT_OF_BOUNDS:" ^ string_of_int i } in
 		let check t1 t2 =
 			if not (safe_cast t1 t2) then error (tstr t1 ^ " should be " ^ tstr t2)
@@ -2241,7 +2241,7 @@ let check code macros =
 				if List.length args <> List.length targs then error (tstr (HFun (List.map rtype args, rtype r)) ^ " should be " ^ tstr ftypes.(f));
 				List.iter2 reg args targs;
 				check tret (rtype r)
-			| _ -> Globals.die()
+			| _ -> Globals.die ""
 		in
 		let can_jump delta =
 			if !pos + 1 + delta < 0 || !pos + 1 + delta >= Array.length f.code then error "Jump outside function bounds";
@@ -2336,7 +2336,7 @@ let check code macros =
 				| t -> check t (HFun (rtype 0 :: List.map rtype rl, rtype r)));
 			| OCallMethod (r, m, rl) ->
 				(match rl with
-				| [] -> Globals.die()
+				| [] -> Globals.die ""
 				| obj :: rl2 ->
 					let check_args targs tret rl =
 						if List.length targs <> List.length rl then false else begin
@@ -2419,7 +2419,7 @@ let check code macros =
 						reg o t;
 						reg r (HFun (tl,tret));
 					| _ ->
-						Globals.die())
+						Globals.die "")
 				| _ ->
 					is_obj o)
 			| OInstanceClosure (r,f,arg) ->
@@ -2428,7 +2428,7 @@ let check code macros =
 					reg arg t;
 					if not (is_nullable t) then error (reg_inf r ^ " should be nullable");
 					reg r (HFun (tl,tret));
-				| _ -> Globals.die());
+				| _ -> Globals.die "");
 			| OThrow r ->
 				reg r HDyn
 			| ORethrow r ->
@@ -2786,7 +2786,7 @@ let make_spec (code:code) (f:fundecl) =
 		try
 			Hashtbl.find block_args b.bstart
 		with Not_found ->
-			Globals.die()
+			Globals.die ""
 
 	and calc_spec b =
 		let bprev = List.filter (fun b2 -> b2.bstart < b.bstart) b.bprev in
@@ -2795,7 +2795,7 @@ let make_spec (code:code) (f:fundecl) =
 				let args = Array.make (Array.length f.regs) SUndef in
 				(match f.ftype with
 				| HFun (tl,_) -> list_iteri (fun i _ -> args.(i) <- SArg i) tl
-				| _ -> Globals.die());
+				| _ -> Globals.die "");
 				args
 			| b2 :: l ->
 				let args = Array.copy (get_args b2) in
@@ -2827,7 +2827,7 @@ let make_spec (code:code) (f:fundecl) =
 			let r = emit (SCall (c,vl)) in
 			(match r with
 			| SResult result -> List.iter (fun v -> match v with SRef r -> args.(r) <- SRefResult result | _ -> ()) vl
-			| _ -> Globals.die());
+			| _ -> Globals.die "");
 			r
 		in
 		for i = b.bstart to b.bend do

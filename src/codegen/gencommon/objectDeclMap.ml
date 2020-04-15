@@ -30,7 +30,7 @@ let configure gen map_fn =
 		match e.eexpr with
 		| TObjectDecl odecl ->
 			let e = Type.map_expr run e in
-			(match e.eexpr with TObjectDecl odecl -> map_fn e odecl | _ -> Globals.die())
+			(match e.eexpr with TObjectDecl odecl -> map_fn e odecl | _ -> Globals.die "")
 		| _ ->
 			Type.map_expr run e
 	in

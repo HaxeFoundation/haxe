@@ -127,7 +127,7 @@ let rec change_func com cl cf =
 						in
 						let args = List.map replace_args args in
 						{ tf.tf_expr with eexpr = TBlock ((if !found then { super with eexpr = TCall (e1, args) } else super) :: !block @ tl) }
-					| _ -> Globals.die())
+					| _ -> Globals.die "")
 				with Not_found ->
 					Type.concat { tf.tf_expr with eexpr = TBlock !block; etype = basic.tvoid } tf.tf_expr
 			in
@@ -146,7 +146,7 @@ let rec change_func com cl cf =
 
 		| _ -> ());
 		(if !found then cf.cf_type <- TFun(!args, ret))
-	| _, _ -> Globals.die()
+	| _, _ -> Globals.die ""
 
 let run com md =
 	match md with

@@ -234,7 +234,7 @@ let error_message pos message = (stringify_pos pos) ^ ": " ^ message
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
 *)
-let fail ?msg p = Globals.die ?msg ~p ()
+let fail ?msg p = Globals.die (Option.default "" msg) ~p
 
 (**
 	Check if `target` is a `Dynamic` type
@@ -1125,10 +1125,10 @@ class local_vars =
 		*)
 		method pop : string list * string list * string list =
 			match used_locals with
-				| [] -> die()
+				| [] -> die ""
 				| used :: rest_used ->
 					match declared_locals with
-						| [] -> die()
+						| [] -> die ""
 						| declared :: rest_declared ->
 							let higher_vars = diff_lists (hashtbl_keys used) (hashtbl_keys declared)
 							and declared_vars = hashtbl_keys declared in
@@ -1158,14 +1158,14 @@ class local_vars =
 		*)
 		method declared (name:string) : unit =
 			match declared_locals with
-				| [] -> die()
+				| [] -> die ""
 				| current :: _ -> Hashtbl.replace current name name
 		(**
 			Specify local var name used in current scope
 		*)
 		method used (name:string) : unit =
 			match used_locals with
-				| [] -> die()
+				| [] -> die ""
 				| current :: _ -> Hashtbl.replace current name name
 		(**
 			Mark specified vars as captured by closures.

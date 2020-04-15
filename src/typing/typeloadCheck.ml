@@ -107,7 +107,7 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
 				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
-			die()
+			die ""
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
@@ -379,7 +379,7 @@ module Inheritance = struct
 				| Not_found when not c.cl_interface ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
-						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die() in
+						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" in
 						"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 					else
 						("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")

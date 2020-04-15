@@ -130,7 +130,7 @@ let resolve_module_file com m remap p =
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
-			let x = (match fst m with [] -> die() | x :: _ -> x) in
+			let x = (match fst m with [] -> die "" | x :: _ -> x) in
 			raise (Forbid_package ((x,m,p),[],platform_name_macro com));
 		end;
 	end;
@@ -212,7 +212,7 @@ so it should be avoided if backwards-compatibility with earlier versions is need
 					DisplayException.raise_hover (CompletionItem.make_ci_define n (match v with
 						| TNull -> None
 						| TString s -> Some (StringHelper.s_escape s)
-						| _ -> die()
+						| _ -> die ""
 					) (tpair com.basic.tstring)) None p
 				| _ ->
 					()

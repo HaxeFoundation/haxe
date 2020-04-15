@@ -157,7 +157,7 @@ let rec expr_stat_map fn (expr:texpr) =
 		| TBinop ( (OpAssign as op), left_e, right_e )
 		| TBinop ( (OpAssignOp _ as op), left_e, right_e ) ->
 			{ expr with eexpr = TBinop(op, fn left_e, fn right_e) }
-		| TParenthesis _ -> Globals.die()
+		| TParenthesis _ -> Globals.die ""
 		| TCall(left_e, params) ->
 			{ expr with eexpr = TCall(fn left_e, List.map fn params) }
 		| TNew(cl, tparams, params) ->
@@ -184,7 +184,7 @@ let rec expr_stat_map fn (expr:texpr) =
 		| TBlock _ -> expr (* there is no expected expression here. Only statements *)
 		| TMeta(m,e) ->
 			{ expr with eexpr = TMeta(m,expr_stat_map fn e) }
-		| _ -> Globals.die() (* we only expect valid statements here. other expressions aren't valid statements *)
+		| _ -> Globals.die "" (* we only expect valid statements here. other expressions aren't valid statements *)
 
 let is_expr = function | Expression _ -> true | _ -> false
 
@@ -293,7 +293,7 @@ and expr_kind expr =
 			aggregate true (List.map snd sel)
 		| TCast (e,_) ->
 			aggregate false [e]
-		| _ -> trace (debug_expr expr); Globals.die() (* should have been read as Statement by shallow_expr_type *)
+		| _ -> trace (debug_expr expr); Globals.die "" (* should have been read as Statement by shallow_expr_type *)
 
 let get_kinds (statement:texpr) =
 	let kinds = ref [] in
@@ -381,7 +381,7 @@ let rec apply_assign assign_fun right =
 			match follow right.etype with
 				| TAbstract ({ a_path = ([], "Void") },[]) ->
 					right
-				| _ -> trace (debug_expr right); Globals.die() (* a statement is required *)
+				| _ -> trace (debug_expr right); Globals.die "" (* a statement is required *)
 
 let short_circuit_op_unwrap com add_statement expr :texpr =
 	let do_not expr =
@@ -413,7 +413,7 @@ let short_circuit_op_unwrap com add_statement expr :texpr =
 				add_statement tvars;
 
 				({ expr with eexpr = TBinop(op, left, local) }, [ do_not left, { right with eexpr = TBinop(OpAssign, local, right) } ])
-			| _ when acc = [] -> Globals.die()
+			| _ when acc = [] -> Globals.die ""
 			| _ ->
 				let var = mk_temp "boolv" expr.etype in
 				let tvars = { expr with eexpr = TVar(var, Some( { expr with etype = com.basic.tbool } )); etype = com.basic.tvoid } in
@@ -444,7 +444,7 @@ let short_circuit_op_unwrap com add_statement expr :texpr =
 						epos = assign.epos;
 					},
 				None); etype = com.basic.tvoid; epos = assign.epos }
-			| [] -> Globals.die()
+			| [] -> Globals.die ""
 	in
 
 	add_statement (loop local_assign_list);
@@ -478,7 +478,7 @@ let try_call_unwrap_statement com handle_cast problematic_expression_unwrap (add
 		match expr_kind left with
 			| KExprWithStatement ->
 				problematic_expression_unwrap add_statement left KExprWithStatement
-			| KStatement -> Globals.die() (* doesn't make sense a KStatement as a left side expression *)
+			| KStatement -> Globals.die "" (* doesn't make sense a KStatement as a left side expression *)
 			| _ -> left
 	in
 
@@ -606,7 +606,7 @@ let configure gen =
 												problematic_expression_unwrap process_statement e hd
 											end else
 												e
-										| [] -> Globals.die()
+										| [] -> Globals.die ""
 								) e in
 
 								new_block := (traverse new_e) :: !new_block

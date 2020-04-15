@@ -120,7 +120,7 @@ let rec func ctx bb tf t p =
 		| TBinop(op,e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
 				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die()
+				| _ -> die ""
 			in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TUnop(op,flag,e1) ->
@@ -141,7 +141,7 @@ let rec func ctx bb tf t p =
 		| TArray(e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
 				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> die()
+				| _ -> die ""
 			in
 			bb,{e with eexpr = TArray(e1,e2)}
 		| TMeta(m,e1) ->
@@ -257,7 +257,7 @@ let rec func ctx bb tf t p =
 						if bb == g.g_unreachable then raise Exit;
 						loop2 bb el
 					| [] ->
-						die()
+						die ""
 				in
 				let bb,e = loop2 bb el in
 				loop bb e
@@ -319,7 +319,7 @@ let rec func ctx bb tf t p =
 		let bb,el = ordered_value_list !bb (e1 :: el) in
 		match el with
 			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-			| _ -> die()
+			| _ -> die ""
 	and array_assign_op bb op e ea e1 e2 e3 =
 		let bb,e1 = bind_to_temp bb false e1 in
 		let bb,e2 = bind_to_temp bb false e2 in
@@ -540,7 +540,7 @@ let rec func ctx bb tf t p =
 		| TContinue ->
 			begin match !bb_continue with
 				| Some bb_continue -> add_cfg_edge bb bb_continue CFGGoto
-				| _ -> die()
+				| _ -> die ""
 			end;
 			add_terminator bb e
 		| TThrow e1 ->
@@ -583,7 +583,7 @@ let rec func ctx bb tf t p =
 		| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 			let bb,e1,e2,e3 = match ordered_value_list bb [e1;e2;e3] with
 				| bb,[e1;e2;e3] -> bb,e1,e2,e3
-				| _ -> die()
+				| _ -> die ""
 			in
 			add_texpr bb {e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)};
 			bb
@@ -617,7 +617,7 @@ let rec func ctx bb tf t p =
 		| TObjectDecl fl ->
 			block_el bb (List.map snd fl)
 		| TFor _ | TWhile(_,_,DoWhile) ->
-			die()
+			die ""
 	and block_el bb el =
 		match !b_try_stack with
 		| [] ->
@@ -739,7 +739,7 @@ and func ctx i =
 							let op = match op with
 								| OpAdd -> Increment
 								| OpSub -> Decrement
-								| _ -> die()
+								| _ -> die ""
 							in
 							{e with eexpr = TUnop(op,Prefix,e1)}
 						| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}

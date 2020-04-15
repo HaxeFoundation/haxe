@@ -759,7 +759,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 				) monos cf.cf_params;
 				unify_func (map r) b;
 				true
-			| _ -> die())
+			| _ -> die "")
 
 and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
@@ -782,7 +782,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map t) b;
-			| _ -> die())
+			| _ -> die "")
 
 and unify_with_variance f t1 t2 =
 	let allows_variance_to t tf = type_iseq tf t in

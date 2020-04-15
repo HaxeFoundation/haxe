@@ -200,7 +200,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 					)
 			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
 				(match tparam_anon_decl with
-					| None -> die()
+					| None -> die ""
 					| Some tparam_anon_decl ->
 						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 						{ e with eexpr = TBlock([]) }
@@ -291,7 +291,7 @@ let rec get_type_params acc t =
 			PMap.fold (fun cf acc ->
 				let params = List.map (fun (_,t) -> match follow t with
 					| TInst(c,_) -> c
-					| _ -> die()) cf.cf_params
+					| _ -> die "") cf.cf_params
 				in
 				List.filter (fun t -> not (List.memq t params)) (get_type_params acc cf.cf_type)
 			) a.a_fields acc
@@ -392,7 +392,7 @@ let configure gen ft =
 		let captured = List.sort (fun e1 e2 -> match e1, e2 with
 			| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
 				compare v1.v_name v2.v_name
-			| _ -> die()) captured
+			| _ -> die "") captured
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
@@ -448,7 +448,7 @@ let configure gen ft =
 
 					let ctor_v = alloc_var v.v_name v.v_type in
 					((ctor_v, None) :: ctor_args, (v.v_name, false, v.v_type) :: ctor_sig, (mk_this_assign v cls.cl_pos) :: ctor_exprs)
-				| _ -> die()
+				| _ -> die ""
 		) ([],[],[]) captured in
 
 		(* change all captured variables to this.capturedVariable *)
@@ -593,11 +593,11 @@ let configure gen ft =
 			let captured = List.sort (fun e1 e2 -> match e1, e2 with
 				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
 					compare v1.v_name v2.v_name
-				| _ -> die()) captured
+				| _ -> die "") captured
 			in
 			let types = match v.v_extra with
 				| Some(t,_) -> t
-				| _ -> die()
+				| _ -> die ""
 			in
 			let monos = List.map (fun _ -> mk_mono()) types in
 			let vt = match follow v.v_type with
@@ -741,7 +741,7 @@ struct
 			in
 
 			if arity >= max_arity then begin
-				let varray = match changed_args with | [v,_] -> v | _ -> die() in
+				let varray = match changed_args with | [v,_] -> v | _ -> die "" in
 				let varray_local = mk_local varray pos in
 				let mk_varray i = { eexpr = TArray(varray_local, make_int gen.gcon.basic i pos); etype = t_dynamic; epos = pos } in
 				let el =
@@ -773,7 +773,7 @@ struct
 									epos = pos
 								} )); etype = basic.tvoid; epos = pos } :: acc in
 							loop acc args fargs dargs
-						| _ -> die()
+						| _ -> die ""
 				in
 
 				loop [] args float_args dyn_args
@@ -797,7 +797,7 @@ struct
 					let ret_t = if is_dynamic_func then t_dynamic else ret_t in
 
 					(TFun(args_real_to_func_sig _sig, ret_t), arity, type_n, ret_t, ExtType.is_void ret, is_dynamic_func)
-				| _ -> (print_endline (s_type (print_context()) (follow old_sig) )); die()
+				| _ -> (print_endline (s_type (print_context()) (follow old_sig) )); die ""
 			in
 
 			let tf_expr = if is_void then begin
@@ -810,7 +810,7 @@ struct
 				let e = mk_block (map tfunc.tf_expr) in
 				match e.eexpr with
 					| TBlock bl -> { e with eexpr = TBlock (bl @ [mk_return (null t_dynamic e.epos)]) }
-					| _ -> die()
+					| _ -> die ""
 			end else tfunc.tf_expr in
 
 			let changed_sig_ret = if is_dynamic_func then t_dynamic else changed_sig_ret in
@@ -854,7 +854,7 @@ struct
 		let dynamic_fun_call call_expr =
 			let tc, params = match call_expr.eexpr with
 				| TCall(tc, params) -> tc, params
-				| _ -> die()
+				| _ -> die ""
 			in
 			let ct = gen.greal_type call_expr.etype in
 			let postfix, ret_t =

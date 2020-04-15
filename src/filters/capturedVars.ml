@@ -50,7 +50,7 @@ let captured_vars com e =
 					| TClassDecl ({ cl_path = ["cs"|"java"],"NativeArray" }) -> true
 					| _ -> false
 				) com.types)
-			with TClassDecl cl -> cl | _ -> die()
+			with TClassDecl cl -> cl | _ -> die ""
 		in
 
 		object
@@ -60,7 +60,7 @@ let captured_vars com e =
 				match ve with
 				| None ->
 					let eone = mk (TConst (TInt (Int32.of_int 1))) t.tint p in
-					let t = match v.v_type with TInst (_, [t]) -> t | _ -> die() in
+					let t = match v.v_type with TInst (_, [t]) -> t | _ -> die "" in
 					mk (TNew (cnativearray,[t],[eone])) v.v_type p
 				| Some e ->
 					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }

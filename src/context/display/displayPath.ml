@@ -183,7 +183,7 @@ let handle_path_display ctx path p =
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl
-				| [] -> die()
+				| [] -> die ""
 			in
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKPackage _,_),_ ->

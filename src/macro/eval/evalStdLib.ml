@@ -632,7 +632,7 @@ module StdCompress = struct
 			| 2 -> Z_FULL_FLUSH
 			| 3 -> Z_FINISH
 			| 4 -> Z_PARTIAL_FLUSH
-			| _ -> die()
+			| _ -> die ""
 		in
 		(this vthis).z_flush <- mode;
 		vnull
@@ -1085,7 +1085,7 @@ module StdFileInput = struct
 		r := false;
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> die());
+		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> die "");
 		vnull
 	)
 
@@ -1137,7 +1137,7 @@ module StdFileOutput = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> die());
+		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> die "");
 		vnull
 	)
 
@@ -2004,7 +2004,7 @@ module StdSocket = struct
 		let s = catch_unix_error Unix.string_of_inet_addr addr in
 		match List.map Int32.of_string (ExtString.String.nsplit s ".") with
 			| [a;b;c;d] -> Int32.add (Int32.add (Int32.add (Int32.shift_left a 24) (Int32.shift_left b 16)) (Int32.shift_left c 8)) d
-			| _ -> die()
+			| _ -> die ""
 
 	let this vthis = match vthis with
 		| VInstance {ikind = ISocket sock} -> sock
@@ -2044,7 +2044,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> die()
+		| _ -> die ""
 	)
 
 	let listen = vifun1 (fun vthis connections ->
@@ -2061,7 +2061,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> die()
+		| _ -> die ""
 	)
 
 	let receive = vifun3 (fun vthis buf pos len ->
@@ -3133,7 +3133,7 @@ let init_constructors builtins =
 			match vl with
 			| [size] ->
 				encode_vector_instance (Array.make (decode_int size) vnull)
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_Date
 		(fun vl ->
@@ -3144,24 +3144,24 @@ let init_constructors builtins =
 					Unix.mktime {t with tm_sec=s;tm_min=mi;tm_hour=h;tm_mday=d;tm_mon=m;tm_year=y - 1900}
 				) () in
 				encode_instance key_Date ~kind:(IDate (fst f))
-			| _ -> die()
+			| _ -> die ""
 			end
 		);
 	add key_EReg
 		(fun vl -> match vl with
 			| [r;opt] -> encode_instance key_EReg ~kind:(StdEReg.create (decode_string r) (decode_string opt))
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_String
 		(fun vl -> match vl with
 			| [s] -> s
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
 	add key_haxe_Utf8
 		(fun vl -> match vl with
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
@@ -3177,7 +3177,7 @@ let init_constructors builtins =
 				Bytes.blit b 0 b' 0 blit_length;
 				encode_bytes b'
 			| _ ->
-				die()
+				die ""
 		);
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
@@ -3189,7 +3189,7 @@ let init_constructors builtins =
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_eval_vm_NativeSocket
 		(fun _ ->
@@ -3201,7 +3201,7 @@ let init_constructors builtins =
 				let level = decode_int level in
 				let z = Extc.zlib_deflate_init level in
 				encode_instance key_haxe_zip_Compress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_haxe_zip_Uncompress
 		(fun vl -> match vl with
@@ -3209,7 +3209,7 @@ let init_constructors builtins =
 				let windowBits = default_int windowBits 15 in
 				let z = Extc.zlib_inflate_init2 windowBits in
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_eval_vm_Thread
 		(fun vl -> match vl with
@@ -3218,7 +3218,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
-			| _ -> die()
+			| _ -> die ""
 		);
 	add key_sys_net_Mutex
 		(fun _ ->

@@ -20,7 +20,7 @@ open Error
 
 let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
-	| _ -> die()
+	| _ -> die ""
 
 let completion_item_of_expr ctx e =
 	let retype e s t =
@@ -111,7 +111,7 @@ let completion_item_of_expr ctx e =
 					| 'm' -> doc c "multiline matching"
 					| 's' -> doc c "dot also match newlines"
 					| 'u' -> doc c "use UTF-8 matching"
-					| _ -> die()
+					| _ -> die ""
 				in
 				let present = List.map f present in
 				let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
@@ -300,7 +300,7 @@ and display_expr ctx e_ast e dk with_type p =
 	in
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
-		die()
+		die ""
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->

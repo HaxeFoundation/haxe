@@ -144,7 +144,7 @@ class typed_functions = object(self)
 			| [],[] ->
 				()
 			| _,[] ->
-				Globals.die()
+				Globals.die ""
 		in
 		loop args meth_to.dargs;
 		jm#invokevirtual jc#get_this_path meth_to.name (method_sig meth_to.dargs meth_to.dret);

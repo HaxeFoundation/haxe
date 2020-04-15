@@ -89,11 +89,11 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 							(mk (TVar (v, Some (run e1a))) com.basic.tvoid e1.epos);
 							(mk (TVar (v2, Some (run e2a))) com.basic.tvoid e1.epos)
 						]
-					| _ -> Globals.die()
+					| _ -> Globals.die ""
 				in
 				{ e with eexpr = TBlock (rest @ [{ e with eexpr = TBinop (OpAssign, eleft, run { e with eexpr = TBinop (op, eleft, e2) }) }]) }
 			| _ ->
-				Globals.die())
+				Globals.die "")
 
 		| TBinop (OpAssign, e1, e2)
 		| TBinop (OpInterval, e1, e2) ->
@@ -120,7 +120,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
 				{ e with eexpr = TBinop (op, mk_cast com.basic.tint (run e1), mk_cast com.basic.tint (run e2)) }
 			| OpAssign | OpAssignOp _ | OpInterval | OpArrow | OpIn ->
-				Globals.die())
+				Globals.die "")
 
 		| TUnop (Increment as op, flag, e1)
 		| TUnop (Decrement as op, flag, e1) when should_change e ->
@@ -137,7 +137,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			*)
 			let one = get_etype_one e in
 			let etype = one.etype in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> Globals.die()) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> Globals.die "") in
 
 			let block =
 				let vars, getvar =

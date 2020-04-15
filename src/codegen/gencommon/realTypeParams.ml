@@ -279,7 +279,7 @@ let rec set_hxgeneric gen mds isfirst md =
 								Some true
 							end
 				end
-			| _ -> Globals.die()
+			| _ -> Globals.die ""
 	end
 
 let path_s = function
@@ -294,7 +294,7 @@ let set_hxgeneric gen md =
 					let md = match t with
 						| TInst(cl,_) -> TClassDecl cl
 						| TEnum(e,_) -> TEnumDecl e
-						| _ -> Globals.die()
+						| _ -> Globals.die ""
 					in
 					let ret = set_hxgeneric gen [] true md in
 					if ret = None then get (set_hxgeneric gen [] false md) else get ret)
@@ -341,7 +341,7 @@ let set_hxgeneric gen md =
 				"because it explicitly has the metadata @:nativeGeneric set"
 		in
 		gen.gcon.error (reason) pos;
-		Globals.die()
+		Globals.die ""
 
 let params_has_tparams params =
 	List.fold_left (fun acc t -> acc || has_type_params t) false params
@@ -506,7 +506,7 @@ struct
 				| TEnum (e,_) -> e.e_path
 				| TAbstract (a,_) -> a.a_path
 				| TMono _ | TDynamic _ -> ([], "Dynamic")
-				| _ -> Globals.die()
+				| _ -> Globals.die ""
 			in
 			List.map (fun (cf, t_cl, t_cf) ->
 				let t_cf = follow (gen.greal_type t_cf) in
@@ -518,7 +518,7 @@ struct
 						(try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with Not_found ->
 							(* if not found tparam cast, it shouldn't be a valid hxgeneric *)
 							print_endline ("Could not find a gtparam_cast for " ^ (String.concat "." (fst (get_path t_cf)) ^ "." ^ (snd (get_path t_cf))));
-							Globals.die())
+							Globals.die "")
 						t_cf
 						pos
 				in
@@ -543,8 +543,8 @@ struct
 				| (TInst(cl1,[]) as v), (TInst(cl2,[]) as v2) ->
 					mk_typehandle_cond (v :: hd) (v2 :: hd2)
 				| _ ->
-					Globals.die())
-			| _ -> Globals.die()
+					Globals.die "")
+			| _ -> Globals.die ""
 		in
 		let fn = {
 			tf_args = [];
@@ -712,7 +712,7 @@ struct
 							let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
 								match find_first_declared_field gen cl cf.cf_name with
 									| Some(_,_,declared_t,_,_,_,_) -> declared_t
-									| _ -> Globals.die()
+									| _ -> Globals.die ""
 							else
 								cf.cf_type
 							in

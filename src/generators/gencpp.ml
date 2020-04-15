@@ -729,7 +729,7 @@ let rec class_string klass suffix params remap =
             | TAbstract ({ a_path = ["cpp"],"UInt8" },_) -> "Dynamic"
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
-         | _ -> die());
+         | _ -> die "");
    (* Objective-C class *)
    | path when is_objc_type (TInst(klass,[])) ->
       let str = join_class_path_remap klass.cl_path "::" in
@@ -775,24 +775,24 @@ and type_string_suff suffix haxe_type remap =
          (match params with
          | [t] when (type_string (follow t) ) = "Dynamic" -> "Dynamic"
          | [t] -> "Array< " ^ (type_string (follow t) ) ^ " >"
-         | _ -> die())
+         | _ -> die "")
       | ["cpp"] , "FastIterator" ->
          (match params with
          | [t] -> "::cpp::FastIterator< " ^ (type_string (follow t) ) ^ " >"
-         | _ -> die())
+         | _ -> die "")
       | ["cpp"] , "Pointer"
       | ["cpp"] , "ConstPointer" ->
          (match params with
          | [t] -> "::cpp::Pointer< " ^ (type_string (follow t) ) ^ " >"
-         | _ -> die())
+         | _ -> die "")
       | ["cpp"] , "RawPointer" ->
          (match params with
          | [t] -> " " ^ (type_string (follow t) ) ^ " *"
-         | _ -> die())
+         | _ -> die "")
       | ["cpp"] , "RawConstPointer" ->
          (match params with
          | [t] -> "const " ^ (type_string (follow t) ) ^ " *"
-         | _ -> die())
+         | _ -> die "")
       | ["cpp"] , "Function" ->
          "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
@@ -847,10 +847,10 @@ and cpp_function_signature_params params = match params with
    | [t; abi] -> (match follow abi with
        | TInst (klass,_) -> cpp_function_signature t (get_meta_string klass.cl_meta Meta.Abi)
        | _ -> print_endline (type_string abi);
-           die() )
+           die "" )
    | _ ->
       print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
-      die();
+      die "";
 
 and gen_interface_arg_type_name name opt typ =
    let type_str = (type_string typ) in
@@ -1825,7 +1825,7 @@ let rec cpp_type_of stack ctx haxe_type =
                 TCppProtocol(klass)
             (* TODO - get the line number here *)
             | _ -> print_endline "cpp.objc.Protocol must refer to an interface";
-                   die();
+                   die "";
             )
       | (["cpp"],"Reference"), [param] ->
             TCppReference(cpp_type_of stack ctx param)
@@ -1888,7 +1888,7 @@ let rec cpp_type_of stack ctx haxe_type =
    and cpp_function_type_of stack ctx function_type abi =
       let abi = (match follow abi with
                  | TInst (klass1,_) -> get_meta_string klass1.cl_meta Meta.Abi
-                 | _ -> die() )
+                 | _ -> die "" )
       in
       cpp_function_type_of_string stack ctx function_type abi
    and cpp_function_type_of_string stack ctx function_type abi_string =
@@ -3518,7 +3518,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let names = ExtString.String.nsplit field.cf_name ":" in
          let field_name, arg_names = match names with
            | name :: args -> name, args
-           | _ -> die() (* per nsplit specs, this should never happen *)
+           | _ -> die "" (* per nsplit specs, this should never happen *)
          in
          out (" " ^ field_name);
          (try match arg_list, arg_names with
@@ -3807,7 +3807,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | CppFloat f -> out_top ( f ^ "," )
             | CppString s -> out_top ( (strq s) ^ "," )
             | CppBool b -> out_top (if b then "1," else "0,")
-            | _ -> die()
+            | _ -> die ""
          ) exprList;
          out_top ("\n};\n");
          out ("::Array_obj< " ^ typeName ^ " >::fromData( " ^ id ^ "," ^ list_num exprList ^ ")");
@@ -4897,7 +4897,7 @@ let generate_main ctx super_deps class_def =
    let main_expression =
       (match class_def.cl_ordered_statics with
       | [{ cf_expr = Some expression }] -> expression;
-      | _ -> die() ) in
+      | _ -> die "" ) in
    ignore(find_referenced_types ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false);
    let depend_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
    let generate_startup filename is_main =
@@ -7202,7 +7202,7 @@ let cppia_op_info = function
 	| IaBinOp OpAssignOp OpGt
 	| IaBinOp OpAssignOp OpLt
 	| IaBinOp OpAssignOp OpAssignOp _
-	| IaBinOp OpAssignOp OpArrow -> die()
+	| IaBinOp OpAssignOp OpArrow -> die ""
 	| IaTCast -> ("TCAST", 221)
 ;;
 
@@ -7739,7 +7739,7 @@ class script_writer ctx filename asciiOut =
    | TEnumParameter (expr,ef,i) ->
          let enum = match follow ef.ef_type with
             | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
-            | _ -> die()
+            | _ -> die ""
          in
          this#write ( (this#op IaEnumI) ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
          this#gen_expression expr;
