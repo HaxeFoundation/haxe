@@ -100,5 +100,5 @@ let die ?msg ?p () =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
 	in
-	Printf.eprintf "%s\n%s\n" msg backtrace;
+	Printf.eprintf "%s\n%s" msg backtrace;
 	assert false
