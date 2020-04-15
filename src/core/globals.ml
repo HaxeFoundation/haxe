@@ -105,7 +105,7 @@ let die ?p msg =
 		^ str_pos ^ "Please submit an issue at https://github.com/HaxeFoundation/haxe/issues/new\n"
 		^ str_pos ^ "Attach " ^ expr_msg ^ "the following information:"
 	in
-	let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_callstack 50) in
+	let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_callstack 21) in
 	let backtrace =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
