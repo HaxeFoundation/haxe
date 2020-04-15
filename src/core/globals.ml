@@ -77,3 +77,28 @@ let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ 
 
 let starts_with s c =
 	String.length s > 0 && s.[0] = c
+
+let get_error_pos_ref : ((string -> int -> string) -> pos -> string) ref = ref (fun printer p ->
+	Printf.sprintf "%s characters %d-%d" (printer p.pfile (-1)) p.pmin p.pmax
+)
+
+(**
+	Terminates compiler process and prints user-friendly instructions about filing an issue.
+*)
+let die ?msg ?p () =
+	let msg =
+		let str_pos, expr_msg =
+			match p with
+			| None -> "", ""
+			| Some p -> ((!get_error_pos_ref (Printf.sprintf "%s:%d:") p) ^ " "), "the expression example and "
+		in
+		str_pos ^ "Compiler failure" ^ (match msg with Some msg -> ": " ^ msg | _ -> "") ^ "\n"
+		^ str_pos ^ "Please submit an issue with " ^ expr_msg ^ "the following information:"
+	in
+	let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_callstack 50) in
+	let backtrace =
+		try snd (ExtString.String.split backtrace "\n")
+		with ExtString.Invalid_string -> backtrace
+	in
+	Printf.eprintf "%s\n%s\n" msg backtrace;
+	assert false

@@ -167,7 +167,7 @@ let rec use_var rc scope v =
 				scope.foreign_vars <- IntMap.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
-			| None -> assert false
+			| None -> raise (Failure "Failed to locate variable declaration")
 			)
 		| (d, _) :: _ when d == v -> ()
 		| (d, overlaps) :: rest ->
@@ -184,7 +184,7 @@ let collect_loop scope fn =
 	fn();
 	scope.loop_count <- scope.loop_count - 1;
 	if scope.loop_count < 0 then
-		assert false;
+		raise (Failure "Unexpected loop count");
 	if scope.loop_count = 0 then
 		scope.loop_vars := IntMap.empty
 
@@ -294,18 +294,22 @@ let rec rename_vars rc scope =
 	Rename local variables in `e` expression if needed.
 *)
 let run ctx ri e =
-	let rc = {
-		rc_scope = ri.ri_scope;
-		rc_hoisting = ri.ri_hoisting;
-		rc_no_shadowing = ri.ri_no_shadowing;
-		rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
-		rc_reserved = ri.ri_reserved;
-	} in
-	if ri.ri_reserve_current_top_level_symbol then begin
-		match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve_ctx rc s
-	end;
-	let scope = create_scope None in
-	collect_vars rc scope e;
-	rename_vars rc scope;
+	(try
+		let rc = {
+			rc_scope = ri.ri_scope;
+			rc_hoisting = ri.ri_hoisting;
+			rc_no_shadowing = ri.ri_no_shadowing;
+			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
+			rc_reserved = ri.ri_reserved;
+		} in
+		if ri.ri_reserve_current_top_level_symbol then begin
+			match ctx.curclass.cl_path with
+			| s :: _,_ | [],s -> reserve_ctx rc s
+		end;
+		let scope = create_scope None in
+		collect_vars rc scope e;
+		rename_vars rc scope;
+	with Failure msg ->
+		die ~msg ~p:e.epos ()
+	);
 	e
