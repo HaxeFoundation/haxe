@@ -2,6 +2,7 @@ open Globals
 open Ast
 open DisplayTypes
 open Common
+open Type
 open Typecore
 open CompilationServer
 open ImportHandling
@@ -26,21 +27,72 @@ let find_references tctx com with_definition name pos kind =
 		with Not_found -> acc)
 	) symbols [] in
 	t();
-	Display.ReferencePosition.reset();
 	usages
 
+let collect_reference_positions com =
+	let name,pos,kind = Display.ReferencePosition.get () in
+	match kind, com.display.dms_kind with
+	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when find_descendants || find_base ->
+		let collect() =
+			let c =
+				let rec loop = function
+					| [] -> raise Exit
+					| TClassDecl c :: _ when c.cl_path = cl_path -> c
+					| _ :: types -> loop types
+				in
+				loop com.types
+			in
+			let cf,c =
+				if find_base then
+					let rec loop c =
+						match c.cl_super with
+						| None -> (PMap.find cf.cf_name c.cl_fields),c
+						| Some (csup,_) ->
+							try loop csup
+							with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
+					in
+					try loop c
+					with Not_found -> cf,c
+				else
+					cf,c
+			in
+			let full_pos p = { p with pfile = Path.get_full_path p.pfile } in
+			if find_descendants then
+				List.fold_left (fun acc t ->
+					match t with
+					| TClassDecl child_cls when extends child_cls c ->
+						(try
+							let cf = PMap.find cf.cf_name child_cls.cl_fields in
+							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
+						with Not_found -> acc
+						)
+					| _ ->
+						acc
+				) [] com.types
+			else
+				[name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)]
+		in
+		(try collect()
+		with Exit -> [name,pos,kind])
+	| _ ->
+		[name,pos,kind]
+
 let find_references tctx com with_definition =
-	let usages = ref [] in
-	Display.ReferencePosition.run (fun (name,pos,kind) ->
-		if pos <> null_pos then
-			usages := (find_references tctx com with_definition name pos kind) @ !usages;
-	);
+	let usages =
+		List.fold_left (fun acc (name,pos,kind) ->
+			if pos <> null_pos then begin
+				acc @ (find_references tctx com with_definition name pos kind)
+			end
+			else acc
+		) [] (collect_reference_positions com)
+	in
 	let usages =
 		List.sort (fun p1 p2 ->
 			let c = compare p1.pfile p2.pfile in
 			if c <> 0 then c else compare p1.pmin p2.pmin
-		) !usages
+		) usages
 	in
+	Display.ReferencePosition.reset();
 	DisplayException.raise_positions usages
 
 let find_implementations tctx com name pos kind =

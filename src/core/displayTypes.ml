@@ -313,7 +313,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field
+	| SKField of tclass_field * path option (* path - class path *)
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
@@ -336,7 +336,7 @@ let string_of_symbol = function
 	| SKEnum en -> snd en.e_path
 	| SKTypedef td -> snd td.t_path
 	| SKAbstract a -> snd a.a_path
-	| SKField cf | SKConstructor cf -> cf.cf_name
+	| SKField (cf,_) | SKConstructor cf -> cf.cf_name
 	| SKEnumField ef -> ef.ef_name
 	| SKVariable v -> v.v_name
 	| SKOther -> ""

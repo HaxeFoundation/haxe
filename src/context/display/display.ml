@@ -22,22 +22,10 @@ let parse_module ctx m p =
 	display_position#run_outside (fun () -> TypeloadParse.parse_module ctx m p)
 
 module ReferencePosition = struct
-	let reference_positions = ref []
-	let reset () = reference_positions := []
-	let set (s,p,k) = reference_positions := [(s,{p with pfile = Path.unique_full_path p.pfile},k)]
-	let add (s,p,k) = reference_positions := (s,{p with pfile = Path.unique_full_path p.pfile},k) :: !reference_positions
-	(**
-		Get the latest position added or set
-	*)
-	let get () =
-		match !reference_positions with
-		| [] -> ("",null_pos,SKOther)
-		| r :: _ -> r
-	(**
-		Run `fn` for each position added.
-	*)
-	let run fn =
-		List.iter fn !reference_positions
+	let reference_position = ref ("",null_pos,SKOther)
+	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let get () = !reference_position
+	let reset () = set ("",null_pos,SKOther)
 end
 
 module ExprPreprocessing = struct
