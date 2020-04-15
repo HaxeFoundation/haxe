@@ -256,6 +256,8 @@ let get_error_pos printer p =
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
 		end else
 			Printf.sprintf "%s lines %d-%d" (printer p.pfile l1) l1 l2
+;;
+Globals.get_error_pos_ref := get_error_pos
 
 let reset() = Buffer.reset buf
 let contents() = Buffer.contents buf
