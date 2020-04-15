@@ -38,7 +38,7 @@ let thread_safe_value_string env v =
 	let ctx = get_ctx() in
 	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
 	| VString s -> s.sstring
-	| _ -> assert false
+	| _ -> die ""
 
 let var_to_json name value vio env =
 	let jv t v num_children =

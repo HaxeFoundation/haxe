@@ -147,7 +147,7 @@ class builder pool = object(self)
 				stack#pop
 			with EmptyStack ->
 				self#stack_error opcode expect cur;
-				assert false
+				Globals.die ""
 			in
 			(* TODO: some unification or something? *)
 			match js,js' with
@@ -173,7 +173,7 @@ class builder pool = object(self)
 	method op_maybe_wide op opw i tl tr = match get_numeric_range_unsigned i with
 		| Int8Range -> self#op op 2 tl tr
 		| Int16Range -> self#op (OpWide opw) 4 tl tr
-		| Int32Range -> assert false
+		| Int32Range -> Globals.die ""
 
 	(* variables *)
 
@@ -253,7 +253,7 @@ class builder pool = object(self)
 		| (Int8Range | Int16Range),(Int8Range | Int16Range) ->
 			self#op (OpWide (OpWIinc(index,i))) 6 [] []
 		| _ ->
-			assert false
+			Globals.die ""
 
 	(* conversions *)
 

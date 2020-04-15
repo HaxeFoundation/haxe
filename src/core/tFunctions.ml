@@ -2,8 +2,8 @@ open Globals
 open Ast
 open TType
 
-let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
-let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> assert false)
+let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> die "")
+let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> die "")
 
 let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
@@ -284,7 +284,7 @@ let apply_params ?stack cparams params t =
 		| [] , [] -> []
 		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
-		| _ -> assert false
+		| _ -> die ""
 	in
 	let subst = loop cparams params in
 	let rec loop t =
@@ -363,7 +363,7 @@ let apply_params ?stack cparams params t =
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
-					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> assert false);
+					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> die "");
 					t
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
@@ -457,7 +457,7 @@ let rec ambiguate_funs t =
 	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
 		(match r.tm_type with
-		| Some _ -> assert false
+		| Some _ -> die ""
 		| _ -> t)
 	| TInst (a, pl) ->
 	    TInst (a, List.map ambiguate_funs pl)
@@ -472,7 +472,7 @@ let rec ambiguate_funs t =
 	    TAnon { a with a_fields =
 		    PMap.map (fun af -> { af with cf_type =
 				ambiguate_funs af.cf_type }) a.a_fields }
-	| TLazy _ -> assert false
+	| TLazy _ -> die ""
 
 let rec is_nullable = function
 	| TMono r ->
@@ -702,7 +702,7 @@ let quick_field t n =
 	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
 		raise Not_found
 	| TLazy _ | TType _ ->
-		assert false
+		die ""
 
 let quick_field_dynamic t s =
 	try quick_field t s

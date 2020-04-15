@@ -78,7 +78,7 @@ let normalize_path path =
 		| Str.Text t :: [] ->
 			List.rev (t :: acc)
 		| Str.Text _ :: Str.Text  _ :: _ ->
-			assert false
+			Globals.die ""
 	in
 	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
@@ -168,10 +168,10 @@ let module_name_of_file file =
 		in
 		s
 	| [] ->
-		assert false
+		Globals.die ""
 
 let rec create_file bin ext acc = function
-	| [] -> assert false
+	| [] -> Globals.die ""
 	| d :: [] ->
 		let d = make_valid_filename d in
 		let maxlen = 200 - String.length ext in

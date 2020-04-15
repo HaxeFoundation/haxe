@@ -73,7 +73,7 @@ let pop_scope jit = match jit.scopes with
 		jit.scopes <- tl;
 		jit.num_locals <- jit.num_locals - (num_locals scope);
 	| [] ->
-		assert false
+		Globals.die ""
 
 (* Increases number of locals and updates maximum number of locals if necessary *)
 let increase_num_locals jit =
@@ -91,7 +91,7 @@ let add_capture jit var declared =
 
 (* Adds variable [var] to the current top scope of context [jit]. *)
 let add_local jit var = match jit.scopes with
-	| [] -> assert false
+	| [] -> Globals.die ""
 	| scope :: _ ->
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals var.v_id i;
@@ -126,7 +126,7 @@ let declare_arg jit var =
 
 (* Declares a variable for `this` in context [jit]. *)
 let declare_local_this jit = match jit.scopes with
-	| [] -> assert false
+	| [] -> Globals.die ""
 	| scope :: _ ->
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;

@@ -90,7 +90,7 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 		make_call ctx ef [ebase;e1] r p
 
 let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
-	let evalue = match e2o with None -> assert false | Some e -> e in
+	let evalue = match e2o with None -> die "" | Some e -> e in
 	match cf.cf_expr with
 		| None ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
@@ -185,7 +185,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
 					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
-					assert false
+					die ""
 			end
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
@@ -280,7 +280,7 @@ let unify_field_call ctx fa el args ret p inline =
 			in
 			el,tf,mk_call
 		| _ ->
-			assert false
+			die ""
 	in
 	let maybe_raise_unknown_ident cerr p =
 		let rec loop err =
@@ -351,7 +351,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	let c,tl,cf,stat = match fa with
 		| FInstance(c,tl,cf) -> c,tl,cf,false
 		| FStatic(c,cf) -> c,[],cf,true
-		| _ -> assert false
+		| _ -> die ""
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -361,7 +361,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
 			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
-			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> assert false
+			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> die ""
 			in
 			(* manually unify first argument *)
 			unify ctx e.etype ta p;
@@ -484,7 +484,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
+	| AKSet _ | AKAccess _ | AKFieldSet _ -> die ""
 	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
@@ -518,7 +518,7 @@ let rec acc_get ctx g p =
 				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
-		| _ -> assert false)
+		| _ -> die "")
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
 		let cmode,apply_params = match fmode with
@@ -534,7 +534,7 @@ let rec acc_get ctx g p =
 			| FInstance (c,tl,f) ->
 				(FClosure (Some (c,tl),f),(fun t -> t))
 			| _ ->
-				assert false
+				die ""
 		in
 		ignore(follow f.cf_type); (* force computing *)
 		begin match f.cf_kind,f.cf_expr with
@@ -626,7 +626,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
-		| _ -> assert false)
+		| _ -> die "")
 	| AKUsing (et,cl,ef,eparam,force_inline) ->
 		begin match ef.cf_kind with
 		| Method MethMacro ->
@@ -649,9 +649,9 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					let ef = prepare_using_field ef in
 					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
 					| el,TFun(args,r) -> el,args,r,eparam
-					| _ -> assert false
+					| _ -> die ""
 					end
-				| _ -> assert false
+				| _ -> die ""
 			in
 			make_call ctx ~force_inline et (eparam :: params) r p
 		end
@@ -681,11 +681,11 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						e
 					else
 						match c.cl_super with
-						| None -> assert false
+						| None -> die ""
 						| Some (csup,_) -> loop csup
 				in
 				loop c
-			| _ -> assert false))
+			| _ -> die ""))
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
@@ -713,7 +713,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		e
 	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
-		assert false
+		die ""
 	| AKExpr e ->
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
@@ -728,7 +728,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
-					let r = match tfunc with TFun(_,r) -> r | _ -> assert false in
+					let r = match tfunc with TFun(_,r) -> r | _ -> die "" in
 					mk (TCall (e,el)) r p
 			end
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
