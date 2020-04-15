@@ -5,6 +5,12 @@ using StringTools;
 
 import Types;
 
+enum abstract UsageKind(String) to String {
+	var Normal = '';
+	var Base = '@base';
+	var Descendants = '@descendants';
+}
+
 class HaxeInvocationException {
 	public var message:String;
 	public var fieldName:String;
@@ -72,8 +78,8 @@ class DisplayTestContext {
 		return positions(pos)[0];
 	}
 
-	public function usage(pos:Position, base:Bool = false):Array<String> {
-		return extractPositions(callHaxe('$pos@usage' + (base ? '@base' : '')));
+	public function usage(pos:Position, kind:UsageKind = Normal):Array<String> {
+		return extractPositions(callHaxe('$pos@usage$kind'));
 	}
 
 	public function documentSymbols():Array<ModuleSymbolEntry> {
