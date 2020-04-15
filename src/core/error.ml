@@ -301,3 +301,23 @@ let error_require r p =
 	error ("Accessing this field requires " ^ r) p
 
 let invalid_assign p = error "Invalid assign" p
+
+(**
+	Terminates compiler process and prints user-friendly instructions about filing an issue.
+*)
+let abort ?msg hxpos =
+	let msg =
+		let str_pos, expr_msg =
+			if hxpos = null_pos then "", ""
+			else ((Lexer.get_error_pos (Printf.sprintf "%s:%d:") hxpos) ^ " "), "the expression example and "
+		in
+		str_pos ^ "Compiler failure" ^ (match msg with Some msg -> ": " ^ msg | _ -> "") ^ "\n"
+		^ str_pos ^ "Please submit an issue with " ^ expr_msg ^ "the following information:"
+	in
+	let backtrace = Printexc.raw_backtrace_to_string (Printexc.get_callstack 100) in
+	let backtrace =
+		try snd (ExtString.String.split "\n" backtrace)
+		with ExtString.Invalid_string -> backtrace
+	in
+	Printf.eprintf "%s\n%s\n" msg backtrace;
+	assert false
