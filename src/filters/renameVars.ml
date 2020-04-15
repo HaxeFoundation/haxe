@@ -198,7 +198,7 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		| _ -> collect_vars ~in_block:false rc
 	in
 	match e.eexpr with
-	| TVar (v, e_opt) when rc.rc_hoisting ->
+	| TVar (v, e_opt) when rc.rc_hoisting || (match e_opt with Some { eexpr = TFunction _ } -> true | _ -> false) ->
 		declare_var rc scope v;
 		Option.may (collect_vars scope) e_opt
 	| TVar (v, e_opt) ->
