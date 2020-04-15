@@ -210,9 +210,6 @@ let rec is_parent csup c =
 		| None -> false
 		| Some (c,_) -> is_parent csup c
 
-(* for convenience *)
-let extends c csup = is_parent csup c
-
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
