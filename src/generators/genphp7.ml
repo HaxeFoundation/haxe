@@ -2237,7 +2237,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_static_method_closure expr field_name =
 			let expr = reveal_expr expr in
 			self#write ((self#use boot_type_path) ^ "::getStaticClosure(");
-			(* self#write ("new " ^ (self#use hxclosure_type_path) ^ "("); *)
 			(match (reveal_expr expr).eexpr with
 				| TTypeExpr (TClassDecl { cl_path = ([], "String") }) ->
 					self#write ((self#use hxstring_type_path) ^ "::class")
@@ -2262,7 +2261,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						self#write_expr expr;
 						self#write ("->" ^ (field_name field))
 			else
-				(* let new_closure = "new " ^ (self#use hxclosure_type_path) in *)
 				let new_closure = ((self#use boot_type_path) ^ "::getInstanceClosure") in
 				match expr.eexpr with
 					| TTypeExpr mtype ->

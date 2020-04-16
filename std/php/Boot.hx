@@ -589,10 +589,13 @@ class Boot {
 		Creates Haxe-compatible closure of an instance method.
 		@param obj - any object
 	**/
-	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String):Null<HxClosure> {
 		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
 		if (result != null) {
 			return result;
+		}
+		if(!Global.method_exists(obj, methodName) && !Global.isset(Syntax.field(obj, methodName))) {
+			return null;
 		}
 		result = new HxClosure(obj, methodName);
 		if (!Global.property_exists(obj, '__hx_closureCache')) {
@@ -675,7 +678,7 @@ private class HxClass {
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
 		} else if (phpClassName.method_exists(property)) {
-			return new HxClosure(phpClassName, property);
+			return Boot.getStaticClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
