@@ -3398,7 +3398,7 @@ class class_builder ctx (cls:tclass) =
 								if probably_descendant == iface then
 									false
 								else
-									is_parent iface probably_descendant
+									extends probably_descendant iface
 							)
 							cls.cl_implements
 						)

@@ -203,12 +203,12 @@ let t_infos t : tinfos =
 
 let t_path t = (t_infos t).mt_path
 
-let rec is_parent csup c =
-	if c == csup || List.exists (fun (i,_) -> is_parent csup i) c.cl_implements then
+let rec extends c csup =
+	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
 		true
 	else match c.cl_super with
 		| None -> false
-		| Some (c,_) -> is_parent csup c
+		| Some (c,_) -> extends c csup
 
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
