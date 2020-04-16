@@ -330,7 +330,7 @@ typedef Catch = {
 	/**
 		The type of the catch.
 	**/
-	var type:ComplexType;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the catch.

@@ -75,7 +75,7 @@ let find_in_syntax symbols (pack,decls) =
 		| ETry(e1,catches) ->
 			expr e1;
 			List.iter (fun (_,th,e,_) ->
-				type_hint th;
+				Option.may type_hint th;
 				expr e
 			) catches;
 		| ECheckType(e1,th) ->
