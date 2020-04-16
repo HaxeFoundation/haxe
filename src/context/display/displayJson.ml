@@ -140,9 +140,9 @@ let handler =
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
-			| "base" ->
+			| "withBaseAndDescendants" ->
 				hctx.display#enable_display (DMUsage (false,true,true));
-			| "descendants" ->
+			| "withDescendants" ->
 				hctx.display#enable_display (DMUsage (false,true,false));
 			| _ ->
 				hctx.display#enable_display (DMUsage (false,false,false));

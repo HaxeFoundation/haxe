@@ -1,15 +1,10 @@
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
+import haxe.display.Display.FindReferencesKind;
 
 using StringTools;
 
 import Types;
-
-enum abstract UsageKind(String) to String {
-	var Normal = '';
-	var Base = '@base';
-	var Descendants = '@descendants';
-}
 
 class HaxeInvocationException {
 	public var message:String;
@@ -78,7 +73,8 @@ class DisplayTestContext {
 		return positions(pos)[0];
 	}
 
-	public function usage(pos:Position, kind:UsageKind = Normal):Array<String> {
+	public function usage(pos:Position, kind:FindReferencesKind = Direct):Array<String> {
+		var kind = kind == Direct ? '' : '@$kind';
 		return extractPositions(callHaxe('$pos@usage$kind'));
 	}
 

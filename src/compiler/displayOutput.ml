@@ -244,10 +244,10 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "usage" ->
 				Common.define com Define.NoCOpt;
 				DMUsage (false,false,false)
-			| "usage@descendants" ->
+			| "usage@withDescendants" ->
 				Common.define com Define.NoCOpt;
 				DMUsage (false,true,false)
-			| "usage@base" ->
+			| "usage@withBaseAndDescendants" ->
 				Common.define com Define.NoCOpt;
 				DMUsage (false,true,true)
 			(*| "rename" ->

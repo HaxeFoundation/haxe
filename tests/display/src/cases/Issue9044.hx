@@ -32,7 +32,7 @@ class Issue9044 extends DisplayTestCase {
 		}
 	**/
 	function testUsageBase() {
-		arrayEq([range(2, 3), range(5, 6), range(8, 9), range(10, 11), range(12, 13)], usage(pos(1), Base));
-		arrayEq([range(5, 6), range(8, 9), range(12, 13)], usage(pos(1), Descendants));
+		arrayEq([range(2, 3), range(5, 6), range(8, 9), range(10, 11), range(12, 13)], usage(pos(1), WithBaseAndDescendants));
+		arrayEq([range(5, 6), range(8, 9), range(12, 13)], usage(pos(1), WithDescendants));
 	}
 }
