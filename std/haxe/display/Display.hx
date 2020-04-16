@@ -466,7 +466,7 @@ typedef CompletionItemResolveResult = Response<{
 
 /** FindReferences **/
 typedef FindReferencesParams = PositionParams & {
-	var kind:FindReferencesKind;
+	var ?kind:FindReferencesKind;
 }
 
 enum abstract FindReferencesKind(String) to String {
