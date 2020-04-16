@@ -449,7 +449,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
 					| Some cf ->

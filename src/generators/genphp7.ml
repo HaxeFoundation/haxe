@@ -2237,7 +2237,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_static_method_closure expr field_name =
 			let expr = reveal_expr expr in
 			self#write ((self#use boot_type_path) ^ "::getStaticClosure(");
-			(* self#write ("new " ^ (self#use hxclosure_type_path) ^ "("); *)
 			(match (reveal_expr expr).eexpr with
 				| TTypeExpr (TClassDecl { cl_path = ([], "String") }) ->
 					self#write ((self#use hxstring_type_path) ^ "::class")
@@ -2262,7 +2261,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						self#write_expr expr;
 						self#write ("->" ^ (field_name field))
 			else
-				(* let new_closure = "new " ^ (self#use hxclosure_type_path) in *)
 				let new_closure = ((self#use boot_type_path) ^ "::getInstanceClosure") in
 				match expr.eexpr with
 					| TTypeExpr mtype ->
@@ -2297,7 +2295,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TTypeExpr (TClassDecl tcls) ->
 					self#write (self#use_t (TInst (tcls, [])))
 				| _ ->
-					if is_string type_expr then
+					if is_string (reveal_expr type_expr) then
 						self#write_expr type_expr
 					else begin
 						self#write "(";
@@ -2371,15 +2369,28 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| { eexpr = TObjectDecl fields } :: [] -> self#write_assoc_array_decl fields
 				| _ -> ctx.pgc_common.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
 		(**
+			Writes `e` to be used as a field access.
+			If `e` is a constant string, writes the constant without quotes.
+			Otherwise writes `{e}`
+		*)
+		method write_syntax_field_expr field_expr =
+			match reveal_expr field_expr with
+				| { eexpr = TConst (TString method_name) } ->
+					self#write method_name
+				| _ ->
+					self#write "{";
+					self#write_expr field_expr;
+					self#write "}"
+		(**
 			Writes a call to instance method (for `php.Syntax.call()`)
 		*)
 		method write_expr_syntax_call args =
 			match args with
 				| obj_expr :: method_expr :: args ->
 					self#write_expr obj_expr;
-					self#write "->{";
-					self#write_expr method_expr;
-					self#write "}(";
+					self#write "->";
+					self#write_syntax_field_expr method_expr;
+					self#write "(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
 				| _ -> fail self#pos
@@ -2390,9 +2401,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match args with
 				| type_expr :: method_expr :: args ->
 					self#write_type type_expr;
-					self#write "::{";
-					self#write_expr method_expr;
-					self#write "}(";
+					self#write "::";
+					self#write_syntax_field_expr method_expr;
+					self#write "(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
 				| _ -> fail self#pos
@@ -2403,9 +2414,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match args with
 				| obj_expr :: field_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->{";
-					self#write_expr field_expr;
-					self#write "}"
+					self#write "->";
+					self#write_syntax_field_expr field_expr;
 				| _ -> fail self#pos
 		(**
 			Writes field access for writing (for `php.Syntax.setField()`)
@@ -3388,7 +3398,7 @@ class class_builder ctx (cls:tclass) =
 								if probably_descendant == iface then
 									false
 								else
-									is_parent iface probably_descendant
+									extends probably_descendant iface
 							)
 							cls.cl_implements
 						)

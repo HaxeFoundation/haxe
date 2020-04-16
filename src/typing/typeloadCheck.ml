@@ -326,7 +326,7 @@ module Inheritance = struct
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
 			if is_basic_class_path csup.cl_path && not (c.cl_extern && csup.cl_extern) then error "Cannot extend basic class" p;
-			if is_parent c csup then error "Recursive class" p;
+			if extends csup c then error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
 					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
@@ -475,7 +475,7 @@ module Inheritance = struct
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if is_parent c intf then error "Recursive class" p;
+					if extends intf c then error "Recursive class" p;
 					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 					if not intf.cl_interface then error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;

@@ -709,7 +709,10 @@ module Fusion = struct
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (ExtType.has_variable_semantics v.v_type) &&
+					not (
+						ExtType.has_variable_semantics v.v_type &&
+						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+					) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
