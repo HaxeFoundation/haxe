@@ -60,7 +60,7 @@ let collect_reference_positions com =
 			if find_descendants then
 				List.fold_left (fun acc t ->
 					match t with
-					| TClassDecl child_cls when is_parent c child_cls ->
+					| TClassDecl child_cls when extends child_cls c ->
 						(try
 							let cf = PMap.find cf.cf_name child_cls.cl_fields in
 							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
