@@ -139,17 +139,13 @@ let handler =
 		"display/references", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
-			hctx.display#enable_display (DMUsage (false,false,false));
-		);
-		"display/references/base", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true;
-			hctx.display#enable_display (DMUsage (false,true,true));
-		);
-		"display/references/descendants", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true;
-			hctx.display#enable_display (DMUsage (false,true,false));
+			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
+			| "base" ->
+				hctx.display#enable_display (DMUsage (false,true,true));
+			| "descendants" ->
+				hctx.display#enable_display (DMUsage (false,true,false));
+			| _ ->
+				hctx.display#enable_display (DMUsage (false,false,false));
 		);
 		"display/hover", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;

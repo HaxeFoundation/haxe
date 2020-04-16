@@ -46,7 +46,7 @@ class DisplayMethods {
 	/**
 		The find references request is sent from the client to Haxe to find locations that reference the symbol at a given text document position.
 	**/
-	static inline var FindReferences = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/references");
+	static inline var FindReferences = new HaxeRequestMethod<FindReferencesParams, GotoDefinitionResult>("display/references");
 
 	/**
 		The goto definition request is sent from the client to Haxe to resolve the definition location(s) of a symbol at a given text document position.
@@ -463,6 +463,28 @@ typedef CompletionItemResolveParams = {
 typedef CompletionItemResolveResult = Response<{
 	var item:DisplayItem<Dynamic>;
 }>;
+
+/** FindReferences **/
+typedef FindReferencesParams = PositionParams & {
+	var kind:FindReferencesKind;
+}
+
+enum abstract FindReferencesKind(String) to String {
+	/**
+		Find only direct references to the requested symbol.
+	**/
+	var Normal = "normal";
+	/**
+		Find references to the base field instead of the requested one.
+		Also finds references to all descendants of the base field.
+	**/
+	var Base = "base";
+	/**
+		Find references to the requested field and references to all
+		descendants of the requested field.
+	**/
+	var Descendants = "descendants";
+}
 
 /** GotoDefinition **/
 typedef GotoDefinitionResult = Response<Array<Location>>;
