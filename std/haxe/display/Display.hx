@@ -472,11 +472,11 @@ typedef FindReferencesParams = PositionParams & {
 enum abstract FindReferencesKind(String) to String {
 	/**
 		Find only direct references to the requested symbol.
+		Does not look for references to parent or overriding methods.
 	**/
-	var Normal = "normal";
+	var Direct = "direct";
 	/**
-		Find references to the base field instead of the requested one.
-		Also finds references to all descendants of the base field.
+		Find references to the base field and all the fields in the inheritance chain.
 	**/
 	var Base = "base";
 	/**
