@@ -7,12 +7,13 @@ import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
 import utest.Assert;
 import utest.ITest;
+import utils.Vfs;
 
 using StringTools;
 using Lambda;
 
-@:autoBuild(AsyncMacro.build())
-class HaxeServerTestCase implements ITest {
+@:autoBuild(utils.macro.BuildHub.build())
+class TestCase implements ITest {
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
@@ -196,7 +197,7 @@ class HaxeServerTestCase implements ITest {
 		var params = t.args.params;
 		var parts = path.pack.concat([path.typeName]);
 		var s = parts.join('.');
-		if(params.length == 0) {
+		if (params.length == 0) {
 			return s;
 		}
 		var sParams = params.map(strType).join('.');
