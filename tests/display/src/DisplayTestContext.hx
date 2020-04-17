@@ -1,6 +1,5 @@
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
-import haxe.display.Display.FindReferencesKind;
 
 using StringTools;
 
@@ -73,9 +72,8 @@ class DisplayTestContext {
 		return positions(pos)[0];
 	}
 
-	public function usage(pos:Position, kind:FindReferencesKind = Direct):Array<String> {
-		var kind = kind == Direct ? '' : '@$kind';
-		return extractPositions(callHaxe('$pos@usage$kind'));
+	public function usage(pos:Position):Array<String> {
+		return extractPositions(callHaxe('$pos@usage'));
 	}
 
 	public function documentSymbols():Array<ModuleSymbolEntry> {

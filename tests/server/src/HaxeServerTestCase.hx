@@ -1,3 +1,5 @@
+import haxe.Exception;
+import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
@@ -124,6 +126,15 @@ class HaxeServerTestCase implements ITest {
 		return Json.parse(lastResult.stderr).result;
 	}
 
+	function parseGotoDefinitionLocations():Array<Location> {
+		switch parseGotoDefinition().result {
+			case null:
+				throw new Exception('No result for GotoDefinition found');
+			case result:
+				return result;
+		}
+	}
+
 	function assertSuccess(?p:haxe.PosInfos) {
 		Assert.isTrue(0 == errorMessages.length, p);
 	}
@@ -196,7 +207,7 @@ class HaxeServerTestCase implements ITest {
 		var params = t.args.params;
 		var parts = path.pack.concat([path.typeName]);
 		var s = parts.join('.');
-		if(params.length == 0) {
+		if (params.length == 0) {
 			return s;
 		}
 		var sParams = params.map(strType).join('.');

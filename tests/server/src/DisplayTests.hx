@@ -1,3 +1,5 @@
+import haxe.Exception;
+import haxe.display.Position;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Protocol;
 import haxe.PosInfos;
@@ -6,6 +8,74 @@ import utest.Assert;
 import utest.Assert.*;
 import haxe.display.Display;
 import haxe.display.FsPath;
+
+class Markers {
+	public final source:String;
+
+	final offsets:Array<Int>;
+	final positions:Array<Position>;
+
+	static public function parse(doc:String):Markers {
+		var positions = [];
+		var offsets = [];
+		var line = 0;
+		var lastNewLinePos = 0;
+		var markersLengthSum = 0;
+		var markersLengthSinceNewLine = 0;
+		var source = ~/{-(\d+)-}|\n/g.map(doc, function(r) {
+			var p = r.matchedPos();
+			var replacement = switch r.matched(0) {
+				case '\n':
+					line++;
+					lastNewLinePos = p.pos;
+					markersLengthSinceNewLine = 0;
+					'\n';
+				case _:
+					var name = r.matched(1);
+					switch Std.parseInt(name) {
+						case null:
+							throw new Exception('Invalid marker name: {-$name-}');
+						case n:
+							offsets[n] = p.pos - markersLengthSum;
+							var character = p.pos - (lastNewLinePos + 1) - markersLengthSinceNewLine;
+							positions[n] = {line: line, character: character};
+					}
+					markersLengthSum += p.len;
+					markersLengthSinceNewLine += p.len;
+					"";
+			}
+			return replacement;
+		});
+		return new Markers(source, offsets, positions);
+	}
+
+	function new(source:String, offsets:Array<Int>, positions:Array<Position>) {
+		this.source = source;
+		this.offsets = offsets;
+		this.positions = positions;
+	}
+
+	public function offset(n:Int):Int {
+		return switch offsets[n] {
+			case null: throw new Exception('Marker {-$n-} not found');
+			case pos: pos;
+		}
+	}
+
+	public function pos(n:Int):Position {
+		return switch positions[n] {
+			case null: throw new Exception('Marker {-$n-} not found');
+			case pos: pos;
+		}
+	}
+
+	public function range(startMarker:Int, endMarker:Int):Range {
+		return {
+			start: pos(startMarker),
+			end: pos(endMarker)
+		}
+	}
+}
 
 @:timeout(5000)
 // TODO: somebody has to clean this up
@@ -511,5 +581,60 @@ typedef Foo = {
 		var result = parseCompletion().result;
 		Assert.equals(1, result.items.length);
 		Assert.equals('y', result.items[0].args.field.name);
+	}
+
+	function testIssue9044() {
+		var content = '
+			class Child extends Base {
+				public function new() {}
+
+				override function f{-1-}unc() {
+					super.{-2-}func{-3-}();
+				}
+			}
+
+			class GrandChild extends Child {
+				override function func() {
+					super.{-5-}func{-6-}();
+				}
+			}
+
+			class Base {
+				public function func() {}
+			}
+
+			class Main {
+				static function main() {
+					var c = new Child();
+					c.{-8-}func{-9-}();
+					var base:Base = c;
+					base.{-10-}func{-11-}();
+					var g = new GrandChild();
+					g.{-12-}func{-13-}();
+				}
+			}
+		';
+		var m = Markers.parse(content);
+		vfs.putContent("Main.hx", m.source);
+
+		runHaxeJson([], DisplayMethods.FindReferences, {
+			file: new FsPath("Main.hx"),
+			offset: m.offset(1),
+			contents: m.source,
+			kind: WithBaseAndDescendants
+		});
+		var result = parseGotoDefinitionLocations();
+		var expectedRanges = [m.range(2, 3), m.range(5, 6), m.range(8, 9), m.range(10, 11), m.range(12, 13)];
+		Assert.same(expectedRanges, result.map(l -> l.range));
+
+		runHaxeJson([], DisplayMethods.FindReferences, {
+			file: new FsPath("Main.hx"),
+			offset: m.offset(1),
+			contents: m.source,
+			kind: WithDescendants
+		});
+		var result = parseGotoDefinitionLocations();
+		var expectedRanges = [m.range(5, 6), m.range(8, 9), m.range(12, 13)];
+		Assert.same(expectedRanges, result.map(l -> l.range));
 	}
 }
