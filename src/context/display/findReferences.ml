@@ -31,51 +31,54 @@ let find_references tctx com with_definition name pos kind =
 
 let collect_reference_positions com =
 	let name,pos,kind = Display.ReferencePosition.get () in
-	match kind, com.display.dms_kind with
-	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when find_descendants || find_base ->
-		let collect() =
-			let c =
-				let rec loop = function
-					| [] -> raise Exit
-					| TClassDecl c :: _ when c.cl_path = cl_path -> c
-					| _ :: types -> loop types
-				in
-				loop com.types
-			in
-			let cf,c =
-				if find_base then
-					let rec loop c =
-						match c.cl_super with
-						| None -> (PMap.find cf.cf_name c.cl_fields),c
-						| Some (csup,_) ->
-							try loop csup
-							with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
+	if pos = null_pos then
+		[]
+	else
+		match kind, com.display.dms_kind with
+		| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when find_descendants || find_base ->
+			let collect() =
+				let c =
+					let rec loop = function
+						| [] -> raise Exit
+						| TClassDecl c :: _ when c.cl_path = cl_path -> c
+						| _ :: types -> loop types
 					in
-					try loop c
-					with Not_found -> cf,c
+					loop com.types
+				in
+				let cf,c =
+					if find_base then
+						let rec loop c =
+							match c.cl_super with
+							| None -> (PMap.find cf.cf_name c.cl_fields),c
+							| Some (csup,_) ->
+								try loop csup
+								with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
+						in
+						try loop c
+						with Not_found -> cf,c
+					else
+						cf,c
+				in
+				let full_pos p = { p with pfile = Path.unique_full_path p.pfile } in
+				if find_descendants then
+					List.fold_left (fun acc t ->
+						match t with
+						| TClassDecl child_cls when extends child_cls c ->
+							(try
+								let cf = PMap.find cf.cf_name child_cls.cl_fields in
+								(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
+							with Not_found -> acc
+							)
+						| _ ->
+							acc
+					) [] com.types
 				else
-					cf,c
+					[name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)]
 			in
-			let full_pos p = { p with pfile = Path.unique_full_path p.pfile } in
-			if find_descendants then
-				List.fold_left (fun acc t ->
-					match t with
-					| TClassDecl child_cls when extends child_cls c ->
-						(try
-							let cf = PMap.find cf.cf_name child_cls.cl_fields in
-							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
-						with Not_found -> acc
-						)
-					| _ ->
-						acc
-				) [] com.types
-			else
-				[name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)]
-		in
-		(try collect()
-		with Exit -> [name,pos,kind])
-	| _ ->
-		[name,pos,kind]
+			(try collect()
+			with Exit -> [name,pos,kind])
+		| _ ->
+			[name,pos,kind]
 
 let find_references tctx com with_definition =
 	let usages =
