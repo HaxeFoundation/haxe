@@ -250,7 +250,7 @@ class Printer {
 				tabs = old;
 				s + '\n$tabs}';
 			case ETry(e1, cl):
-				'try ${printExpr(e1)}' + cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
+				'try ${printExpr(e1)}' + cl.map(function(c) return ' catch(${c.name}${c.type == null ? '' : (':' + printComplexType(c.type))}) ${printExpr(c.expr)}').join("");
 			case EReturn(eo): "return" + opt(eo, printExpr, " ");
 			case EBreak: "break";
 			case EContinue: "continue";

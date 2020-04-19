@@ -9,12 +9,13 @@ import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
 import utest.Assert;
 import utest.ITest;
+import utils.Vfs;
 
 using StringTools;
 using Lambda;
 
-@:autoBuild(AsyncMacro.build())
-class HaxeServerTestCase implements ITest {
+@:autoBuild(utils.macro.BuildHub.build())
+class TestCase implements ITest {
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;

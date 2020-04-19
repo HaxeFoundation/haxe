@@ -472,7 +472,7 @@ and encode_expr e =
 					encode_obj [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
-						"type",encode_ctype t;
+						"type",null encode_ctype t;
 						"expr",loop e;
 						"pos",encode_pos p
 					]
@@ -790,7 +790,7 @@ and decode_expr v =
 			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),Globals.null_pos) eo)
 		| 17, [e;catches] ->
 			let catches = List.map (fun c ->
-				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(opt decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array catches) in
 			ETry (loop e, catches)
 		| 18, [e] ->

@@ -36,6 +36,9 @@ let rec replace_super_call e =
 	| _ ->
 		map_expr replace_super_call e
 
+let remove_default_arg_values args =
+	List.map (fun (v,_) -> v,None) args
+
 exception Accessed_this of texpr
 
 (* return whether given expression has `this` access before calling `super` *)
@@ -202,7 +205,10 @@ let rewrite_ctors com =
 							]
 						} in
 
-						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with tf_expr = e_ctor_replaced } };
+						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with
+							tf_args = remove_default_arg_values tf_ctor.tf_args;
+							tf_expr = e_ctor_replaced
+						} };
 					end;
 
 					if cl == root then begin
@@ -224,7 +230,10 @@ let rewrite_ctors com =
 								make_hx_ctor_call e_skip_flag
 							]
 						} in
-						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with tf_expr = e_ctor_replaced } };
+						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with
+							tf_args = remove_default_arg_values tf_ctor.tf_args;
+							tf_expr = e_ctor_replaced
+						} };
 
 					| None -> ())
 				)
