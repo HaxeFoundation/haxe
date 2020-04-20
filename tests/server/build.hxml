@@ -6,3 +6,4 @@
 -lib utest
 -lib haxeserver
 -D analyzer-optimize
+-D UTEST_PATTERN=9047
