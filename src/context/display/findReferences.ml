@@ -78,7 +78,6 @@ let collect_reference_positions com =
 		[name,pos,kind]
 
 let find_references tctx com with_definition =
-	let plist = ref [] in
 	let usages =
 		List.fold_left (fun acc (name,pos,kind) ->
 			if pos <> null_pos then begin
@@ -95,7 +94,7 @@ let find_references tctx com with_definition =
 		) usages
 	in
 	Display.ReferencePosition.reset();
-	DisplayException.raise_positions !plist
+	DisplayException.raise_positions usages
 
 let find_implementations tctx com name pos kind =
 	let t = Timer.timer ["display";"implementations";"collect"] in
