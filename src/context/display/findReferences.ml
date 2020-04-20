@@ -81,7 +81,6 @@ let find_references tctx com with_definition =
 	let usages =
 		List.fold_left (fun acc (name,pos,kind) ->
 			if pos <> null_pos then begin
-				plist := pos :: !plist;
 				acc @ (find_references tctx com with_definition name pos kind)
 			end
 			else acc
