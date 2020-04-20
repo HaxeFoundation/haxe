@@ -2029,13 +2029,12 @@ let generate com =
     newline ctx;
 
     let b = open_block ctx in
-    println ctx "local _hx_static_init = function()";
-    (* Generate statics *)
-    List.iter (generate_static ctx) (List.rev ctx.statics);
     (* Localize init variables inside a do-block *)
-    (* Note: __init__ logic can modify static variables. *)
+    println ctx "local _hx_static_init = function()";
     (* Generate static inits *)
     List.iter (gen_block_element ctx) (List.rev ctx.inits);
+    (* Generate statics *)
+    List.iter (generate_static ctx) (List.rev ctx.statics);
     b();
     newline ctx;
     println ctx "end";
