@@ -22,56 +22,33 @@
 
 package haxe;
 
-/**
-	Resource can be used to access resources that were added through the
-	`--resource file@name` command line parameter.
-
-	Depending on their type they can be obtained as `String` through
-	`getString(name)`, or as binary data through `getBytes(name)`.
-
-	A list of all available resource names can be obtained from `listNames()`.
-**/
+@:coreApi
 class Resource {
-	static var content:Array<{name:String, data:String, str:String}> = untyped __resources__();
+	static var content:Array<{name:String, data:String, str:String}>;
 
-	/**
-		Lists all available resource names. The resource name is the name part
-		of the `--resource file@name` command line parameter.
-	**/
 	public static function listNames():Array<String> {
 		return [for (x in content) x.name];
 	}
 
-	/**
-		Retrieves the resource identified by `name` as a `String`.
-
-		If `name` does not match any resource name, `null` is returned.
-	**/
 	public static function getString(name:String):String {
 		for (x in content)
 			if (x.name == name) {
-				if (x.str != null)
-					return x.str;
-				var b:haxe.io.Bytes = haxe.crypto.Base64.decode(x.data);
-				return b.toString();
+				return new String(x.data);
 			}
 		return null;
 	}
 
-	/**
-		Retrieves the resource identified by `name` as an instance of
-		haxe.io.Bytes.
-
-		If `name` does not match any resource name, `null` is returned.
-	**/
 	public static function getBytes(name:String):haxe.io.Bytes {
 		for (x in content)
 			if (x.name == name) {
-				if (x.str != null)
-					return haxe.io.Bytes.ofString(x.str);
-				return haxe.crypto.Base64.decode(x.data);
+				return haxe.io.Bytes.ofData(cast x.data);
 			}
 		return null;
+	}
+
+	static function __init__() : Void {
+		var tmp = untyped __resources__();
+		content = untyped Array.new1(tmp, __dollar__asize(tmp));
 	}
 
 }
