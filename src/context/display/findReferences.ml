@@ -26,15 +26,8 @@ let find_references tctx com with_definition name pos kind =
 		(try loop acc (Hashtbl.find relations p)
 		with Not_found -> acc)
 	) symbols [] in
-	(* t();
-	usages *)
-	let usages = List.sort (fun p1 p2 ->
-		let c = compare p1.pfile p2.pfile in
-		if c <> 0 then c else compare p1.pmin p2.pmin
-	) usages in
 	t();
-	Display.ReferencePosition.set ("",null_pos,SKOther);
-	DisplayException.raise_positions usages
+	usages
 
 let collect_reference_positions com =
 	let name,pos,kind = Display.ReferencePosition.get () in
@@ -85,12 +78,11 @@ let collect_reference_positions com =
 		[name,pos,kind]
 
 let find_references tctx com with_definition =
-	let name,pos,kind = Display.ReferencePosition.get () in
-	if pos <> null_pos then find_references tctx com with_definition name pos kind
-	else DisplayException.raise_positions []
-	(* let usages =
+	let plist = ref [] in
+	let usages =
 		List.fold_left (fun acc (name,pos,kind) ->
 			if pos <> null_pos then begin
+				plist := pos :: !plist;
 				acc @ (find_references tctx com with_definition name pos kind)
 			end
 			else acc
@@ -103,7 +95,7 @@ let find_references tctx com with_definition =
 		) usages
 	in
 	Display.ReferencePosition.reset();
-	DisplayException.raise_positions usages *)
+	DisplayException.raise_positions !plist
 
 let find_implementations tctx com name pos kind =
 	let t = Timer.timer ["display";"implementations";"collect"] in
