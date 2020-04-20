@@ -12,8 +12,37 @@ jobs:
       HAXELIB_ROOT: C:/haxelib
     strategy:
       matrix:
+        # https://github.com/HaxeFoundation/haxe/issues/8600
+        ${{ if eq(parameters.arch, '64') }}:
+          macro:
+            TEST: macro
+        neko:
+          TEST: neko
+        hl:
+          TEST: hl
+        cpp:
+          TEST: cpp
+          HXCPP_COMPILE_CACHE: C:/hxcache
+        java:
+          # https://github.com/HaxeFoundation/haxe/issues/8601
+          ${{ if eq(parameters.arch, '64') }}:
+            TEST: java,jvm
+          ${{ if eq(parameters.arch, '32') }}:
+            TEST: java
+        cs:
+          TEST: cs
         js:
           TEST: js
+        php:
+          TEST: php
+        # TODO. flash has never been enabled on our AppVeyor builds.
+        # flash:
+        #   TEST: flash9
+        python:
+          TEST: python
+        # TODO. Lua has never been enabled on our AppVeyor builds.
+        # lua:
+        #   TEST: lua
     steps:
       - checkout: self
         fetchDepth: 20

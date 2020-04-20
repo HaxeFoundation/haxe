@@ -27,7 +27,6 @@ let find_references tctx com with_definition name pos kind =
 		with Not_found -> acc)
 	) symbols [] in
 	t();
-	Display.ReferencePosition.set ("",null_pos,SKOther);
 	usages
 
 let collect_reference_positions com =
@@ -81,8 +80,10 @@ let collect_reference_positions com =
 let find_references tctx com with_definition =
 	let usages =
 		List.fold_left (fun acc (name,pos,kind) ->
-			if pos = null_pos then acc
-			else acc @ (find_references tctx com with_definition name pos kind)
+			if pos <> null_pos then begin
+				acc @ (find_references tctx com with_definition name pos kind)
+			end
+			else acc
 		) [] (collect_reference_positions com)
 	in
 	let usages =
@@ -91,7 +92,7 @@ let find_references tctx com with_definition =
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages
 	in
-	(* Display.ReferencePosition.reset(); *)
+	Display.ReferencePosition.reset();
 	DisplayException.raise_positions usages
 
 let find_implementations tctx com name pos kind =

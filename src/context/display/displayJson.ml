@@ -139,7 +139,7 @@ let handler =
 		"display/references", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
-			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "direct" with
+			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
 			| "withBaseAndDescendants" ->
 				hctx.display#enable_display (DMUsage (false,true,true));
 			| "withDescendants" ->

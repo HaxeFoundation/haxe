@@ -10,12 +10,8 @@ class Issue9047 extends DisplayTestCase {
 			return haxe.Json.parse(lastResult.stderr).result;
 		}
 		runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
-		var result = parseGotoDefintion().result;
-		trace(result);
-		Assert.same([], result);
+		Assert.same([], parseGotoDefintion().result);
 		runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
-		var result = parseGotoDefintion().result;
-		trace(result);
-		Assert.same([], result);
+		Assert.same([], parseGotoDefintion().result);
 	}
 }
