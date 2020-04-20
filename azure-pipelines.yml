@@ -22,17 +22,7 @@ stages:
           name: BuildWin64
           arch: '64'
 
-      - template: extra/azure-pipelines/build-windows.yml
-        parameters:
-          name: BuildWin32
-          arch: '32'
-
       - template: extra/azure-pipelines/test-windows.yml
         parameters:
           name: TestWin64
           arch: '64'
-
-      - template: extra/azure-pipelines/test-windows.yml
-        parameters:
-          name: TestWin32
-          arch: '32'
