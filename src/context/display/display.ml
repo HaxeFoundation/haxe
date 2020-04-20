@@ -25,7 +25,6 @@ module ReferencePosition = struct
 	let reference_position = ref ("",null_pos,SKOther)
 	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
 	let get () = !reference_position
-	let reset () = set ("",null_pos,SKOther)
 end
 
 module ExprPreprocessing = struct
