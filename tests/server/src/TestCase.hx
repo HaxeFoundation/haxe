@@ -1,3 +1,5 @@
+import haxe.Exception;
+import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
@@ -123,6 +125,15 @@ class TestCase implements ITest {
 
 	function parseGotoDefinition():GotoTypeDefinitionResult {
 		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseGotoDefinitionLocations():Array<Location> {
+		switch parseGotoDefinition().result {
+			case null:
+				throw new Exception('No result for GotoDefinition found');
+			case result:
+				return result;
+		}
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
