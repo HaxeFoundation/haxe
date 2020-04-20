@@ -29,7 +29,7 @@ class Js {
 
 	static public function run(args:Array<String>) {
 		getJSDependencies();
-		
+		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		haxelibInstallGit("Simn", "haxeserver");
 		changeDirectory(serverDir);
