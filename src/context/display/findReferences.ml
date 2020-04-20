@@ -91,7 +91,7 @@ let find_references tctx com with_definition =
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages
 	in
-	Display.ReferencePosition.reset();
+	(* Display.ReferencePosition.reset(); *)
 	DisplayException.raise_positions usages
 
 let find_implementations tctx com name pos kind =
