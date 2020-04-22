@@ -737,7 +737,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 			);
 
 			List.map (fun t ->
-				match follow t with
+				match follow_without_null t with
 					| TMono _ ->	t_empty
 					| t -> t
 			) monos
@@ -834,7 +834,9 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
 				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
 				let called_t = change_rest called_t elist in
-				let fparams = infer_params ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
+				let original = (get_fun (apply_params cl.cl_params params actual_t)) in
+				let applied = (get_fun called_t) in
+				let fparams = infer_params ecall.epos original applied cf.cf_params calls_parameters_explicitly in
 				(* get what the backend actually sees *)
 				(* actual field's function *)
 				let actual_t = get_real_fun gen actual_t in
