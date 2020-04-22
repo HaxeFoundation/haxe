@@ -433,9 +433,23 @@ and flush_macro_context mint ctx =
 	let minimal_restore t =
 		match t with
 		| TClassDecl c ->
-			let meta = c.cl_meta in
-			let path = c.cl_path in
-			c.cl_restore <- (fun() -> c.cl_meta <- meta; c.cl_path <- path);
+			let mk_field_restore f =
+				let e = f.cf_expr in
+				(fun () -> f.cf_expr <- e)
+			in
+			let meta = c.cl_meta
+			and path = c.cl_path
+			and field_restores = List.map mk_field_restore c.cl_ordered_fields
+			and static_restores = List.map mk_field_restore c.cl_ordered_statics
+			and ctor_restore = Option.map mk_field_restore c.cl_constructor
+			in
+			c.cl_restore <- (fun() ->
+				c.cl_meta <- meta;
+				c.cl_path <- path;
+				Option.may (fun fn -> fn()) ctor_restore;
+				List.iter (fun fn -> fn()) field_restores;
+				List.iter (fun fn -> fn()) static_restores;
+			);
 		| _ ->
 			()
 	in
