@@ -942,7 +942,9 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let pos = decode_int pos in
-		let len = default_int len (String.length s - pos) in
+		let len_default = String.length s - pos in
+		let len = default_int len len_default in
+		let len = if len < 0 then len_default else len in
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
