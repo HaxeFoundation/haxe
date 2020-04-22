@@ -5,16 +5,16 @@ class C {
 	static public function f(x:Int) {
 		switch (x) {
 			case SOME:
-				trace(1);
+				return 'hello';
 			case _:
-				trace(2);
+				return 'world';
 		}
 	}
 }
 
 class Main {
 	static function main() {
-		C.f(1);
-		C.f(2);
+		if(C.f(1) != 'hello') throw 'Test C.f(1) failed';
+		if(C.f(2) != 'world') throw 'Test C.f(2) failed';
 	}
 }
