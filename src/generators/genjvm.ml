@@ -2462,6 +2462,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate =
 		self#set_access_flags;
+		jc#set_source_file c.cl_pos.pfile;
 		self#generate_fields;
 		self#set_interfaces;
 		if not c.cl_interface then begin
@@ -2473,7 +2474,6 @@ class tclass_to_jvm gctx c = object(self)
 		if not (Meta.has Meta.NativeGen c.cl_meta) && not c.cl_interface then
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
-		jc#set_source_file c.cl_pos.pfile;
 		let jc = jc#export_class gctx.default_export_config in
 		write_class gctx.jar c.cl_path jc
 end
