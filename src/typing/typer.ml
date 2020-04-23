@@ -1731,6 +1731,26 @@ and type_object_decl ctx fl with_type p =
 	)
 
 and type_new ctx path el with_type force_inline p =
+	let path =
+		if snd path <> null_pos then
+			path
+		(*
+			Since macros don't have placed_type_path structure on Haxe side any ENew will have null_pos in `path`.
+			Try to calculate a better pos.
+		*)
+		else begin
+			match el with
+			| (_,p1) :: _ when p1.pfile = p.pfile && p.pmin < p1.pmin ->
+				let pmin = p.pmin + (String.length "new ")
+				and pmax = p1.pmin - 2 (* Additional "1" for an opening bracket *)
+				in
+				fst path, { p with
+					pmin = if pmin < pmax then pmin else p.pmin;
+					pmax = pmax;
+				}
+			| _ -> fst path, p
+		end
+	in
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
