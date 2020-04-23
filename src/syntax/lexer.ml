@@ -226,7 +226,15 @@ let resolve_pos file =
 		f
 
 let find_file file =
-	try Hashtbl.find all_files file with Not_found -> try resolve_pos file with Sys_error _ -> make_file file
+	try
+		Hashtbl.find all_files file
+	with Not_found ->
+		try
+			let f = resolve_pos file in
+			Hashtbl.add all_files file f;
+			f
+		with Sys_error _ ->
+			make_file file
 
 let find_pos p =
 	find_line p.pmin (find_file p.pfile)
