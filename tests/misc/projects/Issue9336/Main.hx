@@ -8,9 +8,9 @@ class Main {
 	#end
 	static macro function test() {
 		var pos = Context.makePosition({min: 20, max: 23, file: 'my_template.mtt' });
-		Context.warning(Std.string(pos), pos);
+		Context.warning('check pos', pos);
 		Context.parse('foo', pos);
-		Context.warning(Std.string(pos), pos);
+		Context.warning('check pos', pos);
 		return macro null;
 	}
 }
