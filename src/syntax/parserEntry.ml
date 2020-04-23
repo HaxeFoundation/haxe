@@ -402,8 +402,9 @@ let parse_string com s p error inlined =
 		syntax_errors := old_syntax_errors;
 		Lexer.restore old
 	in
-	Lexer.init p.pfile;
-	if not inlined then begin
+	if inlined then
+		Lexer.init p.pfile
+	else begin
 		display_position#reset;
 		in_display_file := false;
 	end;
