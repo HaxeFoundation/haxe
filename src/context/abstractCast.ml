@@ -110,7 +110,8 @@ and cast_or_unify ctx tleft eright p =
 let find_array_access_raise ctx a pl e1 e2o p =
 	let is_set = e2o <> None in
 	let ta = apply_params a.a_params pl a.a_this in
-	let rec loop cfl = match cfl with
+	let rec loop cfl =
+		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -122,10 +123,14 @@ let find_array_access_raise ctx a pl e1 e2o p =
 					| _ -> ()
 				) monos cf.cf_params;
 			in
+			let get_ta() =
+				if has_meta Meta.Impl cf.cf_meta then ta
+				else TAbstract(a,pl)
+			in
 			match follow (map cf.cf_type) with
 			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
 					check_constraints();
@@ -135,7 +140,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				end
 			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1,None
