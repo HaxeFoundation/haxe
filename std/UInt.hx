@@ -55,7 +55,9 @@ abstract UInt to Int from Int {
 
 	@:op(A - B) private static function sub(lhs:UInt, rhs:UInt):UInt;
 
-	@:op(A / B) private static function divI(lhs:UInt, rhs:Int):Float;
+	@:op(A / B) private static inline function divI(lhs:UInt, rhs:Int):Float {
+		return (lhs:Int) / rhs;
+	}
 
 	@:op(A / B) private static function divF(lhs:UInt, rhs:Float):Float;
 
