@@ -153,11 +153,13 @@ let find_array_access_raise ctx a pl e1 e2o p =
 
 let find_array_access ctx a tl e1 e2o p =
 	try find_array_access_raise ctx a tl e1 e2o p
-	with Not_found -> match e2o with
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		match e2o with
 		| None ->
-			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 		| Some e2 ->
-			error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let m = mk_mono() in
