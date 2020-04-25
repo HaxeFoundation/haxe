@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package haxe.io;
+package haxe.crypto;
 
-class StringInput extends BytesInput {
-	public function new(s:String) {
-		super(haxe.io.Bytes.ofString(s));
+class Md5 {
+	public static function encode(s:String):String {
+		return untyped new String(base_encode(make_md5(s.__s), "0123456789abcdef".__s));
 	}
+
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
+		return haxe.io.Bytes.ofData(make_md5(b.getData()));
+	}
+
+	static var base_encode = neko.Lib.load("std", "base_encode", 2);
+	static var make_md5 = neko.Lib.load("std", "make_md5", 1);
 }

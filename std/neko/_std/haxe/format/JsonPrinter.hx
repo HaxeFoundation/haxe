@@ -47,7 +47,7 @@ class JsonPrinter {
 		return printer.buf.toString();
 	}
 
-	var buf:#if flash flash.utils.ByteArray #else StringBuf #end;
+	var buf:StringBuf;
 	var replacer:(key:Dynamic, value:Dynamic) -> Dynamic;
 	var indent:String;
 	var pretty:Bool;
@@ -59,13 +59,7 @@ class JsonPrinter {
 		this.pretty = space != null;
 		this.nind = 0;
 
-		#if flash
-		buf = new flash.utils.ByteArray();
-		buf.endian = flash.utils.Endian.BIG_ENDIAN;
-		buf.position = 0;
-		#else
 		buf = new StringBuf();
-		#end
 	}
 
 	inline function ipad():Void {
@@ -87,7 +81,7 @@ class JsonPrinter {
 			case TObject:
 				objString(v);
 			case TInt:
-				add(#if (jvm || hl) Std.string(v) #else v #end);
+				add(v);
 			case TFloat:
 				add(Math.isFinite(v) ? Std.string(v) : 'null');
 			case TFunction:
@@ -131,27 +125,18 @@ class JsonPrinter {
 				var i:Dynamic = Type.enumIndex(v);
 				add(i);
 			case TBool:
-				add(#if (php || jvm || hl) (v ? 'true' : 'false') #else v #end);
+				add(v);
 			case TNull:
 				add('null');
 		}
 	}
 
 	extern inline function addChar(c:Int) {
-		#if flash
-		buf.writeByte(c);
-		#else
 		buf.addChar(c);
-		#end
 	}
 
 	extern inline function add(v:String) {
-		#if flash
-		// argument is not always a string but will be automatically casted
-		buf.writeUTFBytes(v);
-		#else
 		buf.add(v);
-		#end
 	}
 
 	function classString(v:Dynamic) {
@@ -194,11 +179,12 @@ class JsonPrinter {
 	}
 
 	function quote(s:String) {
+		if (s.length != neko.Utf8.length(s)) {
+			quoteUtf8(s);
+			return;
+		}
 		addChar('"'.code);
 		var i = 0;
-		#if hl
-		var prev = -1;
-		#end
 		while (true) {
 			var c = StringTools.fastCodeAt(s, i++);
 			if (StringTools.isEof(c))
@@ -219,36 +205,40 @@ class JsonPrinter {
 				case 12:
 					add('\\f');
 				default:
-					#if flash
-					if (c >= 128)
-						add(String.fromCharCode(c))
-					else
-						addChar(c);
-					#elseif hl
-					if (prev >= 0) {
-						if (c >= 0xD800 && c <= 0xDFFF) {
-							addChar((((prev - 0xD800) << 10) | (c - 0xDC00)) + 0x10000);
-							prev = -1;
-						} else {
-							addChar("□".code);
-							prev = c;
-						}
-					} else {
-						if (c >= 0xD800 && c <= 0xDFFF)
-							prev = c;
-						else
-							addChar(c);
-					}
-					#else
 					addChar(c);
-					#end
 			}
 		}
-		#if hl
-		if (prev >= 0)
-			addChar("□".code);
-		#end
 		addChar('"'.code);
 	}
 
+	function quoteUtf8(s:String) {
+		var u = new neko.Utf8();
+		neko.Utf8.iter(s, function(c) {
+			switch (c) {
+				case '\\'.code, '"'.code:
+					u.addChar('\\'.code);
+					u.addChar(c);
+				case '\n'.code:
+					u.addChar('\\'.code);
+					u.addChar('n'.code);
+				case '\r'.code:
+					u.addChar('\\'.code);
+					u.addChar('r'.code);
+				case '\t'.code:
+					u.addChar('\\'.code);
+					u.addChar('t'.code);
+				case 8:
+					u.addChar('\\'.code);
+					u.addChar('b'.code);
+				case 12:
+					u.addChar('\\'.code);
+					u.addChar('f'.code);
+				default:
+					u.addChar(c);
+			}
+		});
+		buf.add('"');
+		buf.add(u.toString());
+		buf.add('"');
+	}
 }
