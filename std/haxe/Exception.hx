@@ -96,11 +96,16 @@ extern class Exception {
 	private function unwrap():Any;
 
 	/**
-		Exception description.
-
-		Includes message, stack and the previous exception (if set).
+		Returns exception message.
 	**/
 	public function toString():String;
+
+	/**
+		Detailed exception description.
+
+		Includes message, stack and the chain of previous exceptions (if set).
+	**/
+	public function details():String;
 
 	/**
 		If this field is defined in a target implementation, then a call to this

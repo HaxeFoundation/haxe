@@ -95,18 +95,14 @@ let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s : Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
 let get_exc_error_message ctx v stack p =
-	if is v key_haxe_Exception then
+	let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
+	let pl = List.filter (fun p -> p <> null_pos) pl in
+	match pl with
+	| [] ->
 		uncaught_exception_string v p ""
-	else begin
-		let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
-		let pl = List.filter (fun p -> p <> null_pos) pl in
-		match pl with
-		| [] ->
-			uncaught_exception_string v p ""
-		| _ ->
-			let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
-			Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
-	end
+	| _ ->
+		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
+		Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
 
 let build_exception_stack ctx env =
 	let eval = env.env_eval in
