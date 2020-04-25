@@ -46,7 +46,7 @@ class Resource {
 		return null;
 	}
 
-	static function __init__() {
+	static function __init__() : Void {
 		var tmp = untyped __resources__();
 		content = untyped Array.new1(tmp, __dollar__asize(tmp));
 	}
