@@ -22,25 +22,7 @@
 
 package haxe.format;
 
-/**
-	An implementation of JSON printer in Haxe.
-
-	This class is used by `haxe.Json` when native JSON implementation
-	is not available.
-
-	@see https://haxe.org/manual/std-Json-encoding.html
-**/
 class JsonPrinter {
-	/**
-		Encodes `o`'s value and returns the resulting JSON string.
-
-		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function takes two parameters,
-		the key and the value being encoded. Initial key value is an empty string.
-
-		If `space` is given and is not null, the result will be pretty-printed.
-		Successive levels will be indented by this string.
-	**/
 	static public function print(o:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
 		var printer = new JsonPrinter(replacer, space);
 		printer.write("", o);
