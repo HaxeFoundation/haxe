@@ -153,7 +153,12 @@ class Printer {
 			case AExtern: "extern";
 		}
 
-	public function printField(field:Field)
+	public function printField(field:Field) {
+		inline function orderAccess(access: Array<Access>) {
+			// final should always be printed last
+			// (does not modify input array)
+			return access.has(AFinal) ? access.filter(a -> !a.match(AFinal)).concat([AFinal]) : access;
+		}
 		return (field.doc != null
 			&& field.doc != "" ? "/**\n"
 				+ tabs
@@ -164,12 +169,13 @@ class Printer {
 				+ "**/\n"
 				+ tabs : "")
 			+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
-			+ (field.access != null && field.access.length > 0 ? field.access.map(printAccess).join(" ") + " " : "")
+			+ (field.access != null && field.access.length > 0 ? orderAccess(field.access).map(printAccess).join(" ") + " " : "")
 			+ switch (field.kind) {
 				case FVar(t, eo): ((field.access != null && field.access.has(AFinal)) ? '' : 'var ') + '${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FProp(get, set, t, eo): 'var ${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FFun(func): 'function ${field.name}' + printFunction(func);
 			}
+	}
 
 	public function printTypeParamDecl(tpd:TypeParamDecl)
 		return tpd.name
