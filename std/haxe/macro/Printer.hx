@@ -120,14 +120,15 @@ class Printer {
 		return switch (ct) {
 			case TPath(tp): printTypePath(tp);
 			case TFunction(args, ret):
-				if (args.length == 1 && !(args[0].match(TNamed(_, _)) || args[0].match(TFunction(_, _)))) {
-					// This special case handles an ambigity between the old function syntax and the new
-					// (T) -> T parses as `TFunction([TParent(TPath)], ...`, rather than `TFunction([TPath], ...`
-					// We forgo patenthesis in this case so that (T) -> T doesn't get round-tripped to ((T)) -> T
-					printComplexType(args[0]) + " -> " + printComplexType(ret);
-				} else {
-					'(${args.map(printComplexType).join(", ")})' + " -> " + printComplexType(ret);
+				var wrapArgumentsInParentheses = switch args {
+					// type `:(a:X) -> Y` has args as [TParent(TNamed(...))], i.e `a:X` gets wrapped in `TParent()`. We don't add parentheses to avoid printing `:((a:X)) -> Y`
+					case [TParent(t)]: false;
+					// this case catches a single argument that's a type-path, so that `X -> Y` prints `X -> Y` not `(X) -> Y`
+					case [TPath(_) | TOptional(TPath(_))]: false;
+					default: true;
 				}
+				var argStr = args.map(printComplexType).join(", ");
+				(wrapArgumentsInParentheses ? '($argStr)' : argStr) + " -> " + printComplexType(ret);
 			case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 			case TParent(ct): "(" + printComplexType(ct) + ")";
 			case TOptional(ct): "?" + printComplexType(ct);
