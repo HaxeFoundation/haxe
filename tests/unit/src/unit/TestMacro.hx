@@ -69,31 +69,27 @@ class TestMacro extends Test {
 		parseAndPrint('(a, b) -> c');
 		parseAndPrint('function(a) return b');
 		parseAndPrint('function named(a) return b');
+
+		var p = new haxe.macro.Printer();
 		// special handling of single arguments (don't add parentheses)
 		//	types
-		printComplexType(macro :X -> Y, "X -> Y");
-		printComplexType(macro :(X) -> Y, "(X) -> Y");
-		printComplexType(macro :((X)) -> Y, "((X)) -> Y");
-		printComplexType(macro :?X -> Y, "?X -> Y");
-		printComplexType(macro :(?X) -> Y, "(?X) -> Y");
+		eq(p.printComplexType(macro :X -> Y), "X -> Y");
+		eq(p.printComplexType(macro :(X) -> Y), "(X) -> Y");
+		eq(p.printComplexType(macro :((X)) -> Y), "((X)) -> Y");
+		eq(p.printComplexType(macro :?X -> Y), "?X -> Y");
+		eq(p.printComplexType(macro :(?X) -> Y), "(?X) -> Y");
 		//	named
-		printComplexType(
-			// see #9353
-			TFunction( [ TOptional( TNamed('a', macro :Int) ) ], macro :Int),
+		eq(
+			// see issue #9353
+			p.printComplexType( TFunction( [ TOptional( TNamed('a', macro :Int) ) ], macro :Int) ),
 			"(?a:Int) -> Int"
 		);
-		printComplexType(macro :(a:X) -> Y, "(a:X) -> Y");
-		printComplexType(macro :(?a:X) -> Y, "(?a:X) -> Y");
-		printComplexType(macro :((?a:X)) -> Y, "((?a:X)) -> Y");
+		eq(p.printComplexType(macro :(a:X) -> Y), "(a:X) -> Y");
+		eq(p.printComplexType(macro :(?a:X) -> Y), "(?a:X) -> Y");
+		eq(p.printComplexType(macro :((?a:X)) -> Y), "((?a:X)) -> Y");
 		// multiple arguments are always wrapped with parentheses
-		printComplexType(macro :(X, Y) -> Z, "(X, Y) -> Z");
-		printComplexType(macro :X -> Y -> Z, "(X, Y) -> Z");
-		printComplexType(macro :(X -> Y) -> Z, "(X -> Y) -> Z");
-	}
-
-	static function printComplexType(ct:ComplexType, expected: String) {
-		var p = new haxe.macro.Printer();
-		var printed = p.printComplexType(ct);
-		return eq(expected, printed);
+		eq(p.printComplexType(macro :(X, Y) -> Z), "(X, Y) -> Z");
+		eq(p.printComplexType(macro :X -> Y -> Z), "(X, Y) -> Z");
+		eq(p.printComplexType(macro :(X -> Y) -> Z), "(X -> Y) -> Z");
 	}
 }
