@@ -91,5 +91,16 @@ class TestMacro extends Test {
 		eq(p.printComplexType(macro :(X, Y) -> Z), "(X, Y) -> Z");
 		eq(p.printComplexType(macro :X -> Y -> Z), "(X, Y) -> Z");
 		eq(p.printComplexType(macro :(X -> Y) -> Z), "(X -> Y) -> Z");
+
+		// access order, see #9349
+		eq(
+			p.printField({
+				name: 'x',
+				pos: null,
+				kind: FVar(macro :Any, null),
+				access: [AFinal, AStatic]
+			}),
+			'static final x : Any'
+		);
 	}
 }
