@@ -20,10 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package haxe.io;
+package haxe;
 
-class StringInput extends BytesInput {
-	public function new(s:String) {
-		super(haxe.io.Bytes.ofString(s));
+@:coreApi
+class Resource {
+	static var content:Array<{name:String, data:String, str:String}>;
+
+	public static function listNames():Array<String> {
+		return [for (x in content) x.name];
+	}
+
+	public static function getString(name:String):String {
+		for (x in content)
+			if (x.name == name) {
+				return new String(x.data);
+			}
+		return null;
+	}
+
+	public static function getBytes(name:String):haxe.io.Bytes {
+		for (x in content)
+			if (x.name == name) {
+				return haxe.io.Bytes.ofData(cast x.data);
+			}
+		return null;
+	}
+
+	static function __init__() : Void {
+		var tmp = untyped __resources__();
+		content = untyped Array.new1(tmp, __dollar__asize(tmp));
 	}
 }
