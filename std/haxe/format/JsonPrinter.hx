@@ -194,6 +194,12 @@ class JsonPrinter {
 	}
 
 	function quote(s:String) {
+		#if neko
+		if (s.length != neko.Utf8.length(s)) {
+			quoteUtf8(s);
+			return;
+		}
+		#end
 		addChar('"'.code);
 		var i = 0;
 		#if hl
@@ -251,4 +257,36 @@ class JsonPrinter {
 		addChar('"'.code);
 	}
 
+	#if neko
+	function quoteUtf8(s:String) {
+		var u = new neko.Utf8();
+		neko.Utf8.iter(s, function(c) {
+			switch (c) {
+				case '\\'.code, '"'.code:
+					u.addChar('\\'.code);
+					u.addChar(c);
+				case '\n'.code:
+					u.addChar('\\'.code);
+					u.addChar('n'.code);
+				case '\r'.code:
+					u.addChar('\\'.code);
+					u.addChar('r'.code);
+				case '\t'.code:
+					u.addChar('\\'.code);
+					u.addChar('t'.code);
+				case 8:
+					u.addChar('\\'.code);
+					u.addChar('b'.code);
+				case 12:
+					u.addChar('\\'.code);
+					u.addChar('f'.code);
+				default:
+					u.addChar(c);
+			}
+		});
+		buf.add('"');
+		buf.add(u.toString());
+		buf.add('"');
+	}
+	#end
 }
