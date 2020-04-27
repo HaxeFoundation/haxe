@@ -29,6 +29,6 @@ import haxe.extern.Rest;
 **/
 @:native('Closure')
 extern class Closure {
-	public function bindTo(newthis:{}, newscope:Dynamic = "static"):Closure;
-	public function call(newthis:{}, args:Rest<Dynamic>):Dynamic;
+	function bindTo(newthis:{}, newscope:Dynamic = "static"):Closure;
+	function call(newthis:{}, args:Rest<Dynamic>):Dynamic;
 }

@@ -30,31 +30,31 @@ enum abstract SeekSet(Int) {
 
 @:pythonImport("io", "IOBase")
 extern class IOBase implements IIOBase {
-	public function close():Void;
-	public function flush():Void;
-	public function readline(limit:Int = -1):String;
-	public function readable():Bool;
-	public var closed(default, null):Bool;
-	public function readlines(hint:Int = -1):Array<String>;
-	public function tell():Int;
-	public function writable():Bool;
-	public function seekable():Bool;
-	public function fileno():Int;
-	public function seek(offset:Int, whence:SeekSet):Int;
-	public function truncate(size:Int):Int;
+	function close():Void;
+	function flush():Void;
+	function readline(limit:Int = -1):String;
+	function readable():Bool;
+	var closed(default, null):Bool;
+	function readlines(hint:Int = -1):Array<String>;
+	function tell():Int;
+	function writable():Bool;
+	function seekable():Bool;
+	function fileno():Int;
+	function seek(offset:Int, whence:SeekSet):Int;
+	function truncate(size:Int):Int;
 }
 
 @:remove extern interface IIOBase {
-	public function close():Void;
-	public function flush():Void;
-	public function readline(limit:Int = -1):String;
-	public function readable():Bool;
-	public var closed(default, null):Bool;
-	public function readlines(hint:Int = -1):Array<String>;
-	public function tell():Int;
-	public function writable():Bool;
-	public function seekable():Bool;
-	public function fileno():Int;
-	public function seek(offset:Int, whence:SeekSet):Int;
-	public function truncate(size:Int):Int;
+	function close():Void;
+	function flush():Void;
+	function readline(limit:Int = -1):String;
+	function readable():Bool;
+	var closed(default, null):Bool;
+	function readlines(hint:Int = -1):Array<String>;
+	function tell():Int;
+	function writable():Bool;
+	function seekable():Bool;
+	function fileno():Int;
+	function seek(offset:Int, whence:SeekSet):Int;
+	function truncate(size:Int):Int;
 }

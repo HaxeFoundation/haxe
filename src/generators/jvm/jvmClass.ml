@@ -32,17 +32,27 @@ class builder path_this path_super = object(self)
 	val jsig = TObject(path_this,[])
 	val mutable offset_this = 0
 	val mutable offset_super = 0
+	val mutable type_parameters = []
+	val mutable super_type_parameters = []
+	val mutable interfaces = []
 	val mutable interface_offsets = []
 	val fields = DynArray.create ()
 	val methods = DynArray.create ()
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
-	val mutable closure_count = 0
 	val mutable spawned_methods = []
 	val mutable static_init_method = None
+	val mutable source_file = None
 
-	method add_interface path =
-		interface_offsets <- (pool#add_path path) :: interface_offsets
+	method add_interface (path : jpath) (params : jtype_argument list) =
+		interface_offsets <- (pool#add_path path) :: interface_offsets;
+		interfaces <- (path,params) :: interfaces
+
+	method set_type_parameters (sl : string list) =
+		type_parameters <- sl
+
+	method set_super_parameters (params : jtype_argument list) =
+		super_type_parameters <- params
 
 	method add_field (f : jvm_field) =
 		DynArray.add fields f
@@ -55,17 +65,15 @@ class builder path_this path_super = object(self)
 	method get_offset_this = offset_this
 	method get_access_flags = access_flags
 
+	method set_source_file (file : string) =
+		source_file <- Some file
+
 	method get_static_init_method = match static_init_method with
 		| Some jm -> jm
 		| None ->
 			let jm = self#spawn_method "<clinit>" (method_sig [] None) [MethodAccessFlags.MStatic] in
 			static_init_method <- Some jm;
 			jm
-
-	method get_next_closure_name =
-		let name = Printf.sprintf "Closure$%i" closure_count in
-		closure_count <- closure_count + 1;
-		name
 
 	method has_method (name : string) (jsig : jsignature) =
 		Hashtbl.mem method_sigs (name,generate_method_signature false jsig)
@@ -90,6 +98,12 @@ class builder path_this path_super = object(self)
 		end;
 		let offset = pool#add_path path in
 		Hashtbl.add inner_classes offset jc;
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			jc#set_source_file file
+		end;
 		jc
 
 	method spawn_method (name : string) (jsig_method : jsignature) (flags : MethodAccessFlags.t list) =
@@ -135,14 +149,38 @@ class builder path_this path_super = object(self)
 			self#add_attribute (AttributeInnerClasses a)
 		end
 
+	method private generate_signature =
+		let stl = match type_parameters with
+			| [] -> ""
+			| params ->
+				let stl = String.concat "" (List.map (fun n ->
+					Printf.sprintf "%s:Ljava/lang/Object;" n
+				) params) in
+				Printf.sprintf "<%s>" stl
+		in
+		let ssuper = generate_method_signature true (TObject(path_super,super_type_parameters)) in
+		let sinterfaces = String.concat "" (List.map (fun (path,params) ->
+			generate_method_signature true (TObject(path,params))
+		) interfaces) in
+		let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
+		let offset = self#get_pool#add_string s in
+		self#add_attribute (AttributeSignature offset)
+
 	method export_class (config : export_config) =
 		assert (not was_exported);
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			self#add_attribute (AttributeSourceFile (self#get_pool#add_string file));
+		end;
 		begin match static_init_method with
 		| None ->
 			()
 		| Some jm ->
 			if not jm#is_terminated then jm#return;
 		end;
+		self#generate_signature;
 		was_exported <- true;
 		List.iter (fun (jm,pop_scope) ->
 			begin match pop_scope with

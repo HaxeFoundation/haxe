@@ -1,0 +1,4 @@
+# comment the following line to disable testing the filesystem with invalid
+# Unicode codepoints; these will not work on APFS
+
+-D TEST_INVALID_UNICODE_FS

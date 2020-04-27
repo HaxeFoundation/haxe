@@ -31,7 +31,7 @@ import python.io.IFileOutput;
 class FileOutput extends Output {
 	var impl:IFileOutput;
 
-	public function new(impl:IFileOutput) {
+	function new(impl:IFileOutput) {
 		this.impl = impl;
 	}
 

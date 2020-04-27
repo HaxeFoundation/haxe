@@ -5,3 +5,4 @@
 -lib hxnodejs
 -lib utest
 -lib haxeserver
+-D analyzer-optimize

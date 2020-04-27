@@ -50,6 +50,7 @@ class TestMain {
 		var classes = [
 			new TestOps(),
 			new TestBasetypes(),
+			new TestExceptions(),
 			new TestBytes(),
 			new TestIO(),
 			new TestLocals(),

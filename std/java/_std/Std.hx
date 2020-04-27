@@ -22,7 +22,6 @@
 
 import java.Boot;
 import java.Lib;
-import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {

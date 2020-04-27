@@ -154,7 +154,7 @@ struct
 				| _ ->
 					let actual_t = match follow ef.ef_type with
 						| TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
-						| _ -> assert false
+						| _ -> die ""
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then

@@ -36,7 +36,7 @@ open Filename
 
 let build_count = ref 0
 
-let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
+let type_function_params_rec = ref (fun _ _ _ _ -> die "")
 
 let check_field_access ctx cff =
 	let display_access = ref None in
@@ -88,9 +88,18 @@ let find_type_in_module m tname =
 (* raises Type_not_found *)
 let find_type_in_module_raise m tname p =
 	try
-		find_type_in_module m tname
+		List.find (fun mt ->
+			let infos = t_infos mt in
+			if snd infos.mt_path = tname then
+				if infos.mt_private then
+					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
+				else
+					true
+			else
+				false
+		) m.m_types
 	with Not_found ->
-		raise_error (Type_not_found (m.m_path,tname)) p
+		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
@@ -206,8 +215,8 @@ let load_qualified_type_def ctx pack mname tname p =
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
-
+	if t = Parser.magic_type_path then
+		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 
@@ -295,7 +304,7 @@ let make_extension_type ctx tl =
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
-	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
 (* build an instance from a full type *)
@@ -334,7 +343,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let t = mk_mono() in
 					if c.cl_kind <> KTypeParameter [] || is_generic then delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
-				| _ -> assert false
+				| _ -> die ""
 			) types;
 			f (!pl)
 		end else if path = ([],"Dynamic") then
@@ -386,7 +395,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 								t
 							) "constraint" in
 							TLazy r
-						| _ -> assert false
+						| _ -> die ""
 					in
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
@@ -460,7 +469,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
-					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
+					mk_anon ~fields:(PMap.foldi PMap.add a.a_fields a2.a_fields) (ref (Extend [t]))
 				| _ -> error "Can only extend structures" p
 			in
 			let loop (t,p) = match follow t with
@@ -496,7 +505,7 @@ and load_complex_type' ctx allow_display (t,p) =
 				t
 			) "constraint" in
 			TLazy r
-		| _ -> assert false
+		| _ -> die ""
 		end
 	| CTAnonymous l ->
 		let displayed_field = ref None in
@@ -633,7 +642,15 @@ and init_meta_overloads ctx co cf =
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
-			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
+			let args =
+				List.map
+					(fun ((a,_),opt,_,t,cto) ->
+						let t = if opt then ctx.t.tnull (topt t) else topt t in
+						let opt = opt || cto <> None in
+						a,opt,t
+					)
+					f.f_args
+			in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
@@ -679,27 +696,27 @@ let hide_params ctx =
 *)
 let load_core_type ctx name =
 	let show = hide_params ctx in
-	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false in
+	let t = load_instance ctx (mk_type_path ([],name),null_pos) false in
 	show();
 	add_dependency ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
 	| TType (t,_) -> t.t_module
 	| TAbstract (a,_) -> a.a_module
 	| TEnum (e,_) -> e.e_module
-	| _ -> assert false);
+	| _ -> die "");
 	t
 
 let t_iterator ctx =
 	let show = hide_params ctx in
-	match load_type_def ctx null_pos { tpackage = []; tname = "Iterator"; tparams = []; tsub = None } with
+	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
 	| TTypeDecl t ->
 		show();
 		add_dependency ctx.m.curmod t.t_module;
-		if List.length t.t_params <> 1 then assert false;
+		if List.length t.t_params <> 1 then die "";
 		let pt = mk_mono() in
 		apply_params t.t_params [pt] t.t_type, pt
 	| _ ->
-		assert false
+		die ""
 
 (*
 	load either a type t or Null<Unknown> if not defined
@@ -739,7 +756,7 @@ let field_to_type_path ctx e =
 				| [name; sub] ->
 					f :: pack, name, Some sub
 				| _ ->
-					assert false
+					die ""
 			in
 			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
 		| _,pos ->
@@ -811,8 +828,8 @@ let load_core_class ctx c =
 			c
 	) in
 	let tpath = match c.cl_kind with
-		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
-		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
+		| KAbstractImpl a -> mk_type_path a.a_path
+		| _ -> mk_type_path c.cl_path
 	in
 	let t = load_instance ctx2 (tpath,c.cl_pos) true in
 	flush_pass ctx2 PFinal "core_final";
@@ -820,7 +837,7 @@ let load_core_class ctx c =
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
 		ccore
 	| _ ->
-		assert false
+		die ""
 
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
@@ -838,7 +855,7 @@ let init_core_api ctx c =
 				end
 			| t1,t2 ->
 				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
-				assert false
+				die ""
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
 		error "Class must have the same number of type parameters as core type" c.cl_pos
@@ -899,10 +916,10 @@ let string_list_of_expr_path (e,p) =
 let handle_using ctx path p =
 	let t = match List.rev path with
 		| (s1,_) :: (s2,_) :: sl ->
-			if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
-			else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+			if is_lower_ident s2 then mk_type_path ((List.rev (s2 :: List.map fst sl)),s1)
+			else mk_type_path ~sub:s1 (List.rev (List.map fst sl),s2)
 		| (s1,_) :: sl ->
-			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+			mk_type_path (List.rev (List.map fst sl),s1)
 		| [] ->
 			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
 	in

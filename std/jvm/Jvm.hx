@@ -29,9 +29,9 @@ import haxe.ds.Vector;
 import haxe.extern.Rest;
 import java.Init;
 import java.NativeArray;
+import java.lang.NullPointerException;
 import jvm.DynamicObject;
 import jvm.EmptyConstructor;
-import jvm.Exception;
 import jvm.Object;
 import jvm.annotation.ClassReflectionInformation;
 import jvm.annotation.EnumReflectionInformation;
@@ -280,6 +280,23 @@ class Jvm {
 		throw 'Cannot array-write on $obj';
 	}
 
+	static public function readFieldClosure(obj:Dynamic, name:String, parameterTypes:NativeArray<java.lang.Class<Dynamic>>):Dynamic {
+		var cl = (obj : java.lang.Object).getClass();
+		var method = cl.getMethod(name, parameterTypes);
+		if (method.isBridge()) {
+			/* This is probably not what we want... go through all methods and see if we find one that
+				isn't a bridge. This is pretty awkward, but I can't figure out how to use the Java reflection
+				API properly. */
+			for (meth in cl.getMethods()) {
+				if (meth.getName() == name && !meth.isBridge() && method.getParameterTypes().length == parameterTypes.length) {
+					method = meth;
+					break;
+				}
+			}
+		}
+		return new jvm.Closure(obj, method);
+	}
+
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
 		var isStatic = instanceof(obj, java.lang.Class);
 		var cl = isStatic ? obj : (obj : java.lang.Object).getClass();
@@ -291,7 +308,7 @@ class Jvm {
 			while (cl != null) {
 				var methods = cl.getMethods();
 				for (m in methods) {
-					if (m.getName() == name) {
+					if (m.getName() == name && !m.isSynthetic()) {
 						var context = null;
 						if (!isStatic || cl == cast java.lang.Class) {
 							context = obj;
@@ -313,7 +330,10 @@ class Jvm {
 	}
 
 	static public function readField(obj:Dynamic, name:String):Dynamic {
-		if (obj == null || name == null) {
+		if (obj == null) {
+			throw new NullPointerException(name);
+		}
+		if (name == null) {
 			return null;
 		}
 		if (instanceof(obj, jvm.Object)) {

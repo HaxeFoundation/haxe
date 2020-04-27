@@ -21,6 +21,7 @@
  */
 
 import cs.NativeArray;
+import haxe.iterators.ArrayKeyValueIterator;
 
 #if core_api_serialize
 @:meta(System.Serializable)
@@ -428,6 +429,11 @@ final class Array<T> implements ArrayAccess<T> {
 
 	public inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T>
+	{
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize(len:Int):Void {

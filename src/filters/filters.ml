@@ -69,7 +69,7 @@ let rec add_final_return e =
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init e =
+let check_local_vars_init com e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -88,9 +88,13 @@ let check_local_vars_init e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init && not (IntMap.mem v.v_id !outside_vars) then begin
-				if v.v_name = "this" then error "Missing this = value" e.epos
-				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+			if not init then begin
+				if IntMap.mem v.v_id !outside_vars then
+					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
+					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+				else
+					if v.v_name = "this" then error "Missing this = value" e.epos
+					else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -186,110 +190,6 @@ let check_local_vars_init e =
 			Type.iter (loop vars) e
 	in
 	loop (ref PMap.empty) e;
-	e
-
-(* -------------------------------------------------------------------------- *)
-(* RENAME LOCAL VARS *)
-
-let collect_reserved_local_names com =
-	match com.platform with
-	| Js ->
-		let h = ref StringMap.empty in
-		let add name = h := StringMap.add name true !h in
-		List.iter (fun mt ->
-			let tinfos = t_infos mt in
-			let native_name = try fst (get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
-			if native_name = "" then
-				match mt with
-				| TClassDecl c ->
-					List.iter (fun cf ->
-						let native_name = try fst (get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
-						add native_name
-					) c.cl_ordered_statics;
-				| _ -> ()
-			else
-				add native_name
-		) com.types;
-		!h
-	| _ -> StringMap.empty
-
-let rename_local_vars ctx reserved e =
-	let vars = ref [] in
-	let declare v =
-		vars := v :: !vars
-	in
-	let reserved = ref reserved in
-	let reserve name =
-		reserved := StringMap.add name true !reserved
-	in
-	let check t =
-		match (t_infos t).mt_path with
-		| [], name | name :: _, _ -> reserve name
-	in
-	let check_type t =
-		match follow t with
-		| TInst (c,_) -> check (TClassDecl c)
-		| TEnum (e,_) -> check (TEnumDecl e)
-		| TType (t,_) -> check (TTypeDecl t)
-		| TAbstract (a,_) -> check (TAbstractDecl a)
-		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
-	in
-	let rec collect e = match e.eexpr with
- 		| TVar(v,eo) ->
-			declare v;
-			(match eo with None -> () | Some e -> collect e)
-		| TFor(v,e1,e2) ->
-			declare v;
-			collect e1;
-			collect e2;
-		| TTry(e1,catches) ->
-			collect e1;
-			List.iter (fun (v,e) ->
-				declare v;
-				check_type v.v_type;
-				collect e
-			) catches
-		| TFunction tf ->
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
-			collect tf.tf_expr
-		| TTypeExpr t ->
-			check t
-		| TNew (c,_,_) ->
-			Type.iter collect e;
-			check (TClassDecl c);
-		| TCast (e,Some t) ->
-			collect e;
-			check t;
-		| TConst TSuper ->
-			check_type e.etype
-		| _ ->
-			Type.iter collect e
-	in
-	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
-	collect e;
-	(* Pass 2: Check and rename variables. *)
-	let count_table = Hashtbl.create 0 in
-	let maybe_rename v =
-		(* chop escape char for all local variables generated *)
-		if is_gen_local v then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
-		let name = ref v.v_name in
-		let count = ref (try Hashtbl.find count_table v.v_name with Not_found -> 0) in
-		while StringMap.mem !name !reserved do
-			incr count;
-			name := v.v_name ^ (string_of_int !count);
-		done;
-		reserve !name;
-		Hashtbl.replace count_table v.v_name !count;
-		if not (Meta.has Meta.RealPath v.v_meta) then
-			v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),e.epos],e.epos) :: v.v_meta;
-		v.v_name <- !name;
-	in
-	List.iter maybe_rename (List.rev !vars);
 	e
 
 let mark_switch_break_loops e =
@@ -544,7 +444,7 @@ let add_rtti ctx t =
 		()
 
 (* Adds member field initializations as assignments to the constructor *)
-let add_field_inits reserved ctx t =
+let add_field_inits locals ctx t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -561,7 +461,7 @@ let add_field_inits reserved ctx t =
 		| _ ->
 			let el = List.map (fun cf ->
 				match cf.cf_expr with
-				| None -> assert false
+				| None -> die ""
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
@@ -586,14 +486,14 @@ let add_field_inits reserved ctx t =
 					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
-					assert false
+					die ""
 			in
 			let config = AnalyzerConfig.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = rename_local_vars ctx reserved e in
+				let e = RenameVars.run ctx locals e in
 				let e = Optimizer.sanitize ctx.com e in
 				cf.cf_expr <- Some e
 			| _ ->
@@ -818,27 +718,22 @@ let run com tctx main =
 	t();
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
-		check_local_vars_init;
+		check_local_vars_init tctx.com;
 		check_abstract_as_value;
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
 		| Cs ->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_cs com
-			]
+			filters
 		| Java when not (Common.defined com Jvm)->
 			SetHXGen.run_filter com new_types;
-			filters @ [
-				TryCatchWrapper.configure_java com
-			]
-		| Js ->
-			filters @ [JsExceptions.init tctx];
+			filters
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -865,13 +760,13 @@ let run com tctx main =
 	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 	com.stage <- CAnalyzerDone;
-	let reserved = collect_reserved_local_names com in
+	let locals = RenameVars.init com in
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		(match com.platform with
 		| Eval -> (fun e -> e)
-		| _ -> rename_local_vars tctx reserved);
+		| _ -> RenameVars.run tctx locals);
 		mark_switch_break_loops;
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
@@ -913,11 +808,13 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
 	let type_filters = [
+		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits reserved);
+		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits locals);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
@@ -926,7 +823,6 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
-		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

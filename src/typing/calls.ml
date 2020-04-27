@@ -90,7 +90,7 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 		make_call ctx ef [ebase;e1] r p
 
 let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
-	let evalue = match e2o with None -> assert false | Some e -> e in
+	let evalue = match e2o with None -> die "" | Some e -> e in
 	match cf.cf_expr with
 		| None ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
@@ -185,7 +185,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
 					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
-					assert false
+					die ""
 			end
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
@@ -208,24 +208,19 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
-			try
-				let e,submit_messages = hold_messages ctx.com (fun() -> type_against name t e) in
-				submit_messages();
+			begin try
+				let e = type_against name t e in
 				(e,opt) :: loop el args
-			with HoldMessages (err,submit_messages) ->
-				match err with
-				| WithTypeError (ul,p)->
+			with
+				WithTypeError (ul,p)->
 					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						(match List.rev !skipped with
+						match List.rev !skipped with
 						| [] -> arg_error ul name opt p
 						| (s,ul,p) :: _ -> arg_error ul s true p
-						)
-				| _ ->
-					submit_messages();
-					raise err
+			end
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
 	ctx.in_call_args <- in_call_args;
@@ -285,7 +280,7 @@ let unify_field_call ctx fa el args ret p inline =
 			in
 			el,tf,mk_call
 		| _ ->
-			assert false
+			die ""
 	in
 	let maybe_raise_unknown_ident cerr p =
 		let rec loop err =
@@ -356,7 +351,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	let c,tl,cf,stat = match fa with
 		| FInstance(c,tl,cf) -> c,tl,cf,false
 		| FStatic(c,cf) -> c,[],cf,true
-		| _ -> assert false
+		| _ -> die ""
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -366,7 +361,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
 			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
-			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> assert false
+			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> die ""
 			in
 			(* manually unify first argument *)
 			unify ctx e.etype ta p;
@@ -489,7 +484,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
+	| AKSet _ | AKAccess _ | AKFieldSet _ -> die ""
 	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
@@ -523,7 +518,7 @@ let rec acc_get ctx g p =
 				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
-		| _ -> assert false)
+		| _ -> die "")
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
 		let cmode,apply_params = match fmode with
@@ -539,7 +534,7 @@ let rec acc_get ctx g p =
 			| FInstance (c,tl,f) ->
 				(FClosure (Some (c,tl),f),(fun t -> t))
 			| _ ->
-				assert false
+				die ""
 		in
 		ignore(follow f.cf_type); (* force computing *)
 		begin match f.cf_kind,f.cf_expr with
@@ -631,7 +626,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
-		| _ -> assert false)
+		| _ -> die "")
 	| AKUsing (et,cl,ef,eparam,force_inline) ->
 		begin match ef.cf_kind with
 		| Method MethMacro ->
@@ -654,9 +649,9 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					let ef = prepare_using_field ef in
 					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
 					| el,TFun(args,r) -> el,args,r,eparam
-					| _ -> assert false
+					| _ -> die ""
 					end
-				| _ -> assert false
+				| _ -> die ""
 			in
 			make_call ctx ~force_inline et (eparam :: params) r p
 		end
@@ -686,11 +681,11 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						e
 					else
 						match c.cl_super with
-						| None -> assert false
+						| None -> die ""
 						| Some (csup,_) -> loop csup
 				in
 				loop c
-			| _ -> assert false))
+			| _ -> die ""))
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
@@ -718,7 +713,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		e
 	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
-		assert false
+		die ""
 	| AKExpr e ->
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
@@ -733,7 +728,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
-					let r = match tfunc with TFun(_,r) -> r | _ -> assert false in
+					let r = match tfunc with TFun(_,r) -> r | _ -> die "" in
 					mk (TCall (e,el)) r p
 			end
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
@@ -787,40 +782,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let rec gen_loc_name n =
-		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
-		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
-	in
-	let loc = alloc_var VGenerated (gen_loc_name 0) e.etype e.epos in
-	let given_args = (loc,false,Some e) :: given_args in
-	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(inner_fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) ordered_args ret p in
-	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) ->
-			call
-		| TMono _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+	let var_decls = List.map (fun (v,_,e_opt) -> mk (TVar(v,e_opt)) ctx.t.tvoid v.v_pos) given_args in
+	let e,var_decls =
+		let is_immutable_method cf =
+			match cf.cf_kind with Method k -> k <> MethDynamic | _ -> false
+		in
+		match e.eexpr with
+		| TFunction _ | TLocal { v_kind = VUser TVOLocalFunction } ->
+			e,var_decls
+		| TField(_,(FStatic(_,cf) | FInstance(_,_,cf))) when is_immutable_method cf ->
+			e,var_decls
 		| _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some (Texpr.Builder.make_null v.v_type null_pos) else None) missing_args;
+	let call = make_call ctx e ordered_args ret p in
+	let body =
+		if ExtType.is_void (follow ret) then call
+		else mk (TReturn(Some call)) ret p
+	in
+	let arg_default optional t =
+		if optional then Some (Texpr.Builder.make_null t null_pos)
+		else None
+	in
+	let fn = {
+		tf_args = List.map (fun (v,o) -> v,arg_default o v.v_type) missing_args;
 		tf_type = ret;
-		tf_expr = e_ret;
-	}) t_inner p in
-	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
-		tf_type = t_inner;
-		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(outer_fun_args given_args, t_inner)) p in
-	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+		tf_expr = body;
+	} in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret) in
+	{
+		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
+		etype = t;
+		epos = p;
+	}
 
 let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in

@@ -212,7 +212,7 @@ and expr_def =
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
-	| ETry of expr * (placed_name * type_hint * expr * pos) list
+	| ETry of expr * (placed_name * type_hint option * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -327,6 +327,11 @@ type type_def =
 type type_decl = type_def * pos
 
 type package = string list * type_decl list
+
+let mk_type_path ?(params=[]) ?sub (pack,name) =
+	if name = "" then
+		raise (Invalid_argument "Empty module name is not allowed");
+	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
 
 let is_lower_ident i =
 	if String.length i = 0 then
@@ -692,7 +697,7 @@ let map_expr loop (e,p) =
 		ESwitch (e, cases, def)
 	| ETry (e,catches) ->
 		let e = loop e in
-		let catches = List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches in
+		let catches = List.map (fun (n,t,e,p) -> n,Option.map type_hint t,loop e,p) catches in
 		ETry (e,catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -824,15 +829,35 @@ module Printer = struct
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
-		match f.cff_doc with
-		| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
-		| None -> "" ^
-		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
-		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
-		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp ((get,_),(set,_),t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
+		let doc = match f.cff_doc with
+			| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
+			| None -> ""
+		in
+		let s_separated f sep list =
+			if list <> [] then ((String.concat sep (List.map f list)) ^ sep) else ""
+		in
+		let s_meta = s_separated (s_metadata tabs) ("\n" ^ tabs) in
+		let s_access = s_separated s_placed_access " " in
+		(match f.cff_kind with
+		| FVar (t,e) ->
+			doc ^
+			let keyword = ref "var " in
+			let question = ref "" in
+			let access = List.filter (fun (a,_) -> if a = AFinal then (keyword := "final "; false) else true) f.cff_access in
+			let meta = List.filter (fun (m,_,_) -> if m = Meta.Optional then (question := "?"; false) else true) f.cff_meta in
+			s_meta meta ^
+			s_access access ^
+			!keyword ^ !question ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp ((get,_),(set,_),t,e) ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"function " ^ (fst f.cff_name) ^ s_func tabs func)
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
 	and s_opt_expr tabs e pre =
@@ -865,8 +890,9 @@ module Printer = struct
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e,_) =
-		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
+	and s_catch tabs ((n,_),t,e,_) =
+		let hint = Option.map_default (fun (t,_) -> ":" ^ s_complex_type tabs t) "" t in
+		" catch(" ^ n ^ hint ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls
 	and s_expr_omit_block tabs e =
@@ -1076,7 +1102,7 @@ module Expr = struct
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
 			| EDisplayNew _ ->
-				assert false
+				die ""
 		in
 		loop' "" e;
 		Buffer.contents buf

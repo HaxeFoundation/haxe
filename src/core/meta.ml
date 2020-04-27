@@ -40,7 +40,7 @@ let get_documentation d =
 			| HasParam s -> params := s :: !params
 			| Platforms fl -> pfs := fl @ !pfs
 			| UsedOn ul -> used := ul @ !used
-			| UsedInternally -> assert false
+			| UsedInternally -> die ""
 			| Link _ -> ()
 		) flags;
 		let params = (match List.rev !params with
@@ -75,3 +75,7 @@ let get_all () =
 		else []
 	in
 	loop 0
+
+let copy_from_to m src dst =
+	try (get m src) :: dst
+	with Not_found -> dst

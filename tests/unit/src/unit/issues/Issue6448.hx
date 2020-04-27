@@ -13,7 +13,7 @@ private extern class Lib {
 	static function returnTrue():Bool;
 
 	static function __init__():Void {
-		untyped __js__("function ___hx_returnTrue() { return true; }");
+		js.Syntax.code("function ___hx_returnTrue() { return true; }");
 	}
 }
 #end

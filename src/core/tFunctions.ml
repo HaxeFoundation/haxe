@@ -2,8 +2,11 @@ open Globals
 open Ast
 open TType
 
-let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
-let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> assert false)
+let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> die "")
+let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> die "")
+
+let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
 (* Flags *)
 
@@ -66,7 +69,9 @@ let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_anon fl = TAnon { a_fields = fl; a_status = ref Closed; }
+let mk_anon ?fields status =
+	let fields = match fields with Some fields -> fields | None -> PMap.empty in
+	TAnon { a_fields = fields; a_status = status; }
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
@@ -198,12 +203,12 @@ let t_infos t : tinfos =
 
 let t_path t = (t_infos t).mt_path
 
-let rec is_parent csup c =
-	if c == csup || List.exists (fun (i,_) -> is_parent csup i) c.cl_implements then
+let rec extends c csup =
+	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
 		true
 	else match c.cl_super with
 		| None -> false
-		| Some (c,_) -> is_parent csup c
+		| Some (c,_) -> extends c csup
 
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
@@ -242,10 +247,7 @@ let map loop t =
 				a.a_fields <- fields;
 				t
 			| _ ->
-				TAnon {
-					a_fields = fields;
-					a_status = a.a_status;
-				}
+				mk_anon ~fields a.a_status
 		end
 	| TLazy f ->
 		let ft = lazy_type f in
@@ -282,7 +284,7 @@ let apply_params ?stack cparams params t =
 		| [] , [] -> []
 		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
-		| _ -> assert false
+		| _ -> die ""
 	in
 	let subst = loop cparams params in
 	let rec loop t =
@@ -361,7 +363,7 @@ let apply_params ?stack cparams params t =
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
-					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> assert false);
+					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> die "");
 					t
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
@@ -375,10 +377,7 @@ let apply_params ?stack cparams params t =
 					a.a_fields <- fields;
 					t
 				| _ ->
-					TAnon {
-						a_fields = fields;
-						a_status = a.a_status;
-					}
+					mk_anon ~fields a.a_status
 			end
 		| TLazy f ->
 			let ft = lazy_type f in
@@ -458,7 +457,7 @@ let rec ambiguate_funs t =
 	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
 		(match r.tm_type with
-		| Some _ -> assert false
+		| Some _ -> die ""
 		| _ -> t)
 	| TInst (a, pl) ->
 	    TInst (a, List.map ambiguate_funs pl)
@@ -473,7 +472,7 @@ let rec ambiguate_funs t =
 	    TAnon { a with a_fields =
 		    PMap.map (fun af -> { af with cf_type =
 				ambiguate_funs af.cf_type }) a.a_fields }
-	| TLazy _ -> assert false
+	| TLazy _ -> die ""
 
 let rec is_nullable = function
 	| TMono r ->
@@ -703,7 +702,7 @@ let quick_field t n =
 	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
 		raise Not_found
 	| TLazy _ | TType _ ->
-		assert false
+		die ""
 
 let quick_field_dynamic t s =
 	try quick_field t s
@@ -732,3 +731,16 @@ let resolve_typedef t =
 		| TInst (c,_) -> TClassDecl c
 		| TAbstract (a,_) -> TAbstractDecl a
 		| _ -> t
+
+(**
+	Check if type `t` has meta `m`.
+	Does not follow typedefs, monomorphs etc.
+*)
+let type_has_meta t m =
+	match t with
+		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
+		| TEnum ({ e_meta = metadata }, _)
+		| TInst ({ cl_meta = metadata }, _)
+		| TType ({ t_meta = metadata }, _)
+		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
+

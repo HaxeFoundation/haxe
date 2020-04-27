@@ -46,12 +46,12 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public var high(get, never):Int32;
 
-	public inline function get_high():Int32
+	inline function get_high():Int32
 		return cast(this >> 32);
 
 	public var low(get, never):Int32;
 
-	public inline function get_low():Int32
+	inline function get_low():Int32
 		return cast this;
 
 	public inline function copy():Int64

@@ -35,7 +35,7 @@ class Enum<T> extends java.lang.Enum<T> {
 		return super.equals(other);
 	}
 
-	public function _hx_getParameters() {
+	@:jvm.synthetic public function _hx_getParameters() {
 		return new java.NativeArray(0);
 	}
 

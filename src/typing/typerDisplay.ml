@@ -20,7 +20,7 @@ open Error
 
 let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
-	| _ -> assert false
+	| _ -> die ""
 
 let completion_item_of_expr ctx e =
 	let retype e s t =
@@ -111,7 +111,7 @@ let completion_item_of_expr ctx e =
 					| 'm' -> doc c "multiline matching"
 					| 's' -> doc c "dot also match newlines"
 					| 'u' -> doc c "use UTF-8 matching"
-					| _ -> assert false
+					| _ -> die ""
 				in
 				let present = List.map f present in
 				let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
@@ -296,11 +296,11 @@ and display_expr ctx e_ast e dk with_type p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let _, f = get_constructor ctx c params p in
-			f
+			f,c
 	in
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
-		assert false
+		die ""
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->
@@ -310,8 +310,10 @@ and display_expr ctx e_ast e dk with_type p =
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			Display.ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef);
-		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField cf);
+		| TField(_,(FAnon cf | FClosure (None,cf))) ->
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,None));
+		| TField(_,(FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some (c,_),cf))) ->
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
 		| TLocal v | TVar(v,_) ->
 			Display.ReferencePosition.set (v.v_name,v.v_pos,SKVariable v);
 		| TTypeExpr mt ->
@@ -326,8 +328,8 @@ and display_expr ctx e_ast e dk with_type p =
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
-				let cf = get_super_constructor() in
-				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField cf);
+				let cf,c = get_super_constructor() in
+				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
 			with Not_found ->
 				()
 			end
@@ -380,7 +382,7 @@ and display_expr ctx e_ast e dk with_type p =
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
-				let cf = get_super_constructor() in
+				let cf,_ = get_super_constructor() in
 				[cf.cf_name_pos]
 			with Not_found ->
 				[]
@@ -525,7 +527,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ((Type_not_found (path,_,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
@@ -630,7 +632,7 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 						in
 						handle_structure_display ctx e an.a_fields origin
 					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
-						let fields = PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl cf.cf_type}) c.cl_fields in
+						let fields = get_struct_init_anon_fields c tl in
 						handle_structure_display ctx e fields (Self (TClassDecl c))
 					| _ -> handle_display ctx e dk with_type
 				end

@@ -10,7 +10,7 @@ module SymbolKind = struct
 		| Class
 		| Interface
 		| Enum
-		| Typedef
+		| TypeAlias
 		| Abstract
 		| Field
 		| Property
@@ -18,12 +18,17 @@ module SymbolKind = struct
 		| Constructor
 		| Function
 		| Variable
+		| Struct
+		| EnumAbstract
+		| Operator
+		| EnumMember
+		| Constant
 
 	let to_int = function
 		| Class -> 1
 		| Interface -> 2
 		| Enum -> 3
-		| Typedef -> 4
+		| TypeAlias -> 4
 		| Abstract -> 5
 		| Field -> 6
 		| Property -> 7
@@ -31,6 +36,11 @@ module SymbolKind = struct
 		| Constructor -> 9
 		| Function -> 10
 		| Variable -> 11
+		| Struct -> 12
+		| EnumAbstract -> 13
+		| Operator -> 14
+		| EnumMember -> 15
+		| Constant -> 16
 end
 
 module SymbolInformation = struct
@@ -180,7 +190,13 @@ module DisplayMode = struct
 	type t =
 		| DMNone
 		| DMDefault
-		| DMUsage of bool (* true = also report definition *)
+		(**
+			Find usages/references of the requested symbol.
+			@param bool - add symbol definition to the response
+			@param bool - also find usages of descendants of the symbol (e.g methods, which override the requested one)
+			@param bool - look for a base method if requested for a method with `override` accessor.
+		*)
+		| DMUsage of bool * bool * bool
 		| DMDefinition
 		| DMTypeDefinition
 		| DMImplementation
@@ -282,8 +298,8 @@ module DisplayMode = struct
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
+		| DMUsage (true,_,_) -> "rename"
+		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
 		| DMDiagnostics _ -> "diagnostics"
@@ -297,7 +313,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field
+	| SKField of tclass_field * path option (* path - class path *)
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
@@ -320,7 +336,7 @@ let string_of_symbol = function
 	| SKEnum en -> snd en.e_path
 	| SKTypedef td -> snd td.t_path
 	| SKAbstract a -> snd a.a_path
-	| SKField cf | SKConstructor cf -> cf.cf_name
+	| SKField (cf,_) | SKConstructor cf -> cf.cf_name
 	| SKEnumField ef -> ef.ef_name
 	| SKVariable v -> v.v_name
 	| SKOther -> ""

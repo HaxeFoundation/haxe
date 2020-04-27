@@ -75,23 +75,10 @@ let limit_string s offset =
 	in
 	String.concat "" (loop 0 words)
 
-let rec error ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> error ctx msg p)
-	| None ->
-		let msg = try List.assoc msg deprecated with Not_found -> msg in
-		message ctx (CMError(msg,p));
-		ctx.has_error <- true
-
-let rec warning ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> warning ctx msg p)
-	| None -> message ctx (CMWarning(msg,p))
-
-let rec info ctx msg p =
-	match ctx.com.pending_messages with
-	| Some add -> add (fun() -> info ctx msg p)
-	| None -> message ctx (CMInfo(msg,p))
+let error ctx msg p =
+	let msg = try List.assoc msg deprecated with Not_found -> msg in
+	message ctx (CMError(msg,p));
+	ctx.has_error <- true
 
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
@@ -286,7 +273,7 @@ module Initialize = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.raw_defined com "hl_ver") then Define.raw_define_value com.defines "hl_ver" (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
+				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "");
 				"hl"
 			| Eval ->
 				add_std "eval";
@@ -347,7 +334,7 @@ let generate tctx ext interp swf_header =
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
 		| Cross ->
-			assert false
+			die ""
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
 		let t = Timer.timer ["generate";name] in
@@ -397,8 +384,8 @@ let setup_common_context ctx com =
 	Common.raw_define com "haxe4";
 	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
-	com.info <- info ctx;
-	com.warning <- warning ctx;
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
 		(match msg with
@@ -407,7 +394,7 @@ let setup_common_context ctx com =
 	) (List.rev ctx.messages))) in
 	com.get_messages <- (fun () -> (List.map (fun msg ->
 		(match msg with
-		| CMError(_,_) -> assert false;
+		| CMError(_,_) -> die "";
 		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
 	) (filter_messages false (fun _ -> true))));
 	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
@@ -455,7 +442,7 @@ let process_display_configuration ctx =
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
-				warning ctx;
+				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
@@ -822,7 +809,7 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
-		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
+		("Misc",["--run"],[], Arg.Unit (fun() -> die ""), "<module> [args...]","compile and execute a Haxe module with command line arguments");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
@@ -894,8 +881,8 @@ try
 		),"<command>","run the specified command after successful compilation");
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
-		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
-		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all Haxe compilations separated by --next");
+		("Batch",["--next"],[], Arg.Unit (fun() -> die ""), "","separate several haxe compilations");
+		("Batch",["--each"],[], Arg.Unit (fun() -> die ""), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
@@ -942,7 +929,7 @@ try
 			wait_loop process_params com.verbose accept
 		),"[host:]port]","connect to the given port and wait for commands to run");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
-			assert false
+			die ""
 		),"<[host:]port>","connect on the given port and run commands there");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			(* This is handled by process_params, but passed through so we know we did something. *)
@@ -1117,7 +1104,7 @@ with
 			| Some api ->
 				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
 				api.send_result (DisplayException.to_json ctx de)
-			| _ -> assert false
+			| _ -> die ""
 		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
 		begin match com.json_out with
@@ -1126,7 +1113,7 @@ with
 			let fields = DisplayToplevel.collect tctx true Typecore.NoValue in
 			let jctx = Genjson.create_context Genjson.GMMinimum in
 			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
-		| _ -> assert false
+		| _ -> die ""
 		end *)
 	| DisplayException(DisplayPackage pack) ->
 		DisplayPosition.display_position#reset;

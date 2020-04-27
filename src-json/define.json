@@ -239,6 +239,13 @@
 		"doc": "The current Haxe version value in SemVer format."
 	},
 	{
+		"name": "HlVer",
+		"define": "hl_ver",
+		"doc": "The HashLink version to target. (default: 1.10.0)",
+		"platforms": ["hl"],
+		"params": ["version"]
+	},
+	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp_api_level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",

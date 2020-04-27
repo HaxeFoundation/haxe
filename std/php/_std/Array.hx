@@ -23,6 +23,8 @@
 import php.*;
 import php.ArrayIterator as NativeArrayIterator;
 
+import haxe.iterators.ArrayKeyValueIterator;
+
 using php.Global;
 
 @:coreApi
@@ -91,6 +93,11 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	public inline function iterator():haxe.iterators.ArrayIterator<T> {
 		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	@:keep
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function join(sep:String):String {
