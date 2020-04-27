@@ -727,7 +727,7 @@ and parse_type_anonymous s =
 	match s with parser
 	| [< name, p1 = ident; t = parse_type_hint; s >] ->
 		let opt,p1 = match p0 with
-			| Some p -> true,p
+			| Some p -> true,punion p p1
 			| None -> false,p1
 		in
 		let p2 = pos (last_token s) in
