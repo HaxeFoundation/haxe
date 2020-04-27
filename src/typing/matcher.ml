@@ -177,7 +177,7 @@ module Pattern = struct
 		let tcl = get_general_module_type ctx mt p in
 		match tcl with
 			| TAbstract(a,_) -> unify ctx (TAbstract(a,[mk_mono()])) t p
-			| _ -> assert false
+			| _ -> die ""
 
 	let rec make pctx toplevel t e =
 		let ctx = pctx.ctx in
@@ -209,10 +209,8 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			if not (Common.defined ctx.com Define.NoDeprecationWarnings) then begin
-				DeprecationCheck.check_enum pctx.ctx.com en p;
-				DeprecationCheck.check_ef pctx.ctx.com ef p;
-			end;
+			DeprecationCheck.check_enum pctx.ctx.com en p;
+			DeprecationCheck.check_ef pctx.ctx.com ef p;
 			ConEnum(en,ef),p
 		in
 		let con_static c cf p = ConStatic(c,cf),p in
@@ -236,6 +234,9 @@ module Pattern = struct
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
+				| TMeta((Meta.Deprecated,_,_) as m, e1) ->
+					DeprecationCheck.check_meta pctx.ctx.com [m] "field" e1.epos;
+					loop e1
 				| _ ->
 					raise Exit
 			in
@@ -244,10 +245,27 @@ module Pattern = struct
 		let display_mode () =
 			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 		in
+		let catch_errors () =
+			let old = ctx.on_error in
+			ctx.on_error <- (fun _ _ _ ->
+				raise Exit
+			);
+			(fun () ->
+				ctx.on_error <- old
+			)
+		in
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
-			let e = try type_expr ctx e (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
+			let restore = catch_errors () in
+			let e = try
+				type_expr ctx e (WithType.with_type t)
+			with exc ->
+				restore();
+				ctx.untyped <- old;
+				raise exc
+			in
+			restore();
 			ctx.untyped <- old;
 			let pat = check_expr e in
 			begin match pat with
@@ -261,15 +279,7 @@ module Pattern = struct
 				try_typing (EConst (Ident s),p)
 			with
 			| Exit | Bad_pattern _ ->
-				let restore =
-					let old = ctx.on_error in
-					ctx.on_error <- (fun _ _ _ ->
-						raise Exit
-					);
-					(fun () ->
-						ctx.on_error <- old
-					)
-				in
+				let restore = catch_errors () in
 				begin try
 					let mt = module_type_of_type t in
 					let e_mt = TyperBase.type_module_type ctx mt None p in
@@ -315,7 +325,7 @@ module Pattern = struct
 				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
-				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
+				let ct = match e.eexpr with TConst ct -> ct | _ -> die "" in
 				PatConstructor(con_const ct p,[])
 			| EConst (Ident i) ->
 				begin match follow t with
@@ -340,7 +350,7 @@ module Pattern = struct
 							| TFun(args,r) ->
 								unify_expected r;
 								args
-							| _ -> assert false
+							| _ -> die ""
 						in
 						let rec loop el tl = match el,tl with
 							| [EConst (Ident "_"),p],(_,_,t) :: tl ->
@@ -537,7 +547,7 @@ module Case = struct
 				let e2 = collapse_case el in
 				EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 			| [] ->
-				assert false
+				die ""
 		in
 		let e = collapse_case el in
 		let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
@@ -828,7 +838,7 @@ module Useless = struct
 			| [],_,_ ->
 				List.rev pAcc,List.rev qAcc,List.rev rAcc
 			| _ ->
-				assert false
+				die ""
 		in
 		loop [] [] [] pM qM rM
 
@@ -854,7 +864,7 @@ module Useless = struct
 						 		let rec loop acc k l = match l with
 						 			| x :: l when i = k -> x,(List.rev acc) @ l @ q
 						 			| x :: l -> loop (x :: acc) (k + 1) l
-						 			| [] -> assert false
+						 			| [] -> die ""
 						 		in
 						 		loop [] 0 l
 						 	in
@@ -871,7 +881,7 @@ module Useless = struct
 							let p = punion (pos pat1) (pos pat2) in
 							let et = combine (et,p) (et3,p) in
 							(i + 1,et)
-						| _ -> assert false
+						| _ -> die ""
 					) (0,True) r)
 			end
 		| (pat :: pl) ->
@@ -1225,7 +1235,7 @@ module Compile = struct
 				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
 				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
 			| _,[] ->
-				assert false
+				die ""
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
 		let bindings = List.map (fun (a,b,c,_,_) -> (a,b,c)) bindings in
@@ -1281,7 +1291,7 @@ module TexprConverter = struct
 				if top then loop false s e1
 				else loop false (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
 			| TEnumParameter(e1,ef,i) ->
-				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> assert false in
+				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> die "" in
 				let l = make_offset_list i (arity - i - 1) s "_" in
 				loop false (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
 			| TLocal v ->
@@ -1441,7 +1451,7 @@ module TexprConverter = struct
 		let v_lookup = ref IntMap.empty in
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" in
 		let mk_index_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
@@ -1618,7 +1628,7 @@ module Match = struct
 		let tmono,with_type,allow_min_void = match with_type with
 			| WithType.WithType(t,src) ->
 				(match follow t, src with
-				| TMono _, Some ImplicitReturn -> Some t, WithType.Value src, true
+				| ((TMono _) | (TAbstract({a_path=[],"Void"},_))), Some ImplicitReturn -> Some t, WithType.Value src, true
 				| TMono _, _ -> Some t,WithType.value,false
 				| _ -> None,with_type,false)
 			| _ -> None,with_type,false

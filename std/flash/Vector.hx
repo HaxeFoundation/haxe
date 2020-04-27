@@ -53,11 +53,11 @@ package flash;
 	#end
 	@:require(flash19) function removeAt(index:Int):T;
 
-	public inline static function ofArray<T>(v:Array<T>):Vector<T> {
+	inline static function ofArray<T>(v:Array<T>):Vector<T> {
 		return untyped __vector__(v);
 	}
 
-	public inline static function convert<T, U>(v:Vector<T>):Vector<U> {
+	inline static function convert<T, U>(v:Vector<T>):Vector<U> {
 		return untyped __vector__(v);
 	}
 
@@ -88,7 +88,7 @@ package flash;
 		new Signal((Vector.typeReference() : Class<Vector<Int>>));
 		```
 	**/
-	public inline static function typeReference<T>():Class<Vector<T>> {
+	inline static function typeReference<T>():Class<Vector<T>> {
 		return untyped __vector__();
 	}
 }

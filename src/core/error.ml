@@ -13,13 +13,17 @@ type call_error =
 
 and error_msg =
 	| Module_not_found of path
-	| Type_not_found of path * string
+	| Type_not_found of path * string * type_not_found_reason
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
+
+and type_not_found_reason =
+	| Private_type
+	| Not_defined
 
 exception Fatal_error of string * Globals.pos
 exception Error of error_msg * Globals.pos
@@ -238,7 +242,7 @@ module BetterErrors = struct
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->
-						assert false
+						die ""
 				in
 				let s1,s2 = loop() in
 				let path1,params1 = get_params access_prev.acc_actual in
@@ -260,7 +264,8 @@ end
 
 let rec error_msg = function
 	| Module_not_found m -> "Type not found : " ^ s_type_path m
-	| Type_not_found (m,t) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
+	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
+	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
 	| Unify l -> BetterErrors.better_error_message l
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s

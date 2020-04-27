@@ -44,7 +44,7 @@ let run types =
 	let get_cls t =
 		match follow t with
 		| TInst(cl,_) -> cl
-		| _ -> assert false
+		| _ -> Globals.die ""
 	in
 
 	let iter_types (nt,t) =

@@ -65,6 +65,11 @@ class ArrayBase extends ArrayAccess {
 		throw "Not implemented";
 	}
 
+	public function containsDyn(v:Dynamic):Bool {
+		throw "Not implemented";
+		return false;
+	}
+
 	public function removeDyn(v:Dynamic):Bool {
 		throw "Not implemented";
 		return false;

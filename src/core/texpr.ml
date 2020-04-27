@@ -461,16 +461,16 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
-			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
-			| _ -> assert false
+			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (Statics c))
+			| TEnumDecl e -> mk_anon (ref (EnumStatics e))
+			| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
+			| _ -> die ""
 		in
 		mk (TTypeExpr mt) t pos
 
@@ -508,7 +508,7 @@ module Builder = struct
 		| _ -> error "Unsupported constant" p
 
 	let field e name t p =
-		mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
+		mk (TField (e,try quick_field e.etype name with Not_found -> die "")) t p
 
 	let fcall e name el ret p =
 		let ft = tfun (List.map (fun e -> e.etype) el) ret in
@@ -516,6 +516,11 @@ module Builder = struct
 
 	let mk_parent e =
 		mk (TParenthesis e) e.etype e.epos
+
+	let ensure_parent e =
+		match e.eexpr with
+		| TParenthesis _ -> e
+		| _ -> mk_parent e
 
 	let mk_return e =
 		mk (TReturn (Some e)) t_dynamic e.epos
@@ -575,7 +580,7 @@ let rec type_constant_value basic (e,p) =
 	| EParenthesis e ->
 		type_constant_value basic e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (mk_anon (ref Closed)) p
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->

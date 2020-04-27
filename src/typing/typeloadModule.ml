@@ -113,7 +113,7 @@ module StrictMeta = struct
 			let left_side = match ctx.com.platform with
 				| Cs -> field
 				| Java -> (ECall(field,[]),pos)
-				| _ -> assert false
+				| _ -> die ""
 			in
 
 			let left = type_expr ctx left_side NoValue in
@@ -129,7 +129,7 @@ module StrictMeta = struct
 			| TTypeExpr(md) ->
 				ECall(get_native_repr md texpr.epos, extra), texpr.epos
 			| _ ->
-				display_error ctx "Unexpected expression" texpr.epos; assert false
+				display_error ctx "Unexpected expression" texpr.epos; die ""
 
 	let get_strict_meta ctx meta params pos =
 		let pf = ctx.com.platform in
@@ -192,8 +192,13 @@ end
 let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
-	let make_path name priv =
-		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
+	let make_path name priv p =
+		List.iter (fun (t2,(_,p2)) ->
+			if snd (t_path t2) = name then begin
+				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
+				error "Previous declaration here" p2;
+			end
+		) !decls;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
 	let pt = ref None in
@@ -212,7 +217,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -233,7 +238,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -259,7 +264,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -284,7 +289,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 	let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
-			let path = make_path name priv in
+			let path = make_path name priv p in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -314,8 +319,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = fst t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
-					CTPath { tpackage = []; tname = fst d.d_name; tparams = params; tsub = None },null_pos
+					let params = List.map (fun t -> TPType (CTPath (mk_type_path ([],fst t.tp_name)),null_pos)) d.d_params in
+					CTPath (mk_type_path ~params ([],fst d.d_name)),null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -338,7 +343,7 @@ let module_pass_1 ctx m tdecls loadp =
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
 					c.cl_final <- true;
-				| _ -> assert false);
+				| _ -> die "");
 				acc
 		) in
 		decl :: acc
@@ -406,7 +411,7 @@ let load_enum_field ctx e et is_flat index c =
 *)
 let init_module_type ctx context_init (decl,p) =
 	let get_type name =
-		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
+		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die ""
 	in
 	let commit_import path mode p =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
@@ -550,7 +555,7 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
 		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
-		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
+		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "") in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
@@ -580,7 +585,7 @@ let init_module_type ctx context_init (decl,p) =
 						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
 					in
 					(match state with
-					| Built -> assert false
+					| Built -> die ""
 					| Building cl ->
 						if !build_count = !prev_build_count then error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
 						prev_build_count := !build_count;
@@ -617,7 +622,7 @@ let init_module_type ctx context_init (decl,p) =
 					| _ -> ()
 			);
 	| EEnum d ->
-		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
+		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "") in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
@@ -683,10 +688,7 @@ let init_module_type ctx context_init (decl,p) =
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
-		e.e_type.t_type <- TAnon {
-			a_fields = !fields;
-			a_status = ref (EnumStatics e);
-		};
+		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
@@ -699,7 +701,7 @@ let init_module_type ctx context_init (decl,p) =
 				) e.e_constrs
 			);
 	| ETypedef d ->
-		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
+		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "") in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
@@ -742,15 +744,15 @@ let init_module_type ctx context_init (decl,p) =
 		| TMono r ->
 			(match r.tm_type with
 			| None -> Monomorph.bind r tt;
-			| Some _ -> assert false);
-		| _ -> assert false);
+			| Some _ -> die "");
+		| _ -> die "");
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			);
 	| EAbstract d ->
-		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
+		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "") in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
@@ -828,7 +830,7 @@ let module_pass_2 ctx m decls tdecls p =
 		| (TAbstractDecl a, (EAbstract d, p)) ->
 			a.a_params <- type_type_params ctx a.a_path (fun() -> a.a_params) p d.d_params;
 		| _ ->
-			assert false
+			die ""
 	) decls;
 	(* setup module types *)
 	let context_init = new TypeloadFields.context_init in
@@ -947,7 +949,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx (mk_type_path ([],s)) p
 		| _ ->
 			()
 	end;

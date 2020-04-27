@@ -23,7 +23,7 @@
 package sys.io;
 
 class FileInput extends cs.io.NativeInput {
-	public function new(stream:cs.system.io.FileStream) {
+	function new(stream:cs.system.io.FileStream) {
 		super(stream);
 	}
 }

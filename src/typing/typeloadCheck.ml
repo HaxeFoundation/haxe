@@ -107,7 +107,7 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
 				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
-			assert false
+			die ""
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
@@ -326,7 +326,7 @@ module Inheritance = struct
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
 			if is_basic_class_path csup.cl_path && not (c.cl_extern && csup.cl_extern) then error "Cannot extend basic class" p;
-			if is_parent c csup then error "Recursive class" p;
+			if extends csup c then error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
 					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
@@ -379,7 +379,7 @@ module Inheritance = struct
 				| Not_found when not c.cl_interface ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
-						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
+						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" in
 						"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 					else
 						("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
@@ -475,7 +475,7 @@ module Inheritance = struct
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if is_parent c intf then error "Recursive class" p;
+					if extends intf c then error "Recursive class" p;
 					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 					if not intf.cl_interface then error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;

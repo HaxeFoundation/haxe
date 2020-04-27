@@ -288,7 +288,7 @@ let classify ctx t =
 	| TDynamic _ ->
 		KDynamic
 	| TLazy _ ->
-		assert false
+		die ""
 
 (* some field identifiers might cause issues with SWC *)
 let reserved i =
@@ -317,7 +317,7 @@ let ns_access cf =
 			Some (HMName (cf.cf_name, HNNamespace ns))
 		| [(EConst (String(ns,_)),_); (EConst (Ident "internal"),_)] ->
 			Some (HMName (cf.cf_name, HNInternal (Some ns)))
-		| _ -> assert false
+		| _ -> die ""
 	with Not_found ->
 		None
 
@@ -335,7 +335,8 @@ let property ctx fa t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
+		| "copy" | "insert" | "contains" | "remove" | "iterator" | "keyValueIterator"
+		| "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
@@ -446,7 +447,7 @@ let coerce ctx t =
 		| KBool -> HToBool
 		| KType t -> HCast t
 		| KDynamic -> HAsAny
-		| KNone -> assert false
+		| KNone -> die ""
 	)
 
 let set_reg ctx r =
@@ -476,7 +477,7 @@ let pop ctx n =
 			loop (n - 1)
 		end
 	in
-	if n < 0 then assert false;
+	if n < 0 then die "";
 	let old = ctx.infos.istack in
 	loop n;
 	ctx.infos.istack <- old
@@ -541,7 +542,7 @@ let rec setvar ctx (acc : write access) kret =
 		else
 			set_reg ctx r;
 	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ | VSuper _ when kret <> None ->
-		let r = alloc_reg ctx (match kret with None -> assert false | Some k -> k) in
+		let r = alloc_reg ctx (match kret with None -> die "" | Some k -> k) in
 		set_reg_dup ctx r;
 		setvar ctx acc None;
 		write ctx (HReg r.rid);
@@ -597,7 +598,7 @@ let open_block ctx retval =
 	let old_regs = DynArray.map (fun r -> r.rused) ctx.infos.iregs in
 	let old_locals = ctx.locals in
 	(fun() ->
-		if ctx.infos.istack <> old_stack + (if retval then 1 else 0) then assert false;
+		if ctx.infos.istack <> old_stack + (if retval then 1 else 0) then die "";
 		let rcount = DynArray.length old_regs + 1 in
 		DynArray.iter (fun r ->
 			if r.rid < rcount then
@@ -682,7 +683,7 @@ let gen_constant ctx c t p =
 	| TThis ->
 		write ctx HThis
 	| TSuper ->
-		assert false
+		die ""
 
 let end_fun ctx args dparams tret =
 	{
@@ -701,7 +702,7 @@ let end_fun ctx args dparams tret =
 		hlmt_function = None;
 	}
 
-let gen_expr_ref = ref (fun _ _ _ -> assert false)
+let gen_expr_ref = ref (fun _ _ _ -> die "")
 let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
 
 let begin_fun ctx args tret el stat p =
@@ -745,7 +746,7 @@ let begin_fun ctx args tret el stat p =
 			| TConst (TFloat s) -> HVFloat (float_of_string s)
 			| TConst (TBool b) -> HVBool b
 			| TConst TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
-			| _ -> assert false)
+			| _ -> die "")
 		| _, Some {eexpr = TConst TNull} -> HVNone
 		| k, Some c ->
 			write ctx (HReg r.rid);
@@ -881,7 +882,7 @@ let begin_loop ctx =
 	ctx.breaks <- [];
 	ctx.continues <- [];
 	(fun cont_pos ->
-		if ctx.infos.istack <> ctx.infos.iloop then assert false;
+		if ctx.infos.istack <> ctx.infos.iloop then die "";
 		List.iter (fun j -> j()) ctx.breaks;
 		List.iter (fun j -> j cont_pos) ctx.continues;
 		ctx.infos.iloop <- old_loop;
@@ -1048,7 +1049,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		if has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception e.etype) then begin
 			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 			let id = type_path ctx (["flash";"errors"],"Error") in
 			write ctx (HFindPropStrict id);
@@ -1159,7 +1160,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx false e;
 		if flag = NormalWhile then jstart();
 		let continue_pos = ctx.infos.ipos in
-		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
+		let _j = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull
@@ -1194,7 +1195,7 @@ let rec gen_expr_content ctx retval e =
 					write ctx HScope);
 				(* store the exception into local var, using a tmp register if needed *)
 				define_local ctx v e.epos;
-				let r = (match snd (try PMap.find v.v_id ctx.locals with Not_found -> assert false) with
+				let r = (match snd (try PMap.find v.v_id ctx.locals with Not_found -> die "") with
 					| LReg _ -> None
 					| _ ->
 						let r = alloc_reg ctx (classify ctx t) in
@@ -1212,7 +1213,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" && not (Exceptions.is_haxe_exception v.v_type) then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
@@ -1317,7 +1318,7 @@ let rec gen_expr_content ctx retval e =
 			(!prev)();
 			let rec loop = function
 				| [] ->
-					assert false
+					die ""
 				| [v] ->
 					write ctx (HReg r.rid);
 					gen_expr ctx true v;
@@ -1371,7 +1372,7 @@ let rec gen_expr_content ctx retval e =
 				(* manual cast *)
 				let tid = (match gen_access ctx (mk (TTypeExpr t) t_dynamic e.epos) Read with
 					| VGlobal id -> id
-					| _ -> assert false
+					| _ -> die ""
 				) in
 				match classify ctx e.etype with
 				| KType n when (match n with HMPath ([],"String") -> false | _ -> true) ->
@@ -1503,7 +1504,7 @@ and gen_call ctx retval e el r =
 			| 2l -> A3OMemSet32
 			| 3l -> A3OMemSetFloat
 			| 4l -> A3OMemSetDouble
-			| _ -> assert false
+			| _ -> die ""
 		))
 	| TIdent "__vmem_get__", [{ eexpr = TConst (TInt code) };e] ->
 		gen_expr ctx true e;
@@ -1513,7 +1514,7 @@ and gen_call ctx retval e el r =
 			| 2l -> A3OMemGet32
 			| 3l -> A3OMemGetFloat
 			| 4l -> A3OMemGetDouble
-			| _ -> assert false
+			| _ -> die ""
 		))
 	| TIdent "__vmem_sign__", [{ eexpr = TConst (TInt code) };e] ->
 		gen_expr ctx true e;
@@ -1521,10 +1522,10 @@ and gen_call ctx retval e el r =
 			| 0l -> A3OSign1
 			| 1l -> A3OSign8
 			| 2l -> A3OSign16
-			| _ -> assert false
+			| _ -> die ""
 		))
 	| TIdent "__vector__", [] ->
-		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> die "" in
 		gen_type ctx (type_id ctx t)
 	| TIdent "__vector__", [ep] ->
 		gen_type ctx (type_id ctx r);
@@ -1537,7 +1538,7 @@ and gen_call ctx retval e el r =
 			write ctx (HFindPropStrict id);
 			List.iter (gen_expr ctx true) el;
 			write ctx (HCallProperty (id,List.length el));
-		| _ -> assert false)
+		| _ -> die "")
 	| TConst TSuper , _ ->
 		write ctx HThis;
 		List.iter (gen_expr ctx true) el;
@@ -1698,7 +1699,7 @@ and gen_binop ctx retval op e1 e2 t p =
 			| OpShr -> A3OShr
 			| OpUShr -> A3OUShr
 			| OpMod -> A3OMod
-			| _ -> assert false
+			| _ -> die ""
 		) in
 		match iop with
 		| Some iop ->
@@ -1728,7 +1729,7 @@ and gen_binop ctx retval op e1 e2 t p =
 		| None ->
 			gen_op A3OEq
 		| Some c ->
-			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> assert false) in
+			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> die "") in
 			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,f)) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
 	in
 	match op with
@@ -1781,7 +1782,7 @@ and gen_binop ctx retval op e1 e2 t p =
 	| OpLte ->
 		gen_op A3OLte
 	| OpInterval | OpArrow | OpIn ->
-		assert false
+		die ""
 
 and gen_expr ctx retval e =
 	let old = ctx.infos.istack in
@@ -2397,7 +2398,7 @@ let realize_required_accessors ctx cl =
 					end
 				end;
 			end
-		| _ -> assert false
+		| _ -> die ""
 	) interface_props;
 	!fields
 
@@ -2426,7 +2427,7 @@ let generate_class ctx c =
 				check_constructor ctx c fdata;
 				old();
 				m
-			| _ -> assert false
+			| _ -> die ""
 	) in
 	let has_protected = ref None in
 	let make_name f stat =
@@ -2567,7 +2568,7 @@ let generate_class ctx c =
 		match generate_field_kind ctx f c true with
 		| None -> acc
 		| Some k ->
-			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
+			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> die "") in
 			incr count;
 			{
 				hlf_name = make_name f true;
@@ -2783,7 +2784,7 @@ let generate_resource ctx name =
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)
-	| None -> assert false
+	| None -> die ""
 
 let generate com boot_name =
 	let ctx = {

@@ -638,8 +638,12 @@ module Fusion = struct
 		let state = new fusion_state in
 		state#infer_from_texpr e;
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
-		   array or object declarations. The resulting element list is reversed. *)
-		let rec block_element acc el = match el with
+		   array or object declarations. The resulting element list is reversed.
+		   INFO: `el` is a reversed list of expressions in a block.
+		*)
+		let rec block_element ?(loop_bottom=false) acc el = match el with
+			| {eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, { eexpr = TLocal v2 })} :: el when v1 == v2 ->
+				block_element acc el
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
@@ -667,6 +671,11 @@ module Fusion = struct
 					| Some e ->
 						block_element acc (e :: el)
 				end
+			| ({eexpr = TSwitch(e1,cases,def)} as e) :: el ->
+				begin match Optimizer.check_constant_switch e1 cases def with
+				| Some e -> block_element acc (e :: el)
+				| None -> block_element (e :: acc) el
+				end
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)
@@ -684,6 +693,8 @@ module Fusion = struct
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock []} :: el ->
 				block_element acc el
+			| { eexpr = TContinue } :: el when loop_bottom ->
+				block_element [] el
 			| e1 :: el ->
 				block_element (e1 :: acc) el
 			| [] ->
@@ -698,7 +709,10 @@ module Fusion = struct
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (ExtType.has_variable_semantics v.v_type) &&
+					not (
+						ExtType.has_variable_semantics v.v_type &&
+						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+					) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
@@ -738,7 +752,7 @@ module Fusion = struct
 					in
 					let e,_ = map_values check_assign e1 in
 					let e = match !e' with
-						| None -> assert false
+						| None -> die ""
 						| Some(e1,f) ->
 							begin match e1.eexpr with
 								| TLocal v -> state#change_writes v (- !i + 1)
@@ -1042,24 +1056,30 @@ module Fusion = struct
 				acc
 		in
 		let rec loop e = match e.eexpr with
+			| TWhile(condition,{ eexpr = TBlock el; etype = t; epos = p },flag) ->
+				let condition = loop condition
+				and body = block true el t p in
+				{ e with eexpr = TWhile(condition,body,flag) }
 			| TBlock el ->
-				let el = List.rev_map loop el in
-				let el = block_element [] el in
-				(* fuse flips element order, but block_element doesn't care and flips it back *)
-				let el = fuse [] el in
-				let el = block_element [] el in
-				let rec fuse_loop el =
-					state#reset;
-					let el = fuse [] el in
-					let el = block_element [] el in
-					if state#did_change then fuse_loop el else el
-				in
-				let el = fuse_loop el in
-				{e with eexpr = TBlock el}
+				block false el e.etype e.epos
 			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| _ ->
 				Type.map_expr loop e
+		and block loop_body el t p =
+			let el = List.rev_map loop el in
+			let el = block_element ~loop_bottom:loop_body [] el in
+			(* fuse flips element order, but block_element doesn't care and flips it back *)
+			let el = fuse [] el in
+			let el = block_element [] el in
+			let rec fuse_loop el =
+				state#reset;
+				let el = fuse [] el in
+				let el = block_element [] el in
+				if state#did_change then fuse_loop el else el
+			in
+			let el = fuse_loop el in
+			mk (TBlock el) t p
 		in
 		loop e
 end
@@ -1196,7 +1216,7 @@ module Purity = struct
 		taint node;
 		raise Exit
 
-	let apply_to_field com is_ctor c cf =
+	let apply_to_field com is_ctor is_static c cf =
 		let node = get_node c cf in
 		let check_field c cf =
 			let node' = get_node c cf in
@@ -1216,8 +1236,9 @@ module Purity = struct
 					taint_raise node
 			end
 		and loop e = match e.eexpr with
-			| TMeta((Meta.Pure,_,_),_) ->
-				()
+			| TMeta((Meta.Pure,_,_) as m,_) ->
+				if get_purity_from_meta [m] = Impure then taint_raise node
+				else ()
 			| TThrow _ ->
 				taint_raise node;
 			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
@@ -1252,6 +1273,8 @@ module Purity = struct
 		match cf.cf_kind with
 			| Method MethDynamic | Var _ ->
 				taint node;
+			| Method MethNormal when not (is_static || is_ctor || has_class_field_flag cf CfFinal) ->
+				taint node
 			| _ ->
 				match cf.cf_expr with
 				| None ->
@@ -1270,9 +1293,9 @@ module Purity = struct
 						()
 
 	let apply_to_class com c =
-		List.iter (apply_to_field com false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
+		List.iter (apply_to_field com false false c) c.cl_ordered_fields;
+		List.iter (apply_to_field com false true c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field com true false c cf | None -> ())
 
 	let infer com =
 		Hashtbl.clear node_lut;

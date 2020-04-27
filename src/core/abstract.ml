@@ -103,3 +103,11 @@ let rec follow_with_abstracts t = match follow t with
 		follow_with_abstracts (get_underlying_type a tl)
 	| t ->
 		t
+
+let rec follow_with_abstracts_without_null t = match follow_without_null t with
+	| TAbstract({a_path = [],"Null"},_) ->
+		t
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+		follow_with_abstracts_without_null (get_underlying_type a tl)
+	| t ->
+		t

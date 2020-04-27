@@ -49,7 +49,7 @@ let fail ?msg hxpos mlpos =
 		| (file, line, _, _) ->
 			Printf.eprintf "%s\n" msg;
 			Printf.eprintf "%s:%d\n" file line;
-			assert false
+			die ""
 
 (**
 	Returns human-readable string representation of specified type

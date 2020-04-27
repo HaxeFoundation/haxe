@@ -171,8 +171,6 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
-let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
-let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
 (*
 	we can restrict access as soon as both are runtime-compatible
@@ -454,6 +452,9 @@ let rec unify a b =
 	| TAbstract ({a_path=[],"Void"},_) , _
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
+	| TAbstract ({ a_path = ["haxe"],"NotVoid" },[]), _
+	| _, TAbstract ({ a_path = ["haxe"],"NotVoid" },[]) ->
+		()
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -758,7 +759,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 				) monos cf.cf_params;
 				unify_func (map r) b;
 				true
-			| _ -> assert false)
+			| _ -> die "")
 
 and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
@@ -781,7 +782,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map t) b;
-			| _ -> assert false)
+			| _ -> die "")
 
 and unify_with_variance f t1 t2 =
 	let allows_variance_to t tf = type_iseq tf t in

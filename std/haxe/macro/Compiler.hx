@@ -419,7 +419,7 @@ class Compiler {
 	/**
 		Enables null safety for a type or a package.
 
-		@param path A package, module or sub-type dot path to keep.
+		@param path A package, module or sub-type dot path to enable null safety for.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {

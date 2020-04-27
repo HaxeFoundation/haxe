@@ -248,7 +248,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				let t = try unify_min_raise basic el with Unify_error _ -> raise Not_found in
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
-			TAnon { a_fields = fields; a_status = ref Closed }
+			mk_anon ~fields (ref Closed)
 		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
@@ -530,7 +530,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = e2 (WithType.with_type t) in
 			begin match follow e1.etype with
 				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
-				| _ -> assert false
+				| _ -> die ""
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing(ef,_,_,et,_) ->
@@ -543,7 +543,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			make_call ctx ef [et;e2] ret p
 		| AKInline _ | AKMacro _ ->
-			assert false)
+			die "")
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
@@ -623,15 +623,50 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			]) t p
 		| AKUsing(ef,c,cf,et,_) ->
 			(* abstract setter + getter *)
-			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> die "" in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
-				| _ ->  error "Invalid field type for abstract setter" p
+				| _ -> error "Invalid field type for abstract setter" p
 			in
 			let l = save_locals ctx in
-			let v,is_temp = match et.eexpr with
-				| TLocal v when not (v.v_name = "this") -> v,false
-				| _ -> gen_local ctx ta ef.epos,true
+			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
+				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
+				| _ ->
+					let v = gen_local ctx ta ef.epos in
+					(match et.eexpr with
+					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
+					| _ -> ()
+					);
+					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
+					let rec needs_temp_var e =
+						match e.eexpr with
+						| TConst TThis | TTypeExpr _ -> false
+						| TField (e1,(FInstance(_,_,cf) | FStatic(_,cf)))
+							when has_class_field_flag cf CfFinal ->
+							needs_temp_var e1
+						| TParenthesis e1 ->
+							needs_temp_var e1
+						| _ -> true
+					in
+					if has_class_field_flag cf CfModifiesThis then
+						match et.eexpr with
+						| TField (target,fa) when needs_temp_var target->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TField (etmp,fa)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| TArray (target,index) when needs_temp_var target ->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TArray (etmp,index)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| _ ->
+							check_assign ctx et;
+							v,[decl_v et],(Some et)
+					else
+						v,[decl_v et],None
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
@@ -640,13 +675,28 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx get.etype ret p;
 			l();
 			let e_call = make_call ctx ef [ev;get] ret p in
-			if is_temp then
-				mk (TBlock [
-					mk (TVar (v,Some et)) ctx.t.tvoid p;
+			let e_call =
+				(*
+					If this method modifies abstract `this`, we should also apply temp var
+					modifications to the original tempvar-ed expression.
+					Find code like `v = value` and change it to `et = v = value`,
+					where `v` is the temp var and `et` is the original expression stored to the temp var.
+				*)
+				match abstr_this_to_modify with
+				| None ->
 					e_call
-				]) ret p
-			else
-				e_call
+				| Some athis ->
+					let rec loop e =
+						match e.eexpr with
+						| TBinop(OpAssign,({ eexpr = TLocal v1 } as left),right) when v1 == v ->
+							let right = { e with eexpr = TBinop(OpAssign,left,loop right) } in
+							mk (TBinop(OpAssign,athis,right)) e.etype e.epos
+						| _ ->
+							map_expr loop e
+					in
+					loop e_call
+			in
+			mk (TBlock (init_exprs @ [e_call])) ret p
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -664,7 +714,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-			let eget = match eget with None -> assert false | Some e -> e in
+			let eget = match eget with None -> die "" | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -687,7 +737,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKFieldSet _ ->
 			error "Invalid operation" p
 		| AKInline _ | AKMacro _ ->
-			assert false)
+			die "")
 	| _ ->
 		type_non_assign_op false
 
@@ -898,14 +948,14 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die ""),[],[e1;e2])) t p
 	| OpArrow ->
 		error "Unexpected =>" p
 	| OpIn ->
 		error "Unexpected in" p
 	| OpAssign
 	| OpAssignOp _ ->
-		assert false
+		die ""
 	in
 	let find_overload a c tl left =
 		let map = apply_params a.a_params tl in
@@ -1008,7 +1058,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 							loop ol
 						end
 					| _ ->
-						assert false
+						die ""
 				end
 			| [] ->
 				raise Not_found
@@ -1132,7 +1182,7 @@ and type_unop ctx op flag e p =
 					)
 				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
 			in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "") in
 			let one = (EConst (Int "1"),p) in
 			(match follow cf.cf_type with
 			| TFun (_, t) ->
@@ -1158,7 +1208,7 @@ and type_unop ctx op flag e p =
 				)
 			| _ ->
 				l();
-				assert false
+				die ""
 			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
@@ -1168,7 +1218,7 @@ and type_unop ctx op flag e p =
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "") in
 			let one = (EConst (Int "1"),p) in
 			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
 			match flag with
@@ -1209,7 +1259,7 @@ and type_ident ctx i p mode =
 		try
 			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 			resolved_to_type_parameter := true;
-			let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
 				let e = type_module_type ctx (TClassDecl c) None p in
 				AKExpr {e with etype = (snd t)}
@@ -1250,7 +1300,7 @@ and type_ident ctx i p mode =
 			end
 
 and handle_efield ctx e p0 mode =
-	let open TyperDotPath in 
+	let open TyperDotPath in
 
 	let dot_path first pnext =
 		let name,_,p = first in
@@ -1267,21 +1317,36 @@ and handle_efield ctx e p0 mode =
 			with Not_found ->
 				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
+					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
 					field_chain ctx pnext (type_ident ctx name p)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
-						let pack_acc = ref [] in
-						let name , _ , _ = List.find (fun (name,case,p) ->
-							if case = PUppercase then
-								true
-							else begin
-								pack_acc := name :: !pack_acc;
-								false
-							end
-						) path in
-						let pack = List.rev !pack_acc in
-						raise (Error (Module_not_found (pack,name),p))
+						begin
+							(* TODO: we should pass the actual resolution error from resolve_dot_path instead of Not_found *)
+							let rec loop pack_acc first_uppercase path =
+								match path with
+								| (name,PLowercase,_) :: rest ->
+									(match first_uppercase with
+									| None -> loop (name :: pack_acc) None rest
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
+								| (name,PUppercase,p) :: rest ->
+									(match first_uppercase with
+									| None -> loop pack_acc (Some (name,p)) rest
+									| Some (n,_) -> List.rev pack_acc, n, Some name, p)
+								| [] ->
+									(match first_uppercase with
+									| None -> raise Not_found
+									| Some (n,p) -> List.rev pack_acc, n, None, p)
+							in
+							let pack,name,sub,p = loop [] None path in
+							let mpath = (pack,name) in
+							if Hashtbl.mem ctx.g.modules mpath then
+								let tname = Option.default name sub in
+								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
+							else
+								raise (Error (Module_not_found mpath,p))
+						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.in_display then begin
@@ -1291,7 +1356,7 @@ and handle_efield ctx e p0 mode =
 							else
 								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
-						raise e						
+						raise e
 	in
 
 	(* loop through the given EField expression to figure out whether it's a dot-path that we have to resolve,
@@ -1326,7 +1391,7 @@ and type_access ctx e p mode =
 				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				check_constructor_access ctx c cf p;
-				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
+				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
@@ -1461,7 +1526,7 @@ and format_string ctx s p =
 		let rec loop groups i =
 			if i = len then
 				match groups with
-				| [] -> assert false
+				| [] -> die ""
 				| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
 			else
 				let c = String.unsafe_get s i in
@@ -1495,7 +1560,7 @@ and format_string ctx s p =
 	in
 	parse 0 0;
 	match !e with
-	| None -> assert false
+	| None -> die ""
 	| Some e -> e
 
 and type_block ctx el with_type p =
@@ -1582,7 +1647,7 @@ and type_object_decl ctx fl with_type p =
 			end;
 			((n,pn,qs),e)
 		) fl in
-		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
+		let t = mk_anon ~fields:!fields (ref Const) in
 		if not ctx.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
@@ -1610,7 +1675,7 @@ and type_object_decl ctx fl with_type p =
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in
 		ctx.opened <- x :: ctx.opened;
-		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
+		mk (TObjectDecl (List.rev fields)) (mk_anon ~fields:types x) p
 	in
 	(match a with
 	| ODKPlain -> type_plain_fields()
@@ -1623,7 +1688,7 @@ and type_object_decl ctx fl with_type p =
 		let t,ctor = get_constructor ctx c tl p in
 		let args = match follow t with
 			| TFun(args,_) -> args
-			| _ -> assert false
+			| _ -> die ""
 		in
 		let fields = List.fold_left (fun acc (n,opt,t) ->
 			let f = mk_field n t ctor.cf_pos ctor.cf_name_pos in
@@ -1647,13 +1712,45 @@ and type_object_decl ctx fl with_type p =
 		) ([],[],false) (List.rev fl) in
 		let el = List.map (fun (n,_,t) ->
 			try Expr.field_assoc n fl
-			with Not_found -> mk (TConst TNull) t p
+			with Not_found ->
+				try
+					match ctor.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						Option.get (snd (List.find (fun (v,e) -> n = v.v_name && Option.is_some e) fn.tf_args))
+					| _ ->
+						raise Not_found
+				with Not_found | Option.No_value ->
+					let t =
+						if type_has_meta (Abstract.follow_with_abstracts_without_null t) Meta.NotNull then ctx.t.tnull t
+						else t
+					in
+					mk (TConst TNull) t p
 		) args in
 		let e = mk (TNew(c,tl,el)) (TInst(c,tl)) p in
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
 and type_new ctx path el with_type force_inline p =
+	let path =
+		if snd path <> null_pos then
+			path
+		(*
+			Since macros don't have placed_type_path structure on Haxe side any ENew will have null_pos in `path`.
+			Try to calculate a better pos.
+		*)
+		else begin
+			match el with
+			| (_,p1) :: _ when p1.pfile = p.pfile && p.pmin < p1.pmin ->
+				let pmin = p.pmin + (String.length "new ")
+				and pmax = p1.pmin - 2 (* Additional "1" for an opening bracket *)
+				in
+				fst path, { p with
+					pmin = if pmin < pmax then pmin else p.pmin;
+					pmax = pmax;
+				}
+			| _ -> fst path, p
+		end
+	in
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -1737,7 +1834,7 @@ and type_new ctx path el with_type force_inline p =
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
 		make_call ctx e el t ~force_inline p
@@ -1757,11 +1854,14 @@ and type_try ctx e1 catches with_type p =
 			let unreachable () =
 				display_error ctx "This block is unreachable" p;
 				let st = s_type (print_context()) in
-				display_error ctx (Printf.sprintf "%s can be assigned to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				display_error ctx (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| TDynamic _, TDynamic _ ->
+					| _, TDynamic _
+					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
+						unreachable()
+					| _, TInst({ cl_path = path },_) when path = ctx.com.config.pf_exceptions.ec_wildcard_catch ->
 						unreachable()
 					| TDynamic _,_ ->
 						()
@@ -1784,7 +1884,8 @@ and type_try ctx e1 catches with_type p =
 		| [] , name -> name)
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
-		let t = Typeload.load_complex_type ctx true t in
+		let th = Option.default (CTPath { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] },null_pos) t in
+		let t = Typeload.load_complex_type ctx true th in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
@@ -1886,7 +1987,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
-		| _ -> assert false
+		| _ -> die ""
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
@@ -1931,8 +2032,9 @@ and type_local_function ctx kind f with_type p =
 					| _ -> ()
 				) args args2;
 				(* unify for top-down inference unless we are expecting Void *)
-				begin match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ -> ()
+				begin
+					match follow tr,follow rt with
+					| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
@@ -2052,8 +2154,8 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
 				t_dynamic
 			else begin
-				let msg = "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" in
-				raise (Error (Stack (Custom msg, Unify l), p))
+				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
+				raise (Error (Unify l, p))
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
@@ -2115,21 +2217,24 @@ and type_return ?(implicit=false) ctx e with_type p =
 				else WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
-			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-			begin match follow e.etype with
-			| TAbstract({a_path=[],"Void"},_) ->
-				begin match (Texpr.skip e).eexpr with
-				| TConst TNull -> error "Cannot return `null` from Void-function" p
-				| _ -> ()
-				end;
-				(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-				mk (TBlock [
-					e;
-					mk (TReturn None) t_dynamic p
-				]) t_dynamic e.epos;
+			match follow ctx.ret with
+			| TAbstract({a_path=[],"Void"},_) when implicit ->
+				e
 			| _ ->
-				mk (TReturn (Some e)) t_dynamic p
-			end
+				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+				match follow e.etype with
+				| TAbstract({a_path=[],"Void"},_) ->
+					begin match (Texpr.skip e).eexpr with
+					| TConst TNull -> error "Cannot return `null` from Void-function" p
+					| _ -> ()
+					end;
+					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					mk (TBlock [
+						e;
+						mk (TReturn None) t_dynamic p
+					]) t_dynamic e.epos;
+				| _ ->
+					mk (TReturn (Some e)) t_dynamic p
 		with Error(err,p) ->
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
@@ -2152,7 +2257,7 @@ and type_cast ctx e t p =
 				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
-			| _ -> assert false);
+			| _ -> die "");
 		| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
 			List.iter check_param params;
 			TAbstractDecl a
@@ -2371,7 +2476,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die ""),[],[str;opt])) t p
 	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
@@ -2492,7 +2597,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk with_type
 	| EDisplayNew t ->
-		assert false
+		die ""
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType.with_type t) in
@@ -2527,6 +2632,7 @@ let rec create com =
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
+			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
 			do_load_type_def = Typeload.load_type_def;
 			do_optimize = Optimizer.reduce_expression;
@@ -2624,7 +2730,7 @@ let rec create com =
 				raise Exit
 			| _ -> ()
 		)) m.m_types;
-		assert false
+		die ""
 	with Exit -> ());
 	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
@@ -2633,8 +2739,9 @@ let rec create com =
 		let m = TypeloadModule.load_module ctx (["haxe"],"EnumWithType.valueTools") null_pos in
 		(match m.m_types with
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
-		| _ -> assert false);
-	| _ -> assert false);
+		| _ -> die "");
+	| _ -> die "");
+	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx
 

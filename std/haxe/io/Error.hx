@@ -25,6 +25,9 @@ package haxe.io;
 /**
 	The possible IO errors that can occur
 **/
+#if eval
+@:keep
+#end
 enum Error {
 	/** The IO is set into nonblocking mode and some data cannot be read or written **/
 	Blocked;

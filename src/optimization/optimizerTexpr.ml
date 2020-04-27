@@ -52,6 +52,7 @@ let create_affection_checker () =
 	let rec might_be_affected e =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
+			| TLocal {v_capture = true} -> raise Exit
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
 			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
 			| TCall _ | TNew _ -> raise Exit
@@ -149,12 +150,12 @@ let optimize_binop e op e1 e2 =
 		let fa = (match ca with
 			| TFloat a -> float_of_string a
 			| TInt a -> Int32.to_float a
-			| _ -> assert false
+			| _ -> die ""
 		) in
 		let fb = (match cb with
 			| TFloat b -> float_of_string b
 			| TInt b -> Int32.to_float b
-			| _ -> assert false
+			| _ -> die ""
 		) in
 		let fop op = check_float op fa fb in
 		let ebool t =
@@ -206,11 +207,16 @@ let optimize_binop e op e1 e2 =
 		| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
 		| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
 		| _ -> e)
-	| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
-		(match op with
-		| OpAssign -> e
+	| e1, TCall ({ eexpr = TField (_,FEnum _) },el) | TCall ({ eexpr = TField (_,FEnum _) },el),e1 ->
+		begin match op,e1 with
+		| (OpEq | OpNotEq),TConst TNull ->
+			let e0 = {e with eexpr = TConst (TBool (op = OpNotEq))} in
+			{e with eexpr = TBlock (el @ [e0])}
+		| OpAssign,_ ->
+			e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos
+		end
 	| _ ->
 		e)
 
