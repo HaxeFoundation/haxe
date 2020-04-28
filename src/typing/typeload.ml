@@ -635,6 +635,9 @@ and init_meta_overloads ctx co cf =
 		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
 			(match kind with FKNamed _ -> error "Function name must not be part of @:overload" p | _ -> ());
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
+			(match cf.cf_kind with
+				| Method MethInline -> error "Cannot @:overload inline function" p
+				| _ -> ());
 			let old = ctx.type_params in
 			(match cf.cf_params with
 			| [] -> ()
