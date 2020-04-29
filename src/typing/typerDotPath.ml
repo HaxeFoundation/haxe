@@ -18,6 +18,7 @@
 *)
 open Globals
 open Type
+open Typecore
 open TType
 open TyperBase
 open Calls
@@ -69,9 +70,23 @@ let resolve_qualified ctx pack name next_path p =
 (** resolve the given unqualified name (and possibly next path part) or raise Not_found *)
 let resolve_unqualified ctx name next_path p =
 	try
-		(* if there's a type with this name in current module context - simply resolve against it *)
+		(* if there's a type with this name in current module context - try resolving against it *)
 		let t = Typeload.find_type_in_current_module_context ctx [] name in (* raises Not_found *)
-		mk_module_type_access ctx t p, next_path
+
+		begin
+			(*
+				if there's further uppercase field access, it might be a this-package module access rather than static field access,
+				so we try resolving a field first and fall back to find_in_unqualified_modules
+			*)
+			match next_path with
+			| (field,PUppercase,pfield) :: next_path ->
+				let e = type_module_type ctx t None p in
+				let f = type_field (TypeFieldConfig.create true) ctx e field pfield in
+				ignore(f MCall); (* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
+				f, next_path
+			| _ ->
+				mk_module_type_access ctx t p, next_path
+		end
 	with Not_found ->
 		(* otherwise run the unqualified module resolution mechanism and look into the modules  *)
 		let f m ~resume = resolve_in_module ctx m next_path p in

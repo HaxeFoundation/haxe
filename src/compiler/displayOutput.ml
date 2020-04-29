@@ -78,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> die "" __LOC__
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -243,7 +243,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				DMDefinition
 			| "usage" ->
 				Common.define com Define.NoCOpt;
-				DMUsage false
+				DMUsage (false,false,false)
 			(*| "rename" ->
 				Common.define com Define.NoCOpt;
 				DMUsage true*)
@@ -354,7 +354,7 @@ let process_display_file com classes =
 						classes := path :: !classes;
 						DPKNormal path
 					| e ->
-						assert false
+						die "" __LOC__
 				in
 				path
 			| None ->
@@ -413,7 +413,7 @@ let promote_type_hints tctx =
 let process_global_display_mode com tctx =
 	promote_type_hints tctx;
 	match com.display.dms_kind with
-	| DMUsage with_definition ->
+	| DMUsage (with_definition,_,_) ->
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
@@ -490,7 +490,7 @@ let handle_syntax_completion com kind subj =
 			Buffer.add_string b "<il>\n";
 			List.iter (fun item -> match item.ci_kind with
 				| ITKeyword kwd -> Buffer.add_string b (Printf.sprintf "<i k=\"keyword\">%s</i>" (s_keyword kwd));
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) l;
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in

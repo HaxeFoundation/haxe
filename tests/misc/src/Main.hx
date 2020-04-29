@@ -16,7 +16,7 @@ class Main {
 		var result:Result = compileProjects();
 		Sys.println('Done running ${result.count} tests with ${result.failures} failures');
 		if(result.count > 20 && result.failures > 0) {
-			Sys.println('Summary:');
+			Sys.println('SUMMARY:');
 			Sys.println(result.summary);
 		}
 		Sys.exit(result.failures);
@@ -49,7 +49,7 @@ class Main {
 					++count;
 					if (!result.success) {
 						failures++;
-						failuresSummary.push(result.summary);
+						failuresSummary.push(path + '\n' + result.summary);
 					}
 					Sys.setCwd(old);
 				}

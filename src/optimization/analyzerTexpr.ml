@@ -709,7 +709,10 @@ module Fusion = struct
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (ExtType.has_variable_semantics v.v_type) &&
+					not (
+						ExtType.has_variable_semantics v.v_type &&
+						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+					) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
@@ -749,7 +752,7 @@ module Fusion = struct
 					in
 					let e,_ = map_values check_assign e1 in
 					let e = match !e' with
-						| None -> assert false
+						| None -> die "" __LOC__
 						| Some(e1,f) ->
 							begin match e1.eexpr with
 								| TLocal v -> state#change_writes v (- !i + 1)

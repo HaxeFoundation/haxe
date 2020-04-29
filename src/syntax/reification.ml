@@ -305,7 +305,7 @@ let reify in_macro =
 			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (fun (e,_) -> to_opt to_expr e) def p]
 		| ETry (e1,catches) ->
 			let scatch ((n,_),t,e,_) p =
-				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p
+				to_obj [("name",to_string n p);("type",to_opt to_ctype t p);("expr",loop e)] p
 			in
 			expr "ETry" [loop e1;to_array scatch catches p]
 		| EReturn eo ->
@@ -388,11 +388,11 @@ let reify in_macro =
 				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p] p;
 				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
 			] p
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	(fun e -> to_expr e (snd e)), to_ctype, to_type_def
 
 let reify_expr e in_macro =
 	let to_expr,_,_ = reify in_macro in
 	let e = to_expr e in
-	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] },null_pos)),pos e)
+	(ECheckType (e,(CTPath (mk_type_path (["haxe";"macro"],"Expr")),null_pos)),pos e)

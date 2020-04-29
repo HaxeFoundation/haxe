@@ -142,12 +142,12 @@ exception WithTypeError of error_msg * pos
 
 let memory_marker = [|Unix.time()|]
 
-let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
-let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
-let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
-let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> assert false)
-let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
+let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
+let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
+let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> die "" __LOC__)
+let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LOC__)
+let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
+let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -449,7 +449,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
 					| Some cf ->

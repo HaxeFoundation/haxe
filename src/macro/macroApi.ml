@@ -406,7 +406,7 @@ and encode_message msg =
 	let tag, pl = match msg with
 		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
 		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
-		| CMError(_,_) -> assert false
+		| CMError(_,_) -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
 
@@ -472,7 +472,7 @@ and encode_expr e =
 					encode_obj [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
-						"type",encode_ctype t;
+						"type",null encode_ctype t;
 						"expr",loop e;
 						"pos",encode_pos p
 					]
@@ -609,12 +609,11 @@ let decode_opt_array f v =
 
 let rec decode_path t =
 	let p = field t "pos" in
-	{
-		tpackage = List.map decode_string (decode_array (field t "pack"));
-		tname = decode_string (field t "name");
-		tparams = decode_opt_array decode_tparam (field t "params");
-		tsub = opt decode_string (field t "sub");
-	},if p = vnull then Globals.null_pos else decode_pos p
+	let pack = List.map decode_string (decode_array (field t "pack"))
+	and name = decode_string (field t "name")
+	and params = decode_opt_array decode_tparam (field t "params")
+	and sub = opt decode_string (field t "sub") in
+	mk_type_path ~params ?sub (pack,name), if p = vnull then Globals.null_pos else decode_pos p
 
 and decode_tparam v =
 	match decode_enum v with
@@ -791,7 +790,7 @@ and decode_expr v =
 			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),Globals.null_pos) eo)
 		| 17, [e;catches] ->
 			let catches = List.map (fun c ->
-				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(opt decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array catches) in
 			ETry (loop e, catches)
 		| 18, [e] ->
@@ -1726,7 +1725,7 @@ let macro_api ccom get_api =
 						vnull
 					);
 					"setCurrentClass", vfun1 (fun c ->
-						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> assert false);
+						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> Globals.die "" __LOC__);
 						vnull
 					);
 				] in
@@ -1976,7 +1975,7 @@ let macro_api ccom get_api =
 			and fn = prepare_callback fn 1 in
 			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
 			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
-			| _ -> assert false
+			| _ -> Globals.die "" __LOC__
 		)
 	]
 

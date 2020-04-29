@@ -172,8 +172,6 @@ class Timer {
 	public static inline function stamp():Float {
 		#if flash
 		return flash.Lib.getTimer() / 1000;
-		#elseif (neko || php)
-		return Sys.time();
 		#elseif js
 		#if nodejs
 		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]

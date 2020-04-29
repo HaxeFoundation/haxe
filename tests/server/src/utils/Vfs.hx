@@ -1,3 +1,5 @@
+package utils;
+
 import js.node.Fs;
 import sys.FileSystem;
 import haxe.io.Path;

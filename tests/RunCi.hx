@@ -119,6 +119,7 @@ class RunCi {
 				successMsg('test ${test} succeeded');
 			} else {
 				failMsg('test ${test} failed');
+				break;
 			}
 
 			echoServer.kill();

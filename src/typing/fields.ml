@@ -134,7 +134,7 @@ let get_constructor ctx c params p =
 
 let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx fa mode p =
 	if mode <> MCall && not (DisplayPosition.display_position#enclosed_in p) then begin
@@ -166,7 +166,7 @@ let field_access ctx mode f fmode t e p =
 		| TAnon a ->
 			(match !(a.a_status) with
 			| EnumStatics en ->
-				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> assert false) in
+				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
 				let fmode = FEnum (en,c) in
 				AKExpr (mk (TField (e,fmode)) t p)
 			| _ -> fnormal())
@@ -192,7 +192,7 @@ let field_access ctx mode f fmode t e p =
 					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
-					| FDynamic _ | FClosure _ -> assert false
+					| FDynamic _ | FClosure _ -> die "" __LOC__
 				) in
 				AKExpr (mk (TField (e,cmode)) t p)
 			| _ -> normal())
@@ -201,7 +201,7 @@ let field_access ctx mode f fmode t e p =
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
+			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Opened when mode = MSet ->
@@ -260,7 +260,7 @@ let field_access ctx mode f fmode t e p =
 			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if mode = MSet then begin
-					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
+					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 					let f = PMap.find m c.cl_statics in
 					(* we don't have access to the type parameters here, right? *)
 					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
@@ -343,7 +343,7 @@ let rec using_field ctx mode e i p =
 		let acc = loop ctx.g.global_using in
 		(match acc with
 		| AKUsing (_,c,_,_,_) -> add_dependency ctx.m.curmod c.cl_module
-		| _ -> assert false);
+		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->
 		if not !check_constant_struct then raise Not_found;
@@ -483,7 +483,7 @@ let rec type_field cfg ctx e i p mode =
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), Type.field_type f
+				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__), Type.field_type f
 				| _ ->
 					match f.cf_params with
 					| [] ->
@@ -607,7 +607,7 @@ let rec type_field cfg ctx e i p mode =
 				let ef = mk (TField (et,FStatic (c,cf))) t p in
 				let r = match follow t with
 					| TFun(_,r) -> r
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				if is_write then
 					AKFieldSet(e,ef,i,r)
