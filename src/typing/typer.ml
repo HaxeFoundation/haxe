@@ -2200,7 +2200,11 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
+	let is_abstract_ctor = ctx.curfun = FunMemberAbstract && ctx.curfield.cf_name = "_new" in
 	match e with
+	| None when is_abstract_ctor ->
+		let e_cast = mk (TCast(get_this ctx p,None)) ctx.ret p in
+		mk (TReturn (Some e_cast)) t_dynamic p
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
@@ -2211,6 +2215,11 @@ and type_return ?(implicit=false) ctx e with_type p =
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
+		if is_abstract_ctor then begin
+			match fst e with
+			| ECast((EConst(Ident "this"),_),None) -> ()
+			| _ -> display_error ctx "Cannot return a value from constructor" p
+		end;
 		try
 			let with_expected_type =
 				if implicit then WithType.of_implicit_return ctx.ret
