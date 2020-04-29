@@ -163,7 +163,7 @@ let static_method_container gctx c cf p =
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -208,7 +208,7 @@ let rec build_generic ctx c p tl =
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
