@@ -205,7 +205,7 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "\n\t| Last\n\n"; (* must be last *)
 		Printf.printf "let infos = function\n";
 		Printf.printf "%s" (gen_define_info defines);
-		Printf.printf "\n\t| Last -> die \"\"\n"
+		Printf.printf "\n\t| Last -> die \"\" __LOC__\n"
 	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;
@@ -214,7 +214,7 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "\n\t| Last\n\t| Dollar of string\n\t| Custom of string\n\n";
 		Printf.printf "let get_info = function\n";
 		Printf.printf "%s" (gen_meta_info metas);
-		Printf.printf "\n\t| Last -> die \"\"\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
+		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
 	| _ :: "libparams" :: params ->
 		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
 	| [_ ;"version";add_revision;branch;sha] ->

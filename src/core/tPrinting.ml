@@ -475,7 +475,7 @@ module Printer = struct
 			| [] -> s
 			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
 			end
-		| _ -> die ""
+		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl

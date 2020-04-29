@@ -646,9 +646,9 @@ let create version s_version args =
 			values = defines;
 		};
 		get_macros = (fun() -> None);
-		info = (fun _ _ -> die "");
-		warning = (fun _ _ -> die "");
-		error = (fun _ _ -> die "");
+		info = (fun _ _ -> die "" __LOC__);
+		warning = (fun _ _ -> die "" __LOC__);
+		error = (fun _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -657,9 +657,9 @@ let create version s_version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> die "");
+			tnull = (fun _ -> die "" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> die "");
+			tarray = (fun _ -> die "" __LOC__);
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		readdir_cache = Hashtbl.create 0;
@@ -782,7 +782,7 @@ let rec has_feature com f =
 	with Not_found ->
 		if com.types = [] then not (has_dce com) else
 		match List.rev (ExtString.String.nsplit f ".") with
-		| [] -> die ""
+		| [] -> die "" __LOC__
 		| [cl] -> has_feature com (cl ^ ".*")
 		| field :: cl :: pack ->
 			let r = (try
@@ -984,7 +984,7 @@ let utf16_to_utf8 str =
 				add (c lsr 8);
 				loop (i + 2);
 			end else
-				die "";
+				die "" __LOC__;
 		end
 	in
 	loop 0;

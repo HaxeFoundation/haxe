@@ -379,7 +379,7 @@ module EnumToClass2Exprf = struct
 				| TFun (params, _) ->
 					let fname, _, _ = List.nth params i in
 					field ecast fname e.etype e.epos
-				| _ -> Globals.die "")
+				| _ -> Globals.die "" __LOC__)
 			| _ ->
 				Type.map_expr run e
 		in

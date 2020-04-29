@@ -200,7 +200,7 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 													{ e with eexpr = TBinop( Ast.OpAssign, e1, handle_wrap { e with eexpr = TBinop (op, handle_unwrap t1 e1, handle_unwrap t2 (run e2) ) } t1 ) }
 												]) }
 										)
-									| _ -> Globals.die ""
+									| _ -> Globals.die "" __LOC__
 								)
 
 							| _ ->

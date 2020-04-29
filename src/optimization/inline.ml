@@ -108,7 +108,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
-		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "") in
+		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
@@ -194,7 +194,7 @@ let api_inline ctx c field params p =
 					TInst(cl,[t])
 				| TInst({ cl_path = [],"Array" }, [t]), TAbstractDecl(a) ->
 					TAbstract(a,[t])
-				| _ -> die ""
+				| _ -> die "" __LOC__
 			in
 			Some ({ (mk_untyped_call "__array__" p args) with etype = t })
 		with | Exit ->
@@ -228,7 +228,7 @@ let inline_default_config cf t =
 		| Some (csup,spl) ->
 			let spl = (match apply_params c.cl_params pl (TInst (csup,spl)) with
 			| TInst (_,pl) -> pl
-			| _ -> die ""
+			| _ -> die "" __LOC__
 			) in
 			let ct, cpl = get_params csup spl in
 			c.cl_params @ ct, pl @ cpl
@@ -740,7 +740,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					if term then t := e.etype;
 					[e]
 				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_term_return e1 ->
-					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> die "") }]
+					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> die "" __LOC__) }]
 				| e :: l ->
 					let e = map false false e in
 					e :: loop l

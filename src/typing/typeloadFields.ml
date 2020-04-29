@@ -950,7 +950,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
 								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> die ""
+								| _ -> die "" __LOC__
 							in
 							args
 						end else

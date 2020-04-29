@@ -174,7 +174,7 @@ let to_json ctx de =
 	match de with
 	| Statistics _
 	| ModuleSymbols _
-	| Metadata _ -> die ""
+	| Metadata _ -> die "" __LOC__
 	| DisplaySignatures None ->
 		jnull
 	| DisplayDiagnostics dctx ->
@@ -203,7 +203,7 @@ let to_json ctx de =
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
 			| WithType.StructureField name -> (1, name)
-			| _ -> die ""
+			| _ -> die "" __LOC__
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =

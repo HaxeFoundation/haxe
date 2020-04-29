@@ -33,7 +33,7 @@ let init (native_array_cl : tclass) (change_type_params : module_type -> t list 
 			let cl, params = match follow e.etype with
 				| TInst(({ cl_path = ([], "Array") } as cl), ( _ :: _  as params)) -> cl, params
 				| TInst(({ cl_path = ([], "Array") } as cl), []) -> cl, [t_dynamic]
-				| _ -> Globals.die ""
+				| _ -> Globals.die "" __LOC__
 			in
 			let params = change_type_params (TClassDecl cl) params in
 			let e_inner_decl = mk (TArrayDecl (List.map run el)) (TInst (native_array_cl, params)) e.epos in

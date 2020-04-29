@@ -577,12 +577,12 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		cff_kind = kind;
 	}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die ""
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 let is_explicit ctx ilcls i =
 	let s = match i with
 		| LClass(path,_) | LValueType(path,_) -> ilpath_s path
-		| _ -> die ""
+		| _ -> die "" __LOC__
 	in
 	let len = String.length s in
 	List.exists (fun m ->

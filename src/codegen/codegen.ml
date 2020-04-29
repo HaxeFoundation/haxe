@@ -154,7 +154,7 @@ let fix_override com c f fd =
 	let f2 = (try Some (find_field com c f) with Not_found -> None) in
 	match f2,fd with
 		| Some (f2), Some(fd) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "") in
+			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
 			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
@@ -190,11 +190,11 @@ let fix_override com c f fd =
 				);
 			} in
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
-			let fde = (match f.cf_expr with None -> die "" | Some e -> e) in
+			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
 			f.cf_type <- TFun(targs,tret);
 		| Some(f2), None when c.cl_interface ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "") in
+			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
 			f.cf_type <- TFun(targs,tret)
 		| _ ->
 			()
@@ -455,18 +455,18 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TClassDecl c -> mk_anon (ref (Statics c))
 		| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 		| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
-		| TTypeDecl _ -> die ""
+		| TTypeDecl _ -> die "" __LOC__
 	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
-	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "") in
+	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "" __LOC__) in
 	let fis = (try
-			let c = (match std with TClassDecl c -> c | _ -> die "") in
+			let c = (match std with TClassDecl c -> c | _ -> die "" __LOC__) in
 			FStatic (c, PMap.find "isOfType" c.cl_statics)
 		with Not_found ->
-			die ""
+			die "" __LOC__
 	) in
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
@@ -509,7 +509,7 @@ module UnificationCallback = struct
 		in
 		let check e = match e.eexpr with
 			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
-				die ""; (* this trigger #4347, to be fixed before enabling
+				die "" __LOC__; (* this trigger #4347, to be fixed before enabling
 				let e2 = f e2 e1.etype in
 				{e with eexpr = TBinop(op,e1,e2)} *)
 			| TVar(v,Some ev) ->

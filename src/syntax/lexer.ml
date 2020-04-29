@@ -330,7 +330,7 @@ let rec skip_header lexbuf =
 	| 0xfeff -> skip_header lexbuf
 	| "#!", Star (Compl ('\n' | '\r')) -> skip_header lexbuf
 	| "" | eof -> ()
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 let rec token lexbuf =
 	match%sedlex lexbuf with
@@ -496,7 +496,7 @@ and comment lexbuf =
 	| "*/" -> lexeme_end lexbuf
 	| '*' -> store lexbuf; comment lexbuf
 	| Plus (Compl ('*' | '\n' | '\r')) -> store lexbuf; comment lexbuf
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and string lexbuf =
 	match%sedlex lexbuf with
@@ -507,7 +507,7 @@ and string lexbuf =
 	| '\\' -> store lexbuf; string lexbuf
 	| '"' -> lexeme_end lexbuf
 	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store lexbuf; string lexbuf
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and string2 lexbuf =
 	match%sedlex lexbuf with
@@ -524,7 +524,7 @@ and string2 lexbuf =
 		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
 		string2 lexbuf;
 	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and code_string lexbuf open_braces =
 	match%sedlex lexbuf with
@@ -558,7 +558,7 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and regexp lexbuf =
 	match%sedlex lexbuf with
@@ -573,7 +573,7 @@ and regexp lexbuf =
 	| '\\', Compl '\\' -> error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
 	| '/' -> regexp_options lexbuf, lexeme_end lexbuf
 	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store lexbuf; regexp lexbuf
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and regexp_options lexbuf =
 	match%sedlex lexbuf with
@@ -582,7 +582,7 @@ and regexp_options lexbuf =
 		l ^ regexp_options lexbuf
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
-	| _ -> die ""
+	| _ -> die "" __LOC__
 
 and not_xml ctx depth in_open =
 	let lexbuf = ctx.lexbuf in
@@ -626,7 +626,7 @@ and not_xml ctx depth in_open =
 		store lexbuf;
 		not_xml ctx depth in_open
 	| _ ->
-		die ""
+		die "" __LOC__
 
 let rec sharp_token lexbuf =
 	match%sedlex lexbuf with

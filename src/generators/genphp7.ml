@@ -374,7 +374,7 @@ let rec needs_temp_var expr =
 let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
 	match follow field.cf_type with
 		| TFun (args, return_type) -> (args, return_type)
-		| _ -> fail field.cf_pos
+		| _ -> fail field.cf_pos __LOC__
 
 (**
 	Check if `target` is 100% guaranteed to be a scalar type in PHP.
@@ -690,14 +690,14 @@ let need_boot_equal expr1 expr2 =
 *)
 let ensure_return_in_block block_expr =
 	match block_expr.eexpr with
-		| TBlock [] -> fail block_expr.epos
+		| TBlock [] -> fail block_expr.epos __LOC__
 		| TBlock exprs ->
 			let reversed = List.rev exprs in
 			let last_expr = List.hd reversed in
 			let return_expr = { last_expr with eexpr = TReturn (Some last_expr) } in
 			let reversed = return_expr::(List.tl reversed) in
 			{ block_expr with eexpr = TBlock (List.rev reversed) }
-		| _ -> fail block_expr.epos
+		| _ -> fail block_expr.epos __LOC__
 
 (**
 	If `expr` is a block, then return list of expressions in that block.
@@ -716,7 +716,7 @@ let unpack_block expr =
 let unpack_single_expr_block expr =
 		match expr.eexpr with
 			| TBlock [ e ] -> e
-			| TBlock _ -> fail expr.epos
+			| TBlock _ -> fail expr.epos __LOC__
 			| _ -> expr
 
 (**
@@ -1125,10 +1125,10 @@ class local_vars =
 		*)
 		method pop : string list * string list * string list =
 			match used_locals with
-				| [] -> die ""
+				| [] -> die "" __LOC__
 				| used :: rest_used ->
 					match declared_locals with
-						| [] -> die ""
+						| [] -> die "" __LOC__
 						| declared :: rest_declared ->
 							let higher_vars = diff_lists (hashtbl_keys used) (hashtbl_keys declared)
 							and declared_vars = hashtbl_keys declared in
@@ -1158,14 +1158,14 @@ class local_vars =
 		*)
 		method declared (name:string) : unit =
 			match declared_locals with
-				| [] -> die ""
+				| [] -> die "" __LOC__
 				| current :: _ -> Hashtbl.replace current name name
 		(**
 			Specify local var name used in current scope
 		*)
 		method used (name:string) : unit =
 			match used_locals with
-				| [] -> die ""
+				| [] -> die "" __LOC__
 				| current :: _ -> Hashtbl.replace current name name
 		(**
 			Mark specified vars as captured by closures.
@@ -1274,7 +1274,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						let alias_source = ref (List.rev module_path) in
 						let get_alias_next_part () =
 							match !alias_source with
-								| [] ->  fail ~msg:("Failed to find already used type: " ^ get_full_type_name type_path) self#pos
+								| [] ->  fail ~msg:("Failed to find already used type: " ^ get_full_type_name type_path) self#pos __LOC__
 								| name :: rest ->
 									alias_source := (match rest with
 										| [] -> [name]
@@ -1304,7 +1304,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 								| Not_found ->
 									Hashtbl.add use_table !alias_upper { ut_alias = !alias; ut_type_path = type_path; };
 									added := true
-								| _ -> fail self#pos
+								| _ -> fail self#pos __LOC__
 						done;
 						!alias
 			end
@@ -1327,13 +1327,13 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TFun _ -> self#use ~prefix:false ([], "Closure")
 				| TAnon _ -> "object"
 				| TDynamic _ -> "mixed"
-				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos
+				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __LOC__
 				| TMono mono ->
 					(match mono.tm_type with
 						| None -> "mixed"
 						| Some t -> self#use_t t
 					)
-				| TType _ -> fail ~msg:"TType not implemented" self#pos
+				| TType _ -> fail ~msg:"TType not implemented" self#pos __LOC__
 				| TAbstract (abstr, _) ->
 					match abstr.a_path with
 						| ([],"Int") -> "int"
@@ -1470,7 +1470,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							access_expr
 						)
 					}
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes specified string to output buffer
 		*)
@@ -1581,7 +1581,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
-					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos)
+					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __LOC__)
 				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
@@ -1594,7 +1594,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TFunction fn -> self#write_expr_function fn
 				| TVar (var, expr) -> self#write_expr_var var expr
 				| TBlock exprs -> self#write_expr_block expr
-				| TFor (var, iterator, body) -> fail self#pos
+				| TFor (var, iterator, body) -> fail self#pos __LOC__
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr
 				| TWhile (condition, expr, do_while) ->
 					(match (reveal_expr_with_parenthesis condition).eexpr with
@@ -1924,14 +1924,14 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			DeprecationCheck.warn_deprecation ctx.pgc_common msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
-				| [] -> fail ~msg:error self#pos
+				| [] -> fail ~msg:error self#pos __LOC__
 				| { eexpr = TConst (TString code) } as expr :: args ->
 					(match name with
 						| "__php__" ->
 							(match expr.eexpr with
 								| TConst (TString php) ->
 									Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
-								| _ -> fail self#pos
+								| _ -> fail self#pos __LOC__
 							)
 						| "__call__" ->
 							self#write (code ^ "(");
@@ -1940,7 +1940,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| "__physeq__" ->
 							(match args with
 								| [expr2] -> self#write_expr_binop OpEq expr expr2
-								| _ -> fail ~msg:error self#pos
+								| _ -> fail ~msg:error self#pos __LOC__
 							)
 						| "__var__" ->
 							(match args with
@@ -1950,20 +1950,20 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 									self#write ("$" ^ code ^ "[");
 									self#write_expr expr2;
 									self#write "]"
-								| _ -> fail ~msg:error self#pos
+								| _ -> fail ~msg:error self#pos __LOC__
 							)
-						| _ -> fail ~msg:error self#pos
+						| _ -> fail ~msg:error self#pos __LOC__
 					)
 				| [expr1; expr2] ->
 					(match name with
 						| "__physeq__" ->
 							(match args with
 								| [expr1; expr2] -> self#write_expr_binop OpEq expr1 expr2
-								| _ -> fail ~msg:error self#pos
+								| _ -> fail ~msg:error self#pos __LOC__
 							)
-						| _ -> fail ~msg:error self#pos
+						| _ -> fail ~msg:error self#pos __LOC__
 					)
-				| _ -> fail ~msg:error self#pos
+				| _ -> fail ~msg:error self#pos __LOC__
 		(**
 			Writes TTypeExpr to output buffer
 		*)
@@ -2211,7 +2211,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
 					write_args self#write self#write_expr (expr :: args);
 					self#write ")"
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes FStatic field access for methods to output buffer
 		*)
@@ -2308,7 +2308,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_expr_call_syntax_extern expr args =
 			let name = match expr.eexpr with
 				| TField (_, FStatic (_, field)) -> field_name field
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 			in
 			match name with
 				| "code" | "codeDeref" -> self#write_expr_syntax_code args
@@ -2332,7 +2332,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_syntax_code args =
 			match args with
-				| [] -> fail self#pos
+				| [] -> fail self#pos __LOC__
 				| { eexpr = TConst (TString php) } :: args ->
 					let args = List.map
 						(fun arg ->
@@ -2352,7 +2352,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| [ args_expr ] ->
 					self#write "@";
 					self#write_expr args_expr
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes native array declaration (for `php.Syntax.arrayDecl()`)
 		*)
@@ -2393,7 +2393,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write "(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes a call to a static method (for `php.Syntax.staticCall()`)
 		*)
@@ -2406,7 +2406,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write "(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes field access for reading (for `php.Syntax.getField()`)
 		*)
@@ -2416,7 +2416,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write_expr obj_expr;
 					self#write "->";
 					self#write_syntax_field_expr field_expr;
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes field access for writing (for `php.Syntax.setField()`)
 		*)
@@ -2429,7 +2429,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write "}";
 					self#write " = ";
 					self#write_expr value_expr
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes static field access for reading (for `php.Syntax.getStaticField()`)
 		*)
@@ -2440,7 +2440,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write "::${";
 					self#write_expr field_expr;
 					self#write "}"
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes static field access for writing (for `php.Syntax.setField()`)
 		*)
@@ -2453,14 +2453,14 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write "}";
 					self#write " = ";
 					self#write_expr value_expr
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes `new` expression with class name taken local variable (for `php.Syntax.construct()`)
 		*)
 		method write_expr_syntax_construct args =
 			let (class_expr, args) = match args with
 				| class_expr :: args -> (class_expr, args)
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 			in
 			self#write "new ";
 			self#write_expr class_expr;
@@ -2482,7 +2482,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write " ?? ";
 					self#write_expr right;
 					self#write ")";
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes `instanceof` expression to output buffer (for `php.Syntax.instanceof()`)
 		*)
@@ -2500,7 +2500,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							if not (is_string type_expr) then self#write "->phpClassName"
 					);
 					self#write ")"
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes either a "Cls::class" expression (if class is passed directly) or a `$cls->phpClassName` expression
 			(if class is passed as a variable) to output buffer (for `php.Syntax.nativeClassName()`)
@@ -2516,7 +2516,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							self#write_expr cls_expr;
 							self#write "->phpClassName"
 					);
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)
 		*)
@@ -2535,7 +2535,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write (" as $" ^ key.v_name ^ " => $" ^ value.v_name ^ ") ");
 					self#write_as_block ~unset_locals:true { body with eexpr = TBlock body_exprs };
 				| _ ->
-					fail self#pos
+					fail self#pos __LOC__
 		(**
 			Writes TCall to output buffer
 		*)
@@ -2600,7 +2600,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_expr_php_global target_expr =
 			match target_expr.eexpr with
 				| TField (_, FStatic (_, field)) -> self#write (field_name field)
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes access to PHP class constant
 		*)
@@ -2608,7 +2608,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match target_expr.eexpr with
 				| TField (_, FStatic (ecls, field)) ->
 					self#write ((self#use_t (TInst (ecls, []))) ^ "::" ^ (field_name field))
-				| _ -> fail self#pos
+				| _ -> fail self#pos __LOC__
 		(**
 			Writes TNew to output buffer
 		*)
@@ -2649,7 +2649,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			in
 			if is_ternary then
 				match else_expr with
-					| None -> fail self#pos
+					| None -> fail self#pos __LOC__
 					| Some expr ->
 						self#write_expr_ternary condition if_expr expr self#pos
 			else begin
@@ -3179,7 +3179,7 @@ class enum_builder ctx (enm:tenum) =
 				match follow field.ef_type with
 					| TFun (args, _) -> args
 					| TEnum _ -> []
-					| _ -> fail field.ef_pos
+					| _ -> fail field.ef_pos __LOC__
 			in
 			writer#indent 1;
 			self#write_doc (DocMethod (args, TEnum (enm, []), (gen_doc_text_opt field.ef_doc)));
@@ -3250,7 +3250,7 @@ class enum_builder ctx (enm:tenum) =
 					let count = match follow field.ef_type with
 						| TFun (params, _) -> List.length params
 						| TEnum _ -> 0
-						| _ -> fail field.ef_pos
+						| _ -> fail field.ef_pos __LOC__
 					in
 					writer#write_line ("'" ^ name ^ "' => " ^ (string_of_int count) ^ ",")
 				)
@@ -3537,7 +3537,7 @@ class class_builder ctx (cls:tclass) =
 				writer#write_with_indentation (field_access ^ " = ");
 				(match field.cf_expr with
 					| Some expr -> writer#write_expr expr
-					| None -> fail field.cf_pos
+					| None -> fail field.cf_pos __LOC__
 				);
 				writer#write ";\n"
 			in
@@ -3628,7 +3628,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_const field =
 			match field.cf_expr with
-				| None -> fail writer#pos
+				| None -> fail writer#pos __LOC__
 				(* Do not generate a PHP constant of `inline var` field if expression is not compatible with PHP const *)
 				| Some expr when not (is_constant expr) -> ()
 				| Some expr ->
@@ -3661,7 +3661,7 @@ class class_builder ctx (cls:tclass) =
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
 					self#write_method name fn is_static;
 					writer#write "\n"
-				| _ -> fail field.cf_pos
+				| _ -> fail field.cf_pos __LOC__
 		(**
 			Writes dynamic method to output buffer.
 			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
@@ -3694,7 +3694,7 @@ class class_builder ctx (cls:tclass) =
 					writer#write_line "}";
 					(* Don't forget to create a field for default value *)
 					writer#write_statement ("protected $__hx__default__" ^ (field_name field))
-				| _ -> fail field.cf_pos
+				| _ -> fail field.cf_pos __LOC__
 			);
 		(**
 			Since PHP function names are case-insensitive we must check for method names clashes.
@@ -3810,7 +3810,7 @@ class generator (ctx:php_generator_context) =
 			self#generate_entry_point;
 			match polyfills_source_path, polyfills_dest_path with
 				| Some src, Some dst -> copy_file src dst
-				| _ -> fail null_pos
+				| _ -> fail null_pos __LOC__
 		(**
 			Generates calls to static __init__ methods in Boot.php
 		*)
@@ -3819,7 +3819,7 @@ class generator (ctx:php_generator_context) =
 				| [] -> ()
 				| _ ->
 					match boot with
-						| None -> fail null_pos
+						| None -> fail null_pos __LOC__
 						| Some (_, filename) ->
 							let channel = open_out_gen [Open_creat; Open_text; Open_append] 0o644 filename in
 							List.iter
@@ -3848,7 +3848,7 @@ class generator (ctx:php_generator_context) =
 					output_string channel "	}\n";
 					output_string channel ");\n";
 					(match boot with
-						| None -> fail null_pos
+						| None -> fail null_pos __LOC__
 						| Some (builder, filename) ->
 							let boot_class = get_full_type_name (add_php_prefix ctx builder#get_type_path) in
 							output_string channel (boot_class ^ "::__hx__init();\n")
@@ -3897,7 +3897,7 @@ let get_boot com : tclass =
 			| TClassDecl cls -> cls
 			| _ -> raise Not_found
 	with
-		| Not_found -> fail ~msg:"php.Boot not found" null_pos
+		| Not_found -> fail ~msg:"php.Boot not found" null_pos __LOC__
 
 (**
 	Entry point to Genphp7

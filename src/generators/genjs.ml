@@ -465,7 +465,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx "]";
 	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
-			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> die "") in
+			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> die "" __LOC__) in
 			spr ctx (ctx.type_accessor t);
 			spr ctx ".trace(";
 			gen_value ctx e;
@@ -585,7 +585,7 @@ and gen_expr ctx e =
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
 		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
-			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" ) in
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" __LOC__ ) in
 			print ctx ".%s" (ident fname)
 		else
 			print ctx "[%i]" (i + 2)
@@ -615,7 +615,7 @@ and gen_expr ctx e =
 			gen_expr ctx e
 		| TBreak ->
 			print ctx "break _hx_loop%s" n;
-		| _ -> die "")
+		| _ -> die "" __LOC__)
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo ->
@@ -820,7 +820,7 @@ and gen_block_element ?(after=false) ctx e =
 		else (match eelse with
 			| [] -> ()
 			| [e] -> gen_block_element ~after ctx e
-			| _ -> die "")
+			| _ -> die "" __LOC__)
 	| TFunction _ ->
 		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
@@ -834,7 +834,7 @@ and gen_value ctx e =
 	let clear_mapping = add_mapping ctx e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
-			mk (TLocal (match ctx.in_value with None -> die "" | Some v -> v)) t_dynamic e.epos,
+			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
 			e
 		)) e.etype e.epos
 	in
@@ -1623,7 +1623,7 @@ let alloc_ctx com es_version =
 		in_value = None;
 		in_loop = false;
 		id_counter = 0;
-		type_accessor = (fun _ -> die "");
+		type_accessor = (fun _ -> die "" __LOC__);
 		separator = false;
 		found_expose = false;
 		catch_vars = [];

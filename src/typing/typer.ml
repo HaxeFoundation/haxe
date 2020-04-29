@@ -530,7 +530,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = e2 (WithType.with_type t) in
 			begin match follow e1.etype with
 				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
-				| _ -> die ""
+				| _ -> die "" __LOC__
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing(ef,_,_,et,_) ->
@@ -543,7 +543,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			make_call ctx ef [et;e2] ret p
 		| AKInline _ | AKMacro _ ->
-			die "")
+			die "" __LOC__)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
@@ -623,7 +623,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			]) t p
 		| AKUsing(ef,c,cf,et,_) ->
 			(* abstract setter + getter *)
-			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> die "" in
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> die "" __LOC__ in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ -> error "Invalid field type for abstract setter" p
@@ -714,7 +714,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-			let eget = match eget with None -> die "" | Some e -> e in
+			let eget = match eget with None -> die "" __LOC__ | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -737,7 +737,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKFieldSet _ ->
 			error "Invalid operation" p
 		| AKInline _ | AKMacro _ ->
-			die "")
+			die "" __LOC__)
 	| _ ->
 		type_non_assign_op false
 
@@ -948,14 +948,14 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die ""),[],[e1;e2])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p
 	| OpArrow ->
 		error "Unexpected =>" p
 	| OpIn ->
 		error "Unexpected in" p
 	| OpAssign
 	| OpAssignOp _ ->
-		die ""
+		die "" __LOC__
 	in
 	let find_overload a c tl left =
 		let map = apply_params a.a_params tl in
@@ -1058,7 +1058,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 							loop ol
 						end
 					| _ ->
-						die ""
+						die "" __LOC__
 				end
 			| [] ->
 				raise Not_found
@@ -1182,7 +1182,7 @@ and type_unop ctx op flag e p =
 					)
 				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
 			in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "") in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
 			let one = (EConst (Int "1"),p) in
 			(match follow cf.cf_type with
 			| TFun (_, t) ->
@@ -1208,7 +1208,7 @@ and type_unop ctx op flag e p =
 				)
 			| _ ->
 				l();
-				die ""
+				die "" __LOC__
 			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
@@ -1218,7 +1218,7 @@ and type_unop ctx op flag e p =
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "") in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
 			let one = (EConst (Int "1"),p) in
 			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
 			match flag with
@@ -1259,7 +1259,7 @@ and type_ident ctx i p mode =
 		try
 			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 			resolved_to_type_parameter := true;
-			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" in
+			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
 				let e = type_module_type ctx (TClassDecl c) None p in
 				AKExpr {e with etype = (snd t)}
@@ -1391,7 +1391,7 @@ and type_access ctx e p mode =
 				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				check_constructor_access ctx c cf p;
-				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" in
+				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
@@ -1526,7 +1526,7 @@ and format_string ctx s p =
 		let rec loop groups i =
 			if i = len then
 				match groups with
-				| [] -> die ""
+				| [] -> die "" __LOC__
 				| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
 			else
 				let c = String.unsafe_get s i in
@@ -1560,7 +1560,7 @@ and format_string ctx s p =
 	in
 	parse 0 0;
 	match !e with
-	| None -> die ""
+	| None -> die "" __LOC__
 	| Some e -> e
 
 and type_block ctx el with_type p =
@@ -1688,7 +1688,7 @@ and type_object_decl ctx fl with_type p =
 		let t,ctor = get_constructor ctx c tl p in
 		let args = match follow t with
 			| TFun(args,_) -> args
-			| _ -> die ""
+			| _ -> die "" __LOC__
 		in
 		let fields = List.fold_left (fun acc (n,opt,t) ->
 			let f = mk_field n t ctor.cf_pos ctor.cf_name_pos in
@@ -1987,7 +1987,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
-		| _ -> die ""
+		| _ -> die "" __LOC__
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
@@ -2257,7 +2257,7 @@ and type_cast ctx e t p =
 				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
-			| _ -> die "");
+			| _ -> die "" __LOC__);
 		| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
 			List.iter check_param params;
 			TAbstractDecl a
@@ -2476,7 +2476,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die ""),[],[str;opt])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
@@ -2597,7 +2597,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk with_type
 	| EDisplayNew t ->
-		die ""
+		die "" __LOC__
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType.with_type t) in
@@ -2730,7 +2730,7 @@ let rec create com =
 				raise Exit
 			| _ -> ()
 		)) m.m_types;
-		die ""
+		die "" __LOC__
 	with Exit -> ());
 	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
@@ -2739,8 +2739,8 @@ let rec create com =
 		let m = TypeloadModule.load_module ctx (["haxe"],"EnumWithType.valueTools") null_pos in
 		(match m.m_types with
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
-		| _ -> die "");
-	| _ -> die "");
+		| _ -> die "" __LOC__);
+	| _ -> die "" __LOC__);
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx

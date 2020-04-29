@@ -128,7 +128,7 @@ let get_offset' s c_index =
 		in
 		b_offset,r
 	| _ ->
-		Globals.die ""
+		Globals.die "" __LOC__
 
 let get_offset s c_index =
 	let b_offset,(cr_index,br_offset) = get_offset' s c_index in

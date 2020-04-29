@@ -240,7 +240,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
 		PrototypeBuilder.finalize pctx,[];
 	| _ ->
-		die ""
+		die "" __LOC__
 	in
 	let rec loop v name path = match path with
 		| [] ->

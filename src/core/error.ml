@@ -242,7 +242,7 @@ module BetterErrors = struct
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->
-						die ""
+						die "" __LOC__
 				in
 				let s1,s2 = loop() in
 				let path1,params1 = get_params access_prev.acc_actual in

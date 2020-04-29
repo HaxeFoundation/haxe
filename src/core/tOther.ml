@@ -97,7 +97,7 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die ""),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die "" __LOC__),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
@@ -119,11 +119,11 @@ module TExprToExpr = struct
 		| TEnumIndex _
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
-			die ""
+			die "" __LOC__
 		| TTry (e,catches) ->
 			let e1 = convert_expr e in
 			let catches = List.map (fun (v,e) ->
-				let ct = try convert_type v.v_type,null_pos with Exit -> die "" in
+				let ct = try convert_type v.v_type,null_pos with Exit -> die "" __LOC__ in
 				let e = convert_expr e in
 				(v.v_name,v.v_pos),(Some ct),e,(pos e)
 			) catches in
@@ -137,7 +137,7 @@ module TExprToExpr = struct
 				| None -> None
 				| Some t ->
 					let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
-					Some (try convert_type t,null_pos with Exit -> die "")
+					Some (try convert_type t,null_pos with Exit -> die "" __LOC__)
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1

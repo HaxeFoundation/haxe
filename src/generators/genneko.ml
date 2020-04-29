@@ -177,7 +177,7 @@ let gen_constant ctx pe c =
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
 	| TThis -> this p
-	| TSuper -> die ""
+	| TSuper -> die "" __LOC__
 
 let rec gen_binop ctx p op e1 e2 =
 	(EBinop (Ast.s_binop op,gen_expr ctx e1,gen_expr ctx e2),p)
@@ -193,7 +193,7 @@ and gen_unop ctx p op flag e =
 and gen_call ctx p e el =
 	match e.eexpr , el with
 	| TConst TSuper , _ ->
-		let c = (match follow e.etype with TInst (c,_) -> c | _ -> die "") in
+		let c = (match follow e.etype with TInst (c,_) -> c | _ -> die "" __LOC__) in
 		call p (builtin p "call") [
 			field p (gen_type_path p c.cl_path) "__construct__";
 			this p;
@@ -204,7 +204,7 @@ and gen_call ctx p e el =
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
-		let c = (match follow t with TInst (c,_) -> c | _ -> die "") in
+		let c = (match follow t with TInst (c,_) -> c | _ -> die "" __LOC__) in
 		call p (builtin p "call") [
 			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) (field_name f);
 			this p;
@@ -245,7 +245,7 @@ and gen_expr ctx e =
 				else
 					call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 			] , p
-		| _ -> die "")
+		| _ -> die "" __LOC__)
 	| TEnumParameter (e,_,i) ->
 		EArray (field p (gen_expr ctx e) "args",int p i),p
 	| TEnumIndex e ->
@@ -334,7 +334,7 @@ and gen_expr ctx e =
 					| TEnum (e,_) -> Some e.e_path
 					| TAbstract (a,_) -> Some a.a_path
 					| TDynamic _ -> None
-					| _ -> die ""
+					| _ -> die "" __LOC__
 				) in
 				let cond = (match path with
 					| None -> (EConst True,p)
@@ -380,7 +380,7 @@ and gen_expr ctx e =
 				e,
 				List.map (fun (el,e2) ->
 					match List.map (gen_expr ctx) el with
-					| [] -> die ""
+					| [] -> die "" __LOC__
 					| [e] -> e, gen_expr ctx e2
 					| _ -> raise Exit
 				) cases,
@@ -392,7 +392,7 @@ and gen_expr ctx e =
 					(EVars ["@tmp",Some e],p);
 					List.fold_left (fun acc (el,e) ->
 						let cond = (match el with
-							| [] -> die ""
+							| [] -> die "" __LOC__
 							| e :: l ->
 								let eq e = (EBinop ("==",ident p "@tmp",gen_expr ctx e),p) in
 								List.fold_left (fun acc e -> (EBinop ("||",acc,eq e),p)) (eq e) l
@@ -736,7 +736,7 @@ let header() =
 	let p = { psource = "<header>"; pline = 1 } in
 	let fields l =
 		let rec loop = function
-			| [] -> die ""
+			| [] -> die "" __LOC__
 			| [x] -> ident p x
 			| x :: l -> field p (loop l) x
 		in

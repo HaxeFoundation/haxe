@@ -461,7 +461,7 @@ let add_field_inits locals ctx t =
 		| _ ->
 			let el = List.map (fun cf ->
 				match cf.cf_expr with
-				| None -> die ""
+				| None -> die "" __LOC__
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
@@ -486,7 +486,7 @@ let add_field_inits locals ctx t =
 					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
-					die ""
+					die "" __LOC__
 			in
 			let config = AnalyzerConfig.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;

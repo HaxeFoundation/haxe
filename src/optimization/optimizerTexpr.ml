@@ -150,12 +150,12 @@ let optimize_binop e op e1 e2 =
 		let fa = (match ca with
 			| TFloat a -> float_of_string a
 			| TInt a -> Int32.to_float a
-			| _ -> die ""
+			| _ -> die "" __LOC__
 		) in
 		let fb = (match cb with
 			| TFloat b -> float_of_string b
 			| TInt b -> Int32.to_float b
-			| _ -> die ""
+			| _ -> die "" __LOC__
 		) in
 		let fop op = check_float op fa fb in
 		let ebool t =

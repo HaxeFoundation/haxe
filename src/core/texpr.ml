@@ -470,7 +470,7 @@ module Builder = struct
 			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (Statics c))
 			| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 			| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
-			| _ -> die ""
+			| _ -> die "" __LOC__
 		in
 		mk (TTypeExpr mt) t pos
 
@@ -508,7 +508,7 @@ module Builder = struct
 		| _ -> error "Unsupported constant" p
 
 	let field e name t p =
-		mk (TField (e,try quick_field e.etype name with Not_found -> die "")) t p
+		mk (TField (e,try quick_field e.etype name with Not_found -> die "" __LOC__)) t p
 
 	let fcall e name el ret p =
 		let ft = tfun (List.map (fun e -> e.etype) el) ret in

@@ -153,13 +153,13 @@ class condition_handler = object(self)
 		| e :: el ->
 			conditional_stack <- (self#negate e) :: el
 		| [] ->
-			die ""
+			die "" __LOC__
 
 	method cond_elseif (e : expr) =
 		self#cond_else;
 		self#cond_if' e;
 		match depths with
-		| [] -> die ""
+		| [] -> die "" __LOC__
 		| depth :: depths' ->
 			depths <- (depth + 1) :: depths'
 
@@ -169,7 +169,7 @@ class condition_handler = object(self)
 			else loop (d - 1) (List.tl el)
 		in
 		match depths with
-			| [] -> die ""
+			| [] -> die "" __LOC__
 			| depth :: depths' ->
 				conditional_stack <- loop depth conditional_stack;
 				depths <- depths'

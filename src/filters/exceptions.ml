@@ -531,9 +531,9 @@ let patch_constructors tctx =
 									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) tctx.t.tvoid fn.tf_expr.epos
 								}
 							}
-						| _ -> die ""
+						| _ -> die "" __LOC__
 					)
-				| None -> die ""
+				| None -> die "" __LOC__
 				| _ -> ()
 				)
 			| _ -> ()

@@ -310,6 +310,6 @@ let run ctx ri e =
 		collect_vars rc scope e;
 		rename_vars rc scope;
 	with Failure msg ->
-		die ~p:e.epos msg
+		die ~p:e.epos msg __LOC__
 	);
 	e

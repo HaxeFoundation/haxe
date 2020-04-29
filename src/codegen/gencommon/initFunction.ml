@@ -57,11 +57,11 @@ let handle_override_dynfun acc e this field =
 		match e.eexpr with
 		| TField ({ eexpr = TConst TSuper }, f) ->
 			let n = field_name f in
-			if n <> field then Globals.die "";
+			if n <> field then Globals.die "" __LOC__;
 			if Option.is_none !add_expr then
 				add_expr := Some { e with eexpr = TVar(v, Some this) };
 			mk_local v e.epos
-		| TConst TSuper -> Globals.die ""
+		| TConst TSuper -> Globals.die "" __LOC__
 		| _ -> Type.map_expr loop e
 	in
 	let e = loop e in
@@ -217,7 +217,7 @@ let handle_class com cl =
 					let tf_expr = add_fn (mk_block tf.tf_expr) in
 					{ e with eexpr = TFunction { tf with tf_expr = tf_expr } }
 				| _ ->
-					Globals.die ""
+					Globals.die "" __LOC__
 			in
 			ctor.cf_expr <- Some func
 		in

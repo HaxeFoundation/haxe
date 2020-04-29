@@ -93,8 +93,9 @@ let s_version with_build =
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
+	Usage: `die message __LOC__`, where `__LOC__` is a built-in ocaml constant
 *)
-let die ?p msg =
+let die ?p msg ml_loc =
 	let msg =
 		let str_pos, expr_msg =
 			match p with
@@ -112,5 +113,5 @@ let die ?p msg =
 	in
 	let ver = s_version true
 	and os_type = if Sys.unix then "unix" else "windows" in
-	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace;
+	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
 	assert false
