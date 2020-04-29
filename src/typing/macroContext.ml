@@ -417,6 +417,12 @@ and flush_macro_context mint ctx =
 	let mctx = (match ctx.g.macros with None -> die "" | Some (_,mctx) -> mctx) in
 	ctx.g.do_finalize mctx;
 	let _, types, modules = ctx.g.do_generate mctx in
+	(* Ignore removable classes: These don't have filters run on them, so trying to generate
+	   them might lead to errors (issue #9366). *)
+	let types = List.filter (function
+		| TClassDecl c when FiltersCommon.is_removable_class c -> false
+		| _ -> true
+	) types in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
