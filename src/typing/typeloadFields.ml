@@ -1488,12 +1488,19 @@ let init_class ctx c p context_init herits fields =
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
+	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
 			let ctx,fctx = create_field_context (ctx,cctx) c f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
+			if fctx.field_kind = FKInit then begin
+				if !has_init then
+					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+					has_init := true
+			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
 				error "You can't declare static fields in interfaces" p;
