@@ -402,6 +402,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TIdent s ->
 		tag "Ident" [s]
 
+(**
+	Shortcut to pretty-printing expressions for debugging purposes.
+*)
+let s_expr_debug e =
+	s_expr_pretty false "  " false (s_type (print_context())) e
+
 let s_types ?(sep = ", ") tl =
 	let pctx = print_context() in
 	String.concat sep (List.map (s_type pctx) tl)
@@ -469,7 +475,7 @@ module Printer = struct
 			| [] -> s
 			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
 			end
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl

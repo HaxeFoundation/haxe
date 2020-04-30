@@ -42,6 +42,7 @@ class builder path_this path_super = object(self)
 	val inner_classes = Hashtbl.create 0
 	val mutable spawned_methods = []
 	val mutable static_init_method = None
+	val mutable source_file = None
 
 	method add_interface (path : jpath) (params : jtype_argument list) =
 		interface_offsets <- (pool#add_path path) :: interface_offsets;
@@ -63,6 +64,9 @@ class builder path_this path_super = object(self)
 	method get_jsig = jsig
 	method get_offset_this = offset_this
 	method get_access_flags = access_flags
+
+	method set_source_file (file : string) =
+		source_file <- Some file
 
 	method get_static_init_method = match static_init_method with
 		| Some jm -> jm
@@ -94,6 +98,12 @@ class builder path_this path_super = object(self)
 		end;
 		let offset = pool#add_path path in
 		Hashtbl.add inner_classes offset jc;
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			jc#set_source_file file
+		end;
 		jc
 
 	method spawn_method (name : string) (jsig_method : jsignature) (flags : MethodAccessFlags.t list) =
@@ -158,6 +168,12 @@ class builder path_this path_super = object(self)
 
 	method export_class (config : export_config) =
 		assert (not was_exported);
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			self#add_attribute (AttributeSourceFile (self#get_pool#add_string file));
+		end;
 		begin match static_init_method with
 		| None ->
 			()

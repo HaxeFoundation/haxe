@@ -365,9 +365,9 @@ let filter tctx =
 		let tp (pack,name) =
 			match List.rev pack with
 			| module_name :: pack_rev when not (Ast.is_lower_ident module_name) ->
-				({ tpackage = List.rev pack_rev; tname = module_name; tparams = []; tsub = Some name },null_pos)
+				(mk_type_path ~sub:name (List.rev pack_rev,module_name), null_pos)
 			| _ ->
-				({ tpackage = pack; tname = name; tparams = []; tsub = None },null_pos)
+				(mk_type_path (pack,name), null_pos)
 		in
 		let wildcard_catch_type =
 			let t = Typeload.load_instance tctx (tp config.ec_wildcard_catch) true in
@@ -424,7 +424,7 @@ let insert_save_stacks tctx =
 		(fun e -> e)
 	else
 		let native_stack_trace_cls =
-			let tp = { tpackage = ["haxe"]; tname = "NativeStackTrace"; tparams = []; tsub = None } in
+			let tp = mk_type_path (["haxe"],"NativeStackTrace") in
 			match Typeload.load_type_def tctx null_pos tp with
 			| TClassDecl cls -> cls
 			| TAbstractDecl { a_impl = Some cls } -> cls
@@ -488,7 +488,7 @@ let insert_save_stacks tctx =
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
 let patch_constructors tctx =
-	let tp = ({ tpackage = fst haxe_exception_type_path; tname = snd haxe_exception_type_path; tparams = []; tsub = None },null_pos) in
+	let tp = (mk_type_path haxe_exception_type_path, null_pos) in
 	match Typeload.load_instance tctx tp true with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
@@ -531,9 +531,9 @@ let patch_constructors tctx =
 									tf_expr = mk (TBlock [add fn.tf_expr; shift_stack fn.tf_expr.epos]) tctx.t.tvoid fn.tf_expr.epos
 								}
 							}
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					)
-				| None -> assert false
+				| None -> die "" __LOC__
 				| _ -> ()
 				)
 			| _ -> ()

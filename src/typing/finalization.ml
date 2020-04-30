@@ -13,7 +13,7 @@ let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
 	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
+		let t = Typeload.load_type_def ctx null_pos (mk_type_path cl) in
 		let fmode, ft, r = (match t with
 		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
@@ -32,7 +32,7 @@ let get_main ctx types =
 		(* add haxe.EntryPoint.run() call *)
 		let main = (try
 			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
+			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
 			let ef = PMap.find "run" ec.cl_statics in
 			let p = null_pos in
 			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
@@ -117,7 +117,7 @@ let sort_types com modules =
 			| TClassDecl c -> loop_class p c
 			| TEnumDecl e -> loop_enum p e
 			| TAbstractDecl a -> loop_abstract p a
-			| TTypeDecl _ -> assert false)
+			| TTypeDecl _ -> die "" __LOC__)
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
 			loop_class p c;

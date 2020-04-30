@@ -49,6 +49,10 @@ class Exception {
 	}
 
 	public function toString():String {
+		return message;
+	}
+
+	public function details():String {
 		return inline CallStack.exceptionToString(this);
 	}
 

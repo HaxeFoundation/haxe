@@ -267,7 +267,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> assert false)
+			TField (e,try quick_field e.etype n with Not_found -> die "" __LOC__)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
@@ -376,7 +376,7 @@ module IterationKind = struct
 			begin try optimize_for_loop_iterator ctx v e1 e2 p
 			with Exit -> mk (TFor(v,e1,e2)) t_void p end
 		| IteratorGenericStack c ->
-			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
+			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
 			let cexpr = mk (TLocal cell) tcell p in
 			let evar = mk (TVar (v,Some (mk (mk_field cexpr "elt") pt p))) t_void v.v_pos in

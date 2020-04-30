@@ -153,7 +153,7 @@ let collect_statistics ctx pfilter with_expressions =
 					| FInstance(c,_,cf) | FClosure(Some(c,_),cf) ->
 						field_reference (Some c) cf e.epos
 					| FAnon cf ->
-						declare  (SKField cf) cf.cf_name_pos;
+						declare  (SKField (cf,None)) cf.cf_name_pos;
 						field_reference None cf e.epos
 					| FEnum(_,ef) ->
 						add_relation ef.ef_name_pos (Referenced,patch_string_pos e.epos ef.ef_name)
@@ -232,7 +232,7 @@ let collect_statistics ctx pfilter with_expressions =
 			if c.cl_interface then
 				collect_implementations c;
 			let field cf =
-				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
+				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c.cl_path)) cf.cf_name_pos;
 				if with_expressions then begin
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e

@@ -23,6 +23,7 @@
 package hl.types;
 
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 class ArrayObjIterator<T> extends ArrayIterator<T> {
 	var arr:ArrayObj<T>;
@@ -32,12 +33,30 @@ class ArrayObjIterator<T> extends ArrayIterator<T> {
 		this.arr = arr;
 	}
 
-	override public function hasNext() {
+	override public function hasNext():Bool {
 		return current < arr.length;
 	}
 
-	override public function next() {
+	override public function next():T {
 		return @:privateAccess arr.array[current++];
+	}
+}
+
+class ArrayObjKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
+	var arr:ArrayObj<T>;
+
+	public inline function new(arr:ArrayObj<T>) {
+		super((null:Dynamic));
+		this.arr = arr;
+	}
+
+	override public function hasNext():Bool {
+		return current < arr.length;
+	}
+
+	override public function next():{key:Int, value:T} {
+		var v = @:privateAccess arr.array[current];
+		return {key:current++, value:v};
 	}
 }
 
@@ -269,6 +288,10 @@ class ArrayObj<T> extends ArrayBase {
 
 	public function iterator():ArrayIterator<T> {
 		return new ArrayObjIterator(this);
+	}
+
+	public function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayObjKeyValueIterator<T>(this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn {

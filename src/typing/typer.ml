@@ -530,7 +530,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = e2 (WithType.with_type t) in
 			begin match follow e1.etype with
 				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing(ef,_,_,et,_) ->
@@ -543,7 +543,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			make_call ctx ef [et;e2] ret p
 		| AKInline _ | AKMacro _ ->
-			assert false)
+			die "" __LOC__)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
@@ -623,15 +623,50 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			]) t p
 		| AKUsing(ef,c,cf,et,_) ->
 			(* abstract setter + getter *)
-			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> die "" __LOC__ in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
-				| _ ->  error "Invalid field type for abstract setter" p
+				| _ -> error "Invalid field type for abstract setter" p
 			in
 			let l = save_locals ctx in
-			let v,is_temp = match et.eexpr with
-				| TLocal v when not (v.v_name = "this") -> v,false
-				| _ -> gen_local ctx ta ef.epos,true
+			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
+				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
+				| _ ->
+					let v = gen_local ctx ta ef.epos in
+					(match et.eexpr with
+					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
+					| _ -> ()
+					);
+					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
+					let rec needs_temp_var e =
+						match e.eexpr with
+						| TConst TThis | TTypeExpr _ -> false
+						| TField (e1,(FInstance(_,_,cf) | FStatic(_,cf)))
+							when has_class_field_flag cf CfFinal ->
+							needs_temp_var e1
+						| TParenthesis e1 ->
+							needs_temp_var e1
+						| _ -> true
+					in
+					if has_class_field_flag cf CfModifiesThis then
+						match et.eexpr with
+						| TField (target,fa) when needs_temp_var target->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TField (etmp,fa)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| TArray (target,index) when needs_temp_var target ->
+							let tmp = gen_local ctx target.etype target.epos in
+							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
+							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
+							let athis = mk (TArray (etmp,index)) et.etype et.epos in
+							v,[decl_tmp; decl_v athis],(Some athis)
+						| _ ->
+							check_assign ctx et;
+							v,[decl_v et],(Some et)
+					else
+						v,[decl_v et],None
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
@@ -640,13 +675,28 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx get.etype ret p;
 			l();
 			let e_call = make_call ctx ef [ev;get] ret p in
-			if is_temp then
-				mk (TBlock [
-					mk (TVar (v,Some et)) ctx.t.tvoid p;
+			let e_call =
+				(*
+					If this method modifies abstract `this`, we should also apply temp var
+					modifications to the original tempvar-ed expression.
+					Find code like `v = value` and change it to `et = v = value`,
+					where `v` is the temp var and `et` is the original expression stored to the temp var.
+				*)
+				match abstr_this_to_modify with
+				| None ->
 					e_call
-				]) ret p
-			else
-				e_call
+				| Some athis ->
+					let rec loop e =
+						match e.eexpr with
+						| TBinop(OpAssign,({ eexpr = TLocal v1 } as left),right) when v1 == v ->
+							let right = { e with eexpr = TBinop(OpAssign,left,loop right) } in
+							mk (TBinop(OpAssign,athis,right)) e.etype e.epos
+						| _ ->
+							map_expr loop e
+					in
+					loop e_call
+			in
+			mk (TBlock (init_exprs @ [e_call])) ret p
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -664,7 +714,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-			let eget = match eget with None -> assert false | Some e -> e in
+			let eget = match eget with None -> die "" __LOC__ | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -687,7 +737,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKFieldSet _ ->
 			error "Invalid operation" p
 		| AKInline _ | AKMacro _ ->
-			assert false)
+			die "" __LOC__)
 	| _ ->
 		type_non_assign_op false
 
@@ -898,14 +948,14 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p
 	| OpArrow ->
 		error "Unexpected =>" p
 	| OpIn ->
 		error "Unexpected in" p
 	| OpAssign
 	| OpAssignOp _ ->
-		assert false
+		die "" __LOC__
 	in
 	let find_overload a c tl left =
 		let map = apply_params a.a_params tl in
@@ -1008,7 +1058,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 							loop ol
 						end
 					| _ ->
-						assert false
+						die "" __LOC__
 				end
 			| [] ->
 				raise Not_found
@@ -1132,7 +1182,7 @@ and type_unop ctx op flag e p =
 					)
 				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
 			in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
 			let one = (EConst (Int "1"),p) in
 			(match follow cf.cf_type with
 			| TFun (_, t) ->
@@ -1158,7 +1208,7 @@ and type_unop ctx op flag e p =
 				)
 			| _ ->
 				l();
-				assert false
+				die "" __LOC__
 			)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
@@ -1168,7 +1218,7 @@ and type_unop ctx op flag e p =
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
 			let one = (EConst (Int "1"),p) in
 			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
 			match flag with
@@ -1209,7 +1259,7 @@ and type_ident ctx i p mode =
 		try
 			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 			resolved_to_type_parameter := true;
-			let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
 				let e = type_module_type ctx (TClassDecl c) None p in
 				AKExpr {e with etype = (snd t)}
@@ -1341,7 +1391,7 @@ and type_access ctx e p mode =
 				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				check_constructor_access ctx c cf p;
-				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
+				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
@@ -1476,7 +1526,7 @@ and format_string ctx s p =
 		let rec loop groups i =
 			if i = len then
 				match groups with
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
 			else
 				let c = String.unsafe_get s i in
@@ -1510,7 +1560,7 @@ and format_string ctx s p =
 	in
 	parse 0 0;
 	match !e with
-	| None -> assert false
+	| None -> die "" __LOC__
 	| Some e -> e
 
 and type_block ctx el with_type p =
@@ -1638,7 +1688,7 @@ and type_object_decl ctx fl with_type p =
 		let t,ctor = get_constructor ctx c tl p in
 		let args = match follow t with
 			| TFun(args,_) -> args
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		let fields = List.fold_left (fun acc (n,opt,t) ->
 			let f = mk_field n t ctor.cf_pos ctor.cf_name_pos in
@@ -1681,6 +1731,26 @@ and type_object_decl ctx fl with_type p =
 	)
 
 and type_new ctx path el with_type force_inline p =
+	let path =
+		if snd path <> null_pos then
+			path
+		(*
+			Since macros don't have placed_type_path structure on Haxe side any ENew will have null_pos in `path`.
+			Try to calculate a better pos.
+		*)
+		else begin
+			match el with
+			| (_,p1) :: _ when p1.pfile = p.pfile && p.pmin < p1.pmin ->
+				let pmin = p.pmin + (String.length "new ")
+				and pmax = p1.pmin - 2 (* Additional "1" for an opening bracket *)
+				in
+				fst path, { p with
+					pmin = if pmin < pmax then pmin else p.pmin;
+					pmax = pmax;
+				}
+			| _ -> fst path, p
+		end
+	in
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -1814,7 +1884,8 @@ and type_try ctx e1 catches with_type p =
 		| [] , name -> name)
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
-		let t = Typeload.load_complex_type ctx true t in
+		let th = Option.default (CTPath { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] },null_pos) t in
+		let t = Typeload.load_complex_type ctx true th in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
@@ -1916,7 +1987,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
@@ -2129,7 +2200,11 @@ and type_array_comprehension ctx e with_type p =
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =
+	let is_abstract_ctor = ctx.curfun = FunMemberAbstract && ctx.curfield.cf_name = "_new" in
 	match e with
+	| None when is_abstract_ctor ->
+		let e_cast = mk (TCast(get_this ctx p,None)) ctx.ret p in
+		mk (TReturn (Some e_cast)) t_dynamic p
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
@@ -2140,6 +2215,11 @@ and type_return ?(implicit=false) ctx e with_type p =
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
+		if is_abstract_ctor then begin
+			match fst e with
+			| ECast((EConst(Ident "this"),_),None) -> ()
+			| _ -> display_error ctx "Cannot return a value from constructor" p
+		end;
 		try
 			let with_expected_type =
 				if implicit then WithType.of_implicit_return ctx.ret
@@ -2186,7 +2266,7 @@ and type_cast ctx e t p =
 				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
-			| _ -> assert false);
+			| _ -> die "" __LOC__);
 		| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
 			List.iter check_param params;
 			TAbstractDecl a
@@ -2405,7 +2485,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
@@ -2526,7 +2606,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk with_type
 	| EDisplayNew t ->
-		assert false
+		die "" __LOC__
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType.with_type t) in
@@ -2659,7 +2739,7 @@ let rec create com =
 				raise Exit
 			| _ -> ()
 		)) m.m_types;
-		assert false
+		die "" __LOC__
 	with Exit -> ());
 	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
@@ -2668,8 +2748,8 @@ let rec create com =
 		let m = TypeloadModule.load_module ctx (["haxe"],"EnumWithType.valueTools") null_pos in
 		(match m.m_types with
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
-		| _ -> assert false);
-	| _ -> assert false);
+		| _ -> die "" __LOC__);
+	| _ -> die "" __LOC__);
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
 	ctx.g.complete <- true;
 	ctx

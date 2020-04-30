@@ -66,7 +66,7 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 					| result -> result
 			in
 			loop a1 a2
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
@@ -263,7 +263,7 @@ struct
 							mk_rate ((max_int - 1, 0) :: acc) elist args
 						| _ ->
 							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 
 			let rated = ref [] in
@@ -271,7 +271,7 @@ struct
 				| (elist,TFun(args,ret),d) -> (try
 					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
 					with | Not_found -> ())
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) compatible;
 
 			let rec loop best rem = match best, rem with

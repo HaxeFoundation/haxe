@@ -950,7 +950,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
 								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> assert false
+								| _ -> die "" __LOC__
 							in
 							args
 						end else
@@ -1057,7 +1057,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if ctx.in_macro then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			c.cl_extern <- false;
-			let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
 				| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
@@ -1071,7 +1071,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = fd.f_expr;
 			}
 		end else
-			let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None },null_pos) in
+			let tdyn = Some (CTPath (mk_type_path ([],"Dynamic")),null_pos) in
 			let to_dyn p t = match t with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
@@ -1488,12 +1488,19 @@ let init_class ctx c p context_init herits fields =
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
+	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
 			let ctx,fctx = create_field_context (ctx,cctx) c f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
+			if fctx.field_kind = FKInit then begin
+				if !has_init then
+					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+					has_init := true
+			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
 				error "You can't declare static fields in interfaces" p;

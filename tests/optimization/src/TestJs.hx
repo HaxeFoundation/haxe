@@ -62,7 +62,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];var tmp;try {tmp = a[0];} catch( _g3 ) {tmp = null;}tmp;")
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( _g ) {tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
@@ -167,27 +167,27 @@ class TestJs {
 		var vRand = new Inl(Math.random());
 	}
 
-	@:js("try {throw haxe_Exception.thrown(false);} catch( _g9 ) {}")
+	@:js("try {throw haxe_Exception.thrown(false);} catch( _g ) {}")
 	static function testNoHaxeErrorUnwrappingWhenNotRequired() {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js('try {throw haxe_Exception.thrown(false);} catch( _g12 ) {TestJs.use(haxe_Exception.caught(_g12).unwrap());}')
+	@:js('try {throw haxe_Exception.thrown(false);} catch( _g ) {TestJs.use(haxe_Exception.caught(_g).unwrap());}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
 		try throw false catch (e:Dynamic) use(e);
 	}
 
-	@:js('try {throw haxe_Exception.thrown(false);} catch( _g15 ) {if(typeof(haxe_Exception.caught(_g15).unwrap()) != "boolean") {throw _g15;}}')
+	@:js('try {throw haxe_Exception.thrown(false);} catch( _g ) {if(typeof(haxe_Exception.caught(_g).unwrap()) != "boolean") {throw _g;}}')
 	static function testHaxeErrorUnwrappingWhenTypeChecked() {
 		try throw false catch (e:Bool) {};
 	}
 
-	@:js('try {throw haxe_Exception.thrown(false);} catch( _g18 ) {if(typeof(haxe_Exception.caught(_g18).unwrap()) == "boolean") {TestJs.use(_g18);} else {throw _g18;}}')
+	@:js('try {throw haxe_Exception.thrown(false);} catch( _g ) {if(typeof(haxe_Exception.caught(_g).unwrap()) == "boolean") {TestJs.use(_g);} else {throw _g;}}')
 	static function testGetOriginalException() {
 		try throw false catch (e:Bool) use(js.Lib.getOriginalException());
 	}
 
-	@:js('try {throw haxe_Exception.thrown(false);} catch( _g21 ) {if(typeof(haxe_Exception.caught(_g21).unwrap()) == "boolean") {throw _g21;} else {throw _g21;}}')
+	@:js('try {throw haxe_Exception.thrown(false);} catch( _g ) {if(typeof(haxe_Exception.caught(_g).unwrap()) == "boolean") {throw _g;} else {throw _g;}}')
 	static function testRethrow() {
 		try throw false catch (e:Bool) js.Lib.rethrow();
 	}
@@ -432,8 +432,8 @@ class TestJs {
 	@:js('
 		var d1 = TestJs.call(1,2);
 		var d11 = TestJs.call(TestJs.call(3,4),d1);
-		var d12 = TestJs.call(5,6);
-		TestJs.call(TestJs.call(TestJs.call(7,8),d12),d11);
+		var d1 = TestJs.call(5,6);
+		TestJs.call(TestJs.call(TestJs.call(7,8),d1),d11);
 	')
 	static function testInlineRebuilding7() {
 		inlineCall(inlineCall(call(1, 2), call(3, 4)), inlineCall(call(5, 6), call(7, 8)));
@@ -442,8 +442,8 @@ class TestJs {
 	@:js('
 		var d1 = TestJs.call(1,2);
 		var d11 = TestJs.call(TestJs.intField,d1);
-		var d12 = TestJs.intField;
-		TestJs.call(TestJs.call(TestJs.call(5,6),d12),d11);
+		var d1 = TestJs.intField;
+		TestJs.call(TestJs.call(TestJs.call(5,6),d1),d11);
 	')
 	static function testInlineRebuilding8() {
 		inlineCall(inlineCall(call(1, 2), intField), inlineCall(intField, call(5, 6)));
@@ -527,11 +527,11 @@ class TestJs {
 	@:js('
 		var tmp = "foo";
 		Extern.test(tmp);
-		var tmp1 = "bar";
-		Extern.test(tmp1);
+		var tmp = "bar";
+		Extern.test(tmp);
 		var closure = Extern.test;
-		var tmp2 = "baz";
-		closure(tmp2);
+		var tmp = "baz";
+		closure(tmp);
 	')
 	static function testAsVar() {
 		Extern.test("foo");

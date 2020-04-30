@@ -536,7 +536,7 @@ let get_delete_field ctx cl is_dynamic =
 		] in
 
 		if ctx.rcf_optimize then
-			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+			let v_name = match tf_args with (v,_) :: _ -> v | _ -> Globals.die "" __LOC__ in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
@@ -647,7 +647,7 @@ let implement_dynamic_object_ctor ctx cl =
 			match e1.eexpr, e2.eexpr with
 				| TConst(TInt i1), TConst(TInt i2) -> compare i1 i2
 				| TConst(TString s1), TConst(TString s2) -> compare s1 s2
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 		in
 
 		let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
@@ -999,7 +999,7 @@ let implement_get_set ctx cl =
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
-				(if names = [] then assert false);
+				(if names = [] then Globals.die "" __LOC__);
 				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 			) fields in
 			let default = Some(do_default()) in

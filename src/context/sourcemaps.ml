@@ -234,7 +234,7 @@ class sourcemap_builder (generated_file:string) =
 			match node with
 				| Some ({ smn_data = SMNil } as node) -> current <- node
 				| Some node -> loop node.smn_left
-				| None -> assert false
+				| None -> die "" __LOC__
 		in
 		loop (Some current)
 	(**
@@ -245,7 +245,7 @@ class sourcemap_builder (generated_file:string) =
 			match node.smn_right with
 				| Some { smn_data = SMNil } -> current <- node
 				| Some node -> loop node
-				| None -> assert false
+				| None -> die "" __LOC__
 		in
 		loop current
 	(**

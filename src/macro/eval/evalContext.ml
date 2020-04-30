@@ -289,7 +289,7 @@ and context = {
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "" __LOC__)
 
 	let sid : int ref = ref (-1)
 
