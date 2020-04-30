@@ -12,12 +12,12 @@ class DocumentSymbols extends DisplayTestCase {
 	**/
 	function testClassFields() {
 		checkDocumentSymbols([
-			{name: "Some", kind: MClass, containerName: null},
-			{name: "main", kind: MMethod, containerName: "Some"},
-			{name: "x", kind: MField, containerName: "Some"},
-			{name: "y", kind: MField, containerName: "Some"},
-			{name: "z", kind: MProperty, containerName: "Some"},
-			{name: "new", kind: MConstructor, containerName: "Some"}
+			{name: "Some", kind: Class, containerName: null},
+			{name: "main", kind: Method, containerName: "Some"},
+			{name: "x", kind: Field, containerName: "Some"},
+			{name: "y", kind: Field, containerName: "Some"},
+			{name: "z", kind: Property, containerName: "Some"},
+			{name: "new", kind: Constructor, containerName: "Some"}
 		], ctx.documentSymbols());
 	}
 
@@ -28,8 +28,8 @@ class DocumentSymbols extends DisplayTestCase {
 	**/
 	function testInterface() {
 		checkDocumentSymbols([
-			{name: "Some", kind: MInterface, containerName: null},
-			{name: "test", kind: MMethod, containerName: "Some"}
+			{name: "Some", kind: Interface, containerName: null},
+			{name: "test", kind: Method, containerName: "Some"}
 		], ctx.documentSymbols());
 	}
 
@@ -41,9 +41,9 @@ class DocumentSymbols extends DisplayTestCase {
 	**/
 	function testEnum() {
 		checkDocumentSymbols([
-			{name: "E", kind: MEnum, containerName: null},
-			{name: "A", kind: MMethod, containerName: "E"},
-			{name: "B", kind: MMethod, containerName: "E"}
+			{name: "E", kind: Enum, containerName: null},
+			{name: "A", kind: EnumMember, containerName: "E"},
+			{name: "B", kind: EnumMember, containerName: "E"}
 		], ctx.documentSymbols());
 	}
 
@@ -54,8 +54,8 @@ class DocumentSymbols extends DisplayTestCase {
 	**/
 	function testTypedef() {
 		checkDocumentSymbols([
-			{name: "T", kind: MTypedef, containerName: null},
-			{name: "x", kind: MField, containerName: "T"}
+			{name: "T", kind: Struct, containerName: null},
+			{name: "x", kind: Field, containerName: "T"}
 		], ctx.documentSymbols());
 	}
 
@@ -63,13 +63,33 @@ class DocumentSymbols extends DisplayTestCase {
 		abstract A(Int) {
 			public function new() { }
 			function f() { }
+			@:op(A + B) function add(i:Int);
 		}
 	**/
 	function testAbstract() {
 		checkDocumentSymbols([
-			{name: "A", kind: MAbstract, containerName: null},
-			{name: "new", kind: MConstructor, containerName: "A"},
-			{name: "f", kind: MMethod, containerName: "A"}
+			{name: "A", kind: Abstract, containerName: null},
+			{name: "new", kind: Constructor, containerName: "A"},
+			{name: "f", kind: Method, containerName: "A"},
+			{name: "add", kind: Operator, containerName: "A"},
+			{name: "i", kind: Variable, containerName: "A.add"}
+		], ctx.documentSymbols());
+	}
+
+	/**
+		enum abstract E(Int) {
+			static inline var FOO = "test";
+			var A;
+			@:op(A + B) function add(i:Int);
+		}
+	**/
+	function testEnumAbstract() {
+		checkDocumentSymbols([
+			{name: "E", kind: EnumAbstract, containerName: null},
+			{name: "FOO", kind: Constant, containerName: "E"},
+			{name: "A", kind: EnumMember, containerName: "E"},
+			{name: "add", kind: Operator, containerName: "E"},
+			{name: "i", kind: Variable, containerName: "E.add"}
 		], ctx.documentSymbols());
 	}
 
@@ -85,18 +105,25 @@ class DocumentSymbols extends DisplayTestCase {
 	**/
 	function testExpression() {
 		checkDocumentSymbols([
-			{name: "Main", kind: MClass, containerName: null},
-			{name: "main", kind: MMethod, containerName: "Main"},
-			{name: "a", kind: MVariable, containerName: "Main.main"},
-			{name: "b", kind: MVariable, containerName: "Main.main"},
-			{name: "c", kind: MVariable, containerName: "Main.main"},
-			{name: "d", kind: MVariable, containerName: "Main.main"},
-			{name: "e", kind: MVariable, containerName: "Main.main"},
-			{name: "f", kind: MFunction, containerName: "Main.main"}
+			{name: "Main", kind: Class, containerName: null},
+			{name: "main", kind: Method, containerName: "Main"},
+			{name: "a", kind: Variable, containerName: "Main.main"},
+			{name: "b", kind: Variable, containerName: "Main.main"},
+			{name: "c", kind: Variable, containerName: "Main.main"},
+			{name: "d", kind: Variable, containerName: "Main.main"},
+			{name: "e", kind: Variable, containerName: "Main.main"},
+			{name: "f", kind: Function, containerName: "Main.main"}
 		], ctx.documentSymbols());
 	}
 
 	function checkDocumentSymbols(expected:Array<ModuleSymbolEntry>, actual:Array<ModuleSymbolEntry>, ?pos:haxe.PosInfos) {
-		arrayCheck(expected, actual, function(entry) return entry.kind + ":" + entry.name + ":" + entry.containerName, pos);
+		for (entry in expected) {
+			entry.containerName = "cases.DocumentSymbols" + if (entry.containerName == null) {
+				"";
+			} else {
+				"." + entry.containerName;
+			}
+		}
+		arrayCheck(expected, actual, entry -> entry.kind + ":" + entry.name + ":" + entry.containerName, pos);
 	}
 }

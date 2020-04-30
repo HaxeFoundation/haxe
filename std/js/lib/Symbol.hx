@@ -54,6 +54,11 @@ extern class Symbol {
 	static var iterator(default, null):Symbol;
 
 	/**
+		A method that returns the default AsyncIterator for an object.
+	**/
+	static var asyncIterator(default, null):Symbol;
+
+	/**
 		Retrieve symbol from a given `object`.
 
 		NOTE: This is a Haxe-specific method that generates an `object[symbol]` expression.

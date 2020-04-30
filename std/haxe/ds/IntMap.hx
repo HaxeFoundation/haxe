@@ -33,27 +33,27 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	/**
 		Creates a new IntMap.
 	**/
-	public function new():Void;
+	function new():Void;
 
 	/**
 		See `Map.set`
 	**/
-	public function set(key:Int, value:T):Void;
+	function set(key:Int, value:T):Void;
 
 	/**
 		See `Map.get`
 	**/
-	public function get(key:Int):Null<T>;
+	function get(key:Int):Null<T>;
 
 	/**
 		See `Map.exists`
 	**/
-	public function exists(key:Int):Bool;
+	function exists(key:Int):Bool;
 
 	/**
 		See `Map.remove`
 	**/
-	public function remove(key:Int):Bool;
+	function remove(key:Int):Bool;
 
 	/**
 		See `Map.keys`
@@ -61,7 +61,7 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		(cs, java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function keys():Iterator<Int>;
+	function keys():Iterator<Int>;
 
 	/**
 		See `Map.iterator`
@@ -69,26 +69,31 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		(cs, java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function iterator():Iterator<T>;
+	function iterator():Iterator<T>;
 
 	/**
 		See `Map.keyValueIterator`
 	**/
 	#if eval
-	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
+	@:runtime inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 	#else
-	public function keyValueIterator():KeyValueIterator<Int, T>;
+	function keyValueIterator():KeyValueIterator<Int, T>;
 	#end
 
 	/**
 		See `Map.copy`
 	**/
-	public function copy():IntMap<T>;
+	function copy():IntMap<T>;
 
 	/**
 		See `Map.toString`
 	**/
-	public function toString():String;
+	function toString():String;
+
+	/**
+		See `Map.clear`
+	**/
+	function clear():Void;
 }

@@ -1,0 +1,12 @@
+{
+	"name" : "example",
+	"url" : "http://haxe.org",
+	"license" : "MIT",
+	"description" : "Example Plugin",
+	"version" : "0.1.0",
+	"releasenote" : "Initial release",
+	"classPath": "hx",
+	"contributors" : ["example"],
+	"tags": ["plugin"],
+	"dependencies" : {}
+}

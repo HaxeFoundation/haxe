@@ -28,7 +28,7 @@ package haxe;
 	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
 	  `enum` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumTools {
@@ -37,7 +37,9 @@ extern class EnumTools {
 
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
+		
 			pack1.pack2.(...).packN.EnumName
+
 		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
@@ -47,7 +49,7 @@ extern class EnumTools {
 
 		The enum name does not include any type parameters.
 	**/
-	static public inline function getName<T>(e:Enum<T>):String {
+	static inline function getName<T>(e:Enum<T>):String {
 		return Type.getEnumName(e);
 	}
 
@@ -60,7 +62,7 @@ extern class EnumTools {
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
 	**/
-	static public inline function createByName<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+	static inline function createByName<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		return Type.createEnum(e, constr, params);
 	}
 
@@ -76,7 +78,7 @@ extern class EnumTools {
 		does not match the expected number of constructor arguments, or if any
 		argument has an invalid type, the result is unspecified.
 	**/
-	static public inline function createByIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+	static inline function createByIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
 		return Type.createEnumIndex(e, index, params);
 	}
 
@@ -93,7 +95,7 @@ extern class EnumTools {
 
 		If `e` is `null`, the result is unspecified.
 	**/
-	static public inline function createAll<T>(e:Enum<T>):Array<T> {
+	static inline function createAll<T>(e:Enum<T>):Array<T> {
 		return Type.allEnums(e);
 	}
 
@@ -105,7 +107,7 @@ extern class EnumTools {
 
 		If `c` is `null`, the result is unspecified.
 	**/
-	static public inline function getConstructors<T>(e:Enum<T>):Array<String> {
+	static inline function getConstructors<T>(e:Enum<T>):Array<String> {
 		return Type.getEnumConstructs(e);
 	}
 }
@@ -116,7 +118,7 @@ extern class EnumTools {
 	  [extension](https://haxe.org/manual/lf-static-extension.html) to the
 	  `EnumValue` types.
 
-	If the first argument to any of the methods is null, the result is
+	If the first argument to any of the methods is `null`, the result is
 	unspecified.
 **/
 extern class EnumValueTools {
@@ -128,7 +130,7 @@ extern class EnumValueTools {
 
 		If `a` or `b` are `null`, the result is unspecified.
 	**/
-	static public inline function equals<T:EnumValue>(a:T, b:T):Bool {
+	static inline function equals<T:EnumValue>(a:T, b:T):Bool {
 		return Type.enumEq(a, b);
 	}
 
@@ -139,7 +141,7 @@ extern class EnumValueTools {
 
 		If `e` is `null`, the result is unspecified.
 	**/
-	static public inline function getName(e:EnumValue):String {
+	static inline function getName(e:EnumValue):String {
 		return Type.enumConstructor(e);
 	}
 
@@ -153,7 +155,7 @@ extern class EnumValueTools {
 
 		If `e` is `null`, the result is unspecified.
 	**/
-	static public inline function getParameters(e:EnumValue):Array<Dynamic> {
+	static inline function getParameters(e:EnumValue):Array<Dynamic> {
 		return Type.enumParameters(e);
 	}
 
@@ -165,7 +167,7 @@ extern class EnumValueTools {
 
 		If `e` is `null`, the result is unspecified.
 	**/
-	static public inline function getIndex(e:EnumValue):Int {
+	static inline function getIndex(e:EnumValue):Int {
 		return Type.enumIndex(e);
 	}
 }

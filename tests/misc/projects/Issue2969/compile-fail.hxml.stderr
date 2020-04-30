@@ -1,0 +1,5 @@
+Main.hx:10: characters 18-19 : Field a has different type than in A
+Main.hx:2: characters 2-29 : Interface field is defined here
+Main.hx:10: characters 18-19 : error: Int should be String
+Main.hx:10: characters 18-19 :  have: (...) -> Int
+Main.hx:10: characters 18-19 :  want: (...) -> String

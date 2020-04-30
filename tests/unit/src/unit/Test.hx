@@ -10,9 +10,6 @@ import cpp.link.StaticZlib;
 #end
 
 @:keepSub
-#if as3
-@:publicFields
-#end
 class Test implements utest.ITest {
 
 	public function new() {
@@ -63,18 +60,18 @@ class Test implements utest.ITest {
 	}
 
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		t(Lambda.has(Type.getInstanceFields(c), n));
+		t(Lambda.has(Type.getInstanceFields(c), n), pos);
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		f(Lambda.has(Type.getInstanceFields(c), n));
+		f(Lambda.has(Type.getInstanceFields(c), n), pos);
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		t(Lambda.has(Type.getClassFields(c), n));
+		t(Lambda.has(Type.getClassFields(c), n), pos);
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		f(Lambda.has(Type.getClassFields(c), n));
+		f(Lambda.has(Type.getClassFields(c), n), pos);
 	}
 }

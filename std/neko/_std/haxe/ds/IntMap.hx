@@ -86,4 +86,8 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
+	}
 }

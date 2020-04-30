@@ -126,9 +126,10 @@ extern class FileSystem {
 	@:overload(function(oldpath:String, newpath:String, flags:Int, cb:String->Bool->Void):Request {})
 	static function symlink(oldpath:String, newpath:String, flags:Int):Bool;
 
-	// @:native("fs_readlink")
-	// @:overload(function(path : String, cb : String->String->Void) : Request {})
-	// static function readlink(path : String) : String;
+	@:native("fs_readlink")
+	@:overload(function(path:String, cb:String->String->Void):Request {})
+	static function readlink(path:String):String;
+
 	@:native("fs_realpath")
 	@:overload(function(path:String, cb:String->String->Void):Request {})
 	static function realpath(path:String):String;
@@ -140,6 +141,29 @@ extern class FileSystem {
 	@:native("fs_fchown")
 	@:overload(function(descriptor:FileDescriptor, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
 	static function fchown(descriptor:FileDescriptor, uid:Int, gid:Int):Bool;
+
+	/**
+		Not available on windows
+	**/
+	@:native("fs_lchown")
+	@:overload(function(descriptor:FileDescriptor, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
+	static function lchown(descriptor:FileDescriptor, uid:Int, gid:Int):Bool;
+
+	@:native("fs_statfs")
+	@:overload(function(path:String, cb:StatFs->Bool->Void):Request {})
+	static function statfs(path:String):StatFs;
+
+	@:native("fs_opendir")
+	@:overload(function(path:String, cb:Handle->Bool->Void):Request {})
+	static function opendir(path:String):Handle;
+
+	@:native("fs_readdir")
+	@:overload(function(dir:Handle, cb:Table<Int, NameType>->Bool->Void):Request {})
+	static function readdir(path:String):Table<Int, NameType>;
+
+	@:native("fs_closedir")
+	@:overload(function(dir:Handle, cb:Bool->Void):Request {})
+	static function closedir(dir:Handle):Bool;
 }
 
 extern class ScanDirMarker {}
@@ -148,6 +172,11 @@ extern class ScanDirMarker {}
 extern class ScandirNext {
 	var name:String;
 	var type:String;
+}
+
+typedef NameType = {
+	name:String,
+	type:String
 }
 
 typedef Stat = {
@@ -173,4 +202,14 @@ typedef Stat = {
 typedef TimeStamp = {
 	sec:Int,
 	nsec:Int
+}
+
+typedef StatFs = {
+	type:Int,
+	bsize:Int,
+	blocks:Int,
+	bfree:Int,
+	bavail:Int,
+	files:Int,
+	ffree:Int
 }

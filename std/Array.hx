@@ -27,6 +27,9 @@
 	@see https://haxe.org/manual/std-Array.html
 	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 extern class Array<T> {
 	/**
 		The length of `this` Array.
@@ -223,6 +226,15 @@ extern class Array<T> {
 	**/
 	function remove(x:T):Bool;
 
+
+	/**
+		Returns whether `this` Array contains `x`.
+
+		If `x` is found by checking standard equality, the function returns `true`, otherwise
+		the function returns `false`.
+	**/
+	@:pure function contains( x : T ) : Bool;
+
 	/**
 		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
 
@@ -265,7 +277,16 @@ extern class Array<T> {
 	/**
 		Returns an iterator of the Array values.
 	**/
-	function iterator():Iterator<T>;
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	/**
+		Returns an iterator of the Array indices and values.
+	**/
+	@:pure @:runtime public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
+	}
 
 	/**
 		Creates a new Array by applying function `f` to all elements of `this`.
@@ -274,7 +295,15 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function map<S>(f:T->S):Array<S>;
+	@:runtime inline function map<S>(f:T->S):Array<S> {
+		#if (cpp && !cppia)
+		var result = cpp.NativeArray.create(length);
+		for (i in 0...length) cpp.NativeArray.unsafeSet(result, i, f(cpp.NativeArray.unsafeGet(this, i)));
+		return result;
+		#else
+		return [for (v in this) f(v)];
+		#end
+	}
 
 	/**
 		Returns an Array containing those elements of `this` for which `f`
@@ -284,7 +313,9 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function filter(f:T->Bool):Array<T>;
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
 
 	/**
 		Set the length of the Array.

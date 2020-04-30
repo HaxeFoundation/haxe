@@ -22,13 +22,15 @@
 
 package php;
 
+/**
+	@see https://www.php.net/manual/en/class.iteratoraggregate.php
+**/
 @:native('IteratorAggregate')
-extern interface IteratorAggregate<T> {
+extern interface IteratorAggregate<T> extends Traversable {
 	/**
 		This method is not public to not induce Haxe users to use it ;)
 		Use iterator() instead.
-		The return type would be Aggregator that is unusable in Haxe
 	**/
-	private function getIterator():Iterator<T>; //
+	private function getIterator():Traversable;
 
 }

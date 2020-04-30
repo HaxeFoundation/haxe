@@ -112,7 +112,7 @@ let build_exception_stack ctx env =
 			List.rev acc
 		else match env'.env_parent with
 			| Some env -> loop acc env
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	let d = match eval.env with
 	| Some env -> loop [] env
@@ -127,13 +127,13 @@ let handle_stack_overflow eval f =
 	with Stack_overflow -> exc_string "Stack overflow"
 
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
-	let prev = !get_ctx_ref in
+	let prev = !GlobalState.get_ctx_ref in
 	select ctx;
 	let eval = get_eval ctx in
 	let env = eval.env in
 	let r = try
 		let v = handle_stack_overflow eval f in
-		get_ctx_ref := prev;
+		GlobalState.get_ctx_ref := prev;
 		final();
 		Some v
 	with
@@ -144,7 +144,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_message in
 			let v2 = field v key_pos in
-			get_ctx_ref := prev;
+			GlobalState.get_ctx_ref := prev;
 			final();
 			match v1,v2 with
 				| VString s,VInstance {ikind = IPos p} ->
@@ -159,7 +159,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
 			in
 			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
-			get_ctx_ref := prev;
+			GlobalState.get_ctx_ref := prev;
 			final();
 			Error.error msg null_pos
 		end
@@ -167,7 +167,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		final();
 		None
 	| exc ->
-		get_ctx_ref := prev;
+		GlobalState.get_ctx_ref := prev;
 		final();
 		raise exc
 	in

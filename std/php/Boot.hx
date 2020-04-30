@@ -201,7 +201,7 @@ class Boot {
 		Check if provided value is an anonymous object
 	**/
 	public static inline function isAnon(v:Any):Bool {
-		return Std.is(v, HxAnon);
+		return Std.isOfType(v, HxAnon);
 	}
 
 	/**
@@ -300,6 +300,13 @@ class Boot {
 	}
 
 	/**
+		Unsafe cast to HxEnum
+	**/
+	public static inline function castEnumValue(enm:EnumValue):HxEnum {
+		return cast enm;
+	}
+
+	/**
 		Returns `Class<T>` for `HxClosure`
 	**/
 	public static inline function closureHxClass():HxClass {
@@ -308,7 +315,7 @@ class Boot {
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
-		@throws HxException if `value` cannot be casted to this type
+		@throws haxe.ValueError if `value` cannot be casted to this type
 	**/
 	public static function typedCast(hxClass:HxClass, value:Dynamic):Dynamic {
 		if (value == null)
@@ -335,7 +342,7 @@ class Boot {
 					return value;
 				}
 			case _:
-				if (value.is_object() && Std.is(value, cast hxClass)) {
+				if (value.is_object() && Std.isOfType(value, cast hxClass)) {
 					return value;
 				}
 		}
@@ -369,10 +376,10 @@ class Boot {
 			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
-			if (Std.is(value, Array)) {
+			if (Std.isOfType(value, Array)) {
 				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
 			}
-			if (Std.is(value, HxEnum)) {
+			if (Std.isOfType(value, HxEnum)) {
 				var e:HxEnum = value;
 				var result = e.tag;
 				if (Global.count(e.params) > 0) {
@@ -387,7 +394,7 @@ class Boot {
 			if (value.method_exists('__toString')) {
 				return value.__toString();
 			}
-			if (Std.is(value, StdClass)) {
+			if (Std.isOfType(value, StdClass)) {
 				if (Global.isset(Syntax.field(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
@@ -401,7 +408,7 @@ class Boot {
 			if (isFunction(value)) {
 				return '<function>';
 			}
-			if (Std.is(value, HxClass)) {
+			if (Std.isOfType(value, HxClass)) {
 				return '[class ' + getClassName((value : HxClass).phpClassName) + ']';
 			} else {
 				return '[object ' + getClassName(Global.get_class(value)) + ']';
@@ -429,7 +436,7 @@ class Boot {
 		if (isNumber(left) && isNumber(right)) {
 			return Syntax.equal(left, right);
 		}
-		if (Std.is(left, HxClosure) && Std.is(right, HxClosure)) {
+		if (Std.isOfType(left, HxClosure) && Std.isOfType(right, HxClosure)) {
 			return (left : HxClosure).equals(right);
 		}
 		return Syntax.strictEqual(left, right);
@@ -446,10 +453,15 @@ class Boot {
 		return Syntax.add(left, right);
 	}
 
+	@:deprecated('php.Boot.is() is deprecated. Use php.Boot.isOfType() instead')
+	public static inline function is(value:Dynamic, type:HxClass):Bool {
+		return isOfType(value, type);
+	}
+
 	/**
-		`Std.is()` implementation
+		`Std.isOfType()` implementation
 	**/
-	public static function is(value:Dynamic, type:HxClass):Bool {
+	public static function isOfType(value:Dynamic, type:HxClass):Bool {
 		if (type == null)
 			return false;
 
@@ -476,7 +488,7 @@ class Boot {
 			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
 			case 'Enum' | 'Class':
-				if (Std.is(value, HxClass)) {
+				if (Std.isOfType(value, HxClass)) {
 					var valuePhpClass = (cast value : HxClass).phpClassName;
 					var enumPhpClass = (cast HxEnum : HxClass).phpClassName;
 					var isEnumType = Global.is_subclass_of(valuePhpClass, enumPhpClass);
@@ -495,28 +507,28 @@ class Boot {
 		Check if `value` is a `Class<T>`
 	**/
 	public static inline function isClass(value:Dynamic):Bool {
-		return Std.is(value, HxClass);
+		return Std.isOfType(value, HxClass);
 	}
 
 	/**
 		Check if `value` is an enum constructor instance
 	**/
 	public static inline function isEnumValue(value:Dynamic):Bool {
-		return Std.is(value, HxEnum);
+		return Std.isOfType(value, HxEnum);
 	}
 
 	/**
 		Check if `value` is a function
 	**/
 	public static inline function isFunction(value:Dynamic):Bool {
-		return Std.is(value, Closure) || Std.is(value, HxClosure);
+		return Std.isOfType(value, Closure) || Std.isOfType(value, HxClosure);
 	}
 
 	/**
 		Check if `value` is an instance of `HxClosure`
 	**/
 	public static inline function isHxClosure(value:Dynamic):Bool {
-		return Std.is(value, HxClosure);
+		return Std.isOfType(value, HxClosure);
 	}
 
 	/**
@@ -577,10 +589,13 @@ class Boot {
 		Creates Haxe-compatible closure of an instance method.
 		@param obj - any object
 	**/
-	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String):Null<HxClosure> {
 		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
 		if (result != null) {
 			return result;
+		}
+		if(!Global.method_exists(obj, methodName) && !Global.isset(Syntax.field(obj, methodName))) {
+			return null;
 		}
 		result = new HxClosure(obj, methodName);
 		if (!Global.property_exists(obj, '__hx_closureCache')) {
@@ -616,7 +631,7 @@ class Boot {
 	}
 
 	/**
-		Get UTF-8 code of che first character in `s` without any checks
+		Get UTF-8 code of the first character in `s` without any checks
 	**/
 	static public inline function unsafeOrd(s:NativeString):Int {
 		var code = Global.ord(s[0]);
@@ -663,7 +678,7 @@ private class HxClass {
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
 		} else if (phpClassName.method_exists(property)) {
-			return new HxClosure(phpClassName, property);
+			return Boot.getStaticClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
@@ -688,6 +703,7 @@ private class HxClass {
 @:keep
 @:dox(hide)
 @:allow(php.Boot.stringify)
+@:allow(Type)
 private class HxEnum {
 	final tag:String;
 	final index:Int;
@@ -713,6 +729,8 @@ private class HxEnum {
 	public function __toString():String {
 		return Boot.stringify(this);
 	}
+
+	extern public static function __hx__list():Array<String>;
 }
 
 /**
@@ -962,7 +980,7 @@ private class HxClosure {
 		if (target.is_null()) {
 			throw "Unable to create closure on `null`";
 		}
-		callable = Std.is(target, HxAnon) ? Syntax.field(target, func) : Syntax.arrayDecl(target, func);
+		callable = Std.isOfType(target, HxAnon) ? Syntax.field(target, func) : Syntax.arrayDecl(target, func);
 	}
 
 	/**
@@ -980,7 +998,7 @@ private class HxClosure {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (Std.is(eThis, HxAnon)) {
+		if (Std.isOfType(eThis, HxAnon)) {
 			return Syntax.field(eThis, func);
 		}
 		return Syntax.arrayDecl(eThis, func);
@@ -998,19 +1016,5 @@ private class HxClosure {
 	**/
 	public function callWith(newThis:Dynamic, args:NativeArray):Dynamic {
 		return Global.call_user_func_array(getCallback(newThis), args);
-	}
-}
-
-/**
-	Special exception which is used to wrap non-throwable values
-**/
-@:keep
-@:dox(hide)
-private class HxException extends Exception {
-	var e:Dynamic;
-
-	public function new(e:Dynamic):Void {
-		this.e = e;
-		super(Boot.stringify(e));
 	}
 }

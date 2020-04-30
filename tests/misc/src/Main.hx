@@ -6,20 +6,26 @@ import haxe.io.Path;
 using StringTools;
 
 typedef Result = {
-	count: Int,
-	failures: Int
+	count:Int,
+	failures:Int,
+	summary:String
 }
 
 class Main {
 	static public function main() {
 		var result:Result = compileProjects();
 		Sys.println('Done running ${result.count} tests with ${result.failures} failures');
+		if(result.count > 20 && result.failures > 0) {
+			Sys.println('SUMMARY:');
+			Sys.println(result.summary);
+		}
 		Sys.exit(result.failures);
 	}
 
 	static public function compileProjects():Result {
 		var count = 0;
 		var failures = 0;
+		var failuresSummary = [];
 		var filter = Compiler.getDefine("MISC_TEST_FILTER");
 		var filterRegex = filter == null ? ~/.*/ : new EReg(filter, "");
 		function browse(dirPath) {
@@ -28,7 +34,7 @@ class Main {
 			for (file in dir) {
 				var path = Path.join([dirPath, file]);
 				if (FileSystem.isDirectory(path)) {
-					if(path.endsWith('.disabled')) {
+					if (path.endsWith('.disabled')) {
 						Sys.println('Skipping $path');
 					} else {
 						browse(path);
@@ -39,10 +45,11 @@ class Main {
 					Sys.println('Running haxe $path');
 					var expectFailure = file.endsWith("-fail.hxml");
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var success = runCommand("haxe", [file], expectFailure, expectStderr);
+					var result = runCommand("haxe", [file], expectFailure, expectStderr);
 					++count;
-					if (!success) {
+					if (!result.success) {
 						failures++;
+						failuresSummary.push(path + '\n' + result.summary);
 					}
 					Sys.setCwd(old);
 				}
@@ -51,7 +58,8 @@ class Main {
 		browse("projects");
 		return {
 			count: count,
-			failures: failures
+			failures: failures,
+			summary: failuresSummary.join('\n')
 		}
 	}
 
@@ -66,19 +74,21 @@ class Main {
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String, properCase = false):String {
-		if (Sys.systemName() == "Windows")
-		{
+	static function normPath(_, p:String):String {
+		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
-			if (!properCase)
-				p = p.toLowerCase();
 		}
 		return p;
 	}
 
-	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
+	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String):{success:Bool, summary:String} {
+		var summary = [];
+		function println(msg:String) {
+			summary.push(msg);
+			Sys.println(msg);
+		}
 		#if timeout
 		switch Sys.systemName() {
 			case 'Linux':
@@ -94,14 +104,14 @@ class Main {
 		var exit = proc.exitCode();
 		var success = exit == 0;
 		// 124 - exit code of linux `timeout` command in case it actually timed out
-		if(exit == 124) {
-			Sys.println('Timeout. No response in ${Compiler.getDefine('timeout')} seconds.');
+		if (exit == 124) {
+			println('Timeout. No response in ${Compiler.getDefine('timeout')} seconds.');
 		}
 		var result = switch [success, expectFailure] {
 			case [true, false]:
 				true;
 			case [true, true]:
-				Sys.println("Expected failure, but no failure occurred");
+				println("Expected failure, but no failure occurred");
 				false;
 			case [false, true]:
 				true;
@@ -112,22 +122,19 @@ class Main {
 		}
 
 		if (stdout.length > 0) {
-			Sys.println(stdout);
+			println(stdout.toString());
 		}
 
-		if (result && expectStderr != null)
-		{
+		if (result && expectStderr != null) {
 			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
-			if (stderr != expectStderr.trim())
-			{
-				Sys.println("Actual stderr output doesn't match the expected one");
-				Sys.println('Expected:\n"$expectStderr"');
-				Sys.println('Actual:\n"$stderr"');
+			if (stderr != expectStderr.trim()) {
+				println("Actual stderr output doesn't match the expected one");
+				println('Expected:\n"$expectStderr"');
+				println('Actual:\n"$stderr"');
 				result = false;
 			}
 		}
 		proc.close();
-		return result;
-
+		return {success:result, summary:summary.join('\n')};
 	}
 }

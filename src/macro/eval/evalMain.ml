@@ -36,17 +36,10 @@ open MacroApi
 
 (* Create *)
 
-let sid = ref (-1)
-
-let stdlib = ref None
-let debug = ref None
-
-let debugger_initialized = ref false
-
 let create com api is_macro =
 	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
-	incr sid;
-	let builtins = match !stdlib with
+	incr GlobalState.sid;
+	let builtins = match !GlobalState.stdlib with
 		| None ->
 			let builtins = {
 				static_builtins = IntMap.empty;
@@ -55,12 +48,12 @@ let create com api is_macro =
 				empty_constructor_builtins = Hashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
-			stdlib := Some builtins;
+			GlobalState.stdlib := Some builtins;
 			builtins
 		| Some (builtins) ->
 			builtins
 	in
-	let debug = match !debug with
+	let debug = match !GlobalState.debug with
 		| None ->
 			let support_debugger = Common.defined com Define.EvalDebugger in
 			let socket =
@@ -93,7 +86,7 @@ let create com api is_macro =
 				exception_mode = CatchUncaught;
 				debug_context = new eval_debug_context;
 			} in
-			debug := Some debug';
+			GlobalState.debug := Some debug';
 			debug'
 		| Some debug ->
 			debug
@@ -107,7 +100,7 @@ let create com api is_macro =
 	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
-		ctx_id = !sid;
+		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
 		debug = debug;
 		detail_times = detail_times;
@@ -134,11 +127,11 @@ let create com api is_macro =
 		exception_stack = [];
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 	} in
-	if debug.support_debugger && not !debugger_initialized then begin
+	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check
 		   is governed by a global variable. *)
-		debugger_initialized := true;
+		GlobalState.debugger_initialized := true;
 		 (* There's select_ctx in the json-rpc handling, so let's select this one. It's fine because it's the
 		    first context anyway. *)
 		select ctx;
@@ -156,15 +149,15 @@ let call_path ctx path f vl api =
 		let old = ctx.curapi in
 		ctx.curapi <- api;
 		let path = match List.rev path with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
-			let env = push_environment ctx info 0 0 in
+			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
 			let v = call_value_on vtype vfield vl in
@@ -323,7 +316,7 @@ let value_signature v =
 			addc 'B';
 			adds (rev_hash path)
 		| VPrototype _ ->
-			assert false
+			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
 			(* Custom format: enumerate functions as F0, F1 etc. *)
 			cache v (fun () ->
@@ -367,14 +360,14 @@ let setup get_api =
 				exc_string "Invalid expression"
 			in
 			let v = VFunction (f,b) in
-			Hashtbl.replace EvalStdLib.macro_lib n v
-		| _ -> assert false
+			Hashtbl.replace GlobalState.macro_lib n v
+		| _ -> die "" __LOC__
 	) api;
 	Globals.macro_platform := Globals.Eval
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	ctx.static_prototypes#set_needs_reset
+	ctx.static_prototypes#reset
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
@@ -391,14 +384,14 @@ let compiler_error msg pos =
 		set_instance_field i key_pos (encode_pos pos);
 		exc vi
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec value_to_expr v p =
 	let path i =
 		let mt = IntMap.find i (get_ctx()).type_cache in
 		let make_path t =
 			let rec loop = function
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
 				| name :: l -> (EField (loop l,name),p)
 			in
@@ -413,7 +406,7 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString s -> (EConst (String s.sstring),p)
+	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (ExtList.List.filter_map (fun (k,v) ->
 			let n = rev_hash k in
@@ -429,7 +422,7 @@ let rec value_to_expr v p =
 			let expr = path e.epath in
 			let name = match proto.pkind with
 				| PEnum names -> fst (List.nth names e.eindex)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			(EField (expr, name), p)
 		in
@@ -541,9 +534,9 @@ let handle_decoding_error f v t =
 			end
 		| TInst _ | TAbstract _ | TFun _ ->
 			(* TODO: might need some more of these, not sure *)
-			assert false
+			die "" __LOC__
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 				| None -> ()
 				| Some t -> loop tabs t v
 			end

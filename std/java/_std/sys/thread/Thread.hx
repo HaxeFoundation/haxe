@@ -63,7 +63,7 @@ abstract Thread(NativeThread) {
 	};
 
 	public static function getThread(jt:java.lang.Thread):NativeThread {
-		if (Std.is(jt, HaxeThread)) {
+		if (Std.isOfType(jt, HaxeThread)) {
 			var t:HaxeThread = cast jt;
 			return t.threadObject;
 		} else if (jt == mainJavaThread) {

@@ -46,7 +46,7 @@ package cs.internal;
 	}
 
 	override public function __hx_invokeDynamic(dynArgs:cs.NativeArray<Dynamic>):Dynamic {
-		return fun(cs.Lib.array(dynArgs));
+		return fun(dynArgs == null ? [] : cs.Lib.array(dynArgs));
 	}
 }
 

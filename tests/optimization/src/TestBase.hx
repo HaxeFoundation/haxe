@@ -18,5 +18,11 @@ class TestBase {
 		}
 	}
 
+	function fail(?msg:String, ?p:haxe.PosInfos) {
+		++numTests;
+		++numFailures;
+		haxe.Log.trace(msg != null ? msg : 'Forced failure', p);
+	}
+
 	function setup() { }
 }

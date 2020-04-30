@@ -116,7 +116,7 @@ class Unserializer {
 	/**
 		Sets the type resolver of `this` Unserializer instance to `r`.
 
-		If `r` is null, a special resolver is used which returns null for all
+		If `r` is `null`, a special resolver is used which returns `null` for all
 		input values.
 
 		See `DEFAULT_RESOLVER` for more information on type resolvers.
@@ -188,7 +188,7 @@ class Unserializer {
 			if (get(pos) == "g".code)
 				break;
 			var k:Dynamic = unserialize();
-			if (!Std.is(k, String))
+			if (!Std.isOfType(k, String))
 				throw "Invalid object key";
 			var v = unserialize();
 			Reflect.setField(o, k, v);
@@ -388,6 +388,9 @@ class Unserializer {
 					throw "Invalid bytes length";
 				#if neko
 				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.substr(pos, len).__s, untyped BASE64.__s));
+				#elseif php
+				var phpEncoded = php.Global.strtr(buf.substr(pos, len), '%:', '+/');
+				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(phpEncoded));
 				#else
 				var codes = CODES;
 				if (codes == null) {
@@ -455,7 +458,7 @@ class Unserializer {
 		Unserializes `v` and returns the according value.
 
 		This is a convenience function for creating a new instance of
-		Unserializer with `v` as buffer and calling its unserialize() method
+		Unserializer with `v` as buffer and calling its `unserialize()` method
 		once.
 	**/
 	public static function run(v:String):Dynamic {

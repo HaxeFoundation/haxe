@@ -31,7 +31,7 @@ package haxe.ds;
 	and the reference can be obtained with a `cast`.
 **/
 @:forward(concat, copy, filter, indexOf, iterator, join, lastIndexOf, map, slice, toString)
-abstract ReadOnlyArray<T>(Array<T>) from Array<T> {
+abstract ReadOnlyArray<T>(Array<T>) from Array<T> to Iterable<T> {
 	/**
 		The length of `this` Array.
 	**/

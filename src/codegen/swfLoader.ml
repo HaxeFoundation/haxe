@@ -102,17 +102,17 @@ let rec make_tpath = function
 			tsub = None;
 		}
 	| HMMultiName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeNameLate ->
-		assert false
+		die "" __LOC__
 	| HMMultiNameLate _ ->
-		assert false
+		die "" __LOC__
 	| HMAttrib _ ->
-		assert false
+		die "" __LOC__
 	| HMAny ->
-		assert false
+		die "" __LOC__
 	| HMParams (t,params) ->
 		let params = List.map (fun t -> TPType (CTPath (make_tpath t),null_pos)) params in
 		{ (make_tpath t) with tparams = params }
@@ -173,7 +173,7 @@ let build_class com c file =
 				in
 				loop ns
 			| HMPath _ -> i
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
@@ -194,10 +194,10 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes)]) :: !meta;
 					[APublic,null_pos]
 				| HNInternal (Some ns) ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns; Ident "internal"]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String(ns,SDoubleQuotes); Ident "internal"]) :: !meta;
 					[APublic,null_pos]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic,null_pos]
@@ -260,9 +260,12 @@ let build_class com c file =
 						| None -> None
 						| Some v ->
 							let v = (match v with
-							| HVNone | HVNull | HVNamespace _ | HVString _ ->
+							| HVNone | HVNull | HVNamespace _ ->
 								is_opt := true;
 								None
+							| HVString s ->
+								is_opt := true;
+								Some (String (s,SDoubleQuotes))
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
@@ -274,7 +277,7 @@ let build_class com c file =
 							| None -> None
 							| Some v ->
 								(* add for -D gen-hx-classes generation *)
-								meta := (Meta.DefParam,[String aname;v]) :: !meta;
+								meta := (Meta.DefParam,[String(aname,SDoubleQuotes);v]) :: !meta;
 								Some (EConst v,pos)
 					in
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
@@ -295,7 +298,7 @@ let build_class com c file =
 				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> die "" __LOC__),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -315,7 +318,7 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
 		let get, set, t, meta = (match tget, tset with
-			| None, None -> assert false
+			| None, None -> die "" __LOC__
 			| Some (t,meta), None -> true, false, t, meta
 			| None, Some (t,meta) -> false, true, t, meta
 			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
@@ -419,7 +422,7 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String native_path),null_pos)],null_pos)];
+			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
 			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
@@ -432,7 +435,7 @@ let build_class com c file =
 		match c.hlc_name with
 		| HMPath (pack,name) when (pack <> [] && pack <> path.tpackage) ->
 			let native_path = (String.concat "." pack) ^ "." ^ name in
-			[(Meta.Native,[(EConst (String native_path), pos)],pos)]
+			[(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)), pos)],pos)]
 		| _ ->
 			[]
 	in
@@ -626,7 +629,7 @@ let add_swf_lib com file extern =
 	let real_file = (try Common.find_file com file with Not_found -> failwith (" Library not found : " ^ file)) in
 	let swf_lib = new swf_library com file real_file in
 	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs;
-	CompilationServer.handle_native_lib com swf_lib
+	CommonCache.handle_native_lib com swf_lib
 
 let remove_classes toremove lib l =
 	match !toremove with

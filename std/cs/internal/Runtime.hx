@@ -132,23 +132,23 @@ import cs.system.Object;
 
 	public static function refEq(v1:{}, v2:{}):Bool {
 		#if !erase_generics
-		if (Std.is(v1, Type))
+		if (Std.isOfType(v1, Type))
 			return typeEq(Lib.as(v1, Type), Lib.as(v2, Type));
 		#end
 		return Object.ReferenceEquals(v1, v2);
 	}
 
 	public static function toDouble(obj:Dynamic):Float {
-		return (obj == null) ? .0 : Std.is(obj, Float) ? cast obj : Lib.as(obj, IConvertible).ToDouble(null);
+		return (obj == null) ? .0 : Std.isOfType(obj, Float) ? cast obj : Lib.as(obj, IConvertible).ToDouble(null);
 	}
 
 	public static function toInt(obj:Dynamic):Int {
-		return (obj == null) ? 0 : Std.is(obj, Int) ? cast obj : Lib.as(obj, IConvertible).ToInt32(null);
+		return (obj == null) ? 0 : Std.isOfType(obj, Int) ? cast obj : Lib.as(obj, IConvertible).ToInt32(null);
 	}
 
 	#if erase_generics
 	public static function toLong(obj:Dynamic):Int64 {
-		return (obj == null) ? 0 : Std.is(obj, Int64) ? cast obj : Lib.as(obj, IConvertible).ToInt64(null);
+		return (obj == null) ? 0 : Std.isOfType(obj, Int64) ? cast obj : Lib.as(obj, IConvertible).ToInt64(null);
 	}
 	#end
 
@@ -228,7 +228,7 @@ import cs.system.Object;
 	}
 
 	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic {
-		if (Std.is(v1, String) || Std.is(v2, String))
+		if (Std.isOfType(v1, String) || Std.isOfType(v2, String))
 			return Std.string(v1) + Std.string(v2);
 
 		if (v1 == null) {
@@ -411,7 +411,7 @@ import cs.system.Object;
 							// if it is directly assignable, we'll give it top rate
 							continue;
 						} else if (untyped strParam.StartsWith("haxe.lang.Null")
-							|| ((oargs[i] == null || Std.is(oargs[i], IConvertible))
+							|| ((oargs[i] == null || Std.isOfType(oargs[i], IConvertible))
 								&& cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param))) {
 							// if it needs conversion, give a penalty. TODO rate penalty
 							crate++;
@@ -468,7 +468,7 @@ import cs.system.Object;
 			}
 		}
 
-		if (methods[0].ContainsGenericParameters && Std.is(methods[0], cs.system.reflection.MethodInfo)) {
+		if (methods[0].ContainsGenericParameters && Std.isOfType(methods[0], cs.system.reflection.MethodInfo)) {
 			var m:MethodInfo = cast methods[0];
 			var tgs = m.GetGenericArguments();
 			for (i in 0...tgs.Length) {
@@ -480,7 +480,7 @@ import cs.system.Object;
 		}
 
 		var m = methods[0];
-		if (obj == null && Std.is(m, cs.system.reflection.ConstructorInfo)) {
+		if (obj == null && Std.isOfType(m, cs.system.reflection.ConstructorInfo)) {
 			var ret = cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs);
 			return unbox(ret);
 		}
@@ -604,7 +604,7 @@ import cs.system.Object;
 	public static function toString(obj:Dynamic):String {
 		if (obj == null)
 			return null;
-		if (Std.is(obj, Bool))
+		if (Std.isOfType(obj, Bool))
 			if (obj)
 				return "true";
 			else
@@ -643,7 +643,7 @@ import cs.system.Object;
 	#if !erase_generics
 	public static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface {
 		for (attr in t.GetCustomAttributes(true))
-			if (Std.is(attr, cs.internal.HxObject.GenericInterface))
+			if (Std.isOfType(attr, cs.internal.HxObject.GenericInterface))
 				return cast attr;
 		return null;
 	}

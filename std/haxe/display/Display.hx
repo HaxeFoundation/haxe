@@ -23,8 +23,8 @@
 package haxe.display;
 
 import haxe.display.JsonModuleTypes;
-import haxe.display.Protocol;
 import haxe.display.Position;
+import haxe.display.Protocol;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -46,12 +46,17 @@ class DisplayMethods {
 	/**
 		The find references request is sent from the client to Haxe to find locations that reference the symbol at a given text document position.
 	**/
-	static inline var FindReferences = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/references");
+	static inline var FindReferences = new HaxeRequestMethod<FindReferencesParams, GotoDefinitionResult>("display/references");
 
 	/**
 		The goto definition request is sent from the client to Haxe to resolve the definition location(s) of a symbol at a given text document position.
 	**/
 	static inline var GotoDefinition = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/definition");
+
+	/**
+		The goto implementation request is sent from the client to Haxe to resolve the implementation location(s) of a symbol at a given text document position.
+	**/
+	static inline var GotoImplementation = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/implementation");
 
 	/**
 		The goto type definition request is sent from the client to Haxe to resolve the type definition location(s) of a symbol at a given text document position.
@@ -292,6 +297,15 @@ typedef Metadata = {
 	var ?links:Array<String>;
 }
 
+typedef Define = {
+	var name:String;
+	var value:Null<String>;
+	var doc:JsonDoc;
+	var parameters:Array<String>;
+	var platforms:Array<Platform>;
+	var links:Array<String>;
+}
+
 typedef Keyword = {
 	var name:KeywordKind;
 }
@@ -368,6 +382,7 @@ enum abstract DisplayItemKind<T>(String) {
 	var AnonymousStructure:DisplayItemKind<JsonAnon>;
 	var Expression:DisplayItemKind<JsonTExpr>;
 	var TypeParameter:DisplayItemKind<DisplayModuleTypeParameter>;
+	var Define:DisplayItemKind<Define>;
 }
 
 typedef DisplayItem<T> = {
@@ -435,6 +450,7 @@ typedef CompletionResponse<T1, T2> = {
 	var mode:CompletionMode<T2>;
 	var ?replaceRange:Range;
 	var ?isIncomplete:Bool;
+	var ?filterString:String;
 }
 
 typedef CompletionResult = Response<Null<CompletionResponse<Dynamic, Dynamic>>>;
@@ -447,6 +463,28 @@ typedef CompletionItemResolveParams = {
 typedef CompletionItemResolveResult = Response<{
 	var item:DisplayItem<Dynamic>;
 }>;
+
+/** FindReferences **/
+typedef FindReferencesParams = PositionParams & {
+	var ?kind:FindReferencesKind;
+}
+
+enum abstract FindReferencesKind(String) to String {
+	/**
+		Find only direct references to the requested symbol.
+		Does not look for references to parent or overriding methods.
+	**/
+	var Direct = "direct";
+	/**
+		Find references to the base field and all the overidding fields in the inheritance chain.
+	**/
+	var WithBaseAndDescendants = "withBaseAndDescendants";
+	/**
+		Find references to the requested field and references to all
+		descendants of the requested field.
+	**/
+	var WithDescendants = "withDescendants";
+}
 
 /** GotoDefinition **/
 typedef GotoDefinitionResult = Response<Array<Location>>;

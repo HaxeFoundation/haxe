@@ -17,7 +17,6 @@ class TestThreads implements utest.ITest
 
 	private function doTestSort()
 	{
-		Sys.println("Running TestThreads");
 		var ts = new ThreadSort();
 #if java
 		ts.maxVal *= 10;

@@ -72,7 +72,7 @@ let generate_expr_pos ctx p =
 	jtodo
 
 let generate_doc ctx d = match ctx.generation_mode with
-	| GMFull -> jopt jstring d
+	| GMFull -> jopt jstring (gen_doc_text_opt d)
 	| GMWithoutDoc | GMMinimum -> jnull
 
 (** return a range JSON structure for given position
@@ -188,7 +188,7 @@ let rec generate_ast_type_param ctx tp = jobject [
 let rec generate_type ctx t =
 	let rec loop t = match t with
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 			| None -> "TMono",None
 			| Some t -> loop t
 			end
@@ -257,7 +257,7 @@ and generate_type_path_with_params ctx mpath tpath tl =
 and generate_type_parameter ctx (s,t) =
 	let generate_constraints () = match follow t with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	jobject [
 		"name",jstring s;
@@ -604,6 +604,7 @@ let generate_class ctx c =
 		"init",jopt (generate_texpr ctx) c.cl_init;
 		"overrides",jlist (classfield_ref ctx) c.cl_overrides;
 		"isExtern",jbool c.cl_extern;
+		"isFinal",jbool c.cl_final;
 	]
 
 let generate_enum ctx e =

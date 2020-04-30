@@ -64,7 +64,7 @@ let is_ignored meta =
 
 let get_base_config com =
 	{
-		optimize = Common.raw_defined com "analyzer-optimize";
+		optimize = Common.defined com Define.AnalyzerOptimize;
 		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 		copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");

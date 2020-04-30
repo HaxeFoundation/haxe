@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi
 class Array<T> {
 	public var length(default, null):Int;
@@ -189,6 +192,14 @@ class Array<T> {
 		return false;
 	}
 
+	public function contains(x:T):Bool {
+		for (i in 0...length) {
+			if (this[i] == x)
+				return true;
+		}
+		return false;
+	}
+
 	public function indexOf(x:T, ?fromIndex:Int):Int {
 		var end = length;
 		if (fromIndex == null)
@@ -227,20 +238,20 @@ class Array<T> {
 		return [for (i in this) i];
 	}
 
-	public function map<S>(f:T->S):Array<S> {
+	public inline function map<S>(f:T->S):Array<S> {
 		return [for (i in this) f(i)];
 	}
 
-	public function filter(f:T->Bool):Array<T> {
+	public inline function filter(f:T->Bool):Array<T> {
 		return [for (i in this) if (f(i)) i];
 	}
 
-	public inline function iterator():Iterator<T> {
-		var cur_length = 0;
-		return {
-			hasNext: function() return cur_length < length,
-			next: function() return this[cur_length++]
-		}
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize(len:Int):Void {

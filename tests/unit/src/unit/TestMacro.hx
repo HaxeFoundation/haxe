@@ -63,8 +63,44 @@ class TestMacro extends Test {
 		parseAndPrint("var a:() -> A");
 		parseAndPrint("var a:() -> (() -> A)");
 		parseAndPrint("var a:(x:(y:Y) -> Z) -> A");
-		// special case with 1 argument
-		parseAndPrint("var a:X -> Y");
-		parseAndPrint("var a:(X) -> Y");
+		// local functions
+		parseAndPrint('a -> b');
+		parseAndPrint('(a:Int) -> b');
+		parseAndPrint('(a, b) -> c');
+		parseAndPrint('function(a) return b');
+		parseAndPrint('function named(a) return b');
+
+		var p = new haxe.macro.Printer();
+		// special handling of single arguments (don't add parentheses)
+		//	types
+		eq(p.printComplexType(macro :X -> Y), "X -> Y");
+		eq(p.printComplexType(macro :(X) -> Y), "(X) -> Y");
+		eq(p.printComplexType(macro :((X)) -> Y), "((X)) -> Y");
+		eq(p.printComplexType(macro :?X -> Y), "?X -> Y");
+		eq(p.printComplexType(macro :(?X) -> Y), "(?X) -> Y");
+		//	named
+		eq(
+			// see issue #9353
+			p.printComplexType( TFunction( [ TOptional( TNamed('a', macro :Int) ) ], macro :Int) ),
+			"(?a:Int) -> Int"
+		);
+		eq(p.printComplexType(macro :(a:X) -> Y), "(a:X) -> Y");
+		eq(p.printComplexType(macro :(?a:X) -> Y), "(?a:X) -> Y");
+		eq(p.printComplexType(macro :((?a:X)) -> Y), "((?a:X)) -> Y");
+		// multiple arguments are always wrapped with parentheses
+		eq(p.printComplexType(macro :(X, Y) -> Z), "(X, Y) -> Z");
+		eq(p.printComplexType(macro :X -> Y -> Z), "(X, Y) -> Z");
+		eq(p.printComplexType(macro :(X -> Y) -> Z), "(X -> Y) -> Z");
+
+		// access order, see #9349
+		eq(
+			p.printField({
+				name: 'x',
+				pos: null,
+				kind: FVar(macro :Any, null),
+				access: [AFinal, AStatic]
+			}),
+			'static final x : Any'
+		);
 	}
 }

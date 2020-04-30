@@ -31,19 +31,19 @@ using cpp.NativeString;
 @:unreflective
 extern class StdString {
 	@:native("std::string::npos")
-	public static var npos(default, null):Int;
+	static var npos(default, null):Int;
 
-	// public function new(inData:StdStringData);
+	// function new(inData:StdStringData);
 	@:native("hx::StdString")
-	static public function ofString(s:String):StdString;
+	static function ofString(s:String):StdString;
 
-	// public function toString():String;
-	// public function find(s:String):Int;
-	// public function substr(pos:Int, len:Int):StdString;
-	public function c_str():ConstPointer<Char>;
-	public function size():Int;
-	public function find(s:String):Int;
-	public function substr(pos:Int, len:Int):StdString;
-	public function toString():String;
-	public function toStdString():StdString;
+	// function toString():String;
+	// function find(s:String):Int;
+	// function substr(pos:Int, len:Int):StdString;
+	function c_str():ConstPointer<Char>;
+	function size():Int;
+	function find(s:String):Int;
+	function substr(pos:Int, len:Int):StdString;
+	function toString():String;
+	function toStdString():StdString;
 }

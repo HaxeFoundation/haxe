@@ -154,6 +154,13 @@ abstract Map<K, V>(IMap<K, V>) {
 		return this.toString();
 	}
 
+	/**
+		Removes all keys from `this` Map.
+	**/
+	public inline function clear():Void {
+		this.clear();
+	}
+
 	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {
 		this.set(k, v);
 		return v;

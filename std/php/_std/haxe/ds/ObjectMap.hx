@@ -63,11 +63,13 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		return _keys.iterator();
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	public inline function iterator():Iterator<V> {
 		return _values.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
@@ -86,5 +88,10 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 				s += ", ";
 		}
 		return s + "}";
+	}
+
+	public inline function clear():Void {
+		_keys = new NativeAssocArray();
+		_values = new NativeAssocArray();
 	}
 }

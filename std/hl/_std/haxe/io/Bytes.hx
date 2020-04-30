@@ -221,7 +221,7 @@ class Bytes {
 				return new Bytes(s.bytes.sub(0, s.length << 1), s.length << 1);
 			case UTF8:
 				var size = 0;
-				var b = s.bytes.utf16ToUtf8(0, size);
+				var b = s.bytes.utf16ToUtf8(s.length, size);
 				return new Bytes(b, size);
 		}
 	}

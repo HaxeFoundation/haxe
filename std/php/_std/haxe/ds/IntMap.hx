@@ -59,11 +59,13 @@ import php.NativeIndexedArray;
 		return Global.array_keys(data).iterator();
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	public inline function iterator():Iterator<T> {
 		return Global.array_values(data).iterator();
 	}
 
-	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
@@ -78,5 +80,9 @@ import php.NativeIndexedArray;
 		});
 
 		return '{' + Global.implode(', ', parts) + '}';
+	}
+
+	public inline function clear():Void {
+		data = new NativeIndexedArray();
 	}
 }

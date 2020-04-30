@@ -64,6 +64,8 @@ class Compiler {
 
 	/**
 		Set a conditional compiler flag.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function define(flag:String, ?value:String) {
 		#if (neko || eval)
@@ -127,6 +129,11 @@ class Compiler {
 		#end
 	}
 
+	/**
+		Add a class path where ".hx" source files or packages (sub-directories) can be found.
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
+	**/
 	public static function addClassPath(path:String) {
 		#if (neko || eval)
 		load("add_class_path", 1)(path);
@@ -157,6 +164,8 @@ class Compiler {
 
 	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
+
+		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function addNativeLib(name:String) {
 		#if (neko || eval)
@@ -243,6 +252,7 @@ class Compiler {
 			found = true;
 			for (file in sys.FileSystem.readDirectory(path)) {
 				if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
+					if( file == "import.hx" ) continue;
 					var cl = prefix + file.substr(0, file.length - 3);
 					if (skip(cl))
 						continue;
@@ -409,7 +419,7 @@ class Compiler {
 	/**
 		Enables null safety for a type or a package.
 
-		@param path A package, module or sub-type dot path to keep.
+		@param path A package, module or sub-type dot path to enable null safety for.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
@@ -476,8 +486,11 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				var magic = if (Context.defined("js")) "__js__" else "__lua__";
-				{expr: EUntyped({expr: ECall({expr: EConst(CIdent(magic)), pos: p}, [{expr: EConst(CString(f)), pos: p}]), pos: p}), pos: p};
+				if(Context.defined("js")) {
+					macro @:pos(p) js.Syntax.plainCode($v{f});
+				} else {
+					macro @:pos(p) untyped __lua__($v{f});
+				}
 			case Top | Closure:
 				@:privateAccess Context.includeFile(file, position);
 				macro {};
@@ -514,13 +527,8 @@ enum abstract NullSafetyMode(String) to String {
 	var Off;
 
 	/**
-		Full scale null safety.
-	**/
-	var Strict;
-
-	/**
 		Loose safety.
-		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
+		If an expression is checked `!= null`, then it's considered safe even if it could be modified after the check.
 		E.g.
 		```haxe
 		function example(o:{field:Null<String>}) {
@@ -536,4 +544,34 @@ enum abstract NullSafetyMode(String) to String {
 		```
 	**/
 	var Loose;
+
+	/**
+		Full scale null safety.
+		If a field is checked `!= null` it stays safe until a call is made or any field of any object is reassigned,
+		because that could potentially alter an object of the checked field.
+		E.g.
+		```haxe
+		function example(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+			if(o.field != null) {
+				var notNullable:String = o.field; //no error
+				someCall();
+				var notNullable:String = o.field; // Error!
+			}
+			if(o.field != null) {
+				var notNullable:String = o.field; //no error
+				b.o = {field:null};
+				var notNullable:String = o.field; // Error!
+			}
+		}
+		```
+	**/
+	var Strict;
+
+	/**
+		Full scale null safety for a multi-threaded environment.
+		With this mode checking a field `!= null` does not make it safe, because it could be changed from another thread
+		at the same time or immediately after the check.
+		The only nullable thing could be safe are local variables.
+	**/
+	var StrictThreaded;
 }

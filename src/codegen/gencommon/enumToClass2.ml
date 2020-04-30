@@ -85,7 +85,7 @@ module EnumToClass2Modf = struct
 		let e_pack, e_name = en.e_path in
 		let cl_enum_t = TInst (cl_enum, []) in
 		let cf_getTag_t = tfun [] basic.tstring in
-		let cf_getParams_ret = basic.tarray (mk_anon PMap.empty) in
+		let cf_getParams_ret = basic.tarray (mk_anon (ref Closed)) in
 		let cf_getParams_t = tfun [] cf_getParams_ret in
 		let static_ctors = ref [] in
 		let ctors_map = ref PMap.empty in
@@ -379,7 +379,7 @@ module EnumToClass2Exprf = struct
 				| TFun (params, _) ->
 					let fname, _, _ = List.nth params i in
 					field ecast fname e.etype e.epos
-				| _ -> assert false)
+				| _ -> Globals.die "" __LOC__)
 			| _ ->
 				Type.map_expr run e
 		in

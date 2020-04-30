@@ -7,25 +7,36 @@ open Error
 
 let cast_stack = new_rec_stack()
 
-let make_static_call ctx c cf a pl args t p =
+let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e WithType.value
+					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
-			| _ -> assert false
+			| _ -> die "" __LOC__
 	end else
-		make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-let do_check_cast ctx tleft eright p =
+and do_check_cast ctx tleft eright p =
 	let recurse cf f =
+		(*
+			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
+			unlike non-macro @:from methods, which generate unification errors if no other @:from methods are involved.
+		*)
+		if cf.cf_kind = Method MethMacro then begin
+			match cast_stack.rec_stack with
+			| previous_from :: _ when previous_from == cf ->
+				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+			| _ -> ()
+		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
@@ -38,7 +49,7 @@ let do_check_cast ctx tleft eright p =
 				let ret = make_static_call ctx c cf a tl [eright] tleft p in
 				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
 			)
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	if type_iseq tleft eright.etype then
 		eright
@@ -80,7 +91,7 @@ let do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-let cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx tleft eright p =
 	try
 		(* can't do that anymore because this might miss macro calls (#4315) *)
 		(* if ctx.com.display <> DMNone then raise Not_found; *)
@@ -89,7 +100,7 @@ let cast_or_unify_raise ctx tleft eright p =
 		unify_raise ctx eright.etype tleft p;
 		eright
 
-let cast_or_unify ctx tleft eright p =
+and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error (Unify l,p) ->
@@ -99,7 +110,8 @@ let cast_or_unify ctx tleft eright p =
 let find_array_access_raise ctx a pl e1 e2o p =
 	let is_set = e2o <> None in
 	let ta = apply_params a.a_params pl a.a_this in
-	let rec loop cfl = match cfl with
+	let rec loop cfl =
+		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -111,10 +123,14 @@ let find_array_access_raise ctx a pl e1 e2o p =
 					| _ -> ()
 				) monos cf.cf_params;
 			in
+			let get_ta() =
+				if has_meta Meta.Impl cf.cf_meta then ta
+				else TAbstract(a,pl)
+			in
 			match follow (map cf.cf_type) with
 			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
 					check_constraints();
@@ -124,7 +140,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				end
 			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1,None
@@ -137,11 +153,13 @@ let find_array_access_raise ctx a pl e1 e2o p =
 
 let find_array_access ctx a tl e1 e2o p =
 	try find_array_access_raise ctx a tl e1 e2o p
-	with Not_found -> match e2o with
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		match e2o with
 		| None ->
-			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 		| Some e2 ->
-			error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let m = mk_mono() in
@@ -177,7 +195,7 @@ let find_multitype_specialization com a pl p =
 							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
 								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 								Type.map loop t
@@ -186,7 +204,7 @@ let find_multitype_specialization com a pl p =
 						end
 					in
 					ignore(loop t1)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			tl
 	in
@@ -228,7 +246,7 @@ let handle_abstract_casts ctx e =
 						e
 					end
 				| _ ->
-					assert false
+					die "" __LOC__
 			end
 		| TCall(e1, el) ->
 			begin try

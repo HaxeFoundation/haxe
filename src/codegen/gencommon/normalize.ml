@@ -29,41 +29,41 @@ open Gencommon
 		as it will help normalize the AST
 *)
 
-let rec filter_param t =
+let rec filter_param (stack:t list) t =
 	match t with
 	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
 		t_dynamic
 	| TMono r ->
-		(match !r with
+		(match r.tm_type with
 		| None -> t_dynamic
-		| Some t -> filter_param t)
-	| TInst(_,[]) | TEnum(_,[]) | TType(_,[]) | TAbstract(_,[]) ->
+		| Some t -> filter_param stack t)
+	| TInst(_,[]) | TEnum(_,[]) | TAbstract(_,[]) ->
 		t
-	| TType(t,tl) ->
-		TType(t,List.map filter_param tl)
+	| TType(td,tl) ->
+		TType(td,List.map (filter_param stack) tl)
 	| TInst(c,tl) ->
-		TInst(c,List.map filter_param tl)
+		TInst(c,List.map (filter_param stack) tl)
 	| TEnum(e,tl) ->
-		TEnum(e,List.map filter_param tl)
+		TEnum(e,List.map (filter_param stack) tl)
 	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
-		TAbstract(a, List.map filter_param tl)
+		TAbstract(a, List.map (filter_param stack) tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
-		TAbstract(a,[filter_param t])
+		TAbstract(a,[filter_param stack t])
 	| TAbstract(a,tl) when (Meta.has Meta.MultiType a.a_meta) ->
-		filter_param (Abstract.get_underlying_type a tl)
+		filter_param stack (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) ->
-		TAbstract(a, List.map filter_param tl)
+		TAbstract(a, List.map (filter_param stack) tl)
 	| TAnon a ->
-		TAnon {
-			a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
-			a_status = a.a_status;
-		}
+		let fields = PMap.map (fun f -> { f with cf_type = filter_param stack f.cf_type }) a.a_fields in
+		mk_anon ~fields a.a_status
 	| TFun(args,ret) ->
-		TFun(List.map (fun (n,o,t) -> (n,o,filter_param t)) args, filter_param ret)
+		TFun(List.map (fun (n,o,t) -> (n,o,filter_param stack t)) args, filter_param stack ret)
 	| TDynamic _ ->
 		t
 	| TLazy f ->
-		filter_param (lazy_type f)
+		filter_param stack (lazy_type f)
+
+let filter_param t = filter_param [] t
 
 let init_expr_filter allowed_metas =
 	let rec run e =

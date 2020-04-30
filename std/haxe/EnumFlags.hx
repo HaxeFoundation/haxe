@@ -29,8 +29,8 @@ package haxe;
 
 	Enum constructor indices are preserved from Haxe syntax, so the first
 	declared is index 0, the next index 1 etc. The methods are optimized if the
-	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
-	Type.enumIndex() reflection is used.
+	enum instance is passed directly, e.g. as `has(EnumCtor)`. Otherwise
+	`Type.enumIndex()` reflection is used.
 **/
 abstract EnumFlags<T:EnumValue>(Int) {
 	/**
@@ -44,9 +44,9 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Checks if the index of enum instance `v` is set.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
 	public inline function has(v:T):Bool {
 		return this & (1 << Type.enumIndex(v)) != 0;
@@ -56,9 +56,9 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Sets the index of enum instance `v`.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
 	public inline function set(v:T):Void {
 		this |= 1 << Type.enumIndex(v);
@@ -68,9 +68,9 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Unsets the index of enum instance `v`.
 
 		This method is optimized if `v` is an enum instance expression such as
-		SomeEnum.SomeCtor.
+		`SomeEnum.SomeCtor`.
 
-		If `v` is null, the result is unspecified.
+		If `v` is `null`, the result is unspecified.
 	**/
 	public inline function unset(v:T):Void {
 		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));

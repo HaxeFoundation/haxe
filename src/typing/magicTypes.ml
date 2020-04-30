@@ -20,7 +20,7 @@ let extend_remoting ctx c t p async prot =
 	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
 	(* check if the proxy already exists *)
 	let t = (try
-		load_type_def ctx p { tpackage = fst path; tname = new_name; tparams = []; tsub = None }
+		load_type_def ctx p (mk_type_path (fst path,new_name))
 	with
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
@@ -32,10 +32,10 @@ let extend_remoting ctx c t p async prot =
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
+		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath (mk_type_path (["haxe";"remoting"],if async then "AsyncConnection" else "Connection")),null_pos),None) };
 		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic,null_pos]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
-	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
+	let tvoid = CTPath (mk_type_path ([],"Void")) in
 	let build_field is_public acc f =
 		if fst f.cff_name = "new" then
 			acc
@@ -50,7 +50,7 @@ let extend_remoting ctx c t p async prot =
 			else
 				fd.f_args, eargs
 			in
-			let id = (EConst (String (fst f.cff_name)), p) in
+			let id = (EConst (String (fst f.cff_name,SDoubleQuotes)), p) in
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(EField (
@@ -138,7 +138,7 @@ let on_inherit ctx c p (is_extends,tp) =
 	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType (t,_)] } ->
+	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String(file,SDoubleQuotes)),p);TPType (t,_)] } ->
 		extend_xml_proxy ctx c t file p;
 		true
 	| _ ->

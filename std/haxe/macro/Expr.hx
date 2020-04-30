@@ -47,6 +47,11 @@ typedef Position = {
 }
 #end
 
+enum StringLiteralKind {
+	DoubleQuotes;
+	SingleQuotes;
+}
+
 /**
 	Represents a constant.
 	@see https://haxe.org/manual/expression-constants.html
@@ -65,7 +70,7 @@ enum Constant {
 	/**
 		Represents a string literal.
 	**/
-	CString(s:String);
+	CString(s:String, ?kind:StringLiteralKind);
 
 	/**
 		Represents an identifier.
@@ -76,8 +81,9 @@ enum Constant {
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
-		* The first argument _haxe_ is a string with regular expression pattern.
-		* The second argument _i_ is a string with regular expression flags.
+
+		- The first argument `haxe` is a string with regular expression pattern.
+		- The second argument `i` is a string with regular expression flags.
 
 		@see https://haxe.org/manual/std-regex.html
 	**/
@@ -190,17 +196,7 @@ enum Binop {
 	OpMod;
 
 	/**
-		`+=`
-		`-=`
-		`/=`
-		`*=`
-		`<<=`
-		`>>=`
-		`>>>=`
-		`|=`
-		`&=`
-		`^=`
-		`%=`
+		`+=` `-=` `/=` `*=` `<<=` `>>=` `>>>=` `|=` `&=` `^=` `%=`
 	**/
 	OpAssignOp(op:Binop);
 
@@ -323,7 +319,7 @@ typedef Var = {
 
 /**
 	Represents a catch in the AST.
-	@https://haxe.org/manual/expression-try-catch.html
+	@see https://haxe.org/manual/expression-try-catch.html
 **/
 typedef Catch = {
 	/**
@@ -334,7 +330,7 @@ typedef Catch = {
 	/**
 		The type of the catch.
 	**/
-	var type:ComplexType;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the catch.
@@ -375,6 +371,26 @@ typedef ObjectField = {
 		How the field name is quoted.
 	**/
 	var ?quotes:QuoteStatus;
+}
+
+/**
+	Represents function kind in the AST
+**/
+enum FunctionKind {
+	/**
+		Anonymous function
+	**/
+	FAnonymous;
+
+	/**
+		Named function
+	**/
+	FNamed(name:String, ?inlined:Bool);
+
+	/**
+		Arrow function
+	**/
+	FArrow;
 }
 
 /**
@@ -429,13 +445,13 @@ enum ExprDef {
 	/**
 		An unary operator `op` on `e`:
 
-		* e++ (op = OpIncrement, postFix = true)
-		* e-- (op = OpDecrement, postFix = true)
-		* ++e (op = OpIncrement, postFix = false)
-		* --e (op = OpDecrement, postFix = false)
-		* -e (op = OpNeg, postFix = false)
-		* !e (op = OpNot, postFix = false)
-		* ~e (op = OpNegBits, postFix = false)
+		- `e++` (`op = OpIncrement, postFix = true`)
+		- `e--` (`op = OpDecrement, postFix = true`)
+		- `++e` (`op = OpIncrement, postFix = false`)
+		- `--e` (`op = OpDecrement, postFix = false`)
+		- `-e` (`op = OpNeg, postFix = false`)
+		- `!e` (`op = OpNot, postFix = false`)
+		- `~e` (`op = OpNegBits, postFix = false`)
 	**/
 	EUnop(op:Unop, postFix:Bool, e:Expr);
 
@@ -447,7 +463,7 @@ enum ExprDef {
 	/**
 		A function declaration.
 	**/
-	EFunction(name:Null<String>, f:Function);
+	EFunction(kind:Null<FunctionKind>, f:Function);
 
 	/**
 		A block of expressions `{exprs}`.
@@ -460,20 +476,22 @@ enum ExprDef {
 	EFor(it:Expr, expr:Expr);
 
 	/**
-		An `if(econd) eif` or `if(econd) eif else eelse` expression.
+		An `if (econd) eif` or `if (econd) eif else eelse` expression.
 	**/
 	EIf(econd:Expr, eif:Expr, eelse:Null<Expr>);
 
 	/**
 		Represents a `while` expression.
+
 		When `normalWhile` is `true` it is `while (...)`.
+
 		When `normalWhile` is `false` it is `do {...} while (...)`.
 	**/
 	EWhile(econd:Expr, e:Expr, normalWhile:Bool);
 
 	/**
 		Represents a `switch` expression with related cases and an optional.
-		`default` case if edef != null.
+		`default` case if `edef != null`.
 	**/
 	ESwitch(e:Expr, cases:Array<Case>, edef:Null<Expr>);
 
@@ -513,12 +531,12 @@ enum ExprDef {
 	ECast(e:Expr, t:Null<ComplexType>);
 
 	/**
-		Internally used to provide completion.
+		Used internally to provide completion.
 	**/
 	EDisplay(e:Expr, displayKind:DisplayKind);
 
 	/**
-		Internally used to provide completion.
+		Used internally to provide completion.
 	**/
 	EDisplayNew(t:TypePath);
 
@@ -617,7 +635,7 @@ typedef TypePath = {
 
 	/**
 		Sub is set on module sub-type access:
-		`pack.Module.Type` has name = Module, sub = Type, if available.
+		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
 	var ?sub:Null<String>;
 }
@@ -630,14 +648,7 @@ typedef TypePath = {
 	in the normal case it's `TPType`.
 **/
 enum TypeParam {
-	/**
-
-	**/
 	TPType(t:ComplexType);
-
-	/**
-
-	**/
 	TPExpr(e:Expr);
 }
 
@@ -826,7 +837,7 @@ enum Access {
 	AInline;
 
 	/**
-		Macros access modifier. Allows expression macro functions. These are
+		Macro access modifier. Allows expression macro functions. These are
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;

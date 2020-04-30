@@ -29,19 +29,19 @@ import haxe.extern.Rest;
 **/
 @:native("_G.io")
 extern class Io {
-	public static var stdin:FileHandle;
-	public static var stderr:FileHandle;
-	public static var stdout:FileHandle;
+	static var stdin:FileHandle;
+	static var stderr:FileHandle;
+	static var stdout:FileHandle;
 
 	/**
 		Function to close regular files.
 	**/
-	public static function close(?file:FileHandle):Void;
+	static function close(?file:FileHandle):Void;
 
 	/**
 		Saves any written data to file.
 	**/
-	public static function flush():Void;
+	static function flush():Void;
 
 	/**
 		When called with a file name, it opens the named file (in text mode),
@@ -53,13 +53,13 @@ extern class Io {
 		error code.
 	**/
 	@:overload(function(file:String):Void {})
-	public static function input(file:FileHandle):Void;
+	static function input(file:FileHandle):Void;
 
 	/**
 		Opens the given file name in read mode and returns an iterator function that,
 		each time it is called, returns a new line from the file.
 	**/
-	public static function lines(?file:String):NativeIterator<String>;
+	static function lines(?file:String):NativeIterator<String>;
 
 	/**
 		This function opens a file, in the mode specified in the string mode.
@@ -79,7 +79,7 @@ extern class Io {
 		to open the file in binary mode. This string is exactly what is used in the
 		standard C function fopen.
 	**/
-	public static function open(filename:String, ?mode:String):FileHandle;
+	static function open(filename:String, ?mode:String):FileHandle;
 
 	/**
 		Starts program `command` in a separated process and returns a file handle that
@@ -88,10 +88,10 @@ extern class Io {
 
 		This function is system dependent and is not available on all platforms.
 	**/
-	public static function popen(command:String, ?mode:String):FileHandle;
+	static function popen(command:String, ?mode:String):FileHandle;
 
 	@:overload(function(?count:Int):String {})
-	public static function read(?filename:String):String;
+	static function read(?filename:String):String;
 
 	/**
 		Writes the value of each of its arguments to the file. The arguments must
@@ -99,20 +99,20 @@ extern class Io {
 		To write other values, use `Lua.tostring` or `NativeStringTools.format`
 		before write.
 	**/
-	public static function write(v:Rest<String>):Void;
+	static function write(v:Rest<String>):Void;
 
-	public static function output(?file:String):FileHandle;
+	static function output(?file:String):FileHandle;
 
 	/**
 		Returns a handle for a temporary file. This file is opened in update mode
 		and it is automatically removed when the program ends.
 	**/
-	public static function tmpfile():FileHandle;
+	static function tmpfile():FileHandle;
 
 	/**
 		Checks whether `obj` is a valid file handle.
 	**/
-	public static function type(obj:FileHandle):IoType;
+	static function type(obj:FileHandle):IoType;
 }
 
 /**

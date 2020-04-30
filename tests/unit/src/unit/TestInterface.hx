@@ -63,11 +63,11 @@ class TestInterface extends Test {
 		var p = new Point(1.3,5);
 		var px : IX = p;
 		var py : IY = p;
-		t( Std.is(p, Point) );
-		t( Std.is(p, IX) );
-		t( Std.is(p, IY) );
-		f( Std.is(p, IEmpty) );
-		f( Std.is(p, IX2) );
+		t( Std.isOfType(p, Point) );
+		t( Std.isOfType(p, IX) );
+		t( Std.isOfType(p, IY) );
+		f( Std.isOfType(p, IEmpty) );
+		f( Std.isOfType(p, IX2) );
 
 		t( px == p );
 		t( py == p );

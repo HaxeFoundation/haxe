@@ -112,4 +112,9 @@ class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = lua.Table.create();
+		k = lua.Table.create();
+	}
 }

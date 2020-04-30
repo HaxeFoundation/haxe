@@ -26,9 +26,9 @@ import haxe.extern.Rest;
 
 @:native('ReflectionClass')
 extern class ReflectionClass implements Reflector {
-	@:phpClassConst static var IS_IMPLICIT_ABSTRACT:Int;
-	@:phpClassConst static var IS_EXPLICIT_ABSTRACT:Int;
-	@:phpClassConst static var IS_FINAL:Int;
+	@:phpClassConst static final IS_IMPLICIT_ABSTRACT:Int;
+	@:phpClassConst static final IS_EXPLICIT_ABSTRACT:Int;
+	@:phpClassConst static final IS_FINAL:Int;
 
 	static function export(argument:Dynamic, returnValue:Bool = false):String;
 

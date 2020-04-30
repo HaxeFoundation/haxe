@@ -23,23 +23,23 @@
 package haxe;
 
 /**
-	The Timer class allows you to create asynchronous timers on platforms that
+	The `Timer` class allows you to create asynchronous timers on platforms that
 	support events.
 
-	The intended usage is to create an instance of the Timer class with a given
-	interval, set its run() method to a custom function to be invoked and
-	eventually call stop() to stop the Timer.
+	The intended usage is to create an instance of the `Timer` class with a given
+	interval, set its `run()` method to a custom function to be invoked and
+	eventually call `stop()` to stop the `Timer`.
 
-	Note that a running Timer may or may not prevent the program to exit
-	automatically when main() returns.
+	Note that a running `Timer` may or may not prevent the program to exit
+	automatically when `main()` returns.
 
-	It is also possible to extend this class and override its run() method in
+	It is also possible to extend this class and override its `run()` method in
 	the child class.
 **/
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif java
+	#elseif (java && !jvm)
 	private var timer:java.util.Timer;
 	private var task:java.util.TimerTask;
 	#else
@@ -66,7 +66,7 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif java
+		#elseif (java && !jvm)
 		timer = new java.util.Timer();
 		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
 		#else
@@ -97,7 +97,7 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif java
+		#elseif (java && !jvm)
 		if (timer != null) {
 			timer.cancel();
 			timer = null;
@@ -116,8 +116,11 @@ class Timer {
 
 		It can be overridden in a subclass, or rebound directly to a custom
 		function:
-			var timer = new haxe.Timer(1000); // 1000ms delay
-			timer.run = function() { ... }
+
+		```haxe
+		var timer = new haxe.Timer(1000); // 1000ms delay
+		timer.run = function() { ... }
+		```
 
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
@@ -128,10 +131,10 @@ class Timer {
 		Invokes `f` after `time_ms` milliseconds.
 
 		This is a convenience function for creating a new Timer instance with
-		`time_ms` as argument, binding its run() method to `f` and then stopping
+		`time_ms` as argument, binding its `run()` method to `f` and then stopping
 		`this` Timer upon the first invocation.
 
-		If `f` is null, the result is unspecified.
+		If `f` is `null`, the result is unspecified.
 	**/
 	public static function delay(f:Void->Void, time_ms:Int) {
 		var t = new haxe.Timer(time_ms);
@@ -146,12 +149,12 @@ class Timer {
 		Measures the time it takes to execute `f`, in seconds with fractions.
 
 		This is a convenience function for calculating the difference between
-		Timer.stamp() before and after the invocation of `f`.
+		`Timer.stamp()` before and after the invocation of `f`.
 
-		The difference is passed as argument to Log.trace(), with "s" appended
+		The difference is passed as argument to `Log.trace()`, with `"s"` appended
 		to denote the unit. The optional `pos` argument is passed through.
 
-		If `f` is null, the result is unspecified.
+		If `f` is `null`, the result is unspecified.
 	**/
 	public static function measure<T>(f:Void->T, ?pos:PosInfos):T {
 		var t0 = stamp();
@@ -169,10 +172,13 @@ class Timer {
 	public static inline function stamp():Float {
 		#if flash
 		return flash.Lib.getTimer() / 1000;
-		#elseif (neko || php)
-		return Sys.time();
 		#elseif js
-		return js.lib.Date.now() / 1000;
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] + hrtime[1] / 1e9;
+		#else
+		return @:privateAccess HxOverrides.now() / 1000;
+		#end
 		#elseif cpp
 		return untyped __global__.__time_stamp();
 		#elseif python
@@ -185,7 +191,7 @@ class Timer {
 	}
 }
 
-#if java
+#if (java && !jvm)
 @:nativeGen
 private class TimerTask extends java.util.TimerTask {
 	var timer:Timer;

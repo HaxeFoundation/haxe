@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open CompilationServer
 open Type
 open Globals
 open Define
@@ -78,6 +79,62 @@ type capture_policy =
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
 	| CPLoopVars
 
+type exceptions_config = {
+	(* Base types which may be thrown from Haxe code without wrapping. *)
+	ec_native_throws : path list;
+	(* Base types which may be caught from Haxe code without wrapping. *)
+	ec_native_catches : path list;
+	(* Path of a native class or interface, which can be used for wildcard catches. *)
+	ec_wildcard_catch : path;
+	(*
+		Path of a native base class or interface, which can be thrown.
+		This type is used to cast `haxe.Exception.thrown(v)` calls to.
+		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
+	*)
+	ec_base_throw : path;
+}
+
+type var_scope =
+	| FunctionScope
+	| BlockScope
+
+type var_scoping_flags =
+	(**
+		Variables are hoisted in their scope
+	*)
+	| VarHoisting
+	(**
+		It's not allowed to shadow existing variables in a scope.
+	*)
+	| NoShadowing
+	(**
+		Local vars cannot have the same name as the current top-level package or
+		(if in the root package) current class name
+	*)
+	| ReserveCurrentTopLevelSymbol
+	(**
+		Local vars cannot have a name used for any top-level symbol
+		(packages and classes in the root package)
+	*)
+	| ReserveAllTopLevelSymbols
+	(**
+		Reserve all type-paths converted to "flat path" with `Path.flat_path`
+	*)
+	| ReserveAllTypesFlat
+	(**
+		List of names cannot be taken by local vars
+	*)
+	| ReserveNames of string list
+	(**
+		Cases in a `switch` won't have blocks, but will share the same outer scope.
+	*)
+	| SwitchCasesNoBlocks
+
+type var_scoping_config = {
+	vs_flags : var_scoping_flags list;
+	vs_scope : var_scope;
+}
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -105,6 +162,10 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** exceptions handling config **)
+	pf_exceptions : exceptions_config;
+	(** the scoping of local variables *)
+	pf_scoping : var_scoping_config;
 }
 
 class compiler_callbacks = object(self)
@@ -152,13 +213,12 @@ class compiler_callbacks = object(self)
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
+	mutable display_module_has_macro_defines : bool;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -166,7 +226,33 @@ type shared_context = {
 	shared_display_information : shared_display_information;
 }
 
+type json_api = {
+	send_result : Json.t -> unit;
+	send_error : Json.t list -> unit;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
+}
+
+type compiler_stage =
+	| CCreated          (* Context was just created *)
+	| CInitialized      (* Context was initialized (from CLI args and such). *)
+	| CTyperCreated     (* The typer context was just created. *)
+	| CInitMacrosStart  (* Init macros are about to run. *)
+	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
+	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
+	| CFilteringStart   (* Filtering just started (nothing changed yet). *)
+	| CAnalyzerStart    (* Some filters did run, the analyzer is about to run. *)
+	| CAnalyzerDone     (* The analyzer just finished. *)
+	| CSaveStart        (* The type state is about to be saved. *)
+	| CSaveDone         (* The type state has been saved - at this point we can destroy things. *)
+	| CDceStart         (* DCE is about to run - everything is still available. *)
+	| CDceDone          (* DCE just finished. *)
+	| CFilteringDone    (* Filtering just finished. *)
+	| CGenerationStart  (* Generation is about to begin. *)
+	| CGenerationDone   (* Generation just finished. *)
+
 type context = {
+	mutable stage : compiler_stage;
+	mutable cache : context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -216,7 +302,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit) * Jsonrpc_handler.jsonrpc_handler) option;
+	mutable json_out : json_api option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -294,6 +380,16 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_exceptions = {
+			ec_native_throws = [];
+			ec_native_catches = [];
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
+		};
+		pf_scoping = {
+			vs_scope = BlockScope;
+			vs_flags = [];
+		}
 	}
 
 let get_config com =
@@ -302,13 +398,26 @@ let get_config com =
 	| Cross ->
 		default_config
 	| Js ->
+		let es6 = get_es_version com >= 6 in
 		{
 			default_config with
 			pf_static = false;
 			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
+			pf_capture_policy = if es6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_this_before_super = not es6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["js";"lib"],"Error";
+					["haxe"],"Exception";
+				];
+			};
+			pf_scoping = {
+				vs_scope = if es6 then BlockScope else FunctionScope;
+				vs_flags =
+					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
+					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting];
+			}
 		}
 	| Lua ->
 		{
@@ -325,14 +434,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
-		}
-	| Flash when defined Define.As3 ->
-		{
-			default_config with
-			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
-			pf_add_final_return = true;
-			pf_can_skip_non_nullable_argument = false;
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [ReserveCurrentTopLevelSymbol];
+			}
 		}
 	| Flash ->
 		{
@@ -341,12 +445,38 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Php ->
 		{
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["php"],"Throwable");
+				ec_base_throw = (["php"],"Throwable");
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			}
 		}
 	| Cpp ->
 		{
@@ -356,6 +486,9 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [NoShadowing]
+			}
 		}
 	| Cs ->
 		{
@@ -364,6 +497,22 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_exceptions = {
+				ec_native_throws = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs";"system"],"Exception");
+				ec_base_throw = (["cs";"system"],"Exception");
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Java ->
 		{
@@ -373,6 +522,26 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_this_before_super = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["java";"lang"],"RuntimeException";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["java";"lang"],"Throwable");
+				ec_base_throw = (["java";"lang"],"RuntimeException");
+			};
+			pf_scoping =
+				if defined Jvm then
+					default_config.pf_scoping
+				else
+					{
+						vs_scope = FunctionScope;
+						vs_flags = [NoShadowing; ReserveCurrentTopLevelSymbol; ReserveNames(["_"])];
+					}
 		}
 	| Python ->
 		{
@@ -380,6 +549,20 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_exceptions = {
+				ec_native_throws = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_native_catches = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
+				ec_base_throw = ["python";"Exceptions"],"BaseException";
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			};
 		}
 	| Hl ->
 		{
@@ -387,6 +570,14 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["haxe"],"Exception";
+				];
+			}
 		}
 	| Eval ->
 		{
@@ -408,17 +599,18 @@ let create version s_version args =
 		)
 	in
 	{
+		cache = None;
+		stage = CCreated;
 		version = version;
 		args = args;
 		shared = {
 			shared_display_information = {
-				import_positions = PMap.empty;
 				diagnostics_messages = [];
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		sys_args = args;
 		debug = false;
@@ -454,9 +646,9 @@ let create version s_version args =
 			values = defines;
 		};
 		get_macros = (fun() -> None);
-		info = (fun _ _ -> assert false);
-		warning = (fun _ _ -> assert false);
-		error = (fun _ _ -> assert false);
+		info = (fun _ _ -> die "" __LOC__);
+		warning = (fun _ _ -> die "" __LOC__);
+		error = (fun _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -465,9 +657,9 @@ let create version s_version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> assert false);
+			tnull = (fun _ -> die "" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> assert false);
+			tarray = (fun _ -> die "" __LOC__);
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		readdir_cache = Hashtbl.create 0;
@@ -485,6 +677,7 @@ let log com str =
 let clone com =
 	let t = com.basic in
 	{ com with
+		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;
@@ -495,7 +688,7 @@ let clone com =
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
+			display_module_has_macro_defines = false;
 		};
 		defines = {
 			values = com.defines.values;
@@ -589,7 +782,7 @@ let rec has_feature com f =
 	with Not_found ->
 		if com.types = [] then not (has_dce com) else
 		match List.rev (ExtString.String.nsplit f ".") with
-		| [] -> assert false
+		| [] -> die "" __LOC__
 		| [cl] -> has_feature com (cl ^ ".*")
 		| field :: cl :: pack ->
 			let r = (try
@@ -741,12 +934,12 @@ let to_utf8 str p =
 		UTF8.Malformed_code ->
 			(* ISO to utf8 *)
 			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			String.iter (fun c -> UTF8.Buf.add_char b (UCharExt.of_char c)) str;
 			UTF8.Buf.contents b
 	in
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
-		let c = UChar.code c in
+		let c = UCharExt.code c in
 		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
@@ -770,7 +963,7 @@ let utf16_add buf c =
 
 let utf8_to_utf16 str zt =
 	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	(try UTF8.iter (fun c -> utf16_add b (UCharExt.code c)) str with Invalid_argument _ | UCharExt.Out_of_range -> ()); (* if malformed *)
 	if zt then utf16_add b 0;
 	Buffer.contents b
 
@@ -791,7 +984,7 @@ let utf16_to_utf8 str =
 				add (c lsr 8);
 				loop (i + 2);
 			end else
-				assert false;
+				die "" __LOC__;
 		end
 	in
 	loop 0;
@@ -813,3 +1006,28 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let dump_path com =
+	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
+
+let adapt_defines_to_macro_context defines =
+	let values = ref defines.values in
+	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
+	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
+	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
+	values := PMap.add "macro" "1" !values;
+	values := PMap.add (platform_name !Globals.macro_platform) "1" !values;
+	{values = !values; defines_signature = None }
+
+let is_legacy_completion com = match com.json_out with
+	| None -> true
+	| Some api -> !ServerConfig.legacy_completion
+
+let get_entry_point com =
+	Option.map (fun path ->
+		let m = List.find (fun m -> m.m_path = path) com.modules in
+		let c = ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types in
+		let e = Option.get com.main in (* must be present at this point *)
+		(snd path, c, e)
+	) com.main_class

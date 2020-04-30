@@ -108,4 +108,8 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = lua.Table.create();
+	}
 }

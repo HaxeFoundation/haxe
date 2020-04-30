@@ -8,6 +8,25 @@ class InlineCtor {
 	}
 }
 
+class Collection<V> {
+	public var amount:Int;
+	public inline function new(amount:Int) this.amount = amount;
+	public inline function count() return amount;
+	public inline function iterator() return new CollectionIterator(this);
+}
+
+class CollectionIterator<V> {
+	final set:Collection<V>;
+	var current:Int = 0;
+	public inline function new(set:Collection<V>) this.set = set;
+	public inline function hasNext() return current++ < set.amount;
+	public inline function next() return (null:V);
+}
+
+typedef Countable = {
+	function count():Int;
+}
+
 enum abstract MyEnum(String) to String {
 	var A = "a";
 }
@@ -86,6 +105,45 @@ class Test {
 	}
 
 	@:js('
+		var v_amount = 10;
+		var a = 10;
+	')
+	static function testInlineCtor_passedToInlineMethodAsAnonConstraint() {
+		var a = count(new Collection(10));
+	}
+	static inline function count<T:Countable>(v:T) {
+		return v.count();
+	}
+
+	@:js('
+		var _g_set_amount = 10;
+		var _g_current = 0;
+		while(_g_current++ < 10) {
+			var i = null;
+		}
+	')
+	static function testIterator_passedToInlineMethodAsAnonConstraint() {
+		iterIterator(new Collection(10).iterator());
+	}
+	static inline function iterIterator<V,T:Iterator<V>>(it:T) {
+		for(i in it) {}
+	}
+
+	@:js('
+		var _g_set_amount = 10;
+		var _g_current = 0;
+		while(_g_current++ < 10) {
+			var i = null;
+		}
+	')
+	static function testIterable_passedToInlineMethodAsAnonConstraint() {
+		iterIterable(new Collection(10));
+	}
+	static inline function iterIterable<V,T:Iterable<V>>(it:T) {
+		for(i in it) {}
+	}
+
+	@:js('
 		var x_foo = 1;
 		var x_bar = 2;
 		var y = 1;
@@ -102,9 +160,9 @@ class Test {
 
 	@:js('var x = { "oh-my" : "god"};')
 	static function testStructureInlineInvalidField() {
-        var x = {
-            "oh-my": "god"
-        };
+		var x = {
+			"oh-my": "god"
+		};
 	}
 
 	@:js('

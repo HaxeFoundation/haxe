@@ -106,4 +106,9 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		s.add("}");
 		return s.toString();
 	}
+
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
+		k = untyped __dollar__hnew(0);
+	}
 }

@@ -34,8 +34,6 @@ class TestArrowFunctions extends Test {
 
 	var maybe : Void -> Bool;
 
-	#if !as3
-
 	function testSyntax(){
 		maybe = () -> Math.random() > 0.5;
 
@@ -145,5 +143,4 @@ class TestArrowFunctions extends Test {
 
 		obj = { f : a -> a + a };
 	}
-	#end
 }

@@ -26,6 +26,10 @@ import lua.NativeStringTools;
 @:keepInit
 @:coreApi class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
 		return untyped lua.Boot.__instanceof(v, t);
 	}
 
@@ -39,8 +43,8 @@ import lua.NativeStringTools;
 	}
 
 	@:keep
-	public static function string(s:Dynamic):String {
-		return untyped lua.Boot.__string_rec(s);
+	public static function string(s:Dynamic) : String {
+		return untyped _hx_tostring(s, 0);
 	}
 
 	public static function int(x:Float):Int {
@@ -53,9 +57,14 @@ import lua.NativeStringTools;
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^[ \t\r\n]*([%-+]*0[xX][%da-fA-F]*)");
 		if (hexMatch != null) {
-			return lua.Lua.tonumber(hexMatch.substr(2), 16);
+			var sign = switch StringTools.fastCodeAt(hexMatch, 0) {
+				case '-'.code: -1;
+				case '+'.code: 1;
+				case _: 0;
+			}
+			return (sign == -1 ? -1 : 1) * lua.Lua.tonumber(hexMatch.substr(sign == 0 ? 2 : 3), 16);
 		} else {
 			var intMatch = NativeStringTools.match(x, "^ *[%-+]?%d*");
 			if (intMatch != null) {

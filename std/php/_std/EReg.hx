@@ -37,11 +37,16 @@ import php.*;
 		this.pattern = r;
 		options = Global.str_replace('g', '', opt);
 		global = options != opt;
+		options = Global.str_replace('u', '', options);
 		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + options;
 	}
 
 	public function match(s:String):Bool {
-		var p = Global.preg_match(reUnicode, s, matches, Const.PREG_OFFSET_CAPTURE);
+		return matchFromByte(s, 0);
+	}
+
+	inline function matchFromByte(s:String, bytesOffset:Int):Bool {
+		var p = Global.preg_match(reUnicode, s, matches, Const.PREG_OFFSET_CAPTURE, bytesOffset);
 		if (p == false) {
 			handlePregError();
 			p = Global.preg_match(re, s, matches, Const.PREG_OFFSET_CAPTURE);
@@ -65,9 +70,9 @@ import php.*;
 		} else if (e == Const.PREG_JIT_STACKLIMIT_ERROR) {
 			throw 'failed due to limited JIT stack space';
 		}
-		// else if(e == PREG_BAD_UTF8_ERROR) {
+		// else if(e == Const.PREG_BAD_UTF8_ERROR) {
 		// 	throw 'EReg: malformed UTF8';
-		// } else if(e == PREG_BAD_UTF8_OFFSET_ERROR) {
+		// } else if(e == Const.PREG_BAD_UTF8_OFFSET_ERROR) {
 		// 	throw 'EReg: the offset didn\'t correspond to the begin of a valid UTF-8 code point';
 		// }
 	}
@@ -75,7 +80,7 @@ import php.*;
 	public function matched(n:Int):String {
 		if (matches == null || n < 0)
 			throw "EReg::matched";
-		// we can't differenciate between optional groups at the end of a match
+		// we can't differentiate between optional groups at the end of a match
 		// that have not been matched and invalid groups
 		if (n >= Global.count(matches))
 			return null;
@@ -143,30 +148,25 @@ import php.*;
 	}
 
 	public function map(s:String, f:EReg->String):String {
-		var offset = 0;
-		var buf = new StringBuf();
-		var length = s.length;
-		do {
-			if (offset >= length) {
-				break;
-			} else if (!matchSub(s, offset)) {
-				buf.add(s.substr(offset));
-				break;
-			}
-			var p = matchedPos();
-			buf.add(s.substr(offset, p.pos - offset));
-			buf.add(f(this));
-			if (p.len == 0) {
-				buf.add(s.substr(p.pos, 1));
-				offset = p.pos + 1;
-			} else {
-				offset = p.pos + p.len;
-			}
-		} while (global);
-		if (!global && offset > 0 && offset < length) {
-			buf.add(s.substr(offset));
+		if(!matchFromByte(s, 0)) {
+			return s;
 		}
-		return buf.toString();
+		var result = '';
+		var bytesOffset = 0;
+		var bytesTotal = Global.strlen(s);
+		do {
+			result += Global.substr(s, bytesOffset, matches[0][1] - bytesOffset);
+			result += f(this);
+			bytesOffset = matches[0][1];
+			if(matches[0][0] == '') {
+				result += Global.mb_substr(Global.substr(s, bytesOffset), 0, 1);
+				bytesOffset++;
+			} else {
+				bytesOffset += Global.strlen(matches[0][0]);
+			}
+		} while(global && bytesOffset < bytesTotal && matchFromByte(s, bytesOffset));
+		result += Global.substr(s, bytesOffset);
+		return result;
 	}
 
 	public static inline function escape(s:String):String {

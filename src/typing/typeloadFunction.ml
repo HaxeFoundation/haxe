@@ -82,6 +82,7 @@ let type_function_arg_value ctx t c do_display =
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
+				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
@@ -254,7 +255,7 @@ let add_constructor ctx c force_constructor p =
 				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
 				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) when not csup.cl_extern -> v, null()
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
 				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def
@@ -274,7 +275,7 @@ let add_constructor ctx c force_constructor p =
 							in
 							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
-					| _ -> assert false
+					| _ -> die "" __LOC__
 			) in
 			let p = c.cl_pos in
 			let vars = List.map (fun (v,def) -> alloc_var (VUser TVOArgument) v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in

@@ -23,24 +23,41 @@
 package hl.types;
 
 import hl.types.ArrayBase;
+import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
-class ArrayDynIterator {
+class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	var a:ArrayBase;
-	var len:Int;
-	var pos:Int;
 
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
-		this.len = a.length;
-		this.pos = 0;
 	}
 
-	public function hasNext() {
-		return pos < len;
+	override public function hasNext() {
+		return current < a.length;
 	}
 
-	public function next() {
-		return a.getDyn(pos++);
+	override public function next() {
+		return a.getDyn(current++);
+	}
+}
+
+class ArrayDynKeyValueIterator extends ArrayKeyValueIterator<Dynamic> {
+	var a : ArrayBase;
+
+	public function new(a) {
+		super((null:Dynamic));
+		this.a = a;
+	}
+
+	override public function hasNext() {
+		return current < a.length;
+	}
+
+	override public function next() {
+		var v = a.getDyn(current);
+		return {key:current++, value:v};
 	}
 }
 
@@ -131,6 +148,10 @@ class ArrayDyn extends ArrayAccess {
 		array.insertDyn(pos, x);
 	}
 
+	public function contains(x:Dynamic):Bool {
+		return array.containsDyn(x);
+	}
+
 	public function remove(x:Dynamic):Bool {
 		return array.removeDyn(x);
 	}
@@ -169,8 +190,12 @@ class ArrayDyn extends ArrayAccess {
 		return alloc(ArrayObj.alloc(a), true);
 	}
 
-	public function iterator():Iterator<Dynamic> {
+	public function iterator():ArrayIterator<Dynamic> {
 		return new ArrayDynIterator(array);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<Dynamic> {
+		return new ArrayDynKeyValueIterator(array);
 	}
 
 	public function map(f:Dynamic->Dynamic):ArrayDyn {

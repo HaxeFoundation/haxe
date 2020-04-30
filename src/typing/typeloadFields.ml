@@ -29,6 +29,18 @@ open CompletionItem.ClassFieldOrigin
 open Common
 open Error
 
+class context_init = object(self)
+	val mutable l = []
+
+	method add (f : unit -> unit) =
+		l <- f :: l
+
+	method run =
+		let l' = l in
+		l <- [];
+		List.iter (fun f -> f()) (List.rev l')
+end
+
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
 	is_lib : bool;
@@ -37,7 +49,7 @@ type class_init_ctx = {
 	is_class_debug : bool;
 	extends_public : bool;
 	abstract : tabstract option;
-	context_init : unit -> unit;
+	context_init : context_init;
 	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
@@ -103,11 +115,13 @@ let dump_field_context fctx =
 	]
 
 
-let is_java_native_function meta = try
+let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
-		| (Meta.Native,[],_) -> true
+		| (Meta.Native,[],_) ->
+			ctx.com.warning "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			true
 		| _ -> false
-	with | Not_found -> false
+	with | Not_found -> Meta.has Meta.NativeJni meta
 
 (**** end of strict meta handling *****)
 
@@ -125,7 +139,10 @@ let get_struct_init_super_info ctx c p =
 			let args = (try get_method_args ctor with Not_found -> []) in
 			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = match value with Some _ -> true | None -> false in
+					let opt = match value with
+						| Some _ -> true
+						| None -> Meta.has Meta.Optional v.v_meta
+					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
@@ -159,6 +176,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
+			| Var { v_write = AccNever } -> args,el,tl
 			| Var _ ->
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
@@ -166,6 +184,8 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
+				if opt && not (Meta.has Meta.Optional v.v_meta) then
+					v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta;
 				(* this.field = <constructor_argument> *)
 				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
@@ -202,8 +222,6 @@ let transform_abstract_field com this_t a_t a f =
 	let p = f.cff_pos in
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
-		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
@@ -325,6 +343,11 @@ type enum_abstract_mode =
 	| EAInt of int ref
 	| EAOther
 
+type enum_constructor_visibility =
+	| VUnknown
+	| VPublic of placed_access
+	| VPrivate of placed_access
+
 let build_enum_abstract ctx c a fields p =
 	let mode =
 		if does_unify a.a_this ctx.t.tint then EAInt (ref 0)
@@ -334,7 +357,31 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
-			field.cff_access <- [AStatic,null_pos; if (List.mem_assoc APrivate field.cff_access) then (APrivate,null_pos) else (APublic,null_pos)];
+			let check_visibility_conflict visibility p1 =
+				match visibility with
+				| VUnknown ->
+					()
+				| VPublic(access,p2) | VPrivate(access,p2) ->
+					display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx "Conflicts with this" p2;
+			in
+			let rec loop visibility acc = match acc with
+				| (AExtern,p) :: acc ->
+					display_error ctx "extern modifier is not allowed on enum abstract fields" p;
+					loop visibility acc
+				| (APrivate,p) as access :: acc ->
+					check_visibility_conflict visibility p;
+					loop (VPrivate access) acc
+				| (APublic,p) as access :: acc ->
+					check_visibility_conflict visibility p;
+					loop (VPublic access) acc
+				| _ :: acc ->
+					loop visibility acc
+				| [] ->
+					visibility
+			in
+			let visibility = loop VUnknown field.cff_access in
+			field.cff_access <- [AStatic,null_pos; match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
 			field.cff_meta <- (Meta.Enum,[],null_pos) :: (Meta.Impl,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
@@ -349,7 +396,7 @@ let build_enum_abstract ctx c a fields p =
 				| None ->
 					if not c.cl_extern then begin match mode with
 						| EAString ->
-							set_field (EConst (String (fst field.cff_name)),null_pos)
+							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
 							set_field (EConst (Int (string_of_int !i)),null_pos);
 							incr i;
@@ -392,7 +439,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
-				context_init();
+				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
@@ -404,7 +451,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
 						(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 							ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
-						context_init();
+						context_init#run;
 						let e = build_enum_abstract ctx c a (fvars()) p in
 						fbuild e;
 					| _ ->
@@ -460,7 +507,7 @@ let create_class_context ctx c context_init p =
 		tthis = (match abstract with
 			| Some a ->
 				(match a.a_this with
-				| TMono r when !r = None -> TAbstract (a,List.map snd c.cl_params)
+				| TMono r when r.tm_type = None -> TAbstract (a,List.map snd c.cl_params)
 				| t -> t)
 			| None -> TInst (c,List.map snd c.cl_params));
 		on_error = (fun ctx msg ep ->
@@ -590,6 +637,24 @@ let type_opt (ctx,cctx) p t =
 	| _ ->
 		load_type_hint ctx p t
 
+let transform_field (ctx,cctx) c f fields p =
+	let f = match cctx.abstract with
+		| Some a ->
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+			transform_abstract_field ctx.com this_t a_t a f
+		| None ->
+			f
+	in
+	if List.mem_assoc AMacro f.cff_access then
+		(match ctx.g.macros with
+		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
+			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
+				error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
+		| _ -> ());
+	f
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -598,24 +663,7 @@ let build_fields (ctx,cctx) c fields =
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
 		| EVars [_,_,Some (CTAnonymous f,p),None] ->
-			let f = List.map (fun f ->
-				let f = match cctx.abstract with
-					| Some a ->
-						let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
-						let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-						transform_abstract_field ctx.com this_t a_t a f
-					| None ->
-						f
-				in
-				if List.mem_assoc AMacro f.cff_access then
-					(match ctx.g.macros with
-					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
-						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
-						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
-							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
-					| _ -> ());
-				f
-			) f in
+			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
 			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
@@ -628,7 +676,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
-		| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
+		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
 		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let force_macro () =
@@ -645,7 +693,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 	in
 	if ctx.com.display.dms_full_typing then begin
 		if fctx.is_macro && not ctx.in_macro then
-			()
+			force_macro ()
 		else begin
 			cf.cf_type <- TLazy r;
 			(* is_lib ? *)
@@ -743,7 +791,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 			(* type constant init fields (issue #1956) *)
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				r := lazy_processing (fun() -> t);
-				cctx.context_init();
+				cctx.context_init#run;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = TypeloadFunction.type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -797,10 +845,8 @@ let bind_var (ctx,cctx,fctx) cf e =
 					begin match c.cl_kind with
 						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
 							unify ctx t (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) p;
-							begin match e.eexpr with
-								| TCast(e1,None) -> unify ctx e1.etype a.a_this e1.epos
-								| _ -> assert false
-							end
+							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
+							unify ctx e1.etype a.a_this e1.epos
 						| _ ->
 							()
 					end;
@@ -874,6 +920,17 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
 				| (Meta.To,_,_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
+					(match cf.cf_kind, cf.cf_type with
+					| Var _, _ ->
+						error "@:to meta should be used on methods" p
+					| Method _, TFun(args, _) when not fctx.is_abstract_member && List.length args <> 1 ->
+						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+						error ("static @:to method should have one argument") p
+					| Method _, TFun(args, _) when fctx.is_abstract_member && List.length args <> 1 ->
+						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+						error "@:to method should have no arguments" p
+					| _ -> ()
+					);
 					(* TODO: this doesn't seem quite right... *)
 					if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],null_pos) :: cf.cf_meta;
 					let resolve_m args =
@@ -893,7 +950,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
 								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> assert false
+								| _ -> die "" __LOC__
 							in
 							args
 						end else
@@ -1000,7 +1057,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if ctx.in_macro then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			c.cl_extern <- false;
-			let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
 				| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
@@ -1014,7 +1071,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = fd.f_expr;
 			}
 		end else
-			let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None },null_pos) in
+			let tdyn = Some (CTPath (mk_type_path ([],"Dynamic")),null_pos) in
 			let to_dyn p t = match t with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
@@ -1048,7 +1105,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
+	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
+	let is_override = Option.is_some fctx.override in
+	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
+
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
@@ -1092,14 +1152,14 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			with Not_found ->
 				()
 	) parent;
-	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
+	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
 	let r = exc_protect ~force:false ctx (fun r ->
 		if not !return_partial_type then begin
 			r := lazy_processing (fun() -> t);
-			cctx.context_init();
+			cctx.context_init#run;
 			incr stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
 			let fmode = (match cctx.abstract with
@@ -1112,13 +1172,13 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
 			begin match ctx.com.platform with
-				| Java when is_java_native_function cf.cf_meta ->
+				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if fd.f_expr <> None then
-						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if cf.cf_name = Parser.magic_display_field_name then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
@@ -1218,8 +1278,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						), p))
 			in
 			let t2, f2 = get_overload overloads in
-			(* accessors must be public on As3 (issue #1872) *)
-			if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],null_pos) :: f2.cf_meta;
 			(match f2.cf_kind with
 				| Method MethMacro ->
 					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
@@ -1237,7 +1295,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			| Not_found ->
 				if c.cl_interface then begin
 					let cf = mk_field m t p null_pos in
-					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
@@ -1290,7 +1348,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
-	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
+	if (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1322,16 +1380,25 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if starts_with name '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
+	if not c.cl_extern && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
-		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) p
-		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) p
+		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
+		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;
 	begin match fctx.override with
-		| Some _ -> (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
+		| Some _ ->
+			(match c.cl_super with
+			| None ->
+				let p =
+					try List.assoc AOverride f.cff_access
+					with Not_found -> p
+				in
+				error ("Invalid override on field '" ^ name ^ "': class has no super class") p
+			| _ -> ()
+			);
 		| None -> ()
 	end;
 	begin match cctx.abstract with
@@ -1347,16 +1414,38 @@ let init_field (ctx,cctx,fctx) f =
 	| FProp (get,set,t,eo) ->
 		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 
+let check_overload ctx f fs =
+	try
+		let f2 =
+			List.find (fun f2 ->
+				f != f2 &&
+				Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Same
+			) fs
+		in
+		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+		display_error ctx ("The second field is declared here") f2.cf_pos
+	with Not_found ->
+		try
+			let f2 =
+				List.find (fun f2 ->
+					f != f2 &&
+					Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Impl_conflict
+				) fs
+			in
+			display_error ctx (
+				"Another overloaded field of similar signature was already declared : " ^
+				f.cf_name ^
+				"\nThe signatures are different in Haxe, but not in the target language"
+			) f.cf_pos;
+			display_error ctx ("The second field is declared here") f2.cf_pos
+		with | Not_found -> ()
+
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
 	List.iter (fun f ->
 		if Meta.has Meta.Overload f.cf_meta then
-			List.iter (fun f2 ->
-				try
-					ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
-					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
-				with | Not_found -> ()
-		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+			check_overload ctx f (f :: f.cf_overloads)
+	) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
 let init_class ctx c p context_init herits fields =
 	let ctx,cctx = create_class_context ctx c context_init p in
@@ -1384,7 +1473,7 @@ let init_class ctx c p context_init herits fields =
 						| _ -> ""
 					in
 					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
-						Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+						Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
 			in
@@ -1394,17 +1483,24 @@ let init_class ctx c p context_init herits fields =
 	in
 	let rec check_if_feature = function
 		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String s) -> s | _ -> error "String expected" p) el
+		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> error "String expected" p) el
 		| _ :: l -> check_if_feature l
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
+	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
 			let ctx,fctx = create_field_context (ctx,cctx) c f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
+			if fctx.field_kind = FKInit then begin
+				if !has_init then
+					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+					has_init := true
+			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
 				error "You can't declare static fields in interfaces" p;
@@ -1450,7 +1546,11 @@ let init_class ctx c p context_init herits fields =
 						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: mainf.cf_overloads
 					else
-						display_error ctx ("Duplicate class field declaration : " ^ s_type_path c.cl_path ^ "." ^ cf.cf_name) p
+						let type_kind,path = match c.cl_kind with
+							| KAbstractImpl a -> "abstract",a.a_path
+							| _ -> "class",c.cl_path
+						in
+						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
 			end
@@ -1493,9 +1593,18 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-	let has_struct_init = Meta.has Meta.StructInit c.cl_meta in
+	let has_struct_init, struct_init_pos =
+		try
+			let _,_,p = Meta.get Meta.StructInit c.cl_meta in
+			true, p
+		with Not_found ->
+			false, null_pos
+	in
 	if has_struct_init then
-		ensure_struct_init_constructor ctx c fields p;
+		if c.cl_interface then
+			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
+		else
+			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
 		| Some pf when c.cl_constructor = None ->
 			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
@@ -1509,13 +1618,10 @@ let init_class ctx c p context_init herits fields =
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
 	| Some ctor ->
-		delay ctx PTypeField (fun() ->
+		delay ctx PTypeField (fun () ->
+			(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
 			List.iter (fun f ->
-				try
-					(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-					ignore(List.find (fun f2 -> f != f2 && Overloads.same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
-					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-				with Not_found -> ()
+				check_overload ctx f (ctor :: ctor.cf_overloads)
 			) (ctor :: ctor.cf_overloads)
 		)
 	| _ -> ());

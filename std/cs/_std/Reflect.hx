@@ -90,7 +90,7 @@ import cs.system.reflection.*;
 			var ret = [];
 			untyped ihx.__hx_getFields(ret);
 			return ret;
-		} else if (Std.is(o, cs.system.Type)) {
+		} else if (Std.isOfType(o, cs.system.Type)) {
 			return Type.getClassFields(o);
 		} else {
 			return instanceFields(untyped o.GetType());
@@ -109,7 +109,7 @@ import cs.system.reflection.*;
 	}
 
 	inline public static function isFunction(f:Dynamic):Bool {
-		return Std.is(f, Function);
+		return Std.isOfType(f, Function);
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
@@ -121,7 +121,7 @@ import cs.system.reflection.*;
 		if (f1 == f2)
 			return true;
 
-		if (Std.is(f1, Closure) && Std.is(f2, Closure)) {
+		if (Std.isOfType(f1, Closure) && Std.isOfType(f2, Closure)) {
 			var f1c:Closure = cast f1;
 			var f2c:Closure = cast f2;
 
@@ -132,11 +132,11 @@ import cs.system.reflection.*;
 	}
 
 	public static function isObject(v:Dynamic):Bool {
-		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, cs.system.ValueType));
+		return v != null && !(Std.isOfType(v, HxEnum) || Std.isOfType(v, Function) || Std.isOfType(v, cs.system.ValueType));
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
-		return v != null && (Std.is(v, HxEnum) || Std.is(v, cs.system.Enum));
+		return v != null && (Std.isOfType(v, HxEnum) || Std.isOfType(v, cs.system.Enum));
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool {

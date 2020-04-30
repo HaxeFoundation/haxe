@@ -536,7 +536,7 @@ let get_delete_field ctx cl is_dynamic =
 		] in
 
 		if ctx.rcf_optimize then
-			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+			let v_name = match tf_args with (v,_) :: _ -> v | _ -> Globals.die "" __LOC__ in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
@@ -647,7 +647,7 @@ let implement_dynamic_object_ctor ctx cl =
 			match e1.eexpr, e2.eexpr with
 				| TConst(TInt i1), TConst(TInt i2) -> compare i1 i2
 				| TConst(TString s1), TConst(TString s2) -> compare s1 s2
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 		in
 
 		let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
@@ -999,7 +999,7 @@ let implement_get_set ctx cl =
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
-				(if names = [] then assert false);
+				(if names = [] then Globals.die "" __LOC__);
 				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 			) fields in
 			let default = Some(do_default()) in
@@ -1169,6 +1169,8 @@ let implement_invokeField ctx slow_invoke cl =
 			has_method := true;
 			let i = ref 0 in
 			let dyn_arg_local = mk_local dynamic_arg pos in
+			let length_name = match ctx.rcf_gen.gcon.platform with Cs -> "Length" | _ -> "length" in
+			let dyn_arg_length = field dyn_arg_local length_name ctx.rcf_gen.gcon.basic.tint pos in
 			let cases = List.map (switch_case ctx pos) names in
 
 			let mk_this_call cf params =
@@ -1177,10 +1179,15 @@ let implement_invokeField ctx slow_invoke cl =
 			in
 			(cases,
 				mk_return (
-					mk_this_call cf (List.map (fun (name,_,t) ->
-						let ret = { eexpr = TArray(dyn_arg_local, make_int ctx.rcf_gen.gcon.basic !i pos); etype = t_dynamic; epos = pos } in
+					mk_this_call cf (List.map (fun (name,optional,t) ->
+						let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
+						let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
 						incr i;
-						ret
+						if optional then
+							let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in
+							mk (TIf (condition, ret, Some (make_null ret.etype pos))) ret.etype pos
+						else
+							ret
 					) (fst (get_fun (cf.cf_type))))
 				)
 			)

@@ -1,7 +1,6 @@
-import java.lang.invoke.*;
 import java.lang.NoSuchMethodException;
-import jvm.annotation.*;
 import jvm.Jvm;
+import jvm.annotation.*;
 
 using jvm.NativeTools.NativeClassTools;
 using jvm.NativeTools.NativeEnumTools;
@@ -133,43 +132,40 @@ class Type {
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var args = @:privateAccess args.getNative();
 		var cl = cl.native();
-		var argTypes = Jvm.getArgumentTypes(args);
-		var methodType = MethodType.methodType(cast Void, argTypes);
-		// 1. attempt: direct constructor lookup
-		try {
-			var ctor = MethodHandles.lookup().findConstructor(cl, methodType);
-			return ctor.invokeWithArguments(args);
-		} catch (_:NoSuchMethodException) {}
-
-		// 2. attempt direct new lookup
-		try {
-			var ctor = MethodHandles.lookup().findVirtual(cl, "new", methodType);
-			var obj = cl.getConstructor(emptyClass).newInstance(emptyArg);
-			ctor.bindTo(obj).invokeWithArguments(args);
-			return obj;
-		} catch (_:NoSuchMethodException) {}
-
-		// 3. attempt: unify actual constructor
-		for (ctor in cl.getDeclaredConstructors()) {
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
-				case Some(args):
-					return MethodHandles.lookup().unreflectConstructor(ctor).invokeWithArguments(args);
-				case None:
-			}
-		}
-
-		// 4. attempt: unify new
-		for (ctor in cl.getDeclaredMethods()) {
-			if (ctor.getName() != "new") {
+		var ctors = cl.getConstructors();
+		var emptyCtor:Null<java.lang.reflect.Constructor<T>> = null;
+		// 1. Look for real constructor. If we find the EmptyConstructor constructor, store it
+		for (ctor in ctors) {
+			var params = ctor.getParameterTypes();
+			if (params.length == 1 && params[0] == jvm.EmptyConstructor.native()) {
+				emptyCtor = cast ctor;
 				continue;
 			}
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
+			switch (Jvm.unifyCallArguments(args, params, true)) {
 				case Some(args):
-					return MethodHandles.lookup().unreflect(ctor).invokeWithArguments(args);
+					ctor.setAccessible(true);
+					return ctor.newInstance(args);
 				case None:
 			}
 		}
-
+		// 2. If there was the EmptyConstructor constructor, look for a matching new method
+		if (emptyCtor != null) {
+			var methods = cl.getMethods();
+			for (method in methods) {
+				if (method.getName() != "new") {
+					continue;
+				}
+				var params = method.getParameterTypes();
+				switch (Jvm.unifyCallArguments(args, params, true)) {
+					case Some(args):
+						var obj = emptyCtor.newInstance(emptyArg);
+						method.setAccessible(true);
+						method.invoke(obj, args);
+						return obj;
+					case None:
+				}
+			}
+		}
 		return null;
 	}
 
@@ -185,7 +181,7 @@ class Type {
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		if (params == null || params.length == 0) {
 			var v:Dynamic = Jvm.readField(e, constr);
-			if (!Std.is(v, e)) {
+			if (!Std.isOfType(v, e)) {
 				throw 'Could not create enum value ${getEnumName(e)}.$constr: Unexpected value $v';
 			}
 			return v;
@@ -260,7 +256,7 @@ class Type {
 		if (Jvm.instanceof(v, jvm.DynamicObject)) {
 			return TObject;
 		}
-		if (Jvm.instanceof(v, java.lang.invoke.MethodHandle)) {
+		if (Jvm.instanceof(v, jvm.Function)) {
 			return TFunction;
 		}
 		var c = (cast v : java.lang.Object).getClass();
@@ -278,31 +274,9 @@ class Type {
 		if (a == null) {
 			return b == null;
 		}
-		if (b == null) {
-			return false;
-		}
 		var a:jvm.Enum<Dynamic> = cast a;
 		var b:jvm.Enum<Dynamic> = cast b;
-		if (a.ordinal() != b.ordinal()) {
-			return false;
-		}
-		var params1 = a._hx_getParameters();
-		var params2 = b._hx_getParameters();
-		if (params1.length != params2.length) {
-			return false;
-		}
-		for (i in 0...params1.length) {
-			if (params1[i] != params2[i]) {
-				if (Jvm.instanceof(params1[i], jvm.Enum)) {
-					if (!enumEq(params1[i], params2[i])) {
-						return false;
-					}
-				} else {
-					return false;
-				}
-			}
-		}
-		return true;
+		return a.equals(b);
 	}
 
 	public static function enumConstructor(e:EnumValue):String {

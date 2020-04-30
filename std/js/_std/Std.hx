@@ -21,10 +21,15 @@
  */
 
 import js.Boot;
+import js.Syntax;
 
 @:keepInit
 @:coreApi class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
@@ -48,14 +53,21 @@ import js.Boot;
 
 	@:pure
 	public static function parseInt(x:String):Null<Int> {
-		var v = untyped __js__('parseInt({0}, {0} && {0}[0]=="0" && ({0}[1]=="x" || {0}[1]=="X") ? 16 : 10)', x);
-		if (untyped __js__("isNaN")(v))
-			return null;
-		return cast v;
+		if(x != null) {
+			for(i in 0...x.length) {
+				var c = StringTools.fastCodeAt(x, i);
+				if(c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
+					var nc = StringTools.fastCodeAt(x, i + 1);
+					var v = js.Lib.parseInt(x, (nc == "x".code || nc == "X".code) ? 16 : 10);
+					return Math.isNaN(v) ? null : cast v;
+				}
+			}
+		}
+		return null;
 	}
 
 	public static inline function parseFloat(x:String):Float {
-		return untyped __js__("parseFloat")(x);
+		return js.Syntax.code("parseFloat({0})", x);
 	}
 
 	public static function random(x:Int):Int {
@@ -70,15 +82,15 @@ import js.Boot;
 			__feature__("js.Boot.isClass", Array.__name__ = __feature__("Type.getClassName", "Array", true));
 			__feature__("Date.*", {
 				__feature__("js.Boot.getClass",
-					__js__('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = __js__('Date'), __js__('Date')));
-				__feature__("js.Boot.isClass", __js__('Date').__name__ = "Date");
+					js.Syntax.code('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
+				__feature__("js.Boot.isClass", js.Syntax.code('Date').__name__ = "Date");
 			});
-			__feature__("Int.*", __js__('var Int = { };'));
-			__feature__("Dynamic.*", __js__('var Dynamic = { };'));
-			__feature__("Float.*", __js__('var Float = Number'));
-			__feature__("Bool.*", __js__('var Bool = Boolean'));
-			__feature__("Class.*", __js__('var Class = { };'));
-			__feature__("Enum.*", __js__('var Enum = { };'));
+			__feature__("Int.*", js.Syntax.code('var Int = { };'));
+			__feature__("Dynamic.*", js.Syntax.code('var Dynamic = { };'));
+			__feature__("Float.*", js.Syntax.code('var Float = Number'));
+			__feature__("Bool.*", js.Syntax.code('var Bool = Boolean'));
+			__feature__("Class.*", js.Syntax.code('var Class = { };'));
+			__feature__("Enum.*", js.Syntax.code('var Enum = { };'));
 			#if (js_es < 5)
 			__feature__("Array.map", if (Array.prototype.map == null) Array.prototype.map = function(f) {
 				var a = [];

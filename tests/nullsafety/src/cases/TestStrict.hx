@@ -824,11 +824,33 @@ class TestStrict {
 		a = b;
 	}
 
-	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+	function nonFinalField_immediatelyAfterCheck_shouldPass(o:{field:Null<String>}) {
 		if(o.field != null) {
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterLocalAssignment_shouldPass(o:{field:Null<String>}, b:{field:Null<String>}) {
+		if(o.field != null) {
+			b = {field:null};
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterFieldAssignment_shouldFail(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+		if(o.field != null) {
+			b.o = {field:null};
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function nonFinalField_afterSomeCall_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			someCall();
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+	function someCall() {}
 
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
@@ -875,6 +897,52 @@ class TestStrict {
 			(function() s.length)();
 		}
 	}
+
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
+		}
+	}
+
+	function safetyOffArgument_shouldPass(?a:String) {
+		staticSafetyOffArgument(a);
+		instanceSafetyOffArgument(a);
+		inline instanceSafetyOffArgument(a);
+	}
+	static function staticSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {}
+	function instanceSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {
+		return staticSafetyOffArgument(b);
+	}
+
+	static function issue8122_abstractOnTopOfNullable() {
+		var x:NullFloat = null;
+		var y:Float = x.val();
+		x += x;
+	}
+
+	static function issue8443_nullPassedToInline_shouldPass() {
+		inline function method(?map: (Int)->Int) {
+			return map != null ? map(0) : -1;
+		}
+
+		var x:Int = method();
+	}
+
+	static function issue7900_trace() {
+		var x:Null<()->String> = null;
+		trace(x);
+		trace("hi", x);
+		trace("hi", shouldFail(x()));
+	}
+
+	@:shouldFail @:nullSafety(InvalidArgument)
+	static function invalidMetaArgument_shouldFail() {}
 }
 
 private class FinalNullableFields {
@@ -908,4 +976,14 @@ private class Child extends Parent {
 	static var tmp:Any = '';
 	override public function execute(cb:()->Void) tmp = cb;
 	public function childExecute(cb:()->Void) cb();
+}
+
+abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
+	public inline function val(): Float {
+		return this != null ? this : 0.0;
+	}
+
+	@:op(A + B) static inline function addOp1(lhs: NullFloat, rhs: Float): Float {
+		return lhs != null ? lhs.val() + rhs : rhs;
+	}
 }

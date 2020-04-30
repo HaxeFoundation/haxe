@@ -21,6 +21,7 @@
  */
 
 import cs.NativeArray;
+import haxe.iterators.ArrayKeyValueIterator;
 
 #if core_api_serialize
 @:meta(System.Serializable)
@@ -390,18 +391,31 @@ final class Array<T> implements ArrayAccess<T> {
 		return false;
 	}
 
-	public function map<S>(f:T->S):Array<S> {
-		var ret = [];
-		for (elt in this)
-			ret.push(f(elt));
+	public inline function map<S>(f:T->S):Array<S> {
+		var ret = alloc(length);
+		for (i in 0...length)
+			ret.__unsafe_set(i, f(__unsafe_get(i)));
 		return ret;
 	}
 
-	public function filter(f:T->Bool):Array<T> {
+	public function contains(x:T):Bool {
+		var __a = __a;
+		var i = -1;
+		var length = length;
+		while (++i < length) {
+			if (__a[i] == x)
+				return true;
+		}
+		return false;
+	}
+
+	public inline function filter(f:T->Bool):Array<T> {
 		var ret = [];
-		for (elt in this)
+		for (i in 0...length) {
+			var elt = __unsafe_get(i);
 			if (f(elt))
 				ret.push(elt);
+		}
 		return ret;
 	}
 
@@ -413,8 +427,13 @@ final class Array<T> implements ArrayAccess<T> {
 		return ofNative(newarr);
 	}
 
-	public inline function iterator():Iterator<T> {
-		return new ArrayIterator<T>(this);
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T>
+	{
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize(len:Int):Void {
@@ -457,22 +476,4 @@ final class Array<T> implements ArrayAccess<T> {
 	private inline function __unsafe_set(idx:Int, val:T):T {
 		return __a[idx] = val;
 	}
-}
-
-private final class ArrayIterator<T> {
-	var arr:Array<T>;
-	var len:Int;
-	var i:Int;
-
-	public inline function new(a:Array<T>) {
-		arr = a;
-		len = a.length;
-		i = 0;
-	}
-
-	public inline function hasNext():Bool
-		return i < len;
-
-	public inline function next():T
-		return arr[i++];
 }

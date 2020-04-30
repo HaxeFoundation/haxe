@@ -33,17 +33,8 @@ class StringBuf {
 		return b.length();
 	}
 
-	#if jvm
 	public function add<T>(x:T):Void {
-		if (jvm.Jvm.instanceof(x, java.lang.Double.DoubleClass)) {
-			b.append(jvm.Jvm.toString(cast x));
-		} else {
-			b.append(x);
-		}
-	}
-	#else
-	public function add<T>(x:T):Void {
-		if (Std.is(x, Int)) {
+		if (Std.isOfType(x, Int)) {
 			var x:Int = cast x;
 			var xd:Dynamic = x;
 			b.append(xd);
@@ -51,7 +42,6 @@ class StringBuf {
 			b.append(x);
 		}
 	}
-	#end
 
 	public function addSub(s:String, pos:Int, ?len:Int):Void {
 		var l:Int = (len == null) ? s.length - pos : len;

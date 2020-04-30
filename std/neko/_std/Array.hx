@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi final class Array<T> {
 	private var __a:neko.NativeArray<T>;
 
@@ -51,19 +54,12 @@
 		return new1(neko.NativeArray.sub(this.__a, 0, this.length), this.length);
 	}
 
-	public function iterator():Iterator<T> {
-		return untyped {
-			a: this,
-			p: 0,
-			hasNext: function() {
-				return __this__.p < __this__.a.length;
-			},
-			next: function() {
-				var i = __this__.a.__a[__this__.p];
-				__this__.p += 1;
-				return i;
-			}
-		};
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function insert(pos:Int, x:T):Void {
@@ -152,6 +148,19 @@
 				l -= 1;
 				this.length = l;
 				a[l] = null;
+				return true;
+			}
+			i += 1;
+		}
+		return false;
+	}
+
+	public function contains(x:T):Bool {
+		var i = 0;
+		var l = this.length;
+		var a = this.__a;
+		while (i < l) {
+			if (a[i] == x) {
 				return true;
 			}
 			i += 1;
@@ -286,14 +295,16 @@
 		return ret;
 	}
 
-	public function map<S>(f:T->S):Array<S> {
-		var ret = [];
-		for (elt in this)
-			ret.push(f(elt));
+	public inline function map<S>(f:T->S):Array<S> {
+		var l = length;
+		var ret = new1(neko.NativeArray.alloc(l), l);
+		for (i in 0...l) {
+			ret[i] = f(this[i]);
+		}
 		return ret;
 	}
 
-	public function filter(f:T->Bool):Array<T> {
+	public inline function filter(f:T->Bool):Array<T> {
 		var ret = [];
 		for (elt in this)
 			if (f(elt))

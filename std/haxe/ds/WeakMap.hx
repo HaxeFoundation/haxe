@@ -99,4 +99,9 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	public function toString():String {
 		return null;
 	}
+
+	/**
+		See `Map.clear`
+	**/
+	public function clear():Void {}
 }

@@ -381,6 +381,12 @@ extern class Global {
 	static function strcmp(str1:String, str2:String):Int;
 
 	/**
+		@see http://php.net/manual/en/function.strtr.php
+	**/
+	@:overload(function(str:String, from:NativeAssocArray<String>):String {})
+	static function strtr(str:String, from:String, to:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.str-repeat.php
 	**/
 	static function str_repeat(input:String, multiplier:Int):String;

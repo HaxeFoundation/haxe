@@ -27,7 +27,7 @@ open JvmSignature
 let utf8jvm (input : string) : bytes =
 	let channel = IO.output_bytes () in
 	UTF8.iter (fun c ->
-		let code = UChar.code c in
+		let code = UCharExt.code c in
 		match code with
 			| b when (b > 0 && b <= 0x7F) ->
 			IO.write_byte channel b
@@ -87,7 +87,7 @@ class constant_pool = object(self)
 	method add_path path =
 		let s = self#s_type_path path in
 		let offset = self#add_type s in
-		if String.contains (snd path) '$' then begin
+		if String.contains (snd path) '$' && not (ExtString.String.starts_with s "[") then begin
 			let name1,name2 = ExtString.String.split (snd path) "$" in
 			Hashtbl.replace inner_classes ((fst path,name1),name2) offset;
 		end;

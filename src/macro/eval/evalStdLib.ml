@@ -30,8 +30,6 @@ open EvalHash
 open EvalString
 open EvalThread
 
-let macro_lib = Hashtbl.create 0
-
 let catch_unix_error f arg =
 	try
 		f arg
@@ -154,6 +152,15 @@ module StdArray = struct
 		vstring s
 	)
 
+	let keyValueIterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_array_key_value_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
 	let lastIndexOf = vifun2 (fun vthis x fromIndex ->
 		let this = this vthis in
 		let last = this.alength - 1 in
@@ -188,6 +195,11 @@ module StdArray = struct
 	let remove = vifun1 (fun vthis x ->
 		let this = this vthis in
 		vbool (EvalArray.remove this equals x)
+	)
+
+	let contains = vifun1 (fun vthis x ->
+		let this = this vthis in
+		vbool (EvalArray.contains this equals x)
 	)
 
 	let reverse = vifun0 (fun vthis ->
@@ -302,7 +314,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let value = decode_int value in
-		(try Bytes.fill this pos len (char_of_int value) with _ -> outside_bounds());
+		(try Bytes.fill this pos len (char_of_int (value land 0xFF)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -534,7 +546,7 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdCallStack = struct
+module StdNativeStackTrace = struct
 	let make_stack envs =
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
@@ -620,7 +632,7 @@ module StdCompress = struct
 			| 2 -> Z_FULL_FLUSH
 			| 3 -> Z_FINISH
 			| 4 -> Z_PARTIAL_FLUSH
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		(this vthis).z_flush <- mode;
 		vnull
@@ -646,7 +658,7 @@ module StdContext = struct
 
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
-		Hashtbl.find macro_lib f
+		Hashtbl.find GlobalState.macro_lib f
 	)
 
 	let plugin_data = ref None
@@ -876,7 +888,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~rex:this.r s in
+			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
@@ -930,11 +942,13 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let pos = decode_int pos in
-		let len = default_int len (String.length s - pos) in
+		let len_default = String.length s - pos in
+		let len = default_int len len_default in
+		let len = if len < 0 then len_default else len in
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~rex:this.r ~pos str in
+			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -947,17 +961,17 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [encode_string ""]
+		if String.length s = 0 then encode_array [v_empty_string]
 		else begin
 			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~max ~rex:this.r s in
+			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
 			let rec loop split cur acc l = match l with
 				| Text s :: l ->
 					loop split (cur ^ s) acc l
@@ -1073,7 +1087,7 @@ module StdFileInput = struct
 		r := false;
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> assert false);
+		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> die "" __LOC__);
 		vnull
 	)
 
@@ -1125,7 +1139,7 @@ module StdFileOutput = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> assert false);
+		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> die "" __LOC__);
 		vnull
 	)
 
@@ -1542,10 +1556,15 @@ module StdIntMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = IntHashtbl.fold (fun key vvalue acc ->
-			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		IntHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1596,10 +1615,15 @@ module StdStringMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
-			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		StringHashtbl.clear (this vthis);
+		vnull
 	)
 end
 
@@ -1649,10 +1673,15 @@ module StdObjectMap = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
-			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join rempty [rbropen;s;rbrclose] in
+		let s = join empty_string [rbropen;s;rbrclose] in
 		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		ValueHashtbl.reset (this vthis);
+		vnull
 	)
 end
 
@@ -1977,7 +2006,7 @@ module StdSocket = struct
 		let s = catch_unix_error Unix.string_of_inet_addr addr in
 		match List.map Int32.of_string (ExtString.String.nsplit s ".") with
 			| [a;b;c;d] -> Int32.add (Int32.add (Int32.add (Int32.shift_left a 24) (Int32.shift_left b 16)) (Int32.shift_left c 8)) d
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let this vthis = match vthis with
 		| VInstance {ikind = ISocket sock} -> sock
@@ -1986,7 +2015,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2017,7 +2046,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	)
 
 	let listen = vifun1 (fun vthis connections ->
@@ -2034,7 +2063,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	)
 
 	let receive = vifun3 (fun vthis buf pos len ->
@@ -2132,11 +2161,13 @@ module StdSocket = struct
 end
 
 module StdStd = struct
-	let is' = vfun2 (fun v t -> match t with
+	let isOfType = vfun2 (fun v t -> match t with
 		| VNull -> vfalse
 		| VPrototype proto -> vbool (is v proto.ppath)
 		| _ -> vfalse
 	)
+
+	let is' = isOfType
 
 	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
@@ -2177,7 +2208,7 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_string ""
+		if i < 0 || i >= this.slength then v_empty_string
 		else vstring (from_char_code (char_at this i))
 	)
 
@@ -2275,7 +2306,7 @@ module StdString = struct
 		let cl_this = this.slength in
 		let c_pos = decode_int pos in
 		if c_pos >= cl_this then
-			encode_string ""
+			v_empty_string
 		else begin
 			let c_pos = if c_pos < 0 then begin
 				let c_pos = this.slength + c_pos in
@@ -2307,7 +2338,7 @@ module StdString = struct
 		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
 		let c_last = if c_last > cl_this then cl_this else c_last in
 		if c_first > cl_this || c_first = c_last then
-			encode_string ""
+			v_empty_string
 		else begin
 			begin
 				let b_offset1 = get_offset this c_first in
@@ -2995,7 +3026,7 @@ module StdUtf8 = struct
 		| v -> unexpected_value v "string"
 
 	let addChar = vifun1 (fun vthis c ->
-		UTF8.Buf.add_char (this vthis) (UChar.uchar_of_int (decode_int c));
+		UTF8.Buf.add_char (this vthis) (UCharExt.uchar_of_int (decode_int c));
 		vnull
 	)
 
@@ -3012,7 +3043,7 @@ module StdUtf8 = struct
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
-			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			Bytes.unsafe_set buf !i (UCharExt.char_of uc);
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
@@ -3021,12 +3052,12 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UCharExt.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
 		let s = decode_string s in
-		UTF8.iter (fun uc -> ignore(call_value f [vint (UChar.int_of_uchar uc)])) s;
+		UTF8.iter (fun uc -> ignore(call_value f [vint (UCharExt.int_of_uchar uc)])) s;
 		vnull
 	)
 
@@ -3069,6 +3100,7 @@ let init_maps builtins =
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
+		"clear",StdIntMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3080,6 +3112,7 @@ let init_maps builtins =
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
+		"clear",StdObjectMap.clear;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3091,6 +3124,7 @@ let init_maps builtins =
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
+		"clear",StdStringMap.clear;
 	]
 
 let init_constructors builtins =
@@ -3101,7 +3135,7 @@ let init_constructors builtins =
 			match vl with
 			| [size] ->
 				encode_vector_instance (Array.make (decode_int size) vnull)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_Date
 		(fun vl ->
@@ -3112,24 +3146,24 @@ let init_constructors builtins =
 					Unix.mktime {t with tm_sec=s;tm_min=mi;tm_hour=h;tm_mday=d;tm_mon=m;tm_year=y - 1900}
 				) () in
 				encode_instance key_Date ~kind:(IDate (fst f))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		);
 	add key_EReg
 		(fun vl -> match vl with
 			| [r;opt] -> encode_instance key_EReg ~kind:(StdEReg.create (decode_string r) (decode_string opt))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_String
 		(fun vl -> match vl with
 			| [s] -> s
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
 	add key_haxe_Utf8
 		(fun vl -> match vl with
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
@@ -3145,7 +3179,7 @@ let init_constructors builtins =
 				Bytes.blit b 0 b' 0 blit_length;
 				encode_bytes b'
 			| _ ->
-				assert false
+				die "" __LOC__
 		);
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
@@ -3157,11 +3191,11 @@ let init_constructors builtins =
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3169,7 +3203,7 @@ let init_constructors builtins =
 				let level = decode_int level in
 				let z = Extc.zlib_deflate_init level in
 				encode_instance key_haxe_zip_Compress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_haxe_zip_Uncompress
 		(fun vl -> match vl with
@@ -3177,7 +3211,7 @@ let init_constructors builtins =
 				let windowBits = default_int windowBits 15 in
 				let z = Extc.zlib_inflate_init2 windowBits in
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_eval_vm_Thread
 		(fun vl -> match vl with
@@ -3186,7 +3220,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_sys_net_Mutex
 		(fun _ ->
@@ -3212,7 +3246,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3220,7 +3255,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_string "");
+	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3238,12 +3273,14 @@ let init_standard_library builtins =
 		"insert",StdArray.insert;
 		"iterator",StdArray.iterator;
 		"join",StdArray.join;
+		"keyValueIterator",StdArray.keyValueIterator;
 		"lastIndexOf",StdArray.lastIndexOf;
 		"map",StdArray.map;
 		"pop",StdArray.pop;
 		"push",StdArray.push;
 		"remove",StdArray.remove;
 		"resize",StdArray.resize;
+		"contains",StdArray.contains;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
@@ -3301,9 +3338,9 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"],"CallStack") [
-		"getCallStack",StdCallStack.getCallStack;
-		"getExceptionStack",StdCallStack.getExceptionStack;
+	init_fields builtins (["haxe"],"NativeStackTrace") [
+		"_callStack",StdNativeStackTrace.getCallStack;
+		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
@@ -3508,7 +3545,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3532,6 +3569,7 @@ let init_standard_library builtins =
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
+		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
 		"string",StdStd.string;
@@ -3644,4 +3682,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

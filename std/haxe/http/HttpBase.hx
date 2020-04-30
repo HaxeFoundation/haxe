@@ -231,6 +231,7 @@ class HttpBase {
 
 	function success(data:Bytes) {
 		responseBytes = data;
+		responseAsString = null;
 		if (hasOnData()) {
 			onData(responseData);
 		}

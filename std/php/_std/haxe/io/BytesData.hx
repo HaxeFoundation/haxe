@@ -49,7 +49,7 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 
 	@:arrayAccess
 	public inline function set(index:Int, val:Int):Void {
-		this.s = Global.substr_replace(this.s, Global.chr(val), index, 1);
+		this.s[index] = Global.chr(val);
 	}
 
 	public inline function compare(other:BytesDataAbstract):Int {

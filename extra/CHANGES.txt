@@ -1,3 +1,166 @@
+????-??-??: 4.1.0
+
+	General improvements:
+
+	js : use abstract type name for generating its implementation class (#9006)
+	js : improve haxe.ds.StringMap implementation (#8909)
+	js : improve interface checking and make it more minifier-friendly (#9178)
+	lua : improve error handling behavior when throwing objects/instances.
+
+	Standard Library:
+
+	all : negative `startIndex` argument of `String.indexOf` and `String.lastIndexOf` is unspecified (#8365)
+	all : added Array.contains (#9179)
+
+2019-12-17: 4.0.5
+
+	Bugfixes:
+
+	java : fix boolean arguments for `Type.createInstance(cls, args)` (#9025)
+	jvm : fix static overloads (#9034)
+	java/cs : fixed `Reflect.makeVarArgs(fn)` for calls of `fn` without arguments (#9037)
+	js : fix multiple appearances of the first object added to `ObjectMap` is passed to `ObjectMap.set(obj, v)` multiple times (#9026)
+	js : automatically wrap compound expressions with parentheses when passed to `js.Syntax.code()` (#9024)
+	windows : fix adding neko to PATH env var running windows installer (#9021)
+
+2019-11-29: 4.0.3
+
+	General improvements:
+
+	hl : profiler API
+
+	Bugfixes:
+
+	all : fixed EnumValue handling in constant propagation with analyzer enabled (#8959)
+	all : fixed compiler crash upon Void items in array declarations (#8972)
+	hl : fixed `sys.thread.Lock` implementation for Hashlink 1.11+ (#8699)
+	js/eval/java/jvm/cs/python/lua : fixed `Std.parseInt()` for hexadecimals with leading whitespaces (#8978)
+	java/cs : fixed `Reflect.callMethod(o, method, args)` for `args` not containing optional arguments (#8975)
+	cs : fixed Json.stringify for @:struct-annotated classes (#8979)
+	cs : fixed bitwise shifts for `cs.types.Int64` (#8978)
+	python : fixed invalid generation of some inlined code blocks (#8971)
+	std : fixed an exception from `haxe.zip.Huffman` on reading a zip (#8875)
+	windows : workaround windows installer being detected as a malware by some anti-virus software (#8951)
+	windows : fix PATH env var modification when running windows installer without admin privileges (#8870)
+	all : fixed null-safety checker for field access on a call to inlined function
+
+2019-11-11: 4.0.2
+
+	General improvements and optimizations:
+
+	php : improved performance of `haxe.io.Bytes.get()` (#8938)
+	php : improved performance of serialization/unserialization of `haxe.io.Bytes` (#8943)
+	php : improved performance of enum-related methods in `Type` class of standard library
+
+	Bugfixes:
+
+	haxelib : Fixed too strict requirements to haxelib.json data for private libs
+	all : fixed `@:using` static extensions on `Null<SomeType>` (#8928)
+	php : fixed static methods with the same name in parent and child classes (#8944)
+
+2019-11-04: 4.0.1
+
+	Bugfixes:
+
+	haxelib : fixed git dependencies in haxelib.json
+	neko : updated windows & osx installer to install Neko 2.3.0 (#8906)
+	jvm : fixed compilation failure caused by a specific usage of `Array<Dynamic>` (#8872)
+	all : fixed compiler crash on loops with `continue` in all branches of the body (#8912)
+	all : fixed erasing typedef in AST on field access to forwarded abstract fields (#8919)
+
+
+2019-10-26: 4.0.0
+
+	General improvements:
+
+	js : updated externs for `Float32Array` and `Float64Array` (#8864)
+	php : added array access to `php.NativeStructArray` (#8893)
+
+	Bugfixes:
+
+	cs : fixed "This expression may be invalid" false warning (#8589)
+	php : fixed iterator fields on maps being removed (#8851)
+	php : fixed `-2147483648` as init value for static vars (#5289)
+	python : fixed modulo by a negative number (#8845)
+	java : fixed backslash escaping on `EReg.replace` (#3430)
+	lua : fixed `EReg.map` for unicode (#8861)
+	hl : fixed sqlite connection on OSX/Linux (#8878)
+
+2019-09-12: 4.0.0-rc.5
+
+	General improvements and optimizations:
+
+	eval: improved performance of regular expressions (#8693)
+
+	Bugfixes:
+
+	all: fixed regression, which caused compiler to crash on enum abstracts with explicit casting (#8765)
+	all: fixed regression of macro `@:from` methods on abstracts (#8779)
+	all: fixed switching on `this` (#8781)
+
+2019-09-04: 4.0.0-rc.4
+
+	Standard Library:
+
+	all : added Map.clear (#8681)
+	all : improved Date API (#8508)
+	all : added JSON-RPC protocol types to haxe.display package (#8610)
+	all : added default timeout to HTTP sockets (#8646)
+	macro : added Context.info (#8478)
+	macro : added Context.getMessages and Context.filterMessages (#8471)
+	macro : added function kind to EFunction (#8653)
+	macro : added string literal kind to CString (#8668)
+	flash : added flash.AnyType (#8549)
+
+	General improvements and optimizations:
+
+	all : allowed enum constructors without arguments as static inline var (#8187)
+	all : improved handling of default values when inlining (#8397)
+	all : made various improvements to the display API as usual
+	all : detect invalid #tokens in inactive code (#7108)
+	all : allowed function types in @:generic (#3697)
+	all : improved --help-defines and --help-metas
+	all : improved overall file finding (#8202)
+	all : improved server reaction to added and removed files (#8451)
+	all : improved memory handling of the compilation server (8727)
+	all : improved handling of native libraries on the compilation server (#8629)
+	all : support partial completion results (#8642)
+	all : improved support of hovering over inactive conditional compilation blocks
+	all : improved completion support in .platform.hx files
+	all : support hovering conditional compilation identifiers
+	all : improved and unified identifier checks for names, fields and types (#8708)
+	all : improved --times performance (#8733)
+	all : remove some redundant cast expressions (#8725)
+	all : added --server-connect (#8730)
+	lua : improved -D lua-vanilla
+	js : improved HTML externs
+
+	Bugfixes :
+
+	all : fixed various position and replace ranges in the display API
+	all : fixed compiler hang related to @:arrayAccess (#5525)
+	all : fixed bug regarding abstract `this` modification in inline methods (#8454)
+	all : fixed `from Dynamic` on abstracts (#8425)
+	all : fixed overeager recursive inline check (#8489)
+	all : fixed the pattern matcher allowing inexhaustive switches in value-places (#8277)
+	all : fixed pattern matcher allowing invalid abstract unification (#8579)
+	all : fixed local variable type information being lost on the compilation server (#8511)
+	all : don't generate return expressions in Void lambda functions (#6503)
+	all : fixed unification of recursive typedefs again (#8523)
+	all : fixed various hangs related to abstracts (#8588)
+	all : fixed various GADT-related problems (#7672)
+	all : fixed macro `@:from` methods allowing any return type (#8463)
+	macro : fixed Sys.programPath assertion failure (#8466)
+	js : fixed typed array APIs (#8422)
+	java : fixed Std.is on non-reference and unrelated types (#5168)
+	java/macro : fixed null-pointer exception in Reflect.getProperty (#4934)
+	java/jvm : fix switch on null string (#4481)
+	jvm : fixed boxed vs. unboxed comparison (#8577)
+	jvm : generate toplevel types to haxe.root like genjava does (#8590)
+	jvm : improved 32bit support (#8601)
+	cs/python : fixed various issues with code generation
+	cs : fixed NativeArray casting (#3949)
+
 2019-06-13: 4.0.0-rc.3
 
 	New features:

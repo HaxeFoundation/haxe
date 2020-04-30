@@ -157,7 +157,7 @@ class StringTools {
 	**/
 	public static function htmlEscape(s:String, ?quotes:Bool):String {
 		var buf = new StringBuf();
-		for (code in new haxe.iterators.StringIteratorUnicode(s)) {
+		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
 				case '&'.code:
 					buf.add("&amp;");

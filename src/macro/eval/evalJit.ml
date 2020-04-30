@@ -31,7 +31,7 @@ open EvalMisc
 let rope_path t = match follow t with
 	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> s_type_path path
 	| TDynamic _ -> "Dynamic"
-	| TFun _ | TAnon _ | TMono _ | TType _ | TLazy _ -> assert false
+	| TFun _ | TAnon _ | TMono _ | TType _ | TLazy _ -> die "" __LOC__
 
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos
 
@@ -41,7 +41,7 @@ let eval_const = function
 	| TFloat f -> vfloat (float_of_string f)
 	| TBool b -> vbool b
 	| TNull -> vnull
-	| TThis | TSuper -> assert false
+	| TThis | TSuper -> die "" __LOC__
 
 let is_int t = match follow t with
 	| TAbstract({a_path=[],"Int"},_) -> true
@@ -106,7 +106,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		end
 
 	| _ ->
-		assert false
+		die "" __LOC__
 
 and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TLocal var ->
@@ -142,7 +142,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 				emit_array_read_write exec1 ea1.epos exec2 ea2.epos exec3 op prefix
 		end
 	| _ ->
-		assert false
+		die "" __LOC__
 
 and op_incr jit e1 prefix p =
 	op_assign_op jit (get_binop_fun OpAdd p) e1 eone prefix
@@ -258,7 +258,7 @@ and jit_expr jit return e =
 					h := IntMap.add i exec !h;
 					if i > !max then max := i;
 					if i < !min then min := i;
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) el;
 			pop_scope jit;
 		) cases;
@@ -277,7 +277,7 @@ and jit_expr jit return e =
 			let exec = jit_expr jit return e in
 			List.iter (fun e -> match e.eexpr with
 				| TConst (TString s) -> h := PMap.add s exec !h;
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) el;
 			pop_scope jit;
 		) cases;
@@ -342,7 +342,7 @@ and jit_expr jit return e =
 			| e :: el ->
 				loop (jit_expr jit false e :: acc) el
 			| [] ->
-				assert false
+				die "" __LOC__
 		in
 		let el = loop [] el in
 		pop_scope jit;
@@ -365,7 +365,7 @@ and jit_expr jit return e =
 			in
 			let length = Array.length a in
 			match loop (length - 1) [] with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| [f] -> f
 			| fl -> step fl
 		in
@@ -439,7 +439,7 @@ and jit_expr jit return e =
 				| FStatic({cl_path=[],"StringTools"},{cf_name="fastCodeAt"}) ->
 					begin match execs with
 						| [exec1;exec2] -> emit_string_cca exec1 exec2 e.epos
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
@@ -479,7 +479,7 @@ and jit_expr jit return e =
 					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 					emit_super_call v execs e.epos
 				end
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		| _ ->
 			match e1.eexpr,el with
@@ -613,7 +613,7 @@ and jit_expr jit return e =
 				| OpShr -> emit_op_shr e.epos exec1 exec2
 				| OpUShr -> emit_op_ushr e.epos exec1 exec2
 				| OpMod -> emit_op_mod e.epos exec1 exec2
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end
 		end
 	| TUnop(op,flag,v1) ->
@@ -684,11 +684,8 @@ and jit_tfunction jit static pos tf =
 	pop_scope jit;
 	fl,exec
 
-and get_env_creation jit static file info = {
-	ec_info = create_env_info static file info jit.capture_infos;
-	ec_num_locals = jit.max_num_locals;
-	ec_num_captures = Hashtbl.length jit.captures;
-}
+and get_env_creation jit static file info =
+	create_env_info static file info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =

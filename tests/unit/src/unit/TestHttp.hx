@@ -12,12 +12,21 @@ class TestHttp extends Test {
 	}
 
 	function run(async:Async, test:()->Void) {
+		// { comment this out to run http tests locally
+		#if (!azure || (azure && js && !nodejs)) //also don't run on sauce labs
+		noAssert();
+		async.done();
+		return;
+		#end
+		// }
+
 		#if (js && !nodejs)
-		if(js.Syntax.code('typeof XMLHttpRequest == "undefined"')) {
+		if(!js.Browser.supported) {
 			noAssert();
 			async.done();
 			return;
 		}
+		test();
 		#elseif (azure && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
 		noAssert();
 		async.done();

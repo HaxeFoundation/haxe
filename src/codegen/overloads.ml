@@ -1,16 +1,32 @@
+open Globals
 open Type
+open Typecore
 
-let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
+type overload_args_comparison =
+  | Same
+  | Different
+  | Impl_conflict
+
+let distinguishes_funs_as_params ctx =
+  	match ctx.com.platform with
+  	| Java -> false
+  	| _ -> true
+
+let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 	let get_vmtype = match get_vmtype with
 		| None -> (fun f -> f)
 		| Some f -> f
 	in
 	if List.length f1.cf_params <> List.length f2.cf_params then
-		false
+		Different
 	else
+	let amb_funs =
+		match ctx with
+		| None -> false
+		| Some ctx -> not (distinguishes_funs_as_params ctx) in
 	let rec follow_skip_null t = match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> follow_skip_null t
 			| _ -> t)
 		| TLazy f ->
@@ -21,25 +37,39 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			follow_skip_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
 	in
-	let same_arg t1 t2 =
+	let compare_type t1 t2 =
+		(if type_iseq t1 t2 then
+			Same
+		else if amb_funs && type_iseq (ambiguate_funs t1) (ambiguate_funs t2) then
+			Impl_conflict
+		else
+			Different) in
+	let compare_arg t1 t2 =
 		let t1 = get_vmtype (follow_skip_null t1) in
 		let t2 = get_vmtype (follow_skip_null t2) in
 		match t1, t2 with
-			| TType _, TType _ -> type_iseq t1 t2
+			| TType _, TType _ -> compare_type t1 t2
 			| TType _, _
-			| _, TType _ -> false
-			| _ -> type_iseq t1 t2
+			| _, TType _ -> Different
+			| _ -> compare_type t1 t2
 	in
 
 	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
 		| TFun(a1,_), TFun(a2,_) ->
-			(try
-				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
-				same_arg t1 t2) a1 a2
-			with Invalid_argument _ ->
-				false)
-		| _ -> assert false
+			let rec loop args1 args2 =
+				match args1, args2 with
+				| [], [] -> Same
+				| [], _ | _, [] -> Different
+				| (_,_,t1) :: rest1, (_,_,t2) :: rest2 ->
+					match compare_arg t1 t2 with
+					| Same -> loop rest1 rest2
+					| result -> result
+			in
+			loop a1 a2
+		| _ -> die "" __LOC__
 
+let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
+	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
@@ -82,7 +112,7 @@ struct
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
 			simplify_t (apply_params t.t_params tl t.t_type)
-		| TMono r -> (match !r with
+		| TMono r -> (match r.tm_type with
 			| Some t -> simplify_t t
 			| None -> t_dynamic)
 		| TAnon _ -> t_dynamic
@@ -233,7 +263,7 @@ struct
 							mk_rate ((max_int - 1, 0) :: acc) elist args
 						| _ ->
 							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 
 			let rated = ref [] in
@@ -241,7 +271,7 @@ struct
 				| (elist,TFun(args,ret),d) -> (try
 					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
 					with | Not_found -> ())
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) compatible;
 
 			let rec loop best rem = match best, rem with

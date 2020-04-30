@@ -14,6 +14,32 @@ open EvalDebugMisc
 
 (* Printing *)
 
+
+let handle_in_temp_thread ctx env f =
+	let channel = Event.new_channel () in
+	let _ = EvalThread.spawn ctx (fun () ->
+		let eval = get_eval ctx in
+		eval.env <- Some env;
+		let v = try
+			f()
+		with
+		| RunTimeException(v,stack,p) ->
+			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
+			vnull
+		| exc ->
+			prerr_endline (Printexc.to_string exc);
+			vnull
+		in
+		Event.poll (Event.send channel v)
+	) in
+	Event.sync (Event.receive channel)
+
+let thread_safe_value_string env v =
+	let ctx = get_ctx() in
+	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
+	| VString s -> s.sstring
+	| _ -> die "" __LOC__
+
 let var_to_json name value vio env =
 	let jv t v num_children =
 		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
@@ -95,7 +121,7 @@ let var_to_json name value vio env =
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
-			let class_name () = EvalDebugMisc.safe_call env.env_eval EvalPrinting.value_string v in
+			let class_name () = thread_safe_value_string env v in
 			let num_children,class_name = match vi.ikind with
 			| IMutex _ -> 1,class_name()
 			| IThread _ -> 1,class_name()
@@ -199,7 +225,7 @@ let output_scopes ctx env =
 		scopes
 	else begin
 		let dbg = {
-			ds_expr = env.env_debug.expr;
+			ds_expr = env.env_debug.debug_expr;
 			ds_return = env.env_eval.last_return;
 		} in
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
@@ -217,13 +243,13 @@ let output_capture_vars infos env =
 
 let output_debug_scope dbg env =
 	let ja = [
-		var_to_json "expr" (VString (EvalString.create_ascii (Type.s_expr_pretty true "" false (s_type (print_context())) env.env_debug.expr))) None env;
+		var_to_json "expr" (VString (EvalString.create_ascii env.env_debug.debug_expr)) None env;
 		var_to_json "last return" (match dbg.ds_return with None -> vnull | Some v -> v) None env;
 	] in
 	JArray ja
 
 let output_scope_vars env scope =
-	let p = env.env_debug.expr.epos in
+	let p = env.env_debug.debug_pos in
 	let vars = Hashtbl.fold (fun local_slot vi acc ->
 		if declared_before vi p then begin
 			let slot = local_slot + scope.local_offset in
@@ -301,25 +327,6 @@ let output_inner_vars v env =
 	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
 
-let handle_in_temp_thread ctx env f =
-	let channel = Event.new_channel () in
-	let _ = EvalThread.spawn ctx (fun () ->
-		let eval = get_eval ctx in
-		eval.env <- Some env;
-		let v = try
-			f()
-		with
-		| RunTimeException(v,stack,p) ->
-			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
-			vnull
-		| exc ->
-			prerr_endline (Printexc.to_string exc);
-			vnull
-		in
-		Event.poll (Event.send channel v)
-	) in
-	Event.sync (Event.receive channel)
-
 module ValueCompletion = struct
 	let prototype_instance_fields proto =
 		let rec loop acc proto =
@@ -333,28 +340,34 @@ module ValueCompletion = struct
 		loop IntMap.empty proto
 
 	let prototype_static_fields proto =
-		IntMap.fold (fun name _ acc -> IntMap.add name (name,"field",None) acc) proto.pnames IntMap.empty
-
+		IntMap.fold (fun name offset acc ->
+			let v = proto.pfields.(offset) in
+			let kind = match v with
+				| VFunction _ -> "method"
+				| _ -> "field"
+			in
+			IntMap.add name (name,kind,None) acc
+		) proto.pnames IntMap.empty
 
 	let to_json l =
 		JArray (List.map (fun (n,k,column) ->
-			let fields = ["label",JString (rev_hash n);"kind",JString k] in
+			let fields = ["label",JString (rev_hash n);"type",JString k] in
 			let fields = match column with None -> fields | Some column -> ("start",JInt column) :: fields in
 			JObject fields
 		) l)
 
 	let collect_idents ctx env =
 		let acc = Hashtbl.create 0 in
-		let add key =
+		let add key kind =
 			if not (Hashtbl.mem acc key) then
-				Hashtbl.add acc key (key,"value",None)
+				Hashtbl.add acc key (key,kind,None)
 		in
 		(* 0. Extra locals *)
-		IntMap.iter (fun key _ -> add key) env.env_extra_locals;
+		IntMap.iter (fun key _ -> add key "variable") env.env_extra_locals;
 		(* 1. Variables *)
 		let rec loop scopes = match scopes with
 			| scope :: scopes ->
-				Hashtbl.iter (fun key _ -> add (hash key)) scope.local_ids;
+				Hashtbl.iter (fun key _ -> add (hash key) "variable") scope.local_ids;
 				loop scopes
 			| [] ->
 				()
@@ -362,7 +375,7 @@ module ValueCompletion = struct
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
 		Hashtbl.iter (fun slot vi ->
-			add (hash vi.vi_name)
+			add (hash vi.vi_name) "variable"
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
 		if not env.env_info.static then begin
@@ -370,7 +383,7 @@ module ValueCompletion = struct
 			begin match v with
 			| VInstance vi ->
 				let fields = prototype_instance_fields vi.iproto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				()
 			end
@@ -380,7 +393,7 @@ module ValueCompletion = struct
 			| EKMethod(i1,_) ->
 				let proto = get_static_prototype_raise ctx i1 in
 				let fields = prototype_static_fields proto in
-				IntMap.iter (fun key _ -> add key) fields
+				IntMap.iter (fun key (_,kind,_) -> add key kind) fields
 			| _ ->
 				raise Not_found
 		end;
@@ -388,7 +401,18 @@ module ValueCompletion = struct
 		begin match ctx.toplevel with
 		| VObject o ->
 			let fields = object_fields o in
-			List.iter (fun (n,_) -> add n) fields
+			List.iter (fun (n,v) ->
+				let kind = match v with
+					| VPrototype proto ->
+						begin match proto.pkind with
+						| PClass _ -> "class"
+						| PEnum _ -> "enum"
+						| _ -> "class" (* ? *)
+						end
+					| _ -> "module"
+				in
+				add n kind
+			) fields
 		| _ ->
 			()
 		end;
@@ -487,8 +511,13 @@ module ValueCompletion = struct
 		with _ ->
 			save();
 			raise Exit
-		end;
+		end
 
+	let get_completion ctx text column env =
+		if text = "" then
+			collect_idents ctx env
+		else
+			get_completion ctx text column env
 end
 
 type handler_context = {
@@ -548,7 +577,7 @@ let handler =
 		"next",(fun hctx ->
 			let eval = select_thread hctx in
 			let env = expect_env hctx eval.env in
-			eval.debug_state <- DbgNext(env,env.env_debug.expr.epos);
+			eval.debug_state <- DbgNext(env,env.env_debug.debug_pos);
 			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
 		);
@@ -566,7 +595,7 @@ let handler =
 		"stackTrace",(fun hctx ->
 			let eval = select_thread hctx in
 			let env = expect_env hctx eval.env in
-			output_call_stack hctx.ctx eval env.env_debug.expr.epos
+			output_call_stack hctx.ctx eval env.env_debug.debug_pos
 		);
 		"getScopes",(fun hctx ->
 			let env = select_frame hctx in
@@ -601,7 +630,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
 			let bps = List.map (parse_breakpoint hctx) bps in
-			let hash = hash (Path.unique_full_path (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
+			let hash = hash (Path.UniqueKey.to_string (Path.UniqueKey.create (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
 			let h =
 				try
 					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in
@@ -660,7 +689,7 @@ let handler =
 			let name = hctx.jsonrpc#get_string_param "name" in
 			let value = hctx.jsonrpc#get_string_param "value" in
 			let get_value env = try
-				let e = parse_expr hctx.ctx value env.env_debug.expr.epos in
+				let e = parse_expr hctx.ctx value env.env_debug.debug_pos in
 				expr_to_value hctx.ctx env e
 			with Parse_expr_error e ->
 				hctx.send_error e
@@ -711,7 +740,7 @@ let handler =
 			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr ctx s env.env_debug.expr.epos in
+				let e = parse_expr ctx s env.env_debug.debug_pos in
 				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e) in
 				var_to_json "" v None env
 			with

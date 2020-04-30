@@ -43,7 +43,7 @@ let iter_breakpoints ctx f =
 	) ctx.debug.breakpoints
 
 let add_breakpoint ctx file line column condition =
-	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.UniqueKey.to_string (Path.UniqueKey.create (Common.find_file (ctx.curapi.get_com()) file))) in
 	let h = try
 		Hashtbl.find ctx.debug.breakpoints hash
 	with Not_found ->
@@ -56,7 +56,7 @@ let add_breakpoint ctx file line column condition =
 	breakpoint
 
 let delete_breakpoint ctx file line =
-	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.UniqueKey.to_string (Path.UniqueKey.create (Common.find_file (ctx.curapi.get_com()) file))) in
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
@@ -72,7 +72,7 @@ let find_breakpoint ctx sid =
 		);
 		raise Not_found
 	with Exit ->
-		match !found with None -> assert false | Some breakpoint -> breakpoint
+		match !found with None -> die "" __LOC__ | Some breakpoint -> breakpoint
 
 (* Helper *)
 
@@ -81,7 +81,7 @@ exception Parse_expr_error of string
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
 	match ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true with
-	| ParseSuccess data | ParseDisplayFile(data,_) -> data
+	| ParseSuccess(data,_,_) -> data
 	| ParseError(_,(msg,_),_) -> error (Parser.error_msg msg)
 
 (* Vars *)
@@ -93,7 +93,7 @@ let get_var_slot_by_name env is_read scopes name =
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				let vi = Hashtbl.find scope.local_infos slot in
-				if is_read && not (declared_before vi env.env_debug.expr.epos) then raise Not_found;
+				if is_read && not (declared_before vi env.env_debug.debug_pos) then raise Not_found;
 				slot + scope.local_offset
 			with Not_found ->
 				loop scopes
@@ -114,7 +114,7 @@ let get_capture_slot_by_name capture_infos name =
 		) capture_infos;
 		raise Not_found
 	with Exit ->
-		match !ret with None -> assert false | Some name -> name
+		match !ret with None -> die "" __LOC__ | Some name -> name
 
 let get_variable env capture_infos scopes name env =
 	try
@@ -142,7 +142,7 @@ let resolve_ident ctx env s =
 		let rec loop env = match env.env_info.kind with
 			| EKLocalFunction _ ->
 				begin match env.env_parent with
-					| None -> assert false
+					| None -> die "" __LOC__
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
@@ -201,7 +201,7 @@ let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> EvalString.create_unknown s
+				| String(s,_) -> EvalString.create_unknown s
 				| Int s -> VInt32 (Int32.of_string s)
 				| Float s -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue

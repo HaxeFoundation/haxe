@@ -152,9 +152,9 @@ and convert_signature ctx p jsig =
 	| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
-			| _ -> assert false in
+			| _ -> die "" __LOC__ in
 			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
-	| TObjectInner (pack, inners) -> assert false
+	| TObjectInner (pack, inners) -> die "" __LOC__
 	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
@@ -171,7 +171,7 @@ and convert_signature ctx p jsig =
 
 let convert_constant ctx p const =
 	Option.map_default (function
-		| ConstString s -> Some (EConst (String s), p)
+		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
 		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
 		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
 		| _ -> None) None const
@@ -205,7 +205,7 @@ let convert_param ctx p parent param =
 			tp_meta = [];
 		}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 let is_override field =
 	List.exists (function | AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), _ ) }] -> true | _ -> false) field.jf_attributes
@@ -217,7 +217,7 @@ let del_override field =
 	{ field with jf_attributes = List.filter (fun a -> not (is_override_attrib a)) field.jf_attributes }
 
 let get_canonical ctx p pack name =
-	(Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst (String name), p], p)
+	(Meta.JavaCanonical, [EConst (String (String.concat "." pack,SDoubleQuotes)), p; EConst (String (name,SDoubleQuotes)), p], p)
 
 let show_in_completion ctx jc =
 	if not ctx.is_std then true
@@ -226,7 +226,7 @@ let show_in_completion ctx jc =
 		| _ -> false
 
 let convert_java_enum ctx p pe =
-	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ]) in
+	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
 	let data = ref [] in
 	List.iter (fun f ->
 		(* if List.mem JEnum f.jf_flags then *)
@@ -303,7 +303,7 @@ let convert_java_enum ctx p pe =
 		List.iter (fun jsig ->
 			match convert_signature ctx p jsig with
 				| CTPath path ->
-					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname))), p],p) :: !cff_meta
+					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname),SDoubleQuotes)), p],p) :: !cff_meta
 				| _ -> ()
 		) field.jf_throws;
 
@@ -358,17 +358,17 @@ let convert_java_enum ctx p pe =
 					let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 					if not (is_haxe_keyword name) then
 						cff_meta := (Meta.Deprecated, [EConst(String(
-							"This static field `_" ^ name ^ "` is deprecated and will be removed in later versions. Please use `" ^ name ^ "` instead")
+							"This static field `_" ^ name ^ "` is deprecated and will be removed in later versions. Please use `" ^ name ^ "` instead",SDoubleQuotes)
 						),p], p) :: !cff_meta;
 					"_" ^ name,
-					(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+					(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 				| _ ->
 					match String.nsplit cff_name "$" with
 						| [ no_dollar ] ->
 							cff_name, !cff_meta
 						| parts ->
 							String.concat "_" parts,
-							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
+							(Meta.Native, [EConst (String (cff_name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		in
 		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
@@ -417,7 +417,7 @@ let convert_java_enum ctx p pe =
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
 			(* todo: instead of JavaNative, use more specific definitions *)
-			let meta = ref [Meta.JavaNative, [], p; Meta.Native, [EConst (String (real_java_path ctx jc.cpath) ), p], p; get_canonical ctx p (fst jc.cpath) (snd jc.cpath)] in
+			let meta = ref [Meta.JavaNative, [], p; Meta.Native, [EConst (String (real_java_path ctx jc.cpath,SDoubleQuotes) ), p], p; get_canonical ctx p (fst jc.cpath) (snd jc.cpath)] in
 			let force_check = Common.defined ctx.jcom Define.ForceLibCheck in
 			if not force_check then
 				meta := (Meta.LibType,[],p) :: !meta;
@@ -472,7 +472,7 @@ let convert_java_enum ctx p pe =
 						| CTPath path ->
 							let pos = { p with pfile = p.pfile ^ " (" ^ f.jf_name ^" @:throws)" } in
 							EImport( List.map (fun s -> s,pos) (path.tpackage @ [path.tname]), INormal )
-						| _ -> assert false
+						| _ -> die "" __LOC__
 				) f.jf_throws
 			) jc.cmethods) in
 
@@ -638,7 +638,7 @@ let compare_type com s1 s2 =
 					p1, p2
 				| TObjectInner(_, npl1), TObjectInner(_, npl2) ->
 					snd (List.hd (List.rev npl1)), snd (List.hd (List.rev npl2))
-				| _ -> assert false (* not tobject *)
+				| _ -> die "" __LOC__ (* not tobject *)
 				in
 				let p1, p2 = simplify_args p1, simplify_args p2 in
 				let lp1 = List.length p1 in
@@ -697,7 +697,7 @@ let select_best com flist =
 					if com.verbose then print_endline (f.jf_name ^ ": The types " ^ (s_sig r) ^ " and " ^ (s_sig r2) ^ " are incompatible");
 					(* bet that the current best has "beaten" other types *)
 					loop cur_best flist
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			with | Exit -> (* incompatible type parameters *)
 				(* error mode *)
 				if com.verbose then print_endline (f.jf_name ^ ": Incompatible argument return signatures: " ^ (s_sig r) ^ " and " ^ (s_sig r2));
@@ -912,11 +912,11 @@ class virtual java_library com name file_path = object(self)
 		Hashtbl.find hxpack_to_jpack path
 
 	method private replace_canonical_name p pack name_original name_replace decl =
-		let mk_meta name = (Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst(String name), p], p) in
+		let mk_meta name = (Meta.JavaCanonical, [EConst (String (String.concat "." pack,SDoubleQuotes)), p; EConst(String (name,SDoubleQuotes)), p], p) in
 		let add_meta name metas =
 			if Meta.has Meta.JavaCanonical metas then
 				List.map (function
-					| (Meta.JavaCanonical,[EConst (String cpack), _; EConst(String cname), _],_) ->
+					| (Meta.JavaCanonical,[EConst (String(cpack,_)), _; EConst(String(cname,_)), _],_) ->
 						let did_replace,name = String.replace cname name_original name_replace in
 						if not did_replace then print_endline (cname ^ " -> " ^ name_original ^ " -> " ^ name_replace);
 						mk_meta name
@@ -994,7 +994,7 @@ class virtual java_library com name file_path = object(self)
 									match ncls with
 									| EClass c :: imports ->
 										(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
-									| _ -> assert false
+									| _ -> die "" __LOC__
 								with | Not_found ->
 									inner
 								in
@@ -1205,7 +1205,7 @@ let add_java_lib com name std extern =
 	if std then java_lib#add_flag FlagIsStd;
 	if extern then java_lib#add_flag FlagIsExtern;
 	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
-	CompilationServer.handle_native_lib com java_lib
+	CommonCache.handle_native_lib com java_lib
 
 let before_generate con =
 	let java_ver = try
