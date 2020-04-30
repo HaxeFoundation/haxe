@@ -4037,17 +4037,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          gen expr; out (close ^ ".StaticCast< " ^ tcpp_to_string toType ^" >()")
 
       | CppCast(expr,toType) ->
-         (match expr.cppexpr, expr.cpptype with
-         | CppCall( FuncInternal _, _), _ ->
+         (match expr.cppexpr, expr.cpptype, toType with
+         | CppCall( FuncInternal _, _), _, _ ->
             gen expr; out (".StaticCast< " ^ tcpp_to_string toType ^" >()")
-         | _, TCppObjC(_)
-         | _, TCppObjCBlock(_)  ->
+         | _, TCppObjC(_), _
+         | _, TCppObjCBlock(_), _  ->
             out ("( ("^ tcpp_to_string toType ^")((id) ( "); gen expr; out (") ))")
-         | _,_ ->
-            (match toType with
-               | TCppObjectPtr -> out ("hx::DynamicPtr("); gen expr; out (")")
-               | t -> out ("( ("^ tcpp_to_string t ^")("); gen expr; out (") )")
-            )
+         | _,_,TCppObjectPtr -> out ("hx::DynamicPtr("); gen expr; out (")")
+         | _,TCppPointer(_,_), TCppStar(_,_)
+         | _,TCppPointer(_,_), TCppRawPointer(_,_)
+               -> out ("( ("^ tcpp_to_string toType ^")( ("); gen expr; out (").get_raw()) )")
+         | _ -> out ("( ("^ tcpp_to_string toType ^")("); gen expr; out (") )")
          )
 
       | CppCastScalar(expr,scalar) ->
