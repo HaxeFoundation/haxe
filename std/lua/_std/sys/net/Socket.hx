@@ -154,9 +154,9 @@ class Socket {
 			sock.output = new SocketOutput(cast x);
 			return sock;
 		}
-		var read_arr = res.read == null ? [] : lua.Lib.tableToArray(res.read).map(convert_socket);
+		var read_arr = res.read == null ? [] : Table.toArray(res.read).map(convert_socket);
 
-		var write_arr = res.write == null ? [] : lua.Lib.tableToArray(res.write).map(convert_socket);
+		var write_arr = res.write == null ? [] : Table.toArray(res.write).map(convert_socket);
 		return {read: read_arr, write: write_arr, others: []};
 	}
 }

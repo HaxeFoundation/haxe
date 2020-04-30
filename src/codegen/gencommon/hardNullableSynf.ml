@@ -52,7 +52,7 @@ let rec is_null_t gen t = match gen.greal_type t with
 		in
 
 		Some (take_off_null of_t)
-	| TMono r -> (match !r with | Some t -> is_null_t gen t | None -> None)
+	| TMono r -> (match r.tm_type with | Some t -> is_null_t gen t | None -> None)
 	| TLazy f -> is_null_t gen (lazy_type f)
 	| TType (t, tl) ->
 		is_null_t gen (apply_params t.t_params tl t.t_type)
@@ -200,7 +200,7 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 													{ e with eexpr = TBinop( Ast.OpAssign, e1, handle_wrap { e with eexpr = TBinop (op, handle_unwrap t1 e1, handle_unwrap t2 (run e2) ) } t1 ) }
 												]) }
 										)
-									| _ -> assert false
+									| _ -> Globals.die "" __LOC__
 								)
 
 							| _ ->

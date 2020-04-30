@@ -248,7 +248,7 @@ enum ValueType {
 		var ret = [];
 		for (ctor in ctors) {
 			var v = Reflect.field(e, ctor);
-			if (Std.is(v, e))
+			if (Std.isOfType(v, e))
 				ret.push(v);
 		}
 

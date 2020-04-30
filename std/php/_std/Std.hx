@@ -26,16 +26,20 @@ import php.Syntax;
 
 @:coreApi class Std {
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
-		return Boot.is(v, t);
+		return isOfType(v, t);
+	}
+
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
+		return Boot.isOfType(v, t);
 	}
 
 	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Boot.is(value, cast c) ? cast value : null;
+		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
 	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Boot.is(value, cast c) ? cast value : null;
+		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
 	public static function string(s:Dynamic):String {

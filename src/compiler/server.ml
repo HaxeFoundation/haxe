@@ -12,7 +12,6 @@ open Json
 exception Dirty of path
 exception ServerError of string
 
-let measure_times = ref false
 let prompt = ref false
 let start_time = ref (Timer.get_time())
 
@@ -27,19 +26,10 @@ type context = {
 	mutable has_error : bool;
 }
 
-let s_version with_build =
-	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
-	let build =
-		match with_build, Version.version_extra with
-			| true, Some (_,build) -> "+" ^ build
-			| _, _ -> ""
-	in
-	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
-
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics global->
+		| DMDiagnostics _->
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -48,13 +38,12 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				in
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
-			raise (Completion (Diagnostics.print ctx.com global))
+			raise (Completion (Diagnostics.print ctx.com))
 		| _ ->
 			f_otherwise ()
 		end
 	| Some api ->
-		(* If there's a --next and we're in display mode, try that one. *)
-		if ctx.has_error && not (ctx.has_next && ctx.com.display.dms_display) then begin
+		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
 					| CMInfo(msg,p) -> msg,p,3
@@ -133,8 +122,9 @@ let current_stdin = ref None
 
 let parse_file cs com file p =
 	let cc = CommonCache.get_cache cs com in
-	let ffile = Path.unique_full_path file in
-	let is_display_file = ffile = (DisplayPosition.display_position#get).pfile in
+	let ffile = Path.get_full_path file
+	and fkey = Path.UniqueKey.create file in
+	let is_display_file = DisplayPosition.display_position#is_in_file ffile in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
@@ -142,23 +132,30 @@ let parse_file cs com file p =
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
 			try
-				let cfile = cc#find_file ffile in
+				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
+				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),false,cfile.c_pdi)
 			with Not_found ->
 				let parse_result = TypeloadParse.parse_file com file p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
-					| ParseDisplayFile _ -> "not cached, is display file",true
-					| ParseSuccess data ->
-						begin try
+					| ParseSuccess(data,is_display_file,pdi) ->
+						if is_display_file then begin
+							if pdi.pd_errors <> [] then
+								"not cached, is display file with parse errors",true
+							else if com.display.dms_per_file then begin
+								cc#cache_file fkey ffile ftime data pdi;
+								"cached, is intact display file",true
+							end else
+								"not cached, is display file",true
+						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if not com.display.dms_display then raise Not_found;
-							let ident = Hashtbl.find Parser.special_identifier_files ffile in
+							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file ffile ftime data;
+							cc#cache_file fkey ffile ftime data pdi;
 							"cached",false
 						end
 				in
@@ -185,8 +182,6 @@ module ServerCompilationContext = struct
 		mutable compilation_mark : int;
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
-		(* A list of modules which were (perhaps temporarily) removed from the cache *)
-		mutable removed_modules : (context_cache * path * module_def) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
 	}
@@ -200,7 +195,6 @@ module ServerCompilationContext = struct
 		compilation_mark = 0;
 		mark_loop = 0;
 		delays = [];
-		removed_modules = [];
 		was_compilation = false;
 	}
 
@@ -211,9 +205,6 @@ module ServerCompilationContext = struct
 		let fl = sctx.delays in
 		sctx.delays <- [];
 		List.iter (fun f -> f()) fl
-
-	let is_removed_module sctx m =
-		List.exists (fun (_,_,m') -> m == m') sctx.removed_modules
 
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
@@ -296,9 +287,9 @@ let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
-		let ffile = Path.unique_full_path file in
+		let fkey = Path.UniqueKey.create file in
 		try
-			let cfile = cc#find_file ffile in
+			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
 			let new_data = TypeloadParse.parse_module ctx m.m_path p in
@@ -340,7 +331,7 @@ let check_module sctx ctx m p =
 						match load m.m_path p with
 						| None -> loop l
 						| Some _ ->
-							if Path.unique_full_path file <> m.m_extra.m_file then begin
+							if Path.UniqueKey.create file <> Path.UniqueKey.create m.m_extra.m_file then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 								raise Not_found;
 							end
@@ -372,7 +363,7 @@ let check_module sctx ctx m p =
 					ServerMessage.unchanged_content com "" m.m_extra.m_file;
 				end else begin
 					ServerMessage.not_cached com "" m;
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
+					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.create m.m_extra.m_file);
 					raise Not_found;
 				end
 			end
@@ -419,8 +410,6 @@ let add_modules sctx ctx m p =
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
-			| _ when is_removed_module sctx m ->
-				()
 			| _ ->
 				ServerMessage.reusing com tabs m;
 				m.m_extra.m_added <- sctx.compilation_step;
@@ -478,22 +467,11 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 (* Sets up the per-compilation context. *)
 let create sctx write params =
 	let cs = sctx.cs in
-	let recache_removed_modules () =
-		List.iter (fun (cc,k,m) ->
-			try
-				ignore(cc#find_module k);
-			with Not_found ->
-				cc#cache_module k m
-		) sctx.removed_modules;
-		sctx.removed_modules <- []
-	in
 	let maybe_cache_context com =
 		if com.display.dms_full_typing then begin
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
-			sctx.removed_modules <- [];
-		end else
-			recache_removed_modules ()
+		end
 	in
 	let ctx = create_context params in
 	ctx.flush <- (fun() ->
@@ -519,15 +497,6 @@ let create sctx write params =
 		ServerMessage.defines ctx.com "";
 		ServerMessage.signature ctx.com "" sign;
 		ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-		(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
-			current file in order to run diagnostics on it again. *)
-		if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
-			let file = (DisplayPosition.display_position#get).pfile in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files file;
-			sctx.removed_modules <- cs#filter_modules file;
-			add_delay sctx recache_removed_modules;
-		end;
 		try
 			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
 				ServerMessage.class_paths_changed ctx.com "";
@@ -599,6 +568,42 @@ module Tasks = struct
 			end;
 			Gc.set old_gc;
 			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
+	end
+
+	class class_maintenance_task (cs : CompilationServer.t) (c : tclass) = object(self)
+		inherit server_task ["module maintenance"] 70
+
+		method private execute =
+			let rec field cf =
+				(* Unset cf_expr. This holds the optimized version for generators, which we don't need to persist. If
+				   we compile again, the semi-optimized expression will be restored by calling cl_restore(). *)
+				cf.cf_expr <- None;
+				List.iter field cf.cf_overloads
+			in
+			(* What we're doing here at the moment is free, so we can just do it in one task. If this ever gets more expensive,
+			   we should spawn a task per-field. *)
+			List.iter field c.cl_ordered_fields;
+			List.iter field c.cl_ordered_statics;
+			Option.may field c.cl_constructor;
+	end
+
+	class module_maintenance_task (cs : CompilationServer.t) (m : module_def) = object(self)
+		inherit server_task ["module maintenance"] 80
+
+		method private execute =
+			List.iter (fun mt -> match mt with
+				| TClassDecl c ->
+					cs#add_task (new class_maintenance_task cs c)
+				| _ ->
+					()
+			) m.m_types
+	end
+
+	class server_exploration_task (cs : CompilationServer.t) = object(self)
+		inherit server_task ["server explore"] 90
+
+		method private execute =
+			cs#iter_modules (fun m -> cs#add_task (new module_maintenance_task cs m))
 	end
 end
 
@@ -698,6 +703,8 @@ let wait_loop process_params verbose accept =
 		(* If our connection always blocks, we have to execute all pending tasks now. *)
 		if not support_nonblock then
 			while cs#has_task do cs#get_task#run done
+		else if sctx.was_compilation then
+			cs#add_task (new Tasks.server_exploration_task cs)
 	done
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
@@ -814,8 +821,19 @@ let init_wait_socket host port =
 let do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+	let rec display_stdin args =
+		match args with
+		| [] -> ""
+		| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
+			let accept = init_wait_stdio() in
+			let _, read, _, _ = accept() in
+			Option.default "" (read true)
+		| _ :: args ->
+			display_stdin args
+	in
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (Bytes.of_string (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000"));
+	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with

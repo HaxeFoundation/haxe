@@ -50,14 +50,10 @@ class Resource {
 	public static function getString(name:String):String {
 		for (x in content)
 			if (x.name == name) {
-				#if neko
-				return new String(x.data);
-				#else
 				if (x.str != null)
 					return x.str;
 				var b:haxe.io.Bytes = haxe.crypto.Base64.decode(x.data);
 				return b.toString();
-				#end
 			}
 		return null;
 	}
@@ -71,25 +67,14 @@ class Resource {
 	public static function getBytes(name:String):haxe.io.Bytes {
 		for (x in content)
 			if (x.name == name) {
-				#if neko
-				return haxe.io.Bytes.ofData(cast x.data);
-				#else
 				if (x.str != null)
 					return haxe.io.Bytes.ofString(x.str);
 				return haxe.crypto.Base64.decode(x.data);
-				#end
 			}
 		return null;
 	}
 
 	static function __init__() {
-		#if neko
-		var tmp = untyped __resources__();
-		content = untyped Array.new1(tmp, __dollar__asize(tmp));
-		#elseif as3
-		null;
-		#else
 		content = untyped __resources__();
-		#end
 	}
 }

@@ -12,7 +12,7 @@ class Main {
 @:arrayAccess
 abstract A {
   inline public function new() {
-    this = untyped __js__("{}");
+    this = js.Syntax.code("{}");
   }
 }
 
@@ -21,6 +21,6 @@ typedef TB = B;
 @:arrayAccess
 abstract B(TB) {
   inline public function new() {
-    this = untyped __js__("{}");
+    this = js.Syntax.code("{}");
   }
 }

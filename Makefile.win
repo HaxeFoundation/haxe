@@ -7,6 +7,7 @@ PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
 ARCH?=32
+DUNE_COMMAND=dune.exe
 
 ifeq ($(ARCH),64)
 NEKO_ARCH_STR=64
@@ -41,7 +42,16 @@ ifdef FILTER
 CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')"
+ifeq ($(STATICLINK),0)
+	LIB_PARAMS = -cclib -lpcre -cclib -lz -cclib -lcrypt32 -cclib -lmbedtls -cclib -lmbedcrypto -cclib -lmbedx509
+endif
+
+PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedcrypto.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedtls.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedx509.dll | sed -e 's/^\s*//')"
 
 echo_package_files:
 	echo $(PACKAGE_FILES)
@@ -71,7 +81,7 @@ package_choco:
 	rm -rf out/choco
 
 $(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
-	wget -nv https://nekovm.org/media/neko-2.2.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
 
 package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
@@ -84,12 +94,8 @@ package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	# haxe
 	7z x -y $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.zip -o$(INSTALLER_TMP_DIR)/resources
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
-	# haxesetup.exe
-	cd extra && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) install hxcpp --quiet && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) run hxcpp build-haxesetup.xml
-	cp extra/haxesetup.exe $(INSTALLER_TMP_DIR)/resources/haxe
+	# WinSetup.hx
+	cp extra/WinSetup.hx $(INSTALLER_TMP_DIR)/resources/haxe
 	# extra
 	cp extra/*.nsi $(INSTALLER_TMP_DIR)
 	cp extra/*.nsh $(INSTALLER_TMP_DIR)

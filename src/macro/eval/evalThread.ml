@@ -16,7 +16,7 @@ module Deque = struct
 		Mutex.unlock this.dmutex
 
 	let pop this blocking =
-		let rec loop () =
+		if not blocking then begin
 			Mutex.lock this.dmutex;
 			match this.dvalues with
 			| v :: vl ->
@@ -24,16 +24,41 @@ module Deque = struct
 				Mutex.unlock this.dmutex;
 				Some v
 			| [] ->
-				if not blocking then begin
-					Mutex.unlock this.dmutex;
-					None
-				end else begin
-					Mutex.unlock this.dmutex;
+				Mutex.unlock this.dmutex;
+				None
+		end else begin
+			(* Optimistic first attempt with immediate lock. *)
+			Mutex.lock this.dmutex;
+			begin match this.dvalues with
+			| v :: vl ->
+				this.dvalues <- vl;
+				Mutex.unlock this.dmutex;
+				Some v
+			| [] ->
+				Mutex.unlock this.dmutex;
+				(* First attempt failed, let's be pessimistic now to avoid locks. *)
+				let rec loop () =
 					Thread.yield();
-					loop()
-				end
-		in
-		loop()
+					match this.dvalues with
+					| v :: vl ->
+						(* Only lock if there's a chance to have a value. This avoids high amounts of unneeded locking. *)
+						Mutex.lock this.dmutex;
+						(* We have to check again because the value could be gone by now. *)
+						begin match this.dvalues with
+						| v :: vl ->
+							this.dvalues <- vl;
+							Mutex.unlock this.dmutex;
+							Some v
+						| [] ->
+							Mutex.unlock this.dmutex;
+							loop()
+						end
+					| [] ->
+						loop()
+				in
+				loop()
+			end
+		end
 
 	let push this i =
 		Mutex.lock this.dmutex;

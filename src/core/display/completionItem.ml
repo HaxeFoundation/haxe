@@ -199,7 +199,7 @@ module CompletionModuleType = struct
 				tp_meta = c.cl_meta
 			}
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		{
 			pack = fst infos.mt_path;
@@ -235,7 +235,7 @@ module CompletionModuleType = struct
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
-				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
+				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 			| GMMinimum ->
 				match generate_minimum_metadata ctx cm.meta with
 					| None -> []
@@ -429,7 +429,7 @@ module CompletionType = struct
 		}
 		and from_type values t = match t with
 			| TMono r ->
-				begin match !r with
+				begin match r.tm_type with
 					| None -> CTMono
 					| Some t -> from_type values t
 				end
@@ -769,7 +769,7 @@ let to_json ctx index item =
 					"meta",generate_metadata ctx c.cl_meta;
 					"constraints",jlist (generate_type ctx) tl;
 				]
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		| ITDefine(n,v) -> "Define",jobject [
 			"name",jstring n;

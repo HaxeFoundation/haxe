@@ -112,7 +112,7 @@ let rec is_null t =
 		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
 		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| Some t -> is_null t
 			| _ -> false)
 		| TLazy f ->
@@ -134,7 +134,7 @@ let parse_explicit_iface =
 			match split with
 				| clname :: fn_name :: [] -> fn_name, (List.rev pack, clname)
 				| pack_piece :: tl -> get_iface tl (pack_piece :: pack)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 		in
 		get_iface split []
 	in parse_explicit_iface
@@ -228,27 +228,27 @@ struct
 	let get_cl_from_t t =
 		match follow t with
 			| TInst(cl,_) -> cl
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let get_ab_from_t t =
 		match follow t with
 			| TAbstract(ab,_) -> ab
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
-		let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> assert false in
+		let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> die "" __LOC__ in
 
 		let rec run e =
 			match e.eexpr with
 				(* Std.is() *)
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") })) },
 						[ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" } | TAbstractDecl { a_path = [], "Dynamic" }) }]
 					) ->
 						Type.map_expr run e
 				| TCall(
-						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
+						{ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = ("is" | "isOfType") }) ) },
 						[ obj; { eexpr = TTypeExpr(md) }]
 					) ->
 					let md = change_md md in
@@ -272,7 +272,7 @@ struct
 						match obj.eexpr with
 							| TLocal(v) -> f obj
 							| _ ->
-								let var = mk_temp "is" obj.etype in
+								let var = mk_temp "isOfType" obj.etype in
 								let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 								let local = mk_local var obj.epos in
 								{
@@ -367,7 +367,7 @@ struct
 							let local, added = mk_local ea1 in
 							{ e with eexpr = TBlock([ added; mk_ushr { e1 with eexpr = TArray(local, ea2) }  ]); }
 						| _ -> (* invalid left-side expression *)
-							assert false
+							die "" __LOC__
 					in
 
 					ret
@@ -398,7 +398,7 @@ struct
 	let get_cl_from_t t =
 		match follow t with
 			| TInst(cl,_) -> cl
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let is_tparam t =
 		match follow t with
@@ -410,10 +410,10 @@ struct
 		(* let tchar = match ( get_type gen (["cs"], "Char16") ) with
 			| TTypeDecl t -> TType(t,[])
 			| TAbstractDecl a -> TAbstract(a,[])
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in *)
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
-		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
+		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> die "" __LOC__ in
 		let boxed_ptr =
 			if Common.defined gen.gcon Define.Unsafe then
 				get_cl (get_type gen (["haxe";"lang"], "BoxedPointer"))
@@ -581,7 +581,7 @@ let add_cast_handler gen =
 
 	let get_narr_param t = match follow t with
 		| TInst({ cl_path = (["cs"], "NativeArray") }, [param]) -> param
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 
 	let gtparam_cast_native_array e to_t =
@@ -690,7 +690,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"; "await"];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = mk_anon (ref Closed)
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -740,7 +740,7 @@ let generate con =
 
 		let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
 		gen.gclasses.nativearray <- (fun t -> TInst(native_arr_cl,[t]));
-		gen.gclasses.nativearray_type <- (function TInst(_,[t]) -> t | _ -> assert false);
+		gen.gclasses.nativearray_type <- (function TInst(_,[t]) -> t | _ -> die "" __LOC__);
 		gen.gclasses.nativearray_len <- (fun e p -> mk_field_access gen e "Length" p);
 
 		let erase_generics = Common.defined gen.gcon Define.EraseGenerics in
@@ -907,7 +907,7 @@ let generate con =
 
 		let ifaces = Hashtbl.create 1 in
 
-		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
+		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> die "" __LOC__ in
 
 		let ttype = get_cl ( get_type gen (["System"], "Type") ) in
 
@@ -1081,7 +1081,7 @@ let generate con =
 					(if ret = "object" then "void" else ret) ^ "*"
 				(* end of basic types *)
 				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
-				| TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
+				| TMono r -> (match r.tm_type with | None -> "object" | Some t -> t_s (run_follow gen t))
 				| TInst ({ cl_path = [], "String" }, []) -> "string"
 				| TEnum (e, params) -> ("global::" ^ (module_s (TEnumDecl e)))
 				| TInst (cl, _ :: _) when Meta.has Meta.Enum cl.cl_meta ->
@@ -1096,7 +1096,7 @@ let generate con =
 				| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					t_s (Abstract.get_underlying_type a pl)
 				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
-				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
+				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); die "" __LOC__ end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 
 		and path_param_s md path params =
 				match params with
@@ -1295,7 +1295,7 @@ let generate con =
 						write w "[";
 						let args, value = match List.rev args with
 							| v :: args -> List.rev args, v
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						in
 						let first = ref true in
 						List.iter (fun f ->
@@ -1454,7 +1454,7 @@ let generate con =
 							expr_s w e;
 							print w "label%s: {}" n
 						| TBreak -> print w "goto label%s" n
-						| _ -> assert false)
+						| _ -> die "" __LOC__)
 					| TMeta (_,e) ->
 								expr_s w e
 					| TArrayDecl el
@@ -1761,12 +1761,12 @@ let generate con =
 						write w "[ for not supported ";
 						expr_s w content;
 						write w " ]";
-						if !strict_mode then assert false
-					| TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
-					| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-					| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
-					| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then assert false
-					| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then assert false
+						if !strict_mode then die "" __LOC__
+					| TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then die "" __LOC__
+					| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then die "" __LOC__
+					| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then die "" __LOC__
+					| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then die "" __LOC__
+					| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then die "" __LOC__
 			)
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
@@ -1779,7 +1779,7 @@ let generate con =
 						let md = match e.eexpr with
 							| TField(ef, _) ->
 								t_to_md (run_follow gen ef.etype)
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						in
 						write w "<";
 						ignore (List.fold_left (fun acc t ->
@@ -1878,6 +1878,22 @@ let generate con =
 				gen.gcon.error "Invalid expression inside @:meta metadata" p
 		in
 
+		let gen_assembly_attributes w metadata =
+			List.iter (function
+				| Meta.AssemblyMeta, [EConst(String(s,_)), _], _ ->
+					write w "[assembly:";
+					write w s;
+					write w "]";
+					newline w
+				| Meta.AssemblyMeta, [meta], _ ->
+					write w "[assembly:";
+					gen_spart w meta;
+					write w "]";
+					newline w
+				| _ -> ()
+			) metadata
+		in
+
 		let gen_attributes w metadata =
 			List.iter (function
 				| Meta.Meta, [EConst(String(s,_)), _], _ ->
@@ -1909,7 +1925,7 @@ let generate con =
 						gen_attributes w tdef.t_meta;
 						run (follow_once t)
 					| TMono r ->
-						(match !r with
+						(match r.tm_type with
 						| Some t -> run t
 						| _ -> () (* avoid infinite loop / should be the same in this context *))
 					| TLazy f ->
@@ -1935,7 +1951,7 @@ let generate con =
 			let hxgen = is_hxgen (TClassDecl cl) in
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
-					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
+					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
@@ -2057,7 +2073,7 @@ let generate con =
 				| None -> true
 				| Some ({ cf_kind = Method mkind } as m) ->
 					(match mkind with | MethInline -> true | _ -> false) || (has_class_field_flag m CfFinal)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			let is_virtual = not (is_interface || is_final || (has_class_field_flag prop CfFinal) || fn_is_final get || fn_is_final set) in
 
@@ -2188,9 +2204,12 @@ let generate con =
 							| Some e ->
 								write w " = ";
 								expr_s true w e;
-							| None -> ()
+								write w ";"
+							| None when (Meta.has Meta.Property cf.cf_meta) ->
+								write w " { get; set; }";
+							| None ->
+								write w ";"
 						);
-						write w ";"
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
@@ -2248,8 +2267,8 @@ let generate con =
 					let modifiers = modifiers @ modf in
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
-					let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
-					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
+					let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> die "" __LOC__ in
 					gen_nocompletion w cf.cf_meta;
 
 					(* public static void funcName *)
@@ -2276,7 +2295,7 @@ let generate con =
 											match s.eexpr with
 												| TFunction tf ->
 													mk_block (tf.tf_expr)
-												| _ -> assert false (* FIXME *)
+												| _ -> die "" __LOC__ (* FIXME *)
 									in
 
 									let write_method_expr e =
@@ -2293,7 +2312,7 @@ let generate con =
 											line_reset_directive w;
 											if unchecked then end_block w
 										| _ ->
-											assert false
+											die "" __LOC__
 									in
 
 									(if is_new then begin
@@ -2328,7 +2347,7 @@ let generate con =
 														t()
 												);
 												write_method_expr { expr with eexpr = TBlock(rest) }
-											| _ -> assert false
+											| _ -> die "" __LOC__
 									end else
 										write_method_expr expr
 									)
@@ -2398,7 +2417,7 @@ let generate con =
 				let idx_t, v_t = match follow get.cf_type with
 					| TFun([_,_,arg_t],ret_t) ->
 						t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
-					| _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; assert false
+					| _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; die "" __LOC__
 				in
 				List.iter (fun (cl,args) ->
 					match cl.cl_array_access with
@@ -2519,12 +2538,28 @@ let generate con =
 			end
 		in
 
-		let gen_class w cl =
+		let gen_class w cl is_first_type =
+			if (is_first_type == false) then begin
+				if Meta.has Meta.AssemblyStrict cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
+				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+					gen.gcon.error "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+			end;
+
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
 			newline w;
 			let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
-				| [] -> false
+				| [] ->
+					(* Should the assembly annotations be added to the class in this case? *)
+
+					if Meta.has Meta.AssemblyStrict cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
+					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+						gen.gcon.error "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
+
+					false
 				| ns ->
+					gen_assembly_attributes w cl.cl_meta;
 					print w "namespace %s " (String.concat "." ns);
 					begin_block w;
 					true
@@ -2538,7 +2573,7 @@ let generate con =
 					else
 						"object" :: (loop (pred i) acc)
 				in
-				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> assert false) [] in
+				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
 				cl.cl_meta <- (Meta.Meta, [
 					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))",SDoubleQuotes) ), cl.cl_pos
 				], cl.cl_pos) :: cl.cl_meta
@@ -2547,30 +2582,26 @@ let generate con =
 
 			gen_attributes w cl.cl_meta;
 
-			let is_main =
-				match gen.gcon.main_class with
-					| Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
-						(*
-							for cases where the main class is called Main, there will be a problem with creating the entry point there.
-							In this special case, a special entry point class will be created
-						*)
-						write w "public class EntryPoint__Main ";
-						begin_block w;
-						write w "public static void Main() ";
-						begin_block w;
-						(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-						(match gen.gcon.main with
-							| None ->
-								expr_s true w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
-								write w ".main();"
-							| Some expr ->
-								expr_s false w (mk_block expr));
-						end_block w;
-						end_block w;
-						newline w;
-						false
-					| Some path when path = cl.cl_path && not cl.cl_interface -> true
-					| _ -> false
+			let main_expr =
+				match gen.gentry_point with
+				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not cl.cl_interface ->
+					(*
+						for cases where the main class is called Main, there will be a problem with creating the entry point there.
+						In this special case, a special entry point class will be created
+					*)
+					write w "public class EntryPoint__Main ";
+					begin_block w;
+					write w "public static void Main() ";
+					begin_block w;
+					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
+					expr_s false w expr;
+					write w ";";
+					end_block w;
+					end_block w;
+					newline w;
+					None
+				| Some (_, cl_main,expr) when cl == cl_main && not cl.cl_interface -> Some expr
+				| _ -> None
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
@@ -2590,7 +2621,7 @@ let generate con =
 			begin_block w;
 			newline w;
 			(* our constructor is expected to be a normal "new" function *
-			if !strict_mode && is_some cl.cl_constructor then assert false;*)
+			if !strict_mode && is_some cl.cl_constructor then die "" __LOC__;*)
 
 			let rec loop meta =
 				match meta with
@@ -2601,17 +2632,14 @@ let generate con =
 			in
 			loop cl.cl_meta;
 
-			if is_main then begin
+			Option.may (fun expr ->
 				write w "public static void Main()";
 				begin_block w;
 				(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-				(match gen.gcon.main with
-					| None ->
-						write w "main();";
-					| Some expr ->
-							expr_s false w (mk_block expr));
+				expr_s false w expr;
+				write w ";";
 				end_block w
-			end;
+			) main_expr;
 
 			(match cl.cl_init with
 				| None -> ()
@@ -2728,7 +2756,7 @@ let generate con =
 					| Some add, Some remove ->
 						if custom && not cl.cl_interface then
 							nonprops := add :: remove :: !nonprops
-					| _ -> assert false (* shouldn't happen because Filters.check_cs_events makes sure methods are present *)
+					| _ -> die "" __LOC__ (* shouldn't happen because Filters.check_cs_events makes sure methods are present *)
 				) events;
 
 				let evts = List.map (fun(_,v) -> !v) events in
@@ -2779,7 +2807,7 @@ let generate con =
 			if should_close then end_block w
 		in
 
-		let module_type_gen w md_tp =
+		let module_type_gen w md_tp is_first_type =
 			let file_start = len w = 0 in
 			let requires_root = no_root && file_start in
 			if file_start then
@@ -2789,7 +2817,24 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
-						gen_class w cl;
+
+						(if (Meta.has Meta.CsUsing cl.cl_meta) then
+							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,_,p when not !is_first_type ->
+									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
+								| _,[],p ->
+									gen.gcon.error "One or several string constants expected" p
+								| _,e,_ ->
+									(List.iter (fun e ->
+										match e with
+										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
+										| _,p -> gen.gcon.error "One or several string constants expected" p
+									) e);
+									newline w
+						);
+
+						gen_class w cl !is_first_type;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2798,6 +2843,7 @@ let generate con =
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 						gen_enum w e;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2888,7 +2934,7 @@ let generate con =
 						let e = { e with eexpr = TParenthesis(e) } in
 						{ (mk_field_access gen e "value" e.epos) with etype = t }
 					| _ ->
-						trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
+						trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; die "" __LOC__
 			)
 			(fun v t has_value ->
 				match has_value, real_type v.etype with
@@ -2949,9 +2995,9 @@ let generate con =
 
 		let object_iface = get_cl (get_type gen (["haxe";"lang"],"IHxObject")) in
 
-		let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
+		let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> die "" __LOC__ in
 		let empty_ctor_type = TEnum(empty_en, []) in
-		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+		let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (mk_anon (ref (EnumStatics empty_en))) null_pos in
 		let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 		OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 
@@ -2962,7 +3008,7 @@ let generate con =
 			let get_specialized_postfix t = match t with
 				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
 				| TAnon _ | TDynamic _ -> "Dynamic"
-				| _ -> print_endline (debug_type t); assert false
+				| _ -> print_endline (debug_type t); die "" __LOC__
 			in
 			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
 			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
@@ -3109,7 +3155,7 @@ let generate con =
 							| Some(Ast.OpAssignOp _), ([TDynamic _] | [TAnon _]) ->
 								true
 							| _ -> false)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 		) "__get" "__set";
 
 		let field_is_dynamic t field =
@@ -3169,7 +3215,7 @@ let generate con =
 
 		let string_cl = match gen.gcon.basic.tstring with
 			| TInst(c,[]) -> c
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 
 		let is_undefined e = match e.eexpr with
@@ -3285,7 +3331,7 @@ let generate con =
 							) cases)
 						| _ -> true
 					)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 		);
 
 		ExpressionUnwrap.configure gen;
@@ -3319,7 +3365,7 @@ let generate con =
 				output_string f v;
 				close_out f;
 
-				out_files := (Path.unique_full_path full_path) :: !out_files
+				out_files := (Path.UniqueKey.create full_path) :: !out_files
 			) gen.gcon.resources;
 		end;
 		(* add resources array *)
@@ -3422,7 +3468,8 @@ let generate con =
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in
 			let w = SourceWriter.new_source_writer() in
-			let should_write = List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types in
+			let is_first_type = ref true in
+			let should_write = List.fold_left (fun should md -> module_type_gen w md is_first_type || should) false md_def.m_types in
 			if should_write then begin
 				let path = path_of_md_def md_def in
 				write_file gen w source_dir path "cs" out_files

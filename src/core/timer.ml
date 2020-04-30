@@ -25,6 +25,8 @@ type timer_infos = {
 	mutable calls : int;
 }
 
+let measure_times = ref false
+
 let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
@@ -61,16 +63,24 @@ let rec close now t =
 				| current :: _ ->
 					match current.pauses with
 					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
-					| _ -> assert false
+					| _ -> Globals.die "" __LOC__
 				)
-			| _ -> assert false
+			| _ -> Globals.die "" __LOC__
 		end else
 			close now tt
 
 let timer id =
-	let t = new_timer id in
-	curtime := t :: !curtime;
-	(function() -> close (get_time()) t)
+	if !measure_times then (
+		let t = new_timer id in
+		curtime := t :: !curtime;
+		(function() -> close (get_time()) t)
+	) else
+		(fun() -> ())
+
+let current_id() =
+	match !curtime with
+	| [] -> None
+	| t :: _ -> Some t.id
 
 let rec close_times() =
 	let now = get_time() in
@@ -105,7 +115,7 @@ let build_times_tree () =
 	} in
 	Hashtbl.iter (fun _ timer ->
 		let rec loop parent sl = match sl with
-			| [] -> assert false
+			| [] -> Globals.die "" __LOC__
 			| s :: sl ->
 				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
 				let node = try

@@ -70,7 +70,7 @@ let generate_type com t =
 	let rec notnull t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> t
 			| Some t -> notnull t)
 		| TLazy f ->
@@ -86,7 +86,7 @@ let generate_type com t =
 	and stype t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> "Unknown"
 			| Some t -> stype t)
 		| TInst ({ cl_kind = KTypeParameter _ } as c,tl) ->
@@ -113,7 +113,7 @@ let generate_type com t =
 	and ftype t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> stype t
 			| Some t -> ftype t)
 		| TLazy f ->
@@ -196,7 +196,7 @@ let generate_type com t =
 						a,(if o then Some (loop f.cf_meta) else None ),t
 					) args, ret
 				| _ ->
-					assert false
+					die "" __LOC__
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);

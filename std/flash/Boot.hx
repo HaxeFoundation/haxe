@@ -22,7 +22,6 @@
 
 package flash;
 
-#if !as3
 @:keep private class RealBoot extends Boot {
 	#if swc
 	public function new() {
@@ -42,7 +41,6 @@ package flash;
 	}
 	#end
 }
-#end
 
 @:dox(hide)
 @:keep
@@ -234,7 +232,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function mapDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["mapHX"](f);
 		} else {
 			return untyped d["map"](f);
@@ -242,7 +240,7 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static public function filterDynamic(d:Dynamic, f:Dynamic) {
-		if (Std.is(d, Array)) {
+		if (Std.isOfType(d, Array)) {
 			return untyped d["filterHX"](f);
 		} else {
 			return untyped d["filter"](f);
@@ -282,7 +280,7 @@ class Boot extends flash.display.MovieClip {
 						throw "Invalid date format : " + s;
 				}
 			};
-			d.prototype[#if (as3 || no_flash_override) "toStringHX" #else "toString" #end] = function() {
+			d.prototype[#if no_flash_override "toStringHX" #else "toString" #end] = function() {
 				var date:Date = __this__;
 				var m = date.getMonth() + 1;
 				var d = date.getDate();
@@ -299,6 +297,9 @@ class Boot extends flash.display.MovieClip {
 			aproto.insert = function(i, x) {
 				__this__.splice(i, 0, x);
 			};
+			aproto.contains = function(obj) {
+				return __this__.indexOf(obj) != -1;
+			}
 			aproto.remove = function(obj) {
 				var idx = __this__.indexOf(obj);
 				if (idx == -1)
@@ -313,26 +314,22 @@ class Boot extends flash.display.MovieClip {
 				return true;
 			}
 			aproto.iterator = function() {
-				var cur = 0;
-				var arr:Array<Dynamic> = __this__;
-				return {
-					hasNext: function() {
-						return cur < arr.length;
-					},
-					next: function() {
-						return arr[cur++];
-					}
-				}
+				return new haxe.iterators.ArrayIterator(cast __this__);
+			};
+			aproto.keyValueIterator = function() {
+				return new haxe.iterators.ArrayKeyValueIterator(untyped __this__);
 			};
 			aproto.resize = function(len) {
 				__this__.length = len;
 			};
 			aproto.setPropertyIsEnumerable("copy", false);
 			aproto.setPropertyIsEnumerable("insert", false);
+			aproto.setPropertyIsEnumerable("contains", false);
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
+			aproto.setPropertyIsEnumerable("keyValueIterator", false);
 			aproto.setPropertyIsEnumerable("resize", false);
-			#if (as3 || no_flash_override)
+			#if no_flash_override
 			aproto.filterHX = function(f) {
 				var ret = [];
 				var i = 0;

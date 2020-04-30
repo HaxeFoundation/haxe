@@ -21,7 +21,7 @@ let convert_import_to_something_usable pt path =
 			let is_display_pos = encloses_position pt p in
 			begin match is_lower,m,t with
 				| _,None,Some _ ->
-					assert false (* impossible, I think *)
+					die "" __LOC__ (* impossible, I think *)
 				| true,Some m,None ->
 					if is_display_pos then (IDKModuleField(List.rev pack,m,s),p)
 					else (IDK,p) (* assume that we're done *)
@@ -43,17 +43,14 @@ let convert_import_to_something_usable pt path =
 	in
 	loop [] None None path
 
-let add_import_position com p path =
-	let infos = com.shared.shared_display_information in
-	if not (PMap.mem p infos.import_positions) then
-		infos.import_positions <- PMap.add p (ref false,path) infos.import_positions
+let add_import_position ctx p path =
+	let infos = ctx.m.curmod.m_extra.m_display in
+	if not (PMap.mem p infos.m_import_positions) then
+		infos.m_import_positions <- PMap.add p (ref false) infos.m_import_positions
 
-let mark_import_position com p =
+let mark_import_position ctx p =
 	try
-		let r = fst (PMap.find p com.shared.shared_display_information.import_positions) in
+		let r = PMap.find p ctx.m.curmod.m_extra.m_display.m_import_positions in
 		r := true
 	with Not_found ->
 		()
-
-let maybe_mark_import_position ctx p =
-	if Diagnostics.is_diagnostics_run p then mark_import_position ctx.com p

@@ -86,28 +86,6 @@ package haxe.ds;
 		}
 	}
 
-	#if as3
-	// unoptimized version
-
-	public function keys():Iterator<String> {
-		var out:Array<String> = untyped __keys__(h);
-		if (rh != null)
-			out = out.concat(untyped __hkeys__(rh));
-		return out.iterator();
-	}
-
-	public function iterator():Iterator<T> {
-		return untyped {
-			it: keys(),
-			hasNext: function() {
-				return __this__.it.hasNext();
-			},
-			next: function() {
-				return get(__this__.it.next());
-			}
-		};
-	}
-	#else
 	public inline function keys():Iterator<String> {
 		return new StringMapKeysIterator(h, rh);
 	}
@@ -115,7 +93,6 @@ package haxe.ds;
 	public inline function iterator():Iterator<T> {
 		return new StringMapValuesIterator<T>(h, rh);
 	}
-	#end
 
 	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
@@ -149,7 +126,6 @@ package haxe.ds;
 	}
 }
 
-#if !as3
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
 @:allow(haxe.ds.StringMap)
@@ -224,4 +200,3 @@ private class StringMapValuesIterator<T> {
 		return r;
 	}
 }
-#end

@@ -58,7 +58,7 @@ class TestUnicode extends utest.Test {
 	];
 
 	// list of expected filenames in sub-directories
-	static var names:Array<UnicodeString> = (Sys.systemName() == "Windows" ? UnicodeSequences.valid.slice(1) : UnicodeSequences.valid);
+	static var names:Array<UnicodeString> = UnicodeSequences.validFilenames;
 
 	// extra files only present in the root test-res directory
 	static var namesRoot = names.concat([
@@ -132,7 +132,11 @@ class TestUnicode extends utest.Test {
 
 	function setupClass() {
 		FileSystem.createDirectory("temp-unicode");
+		#if TEST_INVALID_UNICODE_FS
+		Sys.command("python3", ["genTestRes.py", "TEST_INVALID_UNICODE_FS"]);
+		#else
 		Sys.command("python3", ["genTestRes.py"]);
+		#end
 	}
 
 	function teardownClass() {
@@ -326,10 +330,8 @@ class TestUnicode extends utest.Test {
 #if (hl || cpp) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
-#if !lua // Lua disabled temporarily (#8216)
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
-#end
 #if (hl || cpp) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});

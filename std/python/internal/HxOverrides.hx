@@ -40,6 +40,14 @@ class HxOverrides {
 		return Syntax.callField(x, "iterator");
 	}
 
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	static public function keyValueIterator(x) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).keyValueIterator();
+		}
+		return Syntax.callField(x, "keyValueIterator");
+	}
+
 	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
 	static function eq(a:Dynamic, b:Dynamic):Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
@@ -142,12 +150,34 @@ class HxOverrides {
 
 	@:ifFeature("binop_%")
 	static public function modf(a:Float, b:Float) {
-		return Syntax.code("float('nan') if (b == 0.0) else a % b if a >= 0 else -(-a % b)");
+		if(b == 0.0) {
+			return Syntax.code("float('nan')");
+		} else if(a < 0) {
+			if(b < 0) {
+				return Syntax.code("-(-{0} % (-{1}))", a, b);
+			} else {
+				return Syntax.code("-(-{0} % {1})", a, b);
+			}
+		} else if(b < 0) {
+			return Syntax.code("{0} % (-{1})", a, b);
+		} else {
+			return Syntax.code("{0} % {1}", a, b);
+		}
 	}
 
 	@:ifFeature("binop_%")
 	static public function mod(a:Int, b:Int) {
-		return Syntax.code("a % b if a >= 0 else -(-a % b)");
+		if(a < 0) {
+			if(b < 0) {
+				return Syntax.code("-(-{0} % (-{1}))", a, b);
+			} else {
+				return Syntax.code("-(-{0} % {1})", a, b);
+			}
+		} else if(b < 0) {
+			return Syntax.code("{0} % (-{1})", a, b);
+		} else {
+			return Syntax.code("{0} % {1}", a, b);
+		}
 	}
 
 	@:ifFeature("dynamic_array_read")

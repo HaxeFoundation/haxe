@@ -25,9 +25,9 @@ import lua.Table;
 import lua.Boot;
 
 #if lua_vanilla
-typedef BaseString = lua.NativeStringTools;
+private typedef BaseString = lua.NativeStringTools;
 #else
-typedef BaseString = lua.lib.luautf8.Utf8;
+private typedef BaseString = lua.lib.luautf8.Utf8;
 #end
 
 @:coreApi
@@ -67,6 +67,9 @@ class String {
 			startIndex = 1;
 		else
 			startIndex += 1;
+		if (str == "") {
+			return indexOfEmpty(this, startIndex - 1);
+		}
 		var r = BaseString.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0)
 			return r - 1;
@@ -74,14 +77,22 @@ class String {
 			return -1;
 	}
 
+	static function indexOfEmpty(s:String, startIndex:Int):Int {
+		var length = BaseString.len(s);
+		if(startIndex < 0) {
+			startIndex = length + startIndex;
+			if(startIndex < 0) startIndex = 0;
+		}
+		return startIndex > length ? length : startIndex;
+	}
+
 	public inline function lastIndexOf(str:String, ?startIndex:Int):Int {
-		var i = 0;
 		var ret = -1;
 		if (startIndex == null)
 			startIndex = length;
 		while (true) {
 			var p = indexOf(str, ret + 1);
-			if (p == -1 || p > startIndex)
+			if (p == -1 || p > startIndex || p == ret)
 				break;
 			ret = p;
 		}
@@ -91,7 +102,6 @@ class String {
 	public inline function split(delimiter:String):Array<String> {
 		var idx = 1;
 		var ret = [];
-		var delim_offset = delimiter.length > 0 ? delimiter.length : 1;
 		while (idx != null) {
 			var newidx = 0;
 			if (delimiter.length > 0) {

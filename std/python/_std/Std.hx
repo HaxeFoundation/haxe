@@ -49,9 +49,14 @@ import python.Syntax;
 		return Boot.isMetaType(v, t);
 	}
 
+	@:ifFeature("typed_cast")
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
 	@:access(python.Boot)
 	@:ifFeature("typed_cast")
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null && t == null) {
 			return false;
 		}
@@ -130,26 +135,50 @@ import python.Syntax;
 		try {
 			return UBuiltins.int(x);
 		} catch (e:Dynamic) {
-			try {
-				var prefix = x.substr(0, 2).toLowerCase();
+			var base = 10;
+			var len = x.length;
+			var foundCount = 0;
+			var sign = 0;
+			var firstDigitIndex = 0;
+			var lastDigitIndex = -1;
+			var previous = 0;
 
-				if (prefix == "0x") {
-					return UBuiltins.int(x, 16);
+			for(i in 0...len) {
+				var c = StringTools.fastCodeAt(x, i);
+				switch c {
+					case _ if((c > 8 && c < 14) || c == 32):
+						if(foundCount > 0) {
+							return null;
+						}
+						continue;
+					case '-'.code if(foundCount == 0):
+						sign = -1;
+					case '+'.code if(foundCount == 0):
+						sign = 1;
+					case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
+					case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+						base = 16;
+					case _ if('0'.code <= c && c <= '9'.code):
+					case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+					case _:
+						break;
 				}
-				throw "fail";
-			} catch (e:Dynamic) {
-				var r = int(parseFloat(x));
-
-				if (r == null) {
-					var r1 = shortenPossibleNumber(x);
-					if (r1 != x) {
-						return parseInt(r1);
-					} else {
-						return null;
-					}
+				if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+					firstDigitIndex = i;
 				}
-				return r;
+				foundCount++;
+				lastDigitIndex = i;
+				previous = c;
 			}
+			if(firstDigitIndex <= lastDigitIndex) {
+				var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
+				return try {
+					(sign == -1 ? -1 : 1) * UBuiltins.int(digits, base);
+				} catch(e:Dynamic) {
+					null;
+				}
+			}
+			return null;
 		}
 	}
 

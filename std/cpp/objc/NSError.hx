@@ -25,5 +25,5 @@ package cpp.objc;
 @:objc
 @:native("NSError")
 extern class NSError {
-	public var localizedDescription(default, null):NSString;
+	var localizedDescription(default, null):NSString;
 }

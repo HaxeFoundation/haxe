@@ -27,6 +27,14 @@ open DisplayTypes
 open Genjson
 open Globals
 
+let maybe_resolve_macro_field ctx t c cf =
+	try
+		if cf.cf_kind <> Method MethMacro then raise Exit;
+		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
+		(TFun(tl,tr)),c,cf
+	with _ ->
+		t,c,cf
+
 let exclude : string list ref = ref []
 
 class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
@@ -94,8 +102,8 @@ let read_class_paths com timer =
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file = Path.unique_full_path file in
-				(CommonCache.get_cache cs com)#remove_file_for_real file
+				let file_key = Path.UniqueKey.create file in
+				(CommonCache.get_cache cs com)#remove_file_for_real file_key
 			| _ ->
 				()
 		end
@@ -116,12 +124,12 @@ let init_or_update_server cs com timer_name =
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun file () ->
-		DynArray.add removed_removed_files file;
+	Hashtbl.iter (fun file_key file_path ->
+		DynArray.add removed_removed_files file_key;
 		try
-			ignore(cc#find_file file);
+			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
@@ -189,7 +197,7 @@ let pack_contains pack1 pack2 =
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
-let collect ctx tk with_type =
+let collect ctx tk with_type sort =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
@@ -268,6 +276,22 @@ let collect ctx tk with_type =
 		) ctx.locals;
 
 		let add_field scope origin cf =
+			let origin,cf = match origin with
+				| Self (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Self (TClassDecl c),cf
+				| StaticImport (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticImport (TClassDecl c),cf
+				| Parent (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					Parent (TClassDecl c),cf
+				| StaticExtension (TClassDecl c) ->
+					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					StaticExtension (TClassDecl c),cf
+				| _ ->
+					origin,cf
+			in
 			let is_qualified = is_qualified cctx cf.cf_name in
 			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some cf.cf_name)
 		in
@@ -333,7 +357,7 @@ let collect ctx tk with_type =
 		(* enum constructors of expected type *)
 		begin match with_type with
 			| WithType.WithType(t,_) ->
-				(try enum_ctors (module_type_of_type t) with Exit -> ())
+				(try enum_ctors (module_type_of_type (follow t)) with Exit -> ())
 			| _ -> ()
 		end;
 
@@ -398,7 +422,7 @@ let collect ctx tk with_type =
 	List.iter (fun (s,t) -> match follow t with
 		| TInst(c,_) ->
 			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	) ctx.type_params;
 
 	(* module types *)
@@ -434,8 +458,8 @@ let collect ctx tk with_type =
 			| [] -> ()
 			| s :: sl -> add_package (List.rev sl,s)
 		in
-		List.iter (fun ((file,cfile),_) ->
-			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+		List.iter (fun ((file_key,cfile),_) ->
+			let module_name = CompilationServer.get_module_name_of_cfile cfile.c_file_path cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
 			(* In legacy mode we only show toplevel types. *)
 			if is_legacy_completion && cfile.c_package <> [] then begin
@@ -446,7 +470,7 @@ let collect ctx tk with_type =
 			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
+				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) cfile.c_file_path;
 				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
 		) files;
@@ -471,8 +495,10 @@ let collect ctx tk with_type =
 	let l = DynArray.to_list cctx.items in
 	let l = if is_legacy_completion then
 		List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-	else
+	else if sort then
 		Display.sort_fields l with_type tk
+	else
+		l
 	in
 	t();
 	l
@@ -482,12 +508,12 @@ let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	| Some p' when pname.pmin = p'.pmin ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
-		collect ctx tk with_type
+		collect ctx tk with_type (name = "")
 	in
 	DisplayException.raise_fields fields cr (make_subject (Some name) ~start_pos:(Some pname) pinsert)
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
+	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue false in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in

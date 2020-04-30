@@ -57,14 +57,12 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 	method set_display_file was_auto_triggered requires_offset =
 		let file = jsonrpc#get_opt_param (fun () ->
 			let file = jsonrpc#get_string_param "file" in
-			Path.unique_full_path file
+			Path.get_full_path file
 		) DisplayOutput.file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
 			Common.define com Define.DisplayStdin; (* TODO: awkward *)
-			(* Remove our current display file from the cache so the server doesn't pick it up *)
-			cs#remove_files file;
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
@@ -91,7 +89,7 @@ let handler =
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
 			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
-			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> assert false) exclude;
+			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
 			hctx.send_result (JObject [
 				"methods",jarray methods;
@@ -104,7 +102,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 3;
+					"minor",jint 4;
 					"patch",jint 0;
 				]
 			])
@@ -128,6 +126,11 @@ let handler =
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
+		"display/implementation", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display (DMImplementation);
+		);
 		"display/typeDefinition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
@@ -136,7 +139,13 @@ let handler =
 		"display/references", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
-			hctx.display#enable_display (DMUsage false);
+			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
+			| "withBaseAndDescendants" ->
+				hctx.display#enable_display (DMUsage (false,true,true));
+			| "withDescendants" ->
+				hctx.display#enable_display (DMUsage (false,true,false));
+			| _ ->
+				hctx.display#enable_display (DMUsage (false,false,false));
 		);
 		"display/hover", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
@@ -187,10 +196,11 @@ let handler =
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let file = Path.unique_full_path file in
+			let file = Path.get_full_path file in
+			let key = Path.UniqueKey.create file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files file ()
+				Hashtbl.replace cc#get_removed_files key file
 			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);
@@ -199,9 +209,9 @@ let handler =
 			let cc = hctx.display#get_cs#get_context sign in
 			let files = Hashtbl.fold (fun file cfile acc -> (file,cfile) :: acc) cc#get_files [] in
 			let files = List.sort (fun (file1,_) (file2,_) -> compare file1 file2) files in
-			let files = List.map (fun (file,cfile) ->
+			let files = List.map (fun (fkey,cfile) ->
 				jobject [
-					"file",jstring file;
+					"file",jstring cfile.c_file_path;
 					"time",jfloat cfile.c_time;
 					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
@@ -211,10 +221,10 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let file = Path.unique_full_path file in
+			let fkey = Path.UniqueKey.create file in
 			let cs = hctx.display#get_cs in
-			cs#taint_modules file;
-			cs#remove_files file;
+			cs#taint_modules fkey;
+			cs#remove_files fkey;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

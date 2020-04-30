@@ -23,7 +23,7 @@
 import lua.Boot;
 import lua.Io;
 import lua.Lua;
-import lua.Os;
+import lua.lib.luv.Os;
 import lua.lib.luv.Misc;
 import sys.io.FileInput;
 import sys.io.FileOutput;
@@ -42,7 +42,7 @@ class Sys {
 
 	public inline static function args():Array<String> {
 		var targs = lua.PairTools.copy(Lua.arg);
-		var args = lua.Lib.tableToArray(targs);
+		var args = lua.Table.toArray(targs);
 		return args;
 	}
 
@@ -76,22 +76,8 @@ class Sys {
 	}
 
 	public static function environment():Map<String, String> {
-		var map = new Map<String, String>();
-		var cmd = switch (Sys.systemName()) {
-			case "Windows": 'SET';
-			default: 'printenv';
-		}
-		var p = new sys.io.Process(cmd, []);
-		var code = p.exitCode(true);
-		var out = p.stdout.readAll().toString();
-		p.close();
-		var lines = out.split("\n");
-		var m = new Map<String, String>();
-		for (l in lines) {
-			var parts = l.split("=");
-			m.set(parts.shift(), parts.join("="));
-		}
-		return m;
+		var env = lua.lib.luv.Os.environ();
+		return lua.Table.toMap(env);
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath():String {
@@ -109,11 +95,11 @@ class Sys {
 		Misc.chdir(s);
 
 	public inline static function getEnv(s:String):String {
-		return Misc.os_getenv(s);
+		return Os.getenv(s);
 	}
 
 	public inline static function putEnv(s:String, v:String):Void {
-		Misc.os_setenv(s, v);
+		Os.setenv(s, v);
 	}
 
 	public inline static function setTimeLocale(loc:String):Bool {
@@ -125,14 +111,16 @@ class Sys {
 		lua.lib.luv.Thread.sleep(Math.floor(seconds * 1000));
 
 	public inline static function stderr():haxe.io.Output
-		return new FileOutput(Io.stderr);
+		return @:privateAccess new FileOutput(Io.stderr);
 
 	public inline static function stdin():haxe.io.Input
-		return new FileInput(Io.stdin);
+		return @:privateAccess new FileInput(Io.stdin);
 
 	public inline static function stdout():haxe.io.Output
-		return new FileOutput(Io.stdout);
+		return @:privateAccess new FileOutput(Io.stdout);
 
-	public static function time():Float
-		return lua.lib.luasocket.Socket.gettime();
+	public static function time():Float {
+		var stamp = lua.lib.luv.Misc.gettimeofday();
+		return stamp.seconds + (stamp.microseconds / 100000);
+	}
 }

@@ -27,6 +27,9 @@
 	@see https://haxe.org/manual/std-Array.html
 	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 extern class Array<T> {
 	/**
 		The length of `this` Array.
@@ -223,6 +226,15 @@ extern class Array<T> {
 	**/
 	function remove(x:T):Bool;
 
+
+	/**
+		Returns whether `this` Array contains `x`.
+
+		If `x` is found by checking standard equality, the function returns `true`, otherwise
+		the function returns `false`.
+	**/
+	@:pure function contains( x : T ) : Bool;
+
 	/**
 		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
 
@@ -265,7 +277,16 @@ extern class Array<T> {
 	/**
 		Returns an iterator of the Array values.
 	**/
-	function iterator():Iterator<T>;
+	@:runtime inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
+	/**
+		Returns an iterator of the Array indices and values.
+	**/
+	@:pure @:runtime public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
+	}
 
 	/**
 		Creates a new Array by applying function `f` to all elements of `this`.

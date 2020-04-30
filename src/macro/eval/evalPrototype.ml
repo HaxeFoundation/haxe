@@ -33,8 +33,8 @@ let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true e.epos.pfile kind jit.capture_infos in
-		let env = push_environment ctx info jit.max_num_locals num_captures in
+		let info = create_env_info true e.epos.pfile kind jit.capture_infos jit.max_num_locals num_captures in
+		let env = push_environment ctx info in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 
@@ -240,7 +240,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
 		PrototypeBuilder.finalize pctx,[];
 	| _ ->
-		assert false
+		die "" __LOC__
 	in
 	let rec loop v name path = match path with
 		| [] ->
@@ -341,6 +341,9 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
+			if Meta.has Meta.CoreType a.a_meta then
+				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()
 	) new_types;

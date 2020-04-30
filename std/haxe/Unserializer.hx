@@ -188,7 +188,7 @@ class Unserializer {
 			if (get(pos) == "g".code)
 				break;
 			var k:Dynamic = unserialize();
-			if (!Std.is(k, String))
+			if (!Std.isOfType(k, String))
 				throw "Invalid object key";
 			var v = unserialize();
 			Reflect.setField(o, k, v);
@@ -388,6 +388,9 @@ class Unserializer {
 					throw "Invalid bytes length";
 				#if neko
 				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.substr(pos, len).__s, untyped BASE64.__s));
+				#elseif php
+				var phpEncoded = php.Global.strtr(buf.substr(pos, len), '%:', '+/');
+				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(phpEncoded));
 				#else
 				var codes = CODES;
 				if (codes == null) {

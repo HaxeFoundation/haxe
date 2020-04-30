@@ -17,11 +17,11 @@ let rec make_static_call ctx c cf a pl args t p =
 					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				let e = cast_or_unify ctx t e p in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
-			| _ -> assert false
+			| _ -> die "" __LOC__
 	end else
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
@@ -49,7 +49,7 @@ and do_check_cast ctx tleft eright p =
 				let ret = make_static_call ctx c cf a tl [eright] tleft p in
 				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
 			)
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	if type_iseq tleft eright.etype then
 		eright
@@ -110,7 +110,8 @@ and cast_or_unify ctx tleft eright p =
 let find_array_access_raise ctx a pl e1 e2o p =
 	let is_set = e2o <> None in
 	let ta = apply_params a.a_params pl a.a_this in
-	let rec loop cfl = match cfl with
+	let rec loop cfl =
+		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -122,10 +123,14 @@ let find_array_access_raise ctx a pl e1 e2o p =
 					| _ -> ()
 				) monos cf.cf_params;
 			in
+			let get_ta() =
+				if has_meta Meta.Impl cf.cf_meta then ta
+				else TAbstract(a,pl)
+			in
 			match follow (map cf.cf_type) with
 			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
 					check_constraints();
@@ -135,7 +140,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				end
 			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1,None
@@ -148,11 +153,13 @@ let find_array_access_raise ctx a pl e1 e2o p =
 
 let find_array_access ctx a tl e1 e2o p =
 	try find_array_access_raise ctx a tl e1 e2o p
-	with Not_found -> match e2o with
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		match e2o with
 		| None ->
-			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 		| Some e2 ->
-			error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let m = mk_mono() in
@@ -188,7 +195,7 @@ let find_multitype_specialization com a pl p =
 							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
 								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 								Type.map loop t
@@ -197,7 +204,7 @@ let find_multitype_specialization com a pl p =
 						end
 					in
 					ignore(loop t1)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			tl
 	in
@@ -239,7 +246,7 @@ let handle_abstract_casts ctx e =
 						e
 					end
 				| _ ->
-					assert false
+					die "" __LOC__
 			end
 		| TCall(e1, el) ->
 			begin try

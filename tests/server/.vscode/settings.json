@@ -1,6 +1,6 @@
 {
 	"haxe.diagnosticsPathFilter": "${workspaceRoot}/src",
-	"editor.formatOnSave": true,
+	// "editor.formatOnSave": true,
 	"haxeTestExplorer.testCommand": [
 		"${haxe}",
 		"build.hxml",

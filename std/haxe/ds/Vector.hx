@@ -241,9 +241,6 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `array` is null, the result is unspecified.
 	**/
-	#if as3
-	extern
-	#end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		#if python
 		return cast array.copy();

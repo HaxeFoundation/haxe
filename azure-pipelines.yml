@@ -5,6 +5,14 @@ variables:
   - name: AZURE_PIPELINES_BRANCH
     value: $(Build.SourceBranchName)
 
+trigger:
+  branches:
+    include:
+      - '*'
+  tags:
+    include:
+      - '*'
+
 stages:
   - stage: StageTest
     jobs:
@@ -55,7 +63,7 @@ stages:
             php:
               TEST: php
             flash:
-              TEST: flash9,as3
+              TEST: flash9
               APT_PACKAGES: libglib2.0 libfreetype6 xvfb
               DISPLAY: ':99.0'
               AUDIODEV: 'null'
@@ -63,6 +71,7 @@ stages:
               TEST: python
             lua:
               TEST: lua
+              APT_PACKAGES: ncurses-dev
         steps:
           - checkout: self
             fetchDepth: 20
@@ -96,16 +105,20 @@ stages:
             condition: and(succeeded(), variables['APT_PACKAGES'])
             displayName: Install apt packages
           - script: haxe RunCi.hxml
+            condition: and(succeeded(), not(and(variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])))
+            workingDirectory: $(Build.SourcesDirectory)/tests
+            displayName: Test
+          - script: haxe RunCi.hxml
+            condition: and(succeeded(), variables['SAUCE'], variables['SAUCE_ACCESS_KEY'])
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              ${{ if variables['SAUCE_ACCESS_KEY'] }}:
-                SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
-            displayName: Test
+              SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
+            displayName: Test (with SauceLabs)
 
       - job: TestMac
         dependsOn: BuildMac
         pool:
-          vmImage: 'macOS-10.13'
+          vmImage: 'macOS-10.14'
         strategy:
           matrix:
             macro:
@@ -127,7 +140,7 @@ stages:
             php:
               TEST: php
             flash:
-              TEST: flash9,as3
+              TEST: flash9
             python:
               TEST: python
             lua:
@@ -161,7 +174,10 @@ stages:
           - script: brew install $BREW_PACKAGES
             condition: and(succeeded(), variables['BREW_PACKAGES'])
             displayName: Install homebrew packages
-          - script: haxe RunCi.hxml
+          - script: |
+              # disable invalid Unicode filenames on APFS
+              echo "" > sys/compile-fs.hxml
+              haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             displayName: Test
 

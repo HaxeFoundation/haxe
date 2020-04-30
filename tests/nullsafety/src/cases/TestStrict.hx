@@ -824,11 +824,33 @@ class TestStrict {
 		a = b;
 	}
 
-	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+	function nonFinalField_immediatelyAfterCheck_shouldPass(o:{field:Null<String>}) {
 		if(o.field != null) {
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterLocalAssignment_shouldPass(o:{field:Null<String>}, b:{field:Null<String>}) {
+		if(o.field != null) {
+			b = {field:null};
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterFieldAssignment_shouldFail(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+		if(o.field != null) {
+			b.o = {field:null};
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function nonFinalField_afterSomeCall_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			someCall();
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+	function someCall() {}
 
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
@@ -876,6 +898,28 @@ class TestStrict {
 		}
 	}
 
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
+		}
+	}
+
+	function safetyOffArgument_shouldPass(?a:String) {
+		staticSafetyOffArgument(a);
+		instanceSafetyOffArgument(a);
+		inline instanceSafetyOffArgument(a);
+	}
+	static function staticSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {}
+	function instanceSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {
+		return staticSafetyOffArgument(b);
+	}
+
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();
@@ -896,6 +940,9 @@ class TestStrict {
 		trace("hi", x);
 		trace("hi", shouldFail(x()));
 	}
+
+	@:shouldFail @:nullSafety(InvalidArgument)
+	static function invalidMetaArgument_shouldFail() {}
 }
 
 private class FinalNullableFields {

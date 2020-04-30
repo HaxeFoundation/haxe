@@ -1,0 +1,11 @@
+(rule
+	(targets metaList.ml)
+	(deps ../../src-json/meta.json)
+	(action (with-stdout-to metaList.ml (run %{bin:haxe_prebuild} meta ../../src-json/meta.json)))
+)
+
+(rule
+	(targets defineList.ml)
+	(deps ../../src-json/define.json)
+	(action (with-stdout-to defineList.ml (run %{bin:haxe_prebuild} define ../../src-json/define.json)))
+)

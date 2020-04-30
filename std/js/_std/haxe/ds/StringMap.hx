@@ -22,6 +22,105 @@
 
 package haxe.ds;
 
+import js.lib.Object;
+import haxe.Constraints.IMap;
+import haxe.DynamicAccess;
+
+#if (js_es >= 5)
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	var h:Dynamic;
+
+	public inline function new() {
+		h = Object.create(null);
+	}
+
+	public inline function exists(key:String):Bool {
+		return Object.prototype.hasOwnProperty.call(h, key);
+	}
+
+	public inline function get(key:String):Null<T> {
+		return h[cast key];
+	}
+
+	public inline function set(key:String, value:T):Void {
+		h[cast key] = value;
+	}
+
+	public inline function remove(key:String):Bool {
+		return if (exists(key)) {
+			js.Syntax.delete(h, key); true;
+		} else {
+			false;
+		}
+	}
+
+	public inline function keys():Iterator<String> {
+		return keysIterator(h);
+	}
+
+	public inline function iterator():Iterator<T> {
+		return valueIterator(h);
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
+		return kvIterator(h);
+	}
+
+	public inline function copy():StringMap<T> {
+		return createCopy(h);
+	}
+
+	public inline function clear():Void {
+		h = Object.create(null);
+	}
+
+	public inline function toString():String {
+		return stringify(h);
+	}
+
+	// impl
+
+	static function keysIterator(h:Dynamic):Iterator<String> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> keys[idx++]
+		};
+	}
+
+	static function valueIterator<T>(h:Dynamic):Iterator<T> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> h[cast keys[idx++]]
+		};
+	}
+
+	static function kvIterator<T>(h:Dynamic):KeyValueIterator<String, T> {
+		var keys = Object.keys(h), len = keys.length, idx = 0;
+		return {
+			hasNext: () -> idx < len,
+			next: () -> {var k = keys[idx++]; {key: k, value: h[cast k]}}
+		};
+	}
+
+	static function createCopy<T>(h:Dynamic):StringMap<T> {
+		var copy = new StringMap();
+		js.Syntax.code("for (var key in {0}) {1}[key] = {0}[key]", h, copy.h);
+		return copy;
+	}
+
+	@:analyzer(no_optimize)
+	static function stringify(h:Dynamic):String {
+		var s = "{", first = true;
+		js.Syntax.code("for (var key in {0}) {", h);
+		js.Syntax.code("\tif ({0}) {0} = false; else {1} += ',';", first, s);
+		js.Syntax.code("\t{0} += key + ' => ' + {1}({2}[key]);", s, Std.string, h);
+		js.Syntax.code("}");
+		return s + "}";
+	}
+}
+#else
 private class StringMapIterator<T> {
 	var map:StringMap<T>;
 	var keys:Array<String>;
@@ -53,7 +152,7 @@ private class StringMapIterator<T> {
 	}
 
 	inline function isReserved(key:String):Bool {
-		return untyped __js__("__map_reserved")[key] != null;
+		return js.Syntax.code("__map_reserved[{0}]", key) != null;
 	}
 
 	public inline function set(key:String, value:T):Void {
@@ -113,17 +212,17 @@ private class StringMapIterator<T> {
 	function arrayKeys():Array<String> {
 		var out = [];
 		untyped {
-			__js__("for( var key in this.h ) {");
+			js.Syntax.code("for( var key in this.h ) {");
 			if (h.hasOwnProperty(key))
 				out.push(key);
-			__js__("}");
+			js.Syntax.code("}");
 		}
 		if (rh != null)
 			untyped {
-				__js__("for( var key in this.rh ) {");
+				js.Syntax.code("for( var key in this.rh ) {");
 				if (key.charCodeAt(0) == "$".code)
 					out.push(key.substr(1));
-				__js__("}");
+				js.Syntax.code("}");
 			}
 		return out;
 	}
@@ -165,6 +264,7 @@ private class StringMapIterator<T> {
 	}
 
 	static function __init__():Void {
-		untyped __js__("var __map_reserved = {};");
+		js.Syntax.code("var __map_reserved = {};");
 	}
 }
+#end

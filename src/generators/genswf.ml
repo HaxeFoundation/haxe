@@ -88,7 +88,7 @@ let build_dependencies t =
 		| TLazy f ->
 			add_type_rec l (lazy_type f)
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> ()
 			| Some t -> add_type_rec l t)
 		| TType (tt,pl) ->

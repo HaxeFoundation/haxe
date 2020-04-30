@@ -1,1 +1,1 @@
-Main.hx:4: characters 2-14 : Duplicate abstract field declaration : Foobar.A
+Main.hx:4: characters 6-7 : Duplicate abstract field declaration : Foobar.A

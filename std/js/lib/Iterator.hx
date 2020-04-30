@@ -31,6 +31,15 @@ typedef Iterator<T> = {
 	function next():IteratorStep<T>;
 }
 
+/**
+	Native JavaScript async iterator structure. 
+
+	See [for await...of](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for-await...of)
+**/
+typedef AsyncIterator<T> = {
+	function next():Promise<IteratorStep<T>>;
+}
+
 typedef IteratorStep<T> = {
 	done:Bool,
 	?value:T

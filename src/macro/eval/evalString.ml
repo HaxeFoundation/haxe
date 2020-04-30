@@ -34,6 +34,10 @@ let create_with_length s length = {
 	soffsets = [];
 }
 
+let empty_string = create_ascii ""
+
+let v_empty_string = VString empty_string
+
 let create_unknown s =
 	vstring (create_with_length s (try UTF8.length s with _ -> String.length s))
 
@@ -124,7 +128,7 @@ let get_offset' s c_index =
 		in
 		b_offset,r
 	| _ ->
-		assert false
+		Globals.die "" __LOC__
 
 let get_offset s c_index =
 	let b_offset,(cr_index,br_offset) = get_offset' s c_index in

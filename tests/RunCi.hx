@@ -1,3 +1,4 @@
+import haxe.Exception;
 import runci.TestTarget;
 import runci.System;
 import runci.System.*;
@@ -98,12 +99,10 @@ class RunCi {
 						runci.targets.Cs.run(args);
 					case Flash9:
 						runci.targets.Flash.run(args);
-					case As3:
-						runci.targets.As3.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:
-						throw "unknown target: " + t;
+						throw new Exception("unknown target: " + t);
 				}
 			} catch(f:Failure) {
 				success = false;
@@ -120,6 +119,7 @@ class RunCi {
 				successMsg('test ${test} succeeded');
 			} else {
 				failMsg('test ${test} failed');
+				break;
 			}
 
 			echoServer.kill();

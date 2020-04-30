@@ -22,10 +22,13 @@
 
 import cs.Boot;
 import cs.Lib;
-import cs.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
@@ -65,7 +68,7 @@ import cs.internal.Exceptions;
 	public static function string(s:Dynamic):String {
 		if (s == null)
 			return "null";
-		if (Std.is(s, Bool))
+		if (Std.isOfType(s, Bool))
 			return cast(s, Bool) ? "true" : "false";
 
 		return s.ToString();
@@ -79,65 +82,50 @@ import cs.internal.Exceptions;
 		if (x == null)
 			return null;
 
-		var ret = 0;
 		var base = 10;
-		var i = -1;
 		var len = x.length;
+		var foundCount = 0;
+		var sign = 0;
+		var firstDigitIndex = 0;
+		var lastDigitIndex = -1;
+		var previous = 0;
 
-		if (StringTools.startsWith(x, "0") && len > 2) {
-			var c:Int = cast untyped x[1];
-			if (c == 'x'.code || c == 'X'.code) {
-				i = 1;
-				base = 16;
-			}
-		}
-
-		var foundAny = i != -1;
-		var isNeg = false;
-		while (++i < len) {
-			var c = cast(untyped x[i], Int); // fastCodeAt
-			if (!foundAny) {
-				switch (c) {
-					case '-'.code:
-						isNeg = true;
-						continue;
-					case ' '.code, '\t'.code, '\n'.code, '\r'.code, '+'.code:
-						if (isNeg)
-							return null;
-						continue;
-				}
-			}
-
-			if (c >= '0'.code && c <= '9'.code) {
-				if (!foundAny && c == '0'.code) {
-					foundAny = true;
+		for(i in 0...len) {
+			var c = StringTools.fastCodeAt(x, i);
+			switch c {
+				case _ if((c > 8 && c < 14) || c == 32):
+					if(foundCount > 0) {
+						return null;
+					}
 					continue;
-				}
-				ret *= base;
-				foundAny = true;
-
-				ret += c - '0'.code;
-			} else if (base == 16) {
-				if (c >= 'a'.code && c <= 'f'.code) {
-					ret *= base;
-					foundAny = true;
-					ret += c - 'a'.code + 10;
-				} else if (c >= 'A'.code && c <= 'F'.code) {
-					ret *= base;
-					foundAny = true;
-					ret += c - 'A'.code + 10;
-				} else {
+				case '-'.code if(foundCount == 0):
+					sign = -1;
+				case '+'.code if(foundCount == 0):
+					sign = 1;
+				case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
+				case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+					base = 16;
+				case _ if('0'.code <= c && c <= '9'.code):
+				case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+				case _:
 					break;
-				}
-			} else {
-				break;
+			}
+			if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+				firstDigitIndex = i;
+			}
+			foundCount++;
+			lastDigitIndex = i;
+			previous = c;
+		}
+		if(firstDigitIndex <= lastDigitIndex) {
+			var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
+			return try {
+				(sign == -1 ? -1 : 1) * cs.system.Convert.ToInt32(digits, base);
+			} catch(e:cs.system.FormatException) {
+				null;
 			}
 		}
-
-		if (foundAny)
-			return isNeg ? -ret : ret;
-		else
-			return null;
+		return null;
 	}
 
 	public static function parseFloat(x:String):Float {

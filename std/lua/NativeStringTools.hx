@@ -34,7 +34,7 @@ extern class NativeStringTools {
 		Receives a string and returns its length. The empty string `""` has
 		length `0`. Embedded zeros are counted, so `"a\000bc\000"` has length `5`.
 	**/
-	public static function len(str:String):Int;
+	static function len(str:String):Int;
 
 	/**
 		Receives zero or more integers. Returns a string with length equal to the
@@ -42,7 +42,7 @@ extern class NativeStringTools {
 		code equal to its corresponding argument.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function char(codes:haxe.extern.Rest<Int>):String;
+	static function char(codes:haxe.extern.Rest<Int>):String;
 
 	// TODO: make a note about handling matched groups with multireturn
 
@@ -54,7 +54,7 @@ extern class NativeStringTools {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	public static function sub(str:String, start:Int, ?end:Int):StringSub;
+	static function sub(str:String, start:Int, ?end:Int):StringSub;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -69,13 +69,13 @@ extern class NativeStringTools {
 			   a plain "find substring" operation, with no characters in pattern
 			   being considered "magic". Note that if plain is given, then `start` must be given as well.
 	**/
-	public static function find(str:String, target:String, ?start:Int, ?plain:Bool):StringFind;
+	static function find(str:String, target:String, ?start:Int, ?plain:Bool):StringFind;
 
 	/**
 		Returns the internal numerical codes of the characters `str[index]`.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function byte(str:String, ?index:Int):Int;
+	static function byte(str:String, ?index:Int):Int;
 
 	/**
 		Returns a formatted version of its variable number of arguments following
@@ -99,14 +99,14 @@ extern class NativeStringTools {
 		This function does not accept string values containing embedded zeros,
 		except as arguments to the `q` option.
 	**/
-	public static function format(str:String, ?e1:Dynamic, ?e2:Dynamic, ?e3:Dynamic, ?e4:Dynamic):String;
+	static function format(str:String, ?e1:Dynamic, ?e2:Dynamic, ?e3:Dynamic, ?e4:Dynamic):String;
 
 	/**
 
 	**/
 	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):String {})
 	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):String {})
-	public static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
+	static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
 
 	/**
 		Returns an iterator function that, each time it is called, returns the next
@@ -114,7 +114,7 @@ extern class NativeStringTools {
 		then the whole match is produced in each call.
 	**/
 	@:overload(function(str:String, pattern:String, match:Void->String, ?n:Int):String->Void {})
-	public static function gmatch(str:String, pattern:String):Void->String;
+	static function gmatch(str:String, pattern:String):Void->String;
 
 	/**
 		Looks for the first match of pattern in the string s. If it finds one,
@@ -123,28 +123,40 @@ extern class NativeStringTools {
 		The optional argument `n` specifies where to start the search;
 		its default value is `1` and can be negative.
 	**/
-	public static function match(str:String, pattern:String, ?n:Int):String;
+	static function match(str:String, pattern:String, ?n:Int):String;
 
 	/**
 		Receives a string and returns a copy of this string with all lowercase
 		letters changed to uppercase. All other characters are left unchanged.
 		The definition of what a lowercase letter is depends on the current locale.
 	**/
-	public static function upper(str:String):String;
+	static function upper(str:String):String;
 
 	/**
 		Receives a string and returns a copy of this string with all uppercase
 		letters changed to lowercase. All other characters are left unchanged.
 		The definition of what an uppercase letter is depends on the current locale.
 	**/
-	public static function lower(str:String):String;
+	static function lower(str:String):String;
 
 	/**
 		Returns a string containing a binary representation of the given function,
 		so that a later loadstring on this string returns a copy of the function.
 		function must be a Lua function without upvalues.
 	**/
-	public static function dump(d:Dynamic):Dynamic;
+	static function dump(d:Dynamic):Dynamic;
+
+
+    /**
+        Returns a string that is the concatenation of n copies of
+        the string s separated by the string sep. The default value
+        for sep is the empty string (that is, no separator).
+        Returns the empty string if n is not positive.  (Note that
+        it is very easy to exhaust the memory of your machine with
+        a single call to this function.)
+    **/
+    static function rep(s:String, n : Int, ?sep : String) : String;
+
 }
 
 @:multiReturn extern class StringFind {

@@ -1,0 +1,7 @@
+(include_subdirs no)
+
+(library
+	(name neko)
+	(libraries extlib)
+	(wrapped false)
+)

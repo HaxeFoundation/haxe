@@ -71,6 +71,14 @@ struct
 		let current_ret_type = ref None in
 		let handle e tto tfrom = gen.ghandle_cast (gen.greal_type tto) (gen.greal_type tfrom) e in
 		let in_value = ref false in
+		let binop_right_expr_type op actual_type =
+			match op with
+			| OpShr | OpShl | OpUShr | OpAssignOp (OpShr | OpShl | OpUShr) ->
+				(match follow actual_type with
+				| TAbstract ({ a_path = (["cs"], "Int64") }, _) -> gen.gcon.basic.tint
+				| _ -> actual_type)
+			| _ -> actual_type
+		in
 
 		let rec run e =
 			let was_in_value = !in_value in
@@ -78,7 +86,7 @@ struct
 			match e.eexpr with
 			| TReturn (eopt) ->
 				(* a return must be inside a function *)
-				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
+				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; die "" __LOC__ in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
 					Texpr.Builder.mk_return (null ret_type e.epos)
@@ -103,16 +111,19 @@ struct
 				(match field_access_esp gen (gen.greal_type tf.etype) (f) with
 					| FClassField(cl,params,_,_,is_static,actual_t,_) ->
 						let actual_t = if is_static then actual_t else apply_params cl.cl_params params actual_t in
+						let actual_t = binop_right_expr_type op actual_t in
 						let e1 = extract_expr (run e1) in
 						{ e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
 					| _ ->
 						let e1 = extract_expr (run e1) in
-						{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+						let actual_t = binop_right_expr_type op e2.etype in
+						{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype actual_t); etype = e1.etype }
 				)
 			| TBinop ( (Ast.OpAssign as op),e1,e2)
 			| TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
 				let e1 = extract_expr (run e1) in
-				{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+				let actual_t = binop_right_expr_type op e2.etype in
+				{ e with eexpr = TBinop(op, e1, handle (run e2) e1.etype actual_t); etype = e1.etype }
 			| _ -> Type.map_expr run e
 		in
 		run
@@ -189,13 +200,13 @@ let rec type_eq gen param a b =
 				with
 					Not_found ->
 						if is_closed a2 then Type.error [has_no_field b n];
-						if not (link (ref None) b f1.cf_type) then Type.error [cannot_unify a b];
+						if not (link (Monomorph.create()) b f1.cf_type) then Type.error [cannot_unify a b];
 						a2.a_fields <- PMap.add n f1 a2.a_fields
 			) a1.a_fields;
 			PMap.iter (fun n f2 ->
 				if not (PMap.mem n a1.a_fields) then begin
 					if is_closed a1 then Type.error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then Type.error [cannot_unify a b];
+					if not (link (Monomorph.create()) a f2.cf_type) then Type.error [cannot_unify a b];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 				end;
 			) a2.a_fields;
@@ -417,7 +428,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 			in
 			let tclass = match get_type gen ([],"Class") with
 			| TAbstractDecl(a) -> a
-			| _ -> assert false in
+			| _ -> die "" __LOC__ in
 			handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
 		with | Not_found ->
 			mk_cast false to_t e)
@@ -559,13 +570,13 @@ let select_overload gen applied_f overloads types params =
 						cf,t,true (* no compatible overload was found *)
 					else
 						check_overload overloads
-			| [] -> assert false
+			| [] -> die "" __LOC__
 		in
 		check_overload overloads
 	| _ -> match overloads with  (* issue #1742 *)
 	| (t,cf) :: [] -> cf,t,true
 	| (t,cf) :: _ -> cf,t,false
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let rec cur_ctor c tl =
 	match c.cl_constructor with
@@ -708,14 +719,25 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* unify applied original *)
 			with
 				| Unify_error el ->
-						(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
-						gen.gcon.warning ("This expression may be invalid") pos
+						(match el with
+						(*
+							Don't emit a warning for abstracts if underlying type is the same as the second type.
+							This situation is caused by `Normalize.filter_param` not "unpacking" abstracts.
+						*)
+						| [Cannot_unify (TAbstract(a,params), b)]
+						| [Cannot_unify (b, TAbstract(a,params))] ->
+							let a = apply_params a.a_params params a.a_this in
+							if not (shallow_eq a b) then
+								gen.gcon.warning ("This expression may be invalid") pos
+						| _ ->
+							gen.gcon.warning ("This expression may be invalid") pos
+						)
 				| Invalid_argument _ ->
 						gen.gcon.warning ("This expression may be invalid") pos
 			);
 
 			List.map (fun t ->
-				match follow t with
+				match follow_without_null t with
 					| TMono _ ->	t_empty
 					| t -> t
 			) monos
@@ -812,7 +834,9 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
 				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
 				let called_t = change_rest called_t elist in
-				let fparams = infer_params ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
+				let original = (get_fun (apply_params cl.cl_params params actual_t)) in
+				let applied = (get_fun called_t) in
+				let fparams = infer_params ecall.epos original applied cf.cf_params calls_parameters_explicitly in
 				(* get what the backend actually sees *)
 				(* actual field's function *)
 				let actual_t = get_real_fun gen actual_t in
@@ -866,7 +890,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 	| FClassField (cl,params,_,cf,_,actual_t,_) ->
 		return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
 	| FEnumField (en, efield, true) ->
-		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
+		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; die "" __LOC__ | Some ecall -> ecall in
 		(match en.e_params with
 			(*
 			| [] ->
@@ -876,7 +900,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 		*)
 			| _ ->
 				let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
-				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
+				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; die "" __LOC__ in
 				let args, ret = get_fun efield.ef_type in
 				let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
 				(*
@@ -895,7 +919,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 
 				handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
 		)
-	| FEnumField _ when is_some e -> assert false
+	| FEnumField _ when is_some e -> die "" __LOC__
 	| FEnumField (en,efield,_) ->
 			return_var { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); },FEnum(en,efield)) }
 	(* no target by date will uses this.so this code may not be correct at all *)
@@ -1027,7 +1051,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 					| TInt _ -> gen.gcon.basic.tint
 					| TFloat _ -> gen.gcon.basic.tfloat
 					| TBool _ -> gen.gcon.basic.tbool
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				handle e t real_t
 			| TCast( { eexpr = TConst TNull }, _ ) ->
@@ -1035,6 +1059,11 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			| TCast( { eexpr = TCall( { eexpr = TIdent "__delegate__" } as local, [del] ) } as e2, _) ->
 				{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
+			| TBinop (OpAssignOp (Ast.OpShl | Ast.OpShr | Ast.OpUShr as op), e1, e2 ) ->
+				let e1 = run ~just_type:true e1 in
+				let e2 = handle (run e2) (gen.gcon.basic.tint) e2.etype in
+				let rett = binop_type op e e1 e2 in
+				{ e with eexpr = TBinop(OpAssignOp op, e1, e2); etype = rett.etype }
 			| TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
 				let e1 = run ~just_type:true e1 in
 				let e2 = handle (run e2) e1.etype e2.etype in
@@ -1059,7 +1088,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 						(match gen.gcurrent_class with
 							| Some cl -> print_endline (s_type_path cl.cl_path)
 							| _ -> ());
-						assert false
+						die "" __LOC__
 				in
 				let base_type = List.hd base_type in
 				{ e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
@@ -1067,7 +1096,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let et = e.etype in
 				let base_type = match follow et with
 					| TInst(cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				let base_type = List.hd base_type in
 				{ e with eexpr = TCall(arr_local, List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
@@ -1080,7 +1109,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let cl, tparams = match follow ef.etype with
 				| TInst(cl,p) ->
 					cl,p
-				| _ -> assert false in
+				| _ -> die "" __LOC__ in
 				(try
 					let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
 					let handle e t1 t2 =

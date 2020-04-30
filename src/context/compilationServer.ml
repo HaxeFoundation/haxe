@@ -5,10 +5,12 @@ open Type
 open Define
 
 type cached_file = {
+	c_file_path : string;
 	c_time : float;
 	c_package : string list;
 	c_decls : type_decl list;
 	mutable c_module_name : string option;
+	mutable c_pdi : Parser.parser_display_information;
 }
 
 type cached_directory = {
@@ -22,7 +24,7 @@ type cached_native_lib = {
 }
 
 class context_cache (index : int) = object(self)
-	val files : (string,cached_file) Hashtbl.t = Hashtbl.create 0
+	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -33,14 +35,15 @@ class context_cache (index : int) = object(self)
 	method find_file key =
 		Hashtbl.find files key
 
-	method cache_file key time data =
-		Hashtbl.replace files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
+	method cache_file key path time data pdi =
+		Hashtbl.replace files key { c_file_path = path; c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
 
 	method remove_file key =
-		if Hashtbl.mem files key then begin
+		try
+			let f = Hashtbl.find files key in
 			Hashtbl.remove files key;
-			Hashtbl.replace removed_files key ()
-		end
+			Hashtbl.replace removed_files key f.c_file_path
+		with Not_found -> ()
 
 	(* Like remove_file, but doesn't keep track of the file *)
 	method remove_file_for_real key =
@@ -143,6 +146,13 @@ class cache = object(self)
 
 	(* modules *)
 
+	method iter_modules f =
+		Hashtbl.iter (fun _ cc ->
+			Hashtbl.iter (fun _ m ->
+				f m
+			) cc#get_modules
+		) contexts
+
 	method get_modules =
 		Hashtbl.fold (fun _ cc acc ->
 			Hashtbl.fold (fun _ m acc ->
@@ -150,23 +160,12 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
-	method taint_modules file =
+	method taint_modules file_key =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m.m_path
+				if Path.UniqueKey.create m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some m.m_path
 			) cc#get_modules
 		) contexts
-
-	method filter_modules file =
-		let removed = DynArray.create () in
-		(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
-		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun k m ->
-				if m.m_extra.m_file = file then DynArray.add removed (cc,k,m);
-			) cc#get_modules
-		) contexts;
-		DynArray.iter (fun (cc,k,_) -> Hashtbl.remove cc#get_modules k) removed;
-		DynArray.to_list removed
 
 	(* haxelibs *)
 
@@ -272,7 +271,7 @@ let get () =
 let runs () =
 	!instance <> None
 
-let force () = match !instance with None -> assert false | Some i -> i
+let force () = match !instance with None -> die "" __LOC__ | Some i -> i
 
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->

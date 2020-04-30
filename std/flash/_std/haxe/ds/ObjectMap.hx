@@ -46,18 +46,6 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 		return has;
 	}
 
-	#if as3
-	public function keys():Iterator<K> {
-		return untyped __keys__(this).iterator();
-	}
-
-	public function iterator():Iterator<V> {
-		var ret = [];
-		for (i in keys())
-			ret.push(get(i));
-		return ret.iterator();
-	}
-	#else
 	public function keys():Iterator<K> {
 		return NativePropertyIterator.iterator(this);
 	}
@@ -65,7 +53,6 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 	public function iterator():Iterator<V> {
 		return NativeValueIterator.iterator(this);
 	}
-	#end
 
 	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
@@ -95,7 +82,6 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 	}
 }
 
-#if !as3
 private class NativePropertyIterator {
 	var collection:Dynamic;
 	var index:Int = 0;
@@ -153,4 +139,3 @@ private class NativeValueIterator {
 		return result;
 	}
 }
-#end

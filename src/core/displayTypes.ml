@@ -10,7 +10,7 @@ module SymbolKind = struct
 		| Class
 		| Interface
 		| Enum
-		| Typedef
+		| TypeAlias
 		| Abstract
 		| Field
 		| Property
@@ -18,12 +18,17 @@ module SymbolKind = struct
 		| Constructor
 		| Function
 		| Variable
+		| Struct
+		| EnumAbstract
+		| Operator
+		| EnumMember
+		| Constant
 
 	let to_int = function
 		| Class -> 1
 		| Interface -> 2
 		| Enum -> 3
-		| Typedef -> 4
+		| TypeAlias -> 4
 		| Abstract -> 5
 		| Field -> 6
 		| Property -> 7
@@ -31,6 +36,11 @@ module SymbolKind = struct
 		| Constructor -> 9
 		| Function -> 10
 		| Variable -> 11
+		| Struct -> 12
+		| EnumAbstract -> 13
+		| Operator -> 14
+		| EnumMember -> 15
+		| Constant -> 16
 end
 
 module SymbolInformation = struct
@@ -180,14 +190,21 @@ module DisplayMode = struct
 	type t =
 		| DMNone
 		| DMDefault
-		| DMUsage of bool (* true = also report definition *)
+		(**
+			Find usages/references of the requested symbol.
+			@param bool - add symbol definition to the response
+			@param bool - also find usages of descendants of the symbol (e.g methods, which override the requested one)
+			@param bool - look for a base method if requested for a method with `override` accessor.
+		*)
+		| DMUsage of bool * bool * bool
 		| DMDefinition
 		| DMTypeDefinition
+		| DMImplementation
 		| DMResolve of string
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of bool (* true = global, false = only in display file *)
+		| DMDiagnostics of Path.UniqueKey.t list
 		| DMStatistics
 		| DMSignature
 
@@ -207,11 +224,11 @@ module DisplayMode = struct
 		dms_full_typing : bool;
 		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
-		dms_collect_data : bool;
 		dms_check_core_api : bool;
 		dms_inline : bool;
 		dms_display_file_policy : display_file_policy;
 		dms_exit_during_typing : bool;
+		dms_per_file : bool;
 	}
 
 	let default_display_settings = {
@@ -220,11 +237,11 @@ module DisplayMode = struct
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
-		dms_collect_data = false;
 		dms_check_core_api = false;
 		dms_inline = false;
 		dms_display_file_policy = DFPOnly;
 		dms_exit_during_typing = true;
+		dms_per_file = false;
 	}
 
 	let default_compilation_settings = {
@@ -233,11 +250,11 @@ module DisplayMode = struct
 		dms_full_typing = true;
 		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
-		dms_collect_data = false;
 		dms_check_core_api = true;
 		dms_inline = true;
 		dms_display_file_policy = DFPNo;
 		dms_exit_during_typing = false;
+		dms_per_file = false;
 	}
 
 	let create dm =
@@ -245,10 +262,9 @@ module DisplayMode = struct
 		match dm with
 		| DMNone -> default_compilation_settings
 		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
-		| DMUsage _ -> { settings with
+		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
-				dms_collect_data = true;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
 			}
@@ -256,20 +272,21 @@ module DisplayMode = struct
 				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = false;
+				dms_per_file = true;
 			}
-		| DMDiagnostics global -> { default_compilation_settings with
-				dms_kind = DMDiagnostics global;
+		| DMDiagnostics files -> { default_compilation_settings with
+				dms_kind = DMDiagnostics files;
 				dms_error_policy = EPCollect;
-				dms_collect_data = true;
-				dms_display_file_policy = if global then DFPNo else DFPAlso;
+				dms_display_file_policy = if files = [] then DFPNo else DFPAlso;
+				dms_per_file = true;
 			}
 		| DMStatistics -> { settings with
 				dms_full_typing = true;
-				dms_collect_data = true;
 				dms_inline = false;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = true;
+				dms_per_file = true;
 			}
 
 	let to_string = function
@@ -277,26 +294,30 @@ module DisplayMode = struct
 		| DMDefault -> "field"
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
+		| DMImplementation -> "implementation"
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
+		| DMUsage (true,_,_) -> "rename"
+		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
+		| DMDiagnostics _ -> "diagnostics"
 		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
 
-type reference_kind =
-	| KVar
-	| KIdent
-	| KAnyField
-	| KClassField
-	| KEnumField
-	| KModuleType
-	| KConstructor
+type symbol =
+	| SKClass of tclass
+	| SKInterface of tclass
+	| SKEnum of tenum
+	| SKTypedef of tdef
+	| SKAbstract of tabstract
+	| SKField of tclass_field * path option (* path - class path *)
+	| SKConstructor of tclass_field
+	| SKEnumField of tenum_field
+	| SKVariable of tvar
+	| SKOther
 
 type completion_subject = {
 	s_name : string option;
@@ -309,3 +330,13 @@ let make_subject name ?(start_pos=None) insert_pos = {
 	s_start_pos = (match start_pos with None -> insert_pos | Some p -> p);
 	s_insert_pos = insert_pos;
 }
+
+let string_of_symbol = function
+	| SKClass c | SKInterface c -> snd c.cl_path
+	| SKEnum en -> snd en.e_path
+	| SKTypedef td -> snd td.t_path
+	| SKAbstract a -> snd a.a_path
+	| SKField (cf,_) | SKConstructor cf -> cf.cf_name
+	| SKEnumField ef -> ef.ef_name
+	| SKVariable v -> v.v_name
+	| SKOther -> ""

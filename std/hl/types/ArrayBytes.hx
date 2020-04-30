@@ -22,22 +22,45 @@
 
 package hl.types;
 
+import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:keep
 @:generic
-class BytesIterator<T> {
-	var pos:Int;
+class BytesIterator<T> extends ArrayIterator<T> {
 	var a:ArrayBytes<T>;
 
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
 	}
 
-	public function hasNext() {
-		return pos < a.length;
+	override public function hasNext() {
+		return current < a.length;
 	}
 
-	public function next():T {
-		return @:privateAccess a.bytes.get(pos++);
+	override public function next():T {
+		return @:privateAccess a.bytes.get(current++);
+	}
+}
+
+@:keep
+@:generic
+class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
+	var a : ArrayBytes<T>;
+
+	public function new(a) {
+		super((null:Dynamic));
+		this.a = a;
+	}
+
+	override public function hasNext():Bool {
+		return current < a.length;
+	}
+
+	override public function next():{key:Int, value:T} {
+		var v = @:privateAccess a.bytes.get(current);
+		return {key:current++, value:v};
 	}
 }
 
@@ -208,6 +231,10 @@ class BytesIterator<T> {
 		bytes[pos] = x;
 	}
 
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
 	public function remove(x:T):Bool {
 		var idx = indexOf(x);
 		if (idx < 0)
@@ -253,8 +280,12 @@ class BytesIterator<T> {
 		return a;
 	}
 
-	public function iterator():Iterator<T> {
+	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new BytesKeyValueIterator<T>(this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn@:privateAccess {
@@ -313,6 +344,9 @@ class BytesIterator<T> {
 
 	override function insertDyn(pos:Int, v:Dynamic)
 		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
 
 	override function removeDyn(v:Dynamic)
 		return remove(v);

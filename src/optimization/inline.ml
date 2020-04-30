@@ -108,7 +108,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
-		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
@@ -124,7 +124,7 @@ let api_inline ctx c field params p =
 	let tint = ctx.com.basic.tint in
 
 	match c.cl_path, field, params with
-	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+	| ([],"Std"),("is" | "isOfType"),[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -136,7 +136,12 @@ let api_inline ctx c field params p =
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
-		(match t.eexpr with
+		let rec skip_cast = function
+			| { eexpr = TCast (e, None) } -> skip_cast e
+			| e -> e
+		in
+
+		(match (skip_cast t).eexpr with
 		(* generate simple typeof checks for basic types *)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
@@ -149,10 +154,14 @@ let api_inline ctx c field params p =
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
 			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
-			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
-			let null = mk (TConst TNull) (mk_mono()) p in
-			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
-			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
+				Some iof
+			else begin
+				let enum = mk (TField (o, FDynamic "__enum__")) t_dynamic p in
+				let null = mk (TConst TNull) t_dynamic p in
+				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+			end
 		| TTypeExpr (TClassDecl cls) ->
 			if cls.cl_interface then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
@@ -185,7 +194,7 @@ let api_inline ctx c field params p =
 					TInst(cl,[t])
 				| TInst({ cl_path = [],"Array" }, [t]), TAbstractDecl(a) ->
 					TAbstract(a,[t])
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			Some ({ (mk_untyped_call "__array__" p args) with etype = t })
 		with | Exit ->
@@ -219,7 +228,7 @@ let inline_default_config cf t =
 		| Some (csup,spl) ->
 			let spl = (match apply_params c.cl_params pl (TInst (csup,spl)) with
 			| TInst (_,pl) -> pl
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			) in
 			let ct, cpl = get_params csup spl in
 			c.cl_params @ ct, pl @ cpl
@@ -234,6 +243,28 @@ let inline_default_config cf t =
 	let tmonos = snd tparams @ pmonos in
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
+
+let inline_config cls_opt cf call_args return_type =
+	match cls_opt with
+	| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl cf.cf_meta ->
+		let t = if cf.cf_name = "_new" then
+			return_type
+		else if call_args = [] then
+			error "Invalid abstract implementation function" cf.cf_pos
+		else
+			follow (List.hd call_args).etype
+		in
+		begin match t with
+			| TAbstract(a,pl) ->
+				let has_params = a.a_params <> [] || cf.cf_params <> [] in
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map_type = fun t -> apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				Some (has_params,map_type)
+			| _ ->
+				None
+		end
+	| _ ->
+		None
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
@@ -403,10 +434,12 @@ class inline_state ctx ethis params cf f p = object(self)
 				let dynamic_e = follow e.etype == t_dynamic in
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
-					| TConst TNull , Some c -> c
+					| TConst TNull , Some c ->
+						(* issue #9357 *)
+						{c with epos = e.epos}
 					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not ctx.com.config.pf_static || is_nullable v.v_type) ->
 						l.i_force_temp <- true;
-						l.i_default_value <- Some c;
+						l.i_default_value <- Some {c with epos = e.epos};
 						e
 					| _ -> e
 				in
@@ -520,8 +553,8 @@ class inline_state ctx ethis params cf f p = object(self)
 					add (mk (TVar (v,eo)) ctx.t.tvoid e.epos);
 				) vl;
 				List.iter (fun (l,e) -> match l.i_default_value with
-					| None -> ()
-					| Some e -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| Some e when l.i_read > 0 -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+					| _ -> ()
 				) _inlined_vars;
 				begin match e.eexpr with
 					| TBlock el -> List.iter add el
@@ -570,7 +603,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			in
 			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
 		in
-		map_expr_type map_type e
+		let e = map_expr_type map_type e in
+		let rec drop_unused_vars e =
+			match e.eexpr with
+			| TVar (v, Some { eexpr = TConst _ }) ->
+				(try
+					let data = Hashtbl.find locals v.v_id in
+					if data.i_read = 0 && data.i_called = 0 && not data.i_write then mk (TBlock []) e.etype e.epos
+					else Type.map_expr drop_unused_vars e
+				with Not_found ->
+					Type.map_expr drop_unused_vars e
+				)
+			| _ -> Type.map_expr drop_unused_vars e
+		in
+		drop_unused_vars e
 end
 
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
@@ -694,7 +740,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					if term then t := e.etype;
 					[e]
 				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_term_return e1 ->
-					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> assert false) }]
+					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> die "" __LOC__) }]
 				| e :: l ->
 					let e = map false false e in
 					e :: loop l

@@ -65,6 +65,8 @@ let process args =
  				let config = {
  					ttfc_range_str = range_str;
  					ttfc_font_name = None;
+					ttfc_font_weight = TFWRegular;
+					ttfc_font_posture = TFPNormal;
  				} in
 				let f2 = TTFSwfWriter.to_swf ttf config in
 				let ch = IO.output_channel (open_out_bin (dir ^ "/" ^ ttf.ttf_font_name ^ ".dat")) in

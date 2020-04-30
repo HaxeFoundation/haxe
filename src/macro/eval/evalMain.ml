@@ -149,15 +149,15 @@ let call_path ctx path f vl api =
 		let old = ctx.curapi in
 		ctx.curapi <- api;
 		let path = match List.rev path with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
-			let env = push_environment ctx info 0 0 in
+			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
 			let v = call_value_on vtype vfield vl in
@@ -316,7 +316,7 @@ let value_signature v =
 			addc 'B';
 			adds (rev_hash path)
 		| VPrototype _ ->
-			assert false
+			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
 			(* Custom format: enumerate functions as F0, F1 etc. *)
 			cache v (fun () ->
@@ -361,7 +361,7 @@ let setup get_api =
 			in
 			let v = VFunction (f,b) in
 			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	) api;
 	Globals.macro_platform := Globals.Eval
 
@@ -384,14 +384,14 @@ let compiler_error msg pos =
 		set_instance_field i key_pos (encode_pos pos);
 		exc vi
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec value_to_expr v p =
 	let path i =
 		let mt = IntMap.find i (get_ctx()).type_cache in
 		let make_path t =
 			let rec loop = function
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
 				| name :: l -> (EField (loop l,name),p)
 			in
@@ -422,7 +422,7 @@ let rec value_to_expr v p =
 			let expr = path e.epath in
 			let name = match proto.pkind with
 				| PEnum names -> fst (List.nth names e.eindex)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			(EField (expr, name), p)
 		in
@@ -534,9 +534,9 @@ let handle_decoding_error f v t =
 			end
 		| TInst _ | TAbstract _ | TFun _ ->
 			(* TODO: might need some more of these, not sure *)
-			assert false
+			die "" __LOC__
 		| TMono r ->
-			begin match !r with
+			begin match r.tm_type with
 				| None -> ()
 				| Some t -> loop tabs t v
 			end

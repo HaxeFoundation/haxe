@@ -50,6 +50,7 @@ class TestMain {
 		var classes = [
 			new TestOps(),
 			new TestBasetypes(),
+			new TestExceptions(),
 			new TestBytes(),
 			new TestIO(),
 			new TestLocals(),
@@ -71,6 +72,8 @@ class TestMain {
 			new TestCasts(),
 			new TestSyntaxModule(),
 			new TestNull(),
+			new TestNumericCasts(),
+			new TestHashMap(),
 			#if (!no_http && (!azure || !(php && Windows)))
 			new TestHttp(),
 			#end
@@ -100,7 +103,7 @@ class TestMain {
 			#end
 			new TestInterface(),
 			new TestNaN(),
-			#if ((dce == "full") && !interp && !as3)
+			#if ((dce == "full") && !interp)
 			new TestDCE(),
 			#end
 			new TestMapComprehension(),
@@ -124,13 +127,22 @@ class TestMain {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
-		#if js
-		if (js.Browser.supported) {
-			runner.onComplete.add(function(_) {
-				untyped js.Browser.window.success = true; // TODO: need utest success state for this
-			});
-		};
-		#end
+		var success = true;
+		runner.onProgress.add(function(e) {
+			for(a in e.result.assertations) {
+				switch a {
+					case Success(pos):
+					case Warning(msg):
+					case Ignore(reason):
+					case _: success = false;
+				}
+			}
+			#if js
+			if (js.Browser.supported && e.totals == e.done) {
+				untyped js.Browser.window.success = success;
+			};
+			#end
+		});
 		#if sys
 		if (verbose)
 			runner.onTestStart.add(function(test) {

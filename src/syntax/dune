@@ -1,0 +1,5 @@
+(rule
+	(targets grammar.ml)
+	(deps grammar.mly)
+	(action (run %{bin:camlp5o} -impl grammar.mly -o %{targets}))
+)

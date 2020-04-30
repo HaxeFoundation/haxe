@@ -5,16 +5,14 @@ open Typecore
 open Common
 open Display
 open DisplayTypes.DisplayMode
-
-type diagnostics_context = {
-	com : Common.context;
-	mutable removable_code : (string * pos * pos) list;
-}
-
 open DisplayTypes
+open DisplayException
+open DiagnosticsTypes
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
+
+let is_diagnostics_run p = DiagnosticsPrinter.is_diagnostics_file p.pfile
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -93,137 +91,82 @@ let check_other_things com e =
 	in
 	loop true e
 
-let prepare_field dctx cf = match cf.cf_expr with
+let prepare_field dctx com cf = match cf.cf_expr with
 	| None -> ()
 	| Some e ->
 		find_unused_variables dctx e;
-		check_other_things dctx.com e;
-		DeprecationCheck.run_on_expr dctx.com e
+		check_other_things com e;
+		DeprecationCheck.run_on_expr ~force:true com e
 
-let prepare com global =
+let prepare com =
 	let dctx = {
 		removable_code = [];
-		com = com;
+		import_positions = PMap.empty;
+		dead_blocks = Hashtbl.create 0;
+		diagnostics_messages = [];
+		unresolved_identifiers = [];
 	} in
 	List.iter (function
-		| TClassDecl c when global || DisplayPosition.display_position#is_in_file c.cl_pos.pfile ->
-			List.iter (prepare_field dctx) c.cl_ordered_fields;
-			List.iter (prepare_field dctx) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx cf);
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file c.cl_pos.pfile ->
+			List.iter (prepare_field dctx com) c.cl_ordered_fields;
+			List.iter (prepare_field dctx com) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
 		| _ ->
 			()
 	) com.types;
+	let handle_dead_blocks com = match com.cache with
+		| Some cc ->
+			let macro_defines = adapt_defines_to_macro_context com.defines in
+			let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+			let is_true defines e =
+				ParserEntry.is_true (ParserEntry.eval defines e)
+			in
+			Hashtbl.iter (fun file_key cfile ->
+				if DisplayPosition.display_position#is_in_file cfile.CompilationServer.c_file_path then begin
+					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
+					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
+					try
+						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file_key in
+						(* Intersect *)
+						let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
+						Hashtbl.replace dctx.dead_blocks file_key dead_blocks2
+					with Not_found ->
+						Hashtbl.add dctx.dead_blocks file_key dead_blocks
+				end
+			) cc#get_files
+		| None ->
+			()
+	in
+	handle_dead_blocks com;
+	let process_modules com =
+		List.iter (fun m ->
+			PMap.iter (fun p b ->
+				if not (PMap.mem p dctx.import_positions) then
+					dctx.import_positions <- PMap.add p b dctx.import_positions
+				else if !b then begin
+					let b' = PMap.find p dctx.import_positions in
+					b' := true
+				end
+			) m.m_extra.m_display.m_import_positions
+		) com.modules
+	in
+	process_modules com;
+	begin match com.get_macros() with
+	| None -> ()
+	| Some com -> process_modules com
+	end;
+	(* We do this at the end because some of the prepare functions might add information to the common context. *)
+	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
+	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
-
-let is_diagnostics_run p = match (!Parser.display_mode) with
-	| DMDiagnostics true -> true
-	| DMDiagnostics false -> DisplayPosition.display_position#is_in_file p.pfile
-	| _ -> false
 
 let secure_generated_code ctx e =
 	if is_diagnostics_run e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 
-module Printer = struct
-	open Json
-	open DiagnosticsKind
-	open DisplayTypes
+let print com =
+	let dctx = prepare com in
+	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx)
 
-	type t = DiagnosticsKind.t * pos
-
-	module UnresolvedIdentifierSuggestion = struct
-		type t =
-			| UISImport
-			| UISTypo
-
-		let to_int = function
-			| UISImport -> 0
-			| UISTypo -> 1
-	end
-
-	open UnresolvedIdentifierSuggestion
-	open CompletionItem
-	open CompletionModuleType
-
-	let print_diagnostics dctx com global =
-		let diag = Hashtbl.create 0 in
-		let add dk p sev args =
-			let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
-			let diag = try
-				Hashtbl.find diag file
-			with Not_found ->
-				let d = Hashtbl.create 0 in
-				Hashtbl.add diag file d;
-				d
-			in
-			if not (Hashtbl.mem diag p) then
-				Hashtbl.add diag p (dk,p,sev,args)
-		in
-		let add dk p sev args =
-			if global || p = null_pos || DisplayPosition.display_position#is_in_file p.pfile then add dk p sev args
-		in
-		List.iter (fun (s,p,suggestions) ->
-			let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
-				match item.ci_kind with
-				| ITType(t,_) when r = 0 ->
-					let path = if t.module_name = t.name then (t.pack,t.name) else (t.pack @ [t.module_name],t.name) in
-					Some (JObject [
-						"kind",JInt (to_int UISImport);
-						"name",JString (s_type_path path);
-					])
-				| _ when r = 0 ->
-					(* TODO !!! *)
-					None
-				| _ ->
-					Some (JObject [
-						"kind",JInt (to_int UISTypo);
-						"name",JString s;
-					])
-			) suggestions in
-			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
-		) com.display_information.unresolved_identifiers;
-		PMap.iter (fun p (r,_) ->
-			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
-		) com.shared.shared_display_information.import_positions;
-		List.iter (fun (s,p,kind,sev) ->
-			add kind p sev (JString s)
-		) (List.rev com.shared.shared_display_information.diagnostics_messages);
-		List.iter (fun (s,p,prange) ->
-			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
-		) dctx.removable_code;
-		Hashtbl.iter (fun p s ->
-			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
-		) DeprecationCheck.warned_positions;
-		Hashtbl.iter (fun file ranges ->
-			List.iter (fun (p,e) ->
-				let jo = JObject [
-					"expr",JObject [
-						"string",JString (Ast.Printer.s_expr e)
-					]
-				] in
-				add DKInactiveBlock p DiagnosticsSeverity.Hint jo
-			) ranges
-		) com.shared.shared_display_information.dead_blocks;
-		let jl = Hashtbl.fold (fun file diag acc ->
-			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
-				(JObject [
-					"kind",JInt (DiagnosticsKind.to_int dk);
-					"severity",JInt (DiagnosticsSeverity.to_int sev);
-					"range",Genjson.generate_pos_as_range p;
-					"args",jargs
-				]) :: acc
-			) diag [] in
-			(JObject [
-				"file",if file = "?" then JNull else JString file;
-				"diagnostics",JArray jl
-			]) :: acc
-		) diag [] in
-		let js = JArray jl in
-		string_of_json js
-end
-
-let print com global =
-	let dctx = prepare com global in
-	Printer.print_diagnostics dctx com global
-
-let run com global =
-	DisplayException.raise_diagnostics (print com global)
+let run com =
+	let dctx = prepare com in
+	DisplayException.raise_diagnostics dctx

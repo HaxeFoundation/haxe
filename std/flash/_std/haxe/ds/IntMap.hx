@@ -48,27 +48,6 @@ package haxe.ds;
 		return true;
 	}
 
-	#if as3
-	// unoptimized version
-
-	public function keys():Iterator<Int> {
-		return untyped (__keys__(h)).iterator();
-	}
-
-	@:analyzer(ignore) public function iterator():Iterator<T> {
-		return untyped {
-			ref: h,
-			it: keys(),
-			hasNext: function() {
-				return __this__.it.hasNext();
-			},
-			next: function() {
-				var i = __this__.it.next();
-				return __this__.ref[i];
-			}
-		};
-	}
-	#else
 	public inline function keys():Iterator<Int> {
 		return new IntMapKeysIterator(h);
 	}
@@ -76,7 +55,6 @@ package haxe.ds;
 	public inline function iterator():Iterator<T> {
 		return new IntMapValuesIterator<T>(h);
 	}
-	#end
 
 	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
@@ -109,7 +87,6 @@ package haxe.ds;
 	}
 }
 
-#if !as3
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
 @:allow(haxe.ds.IntMap)
@@ -163,4 +140,3 @@ private class IntMapValuesIterator<T> {
 		return r;
 	}
 }
-#end

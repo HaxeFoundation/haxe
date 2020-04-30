@@ -87,7 +87,7 @@ class Json {
 	}
 
 	static function convertBeforeEncode(value:Dynamic):Dynamic {
-		if (Std.is(value, Array)) {
+		if (Std.isOfType(value, Array)) {
 			var result = new NativeIndexedArray();
 			Syntax.foreach(value.arr, function(index:Int, item:Dynamic) {
 				result[index] = convertBeforeEncode(item);

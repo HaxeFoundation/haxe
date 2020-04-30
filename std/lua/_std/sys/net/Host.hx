@@ -25,6 +25,11 @@ package sys.net;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 
+import lua.NativeStringTools.find;
+
+import lua.lib.luv.net.Dns;
+import lua.lib.luv.Os;
+
 @:coreapi
 class Host {
 	public var host(default, null):String;
@@ -35,7 +40,7 @@ class Host {
 
 	public function new(name:String):Void {
 		host = name;
-		if (lua.NativeStringTools.find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
+		if (find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
 			_ip = name;
 		} else {
 			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
@@ -57,10 +62,10 @@ class Host {
 	}
 
 	public function reverse():String {
-		return lua.lib.luv.net.Dns.getnameinfo({ip: _ip}).result;
+		return Dns.getnameinfo({ip: _ip}).result;
 	}
 
 	static public function localhost():String {
-		return lua.lib.luasocket.socket.Dns.gethostname();
+        return Os.gethostname();
 	}
 }

@@ -78,7 +78,7 @@ let normalize_path path =
 		| Str.Text t :: [] ->
 			List.rev (t :: acc)
 		| Str.Text _ :: Str.Text  _ :: _ ->
-			assert false
+			Globals.die "" __LOC__
 	in
 	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
@@ -95,13 +95,34 @@ let get_real_path =
 	else
 		get_full_path
 
-(** Returns absolute path guaranteed to be the same for different letter case.
-    Use where equality comparison is required, lowercases the path on Windows *)
-let unique_full_path =
-	if Globals.is_windows then
-		(fun f -> String.lowercase (get_full_path f))
-	else
-		get_full_path
+module UniqueKey : sig
+	type t
+	(**
+		Returns absolute path guaranteed to be the same for different letter case.
+		Use where equality comparison is required, lowercases the path on Windows
+	*)
+	val create : string -> t
+	(**
+		Check if the first key starts with the second key
+	*)
+	val starts_with : t -> t -> bool
+	(**
+		Get string representation of a key
+	*)
+	val to_string : t -> string
+end = struct
+	type t = string
+	let create =
+		if Globals.is_windows then
+			(fun f -> String.lowercase (get_full_path f))
+		else
+			get_full_path
+
+	let starts_with subj start =
+		ExtString.String.starts_with subj start
+
+	let to_string k = k
+end
 
 let add_trailing_slash p =
 	let l = String.length p in
@@ -168,10 +189,10 @@ let module_name_of_file file =
 		in
 		s
 	| [] ->
-		assert false
+		Globals.die "" __LOC__
 
 let rec create_file bin ext acc = function
-	| [] -> assert false
+	| [] -> Globals.die "" __LOC__
 	| d :: [] ->
 		let d = make_valid_filename d in
 		let maxlen = 200 - String.length ext in

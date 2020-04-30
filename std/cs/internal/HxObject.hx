@@ -127,7 +127,7 @@ class DynamicObject extends HxObject {
 		} else {
 			var res = FieldLookup.findHash(hash, this.__hx_hashes_f, this.__hx_length_f);
 			if (res >= 0) {
-				if (Std.is(value, Float)) {
+				if (Std.isOfType(value, Float)) {
 					return this.__hx_dynamics_f[res] = value;
 				}
 

@@ -12,8 +12,7 @@ var c = new C2();
 Reflect.field(c, "v") == "var";
 Reflect.field(c, "prop") == "prop";
 Reflect.field(c, "func")() == "foo";
-// As3 invokes the getter
-Reflect.field(c, "propAcc") == #if as3 "1" #else "0" #end;
+Reflect.field(c, "propAcc") == "0";
 var n = null;
 Reflect.field(n, n) == null;
 Reflect.field(1, "foo") == null;
@@ -49,10 +48,7 @@ var c = new C2();
 Reflect.setProperty(c, "v", "bar");
 c.v == "bar";
 Reflect.setProperty(c, "propAcc", "abc");
-#if !as3
-// not supported on AS3
 Reflect.field(c, "propAcc") == "ABC";
-#end
 
 // fields
 var names = ["a", "b", "c"];

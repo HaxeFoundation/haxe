@@ -56,7 +56,7 @@ class File {
 		#else
 		var stream = new cs.system.io.FileStream(path, Open, Read, ReadWrite);
 		#end
-		return new FileInput(stream);
+		return @:privateAccess new FileInput(stream);
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
@@ -65,7 +65,7 @@ class File {
 		#else
 		var stream = new cs.system.io.FileStream(path, Create, Write, ReadWrite);
 		#end
-		return new FileOutput(stream);
+		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
@@ -74,7 +74,7 @@ class File {
 		#else
 		var stream = new cs.system.io.FileStream(path, Append, Write, ReadWrite);
 		#end
-		return new FileOutput(stream);
+		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
@@ -86,7 +86,7 @@ class File {
 		#else
 		var stream = new cs.system.io.FileStream(path, OpenOrCreate, Write, ReadWrite);
 		#end
-		return new FileOutput(stream);
+		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {

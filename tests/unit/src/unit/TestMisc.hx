@@ -449,11 +449,9 @@ class TestMisc extends Test {
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
 
-		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
-		#end
 
 		x = 0;
 		var arr:Dynamic = [{ v : 3 }];
@@ -461,11 +459,9 @@ class TestMisc extends Test {
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
 
-		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
-		#end
 	}
 
 	function testInitOrder() {

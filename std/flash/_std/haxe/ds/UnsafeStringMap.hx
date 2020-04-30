@@ -53,27 +53,6 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
 		return true;
 	}
 
-	#if as3
-	// unoptimized version
-
-	public function keys():Iterator<String> {
-		return untyped (__keys__(h)).iterator();
-	}
-
-	public function iterator():Iterator<T> {
-		return untyped {
-			ref: h,
-			it: __keys__(h).iterator(),
-			hasNext: function() {
-				return __this__.it.hasNext();
-			},
-			next: function() {
-				var i:Dynamic = __this__.it.next();
-				return __this__.ref[i];
-			}
-		};
-	}
-	#else
 	public inline function keys():Iterator<String> {
 		return new UnsafeStringMapKeysIterator(h);
 	}
@@ -81,7 +60,6 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
 	public inline function iterator():Iterator<T> {
 		return new UnsafeStringMapValuesIterator<T>(h);
 	}
-	#end
 
 	public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
@@ -114,7 +92,6 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
 	}
 }
 
-#if !as3
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
 
 @:allow(haxe.ds.UnsafeStringMap)
@@ -168,4 +145,3 @@ private class UnsafeStringMapValuesIterator<T> {
 		return r;
 	}
 }
-#end

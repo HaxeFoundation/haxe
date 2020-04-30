@@ -59,6 +59,10 @@ type env_info = {
 	kind : env_kind;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	capture_infos : (int,var_info) Hashtbl.t;
+	(* The number of local variables. *)
+	num_locals : int;
+	(* The number of capture variables. *)
+	num_captures : int;
 }
 
 (* Per-environment debug information. These values are only modified while debugging. *)
@@ -285,7 +289,7 @@ and context = {
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "" __LOC__)
 
 	let sid : int ref = ref (-1)
 
@@ -405,17 +409,19 @@ let no_debug = {
 	debug_pos = null_pos;
 }
 
-let create_env_info static pfile kind capture_infos =
+let create_env_info static pfile kind capture_infos num_locals num_captures =
 	let info = {
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
-		pfile_unique = hash (Path.unique_full_path pfile);
+		pfile_unique = hash (Path.UniqueKey.to_string (Path.UniqueKey.create pfile));
 		capture_infos = capture_infos;
+		num_locals = num_locals;
+		num_captures = num_captures;
 	} in
 	info
 
-let push_environment ctx info num_locals num_captures =
+let push_environment ctx info =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
 		Timer.timer ["macro";"execution";kind_name eval info.kind]
@@ -427,15 +433,15 @@ let push_environment ctx info num_locals num_captures =
 	else
 		no_debug
 	in
-	let locals = if num_locals = 0 then
+	let locals = if info.num_locals = 0 then
 		empty_array
 	else
-		Array.make num_locals vnull
+		Array.make info.num_locals vnull
 	in
-	let captures = if num_captures = 0 then
+	let captures = if info.num_captures = 0 then
 		empty_array
 	else
-		Array.make num_captures vnull
+		Array.make info.num_captures vnull
 	in
 	let stack_depth = match eval.env with
 		| None -> 1;

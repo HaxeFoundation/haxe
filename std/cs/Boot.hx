@@ -22,7 +22,6 @@
 
 package cs;
 
-import cs.internal.Exceptions;
 import cs.internal.FieldLookup;
 import cs.internal.Function;
 import cs.internal.HxObject;
@@ -41,8 +40,10 @@ import Reflect;
 @:dox(hide)
 class Boot {
 	@:keep public static function init():Void {
-		cs.system.Console.InputEncoding = new cs.system.text.UTF8Encoding();
-		cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
+		#if std_encoding_utf8
+			cs.system.Console.InputEncoding = new cs.system.text.UTF8Encoding();
+			cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
+		#end
 		cs.Lib.applyCultureChanges();
 	}
 }

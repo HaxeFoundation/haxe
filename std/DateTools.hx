@@ -54,28 +54,28 @@ class DateTools {
 			case "B":
 				MONTH_NAMES[d.getMonth()];
 			case "C":
-				untyped StringTools.lpad(Std.string(Std.int(d.getFullYear() / 100)), "0", 2);
+				StringTools.lpad(Std.string(Std.int(d.getFullYear() / 100)), "0", 2);
 			case "d":
-				untyped StringTools.lpad(Std.string(d.getDate()), "0", 2);
+				StringTools.lpad(Std.string(d.getDate()), "0", 2);
 			case "D":
 				__format(d, "%m/%d/%y");
 			case "e":
-				untyped Std.string(d.getDate());
+				Std.string(d.getDate());
 			case "F":
 				__format(d, "%Y-%m-%d");
 			case "H", "k":
-				untyped StringTools.lpad(Std.string(d.getHours()), if (e == "H") "0" else " ", 2);
+				StringTools.lpad(Std.string(d.getHours()), if (e == "H") "0" else " ", 2);
 			case "I", "l":
 				var hour = d.getHours() % 12;
-				untyped StringTools.lpad(Std.string(hour == 0 ? 12 : hour), if (e == "I") "0" else " ", 2);
+				StringTools.lpad(Std.string(hour == 0 ? 12 : hour), if (e == "I") "0" else " ", 2);
 			case "m":
-				untyped StringTools.lpad(Std.string(d.getMonth() + 1), "0", 2);
+				StringTools.lpad(Std.string(d.getMonth() + 1), "0", 2);
 			case "M":
-				untyped StringTools.lpad(Std.string(d.getMinutes()), "0", 2);
+				StringTools.lpad(Std.string(d.getMinutes()), "0", 2);
 			case "n":
 				"\n";
 			case "p":
-				untyped if (d.getHours() > 11) "PM"; else "AM";
+				if (d.getHours() > 11) "PM"; else "AM";
 			case "r":
 				__format(d, "%I:%M:%S %p");
 			case "R":
@@ -83,25 +83,20 @@ class DateTools {
 			case "s":
 				Std.string(Std.int(d.getTime() / 1000));
 			case "S":
-				untyped StringTools.lpad(Std.string(d.getSeconds()), "0", 2);
+				StringTools.lpad(Std.string(d.getSeconds()), "0", 2);
 			case "t":
 				"\t";
 			case "T":
 				__format(d, "%H:%M:%S");
 			case "u":
-				untyped {
-					var t = d.getDay();
-					if (t == 0)
-						"7";
-					else
-						Std.string(t);
-				}
+				var t = d.getDay();
+				if (t == 0) "7" else Std.string(t);
 			case "w":
-				untyped Std.string(d.getDay());
+				Std.string(d.getDay());
 			case "y":
-				untyped StringTools.lpad(Std.string(d.getFullYear() % 100), "0", 2);
+				StringTools.lpad(Std.string(d.getFullYear() % 100), "0", 2);
 			case "Y":
-				untyped Std.string(d.getFullYear());
+				Std.string(d.getFullYear());
 			default:
 				throw "Date.format %" + e + "- not implemented yet.";
 		}
@@ -194,7 +189,7 @@ class DateTools {
 	/**
 		Converts a number of minutes to a timestamp.
 	**/
-	#if as3 extern #end public static inline function minutes(n:Float):Float {
+	public static inline function minutes(n:Float):Float {
 		return n * 60.0 * 1000.0;
 	}
 

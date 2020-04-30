@@ -9,7 +9,8 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     variables:
       OPAMYES: 1
-      ADD_REVISION: 1
+      ${{ if not(startsWith(variables['Build.SourceBranch'], 'refs/tags/')) }}:
+        ADD_REVISION: 1
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ${{ if eq(parameters.arch, '64') }}:
         ARCH: 64
@@ -24,11 +25,12 @@ jobs:
     steps:
       - checkout: self
         submodules: recursive
-      - powershell: |
-          Set-PSDebug -Trace 1
-          choco install --no-progress nsis.portable --version 3.02 -y
-          choco install --no-progress curl wget 7zip.portable -y
-        displayName: Install dependencies
+      - powershell: choco install --no-progress nsis.portable --version 3.02 -y
+        displayName: choco install nsis
+      - powershell: choco install --no-progress curl wget 7zip.portable -y
+        displayName: choco install things
+      - powershell: Write-Host "##vso[task.prependpath]C:\ProgramData\chocolatey\bin"
+        displayName: Prepend Chocolatey path
       - template: install-neko-snapshot.yaml
         parameters:
           ${{ if eq(parameters.arch, '64') }}:
@@ -38,9 +40,11 @@ jobs:
       - powershell: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $(CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $(CYG_ROOT) -l C:/tmp -s $(CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mingw64-$(MINGW_ARCH)-zlib -P mingw64-$(MINGW_ARCH)-gcc-core -P mingw64-$(MINGW_ARCH)-pcre" -Wait
+          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $(CYG_ROOT) -l C:/tmp -s $(CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$(MINGW_ARCH)-zlib -P mingw64-$(MINGW_ARCH)-gcc-core -P mingw64-$(MINGW_ARCH)-pcre" -Wait
           curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$(ARCH).tar.xz
+          curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$(MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
+          & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam$(ARCH)/install.sh')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw$(ARCH)c --switch 4.07.0+mingw$(ARCH)c --auto-setup --yes 2>&1')
@@ -54,7 +58,6 @@ jobs:
         displayName: Expose mingw dll files
       - powershell: |
           Set-PSDebug -Trace 1
-          & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win libs prebuild 2>&1')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win -j`nproc` haxe 2>&1')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win haxelib 2>&1')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco 2>&1')

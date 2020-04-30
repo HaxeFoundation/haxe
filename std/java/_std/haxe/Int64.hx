@@ -50,12 +50,12 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public var high(get, never):Int32;
 
-	public inline function get_high():Int32
+	inline function get_high():Int32
 		return cast(this >> 32);
 
 	public var low(get, never):Int32;
 
-	public inline function get_low():Int32
+	inline function get_low():Int32
 		return cast this;
 
 	public inline function copy():Int64
@@ -64,8 +64,12 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return cast x;
 
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool
-		return Std.is(val, java.lang.Long.LongClass);
+		return Std.isOfType(val, java.lang.Long.LongClass);
+
+	inline public static function isInt64(val:Dynamic):Bool
+		return Std.isOfType(val, java.lang.Long.LongClass);
 
 	public static inline function toInt(x:Int64):Int {
 		if (x.val < 0x80000000 || x.val > 0x7FFFFFFF)

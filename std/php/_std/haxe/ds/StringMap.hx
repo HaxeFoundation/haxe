@@ -60,11 +60,13 @@ import haxe.Constraints;
 		return Global.array_map('strval', Global.array_keys(data)).iterator();
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	public inline function iterator():Iterator<T> {
 		return data.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
