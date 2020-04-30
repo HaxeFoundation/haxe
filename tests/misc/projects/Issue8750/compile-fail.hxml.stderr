@@ -1,1 +1,1 @@
-Main2.hx:10: characters 16-17 : "+" is not a valid module name. Full module path: "some.+"
+Main2.hx:10: characters 16-17 : Module "some.+" does not have a valid name. "+" is not a valid module name.
