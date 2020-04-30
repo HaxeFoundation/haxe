@@ -107,10 +107,6 @@ module UniqueKey : sig
 	*)
 	val starts_with : t -> t -> bool
 	(**
-		Don't actually create a key, but use provided string as a key
-	*)
-	val cast : string -> t
-	(**
 		Get string representation of a key
 	*)
 	val to_string : t -> string
@@ -124,8 +120,6 @@ end = struct
 
 	let starts_with subj start =
 		ExtString.String.starts_with subj start
-
-	let cast s = s
 
 	let to_string k = k
 end

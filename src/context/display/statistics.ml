@@ -35,8 +35,8 @@ let collect_statistics ctx pfilter with_expressions =
 	in
 	let check_pos = match pfilter with
 		| SFNone -> (fun p -> p <> null_pos)
-		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && Path.UniqueKey.cast p.pfile = path_key p'.pfile)
-		| SFFile s -> (fun p -> path_key p.pfile = Path.UniqueKey.cast s)
+		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && path_key p.pfile = path_key p'.pfile)
+		| SFFile s -> (fun p -> path_key p.pfile = path_key s)
 	in
 	let add_relation p r =
 		if check_pos p then try
