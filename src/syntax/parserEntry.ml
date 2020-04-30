@@ -213,7 +213,7 @@ let parse ctx code file =
 	let old_macro = !in_macro in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
-	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
+	in_display_file := !in_display && display_position#is_in_file file;
 	syntax_errors := [];
 	let restore =
 		(fun () ->

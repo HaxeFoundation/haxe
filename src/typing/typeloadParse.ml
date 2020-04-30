@@ -112,8 +112,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file = Path.unique_full_path file in
-		if List.exists (fun path -> ExtString.String.starts_with file (try Path.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+		let file_key = Path.UniqueKey.create file in
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (Path.UniqueKey.create path)) com.std_path then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com file p in

@@ -839,7 +839,7 @@ let write_file gen w source_dir path extension out_files =
 		close_out f
 	end;
 
-	out_files := (Path.unique_full_path s_path) :: !out_files;
+	out_files := (Path.UniqueKey.create s_path) :: !out_files;
 
 	t()
 
@@ -854,7 +854,7 @@ let clean_files path excludes verbose =
 				let pack = pack @ [file] in
 				iter_files (pack) (Unix.opendir filepath) filepath;
 				try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
-			else if not (String.ends_with filepath ".meta") && not (List.mem (Path.unique_full_path filepath) excludes) then begin
+			else if not (String.ends_with filepath ".meta") && not (List.mem (Path.UniqueKey.create filepath) excludes) then begin
 				if verbose then print_endline ("Removing " ^ filepath);
 			 	Sys.remove filepath
 			end

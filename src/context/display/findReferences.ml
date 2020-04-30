@@ -57,7 +57,7 @@ let collect_reference_positions com =
 				else
 					cf,c
 			in
-			let full_pos p = { p with pfile = Path.unique_full_path p.pfile } in
+			let full_pos p = { p with pfile = Path.get_full_path p.pfile } in
 			if find_descendants then
 				List.fold_left (fun acc t ->
 					match t with

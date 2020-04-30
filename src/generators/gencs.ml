@@ -3365,7 +3365,7 @@ let generate con =
 				output_string f v;
 				close_out f;
 
-				out_files := (Path.unique_full_path full_path) :: !out_files
+				out_files := (Path.UniqueKey.create full_path) :: !out_files
 			) gen.gcon.resources;
 		end;
 		(* add resources array *)

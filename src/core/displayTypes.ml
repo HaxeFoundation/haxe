@@ -204,7 +204,7 @@ module DisplayMode = struct
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of string list
+		| DMDiagnostics of Path.UniqueKey.t list
 		| DMStatistics
 		| DMSignature
 

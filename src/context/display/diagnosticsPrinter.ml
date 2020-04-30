@@ -8,10 +8,10 @@ open DiagnosticsTypes
 type t = DiagnosticsKind.t * pos
 
 let is_diagnostics_file file =
-	let file = Path.unique_full_path file in
+	let key = Path.UniqueKey.create file in
 	match (!Parser.display_mode) with
 	| DMDiagnostics [] -> true
-	| DMDiagnostics files -> List.exists (fun file' -> file = file') files
+	| DMDiagnostics file_keys -> List.exists (fun key' -> key = key') file_keys
 	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct

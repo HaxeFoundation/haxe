@@ -1526,7 +1526,7 @@ let macro_api ccom get_api =
 				dfile = p.pfile
 				|| (
 					(Filename.is_relative p.pfile || Filename.is_relative dfile)
-					&& (Path.unique_full_path dfile = Path.unique_full_path p.pfile)
+					&& (Path.UniqueKey.create dfile = Path.UniqueKey.create p.pfile)
 				)
 			in
 			vbool (display_pos#enclosed_in p && same_file())
@@ -1928,7 +1928,7 @@ let macro_api ccom get_api =
 			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
 			List.iter (fun v ->
 				let s = decode_string v in
-				let s = Path.unique_full_path s in
+				let s = Path.UniqueKey.create s in
 				cs#taint_modules s;
 				cs#remove_files s;
 			) (decode_array a);
