@@ -508,7 +508,14 @@ module Builder = struct
 		| _ -> error "Unsupported constant" p
 
 	let field e name t p =
-		mk (TField (e,try quick_field e.etype name with Not_found -> die "" __LOC__)) t p
+		let f =
+			try
+				quick_field e.etype name
+			with Not_found ->
+				let field = (s_type (print_context()) e.etype) ^ "." ^ name in
+				die ("Field " ^ field ^ " requested but not found") __LOC__
+		in
+		mk (TField (e,f)) t p
 
 	let fcall e name el ret p =
 		let ft = tfun (List.map (fun e -> e.etype) el) ret in
