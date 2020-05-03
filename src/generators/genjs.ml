@@ -1077,6 +1077,12 @@ let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
+let method_function_keyword cf is_es6 =
+	let async = if Meta.has Meta.JsAsync cf.cf_meta then "async " else "" in
+	let generator = if Meta.has Meta.JsGenerator cf.cf_meta then "*" else "" in
+	let func = if not is_es6 then "function" else "" in
+	async ^ func ^ generator
+
 let gen_class_static_field ctx c cl_path f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
@@ -1088,12 +1094,12 @@ let gen_class_static_field ctx c cl_path f =
 		newline ctx
 	| Some e ->
 		match e.eexpr with
-		| TFunction _ ->
+		| TFunction field_func ->
 			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
-			gen_value ctx e;
+			gen_function ctx field_func e.epos ~keyword:(method_function_keyword f false);
 			newline ctx;
 		| _ ->
 			ctx.statics <- (c,f,e) :: ctx.statics
@@ -1115,7 +1121,11 @@ let gen_class_field ctx c f =
 		newprop ctx;
 		print ctx "%s: " (anon_field f.cf_name);
 		ctx.id_counter <- 0;
-		gen_value ctx e;
+		(match e.eexpr with
+		| TFunction field_func ->
+			gen_function ctx field_func e.epos ~keyword:(method_function_keyword f false)
+		| _ ->
+			gen_value ctx e);
 		ctx.separator <- false
 
 let generate_class___name__ ctx cl_path =
@@ -1285,10 +1295,8 @@ let generate_class_es6 ctx c =
 	| _ -> ());
 
 	let method_def_name cf =
-		let async = if Meta.has Meta.JsAsync cf.cf_meta then "async " else "" in
-		let generator = if Meta.has Meta.JsGenerator cf.cf_meta then "*" else "" in
 		let name = if valid_js_ident cf.cf_name then cf.cf_name else "\"" ^ cf.cf_name ^ "\"" in
-		async ^ generator ^ name
+		method_function_keyword cf true ^ name
 	in
 
 	let nonmethod_fields =
