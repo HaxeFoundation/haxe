@@ -619,6 +619,20 @@
 		"links": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
+		"name": "JsAsync",
+		"metadata": ":js.async",
+		"doc": "Mark a method as a javascript async function, the js generator will prepend 'async' before the given function.",
+		"platforms": ["js"],
+		"targets": ["TClassField"]
+	},
+	{
+		"name": "JsGenerator",
+		"metadata": ":js.generator",
+		"doc": "Mark a method as a javascript generator function, the js codegen will prepend '*' before the given function.",
+		"platforms": ["js"],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "LuaRequire",
 		"metadata": ":luaRequire",
 		"doc": "Generate Lua module require expression for given extern.",

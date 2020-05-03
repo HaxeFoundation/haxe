@@ -1285,7 +1285,10 @@ let generate_class_es6 ctx c =
 	| _ -> ());
 
 	let method_def_name cf =
-		if valid_js_ident cf.cf_name then cf.cf_name else "\"" ^ cf.cf_name ^ "\""
+		let async = if Meta.has Meta.JsAsync cf.cf_meta then "async " else "" in
+		let generator = if Meta.has Meta.JsGenerator cf.cf_meta then "*" else "" in
+		let name = if valid_js_ident cf.cf_name then cf.cf_name else "\"" ^ cf.cf_name ^ "\"" in
+		async ^ generator ^ name
 	in
 
 	let nonmethod_fields =
