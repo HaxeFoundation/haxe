@@ -1099,7 +1099,9 @@ let gen_class_static_field ctx c cl_path f =
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+			let clear_mapping = add_mapping ctx e in
 			gen_function ctx field_func e.epos ~keyword:(method_function_keyword f false);
+			clear_mapping ();
 			newline ctx;
 		| _ ->
 			ctx.statics <- (c,f,e) :: ctx.statics
@@ -1123,7 +1125,9 @@ let gen_class_field ctx c f =
 		ctx.id_counter <- 0;
 		(match e.eexpr with
 		| TFunction field_func ->
-			gen_function ctx field_func e.epos ~keyword:(method_function_keyword f false)
+			let clear_mapping = add_mapping ctx e in
+			gen_function ctx field_func e.epos ~keyword:(method_function_keyword f false);
+			clear_mapping ()
 		| _ ->
 			gen_value ctx e);
 		ctx.separator <- false
