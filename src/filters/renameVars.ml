@@ -194,7 +194,7 @@ let collect_loop scope fn =
 let rec collect_vars ?(in_block=false) rc scope e =
 	let collect_vars =
 		match e.eexpr with
-		| TBlock _ -> collect_vars ~in_block:true rc
+		| TBlock _ | TFunction _ -> collect_vars ~in_block:true rc
 		| _ -> collect_vars ~in_block:false rc
 	in
 	match e.eexpr with
@@ -210,7 +210,10 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		let scope = create_scope (Some scope) in
 		List.iter (fun (v,_) -> declare_var rc scope v) fn.tf_args;
 		List.iter (fun (v,_) -> use_var rc scope v) fn.tf_args;
-		collect_vars scope fn.tf_expr
+		(match fn.tf_expr.eexpr with
+		| TBlock exprs -> List.iter (collect_vars scope) exprs
+		| _ -> collect_vars scope fn.tf_expr
+		)
 	| TTry (try_expr, catches) ->
 		collect_vars scope try_expr;
 		List.iter (fun (v, catch_expr) ->
