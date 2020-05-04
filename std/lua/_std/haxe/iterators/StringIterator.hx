@@ -24,27 +24,27 @@ package haxe.iterators;
 import lua.lib.luautf8.Utf8;
 
 class StringIterator {
-    var codes : String->Int->StringCodePoint;
+    var codes : (String, Int)->StringCodePoint;
     var codepoint : Int;
     var str : String;
     var position : Int;
-	public inline function new(s:String) {
+    public inline function new(s:String) {
         this.codes = Utf8.codes(s);
         this.str = s;
         var cp = codes(str, 1);
         this.codepoint = cp.codepoint;
         this.position = cp.position;
-	}
+    }
 
-	public inline function hasNext() {
-		return codepoint != null;
-	}
+    public inline function hasNext() {
+        return codepoint != null;
+    }
 
-	public inline function next() {
+    public inline function next() {
         var ret = codepoint;
         var cp = codes(str, position);
         codepoint = cp.codepoint;
         position = cp.position;
         return ret;
-	}
+    }
 }

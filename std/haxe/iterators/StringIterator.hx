@@ -23,33 +23,33 @@
 package haxe.iterators;
 
 /**
-	This iterator can be used to iterate over char codes in a string.
+  This iterator can be used to iterate over char codes in a string.
 
-	Note that char codes may differ across platforms because of different
-	internal encoding of strings in different of runtimes.
-**/
+  Note that char codes may differ across platforms because of different
+  internal encoding of strings in different of runtimes.
+ **/
 class StringIterator {
-	var offset = 0;
-	var s:String;
+    var offset = 0;
+    var s:String;
 
-	/**
-		Create a new `StringIterator` over String `s`.
-	**/
-	public inline function new(s:String) {
-		this.s = s;
-	}
+    /**
+      Create a new `StringIterator` over String `s`.
+     **/
+    public inline function new(s:String) {
+        this.s = s;
+    }
 
-	/**
-		See `Iterator.hasNext`
-	**/
-	public inline function hasNext() {
-		return offset < s.length;
-	}
+    /**
+      See `Iterator.hasNext`
+     **/
+    public inline function hasNext() {
+        return offset < s.length;
+    }
 
-	/**
-		See `Iterator.next`
-	**/
-	public inline function next() {
-		return StringTools.fastCodeAt(s, offset++);
-	}
+    /**
+      See `Iterator.next`
+     **/
+    public inline function next() {
+        return StringTools.fastCodeAt(s, offset++);
+    }
 }
