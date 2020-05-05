@@ -282,7 +282,10 @@ let field_access ctx mode f fmode t e p =
 		| AccInline ->
 			AKInline (e,f,fmode,t)
 		| AccCtor ->
-			if ctx.curfun = FunConstructor then normal() else AKNo f.cf_name
+			(match ctx.curfun, fmode with
+				| FunConstructor, FInstance(c,_,_) when c == ctx.curclass -> normal()
+				| _ -> AKNo f.cf_name
+			)
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r p
