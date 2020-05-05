@@ -95,3 +95,16 @@ function _hx_tostring(obj, depth)
         return ""
     end
 end
+
+function _hx_error(obj)
+    if obj.value then
+        "Runtime Error: " + _G.print(_hx_tostring(obj.value));
+    else
+        "Runtime Error: " + _G.print(tostring(obj))
+    end
+
+    if _G.debug and _G.debug.traceback then
+        _G.print(debug.traceback());
+    end
+end
+

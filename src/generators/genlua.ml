@@ -146,9 +146,7 @@ let spr ctx s =
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> begin
-            Buffer.add_string ctx.buf s
-        end)
+    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -2083,9 +2081,16 @@ let generate com =
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
-    (match com.main with
+    match com.main with
      | None -> ()
-     | Some e -> gen_expr ctx e; newline ctx);
+     | Some e -> (match e.eexpr with
+         | TCall(e2,el) -> begin
+                spr ctx "_G.xpcall(";
+                gen_value ctx e2;
+                spr ctx ", _hx_error)";
+                newline ctx;
+            end
+         | _-> ());
 
     if anyExposed then
         println ctx "return _hx_exports";
