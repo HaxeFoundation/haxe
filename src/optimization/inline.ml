@@ -506,6 +506,17 @@ class inline_state ctx ethis params cf f p = object(self)
 				with Not_found ->
 					e
 				end
+			(*
+				This case is a hack for https://github.com/HaxeFoundation/haxe/issues/9355
+				on top of a hack for https://github.com/HaxeFoundation/haxe/issues/2401
+			*)
+			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))} as e1,[e2]) ->
+				let e2' = inline_params true false e2 in
+				let e2' =
+					if fast_eq e2.etype e2'.etype then e2'
+					else {e2' with etype = e2.etype}
+				in
+				{e with eexpr = TCall(e1,[e2'])}
 			| TCall(e1,el) ->
 				let e1 = inline_params true false e1 in
 				let el = List.map (inline_params false false) el in
