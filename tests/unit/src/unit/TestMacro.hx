@@ -84,6 +84,12 @@ class TestMacro extends Test {
 			p.printComplexType( TFunction( [ TOptional( TNamed('a', macro :Int) ) ], macro :Int) ),
 			"(?a:Int) -> Int"
 		);
+		//	function returning function
+		eq(
+			// see issue #9385
+			p.printComplexType( TFunction( [], TFunction([], macro :Int)) ),
+			"() -> (() -> Int)"
+		);
 		eq(p.printComplexType(macro :(a:X) -> Y), "(a:X) -> Y");
 		eq(p.printComplexType(macro :(?a:X) -> Y), "(?a:X) -> Y");
 		eq(p.printComplexType(macro :((?a:X)) -> Y), "((?a:X)) -> Y");
