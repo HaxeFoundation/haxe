@@ -514,6 +514,8 @@ class inline_state ctx ethis params cf f p = object(self)
 				let e1 = inline_params false true e1 in
 				let e2 = inline_params false false e2 in
 				{e with eexpr = TBinop(op,e1,e2)}
+			| TUnop((Increment | Decrement) as op,flag,e1) ->
+				{e with eexpr = TUnop(op,flag,inline_params false true e1)}
 			| _ -> Type.map_expr (inline_params false false) e
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
