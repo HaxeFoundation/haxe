@@ -2395,7 +2395,7 @@ module StdStringBuf = struct
 		let s = decode_vstring s in
 		let c_pos = decode_int pos in
 		let c_len = match len with
-			| VNull -> String.length s.sstring - c_pos
+			| VNull -> s.slength - c_pos
 			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
