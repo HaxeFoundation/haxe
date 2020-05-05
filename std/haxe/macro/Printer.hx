@@ -128,7 +128,11 @@ class Printer {
 					default: true;
 				}
 				var argStr = args.map(printComplexType).join(", ");
-				(wrapArgumentsInParentheses ? '($argStr)' : argStr) + " -> " + printComplexType(ret);
+				(wrapArgumentsInParentheses ? '($argStr)' : argStr) + " -> " + switch ret {
+					// wrap return type in parentheses if it's also a function
+					case TFunction(_): '(${printComplexType(ret)})';
+					default: printComplexType(ret);
+				}
 			case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 			case TParent(ct): "(" + printComplexType(ct) + ")";
 			case TOptional(ct): "?" + printComplexType(ct);
