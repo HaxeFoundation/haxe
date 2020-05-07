@@ -435,7 +435,7 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
 			pf_scoping = { default_config.pf_scoping with
-				vs_flags = [ReserveCurrentTopLevelSymbol];
+				vs_flags = [ReserveAllTopLevelSymbols];
 			}
 		}
 	| Flash ->
