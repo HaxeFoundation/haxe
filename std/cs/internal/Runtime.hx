@@ -370,9 +370,9 @@ import cs.system.Object;
 				value = mkNullable(value, prop.PropertyType);
 			}
 			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value))
-				&& !Object.ReferenceEquals(t, f.FieldType)) {
+				&& !Object.ReferenceEquals(t, prop.PropertyType)) {
 				var ic = Lib.as(value, IConvertible);
-				value = ic.ToType(f.FieldType, null);
+				value = ic.ToType(prop.PropertyType, null);
 			}
 			prop.SetValue(obj, value, null);
 
