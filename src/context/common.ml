@@ -540,7 +540,7 @@ let get_config com =
 				else
 					{
 						vs_scope = FunctionScope;
-						vs_flags = [NoShadowing; ReserveCurrentTopLevelSymbol; ReserveNames(["_"])];
+						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
 					}
 		}
 	| Python ->
