@@ -339,7 +339,7 @@ let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_iterator_field_access fa = match field_name fa with
 	| "iterator" | "keyValueIterator" -> true
-	| _ -> true
+	| _ -> false
 
 let is_dynamic_iterator ctx e =
 	let check x =
@@ -531,6 +531,14 @@ and gen_expr ctx e =
 		spr ctx (field (field_name f));
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
+	| TBinop ((OpEq | OpNotEq) as op,{ eexpr = TField (x,(FClosure _ as f)) },{ eexpr = TConst TNull }) ->
+		gen_value ctx x;
+		spr ctx (field (field_name f));
+		print ctx " %s null" (Ast.s_binop op)
+	| TBinop ((OpEq | OpNotEq) as op,{ eexpr = TConst TNull },{ eexpr = TField (x,(FClosure _ as f)) }) ->
+		print ctx "null %s " (Ast.s_binop op);
+		gen_value ctx x;
+		spr ctx (field (field_name f))
 	| TBinop (op,e1,e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
