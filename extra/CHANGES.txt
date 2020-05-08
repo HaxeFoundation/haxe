@@ -1,16 +1,53 @@
 ????-??-??: 4.1.0
 
+	New features:
+
+	all : added unified exception handling (#9124)
+	eval : added SSL support (#9009)
+	jvm : the JVM target is no longer considered experimental
+
 	General improvements:
 
+	all : implemented different display support approach (#8962)
+	all : improved display services related to reference finding
+	all : added go-to-implementation support (#9043)
+	all : made various improvements to diagnostics
+	all : support completion for map keys (#9133)
+	all : improved parser robustness for incomplete syntax (#9148)
+	all : disallowed the combination of `@:overload` and inline (#3846)
+	all : improved renaming of local variables (#9304)
 	js : use abstract type name for generating its implementation class (#9006)
 	js : improve haxe.ds.StringMap implementation (#8909)
 	js : improve interface checking and make it more minifier-friendly (#9178)
+	jvm : rewrote function handling to me much faster and more portable (#9208)
+	jvm : generate interfaces for typedefs for improved performance (#9195)
+	jvm : added support for haxe.MainLoop
+	jvm : support `@:jvm.synthetic` and use it to hide some generated fields (#9213)
+	jvm : respect `@:private` and `@:protected`
 	lua : improve error handling behavior when throwing objects/instances.
 
 	Standard Library:
 
 	all : negative `startIndex` argument of `String.indexOf` and `String.lastIndexOf` is unspecified (#8365)
 	all : added Array.contains (#9179)
+	jvm : added JVM-specific versions of sys.thread.Lock and sys.thread.Thread
+	jvm : added JVM-specific version of haxe.ds.StringMap
+	java/jvm: added native versions of SHA-1 and SHA-256 (#9298)
+
+	Bugfixes:
+
+	all : fixed display support for static imports (#9012)
+	all : fixed completion in macro mode picking up the wrong type (#7703)
+	all : fixed wonky analyzer transformation related to locals captured in closures (#9305)
+	eval : fixed EReg.matchSub handling with negative length (#9333)
+	eval : fixed extern classes being generated and causing errors in some cases (#9366)
+	eval : fixed StringBuf.addSub unicode handling (#9382)
+	jvm : fixed Void being generated with the wrong casing (#8717)
+	jvm : fixed debugging-related data being generated in the wrong place
+	jvm : fixed switches on string values being too optimistic
+	jvm : fixed problems with Std.parseInt and Std.parseFloat
+	jvm : made sure type parameter types are boxed
+	jvm : fixed dynamic access on `null` yielding `null` (#8452)
 
 2019-12-17: 4.0.5
 
