@@ -28,7 +28,7 @@
 	js : improve haxe.ds.StringMap implementation (#8909)
 	js : improve interface checking and make it more minifier-friendly (#9178)
 	js : generate `let` instead of `var` when compiler with `-D js-es=6` (#9280)
-	js : generate less closures for immediately-bound constructors (#9227)
+	js : optimize `.bind` on constructors (#9227)
 	jvm : rewrote function handling to me much faster and more portable (#9208)
 	jvm : generate interfaces for typedefs for improved performance (#9195)
 	jvm : added support for haxe.MainLoop
