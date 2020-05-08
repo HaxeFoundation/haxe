@@ -131,7 +131,7 @@ class Printer {
 				(wrapArgumentsInParentheses ? '($argStr)' : argStr) + " -> " + (switch ret {
 					// wrap return type in parentheses if it's also a function
 					case TFunction(_): '(${printComplexType(ret)})';
-					default: printComplexType(ret);
+					default: (printComplexType(ret): String);
 				});
 			case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 			case TParent(ct): "(" + printComplexType(ct) + ")";
