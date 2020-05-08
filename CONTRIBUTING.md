@@ -53,7 +53,7 @@ Please also bear the following in mind:
 
 ### Using a debugger
 
-To debug the Haxe compiler, you can use either a system debugger (`gdb`/`lldb`), or [ocamldebug](http://caml.inria.fr/pub/docs/manual-ocaml/debugger.html). `ocamldebug` provides a better debugging experience. To use it, uncomment `(mode byte)` from [src/dune](src/dune) and recompile.
+To debug the Haxe compiler, you can use either a system debugger (`gdb`/`lldb`), or [ocamldebug](http://caml.inria.fr/pub/docs/manual-ocaml/debugger.html). `ocamldebug` provides a better debugging experience. To use it, uncomment `(modes byte)` from [src/dune](src/dune) and recompile.
 
 ### Using printf
 
