@@ -200,23 +200,28 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 	| _ ->
 		check_expr (has_tail_recursion is_recursive_call cancel_tre function_end) e
 
-let run ctx e =
-	match e.eexpr with
-	| TFunction fn ->
-		let is_tre_eligible =
-			match ctx.curfield.cf_kind with
-			| Method MethDynamic -> false
-			| Method MethInline -> true
-			| Method _ when ctx.curfun = FunStatic -> true
-			| _ -> has_class_field_flag ctx.curfield CfFinal
-			in
-		let is_recursive_call callee args =
-			is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
-		in
-		if has_tail_recursion is_recursive_call false true fn.tf_expr then
-			(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
-			let fn = transform_function ctx is_recursive_call fn in
-			{ e with eexpr = TFunction fn }
-		else
-			e
-	| _ -> e
+let run ctx =
+	if Common.defined ctx.com Define.NoTre then
+		(fun e -> e)
+	else
+		(fun e ->
+			match e.eexpr with
+			| TFunction fn ->
+				let is_tre_eligible =
+					match ctx.curfield.cf_kind with
+					| Method MethDynamic -> false
+					| Method MethInline -> true
+					| Method _ when ctx.curfun = FunStatic -> true
+					| _ -> has_class_field_flag ctx.curfield CfFinal
+					in
+				let is_recursive_call callee args =
+					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+				in
+				if has_tail_recursion is_recursive_call false true fn.tf_expr then
+					(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
+					let fn = transform_function ctx is_recursive_call fn in
+					{ e with eexpr = TFunction fn }
+				else
+					e
+			| _ -> e
+		)
