@@ -369,6 +369,13 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TCast(e1,None) -> is_writable e1
 			| _  -> false
 		in
+		let rec compatible_types etype v_type =
+			match follow etype, follow v_type with
+			| _, TInst({ cl_kind = KTypeParameter _ }, _) -> true
+			| _, TMono _ -> true
+			| TDynamic _, TDynamic _ -> true
+			| a, b -> fast_eq_check compatible_types a b
+		in
 		let vars = List.fold_left (fun acc (i,e) ->
 			let accept vik =
 				subst := PMap.add i.i_subst.v_id (vik,e) !subst;
@@ -386,16 +393,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
 				reject()
 			else begin
-				let vik = match e.eexpr with
-					| TLocal _ when i.i_abstract_this -> VIInline
-					| TConst TNull -> VIDoNotInline
-					| TLocal _ | TConst _ ->
-						if not i.i_write then VIInline else VIDoNotInline
-					| TFunction _ ->
-						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
-						if i.i_read <= 1 then VIInline else VIInlineIfCalled
-					| _ ->
-						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
+				let vik =
+					if i.i_abstract_this || compatible_types e.etype i.i_var.v_type then
+						match e.eexpr with
+						| TLocal _ when i.i_abstract_this -> VIInline
+						| TConst TNull -> VIDoNotInline
+						| TLocal _ | TConst _ ->
+							if not i.i_write then VIInline else VIDoNotInline
+						| TFunction _ ->
+							if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
+							if i.i_read <= 1 then VIInline else VIInlineIfCalled
+						| _ ->
+							if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
+					else
+						VIDoNotInline
 				in
 				match vik with
 				| VIInline -> accept vik
