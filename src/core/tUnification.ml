@@ -99,6 +99,32 @@ let rec fast_eq_mono ml a b =
 	| _ , _ ->
 		false
 
+let anon_eq type_check a1 a2 =
+	let fields_eq() =
+		let rec loop fields1 fields2 =
+			match fields1, fields2 with
+			| [], [] -> true
+			| _, [] | [], _ -> false
+			| f1 :: rest1, f2 :: rest2 ->
+				f1.cf_name = f2.cf_name
+				&& (try type_check f1.cf_type f2.cf_type with Not_found -> false)
+				&& loop rest1 rest2
+		in
+		let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
+		and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
+		and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
+		loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
+	in
+	match !(a2.a_status), !(a1.a_status) with
+	| Statics c, Statics c2 -> c == c2
+	| EnumStatics e, EnumStatics e2 -> e == e2
+	| AbstractStatics a, AbstractStatics a2 -> a == a2
+	| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 type_check tl1 tl2
+	| Closed, Closed -> fields_eq()
+	| Opened, Opened -> fields_eq()
+	| Const, Const -> fields_eq()
+	| _ -> false
+
 let rec shallow_eq a b =
 	a == b
 	|| begin
@@ -110,31 +136,7 @@ let rec shallow_eq a b =
 			| TMono { tm_type = None }, t when t == t_dynamic -> true
 			| TMono { tm_type = None }, TMono { tm_type = None } -> true
 			| TAnon a1, TAnon a2 ->
-				let fields_eq() =
-					let rec loop fields1 fields2 =
-						match fields1, fields2 with
-						| [], [] -> true
-						| _, [] | [], _ -> false
-						| f1 :: rest1, f2 :: rest2 ->
-							f1.cf_name = f2.cf_name
-							&& (try shallow_eq f1.cf_type f2.cf_type with Not_found -> false)
-							&& loop rest1 rest2
-					in
-					let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
-					and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
-					and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
-					loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
-				in
-				(match !(a2.a_status), !(a1.a_status) with
-				| Statics c, Statics c2 -> c == c2
-				| EnumStatics e, EnumStatics e2 -> e == e2
-				| AbstractStatics a, AbstractStatics a2 -> a == a2
-				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
-				| Closed, Closed -> fields_eq()
-				| Opened, Opened -> fields_eq()
-				| Const, Const -> fields_eq()
-				| _ -> false
-				)
+				anon_eq shallow_eq a1 a2
 			| _ , _ ->
 				false
 	end

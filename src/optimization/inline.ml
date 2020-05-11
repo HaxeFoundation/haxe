@@ -273,6 +273,31 @@ let inline_metadata e meta =
 	in
 	List.fold_left inline_meta e meta
 
+let rec compatible_types_for_substitute a b =
+	a == b
+	|| begin
+		let a = follow a
+		and b = follow b in
+		fast_eq_check compatible_types_for_substitute a b
+		|| match a, b with
+			| TAbstract({ a_path = ([],"Class") }, [TInst(c1,_)]), TAnon { a_status = { contents = Statics c2 } }
+			| TAnon { a_status = { contents = Statics c2 } }, TAbstract({ a_path = ([],"Class") }, [TInst(c1,_)]) ->
+				c1 == c2
+				|| (match c1.cl_kind with KTypeParameter _ -> true | _ -> false)
+				|| (match c2.cl_kind with KTypeParameter _ -> true | _ -> false)
+			| _, TInst({ cl_kind = KTypeParameter _ }, _)
+			| TInst({ cl_kind = KTypeParameter _ }, _), _ -> true
+			| TDynamic _, _
+			| _, TDynamic _ -> true
+			| TAbstract({ a_path = ([],"Float") },[]), TAbstract({ a_path = ([],"Int") },[])
+			| TAbstract({ a_path = ([],"Int") },[]), TAbstract({ a_path = ([],"Float") },[]) -> true
+			| TMono { tm_type = None }, TMono { tm_type = None } -> true
+			| TAnon a1, TAnon a2 ->
+				anon_eq compatible_types_for_substitute a1 a2
+			| _ , _ ->
+				false
+	end
+
 class inline_state ctx ethis params cf f p = object(self)
 	val locals = Hashtbl.create 0
 	val checker = create_affection_checker()
@@ -369,13 +394,6 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TCast(e1,None) -> is_writable e1
 			| _  -> false
 		in
-		let rec compatible_types etype v_type =
-			match follow etype, follow v_type with
-			| _, TInst({ cl_kind = KTypeParameter _ }, _) -> true
-			| _, TMono _ -> true
-			| TDynamic _, TDynamic _ -> true
-			| a, b -> fast_eq_check compatible_types a b
-		in
 		let vars = List.fold_left (fun acc (i,e) ->
 			let accept vik =
 				subst := PMap.add i.i_subst.v_id (vik,e) !subst;
@@ -394,7 +412,8 @@ class inline_state ctx ethis params cf f p = object(self)
 				reject()
 			else begin
 				let vik =
-					if i.i_abstract_this || compatible_types e.etype i.i_var.v_type then
+					if i.i_abstract_this || compatible_types_for_substitute e.etype i.i_var.v_type then
+					(* if true then *)
 						match e.eexpr with
 						| TLocal _ when i.i_abstract_this -> VIInline
 						| TConst TNull -> VIDoNotInline
