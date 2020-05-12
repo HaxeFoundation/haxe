@@ -42,9 +42,6 @@ class Lua {
 
 		getLuaDependencies();
 
-		changeDirectory(miscLuaDir);
-		runCommand("haxe", ["run.hxml"]);
-
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
 
 			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
@@ -80,6 +77,9 @@ class Lua {
 
 			changeDirectory(miscDir + "luaDeadCode/stringReflection");
 			runCommand("haxe", ["compile.hxml"]);
+
+			changeDirectory(miscLuaDir);
+			runCommand("haxe", ["run.hxml"]);
 		}
 	}
 }
