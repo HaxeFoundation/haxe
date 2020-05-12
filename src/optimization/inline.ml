@@ -513,8 +513,8 @@ class inline_state ctx ethis params cf f p = object(self)
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))} as e1,[e2]) ->
 				let e2' = inline_params true false e2 in
 				let e2' =
-					if fast_eq e2.etype e2'.etype then e2'
-					else {e2' with etype = e2.etype}
+					if fast_eq (follow e2.etype) (follow e2'.etype) then e2'
+					else {e2 with eexpr = TCast (e2',None) }
 				in
 				{e with eexpr = TCall(e1,[e2'])}
 			| TCall(e1,el) ->
