@@ -2083,14 +2083,23 @@ let generate com =
 
     match com.main with
      | None -> ()
-     | Some e -> (match e.eexpr with
-         | TCall(e2,el) -> begin
-                spr ctx "_G.xpcall(";
-                gen_value ctx e2;
-                spr ctx ", _hx_error)";
-                newline ctx;
-            end
-         | _-> ());
+     | Some e ->
+        spr ctx "_G.xpcall(";
+        (match e.eexpr with
+         | TCall(e2,[]) ->
+            gen_value ctx e2;
+         | _->
+            let fn =
+                {
+                    tf_args = [];
+                    tf_type = com.basic.tvoid;
+                    tf_expr = mk (TBlock [e]) com.basic.tvoid e.epos;
+                }
+            in
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
+        );
+        spr ctx ", _hx_error)";
+        newline ctx;
 
     if anyExposed then
         println ctx "return _hx_exports";

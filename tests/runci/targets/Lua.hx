@@ -7,6 +7,9 @@ import haxe.io.*;
 using StringTools;
 
 class Lua {
+	static var miscLuaDir(get,never):String;
+	static inline function get_miscLuaDir() return miscDir + 'lua/';
+
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
@@ -38,6 +41,9 @@ class Lua {
 	static public function run(args:Array<String>) {
 
 		getLuaDependencies();
+
+		changeDirectory(miscLuaDir);
+		runCommand("haxe", ["run.hxml"]);
 
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
 
