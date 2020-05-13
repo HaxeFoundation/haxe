@@ -49,7 +49,6 @@ class MacroStringTools {
 		Tells if `e` is a format string, i.e. uses single quotes `'` as
 		delimiters.
 	**/
-	@:deprecated("Check for `CString(_,SingleQuotes)` instead")
 	static public function isFormatExpr(e:ExprOf<String>):Bool {
 		return e.expr.match(EConst(CString(_, SingleQuotes)));
 	}
