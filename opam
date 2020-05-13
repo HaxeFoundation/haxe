@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "haxe"
-version: "4.0.0"
+version: "4.1.0"
 synopsis: "Multi-target universal programming language"
 description: """
 Haxe is an open source toolkit based on a modern,
