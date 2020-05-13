@@ -109,7 +109,6 @@ and typer = {
 	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
-	mutable format_strings : bool;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)

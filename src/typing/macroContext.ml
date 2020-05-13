@@ -665,7 +665,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			let p = snd e in
 			let e =
 				if Texpr.is_constant_value ctx.com.basic e then
-					e
+					match e with
+					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
+					| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
+					| _ -> e
 				else
 					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
@@ -674,20 +677,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt = begin
-			(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
-			let old_format_strings = mctx.format_strings in
-			mctx.format_strings <- false;
-			let r =
-				try
-					Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false
-				with e ->
-					mctx.format_strings <- old_format_strings;
-					raise e
-			in
-			mctx.format_strings <- old_format_strings;
-			fst r
-		end in
+		let elt = fst (Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)

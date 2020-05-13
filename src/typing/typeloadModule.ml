@@ -865,7 +865,6 @@ let type_types_into_module ctx m tdecls p =
 		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
-		format_strings = true;
 		pass = PBuildModule;
 		get_build_infos = (fun() -> None);
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
