@@ -509,7 +509,7 @@ and code_string lexbuf open_braces =
 	| "'" ->
 		add "'";
 		let pmin = lexeme_start lexbuf in
-		ignore(try string2 lexbuf with Exit -> error Unterminated_string pmin);
+		(try ignore(string2 lexbuf) with Exit -> error Unterminated_string pmin);
 		add "'";
 		code_string lexbuf open_braces
 	| "/*" ->
