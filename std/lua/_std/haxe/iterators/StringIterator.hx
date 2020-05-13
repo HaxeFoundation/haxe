@@ -31,7 +31,7 @@ class StringIterator {
     public inline function new(s:String) {
         this.codes = Utf8.codes(s);
         this.str = s;
-        var cp = codes(str, 1);
+        var cp = codes(str, 0);
         this.codepoint = cp.codepoint;
         this.position = cp.position;
     }
