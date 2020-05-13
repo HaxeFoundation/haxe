@@ -665,10 +665,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			let p = snd e in
 			let e =
 				if Texpr.is_constant_value ctx.com.basic e then
-					match e with
 					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
-					| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
-					| _ -> e
+					let rec loop e =
+						match e with
+						| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
+						| _ -> Ast.map_expr loop e
+					in
+					loop e
 				else
 					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
