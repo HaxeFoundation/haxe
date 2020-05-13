@@ -51,18 +51,8 @@ class MacroStringTools {
 	**/
 	@:deprecated("Check for `CString(_,SingleQuotes)` instead")
 	static public function isFormatExpr(e:ExprOf<String>):Bool {
-		#if (neko || eval)
-		return Context.load("is_fmt_string", 1)(e);
-		#else
-		return isFmtString(e.pos);
-		#end
+		return e.expr.match(EConst(CString(_, SingleQuotes)));
 	}
-
-	#if !neko
-	static function isFmtString(p:Position):Bool {
-		return false;
-	}
-	#end
 	#end
 
 	/**
