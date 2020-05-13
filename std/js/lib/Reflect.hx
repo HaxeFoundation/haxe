@@ -49,18 +49,21 @@ extern class Reflect {
 	/**
 		Similar to `Object.defineProperty()`. Returns a Bool.
 	 */
+	@:overload(function(target:{}, propertyKey:Symbol, attributes:ObjectPropertyDescriptor):Bool {})
 	static function defineProperty(target:{}, propertyKey:String, attributes:ObjectPropertyDescriptor):Bool;
 
 	/**
 		The `delete` operator as a function. Equivalent to calling `delete target[name]`.
 	 */
 	@:overload(function<T>(target:Array<T>, propertyKey:Int):Bool {})
+	@:overload(function<T>(target:{}, propertyKey:Symbol):Bool {})
 	static function deleteProperty(target:{}, propertyKey:String):Bool;
 
 	/**
 		A function that returns the value of properties.
 	 */
 	@:overload(function<T>(target:Array<T>, propertyKey:Int, ?receiver:{}):Null<T> {})
+	@:overload(function<T>(target:{}, propertyKey:Symbol, ?receiver:{}):Null<T> {})
 	@:pure static function get<T>(target:{}, propertyKey:String, ?receiver:{}):Null<T>;
 
 	/**
@@ -68,6 +71,8 @@ extern class Reflect {
 		Returns a property descriptor of the given property if it exists on the object,
 		`undefined` otherwise.
 	 */
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor> {})
+	@:overload(function(target:{}, propertyKey:Symbol):Null<ObjectPropertyDescriptor> {})
 	@:pure static function getOwnPropertyDescriptor(target:{}, propertyKey:String):Null<ObjectPropertyDescriptor>;
 
 	/**
@@ -79,6 +84,8 @@ extern class Reflect {
 		The `in` operator as function. Returns a boolean indicating whether an own
 		or inherited property exists.
 	 */
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Bool {})
+	@:overload(function(target:{}, propertyKey:Symbol):Bool {})
 	@:pure static function has(target:{}, propertyKey:String):Bool;
 
 	/**
@@ -101,6 +108,7 @@ extern class Reflect {
 		if the update was successful.
 	 */
 	@:overload(function<T>(target:Array<T>, propertyKey:Int, value:T, ?receiver:{}):Bool {})
+	@:overload(function<T>(target:{}, propertyKey:Symbol, value:T, ?receiver:{}):Bool {})
 	static function set<T>(target:{}, propertyKey:String, value:T, ?receiver:{}):Bool;
 
 	/**
