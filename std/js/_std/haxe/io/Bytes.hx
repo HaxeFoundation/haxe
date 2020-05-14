@@ -44,7 +44,7 @@ class Bytes {
 	}
 
 	public inline function set(pos:Int, v:Int):Void {
-		b[pos] = v & 0xFF;
+		b[pos] = v;
 	}
 
 	public function blit(pos:Int, src:Bytes, srcpos:Int, len:Int):Void {
