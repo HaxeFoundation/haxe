@@ -217,8 +217,13 @@ let rec collect_vars ?(in_block=false) rc scope e =
 	| TTry (try_expr, catches) ->
 		collect_vars scope try_expr;
 		List.iter (fun (v, catch_expr) ->
-			declare_var rc scope v;
-			collect_vars scope catch_expr
+			let v_expr = mk (TVar (v,None)) t_dynamic v.v_pos in
+			let e =
+				match catch_expr.eexpr with
+				| TBlock exprs -> { catch_expr with eexpr = TBlock (v_expr :: exprs) }
+				| _ -> { catch_expr with eexpr = TBlock [v_expr; catch_expr] }
+			in
+			collect_vars scope e
 		) catches
 	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
 		collect_vars scope target;
