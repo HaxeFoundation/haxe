@@ -593,6 +593,9 @@ let rec type_constant_value basic (e,p) =
 	| _ ->
 		error "Constant value expected" p
 
+let is_constant_value basic e = 
+	try (ignore (type_constant_value basic e); true) with Error (Custom _,_) -> false
+
 let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in

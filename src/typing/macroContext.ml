@@ -644,7 +644,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ ->
 			el,[]
 	in
-	let todo = ref [] in
 	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -664,29 +663,24 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let index = ref (-1) in
 		let constants = List.map (fun e ->
 			let p = snd e in
-			let e = (try
-				let e' = Texpr.type_constant_value ctx.com.basic e in
-				let rec loop e = match e with
-					| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
-						Lexer.remove_fmt_string p;
-						todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
-					| _ -> Type.iter loop e
-				in
-				loop e';
-				e
-			with Error (Custom _,_) ->
-				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
-				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
-					(EConst (Ident "__tmp"),p);
-				],p)
-			) in
+			let e =
+				if Texpr.is_constant_value ctx.com.basic e then
+					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
+					let rec loop e =
+						match e with
+						| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
+						| _ -> Ast.map_expr loop e
+					in
+					loop e
+				else
+					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
+			in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = try Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
-		List.iter (fun f -> f()) (!todo);
+		let elt = fst (Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)

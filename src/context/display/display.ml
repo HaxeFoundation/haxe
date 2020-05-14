@@ -183,7 +183,7 @@ module ExprPreprocessing = struct
 				raise Exit
 			| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->
 				annotate_marked e
-			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
+			| EConst (String (_,q)) when ((q <> SSingleQuotes) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
 				(* TODO: check if this makes any sense *)
 				raise Exit
 			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
