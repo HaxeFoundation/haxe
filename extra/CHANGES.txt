@@ -2,7 +2,7 @@
 
 	Bugfixes:
 
-	js : fixed catch var naming collision in ES6 mode (#9413)
+	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
 
 2020-05-13: 4.1.0
