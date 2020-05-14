@@ -10,21 +10,6 @@
     Write-Host "::add-path::$NEKOPATH"
     Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
 
-- name: Install Neko using snapshot from S3 (Unix)
-  if: (startsWith(env.PLATFORM, 'linux'))
-  run: |
-    set -ex
-    sudo add-apt-repository ppa:haxe/snapshots -y
-    sudo apt-get update -qqy
-    sudo apt-get install -qqy neko
-
-- name: Install Neko using snapshot from S3 (Mac)
-  if: (startsWith(env.PLATFORM, 'mac'))
-  run: |
-    set -ex
-    HOMEBREW_NO_AUTO_UPDATE=1
-    brew install neko
-
 - name: Print Neko version
   run: neko -version 2>&1
 

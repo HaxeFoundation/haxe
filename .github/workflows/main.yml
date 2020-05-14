@@ -30,21 +30,6 @@ jobs:
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
-        if: (startsWith(env.PLATFORM, 'mac'))
-        run: |
-          set -ex
-          HOMEBREW_NO_AUTO_UPDATE=1
-          brew install neko
-      
       - name: Print Neko version
         run: neko -version 2>&1
       
@@ -127,21 +112,6 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
-        if: (startsWith(env.PLATFORM, 'mac'))
-        run: |
-          set -ex
-          HOMEBREW_NO_AUTO_UPDATE=1
-          brew install neko
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -266,27 +236,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
-        shell: pwsh
-        run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
+      - name: Install Neko using homebrew (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
@@ -363,21 +313,6 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
-        if: (startsWith(env.PLATFORM, 'mac'))
-        run: |
-          set -ex
-          HOMEBREW_NO_AUTO_UPDATE=1
-          brew install neko
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -466,21 +401,6 @@ jobs:
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
       
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
-        if: (startsWith(env.PLATFORM, 'mac'))
-        run: |
-          set -ex
-          HOMEBREW_NO_AUTO_UPDATE=1
-          brew install neko
-      
       - name: Print Neko version
         run: neko -version 2>&1
       
@@ -567,32 +487,13 @@ jobs:
         with:
           name: linuxBinaries
 
-      - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
-        shell: pwsh
-        run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
-      - name: Install Neko using snapshot from S3 (Unix)
+      - name: Install Neko using apt-get (Linux)
         if: (startsWith(env.PLATFORM, 'linux'))
         run: |
           set -ex
           sudo add-apt-repository ppa:haxe/snapshots -y
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
-        if: (startsWith(env.PLATFORM, 'mac'))
-        run: |
-          set -ex
-          HOMEBREW_NO_AUTO_UPDATE=1
-          brew install neko
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -668,27 +569,7 @@ jobs:
         with:
           name: macBinaries
 
-      - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
-        shell: pwsh
-        run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: (startsWith(env.PLATFORM, 'linux'))
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
-      
-      - name: Install Neko using snapshot from S3 (Mac)
+      - name: Install Neko using homebrew (Mac)
         if: (startsWith(env.PLATFORM, 'mac'))
         run: |
           set -ex
