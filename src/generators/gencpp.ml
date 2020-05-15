@@ -2086,7 +2086,20 @@ let is_complex_compare =  function
    | _ -> true
 ;;
 
+let is_pointer_compare =  function
+   | TCppObjectArray _
+   | TCppScalarArray _
+   | TCppDynamicArray
+   | TCppClass
+   | TCppEnum _ -> true
+   | _ -> false
+;;
 
+let is_instance_compare =  function
+   | TCppInterface _
+   | TCppInst _ -> true
+   | _ -> false
+;;
 
 let ctx_arg_type_name ctx name default_val arg_type prefix =
    let remap_name = keyword_remap name in
@@ -2900,6 +2913,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let e2 = retype binOpType right in
 
             let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
+            let pointer = (is_pointer_compare e1.cpptype) || (is_pointer_compare e2.cpptype) in
+            let instance = (is_instance_compare e1.cpptype) || (is_instance_compare e2.cpptype) in
             let e1_null = e1.cpptype=TCppNull in
             let e2_null = e2.cpptype=TCppNull in
             let reference = match op with
@@ -2926,6 +2941,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | OpGte when   e2_null -> CppNullCompare("IsNull", e1)
                | OpLte when   e2_null -> CppNullCompare("IsNull", e1)
                | OpNotEq when e2_null -> CppNullCompare("IsNotNull", e1)
+
+               | OpEq when instance -> CppCompare("IsInstanceEq", e1, e2, op)
+               | OpNotEq when instance -> CppCompare("IsInstanceNotEq", e1, e2, op)
+
+               | OpEq when pointer -> CppCompare("IsPointerEq", e1, e2, op)
+               | OpNotEq when pointer -> CppCompare("IsPointerNotEq", e1, e2, op)
 
                | OpEq when complex -> CppCompare("IsEq", e1, e2, op)
                | OpNotEq when complex -> CppCompare("IsNotEq", e1, e2, op)
