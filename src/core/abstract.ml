@@ -9,46 +9,46 @@ let build_abstract a = match a.a_impl with
 	| Some c -> ignore(c.cl_build())
 	| None -> ()
 
-let has_direct_to ab pl b =
-	List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to
+let has_direct_to uctx ab pl b =
+	List.exists (unify_to uctx ab pl ~allow_transitive_cast:false b) ab.a_to
 
-let has_direct_from ab pl a b =
-	List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from
+let has_direct_from uctx ab pl a b =
+	List.exists (unify_from uctx ab pl a ~allow_transitive_cast:false b) ab.a_from
 
-let find_field_to ab pl b =
+let find_field_to uctx ab pl b =
 	build_abstract ab;
-	List.find (unify_to_field ab pl b) ab.a_to_field
+	List.find (unify_to_field uctx ab pl b) ab.a_to_field
 
-let find_field_from ab pl a b =
+let find_field_from uctx ab pl a b =
 	build_abstract ab;
-	List.find (unify_from_field ab pl a b) ab.a_from_field
+	List.find (unify_from_field uctx ab pl a b) ab.a_from_field
 
-let find_to_from f ab_left tl_left ab_right tl_right tleft tright =
+let find_to_from uctx f ab_left tl_left ab_right tl_right tleft tright =
 	build_abstract ab_left;
 	build_abstract ab_right;
-	if has_direct_to ab_right tl_right tleft || has_direct_from ab_left tl_left tright tleft then
+	if has_direct_to uctx ab_right tl_right tleft || has_direct_from uctx ab_left tl_left tright tleft then
 		raise Not_found
 	else
-		try f ab_right tl_right (fun () -> find_field_to ab_right tl_right tleft)
-		with Not_found -> f ab_left tl_left (fun () -> find_field_from ab_left tl_left tright tleft)
+		try f ab_right tl_right (fun () -> find_field_to uctx ab_right tl_right tleft)
+		with Not_found -> f ab_left tl_left (fun () -> find_field_from uctx ab_left tl_left tright tleft)
 
-let find_to ab pl b =
+let find_to uctx ab pl b =
 	build_abstract ab;
 	if follow b == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-	else if has_direct_to ab pl b then
+	else if has_direct_to uctx ab pl b then
 		raise Not_found (* legacy compatibility *)
 	else
-		find_field_to ab pl b
+		find_field_to uctx ab pl b
 
-let find_from ab pl a b =
+let find_from uctx ab pl a b =
 	build_abstract ab;
 	if follow a == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-	else if has_direct_from ab pl a b then
+	else if has_direct_from uctx ab pl a b then
 		raise Not_found (* legacy compatibility *)
 	else
-		find_field_from ab pl a b
+		find_field_from uctx ab pl a b
 
 let underlying_type_stack = new_rec_stack()
 
@@ -90,7 +90,7 @@ let rec get_underlying_type ?(return_first=false) a pl =
 			`find_to` is probably needed for `@:multiType`
 		*)
 		let m = mk_mono() in
-		let _ = find_to a pl m in
+		let _ = find_to default_unification_context a pl m in
 		maybe_recurse (follow m)
 	with Not_found ->
 		if Meta.has Meta.CoreType a.a_meta then
