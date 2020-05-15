@@ -77,7 +77,7 @@ class Main {
 	static function normPath(_, p:String):String {
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
-			p = p.substr(0, 1).toUpperCase() + p.substr(1);
+			// p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
 		}
 		return p;
