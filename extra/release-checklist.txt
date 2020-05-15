@@ -20,6 +20,10 @@
 - If everything was working, run the command again without `--dry` (and probably without the `-d`)
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
 
+# Cleanup
+
+- Remove issues with released fixes from the "Hotfix" milestone: https://github.com/HaxeFoundation/haxe/milestone/18
+
 # Announcing the release
 
 - Find someone to announce the release on our various communication channels
