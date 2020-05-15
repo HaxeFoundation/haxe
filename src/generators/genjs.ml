@@ -818,25 +818,25 @@ and gen_function ?(keyword="function") ctx f pos =
 	ctx.in_loop <- snd old;
 	ctx.separator <- true
 
-and gen_block_element ?(after=false) ctx e =
+and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 	match e.eexpr with
-	| TBlock el ->
-		List.iter (gen_block_element ~after ctx) el
+	| TBlock el when not keep_blocks ->
+		List.iter (gen_block_element ~newline_after ctx) el
 	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
-			gen_block_element ~after ctx eif
+			gen_block_element ~newline_after ctx eif
 		else (match eelse with
 			| [] -> ()
-			| [e] -> gen_block_element ~after ctx e
+			| [e] -> gen_block_element ~newline_after ctx e
 			| _ -> die "" __LOC__)
 	| TFunction _ ->
-		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+		gen_block_element ~newline_after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
-		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
+		List.iter (fun (_,e) -> gen_block_element ~newline_after ctx e) fl
 	| _ ->
-		if not after then newline ctx;
+		if not newline_after then newline ctx;
 		gen_expr ctx e;
-		if after then newline ctx
+		if newline_after then newline ctx
 
 and gen_value ctx e =
 	let clear_mapping = add_mapping ctx e in
@@ -1895,7 +1895,7 @@ let generate com =
 		add_feature ctx "js.Lib.global";
 		print ctx "$global.$haxeUID |= 0;\n";
 	end;
-	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
+	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()
