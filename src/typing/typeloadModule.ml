@@ -201,7 +201,7 @@ let module_pass_1 ctx m tdecls loadp =
 		) !decls;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
-	let pt = ref None in
+	let has_declaration = ref false in
 	let rec make_decl acc decl =
 		let p = snd decl in
 		let check_type_name type_name meta =
@@ -210,12 +210,11 @@ let module_pass_1 ctx m tdecls loadp =
 		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
-			(match !pt with
-			| None -> acc
-			| Some _ -> error "import and using may not appear after a type declaration" p)
+			if !has_declaration then error "import and using may not appear after a type declaration" p;
+			acc
 		| EClass d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv p in
 			let c = mk_class m path p (pos d.d_name) in
@@ -236,7 +235,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
@@ -262,7 +261,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv p in
 			let t = {
