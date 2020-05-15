@@ -200,7 +200,7 @@ let unify_static_extension ctx e t p =
 	if multitype_involed e.etype t then
 		AbstractCast.cast_or_unify_raise ctx t e p
 	else begin
-		Type.unify e.etype t;
+		Type.unify_custom {default_unification_context with allow_transitive_cast = false} e.etype t;
 		e
 	end
 
