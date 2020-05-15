@@ -268,7 +268,9 @@ type eq_kind =
 	| EqBothDynamic
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 
-type unification_context = unit
+type unification_context = {
+	allow_transitive_cast : bool
+}
 
 let rec type_eq param a b =
 	let can_follow t = match param with
@@ -407,7 +409,9 @@ let print_stacks() =
 	print_endline "abstract_cast_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) abstract_cast_stack.rec_stack
 
-let default_unification_context = ()
+let default_unification_context = {
+	allow_transitive_cast = true
+}
 
 let rec unify (uctx : unification_context) a b =
 	if a == b then
@@ -670,15 +674,14 @@ let rec unify (uctx : unification_context) a b =
 		error [cannot_unify a b]
 
 and unify_abstracts uctx a b a1 tl1 a2 tl2 =
-	let f1 = unify_to uctx a1 tl1 b in
-		let f2 = unify_from uctx a2 tl2 a b in
-		if (List.exists (f1 ~allow_transitive_cast:false) a1.a_to)
-		|| (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
-		|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
-			&& ((List.exists f1 a1.a_to) || (List.exists f2 a2.a_from))) then
-			()
-		else
-			error [cannot_unify a b]
+	let uctx_no_transitive_casts = {uctx with allow_transitive_cast = false} in
+	if (List.exists (unify_to uctx_no_transitive_casts a1 tl1 b) a1.a_to)
+	|| (List.exists (unify_from uctx_no_transitive_casts a2 tl2 a b) a2.a_from)
+	|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
+		&& ((List.exists (unify_to uctx a1 tl1 b) a1.a_to) || (List.exists (unify_from uctx a2 tl2 a b) a2.a_from))) then
+		()
+	else
+		error [cannot_unify a b]
 
 and unify_anons uctx a b a1 a2 =
 	if would_produce_recursive_anon a1 a2 then error [cannot_unify a b];
@@ -729,28 +732,28 @@ and unify_anons uctx a b a1 a2 =
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
-and unify_from uctx ab tl a b ?(allow_transitive_cast=true) t =
+and unify_from uctx ab tl a b t =
 	rec_stack_bool abstract_cast_stack (a,b)
 		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
 		(fun() ->
 			let t = apply_params ab.a_params tl t in
-			let unify_func = if allow_transitive_cast then unify uctx else type_eq EqRightDynamic in
+			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq EqRightDynamic in
 			unify_func a t)
 
-and unify_to uctx ab tl b ?(allow_transitive_cast=true) t =
+and unify_to uctx ab tl b t =
 	let t = apply_params ab.a_params tl t in
-	let unify_func = if allow_transitive_cast then unify uctx else type_eq EqStrict in
+	let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq EqStrict in
 	try
 		unify_func t b;
 		true
 	with Unify_error _ ->
 		false
 
-and unify_from_field uctx ab tl a b ?(allow_transitive_cast=true) (t,cf) =
+and unify_from_field uctx ab tl a b (t,cf) =
 	rec_stack_bool abstract_cast_stack (a,b)
 		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
 		(fun() ->
-			let unify_func = if allow_transitive_cast then unify uctx else type_eq EqStrict in
+			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq EqStrict in
 			match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -765,12 +768,12 @@ and unify_from_field uctx ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 				true
 			| _ -> die "" __LOC__)
 
-and unify_to_field uctx ab tl b ?(allow_transitive_cast=true) (t,cf) =
+and unify_to_field uctx ab tl b (t,cf) =
 	let a = TAbstract(ab,tl) in
 	rec_stack_bool abstract_cast_stack (b,a)
 		(fun (b2,a2) -> fast_eq a a2 && fast_eq b b2)
 		(fun() ->
-			let unify_func = if allow_transitive_cast then unify uctx else type_eq EqStrict in
+			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq EqStrict in
 			match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in

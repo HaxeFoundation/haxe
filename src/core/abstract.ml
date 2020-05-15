@@ -10,10 +10,10 @@ let build_abstract a = match a.a_impl with
 	| None -> ()
 
 let has_direct_to uctx ab pl b =
-	List.exists (unify_to uctx ab pl ~allow_transitive_cast:false b) ab.a_to
+	List.exists (unify_to {uctx with allow_transitive_cast = false} ab pl b) ab.a_to
 
 let has_direct_from uctx ab pl a b =
-	List.exists (unify_from uctx ab pl a ~allow_transitive_cast:false b) ab.a_from
+	List.exists (unify_from {uctx with allow_transitive_cast = false} ab pl a b) ab.a_from
 
 let find_field_to uctx ab pl b =
 	build_abstract ab;
