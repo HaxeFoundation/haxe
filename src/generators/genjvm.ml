@@ -2739,11 +2739,14 @@ module Preprocessor = struct
 	let make_root path =
 		["haxe";"root"],snd path
 
+	let has_primary_type m =
+		List.exists (fun mt -> snd (t_infos mt).mt_path = snd m.m_path) m.m_types
+
 	let check_path mt =
 		(* don't rewrite if there's an explicit @:native *)
 		if Meta.has Meta.Native mt.mt_meta then
 			()
-		else if mt.mt_private then begin
+		else if mt.mt_private && has_primary_type mt.mt_module then begin
 			let m = mt.mt_module in
 			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
 		end else if fst mt.mt_path = [] then
