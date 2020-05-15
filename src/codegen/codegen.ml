@@ -75,6 +75,7 @@ let escape_res_name name allow_dirs =
 			"-x" ^ (string_of_int (Char.code chr))) name
 
 let update_cache_dependencies t =
+	let visited_anons = ref [] in
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
 			add_dependency m c.cl_module;
@@ -92,7 +93,10 @@ let update_cache_dependencies t =
 			List.iter (fun (_,_,t) -> check_t m t) targs;
 			check_t m tret;
 		| TAnon an ->
-			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
+			if not (List.memq an !visited_anons) then begin
+				visited_anons := an :: !visited_anons;
+				PMap.iter (fun _ cf -> check_field m cf) an.a_fields
+			end
 		| TMono r ->
 			(match r.tm_type with
 			| Some t -> check_t m t

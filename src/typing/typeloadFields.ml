@@ -137,7 +137,7 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl,el =
+			let tl_rev,el_rev =
 				List.fold_left (fun (args,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
@@ -147,8 +147,8 @@ let get_struct_init_super_info ctx c p =
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
 			in
-			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
-			(args,Some super_expr,tl)
+			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
+			(args,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
