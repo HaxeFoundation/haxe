@@ -2476,8 +2476,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EField ((EConst (String(s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UCharExt.code (UTF8.get s 0))))) ctx.t.tint p
-	| EField(_,n) when starts_with n '$' ->
-		error "Field names starting with $ are not allowed" p
+(* 	| EField(_,n) when starts_with n '$' -> TODO: this should be only allowed for quoted fields
+		error "Field names starting with $ are not allowed" p *)
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then error "Cannot use super as value" p;
 		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode) with_type false p in
