@@ -783,7 +783,7 @@ and parse_function_type_next tl p1 = parser
 and parse_type_anonymous s =
 	let p0 = popt question_mark s in
 	match s with parser
-	| [< name, p1 = ident; t = parse_type_hint; s >] ->
+	| [< name, p1 = dollar_ident; t = parse_type_hint; s >] ->
 		let opt,p1 = match p0 with
 			| Some p -> true,punion p p1
 			| None -> false,p1
