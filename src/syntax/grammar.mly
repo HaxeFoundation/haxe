@@ -79,21 +79,23 @@ let property_ident = parser
 	| [< '(Kwd Default,p) >] -> "default",p
 	| [< '(Kwd Null,p) >] -> "null",p
 
-let questionable_dollar_ident s =
-	let po = match s with parser
-		| [< '(Question,p) >] -> Some p
-		| [< >] -> None
-	in
-	let name,p = dollar_ident s in
+let question_mark = parser
+	| [< '(Question,p) >] -> p
+
+let field_decl_ident = parser
+	| [< '(Const (Ident i),p) >] -> i,p
+	| [< '(Const (String (i,_)),p) >] -> i,p
+	| [< '(Dollar i,p) >] -> ("$" ^ i),p
+
+let questionable_field_decl_ident s =
+	let po = popt question_mark s in
+	let name,p = field_decl_ident s in
 	match po with
 		| None ->
 			false,(name,p)
 		| Some p' ->
 			if p.pmin <> p'.pmax then syntax_error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) s ~pos:(Some p') ();
 			true,(name,p)
-
-let question_mark = parser
-	| [< '(Question,p) >] -> p
 
 let semicolon s =
 	if fst (last_token s) = BrClose then
@@ -783,7 +785,7 @@ and parse_function_type_next tl p1 = parser
 and parse_type_anonymous s =
 	let p0 = popt question_mark s in
 	match s with parser
-	| [< name, p1 = dollar_ident; t = parse_type_hint; s >] ->
+	| [< name, p1 = field_decl_ident; t = parse_type_hint; s >] ->
 		let opt,p1 = match p0 with
 			| Some p -> true,punion p p1
 			| None -> false,p1
@@ -887,7 +889,7 @@ and parse_class_field tdecl s =
 				meta
 		in
 		let name,pos,k,al,meta = (match s with parser
-		| [< '(Kwd Var,p1); opt,name = questionable_dollar_ident; s >] ->
+		| [< '(Kwd Var,p1); opt,name = questionable_field_decl_ident; s >] ->
 			let meta = check_optional opt name in
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
@@ -900,7 +902,7 @@ and parse_class_field tdecl s =
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
-			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+			| [< opt,name = questionable_field_decl_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
 				let meta = check_optional opt name in
 				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
 			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
