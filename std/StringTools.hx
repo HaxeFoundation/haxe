@@ -254,15 +254,6 @@ class StringTools {
 		return (cast s : java.NativeString).endsWith(end);
 		#elseif cs
 		return untyped s.EndsWith(end);
-		#elseif cpp
-		if (s.length < end.length)
-			return false;
-		var p0 = s.c_str().add(s.length - end.length);
-		var p1 = end.c_str();
-		for (i in 0...end.length)
-			if (p0.at(i) != p1.at(i))
-				return false;
-		return true;
 		#elseif hl
 		var elen = end.length;
 		var slen = s.length;
