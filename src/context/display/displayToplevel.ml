@@ -412,9 +412,6 @@ let collect ctx tk with_type sort =
 				Try; New; Throw; Untyped; Cast; Inline;
 			] in
 			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
-
-			(* builtins *)
-			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
 		end
 	end;
 

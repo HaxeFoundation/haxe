@@ -158,7 +158,7 @@ let display_dollar_type ctx p make_type =
 		raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
 	| DMHover ->
 		let t = TFun(arg,mono) in
-		raise_hover (make_ci_expr (mk (TIdent "trace") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
+		raise_hover (make_ci_expr (mk (TIdent "$type") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
 	| DMDefinition | DMTypeDefinition ->
 		raise_positions []
 	| _ ->
@@ -230,9 +230,6 @@ let rec handle_signature_display ctx e_ast with_type =
 				try
 					acc_get ctx (!type_call_target_ref ctx e1 with_type false (pos e1)) (pos e1)
 				with
-				| Error (Unknown_ident "trace",_) ->
-					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
-					type_expr ctx e WithType.value
 				| Error (Unknown_ident "$type",p) ->
 					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
@@ -502,22 +499,6 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),p),_ ->
 		display_dollar_type ctx p tpair
-	| (EConst (Ident "trace"),_),_ ->
-		let doc = doc_from_string "Print given arguments" in
-		let arg = ["value",false,t_dynamic] in
-		let ret = ctx.com.basic.tvoid in
-		let p = pos e_ast in
-		begin match ctx.com.display.dms_kind with
-		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
-		| DMHover ->
-			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
-		| DMDefinition | DMTypeDefinition ->
-			raise_positions []
-		| _ ->
-			error "Unsupported method" p
-		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try

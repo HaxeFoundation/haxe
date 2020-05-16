@@ -426,7 +426,12 @@ let rec type_ident_raise ctx i p mode =
 		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
 	with Not_found ->
 		(* lookup imported globals *)
-		let t, name, pi = PMap.find i ctx.m.module_globals in
+		let t, name, pi =
+			try
+				PMap.find i ctx.m.module_globals
+			with Not_found ->
+				PMap.find i ctx.g.global_statics
+		in
 		ImportHandling.mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field_default_cfg ctx e name p mode
@@ -2403,26 +2408,6 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		build_call ~mode ctx e el with_type p
 	in
 	match e, el with
-	| (EConst (Ident "trace"),p) , e :: el ->
-		if Common.defined ctx.com Define.NoTraces then
-			null ctx.t.tvoid p
-		else
-		let mk_to_string_meta e = EMeta((Meta.ToString,[],null_pos),e),pos e in
-		let params = (match el with [] -> [] | _ -> [("customParams",null_pos,NoQuotes),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
-		let infos = mk_infos ctx p params in
-		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
-			let e = type_expr ctx e WithType.value in
-			let infos = type_expr ctx infos WithType.value in
-			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-					call_to_string ctx e
-				| _ ->
-					e
-			in
-			let e_trace = mk (TIdent "`trace") t_dynamic p in
-			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
-		else
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
 		(match def() with
 			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
@@ -2645,6 +2630,7 @@ let rec create com =
 			hook_generate = [];
 			std = null_module;
 			global_using = [];
+			global_statics = PMap.empty;
 			complete = false;
 			type_hints = [];
 			do_inherit = MagicTypes.on_inherit;
@@ -2760,6 +2746,10 @@ let rec create com =
 		| _ -> die "" __LOC__);
 	| _ -> die "" __LOC__);
 	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
+	let m = TypeloadModule.load_module ctx (["haxe"],"Trace") null_pos in
+	(match m.m_types with
+	| [c] -> ctx.g.global_statics <- PMap.add "trace" (c,"trace",null_pos) ctx.g.global_statics
+	| _ -> assert false);
 	ctx.g.complete <- true;
 	ctx
 

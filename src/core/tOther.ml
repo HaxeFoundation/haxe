@@ -80,10 +80,7 @@ module TExprToExpr = struct
 			if snd mp = snd p then p else (fst mp) @ [snd mp],snd p
 		in
 		let mk_path = expr_of_type_path in
-		let mk_ident = function
-			| "`trace" -> Ident "trace"
-			| n -> Ident n
-		in
+		let mk_ident n = Ident n in
 		let eopt = function None -> None | Some e -> Some (convert_expr e) in
 		((match e.eexpr with
 		| TConst c ->

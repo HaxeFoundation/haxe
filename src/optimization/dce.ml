@@ -545,7 +545,7 @@ and expr dce e =
 		List.iter (expr dce) args;
 
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],("Log" | "Trace"))} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
 		mark_class dce c;
 		to_string dce e2.etype;

@@ -81,6 +81,7 @@ type typer_globals = {
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
+	mutable global_statics : (string, (module_type * string * pos)) PMap.t;
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;

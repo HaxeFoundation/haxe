@@ -280,6 +280,44 @@ let check_abstract_as_value e =
 	loop e;
 	e
 
+let rewrite_trace ctx e =
+	let open Texpr.Builder in
+	let com = ctx.com in
+	let rec loop e =
+		let e = Type.map_expr loop e in
+		match e.eexpr with
+		| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["haxe"],"Trace" }, { cf_name = "trace" }))}, args) ->
+			let p = e.epos in
+			let c = ExtList.List.find_map (function TClassDecl ({ cl_path = ["haxe"],"Log" } as c) -> Some c | _ -> None) com.types in
+			let f = PMap.find "trace" c.cl_statics in
+			let eTrace = make_static_field c f p in
+			let args =
+				match args with
+				| first :: rest ->
+					let fields = [
+						(("fileName", p, NoQuotes), make_string com.basic p.pfile p);
+						(("lineNumber", p, NoQuotes), make_int com.basic (Lexer.get_error_line p) p);
+						(("className", p, NoQuotes), make_string com.basic (snd ctx.curclass.cl_path) p);
+						(("methodName", p, NoQuotes), make_string com.basic ctx.curfield.cf_name p);
+					] in
+					let fields =
+						if rest <> [] then
+							let eParams = mk (TArrayDecl rest) (com.basic.tarray t_dynamic) p in
+							fields @ [("customParams", p, NoQuotes), eParams]
+						else
+							fields
+					in
+					let eInfos = mk (TObjectDecl fields) t_dynamic e.epos in
+					[first; eInfos]
+				| _ ->
+					assert false
+			in
+			{ e with eexpr = TCall (eTrace, args) }
+		| _ ->
+			e
+	in
+	loop e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -725,6 +763,7 @@ let run com tctx main =
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
+		rewrite_trace tctx;
 	] in
 	let filters =
 		match com.platform with

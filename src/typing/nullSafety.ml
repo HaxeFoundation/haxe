@@ -328,8 +328,7 @@ let rec is_dead_end e =
 *)
 let is_trace expr =
 	match expr.eexpr with
-	| TIdent "`trace" -> true
-	| TField (_, FStatic ({ cl_path = (["haxe"], "Log") }, { cf_name = "trace" })) -> true
+	| TField (_, FStatic ({ cl_path = (["haxe"], ("Trace" | "Log")) }, { cf_name = "trace" })) -> true
 	| _ -> false
 
 (**
