@@ -7,3 +7,5 @@ class Mod3 {
 final Mod3Sub = {
 	field: "static3",
 }
+
+function lowerCase() return "pack.Mod3.lowerCase";

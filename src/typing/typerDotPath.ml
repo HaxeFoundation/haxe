@@ -92,11 +92,11 @@ let resolve_unqualified ctx name next_path p =
 
 		begin
 			(*
-				if there's further uppercase field access, it might be a this-package module access rather than static field access,
+				if there's further field access, it might be a this-package module access rather than static field access,
 				so we try resolving a field first and fall back to find_in_unqualified_modules
 			*)
 			match next_path with
-			| (field,PUppercase,pfield) :: next_path ->
+			| (field,_,pfield) :: next_path ->
 				let e = type_module_type ctx t None p in
 				let f = type_field (TypeFieldConfig.create true) ctx e field pfield in
 				ignore(f MCall); (* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
