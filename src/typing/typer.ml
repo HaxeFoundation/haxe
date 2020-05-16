@@ -1623,11 +1623,13 @@ and type_object_decl ctx fl with_type p =
 	| _ ->
 		ODKPlain
 	) in
+	let check_field_name name quotes p =
+		if quotes = NoQuotes && starts_with name '$' then error "Field names starting with a dollar are not allowed" p;
+	in
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
 		let fl = List.map (fun ((n,pn,qs),e) ->
-			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let is_final = ref false in
 			let e = try
@@ -1644,16 +1646,13 @@ and type_object_decl ctx fl with_type p =
 				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
-				if is_valid then
-					extra_fields := n :: !extra_fields;
+				extra_fields := n :: !extra_fields;
 				type_expr ctx e WithType.value
 			in
-			if is_valid then begin
-				if starts_with n '$' then error "Field names starting with a dollar are not allowed" p;
-				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then add_class_field_flag cf CfFinal;
-				fields := PMap.add n cf !fields;
-			end;
+			check_field_name n qs p;
+			let cf = mk_field n e.etype (punion pn e.epos) pn in
+			if !is_final then add_class_field_flag cf CfFinal;
+			fields := PMap.add n cf !fields;
 			((n,pn,qs),e)
 		) fl in
 		let t = mk_anon ~fields:!fields (ref Const) in
@@ -1670,16 +1669,12 @@ and type_object_decl ctx fl with_type p =
 	in
 	let type_plain_fields () =
 		let rec loop (l,acc) ((f,pf,qs),e) =
-			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
-			(((f,pf,qs),e) :: l, if is_valid then begin
-				if starts_with f '$' then error "Field names starting with a dollar are not allowed" p;
-				PMap.add f cf acc
-			end else acc)
+			(((f,pf,qs),e) :: l, (check_field_name f qs p; PMap.add f cf acc))
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in
