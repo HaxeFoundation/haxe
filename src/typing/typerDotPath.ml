@@ -99,7 +99,12 @@ let resolve_unqualified ctx name next_path p =
 			| (field,_,pfield) :: next_path ->
 				let e = type_module_type ctx t None p in
 				let f = type_field (TypeFieldConfig.create true) ctx e field pfield in
-				ignore(f MCall); (* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
+				begin (* huge hack around #9430: we need Not_found, but we don't want any errors *)
+					let old_on_error = ctx.on_error in
+					ctx.on_error <- (fun _ _ _ -> ());
+					(* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *) 
+					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) f MCall)
+				end; (* huge hack *)
 				f, next_path
 			| _ ->
 				mk_module_type_access ctx t p, next_path
