@@ -3,6 +3,7 @@ package unit.issues;
 private typedef Option = {
 	?foo: Int,
 	?bar: Int,
+	"x-bar": Int,
 }
 
 class Issue3547 extends Test {
