@@ -1027,7 +1027,11 @@ let is_legacy_completion com = match com.json_out with
 let get_entry_point com =
 	Option.map (fun path ->
 		let m = List.find (fun m -> m.m_path = path) com.modules in
-		let c = ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types in
+		let c = 
+			match m.m_statics with
+			| Some c when (PMap.mem "main" c.cl_statics) -> c
+			| _ -> ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types
+		in
 		let e = Option.get com.main in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main_class

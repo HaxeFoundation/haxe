@@ -156,6 +156,7 @@ let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
+		m_statics = None;
 		m_extra = module_extra "" "" 0. MFake [];
 	}
 

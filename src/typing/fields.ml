@@ -352,6 +352,10 @@ let rec using_field ctx mode e i p =
 		if not !check_constant_struct then raise Not_found;
 		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
+let check_field_access ctx c f stat p =
+	if not ctx.untyped && not (can_access ctx c f stat) then
+		display_error ctx ("Cannot access private field " ^ f.cf_name) p
+
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field cfg ctx e i p mode =
 	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
@@ -437,7 +441,7 @@ let rec type_field cfg ctx e i p mode =
 					display_error ctx "Cannot create closure on super method" p
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
-			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
+			check_field_access ctx c f false pfield;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			begin match e.eexpr with
@@ -535,7 +539,7 @@ let rec type_field cfg ctx e i p mode =
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
+			check_field_access ctx c f true pfield;
 			let field_type f =
 				if not (Meta.has Meta.Impl f.cf_meta) then begin
 					static_abstract_access_through_instance := true;

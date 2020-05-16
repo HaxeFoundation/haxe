@@ -2667,6 +2667,14 @@ let generate con =
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
+		let cmd =
+			match gen.gentry_point with
+			| Some (name,_,_) ->
+				let name = if gen.gcon.debug then name ^ "-Debug" else name in
+				cmd ^ " --out " ^ gen.gcon.file ^ "/" ^ name
+			| _ ->
+				cmd
+		in
 		print_endline cmd;
 		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;

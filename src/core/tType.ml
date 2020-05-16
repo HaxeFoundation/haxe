@@ -185,6 +185,7 @@ and tclass_kind =
 	| KMacroType
 	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
+	| KModuleStatics of module_def
 
 and metadata = Ast.metadata
 
@@ -312,6 +313,7 @@ and module_def = {
 	m_id : int;
 	m_path : path;
 	mutable m_types : module_type list;
+	mutable m_statics : tclass option;
 	m_extra : module_def_extra;
 }
 

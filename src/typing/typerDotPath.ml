@@ -39,22 +39,39 @@ let mk_dot_path_part s p : dot_path_part =
 let s_dot_path parts =
 	String.concat "." (List.map (fun (s,_,_) -> s) parts)
 
+(** resolve given path against module statics or raise Not_found *)
+let resolve_module_static ctx m path p =
+	match path, m.m_statics with
+	| [], _ | _, None ->
+		raise Not_found
+	| (name,_,p) :: path_rest, Some c ->
+		let f = PMap.find name c.cl_statics in (* raises Not_found *)
+		check_field_access ctx c f true p;
+		let ft = Fields.field_type ctx c [] f p in
+		let e = type_module_type ctx (TClassDecl c) None p in
+		(fun mode -> field_access ctx mode f (FStatic (c,f)) ft e p), path_rest
+
 let resolve_module_type ctx m name p =
 	let t = Typeload.find_type_in_module m name in (* raises Not_found *)
 	mk_module_type_access ctx t p
 
 let resolve_in_module ctx m path p =
-	let mname = snd m.m_path in
-	match path with
-	| (sname,PUppercase,sp) :: path_rest ->
-		begin
-		try
-			resolve_module_type ctx m sname sp, path_rest
-		with Not_found ->
+	try
+		(* first, try to find module-level static access *)
+		resolve_module_static ctx m path p
+	with Not_found ->
+		(* if there was no module-statics, resolve  *)
+		let mname = snd m.m_path in
+		match path with
+		| (sname,PUppercase,sp) :: path_rest ->
+			begin
+			try
+				resolve_module_type ctx m sname sp, path_rest
+			with Not_found ->
+				resolve_module_type ctx m mname p, path
+			end
+		| _ ->
 			resolve_module_type ctx m mname p, path
-		end
-	| _ ->
-		resolve_module_type ctx m mname p, path
 
 (** resolve given qualified module pack+name (and possibly next path part) or raise Not_found *)
 let resolve_qualified ctx pack name next_path p =
@@ -75,11 +92,11 @@ let resolve_unqualified ctx name next_path p =
 
 		begin
 			(*
-				if there's further uppercase field access, it might be a this-package module access rather than static field access,
+				if there's further field access, it might be a this-package module access rather than static field access,
 				so we try resolving a field first and fall back to find_in_unqualified_modules
 			*)
 			match next_path with
-			| (field,PUppercase,pfield) :: next_path ->
+			| (field,_,pfield) :: next_path ->
 				let e = type_module_type ctx t None p in
 				let f = type_field (TypeFieldConfig.create true) ctx e field pfield in
 				ignore(f MCall); (* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
