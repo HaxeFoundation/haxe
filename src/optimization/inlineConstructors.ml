@@ -274,7 +274,7 @@ let inline_constructors ctx e =
 			end
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 			error "Extern constructor could not be inlined" e.epos;
-		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
+		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl -> (* TODO: check what we wanna do with is_valid_identifier here *)
 			let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let el = List.map (fun ((s,_,_),e) ->

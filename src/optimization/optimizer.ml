@@ -471,7 +471,7 @@ let inline_constructors ctx e =
 					begin try
 						let ev = mk (TLocal v) v.v_type e.epos in
 						let el = List.fold_left (fun acc ((s,_,_),e) ->
-							if not (Lexer.is_valid_identifier s) then raise Exit;
+							if not (Lexer.is_valid_identifier s) then raise Exit; (* TODO: check what we wanna do with is_valid_identifier here *)
 							let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
 							let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
 							e :: acc
