@@ -589,7 +589,7 @@ struct
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst (map_param (get_cl_t t), []))) cf.cf_params in
 		let me_type = TInst(iface,[]) in
-		let cfield = mk_class_field "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
+		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
 		let params = List.map snd cparams in
 
 		let me = alloc_var "me" me_type in
