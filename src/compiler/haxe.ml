@@ -736,6 +736,11 @@ try
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
+		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
+			cp_libs := "hxjava" :: !cp_libs;
+			Common.define com Define.Jvm;
+			Initialize.set_platform com Java dir;
+		),"<directory>","generate JVM bytecode into target directory");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
 		),"<file>","generate Python code as target file");
