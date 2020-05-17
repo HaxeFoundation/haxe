@@ -2813,15 +2813,30 @@ let file_name_and_extension file =
 	| e1 :: _ -> e1
 	| _ -> die "" __LOC__
 
-let generate com =
-	mkdir_from_path com.file;
+let generate jvm_flag com =
+	let path = FilePath.parse com.file in
 	let jar_name,entry_point = match get_entry_point com with
 		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
 		| None -> "jar",None
 	in
-	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
-	let jar_dir = add_trailing_slash com.file in
-	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+	let jar_dir,jar_path = if jvm_flag then begin
+		match path.file_name with
+		| Some _ ->
+			begin match path.directory with
+				| None ->
+					"./","./" ^ com.file
+				| Some dir ->
+					mkdir_from_path dir;
+					add_trailing_slash dir,com.file
+			end
+		| None ->
+			failwith "Please specify an output file name"
+	end else begin
+		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
+		let jar_dir = add_trailing_slash com.file in
+		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+		jar_dir,jar_path
+	end in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let gctx = {
 		com = com;

@@ -280,7 +280,7 @@ module Initialize = struct
 				"eval"
 end
 
-let generate tctx ext interp swf_header =
+let generate tctx ext interp jvm_flag swf_header =
 	let com = tctx.Typecore.com in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -299,7 +299,8 @@ let generate tctx ext interp swf_header =
 	begin match com.platform with
 		| Neko | Hl | Eval when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Cs | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| Java when not jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if interp then
@@ -324,7 +325,7 @@ let generate tctx ext interp swf_header =
 			Gencs.generate,"cs"
 		| Java ->
 			if Common.defined com Jvm then
-				Genjvm.generate,"java"
+				Genjvm.generate jvm_flag,"java"
 			else
 				Genjava.generate,"java"
 		| Python ->
@@ -696,6 +697,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
+	let jvm_flag = ref false in
 	let swf_version = ref false in
 	let native_libs = ref [] in
 	let add_native_lib file extern = native_libs := (file,extern) :: !native_libs in
@@ -739,8 +741,9 @@ try
 		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Common.define com Define.Jvm;
+			jvm_flag := true;
 			Initialize.set_platform com Java dir;
-		),"<directory>","generate JVM bytecode into target directory");
+		),"<directory>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
 		),"<file>","generate Python code as target file");
@@ -1062,7 +1065,7 @@ try
 		if ctx.has_error then raise Abort;
 		check_auxiliary_output com !xml_out !json_out;
 		com.stage <- CGenerationStart;
-		if not !no_output then generate tctx ext !interp !swf_header;
+		if not !no_output then generate tctx ext !interp !jvm_flag !swf_header;
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
