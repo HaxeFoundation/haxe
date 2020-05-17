@@ -738,7 +738,7 @@ try
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
-		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
+		("Target",["--jvm"],[],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Common.define com Define.Jvm;
 			jvm_flag := true;
