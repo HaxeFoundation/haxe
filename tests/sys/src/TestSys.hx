@@ -38,7 +38,7 @@ class TestSys extends TestCommandBase {
 		#elseif cs
 			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.exe"));
 		#elseif jvm
-			Assert.isTrue(StringTools.endsWith(p, "sys.jar"))
+			Assert.isTrue(StringTools.endsWith(p, "sys.jar"));
 		#elseif java
 			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.jar"));
 		#elseif python
