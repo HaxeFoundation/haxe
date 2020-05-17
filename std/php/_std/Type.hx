@@ -42,7 +42,7 @@ enum ValueType {
 	public static function getClass<T>(o:T):Class<T> {
 		if (Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
 			var cls = Boot.getClass(Global.get_class(cast o));
-			return (cls == Boot.getHxAnon() ? null : cast cls);
+			return (Boot.isAnon(o) ? null : cast cls);
 		} else if (Global.is_string(o)) {
 			return cast String;
 		} else {
