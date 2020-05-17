@@ -110,6 +110,16 @@ let check_display_abstract ctx cc cfile a =
 			()
 	) sa.d_flags
 
+let check_display_module_statics ctx cfile m =
+	Option.may (fun c ->
+		let sc = find_class_by_position cfile c.cl_name_pos in
+		List.iter (fun cf ->
+			if display_position#enclosed_in cf.cf_pos then
+				check_display_field ctx sc c cf;
+			DisplayEmitter.check_display_metadata ctx cf.cf_meta
+		) c.cl_ordered_statics
+	) m.m_statics
+
 let check_display_module ctx cc cfile m =
 	let imports = List.filter (function
 		| (EImport _ | EUsing _),_ -> true
@@ -132,7 +142,8 @@ let check_display_module ctx cc cfile m =
 			check_display_abstract ctx cc cfile a
 		end;
 		DisplayEmitter.check_display_metadata ctx infos.mt_meta
-	) m.m_types
+	) m.m_types;
+	check_display_module_statics ctx cfile m
 
 let check_display_file ctx cs =
 	match ctx.com.cache with
