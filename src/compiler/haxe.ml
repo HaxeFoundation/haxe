@@ -743,7 +743,7 @@ try
 			Common.define com Define.Jvm;
 			jvm_flag := true;
 			Initialize.set_platform com Java dir;
-		),"<directory>","generate JVM bytecode into target file");
+		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
 		),"<file>","generate Python code as target file");
