@@ -352,6 +352,7 @@ module JavaFunctionalInterfaces = struct
 end
 
 open JavaFunctionalInterfaces
+open JvmGlobals
 
 class typed_function
 	(functions : typed_functions)
@@ -363,11 +364,6 @@ class typed_function
 = object(self)
 
 	val jc_closure =
-		let patch_name name = match name with
-			| "<init>" -> "new"
-			| "<clinit>" -> "__init__"
-			| name -> name
-		in
 		let name = match kind with
 			| FuncLocal ->
 				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id

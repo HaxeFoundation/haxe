@@ -118,6 +118,12 @@ module NativeSignatures = struct
 	let haxe_function_path = (["haxe";"jvm"],"Function")
 	let haxe_function_sig = TObject(haxe_function_path,[])
 
+	let haxe_compiled_pattern_path = (["haxe";"jvm"],"CompiledPattern")
+	let haxe_compiled_pattern_sig = TObject(haxe_compiled_pattern_path,[])
+
+	let haxe_ereg_path = (["haxe";"root"],"EReg")
+	let haxe_ereg_sig = TObject(haxe_ereg_path,[])
+
 	let void_path = ["java";"lang"],"Void"
 	let void_sig = TObject(void_path,[])
 

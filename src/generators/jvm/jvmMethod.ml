@@ -143,6 +143,7 @@ class builder jc name jsig = object(self)
 	val mutable argument_locals = []
 	val mutable thrown_exceptions = Hashtbl.create 0
 	val mutable closure_count = 0
+	val mutable regex_count = 0
 
 	(* per-frame *)
 	val mutable locals = []
@@ -193,6 +194,11 @@ class builder jc name jsig = object(self)
 	method get_next_closure_id =
 		let id = closure_count in
 		closure_count <- closure_count + 1;
+		id
+
+	method get_next_regex_id =
+		let id = regex_count in
+		regex_count <- regex_count + 1;
 		id
 
 	(** Adds the current state of locals and stack as a stack frame. This has to be called on every branch target. **)

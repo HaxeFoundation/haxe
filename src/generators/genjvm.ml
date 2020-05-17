@@ -1699,6 +1699,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method new_native_array jsig el =
 		jm#new_native_array jsig (List.map (fun e -> fun () -> self#texpr (rvalue_sig jsig) e) el)
 
+	method spawn_compiled_pattern_field (s1 : string) (s2 : string) =
+		let name = Printf.sprintf "_hx_pattern_%s_%i" (patch_name jm#get_name) jm#get_next_regex_id in
+		let jf = jc#spawn_field name NativeSignatures.haxe_compiled_pattern_sig [FdStatic;FdPrivate;FdFinal] in
+		let jm = jc#get_static_init_method in
+		jm#string s1;
+		jm#string s2;
+		jm#invokestatic NativeSignatures.haxe_ereg_path "compilePattern" (method_sig [string_sig;string_sig] (Some NativeSignatures.haxe_compiled_pattern_sig));
+		jm#putstatic jc#get_this_path jf#get_name jf#get_jsig;
+		jf
+
 	method texpr ret e =
 		try
 			if not jm#is_terminated then self#texpr' ret e
@@ -1837,6 +1847,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#texpr (if need_val ret then rvalue_any else RVoid) e1;
 			(* Technically this could throw... but whatever *)
 			if need_val ret then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type gctx t))
+		| TNew({cl_path=(["haxe";"root"],"EReg") as ereg_path},[],[{eexpr = TConst (TString s1)};{eexpr = TConst (TString s2)}]) when jm != jc#get_static_init_method ->
+			let jf = self#spawn_compiled_pattern_field s1 s2 in
+			jm#construct ConstructInit ereg_path (fun () ->
+				jm#getstatic jc#get_this_path jf#get_name jf#get_jsig;
+				[jf#get_jsig]
+			)
 		| TNew(c,tl,el) ->
 			begin match get_constructor (fun cf -> cf.cf_type) c with
 			|_,cf ->
