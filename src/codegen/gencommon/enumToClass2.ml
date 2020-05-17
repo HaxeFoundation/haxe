@@ -34,7 +34,7 @@ let add_field c cf override =
 
 let add_meta com en cl_enum =
 	Option.may (fun expr ->
-		let cf_meta = mk_field "__meta__" expr.etype expr.epos expr.epos in
+		let cf_meta = mk_field ~static:true "__meta__" expr.etype expr.epos expr.epos in
 		cf_meta.cf_expr <- Some expr;
 		add_static cl_enum cf_meta;
 	) (Texpr.build_metadata com.basic (TEnumDecl en));
@@ -69,7 +69,7 @@ module EnumToClass2Modf = struct
 		(* add constructs field (for reflection) *)
 		if has_feature gen.gcon "Type.getEnumConstructs" then begin
 			let e_constructs = mk_array_decl basic.tstring (List.map (fun s -> make_string gen.gcon.basic s pos) en.e_names) pos in
-			let cf_constructs = mk_field "__hx_constructs" e_constructs.etype pos pos in
+			let cf_constructs = mk_field ~static:true "__hx_constructs" e_constructs.etype pos pos in
 			cf_constructs.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 			cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: (Meta.Protected,[],pos) :: cf_constructs.cf_meta;
 			cf_constructs.cf_expr <- Some e_constructs;
@@ -192,7 +192,7 @@ module EnumToClass2Modf = struct
 					};
 					add_field cl_ctor cf_toString true;
 
-					let cf_static_ctor = mk_class_field name ef_type true pos (Method MethNormal) [] in
+					let cf_static_ctor = mk_class_field ~static:true name ef_type true pos (Method MethNormal) [] in
 					cf_static_ctor.cf_expr <- Some {
 						eexpr = TFunction {
 							tf_args = !static_ctor_args;
@@ -273,7 +273,7 @@ module EnumToClass2Modf = struct
 					};
 					cl_ctor.cl_constructor <- Some cf_ctor;
 
-					let cf_static_inst = mk_class_field name cl_enum_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+					let cf_static_inst = mk_class_field ~static:true name cl_enum_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					cf_static_inst.cf_meta <- [Meta.ReadOnly,[],pos];
 					cf_static_inst.cf_expr <- Some {
 						eexpr = TNew(cl_ctor, [], []);

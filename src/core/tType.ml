@@ -369,6 +369,7 @@ type class_field_scope =
 
 type flag_tclass_field =
 	| CfPublic
+	| CfStatic
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)

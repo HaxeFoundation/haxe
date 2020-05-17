@@ -137,7 +137,7 @@ let module_extra file sign time kind policy =
 	}
 
 
-let mk_field name ?(public = true) t p name_pos = {
+let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
@@ -149,7 +149,10 @@ let mk_field name ?(public = true) t p name_pos = {
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
-	cf_flags = if public then set_flag 0 (int_of_class_field_flag CfPublic) else 0;
+	cf_flags = (
+		let flags = if static then set_flag 0 (int_of_class_field_flag CfStatic) else 0 in
+		if public then set_flag flags (int_of_class_field_flag CfPublic) else flags
+	);
 }
 
 let null_module = {

@@ -60,7 +60,7 @@ let add_property_field com c =
 		) (PMap.empty,[]) props in
 		let t = mk_anon ~fields (ref Closed) in
 		let e = mk (TObjectDecl values) t p in
-		let cf = mk_field "__properties__" t p null_pos in
+		let cf = mk_field ~static:true "__properties__" t p null_pos in
 		cf.cf_expr <- Some e;
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
