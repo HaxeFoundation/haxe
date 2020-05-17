@@ -715,41 +715,41 @@ try
 	in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
-		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile JavaScript code into target file");
-		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile Lua code into target file");
-		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile Flash SWF bytecode into target file");
-		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile Neko bytecode into target file");
+		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","generate JavaScript code into target file");
+		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","generate Lua code into target file");
+		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","generate Flash SWF bytecode into target file");
+		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","generate Neko bytecode into target file");
 		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
-		),"<directory>","compile PHP code into target directory");
+		),"<directory>","generate PHP code into target directory");
 		("Target",["--cpp"],["-cpp"],Arg.String (fun dir ->
 			Initialize.set_platform com Cpp dir;
-		),"<directory>","compile C++ code into target directory");
+		),"<directory>","generate C++ code into target directory");
 		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
 			Common.define com Define.Cppia;
 			Initialize.set_platform com Cpp file;
-		),"<file>","compile Cppia bytecode into target file");
+		),"<file>","generate Cppia bytecode into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			Initialize.set_platform com Cs dir;
-		),"<directory>","compile C# code into target directory");
+		),"<directory>","generate C# code into target directory");
 		("Target",["--java"],["-java"],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
-		),"<directory>","compile Java code into target directory");
+		),"<directory>","generate Java code into target directory");
 		("Target",["--jvm"],[],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Common.define com Define.Jvm;
 			jvm_flag := true;
 			Initialize.set_platform com Java dir;
-		),"<file>","compile JVM bytecode into target file");
+		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
-		),"<file>","compile Python code into target file");
+		),"<file>","generate Python code into target file");
 		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
-		),"<file>","compile HashLink .hl bytecode or .c code into target file");
+		),"<file>","generate HashLink .hl bytecode or .c code into target file");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
