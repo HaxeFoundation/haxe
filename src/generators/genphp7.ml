@@ -2302,10 +2302,10 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					in
 					self#write "new class (";
 					write_args self#write self#write_expr args_exprs;
-					self#write (") extends " ^ (self#use hxanon_type_path) ^ "{\n");
+					self#write (") extends " ^ (self#use hxanon_type_path) ^ " {\n");
 					self#indent_more;
 					self#write_indentation;
-					self#write "public function __construct(";
+					self#write "function __construct(";
 					write_args self#write (fun name -> self#write ("$" ^ name)) args_names;
 					self#write ") {\n";
 					self#indent_more;
