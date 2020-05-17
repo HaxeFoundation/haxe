@@ -677,7 +677,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -715,10 +715,10 @@ try
 	in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
-		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
-		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
-		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
-		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
+		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","generate JavaScript code into target file");
+		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","generate Lua code into target file");
+		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","generate Flash SWF bytecode into target file");
+		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","generate Neko bytecode into target file");
 		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
@@ -729,7 +729,7 @@ try
 		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
 			Common.define com Define.Cppia;
 			Initialize.set_platform com Cpp file;
-		),"<file>","generate Cppia code into target file");
+		),"<file>","generate Cppia bytecode into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			Initialize.set_platform com Cs dir;
@@ -738,18 +738,18 @@ try
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
-		("Target",["--jvm"],["-jvm"],Arg.String (fun dir ->
+		("Target",["--jvm"],[],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Common.define com Define.Jvm;
 			jvm_flag := true;
 			Initialize.set_platform com Java dir;
-		),"<directory>","generate JVM bytecode into target file");
+		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
-		),"<file>","generate Python code as target file");
+		),"<file>","generate Python code into target file");
 		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
-		),"<file>","compile HL code as target file");
+		),"<file>","generate HashLink .hl bytecode or .c code into target file");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
@@ -765,6 +765,7 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
+		("Target",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","interpret a Haxe module with command line arguments");
 
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
@@ -817,7 +818,6 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
-		("Misc",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","compile and execute a Haxe module with command line arguments");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->

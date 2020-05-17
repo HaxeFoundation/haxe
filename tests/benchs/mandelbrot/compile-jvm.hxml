@@ -1,9 +1,7 @@
 --main Mandelbrot
--java bin/jvm
--D jvm
+--jvm bin/Mandelbrot.jar
 
 --next
 --main Mandelbrot
--java bin/jvm-anon
+--jvm bin/Mandelbrot-anon.jar
 -D anon_objects
--D jvm
