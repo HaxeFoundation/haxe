@@ -212,7 +212,7 @@ let rewrite_ctors com =
 					end;
 
 					if cl == root then begin
-						let cf_skip_ctor = mk_field skip_ctor_flag_name com.basic.tbool null_pos null_pos in
+						let cf_skip_ctor = mk_field ~static:true skip_ctor_flag_name com.basic.tbool null_pos null_pos in
 						cf_skip_ctor.cf_expr <- Some e_false;
 						cl.cl_ordered_statics <- cf_skip_ctor :: cl.cl_ordered_statics;
 						cl.cl_statics <- PMap.add cf_skip_ctor.cf_name cf_skip_ctor cl.cl_statics;

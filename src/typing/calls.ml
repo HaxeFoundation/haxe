@@ -436,7 +436,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata
 			in
 			let mk_cf2 name =
-				mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
+				mk_field ~static:stat name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
 			in
 			if stat then begin
 				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin

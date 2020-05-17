@@ -616,7 +616,8 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf is_static =
+let add_field c cf =
+	let is_static = has_class_field_flag cf CfStatic in
 	if is_static then begin
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
@@ -1405,14 +1406,18 @@ let init_field (ctx,cctx,fctx) f =
 		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
 		| _ -> ()
 	end;
-	match f.cff_kind with
-	| FVar (t,e) ->
-		create_variable (ctx,cctx,fctx) c f t e p
-	| FFun fd ->
-		reject_final_static_method ctx cctx fctx f;
-		create_method (ctx,cctx,fctx) c f fd p
-	| FProp (get,set,t,eo) ->
-		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	let cf = 
+		match f.cff_kind with
+		| FVar (t,e) ->
+			create_variable (ctx,cctx,fctx) c f t e p
+		| FFun fd ->
+			reject_final_static_method ctx cctx fctx f;
+			create_method (ctx,cctx,fctx) c f fd p
+		| FProp (get,set,t,eo) ->
+			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	in
+	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	cf
 
 let check_overload ctx f fs =
 	try
@@ -1552,7 +1557,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
+				if fctx.do_add then add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p
