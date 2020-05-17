@@ -277,4 +277,10 @@ module FilePath = struct
 				Some path,None
 			end in
 			create dir file ext backslash
+
+	let name_and_extension path = match path.file_name with
+		| None -> failwith "File path has no name"
+		| Some name -> match path.extension with
+			| None -> name
+			| Some ext -> name ^ "." ^ ext
 end

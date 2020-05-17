@@ -2808,11 +2808,6 @@ module Preprocessor = struct
 		) gctx.com.types
 end
 
-let file_name_and_extension file =
-	match List.rev (ExtString.String.nsplit file "/") with
-	| e1 :: _ -> e1
-	| _ -> die "" __LOC__
-
 let generate jvm_flag com =
 	let path = FilePath.parse com.file in
 	let jar_name,entry_point = match get_entry_point com with
@@ -2864,7 +2859,7 @@ let generate jvm_flag com =
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;
-			let name = file_name_and_extension java_lib#get_file_path in
+			let name = FilePath.name_and_extension (FilePath.parse java_lib#get_file_path) in
 			let ch_in = open_in_bin java_lib#get_file_path in
 			let ch_out = open_out_bin (Printf.sprintf "%s%s" dir name) in
 			let b = IO.read_all (IO.input_channel ch_in) in
