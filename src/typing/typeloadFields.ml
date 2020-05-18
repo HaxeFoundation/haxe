@@ -137,7 +137,7 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl,el =
+			let tl_rev,el_rev =
 				List.fold_left (fun (args,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
@@ -147,8 +147,8 @@ let get_struct_init_super_info ctx c p =
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
 			in
-			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
-			(args,Some super_expr,tl)
+			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
+			(args,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
@@ -605,7 +605,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
+		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleStatics _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
@@ -616,7 +616,8 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf is_static =
+let add_field c cf =
+	let is_static = has_class_field_flag cf CfStatic in
 	if is_static then begin
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
@@ -1405,14 +1406,18 @@ let init_field (ctx,cctx,fctx) f =
 		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
 		| _ -> ()
 	end;
-	match f.cff_kind with
-	| FVar (t,e) ->
-		create_variable (ctx,cctx,fctx) c f t e p
-	| FFun fd ->
-		reject_final_static_method ctx cctx fctx f;
-		create_method (ctx,cctx,fctx) c f fd p
-	| FProp (get,set,t,eo) ->
-		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	let cf = 
+		match f.cff_kind with
+		| FVar (t,e) ->
+			create_variable (ctx,cctx,fctx) c f t e p
+		| FFun fd ->
+			reject_final_static_method ctx cctx fctx f;
+			create_method (ctx,cctx,fctx) c f fd p
+		| FProp (get,set,t,eo) ->
+			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	in
+	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	cf
 
 let check_overload ctx f fs =
 	try
@@ -1552,7 +1557,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
+				if fctx.do_add then add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p

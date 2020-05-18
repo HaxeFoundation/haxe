@@ -539,20 +539,31 @@ let load_macro_module ctx cpath display p =
 let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let mpath, sub = (match List.rev (fst cpath) with
-		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
-		| _ -> cpath, None
-	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded,restore = load_macro_module ctx mpath display p in
-		let mt = Typeload.load_type_def mctx p (mk_type_path ?sub mpath) in
-		let cl, meth = (match mt with
-			| TClassDecl c ->
-				mctx.g.do_finalize mctx;
-				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
-			| _ -> error "Macro should be called on a class" p
+		let mpath, sub = (match List.rev (fst cpath) with
+			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
+			| _ -> cpath, None
 		) in
+		let mloaded,restore = load_macro_module ctx mpath display p in
+		let cl, meth =
+			try
+				if sub <> None then raise Not_found;
+				match mloaded.m_statics with
+				| None -> raise Not_found
+				| Some c ->
+					mctx.g.do_finalize mctx;
+					c, PMap.find f c.cl_statics
+			with Not_found ->
+				let name = Option.default (snd mpath) sub in
+				let path = fst mpath, name in
+				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
+				match mt with
+				| TClassDecl c ->
+					mctx.g.do_finalize mctx;
+					c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+				| _ -> error "Macro should be called on a class" p
+		in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
@@ -644,7 +655,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ ->
 			el,[]
 	in
-	let todo = ref [] in
 	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -664,29 +674,24 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let index = ref (-1) in
 		let constants = List.map (fun e ->
 			let p = snd e in
-			let e = (try
-				let e' = Texpr.type_constant_value ctx.com.basic e in
-				let rec loop e = match e with
-					| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
-						Lexer.remove_fmt_string p;
-						todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
-					| _ -> Type.iter loop e
-				in
-				loop e';
-				e
-			with Error (Custom _,_) ->
-				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
-				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
-					(EConst (Ident "__tmp"),p);
-				],p)
-			) in
+			let e =
+				if Texpr.is_constant_value ctx.com.basic e then
+					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
+					let rec loop e =
+						match e with
+						| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
+						| _ -> Ast.map_expr loop e
+					in
+					loop e
+				else
+					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
+			in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = try Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
-		List.iter (fun f -> f()) (!todo);
+		let elt = fst (Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)

@@ -29,15 +29,19 @@ let reserve_all_types ri com path_to_name =
 	List.iter (fun mt ->
 		let tinfos = t_infos mt in
 		let native_name = try fst (TypeloadCheck.get_native_name tinfos.mt_meta) with Not_found -> path_to_name tinfos.mt_path in
-		if native_name = "" then
-			match mt with
-			| TClassDecl c ->
-				List.iter (fun cf ->
-					let native_name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
-					reserve_init ri native_name
-				) c.cl_ordered_statics;
-			| _ -> ()
-		else
+		match mt with
+		| TClassDecl c when native_name = "" ->
+			List.iter (fun cf ->
+				let native_name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
+				reserve_init ri native_name
+			) c.cl_ordered_statics
+		| TClassDecl { cl_kind = KModuleStatics m; cl_ordered_statics = fl } ->
+			let prefix = Path.flat_path m.m_path ^ "_" in
+			List.iter (fun cf ->
+				let name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
+				reserve_init ri name
+			) fl
+		| _ ->
 			reserve_init ri native_name
 	) com.types
 
@@ -217,8 +221,13 @@ let rec collect_vars ?(in_block=false) rc scope e =
 	| TTry (try_expr, catches) ->
 		collect_vars scope try_expr;
 		List.iter (fun (v, catch_expr) ->
-			declare_var rc scope v;
-			collect_vars scope catch_expr
+			let v_expr = mk (TVar (v,None)) t_dynamic v.v_pos in
+			let e =
+				match catch_expr.eexpr with
+				| TBlock exprs -> { catch_expr with eexpr = TBlock (v_expr :: exprs) }
+				| _ -> { catch_expr with eexpr = TBlock [v_expr; catch_expr] }
+			in
+			collect_vars scope e
 		) catches
 	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
 		collect_vars scope target;

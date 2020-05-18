@@ -953,6 +953,11 @@ enum TypeDefKind {
 		Represents an abstract kind.
 	**/
 	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
+
+	/**
+		Represents a module-level static field.
+	**/
+	TDStatic(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
 }
 
 /**

@@ -930,7 +930,7 @@ let handle_using ctx path p =
 		| None ->
 			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-			types
+			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
 		| Some _ ->
 			let t = load_type_def ctx p t in
 			[t]

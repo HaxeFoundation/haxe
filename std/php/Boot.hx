@@ -557,8 +557,10 @@ class Boot {
 	/**
 		Create Haxe-compatible anonymous structure of `data` associative array
 	**/
-	static public inline function createAnon(data:NativeArray):Dynamic {
-		return new HxAnon(data);
+	static public function createAnon(data:NativeArray):Dynamic {
+		var o = new HxAnon();
+		Syntax.foreach(data, (field:String, value:Any) -> Syntax.setField(o, field, value));
+		return o;
 	}
 
 	/**
@@ -940,13 +942,6 @@ private class HxDynamicStr extends HxClosure {
 @:keep
 @:dox(hide)
 private class HxAnon extends StdClass {
-	public function new(fields:NativeArray = null) {
-		super();
-		if (fields != null) {
-			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
-		}
-	}
-
 	@:phpMagic
 	function __get(name:String) {
 		return null;

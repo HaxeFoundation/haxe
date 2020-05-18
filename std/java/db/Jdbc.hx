@@ -266,7 +266,7 @@ private class JdbcResultSet implements sys.db.ResultSet {
 					if (b != null)
 						val = Bytes.ofData(b);
 				} else {
-					untyped __java__("val = rs.getObject(i + 1)"); // type parameter constraint + overloads
+					val = rs.getObject(i + 1);
 				}
 				Reflect.setField(ret, name, val);
 			}

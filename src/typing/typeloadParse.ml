@@ -123,9 +123,10 @@ let resolve_module_file com m remap p =
 			| (EEnum d,_) :: _ -> d.d_meta
 			| (EAbstract d,_) :: _ -> d.d_meta
 			| (ETypedef d,_) :: _ -> d.d_meta
+			| (EStatic d,_) :: _ -> d.d_meta
 			| [] -> []
 		in
-		let meta =  match parse_result with
+		let meta = match parse_result with
 			| ParseSuccess((_,decls),_,_) -> loop decls
 			| ParseError _ -> []
 		in
@@ -337,6 +338,7 @@ let parse_module ctx m p =
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
 			| EAbstract d -> build AbPrivate d
+			| EStatic d -> build (AStatic,null_pos) d
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else

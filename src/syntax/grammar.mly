@@ -178,6 +178,47 @@ and parse_type_decl mode s =
 	| [< '(Kwd Using,p1) >] -> parse_using s p1
 	| [< doc = get_doc; meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
+		| [< '(Kwd Function,p1); name = dollar_ident; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+			let e, p2 = (match s with parser
+				| [< e = expr; s >] ->
+					ignore(semicolon s);
+					Some e, pos e
+				| [< p = semicolon >] -> None, p
+				| [< >] -> serror()
+			) in
+			let f = {
+				f_params = pl;
+				f_args = args;
+				f_type = t;
+				f_expr = e;
+			} in
+			(EStatic {
+				d_name = name;
+				d_doc = doc_from_string_opt doc;
+				d_meta = meta;
+				d_params = pl;
+				d_flags = List.map decl_flag_to_global_flag c;
+				d_data = FFun f;
+			}, punion p1 p2)
+		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
+			let p2,t =
+				match s with parser
+				| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
+					let t = popt parse_type_hint s in
+					let e,p2 = parse_var_field_assignment s in
+					p2,FProp (i1,i2,t,e)
+				| [< t = popt parse_type_hint; s >] ->
+					let e,p2 = parse_var_field_assignment s in
+					p2,FVar (t,e)
+			in
+			(EStatic {
+				d_name = name;
+				d_doc = doc_from_string_opt doc;
+				d_meta = meta;
+				d_params = [];
+				d_flags = List.map decl_flag_to_global_flag c;
+				d_data = t;
+			}, punion p1 p2)
 		| [< '(Kwd Enum,p1) >] ->
 			begin match s with parser
 			| [< a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c >] ->
@@ -248,7 +289,21 @@ and parse_type_decl mode s =
 		| [< a,p = parse_abstract doc meta c >] ->
 			EAbstract a,p
 		| [< >] ->
-			check_type_decl_flag_completion mode c s
+			match List.rev c with
+			| (DFinal,p1) :: crest ->
+				(match s with parser 
+				| [< name = dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+					(EStatic {
+						d_name = name;
+						d_doc = doc_from_string_opt doc;
+						d_meta = meta;
+						d_params = [];
+						d_flags = (List.map decl_flag_to_global_flag (List.rev crest)) @ [AFinal,p1];
+						d_data = FVar(t,e);
+					}, punion p1 p2)
+				| [< >] -> check_type_decl_flag_completion mode c s)
+			| _ ->
+				check_type_decl_flag_completion mode c s
 
 
 and parse_class doc meta cflags need_name s =
@@ -453,6 +508,9 @@ and parse_common_flags = parser
 	| [< '(Kwd Private,p); l = parse_common_flags >] -> (DPrivate,p) :: l
 	| [< '(Kwd Extern,p); l = parse_common_flags >] -> (DExtern,p) :: l
 	| [< '(Kwd Final,p); l = parse_common_flags >] -> (DFinal,p) :: l
+	| [< '(Kwd Macro,p); l = parse_common_flags >] -> (DMacro,p) :: l
+	| [< '(Kwd Dynamic,p); l = parse_common_flags >] -> (DDynamic,p) :: l
+	| [< '(Kwd Inline,p); l = parse_common_flags >] -> (DInline,p) :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
@@ -725,7 +783,7 @@ and parse_function_type_next tl p1 = parser
 and parse_type_anonymous s =
 	let p0 = popt question_mark s in
 	match s with parser
-	| [< name, p1 = ident; t = parse_type_hint; s >] ->
+	| [< name, p1 = dollar_ident; t = parse_type_hint; s >] ->
 		let opt,p1 = match p0 with
 			| Some p -> true,punion p p1
 			| None -> false,p1

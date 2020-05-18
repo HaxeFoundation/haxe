@@ -97,7 +97,9 @@ let find_in_syntax symbols (pack,decls) =
 		expr_opt f.f_expr
 	and field cff =
 		check KClassField (fst cff.cff_name);
-		match cff.cff_kind with
+		field_kind cff.cff_kind
+	and field_kind cff_kind =
+		match cff_kind with
 		| FVar(tho,eo) ->
 			Option.may type_hint tho;
 			expr_opt eo
@@ -152,6 +154,9 @@ let find_in_syntax symbols (pack,decls) =
 				| AbFrom th | AbTo th | AbOver th -> type_hint th
 				| _ -> ()
 			) d.d_flags;
+		| EStatic d ->
+			check KModuleType (fst d.d_name);
+			field_kind d.d_data
 	) decls
 
 let explore_uncached_modules tctx cs symbols =

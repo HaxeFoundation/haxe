@@ -151,6 +151,18 @@ let static_field ctx c f =
 	| s ->
 		field s
 
+let module_static m f =
+	try
+		fst (TypeloadCheck.get_native_name f.cf_meta)
+	with Not_found ->
+		Path.flat_path m.m_path ^ "_" ^ f.cf_name
+
+let module_static_expose_path mpath f =
+	try
+		fst (TypeloadCheck.get_native_name f.cf_meta)
+	with Not_found ->
+		(dot_path mpath) ^ "." ^ f.cf_name
+
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
@@ -601,6 +613,8 @@ and gen_expr ctx e =
 		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
+	| TField (_,FStatic ({ cl_kind = KModuleStatics m },f)) ->
+		spr ctx (module_static m f)
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
@@ -818,25 +832,25 @@ and gen_function ?(keyword="function") ctx f pos =
 	ctx.in_loop <- snd old;
 	ctx.separator <- true
 
-and gen_block_element ?(after=false) ctx e =
+and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 	match e.eexpr with
-	| TBlock el ->
-		List.iter (gen_block_element ~after ctx) el
+	| TBlock el when not keep_blocks ->
+		List.iter (gen_block_element ~newline_after ctx) el
 	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
-			gen_block_element ~after ctx eif
+			gen_block_element ~newline_after ctx eif
 		else (match eelse with
 			| [] -> ()
-			| [e] -> gen_block_element ~after ctx e
+			| [e] -> gen_block_element ~newline_after ctx e
 			| _ -> die "" __LOC__)
 	| TFunction _ ->
-		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+		gen_block_element ~newline_after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
-		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
+		List.iter (fun (_,e) -> gen_block_element ~newline_after ctx e) fl
 	| _ ->
-		if not after then newline ctx;
+		if not newline_after then newline ctx;
 		gen_expr ctx e;
-		if after then newline ctx
+		if newline_after then newline ctx
 
 and gen_value ctx e =
 	let clear_mapping = add_mapping ctx e in
@@ -1084,6 +1098,31 @@ let check_field_name c f =
 let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
+
+let gen_module_statics ctx m c fl =
+	List.iter (fun f ->
+		let name = module_static m f in
+		match f.cf_expr with
+		| None when not (is_physical_field f) ->
+			()
+		| None ->
+			print ctx "var %s = null" name;
+			newline ctx
+		| Some e ->
+			match e.eexpr with
+			| TFunction fn ->
+				ctx.id_counter <- 0;
+				print ctx "function %s" name;
+				gen_function ~keyword:"" ctx fn e.epos;
+				ctx.separator <- false;
+				newline ctx;
+				process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s ->
+					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
+					newline ctx
+				)
+			| _ -> 
+				ctx.statics <- (c,f,e) :: ctx.statics
+	) fl
 
 let gen_class_static_field ctx c cl_path f =
 	match f.cf_expr with
@@ -1440,10 +1479,14 @@ let generate_class ctx c =
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
 	| _ -> ());
-	if ctx.es_version >= 6 then
-		generate_class_es6 ctx c
-	else
-		generate_class_es3 ctx c
+	match c.cl_kind with
+	| KModuleStatics m ->
+		gen_module_statics ctx m c c.cl_ordered_statics
+	| _ ->
+		if ctx.es_version >= 6 then
+			generate_class_es6 ctx c
+		else
+			generate_class_es3 ctx c
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1537,9 +1580,16 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	let cl_path = get_generated_class_path c in
-	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
-	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
+	begin
+	match c.cl_kind with 
+	| KModuleStatics m ->
+		print ctx "var %s = " (module_static m f);
+		process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	| _ ->
+		let cl_path = get_generated_class_path c in
+		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
+	end;
 	gen_value ctx e;
 	newline ctx
 
@@ -1683,11 +1733,18 @@ let generate com =
 		List.iter (
 			function
 			| TClassDecl c ->
-				let path = dot_path c.cl_path in
 				let add s = r := s :: !r in
-				process_expose c.cl_meta (fun () -> path) add;
+				let get_expose_path = 
+					match c.cl_kind with
+					| KModuleStatics m ->
+						module_static_expose_path m.m_path
+					| _ ->
+						let path = dot_path c.cl_path in
+						process_expose c.cl_meta (fun () -> path) add;
+						fun f -> path ^ "." ^ f.cf_name
+				in
 				List.iter (fun f ->
-					process_expose f.cf_meta (fun () -> path ^ "." ^ f.cf_name) add
+					process_expose f.cf_meta (fun () -> get_expose_path f) add
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
@@ -1895,7 +1952,7 @@ let generate com =
 		add_feature ctx "js.Lib.global";
 		print ctx "$global.$haxeUID |= 0;\n";
 	end;
-	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
+	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()

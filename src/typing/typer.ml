@@ -367,6 +367,15 @@ let rec type_ident_raise ctx i p mode =
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
 	with Not_found -> try
+		(* module-level statics *)
+		(match ctx.m.curmod.m_statics with
+		| None -> raise Not_found
+		| Some c ->
+			let f = PMap.find i c.cl_statics in
+			let e = type_module_type ctx (TClassDecl c) None p in
+			field_access ctx mode f (FStatic (c,f)) (field_type ctx c [] f p) e p
+		)
+	with Not_found -> try
 		let wrap e = if mode = MSet then
 				AKNo i
 			else
@@ -2486,7 +2495,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
-	| EConst (String(s,_)) when s <> "" && Lexer.is_fmt_string p ->
+	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p

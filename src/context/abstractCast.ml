@@ -26,6 +26,7 @@ let rec make_static_call ctx c cf a pl args t p =
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
 and do_check_cast ctx tleft eright p =
+	let uctx = default_unification_context in
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -61,9 +62,9 @@ and do_check_cast ctx tleft eright p =
 				let stack = (tleft,tright) :: stack in
 				match follow tleft,follow tright with
 				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-					Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
+					Abstract.find_to_from uctx find a1 tl1 a2 tl2 tleft eright.etype
 				| TAbstract(a,tl),_ ->
-					begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+					begin try find a tl (fun () -> Abstract.find_from uctx a tl eright.etype tleft)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -74,7 +75,7 @@ and do_check_cast ctx tleft eright p =
 						loop2 a.a_from
 					end
 				| _,TAbstract(a,tl) ->
-					begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+					begin try find a tl (fun () -> Abstract.find_to uctx a tl tleft)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -162,6 +163,7 @@ let find_array_access ctx a tl e1 e2o p =
 			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
+	let uctx = default_unification_context in
 	let m = mk_mono() in
 	let tl = match Meta.get Meta.MultiType a.a_meta with
 		| _,[],_ -> pl
@@ -210,7 +212,7 @@ let find_multitype_specialization com a pl p =
 	in
 	let _,cf =
 		try
-			Abstract.find_to a tl m
+			Abstract.find_to uctx a tl m
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in

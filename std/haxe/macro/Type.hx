@@ -303,11 +303,9 @@ enum ClassKind {
 	KTypeParameter(constraints:Array<Type>);
 
 	/**
-		A structurally extended class.
-
-		@deprecated
+		A class containing module statics.
 	**/
-	KExtension(cl:Ref<ClassType>, params:Array<Type>);
+	KModuleStatics(module:String);
 
 	/**
 		A special kind of class to encode expressions into type parameters.

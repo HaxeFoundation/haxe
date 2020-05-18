@@ -1699,6 +1699,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method new_native_array jsig el =
 		jm#new_native_array jsig (List.map (fun e -> fun () -> self#texpr (rvalue_sig jsig) e) el)
 
+	method spawn_compiled_pattern_field (s1 : string) (s2 : string) =
+		let name = Printf.sprintf "_hx_pattern_%s_%i" (patch_name jm#get_name) jm#get_next_regex_id in
+		let jf = jc#spawn_field name NativeSignatures.haxe_compiled_pattern_sig [FdStatic;FdPrivate;FdFinal] in
+		let jm = jc#get_static_init_method in
+		jm#string s1;
+		jm#string s2;
+		jm#invokestatic NativeSignatures.haxe_ereg_path "compilePattern" (method_sig [string_sig;string_sig] (Some NativeSignatures.haxe_compiled_pattern_sig));
+		jm#putstatic jc#get_this_path jf#get_name jf#get_jsig;
+		jf
+
 	method texpr ret e =
 		try
 			if not jm#is_terminated then self#texpr' ret e
@@ -1837,6 +1847,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#texpr (if need_val ret then rvalue_any else RVoid) e1;
 			(* Technically this could throw... but whatever *)
 			if need_val ret then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type gctx t))
+		| TNew({cl_path=(["haxe";"root"],"EReg") as ereg_path},[],[{eexpr = TConst (TString s1)};{eexpr = TConst (TString s2)}]) when jm != jc#get_static_init_method ->
+			let jf = self#spawn_compiled_pattern_field s1 s2 in
+			jm#construct ConstructInit ereg_path (fun () ->
+				jm#getstatic jc#get_this_path jf#get_name jf#get_jsig;
+				[jf#get_jsig]
+			)
 		| TNew(c,tl,el) ->
 			begin match get_constructor (fun cf -> cf.cf_type) c with
 			|_,cf ->
@@ -2739,11 +2755,14 @@ module Preprocessor = struct
 	let make_root path =
 		["haxe";"root"],snd path
 
+	let has_primary_type m =
+		List.exists (fun mt -> snd (t_infos mt).mt_path = snd m.m_path) m.m_types
+
 	let check_path mt =
 		(* don't rewrite if there's an explicit @:native *)
 		if Meta.has Meta.Native mt.mt_meta then
 			()
-		else if mt.mt_private then begin
+		else if mt.mt_private && has_primary_type mt.mt_module then begin
 			let m = mt.mt_module in
 			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
 		end else if fst mt.mt_path = [] then
@@ -2789,25 +2808,30 @@ module Preprocessor = struct
 		) gctx.com.types
 end
 
-let file_name_and_extension file =
-	match List.rev (ExtString.String.nsplit file "/") with
-	| e1 :: _ -> e1
-	| _ -> die "" __LOC__
-
-let generate com =
-	mkdir_from_path com.file;
-	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
-		| Some (jarname,cl,expr) ->
-			let pack = match fst cl.cl_path with
-				| [] -> ["haxe";"root"]
-				| pack -> pack
-			in
-			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
-		| None -> "jar","",None
+let generate jvm_flag com =
+	let path = FilePath.parse com.file in
+	let jar_name,entry_point = match get_entry_point com with
+		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
+		| None -> "jar",None
 	in
-	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
-	let jar_dir = add_trailing_slash com.file in
-	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+	let jar_dir,jar_path = if jvm_flag then begin
+		match path.file_name with
+		| Some _ ->
+			begin match path.directory with
+				| None ->
+					"./","./" ^ com.file
+				| Some dir ->
+					mkdir_from_path dir;
+					add_trailing_slash dir,com.file
+			end
+		| None ->
+			failwith "Please specify an output file name"
+	end else begin
+		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
+		let jar_dir = add_trailing_slash com.file in
+		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+		jar_dir,jar_path
+	end in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let gctx = {
 		com = com;
@@ -2835,7 +2859,7 @@ let generate com =
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;
-			let name = file_name_and_extension java_lib#get_file_path in
+			let name = FilePath.name_and_extension (FilePath.parse java_lib#get_file_path) in
 			let ch_in = open_in_bin java_lib#get_file_path in
 			let ch_out = open_out_bin (Printf.sprintf "%s%s" dir name) in
 			let b = IO.read_all (IO.input_channel ch_in) in
@@ -2845,14 +2869,6 @@ let generate com =
 			Some (Printf.sprintf "lib/%s" name)
 		end
 	) com.native_libs.java_libs in
-	let manifest_content =
-		"Manifest-Version: 1.0\n" ^
-		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
-		"Created-By: Haxe (Haxe Foundation)" ^
-		manifest_suffix ^
-		"\n\n"
-	in
-	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
 	Hashtbl.iter (fun name v ->
 		let filename = Codegen.escape_res_name name true in
 		Zip.add_entry v gctx.jar filename;
@@ -2868,4 +2884,14 @@ let generate com =
 	Std.finally (Timer.timer ["generate";"java";"typed interfaces"]) generate_typed_interfaces ();
 	Std.finally (Timer.timer ["generate";"java";"anons"]) generate_anons gctx;
 	Std.finally (Timer.timer ["generate";"java";"typed functions"]) generate_typed_functions gctx;
+
+	let manifest_content =
+		"Manifest-Version: 1.0\n" ^
+		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
+		"Created-By: Haxe (Haxe Foundation)" ^
+		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
+		"\n\n"
+	in
+	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
+
 	Zip.close_out gctx.jar

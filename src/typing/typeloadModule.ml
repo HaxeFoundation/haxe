@@ -39,6 +39,7 @@ let make_module ctx mpath file loadp =
 		m_id = alloc_mid();
 		m_path = mpath;
 		m_types = [];
+		m_statics = None;
 		m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
 	} in
 	m
@@ -192,16 +193,24 @@ end
 let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
-	let make_path name priv p =
+	let statics = ref [] in
+	let check_name name p =
+		let error prev_pos =
+			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
+			error "Previous declaration here" prev_pos;
+		in
 		List.iter (fun (t2,(_,p2)) ->
-			if snd (t_path t2) = name then begin
-				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
-				error "Previous declaration here" p2;
-			end
+			if snd (t_path t2) = name then error p2
 		) !decls;
+		List.iter (fun (d,p) ->
+			if fst d.d_name = name then error p
+		) !statics
+	in
+	let make_path name priv p =
+		check_name name p;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
-	let pt = ref None in
+	let has_declaration = ref false in
 	let rec make_decl acc decl =
 		let p = snd decl in
 		let check_type_name type_name meta =
@@ -210,12 +219,16 @@ let module_pass_1 ctx m tdecls loadp =
 		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
-			(match !pt with
-			| None -> acc
-			| Some _ -> error "import and using may not appear after a type declaration" p)
+			if !has_declaration then error "import and using may not appear after a declaration" p;
+			acc
+		| EStatic d ->
+			check_name (fst d.d_name) p;
+			has_declaration := true;
+			statics := (d,p) :: !statics;
+			acc;
 		| EClass d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv p in
 			let c = mk_class m path p (pos d.d_name) in
@@ -236,7 +249,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
@@ -262,7 +275,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv p in
 			let t = {
@@ -349,6 +362,43 @@ let module_pass_1 ctx m tdecls loadp =
 		decl :: acc
 	in
 	let tdecls = List.fold_left make_decl [] tdecls in
+	let tdecls =
+		match !statics with
+		| [] ->
+			tdecls
+		| statics ->
+			let first_pos = ref null_pos in
+			let fields = List.map (fun (d,p) ->
+				first_pos := p;
+				{
+					cff_name = d.d_name;
+					cff_doc = d.d_doc;
+					cff_pos = p;
+					cff_meta = d.d_meta;
+					cff_access = (AStatic,null_pos) :: d.d_flags;
+					cff_kind = d.d_data;
+				}
+			) statics in
+			let p = let p = !first_pos in { p with pmax = p.pmin } in
+			let c = EClass {
+				d_name = (snd m.m_path) ^ "_Statics_", p;
+				d_flags = [HPrivate];
+				d_data = fields;
+				d_doc = None;
+				d_params = [];
+				d_meta = []
+			} in
+			let tdecls = make_decl tdecls (c,p) in
+			(match !decls with
+			| (TClassDecl c,_) :: _ ->
+				assert (m.m_statics = None);
+				m.m_statics <- Some c;
+				c.cl_kind <- KModuleStatics m;
+				c.cl_final <- true;
+			| _ -> assert false);
+			tdecls
+
+	in
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
@@ -443,7 +493,8 @@ let init_module_type ctx context_init (decl,p) =
 			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 			let types = md.m_types in
 			let no_private (t,_) = not (t_infos t).mt_private in
-			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
+			let error_private p = error "Importing private declarations from a module is not allowed" p in
+			let chk_private t p = if (t_infos t).mt_private then error_private p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
 				let t = (try List.find (has_name tname) types with Not_found -> error (StringError.string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
@@ -491,7 +542,16 @@ let init_module_type ctx context_init (decl,p) =
 				| [] ->
 					(match name with
 					| None ->
-						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types
+						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types;
+						Option.may (fun c ->
+							context_init#add (fun () ->
+								ignore(c.cl_build());
+								List.iter (fun cf ->
+									if has_class_field_flag cf CfPublic then
+										ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals
+								) c.cl_ordered_statics
+							);
+						) md.m_statics
 					| Some(newname,pname) ->
 						ctx.m.module_types <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_types);
 				| [tsub,p2] ->
@@ -502,13 +562,39 @@ let init_module_type ctx context_init (decl,p) =
 						ctx.m.module_types <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_types
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
-						let tmain = get_type tname in
-						context_init#add (fun() ->
+						let find_main_type_static () =
+							let tmain = get_type tname in
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
+								(* TODO: mention module-level declarations in the error message? *)
 								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						))
+						in
+						context_init#add (fun() ->
+							match md.m_statics with
+							| Some c ->
+								(try
+									ignore(c.cl_build());
+									let rec loop fl =
+										match fl with
+										| [] -> raise Not_found
+										| cf :: rest ->
+											if cf.cf_name = tsub then
+												if not (has_class_field_flag cf CfPublic) then
+													error_private p
+												else
+													let imported_name = match name with None -> tsub | Some (n,pname) -> n in
+													ctx.m.module_globals <- PMap.add imported_name (TClassDecl c,tsub,p) ctx.m.module_globals;
+											else
+												loop rest
+									in
+									loop c.cl_ordered_statics
+								with Not_found ->
+									find_main_type_static ())
+							| None ->
+								find_main_type_static ()
+						)
+					)
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
 					| [] -> ()
@@ -809,6 +895,9 @@ let init_module_type ctx context_init (decl,p) =
 			else
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
+	| EStatic _ ->
+		(* nothing to do here as module statics are collected into a special EClass *)
+		()
 
 let module_pass_2 ctx m decls tdecls p =
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.

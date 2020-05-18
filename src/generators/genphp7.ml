@@ -541,6 +541,12 @@ let rec write_args (str_writer:string->unit) arg_writer (args:'a list) =
 			write_args str_writer arg_writer rest
 
 (**
+	Escapes all "$" chars and encloses `str` into double quotes
+*)
+let quote_string str =
+	"\"" ^ (Str.global_replace (Str.regexp "\\$") "\\$" (String.escaped str)) ^ "\""
+
+(**
 	Check if specified field is a var with non-constant expression
 *)
 let is_var_with_nonconstant_expr (field:tclass_field) =
@@ -1542,12 +1548,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| None ->
 					self#write_expr value_expr;
 				| Some key_str ->
-					let key_str =
-						Str.global_replace (Str.regexp "\\$")
-						"\\$"
-						(String.escaped key_str)
-					in
-					self#write ("\"" ^ key_str ^ "\" => ");
+					self#write ((quote_string key_str) ^ " => ");
 					self#write_expr value_expr
 			);
 			if separate_line then self#write ",\n"
@@ -2010,7 +2011,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					match (reveal_expr expr).eexpr with
 					| TConst TNull -> self#write "'null'"
 					| TBinop _ | TUnop _ -> self#write_expr (parenthesis expr)
-					| TParenthesis { eexpr = (TBinop _ | TUnop _) } -> self#write_expr expr
+					| TParenthesis { eexpr = (TBinop _ | TUnop _) }
+					| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ([],"Std") }, { cf_name = "string" })) }, [_]) ->
+						self#write_expr expr
 					| _ ->
 						self#write "(";
 						self#write_expr expr;
@@ -2282,11 +2285,52 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_object_declaration fields =
 			match fields with
-				| [] ->  self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
+				| [] -> self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
 				| _ ->
-					self#write ("new " ^ (self#use hxanon_type_path)  ^ "(");
-					self#write_assoc_array_decl fields;
-					self#write ")"
+					let consts,args_exprs,args_names,args_fields =
+						List.fold_left (fun (consts,args_exprs,args_names,args_fields) ((name,_,quotes), e) ->
+							match (reveal_expr e).eexpr with
+							| TConst _ ->
+								(name,quotes,e) :: consts, args_exprs, args_names, args_fields
+							| _ ->
+								let arg_name =
+									if quotes = NoQuotes then name
+									else "_hx_" ^ (string_of_int (List.length args_exprs))
+								in
+								consts, e :: args_exprs, arg_name :: args_names, (name, arg_name) :: args_fields
+						) ([],[],[],[]) fields
+					in
+					self#write "new class (";
+					write_args self#write self#write_expr args_exprs;
+					self#write (") extends " ^ (self#use hxanon_type_path) ^ " {\n");
+					self#indent_more;
+					self#write_indentation;
+					self#write "function __construct(";
+					write_args self#write (fun name -> self#write ("$" ^ name)) args_names;
+					self#write ") {\n";
+					self#indent_more;
+					List.iter (fun (name,quotes,e) ->
+						self#write_indentation;
+						self#write "$this->";
+						if quotes = NoQuotes then self#write name
+						else self#write ("{" ^ (quote_string name) ^ "}");
+						self#write " = ";
+						self#write_expr e;
+						self#write ";\n";
+					) consts;
+					List.iter (fun (name,arg_name) ->
+						self#write_indentation;
+						self#write "$this->";
+						if name = arg_name then self#write name
+						else self#write ("{" ^ (quote_string name) ^ "}");
+						self#write (" = $" ^ arg_name ^ ";\n");
+					) args_fields;
+					self#indent_less;
+					self#write_line "}";
+					self#indent_less;
+					self#write_indentation;
+					self#write "}";
+					(* self#write_assoc_array_decl fields; *)
 		(**
 			Writes specified type to output buffer depending on type of expression.
 		*)

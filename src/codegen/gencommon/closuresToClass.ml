@@ -540,7 +540,7 @@ let configure gen ft =
 			match captured, tparams with
 			| [], [] ->
 				let cache_var = mk_internal_name "hx" "current" in
-				let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
+				let cache_cf = mk_class_field ~static:true cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
 				cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
 				cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
 

@@ -20,6 +20,7 @@ module CompletionModuleKind = struct
 		| TypeAlias
 		| Struct
 		| TypeParameter
+		| Static
 
 	let to_int = function
 		| Class -> 0
@@ -30,6 +31,7 @@ module CompletionModuleKind = struct
 		| TypeAlias -> 5
 		| Struct -> 6
 		| TypeParameter -> 7
+		| Static -> 8
 end
 
 module ImportStatus = struct
@@ -152,6 +154,22 @@ module CompletionModuleType = struct
 				is_final = false;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
 				has_constructor = ctor;
+				source = Syntax td;
+			}
+		| EStatic d ->
+			{
+				pack = pack;
+				name = fst d.d_name;
+				module_name = module_name;
+				pos = p;
+				is_private = List.exists (fun (f,_) -> f = APrivate) d.d_flags;
+				params = d.d_params;
+				meta = d.d_meta;
+				doc = d.d_doc;
+				is_extern = List.exists (fun (f,_) -> f = AExtern) d.d_flags;
+				is_final = true;
+				kind = Static;
+				has_constructor = No;
 				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
