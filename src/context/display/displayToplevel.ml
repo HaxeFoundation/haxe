@@ -241,7 +241,8 @@ let collect ctx tk with_type sort =
 					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags,d.d_meta
-					| _ -> raise Exit
+					| EStatic d -> fst d.d_name,List.exists (fun (a,_) -> a = APrivate) d.d_flags,d.d_meta
+					| EImport _ | EUsing _ -> raise Exit
 				in
 				let path = Path.full_dot_path pack name tname in
 				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
