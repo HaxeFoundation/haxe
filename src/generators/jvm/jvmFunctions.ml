@@ -3,14 +3,14 @@ open JvmSignature
 open NativeSignatures
 
 type signature_classification =
+	| CBool
 	| CByte
 	| CChar
-	| CDouble
-	| CFloat
+	| CShort
 	| CInt
 	| CLong
-	| CShort
-	| CBool
+	| CFloat
+	| CDouble
 	| CObject
 
 type method_signature = {
@@ -181,8 +181,10 @@ class typed_functions = object(self)
 			)
 		) in
 		let def = (fun () ->
-			jm#string "Invalid call";
-			jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+			jm#construct ConstructInit (["haxe"],"Exception") (fun () ->
+				jm#string "Invalid call";
+				[object_sig]
+			);
 			jm#get_code#athrow;
 			jm#set_terminated true;
 		) in
