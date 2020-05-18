@@ -181,8 +181,7 @@ class typed_functions = object(self)
 			)
 		) in
 		let def = (fun () ->
-			jm#string "Invalid call";
-			jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+			jm#construct ConstructInit (["java";"lang"],"IllegalArgumentException") (fun () -> []);
 			jm#get_code#athrow;
 			jm#set_terminated true;
 		) in
