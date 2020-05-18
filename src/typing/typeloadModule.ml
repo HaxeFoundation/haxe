@@ -381,7 +381,7 @@ let module_pass_1 ctx m tdecls loadp =
 			) statics in
 			let p = let p = !first_pos in { p with pmax = p.pmin } in
 			let c = EClass {
-				d_name = (snd m.m_path) ^ "_Statics_", p;
+				d_name = (snd m.m_path) ^ "_Statics_", null_pos;
 				d_flags = [HPrivate];
 				d_data = fields;
 				d_doc = None;
