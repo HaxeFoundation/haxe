@@ -351,27 +351,27 @@ class Jvm {
 				case "length":
 					return (obj : String).length;
 				case "charAt":
-					return (readStaticField(cast jvm.StringExt, "charAt") : Closure).bindTo(obj);
+					return StringExt.charAt.bind(obj);
 				case "charCodeAt":
-					return (readStaticField(cast jvm.StringExt, "charCodeAt") : Closure).bindTo(obj);
+					return StringExt.charCodeAt.bind(obj);
 				case "indexOf":
-					return (readStaticField(cast jvm.StringExt, "indexOf") : Closure).bindTo(obj);
+					return StringExt.indexOf.bind(obj);
 				case "iterator":
 					return function() return new haxe.iterators.StringIterator(obj);
 				case "keyValueIterator":
 					return function() return new haxe.iterators.StringKeyValueIterator(obj);
 				case "lastIndexOf":
-					return (readStaticField(cast jvm.StringExt, "lastIndexOf") : Closure).bindTo(obj);
+					return StringExt.lastIndexOf.bind(obj);
 				case "split":
-					return (readStaticField(cast jvm.StringExt, "split") : Closure).bindTo(obj);
+					return StringExt.split.bind(obj);
 				case "substr":
-					return (readStaticField(cast jvm.StringExt, "substr") : Closure).bindTo(obj);
+					return StringExt.substr.bind(obj);
 				case "substring":
-					return (readStaticField(cast jvm.StringExt, "substring") : Closure).bindTo(obj);
+					return StringExt.substring.bind(obj);
 				case "toLowerCase":
-					return (readStaticField(cast jvm.StringExt, "toLowerCase") : Closure).bindTo(obj);
+					return StringExt.toLowerCase.bind(obj);
 				case "toUpperCase":
-					return (readStaticField(cast jvm.StringExt, "toUpperCase") : Closure).bindTo(obj);
+					return StringExt.toUpperCase.bind(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);
