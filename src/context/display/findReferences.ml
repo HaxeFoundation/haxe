@@ -33,7 +33,7 @@ let find_references tctx com with_definition name pos kind =
 let collect_reference_positions com =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	match kind, com.display.dms_kind with
-	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when find_descendants || find_base ->
+	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
 		let collect() =
 			let c =
 				let rec loop = function

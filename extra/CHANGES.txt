@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : fixed arguments ordering for @:structInit constructors (#9418)
+	all : fixed display/references completion server request for static fields (#9440)
 	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
 
