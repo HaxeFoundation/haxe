@@ -425,7 +425,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		let t = load_instance' ctx (t,pn) allow_no_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t pn;
 		t
-	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
+	with Error (Module_not_found path,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
 		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) {pn with pmin = pn.pmax - String.length s;}
 
