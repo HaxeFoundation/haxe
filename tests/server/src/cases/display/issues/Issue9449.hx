@@ -7,8 +7,10 @@ class Issue9449 extends DisplayTestCase {
 			public function new() {}
 		}
 
-		function main() {
-			Macro.f(new C(), {{-1-}});
+		class Main {
+			static public function main() {
+				Macro.f(new C(), {{-1-}});
+			}
 		}
 	**/
 	function test(_) {
