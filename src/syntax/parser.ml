@@ -97,38 +97,6 @@ let error m p = raise (Error (m,p))
 
 let special_identifier_files : (Path.UniqueKey.t,string) Hashtbl.t = Hashtbl.create 0
 
-let decl_flag_to_class_flag (flag,p) = match flag with
-	| DPrivate -> HPrivate
-	| DExtern -> HExtern
-	| DFinal -> HFinal
-	| DMacro -> error (Custom "macro on classes is not allowed") p
-	| DDynamic -> error (Custom "dynamic on classes is not allowed") p
-	| DInline -> error (Custom "inline on classes is not allowed") p
-
-let decl_flag_to_enum_flag (flag,p) = match flag with
-	| DPrivate -> EPrivate
-	| DExtern -> EExtern
-	| DFinal -> error (Custom "final on enums is not allowed") p
-	| DMacro -> error (Custom "macro on enums is not allowed") p
-	| DDynamic -> error (Custom "dynamic on enums is not allowed") p
-	| DInline -> error (Custom "inline on enums is not allowed") p
-
-let decl_flag_to_abstract_flag (flag,p) = match flag with
-	| DPrivate -> AbPrivate
-	| DExtern -> AbExtern
-	| DFinal -> error (Custom "final on abstracts is not allowed") p
-	| DMacro -> error (Custom "macro on abstracts is not allowed") p
-	| DDynamic -> error (Custom "dynamic on abstracts is not allowed") p
-	| DInline -> error (Custom "inline on abstracts is not allowed") p
-
-let decl_flag_to_global_flag (flag,p) = match flag with
-	| DPrivate -> (APrivate,p)
-	| DMacro -> (AMacro,p)
-	| DDynamic -> (ADynamic,p)
-	| DInline -> (AInline,p)
-	| DExtern -> error (Custom "extern on module-statics is not allowed") p (* TODO: would be nice to have this actually, but we need some design for it *)
-	| DFinal -> error (Custom "final on module-statics is not allowed") p
-
 module TokenCache = struct
 	let cache = ref (DynArray.create ())
 	let add (token : (token * pos)) = DynArray.add (!cache) token
@@ -181,12 +149,15 @@ let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
 let syntax_errors = ref []
 
-let syntax_error error_msg ?(pos=None) s v =
-	let p = (match pos with Some p -> p | None -> next_pos s) in
+let syntax_error_with_pos error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not !in_display then error error_msg p;
 	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
+
+let syntax_error error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos s) in
+	syntax_error_with_pos error_msg p v
 
 let handle_stream_error msg s =
 	let err,pos = if msg = "" then begin
@@ -207,6 +178,38 @@ let get_doc s =
 		| Some (d,pos) ->
 			last_doc := None;
 			if pos = p.pmin then Some d else None
+
+let decl_flag_to_class_flag (flag,p) = match flag with
+	| DPrivate -> Some HPrivate
+	| DExtern -> Some HExtern
+	| DFinal -> Some HFinal
+	| DMacro -> syntax_error_with_pos (Custom "macro on classes is not allowed") p None
+	| DDynamic -> syntax_error_with_pos (Custom "dynamic on classes is not allowed") p None
+	| DInline -> syntax_error_with_pos (Custom "inline on classes is not allowed") p None
+
+let decl_flag_to_enum_flag (flag,p) = match flag with
+	| DPrivate -> Some EPrivate
+	| DExtern -> Some EExtern
+	| DFinal -> syntax_error_with_pos (Custom "final on enums is not allowed") p None
+	| DMacro -> syntax_error_with_pos (Custom "macro on enums is not allowed") p None
+	| DDynamic -> syntax_error_with_pos (Custom "dynamic on enums is not allowed") p None
+	| DInline -> syntax_error_with_pos (Custom "inline on enums is not allowed") p None
+
+let decl_flag_to_abstract_flag (flag,p) = match flag with
+	| DPrivate -> Some AbPrivate
+	| DExtern -> Some AbExtern
+	| DFinal -> syntax_error_with_pos (Custom "final on abstracts is not allowed") p None
+	| DMacro -> syntax_error_with_pos (Custom "macro on abstracts is not allowed") p None
+	| DDynamic -> syntax_error_with_pos (Custom "dynamic on abstracts is not allowed") p None
+	| DInline -> syntax_error_with_pos (Custom "inline on abstracts is not allowed") p None
+
+let decl_flag_to_global_flag (flag,p) = match flag with
+	| DPrivate -> Some (APrivate,p)
+	| DMacro -> Some (AMacro,p)
+	| DDynamic -> Some (ADynamic,p)
+	| DInline -> Some (AInline,p)
+	| DExtern -> syntax_error_with_pos (Custom "extern on module-statics is not allowed") p None
+	| DFinal -> syntax_error_with_pos (Custom "final on module-statics is not allowed") p None
 
 let serror() = raise (Stream.Error "")
 

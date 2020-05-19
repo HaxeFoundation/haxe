@@ -161,7 +161,7 @@ and parse_abstract doc meta flags = parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
 			| [< >] -> syntax_error (Expected ["{";"to";"from"]) s ([],last_pos s)
 		in
-		let flags = List.map decl_flag_to_abstract_flag flags in
+		let flags = ExtList.List.filter_map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
 			d_name = name;
@@ -197,7 +197,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = pl;
-				d_flags = List.map decl_flag_to_global_flag c;
+				d_flags = ExtList.List.filter_map decl_flag_to_global_flag c;
 				d_data = FFun f;
 			}, punion p1 p2)
 		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
@@ -216,7 +216,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = [];
-				d_flags = List.map decl_flag_to_global_flag c;
+				d_flags = ExtList.List.filter_map decl_flag_to_global_flag c;
 				d_data = t;
 			}, punion p1 p2)
 		| [< '(Kwd Enum,p1) >] ->
@@ -229,7 +229,7 @@ and parse_type_decl mode s =
 					d_doc = doc_from_string_opt doc;
 					d_meta = meta;
 					d_params = tl;
-					d_flags = List.map decl_flag_to_enum_flag c;
+					d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
 					d_data = l
 				}, punion p1 p2)
 			end
@@ -271,7 +271,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = List.map decl_flag_to_class_flag c @ n @ hl;
+				d_flags = ExtList.List.filter_map decl_flag_to_class_flag c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
 		| [< '(Kwd Typedef,p1); name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type_at p2; s >] ->
@@ -283,7 +283,7 @@ and parse_type_decl mode s =
 				d_doc = doc_from_string_opt doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = List.map decl_flag_to_enum_flag c;
+				d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
 		| [< a,p = parse_abstract doc meta c >] ->
@@ -298,7 +298,7 @@ and parse_type_decl mode s =
 						d_doc = doc_from_string_opt doc;
 						d_meta = meta;
 						d_params = [];
-						d_flags = (List.map decl_flag_to_global_flag (List.rev crest)) @ [AFinal,p1];
+						d_flags = (ExtList.List.filter_map decl_flag_to_global_flag (List.rev crest)) @ [AFinal,p1];
 						d_data = FVar(t,e);
 					}, punion p1 p2)
 				| [< >] -> check_type_decl_flag_completion mode c s)
