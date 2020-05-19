@@ -203,7 +203,7 @@ let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DDynamic -> syntax_error_with_pos (Custom "dynamic on abstracts is not allowed") p None
 	| DInline -> syntax_error_with_pos (Custom "inline on abstracts is not allowed") p None
 
-let decl_flag_to_global_flag (flag,p) = match flag with
+let decl_flag_to_module_static_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
