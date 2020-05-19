@@ -13,34 +13,36 @@ let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
 	| Some path ->
-		let p = null_pos in
 		let pack,name = path in
-		let m = Typeload.load_module ctx (pack,name) p in
+		let m = Typeload.load_module ctx (pack,name) null_pos in
 		let c,f =
-			let p = ref p in
 			try
 				match m.m_statics with
 				| None ->
 					raise Not_found
 				| Some c ->
-					p := c.cl_pos;
-					c, PMap.find "main" c.cl_statics
-			with Not_found -> try
-				let t = Typeload.find_type_in_module_raise m name null_pos in
-				match t with
-				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-					error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
-				| TClassDecl c ->
-					p := c.cl_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found ->
-				error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
+				let error concrete p = error ("Invalid -main : Module " ^ s_type_path path ^ " does not have a main function " ^ concrete) p in
+				let t = 
+					try Typeload.find_type_in_module m name
+					with Not_found -> error ("or a class named " ^ name) { pfile = relative_path ctx m.m_extra.m_file; pmin = 0; pmax = 0}
+				in
+				match t with
+				| TEnumDecl { e_pos = pos } | TTypeDecl { t_pos = pos } | TAbstractDecl { a_pos = pos } ->
+					error ("and " ^ name ^ " is not a class") pos
+				| TClassDecl c ->
+					let f =
+						try PMap.find "main" c.cl_statics
+						with Not_found -> error ("and class " ^ name ^ " does not have static function main") c.cl_pos
+					in
+					c, f
 		in
 		let ft = Type.field_type f in
 		let fmode, r = 
 			match follow ft with
 			| TFun ([],r) -> FStatic (c,f), r
-			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
+			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") f.cf_pos
 		in
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in

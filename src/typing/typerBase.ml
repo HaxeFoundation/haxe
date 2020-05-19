@@ -30,9 +30,12 @@ let relative_path ctx file =
 	let rec loop = function
 		| [] -> file
 		| path :: l ->
-			let spath = String.lowercase (slashes path) in
+			let spath = String.lowercase (slashes (Path.get_full_path path)) in
 			let slen = String.length spath in
-			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
+			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then
+				path ^ String.sub fpath slen (flen - slen)
+			else
+				loop l
 	in
 	loop ctx.com.Common.class_path
 
