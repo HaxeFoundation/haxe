@@ -4,6 +4,7 @@
 
 	all : fixed arguments ordering for @:structInit constructors (#9418)
 	all : fixed display/references completion server request for static fields (#9440)
+	all : fixed "Module not found" error reporting during macro execution in display requests (#9449)
 	cpp : fixed StringTools.endsWith() for unicode characters (#8980)
 	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
