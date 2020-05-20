@@ -1367,7 +1367,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method call ret tr e1 el =
 		let invoke t =
 			jm#cast haxe_function_sig;
-			let tl,tr = self#call_arguments t el in
+			(* Don't use call_arguments here because we don't have to cast. *)
+			let tl = List.map (fun e ->
+				self#texpr rvalue_any e;
+				jsignature_of_type gctx e.etype
+			) el in
+			let _,tr = self#get_argument_signatures t el in
 			let meth = gctx.typed_functions#register_signature tl tr in
 			jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 			tr
