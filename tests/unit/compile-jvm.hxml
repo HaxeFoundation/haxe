@@ -6,5 +6,4 @@
 compile-each.hxml
 --main unit.TestMain
 --java-lib native_java/native.jar
--java bin/jvm
--D jvm
+-jvm bin/jvm/TestMain-debug.jar

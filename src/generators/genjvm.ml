@@ -2789,25 +2789,30 @@ module Preprocessor = struct
 		) gctx.com.types
 end
 
-let file_name_and_extension file =
-	match List.rev (ExtString.String.nsplit file "/") with
-	| e1 :: _ -> e1
-	| _ -> die "" __LOC__
-
-let generate com =
-	mkdir_from_path com.file;
-	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
-		| Some (jarname,cl,expr) ->
-			let pack = match fst cl.cl_path with
-				| [] -> ["haxe";"root"]
-				| pack -> pack
-			in
-			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
-		| None -> "jar","",None
+let generate jvm_flag com =
+	let path = FilePath.parse com.file in
+	let jar_name,entry_point = match get_entry_point com with
+		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
+		| None -> "jar",None
 	in
-	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
-	let jar_dir = add_trailing_slash com.file in
-	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+	let jar_dir,jar_path = if jvm_flag then begin
+		match path.file_name with
+		| Some _ ->
+			begin match path.directory with
+				| None ->
+					"./","./" ^ com.file
+				| Some dir ->
+					mkdir_from_path dir;
+					add_trailing_slash dir,com.file
+			end
+		| None ->
+			failwith "Please specify an output file name"
+	end else begin
+		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
+		let jar_dir = add_trailing_slash com.file in
+		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+		jar_dir,jar_path
+	end in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let gctx = {
 		com = com;
@@ -2835,7 +2840,7 @@ let generate com =
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;
-			let name = file_name_and_extension java_lib#get_file_path in
+			let name = FilePath.name_and_extension (FilePath.parse java_lib#get_file_path) in
 			let ch_in = open_in_bin java_lib#get_file_path in
 			let ch_out = open_out_bin (Printf.sprintf "%s%s" dir name) in
 			let b = IO.read_all (IO.input_channel ch_in) in
@@ -2849,7 +2854,7 @@ let generate com =
 		"Manifest-Version: 1.0\n" ^
 		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
 		"Created-By: Haxe (Haxe Foundation)" ^
-		manifest_suffix ^
+		(Option.map_default (fun (cl,_) -> "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
 		"\n\n"
 	in
 	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
