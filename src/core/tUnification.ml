@@ -90,6 +90,11 @@ let fast_eq_check type_param_check a b =
 
 let rec fast_eq a b = fast_eq_check fast_eq a b
 
+let rec fast_eq_unbound_mono a b =
+	match a, b with
+	| TMono { tm_type = None }, TMono { tm_type = None } -> true
+	| _ -> fast_eq_check fast_eq_unbound_mono a b
+
 let rec fast_eq_mono ml a b =
 	if fast_eq_check (fast_eq_mono ml) a b then
 		true
@@ -432,12 +437,12 @@ let rec unify (uctx : unification_context) a b =
 		| Some t -> unify uctx a t)
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
-			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
+			(fun(a2,b2) -> fast_eq_unbound_mono a a2 && fast_eq b b2)
 			(fun() -> try_apply_params_rec t.t_params tl t.t_type (fun a -> unify uctx a b))
 			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) ->
 		rec_stack unify_stack (a,b)
-			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
+			(fun(a2,b2) -> fast_eq a a2 && fast_eq_unbound_mono b b2)
 			(fun() -> try_apply_params_rec t.t_params tl t.t_type (unify uctx a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
