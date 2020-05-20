@@ -184,7 +184,10 @@ let module_name_of_file file =
 	| s :: _ ->
 		let s = match List.rev (ExtString.String.nsplit s ".") with
 		| [s] -> s
-		| _ :: sl -> String.concat "." (List.rev sl)
+		(* file_ext; module_name *)
+		| [_; s] -> s
+		(* file_ext; platform_ext; ...module_name *)
+		| _ :: _ :: sl -> String.concat "." (List.rev sl)
 		| [] -> ""
 		in
 		s
