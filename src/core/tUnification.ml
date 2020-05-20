@@ -307,11 +307,11 @@ let rec type_eq uctx a b =
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params uctx a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
-		type_eq uctx (apply_params t.t_params tl t.t_type) b
+		try_apply_params_rec t.t_params tl t.t_type (fun a -> type_eq uctx a b)
 	| _ , TType (t,tl) when can_follow b ->
 		rec_stack eq_stack (a,b)
 			(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-			(fun() -> type_eq uctx a (apply_params t.t_params tl t.t_type))
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (type_eq uctx a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
