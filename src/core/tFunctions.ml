@@ -477,15 +477,19 @@ let rec ambiguate_funs t =
 				ambiguate_funs af.cf_type }) a.a_fields }
 	| TLazy _ -> die "" __LOC__
 
-let rec is_nullable = function
+let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable t)
+		(match r.tm_type with None -> false | Some t -> is_nullable ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		is_nullable (lazy_type f)
+		(match !f with
+		| LAvailable t -> is_nullable ~no_lazy t
+		| _ when no_lazy -> raise Exit
+		| _ -> is_nullable (lazy_type f)
+		)
 	| TType (t,tl) ->
-		is_nullable (apply_params t.t_params tl t.t_type)
+		is_nullable ~no_lazy (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
 		false
 (*
@@ -506,13 +510,17 @@ let rec is_nullable = function
 
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_null t)
+		(match r.tm_type with None -> false | Some t -> is_null ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
-		not (is_nullable (follow t))
+		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
-		if no_lazy then raise Exit else is_null (lazy_type f)
+		(match !f with
+		| LAvailable t -> is_null ~no_lazy t
+		| _ when no_lazy -> raise Exit
+		| _ -> is_null (lazy_type f)
+		)
 	| TType (t,tl) ->
-		is_null (apply_params t.t_params tl t.t_type)
+		is_null ~no_lazy (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
 

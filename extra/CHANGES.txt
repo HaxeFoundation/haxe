@@ -7,6 +7,7 @@
 	all : fixed "Module not found" error reporting during macro execution in display requests (#9449)
 	all : fixed module name completion for target-specific modules like `Mod.js.hx` (#9423)
 	all : fixed completion for packages named "function" (#7697)
+	all : fixed recursive typedefs with optional arguments in `@:overload` functions (#9455)
 	cpp : fixed StringTools.endsWith() for unicode characters (#8980)
 	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
