@@ -100,7 +100,8 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
-haxelib: haxe
+# haxelib should depends on haxe, but we don't want to do that...
+haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
 	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
 
@@ -236,3 +237,6 @@ FORCE:
 	$(CC_CMD)
 
 .PHONY: haxe haxelib
+
+# our "all:" target doens't work in parallel mode
+.NOTPARALLEL:
