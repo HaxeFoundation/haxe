@@ -513,7 +513,8 @@ let create_class_context ctx c context_init p =
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			if !locate_macro_error && (ep.pfile <> c.cl_pos.pfile || ep.pmax < c.cl_pos.pmin || ep.pmin > c.cl_pos.pmax) then ctx.com.error "Defined in this class" c.cl_pos
+			let open TFunctions in
+			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_statics_class c) then ctx.com.error "Defined in this class" c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)

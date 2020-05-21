@@ -734,6 +734,12 @@ let has_constructor c =
 		true
 	with Not_found -> false
 
+let is_module_statics_class c =
+	match c.cl_kind with KModuleStatics _ -> true | _ -> false
+
+let is_pos_outside_class c p =
+	p.pfile <> c.cl_pos.pfile || p.pmax < c.cl_pos.pmin || p.pmin > c.cl_pos.pmax
+
 let resolve_typedef t =
 	match t with
 	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
