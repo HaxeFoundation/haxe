@@ -32,7 +32,7 @@ extern class NativeGc {
 	@:native("_hx_add_finalizable")
 	static function addFinalizable(instance:{function finalize():Void;}, inPin:Bool):Void;
 
-	@:native("hx::InternalNew")
+	@:native("::hx::InternalNew")
 	static function allocGcBytesRaw(inBytes:Int, isContainer:Bool):RawPointer<cpp.Void>;
 
 	inline static function allocGcBytes(inBytes:Int):Pointer<cpp.Void> {

@@ -13,6 +13,7 @@
 	all : fixed completion for packages named "function" (#7697)
 	all : fixed recursive typedefs with optional arguments in `@:overload` functions (#9455)
 	cpp : fixed StringTools.endsWith() for unicode characters (#8980)
+	cpp : fixed broken externs in `cpp` package (#9452)
 	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
 
