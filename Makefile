@@ -100,7 +100,7 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
-haxelib:
+haxelib: haxe
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
 	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
 
