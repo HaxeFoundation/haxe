@@ -272,18 +272,13 @@ module FilePath = struct
 			in
 			let file,ext = if String.length path = 0 then
 				None,None
-			else begin try
+			else begin
 				let cp = String.rindex path '.' in
-				let file,ext = split path cp in
-				Some file,Some ext
-			with Not_found ->
-				Some path,None
+				if cp <> -1 then begin
+					let file,ext = split path cp in
+					Some file,Some ext
+				end else
+					Some path,None
 			end in
 			create dir file ext backslash
-
-	let name_and_extension path = match path.file_name with
-		| None -> failwith "File path has no name"
-		| Some name -> match path.extension with
-			| None -> name
-			| Some ext -> name ^ "." ^ ext
 end
