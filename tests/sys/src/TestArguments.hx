@@ -85,8 +85,12 @@ class TestArguments extends utest.Test {
 		#else
 			"bin/cs/bin/TestArguments.exe";
 		#end
-	#elseif jvm
-		"bin/jvm/TestArguments.jar";
+	#elseif (java && jvm)
+		#if debug
+			"bin/jvm/TestArguments-Debug.jar";
+		#else
+			"bin/jvm/TestArguments.jar";
+		#end
 	#elseif java
 		#if debug
 			"bin/java/TestArguments-Debug.jar";

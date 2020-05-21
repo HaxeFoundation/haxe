@@ -26,8 +26,12 @@ class TestUnicode extends utest.Test {
 		"bin-hl";
 #elseif lua
 		"bin-lua";
-#elseif jvm
-		"bin-jvm";
+#elseif (java && jvm)
+		#if debug
+			"bin-jvm-debug";
+		#else
+			"bin-jvm";
+		#end
 #elseif java
 		#if debug
 			"bin-java-debug";
