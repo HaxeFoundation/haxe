@@ -1,5 +1,9 @@
 2020-XX-XX: 4.1.1
 
+	New features:
+
+	jvm : added `--jvm path/to.jar` CLI argument
+
 	Bugfixes:
 
 	all : fixed arguments ordering for @:structInit constructors (#9418)
