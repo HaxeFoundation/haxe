@@ -67,11 +67,13 @@ let dollar_ident_macro pack = parser
 	| [< '(Dollar i,p) >] -> ("$" ^ i),p
 	| [< '(Kwd Macro,p) when pack <> [] >] -> "macro", p
 	| [< '(Kwd Extern,p) when pack <> [] >] -> "extern", p
+	| [< '(Kwd Function,p) when pack <> [] >] -> "function", p
 
 let lower_ident_or_macro = parser
 	| [< '(Const (Ident i),p) when is_lower_ident i >] -> i
 	| [< '(Kwd Macro,_) >] -> "macro"
 	| [< '(Kwd Extern,_) >] -> "extern"
+	| [< '(Kwd Function,_) >] -> "function"
 
 let property_ident = parser
 	| [< i,p = ident >] -> i,p
@@ -279,6 +281,8 @@ and parse_import s p1 =
 				loop pn (("macro",p) :: acc)
 			| [< '(Kwd Extern,p) >] ->
 				loop pn (("extern",p) :: acc)
+			| [< '(Kwd Function,p) >] ->
+				loop pn (("function",p) :: acc)
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< >] ->
@@ -316,6 +320,8 @@ and parse_using s p1 =
 				loop pn (("macro",p) :: acc)
 			| [< '(Kwd Extern,p) >] ->
 				loop pn (("extern",p) :: acc)
+			| [< '(Kwd Function,p) >] ->
+				loop pn (("function",p) :: acc)
 			| [< >] ->
 				syntax_error (Expected ["identifier"]) s (p,List.rev acc);
 			end
@@ -1415,6 +1421,7 @@ and parse_field e1 p s =
 		begin match s with parser
 		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
 		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
+		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function") , punion (pos e1) p2) s
 		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
 		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k) , punion (pos e1) p2) s
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
