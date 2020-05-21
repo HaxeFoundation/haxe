@@ -2210,11 +2210,16 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_call_string expr access args =
 			match access with
-				| FInstance (_, _, ({ cf_kind = Method _ } as field)) ->
+				| FInstance (_, _, ({ cf_kind = Method _ } as field))
+				| FClosure (_, ({ cf_kind = Method _ } as field)) ->
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
 					write_args self#write self#write_expr (expr :: args);
 					self#write ")"
-				| _ -> fail self#pos __LOC__
+				| _ ->
+					let msg =
+						"Unexpected field access " ^ (s_field_access (s_type (print_context())) access)
+					in
+					fail ~msg self#pos __LOC__
 		(**
 			Writes FStatic field access for methods to output buffer
 		*)
