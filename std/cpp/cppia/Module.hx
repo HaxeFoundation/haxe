@@ -22,7 +22,7 @@
 
 package cpp.cppia;
 
-@:native("hx::CppiaLoadedModule")
+@:native("::hx::CppiaLoadedModule")
 @:build(cpp.cppia.HostClasses.include())
 extern class Module {
 	@:native("__scriptable_cppia_from_string")
