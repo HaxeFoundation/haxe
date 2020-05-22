@@ -9,6 +9,7 @@
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value
+- Update `version` in `./opam`
 - Check if the protocolVersion in displayJson.ml has to be updated
 - Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
 - Wait for the CI to build (check https://build.haxe.org/builds/haxe/)
