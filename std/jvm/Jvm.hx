@@ -68,6 +68,16 @@ class Jvm {
 		return Type.enumEq(v1, v2);
 	}
 
+	static public function maybeEnumEq(v1:Dynamic, v2:Dynamic) {
+		if (!instanceof(v1, jvm.Enum)) {
+			return compare(v1, v2) == 0;
+		}
+		if (!instanceof(v2, jvm.Enum)) {
+			return compare(v1, v2) == 0;
+		}
+		return Type.enumEq(v1, v2);
+	}
+
 	// calls
 
 	static public function getArgumentTypes(args:NativeArray<Dynamic>):NativeArray<java.lang.Class<Dynamic>> {

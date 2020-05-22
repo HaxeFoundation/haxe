@@ -60,6 +60,7 @@ type generation_context = {
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions;
 	closure_paths : (path * string * jsignature,path) Hashtbl.t;
+	enum_paths : (path,unit) Hashtbl.t;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
@@ -145,7 +146,9 @@ let rec jsignature_of_type gctx stack t =
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
-	| TEnum(en,tl) -> TObject(en.e_path,List.map jtype_argument_of_type tl)
+	| TEnum(en,tl) ->
+		Hashtbl.replace gctx.enum_paths en.e_path ();
+		TObject(en.e_path,List.map jtype_argument_of_type tl)
 	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
 		let jsig = jsignature_of_type t in
 		let jsig = if o then get_boxed_type jsig else jsig in
@@ -2517,34 +2520,45 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let jm_equals,load = generate_equals_function jc_ctor (haxe_enum_sig object_sig) in
 	let code = jm_equals#get_code in
 	let jm_equals_handler = new texpr_to_jvm gctx jc_ctor jm_equals (Some TBool) in
-	let is_maybe_enum jsig = match jsig with
-		| TObject _ | TTypeParameter _ -> true
-		| _ -> false
+	let is_haxe_enum jsig = match jsig with
+		| TObject(path,_) ->
+			Hashtbl.mem gctx.enum_paths path
+		| _ ->
+			false
+	in
+	let compare_whatever jsig =
+		jm_equals#invokestatic haxe_jvm_path "maybeEnumEq" (method_sig [object_sig;object_sig] (Some TBool));
+		jm_equals#if_then
+			(code#if_ CmpNe)
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			)
+	in
+	let compare_haxe_enum jsig =
+		jm_equals#invokestatic haxe_type_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
+		jm_equals#if_then
+			(code#if_ CmpNe)
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			)
+	in
+	let compare_standard jsig =
+		jm_equals#if_then
+			(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			);
 	in
 	let compare jsig =
-		if is_maybe_enum jsig then begin
-			jm_equals#if_then_else
-				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
-				(fun () ->
-					jm_equals#invokestatic haxe_jvm_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
-					jm_equals#if_then
-						(code#if_ CmpNe)
-						(fun () ->
-							code#bconst false;
-							jm_equals#return;
-						)
-				)
-				(fun () ->
-					code#pop;
-					code#pop;
-				)
-		end else
-			jm_equals#if_then
-				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
-				(fun () ->
-					code#bconst false;
-					jm_equals#return;
-				);
+		if NativeSignatures.is_dynamic_at_runtime jsig then
+			compare_whatever jsig
+		else if is_haxe_enum jsig then
+			compare_haxe_enum jsig
+		else
+			compare_standard jsig
 	in
 	load();
 	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
@@ -2554,10 +2568,8 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let compare_field n jsig =
 		load();
 		jm_equals#getfield jc_ctor#get_this_path n jsig;
-		if is_maybe_enum jsig then code#dup;
 		jm_equals#load_this;
 		jm_equals#getfield jc_ctor#get_this_path n jsig;
-		if is_maybe_enum jsig then code#dup_x1;
 		compare jsig;
 	in
 	jm_equals,compare_field
@@ -2860,6 +2872,7 @@ let generate jvm_flag com =
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
+		enum_paths = Hashtbl.create 0;
 		current_field_info = None;
 		default_export_config = {
 			export_debug = true;

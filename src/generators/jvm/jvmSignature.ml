@@ -81,6 +81,7 @@ module NativeSignatures = struct
 	let java_class_sig = TObject(java_class_path,[TType(WNone,object_sig)])
 
 	let haxe_jvm_path = ["haxe";"jvm"],"Jvm"
+	let haxe_type_path = ["haxe";"root"],"Type"
 
 	let haxe_dynamic_object_path = ["haxe";"jvm"],"DynamicObject"
 	let haxe_dynamic_object_sig = TObject(haxe_dynamic_object_path,[])
