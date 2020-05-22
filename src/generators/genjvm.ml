@@ -773,6 +773,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			label_then2#here;
 			self#condition flip e2 label_then label_else;
 		in
+		let bool_or flip e1 e2 =
+			let label_else2 = jm#spawn_label "else2" in
+			self#condition (not flip) e1 label_else2 label_then;
+			label_else2#here;
+			self#condition flip e2 label_then label_else;
+		in
 		let involves_float_compare e =
 			let rec loop e = match e.eexpr with
 				| TBinop((OpEq | OpNotEq | OpLt | OpGt | OpLte | OpGte),e1,e2) ->
@@ -795,8 +801,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			label_else#apply (self#apply_cmp (self#binop_compare op e1 e2))
 		| TBinop(OpBoolAnd,e1,e2) when not flip ->
 			bool_and false e1 e2
+		| TBinop(OpBoolAnd,e1,e2) when not (involves_float_compare e1) ->
+			bool_or true e1 e2
 		| TBinop(OpBoolOr,e1,e2) when flip ->
 			bool_and true e1 e2
+		| TBinop(OpBoolOr,e1,e2) when not (involves_float_compare e1) ->
+			bool_or false e1 e2
 		| TUnop(Not,_,e1) when not (involves_float_compare e1) ->
 			self#condition (not flip) e1 label_then label_else
 		| _ ->
