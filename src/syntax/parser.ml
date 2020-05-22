@@ -41,6 +41,8 @@ type decl_flag =
 	| DMacro
 	| DDynamic
 	| DInline
+	| DPublic
+	| DStatic
 
 type type_decl_completion_mode =
 	| TCBeforePackage
@@ -89,6 +91,16 @@ type 'a parse_result =
 	| ParseSuccess of 'a * bool * parser_display_information
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
+
+let s_decl_flag = function
+	| DPrivate -> "private"
+	| DExtern -> "extern"
+	| DFinal -> "final"
+	| DMacro -> "macro"
+	| DDynamic -> "dynamic"
+	| DInline -> "inline"
+	| DPublic -> "public"
+	| DStatic -> "static"
 
 let syntax_completion kind so p =
 	raise (SyntaxCompletion(kind,DisplayTypes.make_subject so p))
@@ -179,37 +191,37 @@ let get_doc s =
 			last_doc := None;
 			if pos = p.pmin then Some d else None
 
+let unsupported_decl_flag decl flag pos =
+	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
+	syntax_error_with_pos (Custom msg) pos None
+
+let unsupported_decl_flag_class = unsupported_decl_flag "classes"
+let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
+let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
+let unsupported_decl_flag_module_static = unsupported_decl_flag "module-level fields"
+
 let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> Some HPrivate
 	| DExtern -> Some HExtern
 	| DFinal -> Some HFinal
-	| DMacro -> syntax_error_with_pos (Custom "macro on classes is not allowed") p None
-	| DDynamic -> syntax_error_with_pos (Custom "dynamic on classes is not allowed") p None
-	| DInline -> syntax_error_with_pos (Custom "inline on classes is not allowed") p None
+	| DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_class flag p
 
 let decl_flag_to_enum_flag (flag,p) = match flag with
 	| DPrivate -> Some EPrivate
 	| DExtern -> Some EExtern
-	| DFinal -> syntax_error_with_pos (Custom "final on enums is not allowed") p None
-	| DMacro -> syntax_error_with_pos (Custom "macro on enums is not allowed") p None
-	| DDynamic -> syntax_error_with_pos (Custom "dynamic on enums is not allowed") p None
-	| DInline -> syntax_error_with_pos (Custom "inline on enums is not allowed") p None
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_enum flag p
 
 let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
-	| DFinal -> syntax_error_with_pos (Custom "final on abstracts is not allowed") p None
-	| DMacro -> syntax_error_with_pos (Custom "macro on abstracts is not allowed") p None
-	| DDynamic -> syntax_error_with_pos (Custom "dynamic on abstracts is not allowed") p None
-	| DInline -> syntax_error_with_pos (Custom "inline on abstracts is not allowed") p None
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_abstract flag p
 
 let decl_flag_to_module_static_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
-	| DExtern -> syntax_error_with_pos (Custom "extern on module-statics is not allowed") p None
-	| DFinal -> syntax_error_with_pos (Custom "final on module-statics is not allowed") p None
+	| DExtern | DFinal | DPublic | DStatic -> unsupported_decl_flag_module_static flag p
 
 let serror() = raise (Stream.Error "")
 

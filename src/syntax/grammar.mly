@@ -517,8 +517,8 @@ and parse_common_flags = parser
 	| [< '(Kwd Macro,p); l = parse_common_flags >] -> (DMacro,p) :: l
 	| [< '(Kwd Dynamic,p); l = parse_common_flags >] -> (DDynamic,p) :: l
 	| [< '(Kwd Inline,p); l = parse_common_flags >] -> (DInline,p) :: l
-	| [< '(Kwd Public,p); l = parse_common_flags >] -> syntax_error_with_pos (Custom "public modifier is not supported for module-level declarations") p l
-	| [< '(Kwd Static,p); l = parse_common_flags >] -> syntax_error_with_pos (Custom "static modifier is not supported for module-level declarations") p l
+	| [< '(Kwd Public,p); l = parse_common_flags >] -> (DPublic,p) :: l
+	| [< '(Kwd Static,p); l = parse_common_flags >] -> (DStatic,p) :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
