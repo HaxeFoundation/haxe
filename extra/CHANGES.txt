@@ -17,6 +17,7 @@
 	js/cpp : fixed catch var naming collision (#9413)
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
 	lua : fixed lua.PairTools.ipairsMap method
+	php : fixed an edge case in String methods generation (#9464)
 
 2020-05-13: 4.1.0
 
