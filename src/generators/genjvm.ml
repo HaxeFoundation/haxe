@@ -474,7 +474,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method make_static_closure_field (name : string) (jc_closure : JvmClass.builder) =
 		let jm_init = jc_closure#get_static_init_method in
-		let jf_closure = jc_closure#spawn_field name jc_closure#get_jsig [FdStatic;FdPublic] in
+		let jf_closure = jc_closure#spawn_field name jc_closure#get_jsig [FdStatic;FdPublic;FdFinal] in
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
@@ -2588,7 +2588,7 @@ let generate_enum gctx en =
 			jm_ctor#string ef.ef_name;
 			jm_ctor#call_super_ctor ConstructInit jsig_enum_ctor;
 			List.iter (fun (n,jsig) ->
-				jm_ctor#add_argument_and_field n jsig
+				jm_ctor#add_argument_and_field n jsig [FdPublic;FdFinal]
 			) args;
 			jm_ctor#return;
 			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]);
@@ -2692,7 +2692,7 @@ let generate_anons gctx =
 			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
 			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
 			List.iter (fun (name,jsig) ->
-				jm_ctor#add_argument_and_field name jsig;
+				jm_ctor#add_argument_and_field name jsig [FdPublic]
 			) fields;
 			jm_ctor#return;
 		end;

@@ -322,15 +322,13 @@ class builder jc name jsig = object(self)
 
 	(** Adds a field named [name] with signature [jsig_field] to the enclosing class, and adds an argument with the same name
 	    to this method. The argument value is loaded and stored into the field immediately. **)
-	method add_argument_and_field (name : string) (jsig_field : jsignature) =
+	method add_argument_and_field (name : string) (jsig_field : jsignature) (flags : FieldAccessFlags.t list) =
 		assert (not (self#has_method_flag MStatic));
-		let jf = new builder jc name jsig_field in
-		jf#add_access_flag 1;
-		jc#add_field jf#export_field;
+		ignore(jc#spawn_field name jsig_field flags);
 		let _,load,_ = self#add_local name jsig_field VarArgument in
 		self#load_this;
 		load();
-		self#putfield jc#get_this_path name jsig_field;
+		self#putfield jc#get_this_path name jsig_field
 
 	(** Constructs a [path] object using the specified construction_kind [kind].
 

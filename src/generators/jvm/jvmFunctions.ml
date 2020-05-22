@@ -214,7 +214,7 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder (["haxe";"jvm"],"VarArgs") haxe_function_path in
 		jc#add_access_flag 1; (* public *)
 		let jm_ctor = jc#spawn_method "<init>" (method_sig [haxe_function_sig] None) [MPublic] in
-		jm_ctor#add_argument_and_field "func" haxe_function_sig;
+		jm_ctor#add_argument_and_field "func" haxe_function_sig [FdPublic;FdFinal];
 		jm_ctor#finalize_arguments;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
@@ -381,7 +381,7 @@ class typed_function
 		let context_sigs = List.map snd context in
 		let jm_ctor = jc_closure#spawn_method "<init>" (method_sig context_sigs None) (if public then [MPublic] else []) in
 		List.iter (fun (name,jsig) ->
-			jm_ctor#add_argument_and_field name jsig;
+			jm_ctor#add_argument_and_field name jsig [FdPublic;FdFinal];
 		) context;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
