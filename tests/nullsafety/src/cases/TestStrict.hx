@@ -943,6 +943,31 @@ class TestStrict {
 
 	@:shouldFail @:nullSafety(InvalidArgument)
 	static function invalidMetaArgument_shouldFail() {}
+
+	static function issue9474_becomesSafeInIf() {
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = null
+		else a = 'hello';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hello'
+		else a = null;
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(a == null) a = 'hi';
+		var s:String = a;
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi'
+		else a = 'hello';
+		var s:String = a;
+	}
 }
 
 private class FinalNullableFields {

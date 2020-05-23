@@ -726,7 +726,7 @@ class safety_scope (mode:safety_mode) (scope_type:scope_type) (safe_locals:(safe
 		(**
 			Wrapper for `get_subject` function
 		*)
-		method private get_subject =
+		method get_subject =
 			get_subject mode
 	end
 
@@ -897,7 +897,7 @@ class local_safety (mode:safety_mode) =
 			match expr.eexpr with
 				| TIf (condition, if_body, else_body) ->
 					condition_callback condition;
-					let (_, not_nulls) =
+					let (nulls_in_if, not_nulls) =
 						process_condition mode condition is_nullable_expr (fun _ -> ())
 					in
 					(* Don't touch expressions, which already was safe before this `if` *)
@@ -910,10 +910,13 @@ class local_safety (mode:safety_mode) =
 						process_condition mode not_condition is_nullable_expr (fun _ -> ())
 					in
 					let else_not_nulls = filter else_not_nulls in
+					let initial_safe = self#get_safe_locals_copy in
 					(** execute `if_body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback if_body;
-					List.iter self#get_current_scope#remove_from_safety not_nulls;
+					let safe_after_if = self#get_safe_locals_copy in
+					(* List.iter self#get_current_scope#remove_from_safety not_nulls; *)
+					self#get_current_scope#reset_to initial_safe;
 					(** execute `else_body` with known not-null variables *)
 					let handle_dead_end body safe_vars =
 						if is_dead_end body then
@@ -921,12 +924,39 @@ class local_safety (mode:safety_mode) =
 					in
 					(match else_body with
 						| None ->
+							(*
+								`if` gets executed only when each of `nulls_in_if` is `null`.
+								That means if they become safe in `if`, then they are safe after `if` too.
+							*)
+							List.iter (fun e ->
+								let subj = self#get_current_scope#get_subject e in
+								if Hashtbl.mem safe_after_if subj then
+									self#get_current_scope#add_to_safety e;
+							) nulls_in_if;
+							(* These became unsafe in `if` *)
+							Hashtbl.iter (fun subj e ->
+								if not (Hashtbl.mem safe_after_if subj) then
+									self#get_current_scope#remove_from_safety e;
+							) initial_safe;
 							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
 							handle_dead_end if_body else_not_nulls
 						| Some else_body ->
 							List.iter self#get_current_scope#add_to_safety else_not_nulls;
 							body_callback else_body;
-							List.iter self#get_current_scope#remove_from_safety else_not_nulls;
+							let safe_after_else = self#get_safe_locals_copy in
+							self#get_current_scope#reset_to initial_safe;
+							(* something was safe before `if..else`, but became unsafe in `if` or in `else` *)
+							Hashtbl.iter (fun subj e ->
+								if not (Hashtbl.mem safe_after_if subj && Hashtbl.mem safe_after_else subj) then
+									self#get_current_scope#remove_from_safety e;
+								Hashtbl.remove safe_after_if subj;
+								Hashtbl.remove safe_after_else subj;
+							) initial_safe;
+							(* something became safe in both `if` and `else` *)
+							Hashtbl.iter (fun subj e ->
+								if Hashtbl.mem safe_after_else subj then
+									self#get_current_scope#add_to_safety e
+							) safe_after_if;
 							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
 							handle_dead_end if_body else_not_nulls;
 							(** If `else_body` terminates execution, then bypassing `else` means `not_nulls` are safe now *)
