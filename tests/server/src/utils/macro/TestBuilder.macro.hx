@@ -51,23 +51,27 @@ class TestBuilder {
 
 	static function transformHaxeCalls(el:Array<Expr>) {
 		var e0 = el.shift();
-		return if (el.length == 0) {
-			e0;
-		} else switch (e0) {
-			case macro runHaxe($a{args}):
-				var e = transformHaxeCalls(el);
-				args.push(macro() -> $e);
-				macro @:pos(e0.pos) runHaxe($a{args});
-			case macro runHaxeJson($a{args}):
-				var e = transformHaxeCalls(el);
-				args.push(macro() -> $e);
-				macro @:pos(e0.pos) runHaxeJson($a{args});
-			case macro complete($a{args}):
-				var e = transformHaxeCalls(el);
-				args.push(macro function(response, markers) $e);
-				macro @:pos(e0.pos) complete($a{args});
-			case _:
-				macro {$e0; ${transformHaxeCalls(el)}};
+		if (el.length == 0) {
+			return e0;
+		} else {
+			var e = switch e0 {
+				case macro runHaxe($a{args}):
+					var e = transformHaxeCalls(el);
+					args.push(macro() -> $e);
+					macro runHaxe($a{args});
+				case macro runHaxeJson($a{args}):
+					var e = transformHaxeCalls(el);
+					args.push(macro() -> $e);
+					macro runHaxeJson($a{args});
+				case macro complete($a{args}):
+					var e = transformHaxeCalls(el);
+					args.push(macro function(response, markers) $e);
+					macro complete($a{args});
+				case _:
+					macro {$e0; ${transformHaxeCalls(el)}};
+			}
+			e.pos = e0.pos;
+			return e;
 		}
 	}
 }
