@@ -1748,9 +1748,9 @@ let generate_require ctx path meta =
 
     (match args with
      | [(EConst(String(module_name,_)),_)] ->
-         print ctx "%s = _G.require(\"%s\")" p module_name
+         print ctx "local %s = _G.require(\"%s\")" p module_name
      | [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
-         print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
+         print ctx "local %s = _G.require(\"%s\").%s" p module_name object_path
      | _ ->
          error "Unsupported @:luaRequire format" mp);
 
@@ -1782,7 +1782,7 @@ let generate_type_forward ctx = function
             begin
                 let p = s_path ctx c.cl_path in
                 let l,c = c.cl_path in
-                if List.length(l) == 0 then spr ctx "local ";
+                if true then spr ctx "local ";
                 println ctx "%s = _hx_e()" p
             end
         else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
@@ -2107,4 +2107,3 @@ let generate com =
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
     close_out ch
-

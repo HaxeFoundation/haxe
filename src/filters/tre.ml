@@ -101,6 +101,9 @@ let is_recursive_method_call cls field callee args =
 	(* member abstract function*)
 	| TField (_, FStatic (_, cf)), { eexpr = TLocal v } :: _ when has_meta Meta.Impl cf.cf_meta ->
 		cf == field && has_meta Meta.This v.v_meta
+    (* instance method *)
+    | TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)), _ ->
+       cf == field && not (FiltersCommon.is_overridden cls field)
 	(* static method *)
 	| TField (_, FStatic (_, cf)), _ ->
 		cf == field
@@ -210,7 +213,7 @@ let run ctx =
 					| Method MethDynamic -> false
 					| Method MethInline -> true
 					| Method MethNormal ->
-						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
+						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics || has_class_field_flag ctx.curfield CfFinal
 					| _ ->
 						has_class_field_flag ctx.curfield CfFinal
 					in
