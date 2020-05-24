@@ -65,8 +65,10 @@ class Browser {
 	public static var supported(get, never):Bool;
 
 	extern inline static function get_supported()
-		return js.Syntax.typeof(window) != "undefined" && js.Syntax.typeof(document) != "undefined" && js.Syntax.typeof(document.body) != "undefined";
-
+		return 
+			js.Syntax.typeof(window) != "undefined" &&
+			js.Syntax.typeof(window.location) != "undefined" &&
+			js.Syntax.typeof(window.location.protocol) == "string";
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
 	 * disabled.
