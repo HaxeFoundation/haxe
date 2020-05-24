@@ -16,6 +16,6 @@ class Issue6421 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq(false, hasField(fields(pos(1)), "foo", "Void -> Void"));
+		eq(false, hasField(fields(pos(1)), "foo", "() -> Void"));
 	}
 }

@@ -249,7 +249,7 @@ class TestType extends Test {
 		eq(7, optfunc.bind(_, 2, _)(1, 4));
 
 		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
-		var f : Void -> String = foo.bind(0);
+		var f : () -> String = foo.bind(0);
  		eq("foo0", f());
 
 		var foo = function(bar = 2) { return bar; };
@@ -799,7 +799,7 @@ class TestType extends Test {
 	}
 
 	function testGADTEnumAbstract() {
-		var expectedA:unit.MyAbstract.GADTEnumAbstract<Void->Void>;
+		var expectedA:unit.MyAbstract.GADTEnumAbstract<()->Void>;
 		var expectedB:unit.MyAbstract.GADTEnumAbstract<Int->Void>;
 		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);

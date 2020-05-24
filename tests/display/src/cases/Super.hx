@@ -31,6 +31,6 @@ class Super extends DisplayTestCase {
 		eq(range(1, 2), position(pos(3)));
 		eq("cases.Base<String>", type(pos(3)));
 		eq(range(4, 5), position(pos(6)));
-		eq("Void -> Void", type(pos(6)));
+		eq("() -> Void", type(pos(6)));
 	}
 }

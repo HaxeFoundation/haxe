@@ -327,7 +327,7 @@ class TestExceptions extends Test {
 		eq("caught Throwable: msg", raise(() -> throw new java.lang.Exception("msg")));
 	}
 
-	function raise<T>(f:Void -> String) {
+	function raise<T>(f:() -> String) {
 		return try {
 			f();
 		} catch(e:NativeExceptionChild) {

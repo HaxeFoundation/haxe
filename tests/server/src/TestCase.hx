@@ -37,7 +37,7 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, done:Void->Void) {
+	function runHaxe(args:Array<String>, done:()->Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
@@ -54,7 +54,7 @@ class TestCase implements ITest {
 		}, sendErrorMessage);
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:Void->Void) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:()->Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		runHaxe(args, done);

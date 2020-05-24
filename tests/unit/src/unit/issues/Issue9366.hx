@@ -21,7 +21,7 @@ enum En {
 }
 
 @:generic
-private class VarManager<K, M:IMap<K, String> & Constructible<Void->Void>> {
+private class VarManager<K, M:IMap<K, String> & Constructible<()->Void>> {
 	final nameToVarKey:Map<String, K> = new Map();
 
 	public function new() {}
