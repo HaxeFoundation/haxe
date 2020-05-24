@@ -107,7 +107,7 @@ let generate_type com t =
 		| TDynamic t2 ->
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
 		| TFun ([],ret) ->
-			"Void -> " ^ ftype ret
+			"() -> " ^ ftype ret
 		| TFun (args,ret) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
 	and ftype t =

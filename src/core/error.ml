@@ -160,7 +160,7 @@ module BetterErrors = struct
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
-			"Void -> ..."
+			"() -> ..."
 		| TFun (l,t) ->
 			let args = match l with
 				| [] -> "()"
