@@ -51,6 +51,7 @@ type ctx = {
 	has_resolveClass : bool;
 	has_interface_check : bool;
 	es_version : int;
+	mutable default_export : (unit(* figure out what should be here after figuring out how to export things *) * pos) option;
 	mutable current : tclass;
 	mutable statics : (tclass * tclass_field * texpr) list;
 	mutable inits : texpr list;
@@ -69,11 +70,21 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
-let process_expose meta f_default f =
+let process_expose ?(with_module=true) ctx meta f_default f =
 	try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		match args with
 		| [ EConst (String(s,_)), _ ] -> f s
+		| [ EConst (Ident "module"), _ ] ->
+			if with_module then begin
+				match ctx.default_export with
+				| Some (_,prev_pos) ->
+					ctx.com.error "Duplicate module default export" pos;
+					abort "Previous export here" prev_pos
+				| None ->
+					ctx.default_export <- Some ((), pos);
+					f (f_default ())
+			end
 		| [] -> f (f_default ())
 		| _ -> abort "Invalid @:expose parameters" pos
 	with Not_found ->
@@ -1116,7 +1127,7 @@ let gen_module_statics ctx m c fl =
 				gen_function ~keyword:"" ctx fn e.epos;
 				ctx.separator <- false;
 				newline ctx;
-				process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s ->
+				process_expose ctx f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s ->
 					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
 					newline ctx
 				)
@@ -1139,7 +1150,7 @@ let gen_class_static_field ctx c cl_path f =
 			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+			process_expose ctx f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -1214,7 +1225,7 @@ let generate_class_es3 ctx c =
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
 
-	process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	process_expose ctx c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 
 	if is_abstract_impl then begin
 		(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -1359,7 +1370,7 @@ let generate_class_es6 ctx c =
 				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
-				process_expose cf.cf_meta (fun () -> dotp  ^ "." ^ cf.cf_name) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
+				process_expose ctx cf.cf_meta (fun () -> dotp  ^ "." ^ cf.cf_name) (fun s -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods);
 
 				false
 			| _ -> true
@@ -1386,7 +1397,7 @@ let generate_class_es6 ctx c =
 			added := true;
 			print ctx "$hxClasses[\"%s\"] = " dotp
 		end;
-		process_expose c.cl_meta (fun () -> dotp) (fun s -> added := true; print ctx "$hx_exports%s = " (path_to_brackets s));
+		process_expose ctx c.cl_meta (fun () -> dotp) (fun s -> added := true; print ctx "$hx_exports%s = " (path_to_brackets s));
 		if !added then begin
 			spr ctx p;
 			newline ctx;
@@ -1584,10 +1595,10 @@ let generate_static ctx (c,f,e) =
 	match c.cl_kind with 
 	| KModuleStatics m ->
 		print ctx "var %s = " (module_static m f);
-		process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		process_expose ctx f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 	| _ ->
 		let cl_path = get_generated_class_path c in
-		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		process_expose ctx f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 		print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
 	end;
 	gen_value ctx e;
@@ -1685,6 +1696,7 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
+		default_export = None;
 	} in
 
 	ctx.type_accessor <- (fun t ->
@@ -1740,11 +1752,11 @@ let generate com =
 						module_static_expose_path m.m_path
 					| _ ->
 						let path = dot_path c.cl_path in
-						process_expose c.cl_meta (fun () -> path) add;
+						process_expose ~with_module:false ctx c.cl_meta (fun () -> path) add;
 						fun f -> path ^ "." ^ f.cf_name
 				in
 				List.iter (fun f ->
-					process_expose f.cf_meta (fun () -> get_expose_path f) add
+					process_expose ~with_module:false ctx f.cf_meta (fun () -> get_expose_path f) add
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
