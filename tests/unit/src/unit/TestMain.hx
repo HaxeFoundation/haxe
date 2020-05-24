@@ -6,7 +6,7 @@ import unit.Test.*;
 import haxe.ds.List;
 
 final asyncWaits = new Array<haxe.PosInfos>();
-final asyncCache = new Array<Void -> Void>();
+final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
 #if js

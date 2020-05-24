@@ -10,7 +10,7 @@ class ArrowFunctions extends DisplayTestCase {
 	**/
 	@:funcCode function testBodyCompletion1() {
 		eq(true, hasField(fields(pos(1)), "foo", "Int"));
-		eq(true, hasField(fields(pos(2)), "copy", "Void -> Array<Int>"));
+		eq(true, hasField(fields(pos(2)), "copy", "() -> Array<Int>"));
 	}
 
 	/**
@@ -22,7 +22,7 @@ class ArrowFunctions extends DisplayTestCase {
 		}
 	**/
 	function testBodyCompletion2() {
-		eq(true, hasField(fields(pos(1)), "getName", "Void -> String"));
+		eq(true, hasField(fields(pos(1)), "getName", "() -> String"));
 	}
 
 	/**

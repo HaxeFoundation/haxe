@@ -337,15 +337,15 @@ var it : KeyValueIterable<Int, Int> = a;
 // Can't create this closure on Flash apparently
 // keyValueIterator closure because why not
 var a : Array<Int> = [1,2,3,5,8];
-var itf : Void -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 var it = itf();
 var a2 = [for (k=>v in it) k];
 a2 == [0,1,2,3,4];
-var itf : Void -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 var it = itf();
 a2 = [for (k=>v in it) v];
 a2 == [1,2,3,5,8];
-var itf : Void -> KeyValueIterator<Int, Int> = a.keyValueIterator;
+var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 var it = itf();
 a2 = [for (k=>v in it) k*v];
 a2 == [0,2,6,15,32];

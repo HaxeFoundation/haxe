@@ -1,6 +1,6 @@
 package unit.issues;
 
-private abstract Lazy<T>(Void->T) {
+private abstract Lazy<T>(()->T) {
 	inline function new(r) this = r;
 
 	@:to public inline function get():T

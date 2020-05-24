@@ -185,12 +185,12 @@ class TestStrict {
 	}
 
 	static function call_onNullableValue_shouldFail() {
-		var fn:Null<Void->Void> = null;
+		var fn:Null<()->Void> = null;
 		shouldFail(fn());
 	}
 
 	static function call_onNotNullableValue_shouldPass() {
-		var fn:Void->Void = function() {}
+		var fn:()->Void = function() {}
 		fn();
 	}
 
@@ -734,8 +734,8 @@ class TestStrict {
 	}
 
 	static function functionWithNullableReturnType_toVoidFunction_shouldPass() {
-		var n:Void->Null<String> = () -> null;
-		var f:Void->Void = n;
+		var n:()->Null<String> = () -> null;
+		var f:()->Void = n;
 	}
 
 	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
@@ -804,7 +804,7 @@ class TestStrict {
 			recursive(() -> a.length);
 		}
 	}
-	static function recursive(cb:Void->Int) {
+	static function recursive(cb:()->Int) {
 		if(Std.random(10) == 0) {
 			recursive(cb);
 		} else {

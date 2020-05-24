@@ -53,10 +53,10 @@ class Issue6715 {
 		insanity4(function() var x = 1);
 	}
 
-	static var x:Void->Void;
+	static var x:()->Void;
 
 	// Mixed: inline calls, reference reads
-	static inline function insanity(f:Void -> Void)
+	static inline function insanity(f:() -> Void)
 	{
 		x = f;
 		x = f;
@@ -68,7 +68,7 @@ class Issue6715 {
 	}
 
 	// Only calls: inline all
-	static inline function insanity2(f:Void -> Void)
+	static inline function insanity2(f:() -> Void)
 	{
 		f();
 		f();
@@ -76,13 +76,13 @@ class Issue6715 {
 	}
 
 	// Referenced once: inline
-	static inline function insanity3(f:Void -> Void)
+	static inline function insanity3(f:() -> Void)
 	{
 		x = f;
 	}
 
 	// Referenced multiple times: temp var
-	static inline function insanity4(f:Void -> Void)
+	static inline function insanity4(f:() -> Void)
 	{
 		x = f;
 		x = f;
