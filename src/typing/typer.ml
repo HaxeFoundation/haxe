@@ -1101,7 +1101,7 @@ and type_unop ctx op flag e p =
 		let make e =
 			let t = (match op with
 			| Not ->
-				if flag = Postfix then error "Postfix ! is not supported" p;
+				if flag = Postfix then error ("Postfix ! is not supported for " ^ (s_type (print_context()) e.etype)) p;
 				unify ctx e.etype ctx.t.tbool e.epos;
 				ctx.t.tbool
 			| NegBits ->
