@@ -80,7 +80,17 @@
 **/
 @:forward
 @:coreType
-abstract Null<T> from T to T {}
+abstract Null<T> from T to T {
+	/**
+		Return this value typed as `T`.
+
+		This is useful in combination with Null Safety, in cases where the checker
+		is not able to determine that a value can not be null.
+
+		@see https://haxe.org/manual/cr-null-safety.html
+	**/
+	@:op(v!) function _():T; // implemented in the compiler
+}
 
 /**
 	The standard Boolean type, which can either be `true` or `false`.

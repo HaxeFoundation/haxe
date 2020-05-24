@@ -1121,7 +1121,12 @@ and type_unop ctx op flag e p =
 			) in
 			mk (TUnop (op,flag,e)) t p
 		in
-		try (match follow e.etype with
+		let etype = follow_without_null e.etype in
+		match op, flag, etype with
+		| Not, Postfix, TAbstract ( { a_path = [],"Null" }, [ real_t ]) ->
+			{ e with etype = real_t; epos = p }
+		| _ -> 
+		try (match follow etype with
 			| TAbstract ({a_impl = Some c} as a,pl) ->
 				let rec loop opl = match opl with
 					| [] -> raise Not_found
