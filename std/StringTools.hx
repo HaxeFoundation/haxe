@@ -494,6 +494,45 @@ class StringTools {
 	}
 
 	/**
+		Returns the character code at position `index` of String `s`, or an
+		end-of-file indicator at if `position` equals `s.length`.
+
+		This method is faster than `String.charCodeAt()` on some platforms, but
+		the result is unspecified if `index` is negative or greater than
+		`s.length`.
+
+		This operation is not guaranteed to work if `s` contains the `\0`
+		character.
+	**/
+	public static inline function unsafeCodeAt(s:String, index:Int):Int {
+		#if neko
+		return untyped __dollar__sget(s.__s, index);
+		#elseif cpp
+		return untyped s.cca(index);
+		#elseif flash
+		return untyped s.cca(index);
+		#elseif java
+		return cast(_charAt(s, index), Int);
+		#elseif cs
+		return cast(s[index], Int);
+		#elseif js
+		return (cast s).charCodeAt(index);
+		#elseif python
+		return python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
+		#elseif hl
+		return @:privateAccess s.bytes.getUI16(index << 1);
+		#elseif lua
+		#if lua_vanilla
+		return lua.NativeStringTools.byte(s, index + 1);
+		#else
+		return lua.lib.luautf8.Utf8.byte(s, index + 1);
+		#end
+		#else
+		return untyped s.cca(index);
+		#end
+	}
+
+	/**
 		Returns an iterator of the char codes.
 
 		Note that char codes may differ across platforms because of different
