@@ -2605,7 +2605,7 @@ let generate con =
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-			let modifiers = if cl.cl_final then "sealed" :: modifiers else modifiers in
+			let modifiers = if is_module_fields_class cl then "static" :: modifiers else if cl.cl_final then "sealed" :: modifiers else modifiers in
 			let is_final = clt = "struct" || cl.cl_final in
 
 			let modifiers = [access] @ modifiers in
