@@ -26,7 +26,11 @@ private typedef VectorData<T> = Array<T>
 
 @:coreApi
 abstract Vector<T>(VectorData<T>) {
-	public inline function new(length:Int) {
+	public inline function new(length:Int, ?defaultValue:T) {
+		if (defaultValue != null) {
+			this = [for (_ in 0...length) defaultValue];
+			return;
+		}
 		this = [];
 		if (length > 0)
 			this[length - 1] = cast null;

@@ -51,9 +51,9 @@ private typedef VectorData<T> =
 **/
 abstract Vector<T>(VectorData<T>) {
 	/**
-		Creates a new Vector of length `length`.
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
 
-		Initially `this` Vector contains `length` neutral elements:
+		If `defaultValue` is `null`, `this` Vector contains `length` neutral elements:
 
 		- always null on dynamic targets
 		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
@@ -61,13 +61,13 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
-	public inline function new(length:Int) {
+	public inline function new(length:Int, ?defaultValue:T) {
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
 		this = untyped __dollar__amake(length);
 		#elseif js
-		this = js.Syntax.construct(Array, length);
+		this = [for (_ in 0...length) defaultValue];
 		#elseif cs
 		this = new cs.NativeArray(length);
 		#elseif java
@@ -75,7 +75,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 		this = NativeArray.create(length);
 		#elseif python
-		this = python.Syntax.code("[{0}]*{1}", null, length);
+		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
 		#elseif lua
 		this = untyped __lua_table__({length: length});
 		#elseif eval
@@ -83,6 +83,10 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		this = [];
 		untyped this.length = length;
+		#end
+		#if !(js || python)
+		if (defaultValue == null) return;
+		for (i in 0...length) this[i] = defaultValue;
 		#end
 	}
 

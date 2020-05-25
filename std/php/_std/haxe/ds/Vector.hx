@@ -28,9 +28,11 @@ private class PhpVectorData<T> {
 	public var length:Int;
 	public var data:NativeIndexedArray<T>;
 
-	public inline function new(length:Int) {
+	public inline function new(length:Int, ?defaultValue:T) {
 		this.length = length;
-		data = new NativeIndexedArray();
+		if (defaultValue != null && length > 0) {
+			data = Global.array_fill(0, length, defaultValue);
+		} else data = new NativeIndexedArray();
 	}
 }
 
@@ -39,8 +41,8 @@ private typedef VectorData<T> = PhpVectorData<T>;
 abstract Vector<T>(VectorData<T>) {
 	public var length(get, never):Int;
 
-	public inline function new(length:Int) {
-		this = new VectorData(length);
+	public inline function new(length:Int, ?defaultValue:T) {
+		this = new VectorData(length, defaultValue);
 	}
 
 	@:op([]) public inline function get(index:Int):T {

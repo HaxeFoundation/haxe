@@ -24,6 +24,26 @@ vec.get(0) == vNullBool;
 vec.get(1) == vNullBool;
 vec.get(2) == vNullBool;
 
+// bool init with null default value
+var vec = new haxe.ds.Vector<Bool>(3, null);
+vec.get(0) == vNullBool;
+vec.get(1) == vNullBool;
+vec.get(2) == vNullBool;
+
+// default value
+var vec = new haxe.ds.Vector(3, 1);
+vec.get(0) == 1;
+vec.get(1) == 1;
+vec.get(2) == 1;
+
+// default value object
+var obj = {f: 1};
+var vec = new haxe.ds.Vector(3, obj);
+vec.get(0).f == 1;
+vec.get(1).f == 1;
+obj.f = 2;
+vec.get(2).f == 2;
+
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
