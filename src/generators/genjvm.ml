@@ -120,7 +120,10 @@ let rec jsignature_of_type gctx stack t =
 			| [],"Dynamic" ->
 				object_sig
 			| [],("Class" | "Enum") ->
-				java_class_sig
+				begin match tl with
+				| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
+				| _ -> java_class_sig
+				end
 			| [],"EnumValue" ->
 				java_enum_sig object_sig
 			| _ ->
