@@ -2261,18 +2261,19 @@ and type_return ?(implicit=false) ctx e with_type p =
 			mk (TReturn (Some e_null)) t_dynamic p
 
 and type_cast ctx e t p =
+	let tpos = pos t in
 	let t = Typeload.load_complex_type ctx true t in
 	let check_param pt = match follow pt with
 		| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
 		| t when t == t_dynamic -> ()
-		| _ ->error "Cast type parameters must be Dynamic" p
+		| _ -> error "Cast type parameters must be Dynamic" tpos
 	in
 	let rec loop t = match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
 			List.iter check_param params;
 			(match follow t with
 			| TInst (c,_) ->
-				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
+				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" tpos | _ -> ());
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
 			| _ -> die "" __LOC__);
@@ -2282,7 +2283,7 @@ and type_cast ctx e t p =
 		| TAbstract (a,params) ->
 			loop (Abstract.get_underlying_type a params)
 		| _ ->
-			error "Cast type must be a class or an enum" p
+			error "Cast type must be a class or an enum" tpos
 	in
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
