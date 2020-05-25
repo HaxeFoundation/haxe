@@ -36,7 +36,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
-		ParserEntry.parse com.defines lexbuf file
+		ParserEntry.parse Grammar.parse_file com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			t();

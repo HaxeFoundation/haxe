@@ -137,10 +137,9 @@ let make_macro_api ctx p =
 	in
 	let parse_metadata s p =
 		try
-			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
-			| ParseSuccess((_,[ETypedef t,_]),_,_) -> t.d_meta
+			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos error false with
+			| ParseSuccess(meta,_,_) -> meta
 			| ParseError(_,_,_) -> error "Malformed metadata string" p
-			| _ -> die "" __LOC__
 		with _ ->
 			error "Malformed metadata string" p
 	in
@@ -231,15 +230,14 @@ let make_macro_api ctx p =
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
-					| ParseSuccess((_,[ETypedef { d_data = ct },_]),_,_) -> Some ct
+					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos error false with
+					| ParseSuccess((ct,_),_,_) -> Some ct
 					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
-					| _ -> die "" __LOC__
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
 				match v with
 				| None -> tp.tp_remove <- true
-				| Some _ -> tp.tp_type <- Option.map fst v
+				| Some t -> tp.tp_type <- Some t
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s p ->
