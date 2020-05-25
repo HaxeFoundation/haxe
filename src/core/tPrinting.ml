@@ -429,8 +429,8 @@ let s_class_kind = function
 		"KGenericBuild"
 	| KAbstractImpl a ->
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
-	| KModuleStatics m ->
-		Printf.sprintf "KModuleStatics %s" (s_type_path m.m_path)
+	| KModuleFields m ->
+		Printf.sprintf "KModuleFields %s" (s_type_path m.m_path)
 
 module Printer = struct
 

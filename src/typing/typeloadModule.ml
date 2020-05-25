@@ -393,7 +393,7 @@ let module_pass_1 ctx m tdecls loadp =
 			| (TClassDecl c,_) :: _ ->
 				assert (m.m_statics = None);
 				m.m_statics <- Some c;
-				c.cl_kind <- KModuleStatics m;
+				c.cl_kind <- KModuleFields m;
 				c.cl_final <- true;
 			| _ -> assert false);
 			tdecls
@@ -896,7 +896,7 @@ let init_module_type ctx context_init (decl,p) =
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
 	| EStatic _ ->
-		(* nothing to do here as module statics are collected into a special EClass *)
+		(* nothing to do here as module fields are collected into a special EClass *)
 		()
 
 let module_pass_2 ctx m decls tdecls p =

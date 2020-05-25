@@ -377,7 +377,7 @@ class Printer {
 						}
 					].join("\n")
 					+ "\n}";
-				case TDStatic(kind, access):
+				case TDField(kind, access):
 					tabs = old;
 					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "")
 					+ switch (kind) {

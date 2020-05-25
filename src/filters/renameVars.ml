@@ -22,8 +22,8 @@ let reserve_init ri name =
 	ri.ri_reserved <- StringMap.add name true ri.ri_reserved
 
 (**
-	Make all class names reserved names.
-	No local variable will have a name matching a class.
+	Make all module-level names reserved.
+	No local variable will have a name matching a module-level declaration.
 *)
 let reserve_all_types ri com path_to_name =
 	List.iter (fun mt ->
@@ -35,7 +35,7 @@ let reserve_all_types ri com path_to_name =
 				let native_name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
 				reserve_init ri native_name
 			) c.cl_ordered_statics
-		| TClassDecl { cl_kind = KModuleStatics m; cl_ordered_statics = fl } ->
+		| TClassDecl { cl_kind = KModuleFields m; cl_ordered_statics = fl } ->
 			let prefix = Path.flat_path m.m_path ^ "_" in
 			List.iter (fun cf ->
 				let name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in

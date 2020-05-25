@@ -151,13 +151,13 @@ let static_field ctx c f =
 	| s ->
 		field s
 
-let module_static m f =
+let module_field m f =
 	try
 		fst (TypeloadCheck.get_native_name f.cf_meta)
 	with Not_found ->
 		Path.flat_path m.m_path ^ "_" ^ f.cf_name
 
-let module_static_expose_path mpath f =
+let module_field_expose_path mpath f =
 	try
 		fst (TypeloadCheck.get_native_name f.cf_meta)
 	with Not_found ->
@@ -613,8 +613,8 @@ and gen_expr ctx e =
 		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
-	| TField (_,FStatic ({ cl_kind = KModuleStatics m },f)) ->
-		spr ctx (module_static m f)
+	| TField (_,FStatic ({ cl_kind = KModuleFields m },f)) ->
+		spr ctx (module_field m f)
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
@@ -1099,9 +1099,9 @@ let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
-let gen_module_statics ctx m c fl =
+let gen_module_fields ctx m c fl =
 	List.iter (fun f ->
-		let name = module_static m f in
+		let name = module_field m f in
 		match f.cf_expr with
 		| None when not (is_physical_field f) ->
 			()
@@ -1116,7 +1116,7 @@ let gen_module_statics ctx m c fl =
 				gen_function ~keyword:"" ctx fn e.epos;
 				ctx.separator <- false;
 				newline ctx;
-				process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s ->
+				process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s ->
 					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
 					newline ctx
 				)
@@ -1480,8 +1480,8 @@ let generate_class ctx c =
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
 	| _ -> ());
 	match c.cl_kind with
-	| KModuleStatics m ->
-		gen_module_statics ctx m c c.cl_ordered_statics
+	| KModuleFields m ->
+		gen_module_fields ctx m c c.cl_ordered_statics
 	| _ ->
 		if ctx.es_version >= 6 then
 			generate_class_es6 ctx c
@@ -1582,9 +1582,9 @@ let generate_enum ctx e =
 let generate_static ctx (c,f,e) =
 	begin
 	match c.cl_kind with 
-	| KModuleStatics m ->
-		print ctx "var %s = " (module_static m f);
-		process_expose f.cf_meta (fun () -> module_static_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	| KModuleFields m ->
+		print ctx "var %s = " (module_field m f);
+		process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 	| _ ->
 		let cl_path = get_generated_class_path c in
 		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
@@ -1736,8 +1736,8 @@ let generate com =
 				let add s = r := s :: !r in
 				let get_expose_path = 
 					match c.cl_kind with
-					| KModuleStatics m ->
-						module_static_expose_path m.m_path
+					| KModuleFields m ->
+						module_field_expose_path m.m_path
 					| _ ->
 						let path = dot_path c.cl_path in
 						process_expose c.cl_meta (fun () -> path) add;

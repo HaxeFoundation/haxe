@@ -514,7 +514,7 @@ let create_class_context ctx c context_init p =
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
 			let open TFunctions in
-			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_statics_class c) then ctx.com.error "Defined in this class" c.cl_pos
+			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error "Defined in this class" c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)
@@ -606,7 +606,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleStatics _ -> true | _ -> false)
+		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
