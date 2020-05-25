@@ -584,7 +584,7 @@ let generate_class ctx c =
 		| KMacroType -> "KMacroType",None
 		| KGenericBuild _ -> "KGenericBuild",None
 		| KAbstractImpl a -> "KAbstractImpl",Some (abstract_ref ctx a)
-		| KModuleStatics m -> "KModuleStatics",Some (generate_module_path m.m_path)
+		| KModuleFields m -> "KModuleFields",Some (generate_module_path m.m_path)
 		in
 		generate_adt ctx (Some (["haxe";"macro"],"ClassKind")) ctor args
 	in

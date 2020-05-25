@@ -303,9 +303,9 @@ enum ClassKind {
 	KTypeParameter(constraints:Array<Type>);
 
 	/**
-		A class containing module statics.
+		A class containing module fields.
 	**/
-	KModuleStatics(module:String);
+	KModuleFields(module:String);
 
 	/**
 		A special kind of class to encode expressions into type parameters.

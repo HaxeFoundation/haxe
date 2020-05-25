@@ -110,7 +110,7 @@ let check_display_abstract ctx cc cfile a =
 			()
 	) sa.d_flags
 
-let check_display_module_statics ctx cfile m =
+let check_display_module_fields ctx cfile m =
 	Option.may (fun c ->
 		let sc = find_class_by_position cfile c.cl_name_pos in
 		List.iter (fun cf ->
@@ -143,7 +143,7 @@ let check_display_module ctx cc cfile m =
 		end;
 		DisplayEmitter.check_display_metadata ctx infos.mt_meta
 	) m.m_types;
-	check_display_module_statics ctx cfile m
+	check_display_module_fields ctx cfile m
 
 let check_display_file ctx cs =
 	match ctx.com.cache with

@@ -39,8 +39,8 @@ let mk_dot_path_part s p : dot_path_part =
 let s_dot_path parts =
 	String.concat "." (List.map (fun (s,_,_) -> s) parts)
 
-(** resolve given path against module statics or raise Not_found *)
-let resolve_module_static ctx m path p =
+(** resolve given path against module fields or raise Not_found *)
+let resolve_module_field ctx m path p =
 	match path, m.m_statics with
 	| [], _ | _, None ->
 		raise Not_found
@@ -58,9 +58,9 @@ let resolve_module_type ctx m name p =
 let resolve_in_module ctx m path p =
 	try
 		(* first, try to find module-level static access *)
-		resolve_module_static ctx m path p
+		resolve_module_field ctx m path p
 	with Not_found ->
-		(* if there was no module-statics, resolve  *)
+		(* if there was no module fields, resolve  *)
 		let mname = snd m.m_path in
 		match path with
 		| (sname,PUppercase,sp) :: path_rest ->
