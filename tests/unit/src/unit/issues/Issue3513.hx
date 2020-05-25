@@ -5,11 +5,11 @@ private enum Either<L, R> {
 	Right(r:R);
 }
 
-private abstract LazyGenerator<Data, End>(Void->Either<Data, End>) from Void->Either<Data, End> {
+private abstract LazyGenerator<Data, End>(()->Either<Data, End>) from ()->Either<Data, End> {
 	public function next():Either<Data, End>
 		return (this)();
 
-	@:from static function infinite<Data, End>(f:Void->Data):LazyGenerator<Data, End>
+	@:from static function infinite<Data, End>(f:()->Data):LazyGenerator<Data, End>
 		return function () return Left(f());
 }
 

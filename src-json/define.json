@@ -664,5 +664,10 @@
 		"name": "WarnVarShadowing",
 		"define": "warn_var_shadowing",
 		"doc": "Warn about shadowing variable declarations."
+	},
+	{
+		"name": "NoTre",
+		"define": "no_tre",
+		"doc": "Disable tail recursion elimination."
 	}
 ]

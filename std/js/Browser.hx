@@ -26,6 +26,13 @@ import js.html.Storage;
 import js.html.XMLHttpRequest;
 
 class Browser {
+	/** The global scope typed with fields available only in a worker context. */
+	public static var self(get, never):js.html.WorkerGlobalScope;
+
+	static inline function get_self():js.html.WorkerGlobalScope {
+		return js.Lib.global;
+	}
+
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
 
@@ -42,19 +49,19 @@ class Browser {
 	public static var location(get, never):js.html.Location;
 
 	extern inline static function get_location()
-		return window.location;
+		return js.Lib.global.location;
 
 	/** Shortcut to Window.navigator. */
 	public static var navigator(get, never):js.html.Navigator;
 
 	extern inline static function get_navigator()
-		return window.navigator;
+		return js.Lib.global.navigator;
 
 	/** Shortcut to Window.console. */
 	public static var console(get, never):js.html.ConsoleInstance;
 
 	extern inline static function get_console()
-		return window.console;
+		return js.Lib.global.console;
 
 	/**
 	 * True if a window object exists, false otherwise.

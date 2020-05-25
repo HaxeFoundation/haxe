@@ -137,7 +137,7 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl,el =
+			let tl_rev,el_rev =
 				List.fold_left (fun (args,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
@@ -147,8 +147,8 @@ let get_struct_init_super_info ctx c p =
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
 			in
-			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
-			(args,Some super_expr,tl)
+			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
+			(args,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
@@ -513,7 +513,8 @@ let create_class_context ctx c context_init p =
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			if !locate_macro_error && (ep.pfile <> c.cl_pos.pfile || ep.pmax < c.cl_pos.pmin || ep.pmin > c.cl_pos.pmax) then ctx.com.error "Defined in this class" c.cl_pos
+			let open TFunctions in
+			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error "Defined in this class" c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)
@@ -605,7 +606,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
+		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
@@ -616,7 +617,8 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf is_static =
+let add_field c cf =
+	let is_static = has_class_field_flag cf CfStatic in
 	if is_static then begin
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
@@ -950,7 +952,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
 								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> assert false
+								| _ -> die "" __LOC__
 							in
 							args
 						end else
@@ -1405,14 +1407,18 @@ let init_field (ctx,cctx,fctx) f =
 		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
 		| _ -> ()
 	end;
-	match f.cff_kind with
-	| FVar (t,e) ->
-		create_variable (ctx,cctx,fctx) c f t e p
-	| FFun fd ->
-		reject_final_static_method ctx cctx fctx f;
-		create_method (ctx,cctx,fctx) c f fd p
-	| FProp (get,set,t,eo) ->
-		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	let cf = 
+		match f.cff_kind with
+		| FVar (t,e) ->
+			create_variable (ctx,cctx,fctx) c f t e p
+		| FFun fd ->
+			reject_final_static_method ctx cctx fctx f;
+			create_method (ctx,cctx,fctx) c f fd p
+		| FProp (get,set,t,eo) ->
+			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	in
+	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	cf
 
 let check_overload ctx f fs =
 	try
@@ -1488,12 +1494,19 @@ let init_class ctx c p context_init herits fields =
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
+	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
 			let ctx,fctx = create_field_context (ctx,cctx) c f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
+			if fctx.field_kind = FKInit then begin
+				if !has_init then
+					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+					has_init := true
+			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
 				error "You can't declare static fields in interfaces" p;
@@ -1545,7 +1558,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
+				if fctx.do_add then add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p

@@ -73,9 +73,9 @@ all: haxe tools
 haxe:
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src-prebuild/prebuild.exe
 	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
-	_build/default/src-prebuild/prebuild.exe version $(ADD_REVISION) $(BRANCH) $(COMMIT_SHA) > src/compiler/version.ml
+	_build/default/src-prebuild/prebuild.exe version "$(ADD_REVISION)" "$(BRANCH)" "$(COMMIT_SHA)" > src/compiler/version.ml
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
-	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
+	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
@@ -100,6 +100,7 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
+# haxelib should depends on haxe, but we don't want to do that...
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
 	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
@@ -236,3 +237,6 @@ FORCE:
 	$(CC_CMD)
 
 .PHONY: haxe haxelib
+
+# our "all:" target doens't work in parallel mode
+.NOTPARALLEL:

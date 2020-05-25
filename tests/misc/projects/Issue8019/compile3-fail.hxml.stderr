@@ -1,3 +1,3 @@
-Macro2.hx:7: characters 17-18 : Module name must not be empty
-Macro2.hx:7: characters 17-18 : "0" is not a valid module name
-Macro2.hx:7: characters 17-18 : "Type+" is not a valid module name
+Macro2.hx:7: characters 17-18 : Module "" does not have a valid name. Module name must not be empty.
+Macro2.hx:7: characters 17-18 : Module "0" does not have a valid name. "0" is not a valid module name.
+Macro2.hx:7: characters 17-18 : Module "Type+" does not have a valid name. "Type+" is not a valid module name.

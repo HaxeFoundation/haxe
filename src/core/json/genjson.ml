@@ -257,7 +257,7 @@ and generate_type_path_with_params ctx mpath tpath tl =
 and generate_type_parameter ctx (s,t) =
 	let generate_constraints () = match follow t with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	jobject [
 		"name",jstring s;
@@ -584,6 +584,7 @@ let generate_class ctx c =
 		| KMacroType -> "KMacroType",None
 		| KGenericBuild _ -> "KGenericBuild",None
 		| KAbstractImpl a -> "KAbstractImpl",Some (abstract_ref ctx a)
+		| KModuleFields m -> "KModuleFields",Some (generate_module_path m.m_path)
 		in
 		generate_adt ctx (Some (["haxe";"macro"],"ClassKind")) ctor args
 	in

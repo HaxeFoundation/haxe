@@ -39,6 +39,7 @@ let exclude : string list ref = ref []
 
 class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
 	inherit server_task ["explore";dir] 50
+	val platform_str = platform_name_macro com
 
 	method private execute : unit =
 		let dot_path = (String.concat "." (List.rev pack)) in
@@ -70,7 +71,16 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 						let l = String.length file in
 						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
 							try
-								let name = String.sub file 0 (l - 3) in
+								let name =
+									let name = String.sub file 0 (l - 3) in
+									try
+										let dot_pos = String.rindex name '.' in
+										if platform_str = String.sub file dot_pos (String.length name - dot_pos) then
+											String.sub file 0 dot_pos
+										else
+											raise Exit
+									with Not_found -> name
+								in
 								let path = (List.rev pack,name) in
 								let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
 								if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
@@ -102,8 +112,8 @@ let read_class_paths com timer =
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file = Path.unique_full_path file in
-				(CommonCache.get_cache cs com)#remove_file_for_real file
+				let file_key = Path.UniqueKey.create file in
+				(CommonCache.get_cache cs com)#remove_file_for_real file_key
 			| _ ->
 				()
 		end
@@ -124,12 +134,12 @@ let init_or_update_server cs com timer_name =
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun file () ->
-		DynArray.add removed_removed_files file;
+	Hashtbl.iter (fun file_key file_path ->
+		DynArray.add removed_removed_files file_key;
 		try
-			ignore(cc#find_file file);
+			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
@@ -213,7 +223,7 @@ let collect ctx tk with_type sort =
 
 	let add_type mt =
 		match mt with
-		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
+		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleFields _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
 			let mname = snd (t_infos mt).mt_module.m_path in
@@ -241,7 +251,8 @@ let collect ctx tk with_type sort =
 					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags,d.d_meta
-					| _ -> raise Exit
+					| EStatic d -> fst d.d_name,List.exists (fun (a,_) -> a = APrivate) d.d_flags,d.d_meta
+					| EImport _ | EUsing _ -> raise Exit
 				in
 				let path = Path.full_dot_path pack name tname in
 				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
@@ -422,7 +433,7 @@ let collect ctx tk with_type sort =
 	List.iter (fun (s,t) -> match follow t with
 		| TInst(c,_) ->
 			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	) ctx.type_params;
 
 	(* module types *)
@@ -458,8 +469,8 @@ let collect ctx tk with_type sort =
 			| [] -> ()
 			| s :: sl -> add_package (List.rev sl,s)
 		in
-		List.iter (fun ((file,cfile),_) ->
-			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+		List.iter (fun ((file_key,cfile),_) ->
+			let module_name = CompilationServer.get_module_name_of_cfile cfile.c_file_path cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
 			(* In legacy mode we only show toplevel types. *)
 			if is_legacy_completion && cfile.c_package <> [] then begin
@@ -470,7 +481,7 @@ let collect ctx tk with_type sort =
 			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
+				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) cfile.c_file_path;
 				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
 		) files;

@@ -38,7 +38,7 @@ let thread_safe_value_string env v =
 	let ctx = get_ctx() in
 	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
 	| VString s -> s.sstring
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let var_to_json name value vio env =
 	let jv t v num_children =
@@ -630,7 +630,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
 			let bps = List.map (parse_breakpoint hctx) bps in
-			let hash = hash (Path.unique_full_path (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
+			let hash = hash (Path.UniqueKey.to_string (Path.UniqueKey.create (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
 			let h =
 				try
 					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in

@@ -121,7 +121,7 @@ let typing_timer ctx need_type f =
 			exit();
 			raise e
 
-let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((string * bool * t) list * t * tclass * Type.tclass_field) * (Interp.value list -> Interp.value option))) ref = ref (fun _ _ _ _ -> assert false)
+let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((string * bool * t) list * t * tclass * Type.tclass_field) * (Interp.value list -> Interp.value option))) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
@@ -140,7 +140,7 @@ let make_macro_api ctx p =
 			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
 			| ParseSuccess((_,[ETypedef t,_]),_,_) -> t.d_meta
 			| ParseError(_,_,_) -> error "Malformed metadata string" p
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		with _ ->
 			error "Malformed metadata string" p
 	in
@@ -234,7 +234,7 @@ let make_macro_api ctx p =
 					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
 					| ParseSuccess((_,[ETypedef { d_data = ct },_]),_,_) -> Some ct
 					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
 				match v with
@@ -300,7 +300,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr") in
-			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+			let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode ctx v "TypeDefinition" ttype p f in
@@ -359,7 +359,7 @@ let make_macro_api ctx p =
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
-		MacroApi.current_macro_module = (fun () -> assert false);
+		MacroApi.current_macro_module = (fun () -> die "" __LOC__);
 		MacroApi.use_cache = (fun() ->
 			!macro_enable_cache
 		);
@@ -414,7 +414,7 @@ let rec init_macro_interp ctx mctx mint =
 
 and flush_macro_context mint ctx =
 	let t = macro_timer ctx ["flush"] in
-	let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+	let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 	ctx.g.do_finalize mctx;
 	let _, types, modules = ctx.g.do_generate mctx in
 	mctx.com.types <- types;
@@ -433,15 +433,30 @@ and flush_macro_context mint ctx =
 	let minimal_restore t =
 		match t with
 		| TClassDecl c ->
-			let meta = c.cl_meta in
-			let path = c.cl_path in
-			c.cl_restore <- (fun() -> c.cl_meta <- meta; c.cl_path <- path);
+			let mk_field_restore f =
+				let e = f.cf_expr in
+				(fun () -> f.cf_expr <- e)
+			in
+			let meta = c.cl_meta
+			and path = c.cl_path
+			and field_restores = List.map mk_field_restore c.cl_ordered_fields
+			and static_restores = List.map mk_field_restore c.cl_ordered_statics
+			and ctor_restore = Option.map mk_field_restore c.cl_constructor
+			in
+			c.cl_restore <- (fun() ->
+				c.cl_meta <- meta;
+				c.cl_path <- path;
+				Option.may (fun fn -> fn()) ctor_restore;
+				List.iter (fun fn -> fn()) field_restores;
+				List.iter (fun fn -> fn()) static_restores;
+			);
 		| _ ->
 			()
 	in
 	let type_filters = [
+		Filters.remove_generic_base mctx;
 		Exceptions.patch_constructors mctx;
-		Filters.add_field_inits (StringMap.empty) mctx;
+		Filters.add_field_inits (RenameVars.init mctx.com) mctx;
 		minimal_restore;
 		Filters.apply_native_paths mctx
 	] in
@@ -524,20 +539,31 @@ let load_macro_module ctx cpath display p =
 let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let mpath, sub = (match List.rev (fst cpath) with
-		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
-		| _ -> cpath, None
-	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded,restore = load_macro_module ctx mpath display p in
-		let mt = Typeload.load_type_def mctx p (mk_type_path ?sub mpath) in
-		let cl, meth = (match mt with
-			| TClassDecl c ->
-				mctx.g.do_finalize mctx;
-				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
-			| _ -> error "Macro should be called on a class" p
+		let mpath, sub = (match List.rev (fst cpath) with
+			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
+			| _ -> cpath, None
 		) in
+		let mloaded,restore = load_macro_module ctx mpath display p in
+		let cl, meth =
+			try
+				if sub <> None then raise Not_found;
+				match mloaded.m_statics with
+				| None -> raise Not_found
+				| Some c ->
+					mctx.g.do_finalize mctx;
+					c, PMap.find f c.cl_statics
+			with Not_found ->
+				let name = Option.default (snd mpath) sub in
+				let path = fst mpath, name in
+				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
+				match mt with
+				| TClassDecl c ->
+					mctx.g.do_finalize mctx;
+					c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+				| _ -> error "Macro should be called on a class" p
+		in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
@@ -629,7 +655,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ ->
 			el,[]
 	in
-	let todo = ref [] in
 	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -649,36 +674,31 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let index = ref (-1) in
 		let constants = List.map (fun e ->
 			let p = snd e in
-			let e = (try
-				let e' = Texpr.type_constant_value ctx.com.basic e in
-				let rec loop e = match e with
-					| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
-						Lexer.remove_fmt_string p;
-						todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
-					| _ -> Type.iter loop e
-				in
-				loop e';
-				e
-			with Error (Custom _,_) ->
-				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
-				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
-					(EConst (Ident "__tmp"),p);
-				],p)
-			) in
+			let e =
+				if Texpr.is_constant_value ctx.com.basic e then
+					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
+					let rec loop e =
+						match e with
+						| (EConst (String (s,SSingleQuotes)),p) -> (EConst (String (s,SDoubleQuotes)), p)
+						| _ -> Ast.map_expr loop e
+					in
+					loop e
+				else
+					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
+			in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = try Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
-		List.iter (fun f -> f()) (!todo);
+		let elt = fst (Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
 				| TArray ({ eexpr = TArrayDecl [e] }, { eexpr = TConst (TInt index) }) -> List.nth el (Int32.to_int index), e
 				(* added by unify_call_args *)
 				| TConst TNull -> (EConst (Ident "null"),e.epos), e
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) in
 			let ictx = Interp.get_ctx() in
 			match mct with
@@ -710,7 +730,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					"Array<Field>",(fun () ->
 						let fields = if v = Interp.vnull then
 								(match ctx.get_build_infos() with
-								| None -> assert false
+								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
 								List.map Interp.decode_field (Interp.decode_array v)
@@ -785,7 +805,7 @@ let setup() =
 	Interp.setup Interp.macro_api
 
 let type_stored_expr ctx e1 =
-	let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
+	let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> die "" __LOC__ in
 	get_stored_typed_expr ctx.com id
 
 ;;

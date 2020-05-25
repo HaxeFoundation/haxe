@@ -31,7 +31,7 @@ let make_generic ctx ps pt p =
 		| (_,t1) :: l1 , t2 :: l2 ->
 			let t,eo = generic_check_const_expr ctx t2 in
 			(t1,(t,eo)) :: loop l1 l2
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	let name =
 		String.concat "_" (List.map2 (fun (s,_) t ->
@@ -155,15 +155,16 @@ let static_method_container gctx c cf p =
 		| TInst(cg,_) -> cg
 		| _ -> error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -198,17 +199,18 @@ let rec build_generic ctx c p tl =
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -249,7 +251,7 @@ let rec build_generic ctx c p tl =
 				| TInst(c,tl) as t ->
 					let t2 = TInst({c with cl_module = mg;},tl) in
 					(t,(t2,None)) :: subst,(s,t2) :: params
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
@@ -259,7 +261,7 @@ let rec build_generic ctx c p tl =
 					let tl1 = List.map (generic_substitute_type gctx) tl1 in
 					c.cl_kind <- KTypeParameter tl1;
 					s,t
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) params;
 			let f () =
 				let t = generic_substitute_type gctx cf_old.cf_type in
@@ -305,7 +307,7 @@ let rec build_generic ctx c p tl =
 				| KGeneric ->
 					(match build_generic ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
-					| _ -> assert false)
+					| _ -> die "" __LOC__)
 				| _ -> Some(cs,pl)
 		);
 		TypeloadFunction.add_constructor ctx cg false p;
@@ -322,7 +324,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (generic_substitute_type gctx (TInst (i, List.map (generic_substitute_type gctx) tl))) with
 			| TInst (i,tl) -> i, tl
-			| _ -> assert false)
+			| _ -> die "" __LOC__)
 		) c.cl_implements;
 		cg.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
@@ -330,7 +332,7 @@ let rec build_generic ctx c p tl =
 			f
 		) c.cl_ordered_fields;
 		cg.cl_overrides <- List.map (fun f ->
-			try PMap.find f.cf_name cg.cl_fields with Not_found -> assert false
+			try PMap.find f.cf_name cg.cl_fields with Not_found -> die "" __LOC__
 		) c.cl_overrides;
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin

@@ -55,7 +55,7 @@ let rec s_type ctx t =
 	| TAbstract (a,tl) ->
 		s_type_path a.a_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
-		"Void -> " ^ s_fun ctx t false
+		"() -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
 		let args = match l with
 			| [] -> "()"
@@ -402,6 +402,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TIdent s ->
 		tag "Ident" [s]
 
+(**
+	Shortcut to pretty-printing expressions for debugging purposes.
+*)
+let s_expr_debug e =
+	s_expr_pretty false "  " false (s_type (print_context())) e
+
 let s_types ?(sep = ", ") tl =
 	let pctx = print_context() in
 	String.concat sep (List.map (s_type pctx) tl)
@@ -423,6 +429,8 @@ let s_class_kind = function
 		"KGenericBuild"
 	| KAbstractImpl a ->
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
+	| KModuleFields m ->
+		Printf.sprintf "KModuleFields %s" (s_type_path m.m_path)
 
 module Printer = struct
 
@@ -469,7 +477,7 @@ module Printer = struct
 			| [] -> s
 			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
 			end
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl

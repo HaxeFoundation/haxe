@@ -177,7 +177,7 @@ module Pattern = struct
 		let tcl = get_general_module_type ctx mt p in
 		match tcl with
 			| TAbstract(a,_) -> unify ctx (TAbstract(a,[mk_mono()])) t p
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let rec make pctx toplevel t e =
 		let ctx = pctx.ctx in
@@ -325,7 +325,7 @@ module Pattern = struct
 				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
-				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
+				let ct = match e.eexpr with TConst ct -> ct | _ -> die "" __LOC__ in
 				PatConstructor(con_const ct p,[])
 			| EConst (Ident i) ->
 				begin match follow t with
@@ -350,7 +350,7 @@ module Pattern = struct
 							| TFun(args,r) ->
 								unify_expected r;
 								args
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						in
 						let rec loop el tl = match el,tl with
 							| [EConst (Ident "_"),p],(_,_,t) :: tl ->
@@ -547,7 +547,7 @@ module Case = struct
 				let e2 = collapse_case el in
 				EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 			| [] ->
-				assert false
+				die "" __LOC__
 		in
 		let e = collapse_case el in
 		let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
@@ -838,7 +838,7 @@ module Useless = struct
 			| [],_,_ ->
 				List.rev pAcc,List.rev qAcc,List.rev rAcc
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		loop [] [] [] pM qM rM
 
@@ -864,7 +864,7 @@ module Useless = struct
 						 		let rec loop acc k l = match l with
 						 			| x :: l when i = k -> x,(List.rev acc) @ l @ q
 						 			| x :: l -> loop (x :: acc) (k + 1) l
-						 			| [] -> assert false
+						 			| [] -> die "" __LOC__
 						 		in
 						 		loop [] 0 l
 						 	in
@@ -881,7 +881,7 @@ module Useless = struct
 							let p = punion (pos pat1) (pos pat2) in
 							let et = combine (et,p) (et3,p) in
 							(i + 1,et)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					) (0,True) r)
 			end
 		| (pat :: pl) ->
@@ -1235,7 +1235,7 @@ module Compile = struct
 				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
 				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
 			| _,[] ->
-				assert false
+				die "" __LOC__
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
 		let bindings = List.map (fun (a,b,c,_,_) -> (a,b,c)) bindings in
@@ -1291,7 +1291,7 @@ module TexprConverter = struct
 				if top then loop false s e1
 				else loop false (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
 			| TEnumParameter(e1,ef,i) ->
-				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> assert false in
+				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> die "" __LOC__ in
 				let l = make_offset_list i (arity - i - 1) s "_" in
 				loop false (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
 			| TLocal v ->
@@ -1451,7 +1451,7 @@ module TexprConverter = struct
 		let v_lookup = ref IntMap.empty in
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" __LOC__ in
 		let mk_index_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a

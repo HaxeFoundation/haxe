@@ -97,7 +97,8 @@ class Printer {
 
 	public function printConstant(c:Constant)
 		return switch (c) {
-			case CString(s): printString(s);
+			case CString(s, SingleQuotes): printFormatString(s);
+			case CString(s, _): printString(s);
 			case CIdent(s), CInt(s), CFloat(s):
 				s;
 			case CRegexp(s, opt): '~/$s/$opt';
@@ -120,14 +121,19 @@ class Printer {
 		return switch (ct) {
 			case TPath(tp): printTypePath(tp);
 			case TFunction(args, ret):
-				if (args.length == 1 && !(args[0].match(TNamed(_, _)) || args[0].match(TFunction(_, _)))) {
-					// This special case handles an ambigity between the old function syntax and the new
-					// (T) -> T parses as `TFunction([TParent(TPath)], ...`, rather than `TFunction([TPath], ...`
-					// We forgo patenthesis in this case so that (T) -> T doesn't get round-tripped to ((T)) -> T
-					printComplexType(args[0]) + " -> " + printComplexType(ret);
-				} else {
-					'(${args.map(printComplexType).join(", ")})' + " -> " + printComplexType(ret);
+				var wrapArgumentsInParentheses = switch args {
+					// type `:(a:X) -> Y` has args as [TParent(TNamed(...))], i.e `a:X` gets wrapped in `TParent()`. We don't add parentheses to avoid printing `:((a:X)) -> Y`
+					case [TParent(t)]: false;
+					// this case catches a single argument that's a type-path, so that `X -> Y` prints `X -> Y` not `(X) -> Y`
+					case [TPath(_) | TOptional(TPath(_))]: false;
+					default: true;
 				}
+				var argStr = args.map(printComplexType).join(", ");
+				(wrapArgumentsInParentheses ? '($argStr)' : argStr) + " -> " + (switch ret {
+					// wrap return type in parentheses if it's also a function
+					case TFunction(_): '(${printComplexType(ret)})';
+					default: (printComplexType(ret): String);
+				});
 			case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 			case TParent(ct): "(" + printComplexType(ct) + ")";
 			case TOptional(ct): "?" + printComplexType(ct);
@@ -152,7 +158,12 @@ class Printer {
 			case AExtern: "extern";
 		}
 
-	public function printField(field:Field)
+	public function printField(field:Field) {
+		inline function orderAccess(access: Array<Access>) {
+			// final should always be printed last
+			// (does not modify input array)
+			return access.has(AFinal) ? access.filter(a -> !a.match(AFinal)).concat([AFinal]) : access;
+		}
 		return (field.doc != null
 			&& field.doc != "" ? "/**\n"
 				+ tabs
@@ -163,12 +174,13 @@ class Printer {
 				+ "**/\n"
 				+ tabs : "")
 			+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
-			+ (field.access != null && field.access.length > 0 ? field.access.map(printAccess).join(" ") + " " : "")
+			+ (field.access != null && field.access.length > 0 ? orderAccess(field.access).map(printAccess).join(" ") + " " : "")
 			+ switch (field.kind) {
 				case FVar(t, eo): ((field.access != null && field.access.has(AFinal)) ? '' : 'var ') + '${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FProp(get, set, t, eo): 'var ${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FFun(func): 'function ${field.name}' + printFunction(func);
 			}
+	}
 
 	public function printTypeParamDecl(tpd:TypeParamDecl)
 		return tpd.name
@@ -208,9 +220,6 @@ class Printer {
 
 	public function printExpr(e:Expr)
 		return e == null ? "#NULL" : switch (e.expr) {
-			#if macro
-			case EConst(CString(s)): haxe.macro.MacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
-			#end
 			case EConst(c): printConstant(c);
 			case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 			case EBinop(op, e1, e2): '${printExpr(e1)} ${printBinop(op)} ${printExpr(e2)}';
@@ -250,7 +259,7 @@ class Printer {
 				tabs = old;
 				s + '\n$tabs}';
 			case ETry(e1, cl):
-				'try ${printExpr(e1)}' + cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
+				'try ${printExpr(e1)}' + cl.map(function(c) return ' catch(${c.name}${c.type == null ? '' : (':' + printComplexType(c.type))}) ${printExpr(c.expr)}').join("");
 			case EReturn(eo): "return" + opt(eo, printExpr, " ");
 			case EBreak: "break";
 			case EContinue: "continue";
@@ -368,6 +377,14 @@ class Printer {
 						}
 					].join("\n")
 					+ "\n}";
+				case TDField(kind, access):
+					tabs = old;
+					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "")
+					+ switch (kind) {
+						case FVar(type, eo): ((access != null && access.has(AFinal)) ? '' : 'var ') + '${t.name}' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FProp(get, set, type, eo): 'var ${t.name}($get, $set)' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FFun(func): 'function ${t.name}' + printFunction(func) + switch func.expr { case {expr: EBlock(_)}: ""; case _: ";"; };
+					}
 			} tabs = old;
 
 		return str;

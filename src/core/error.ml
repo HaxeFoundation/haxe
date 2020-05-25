@@ -160,7 +160,7 @@ module BetterErrors = struct
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
-			"Void -> ..."
+			"() -> ..."
 		| TFun (l,t) ->
 			let args = match l with
 				| [] -> "()"
@@ -242,7 +242,7 @@ module BetterErrors = struct
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->
-						assert false
+						die "" __LOC__
 				in
 				let s1,s2 = loop() in
 				let path1,params1 = get_params access_prev.acc_actual in

@@ -24,7 +24,7 @@ package cpp;
 
 using cpp.NativeString;
 
-@:native("hx::StdString const &")
+@:native("::hx::StdString const &")
 @:include("hx/StdString.h")
 @:structAccess
 extern class StdStringRef {

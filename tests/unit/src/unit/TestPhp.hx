@@ -173,8 +173,8 @@ class TestPhp extends Test
 	}
 
 	function testClosureComparison() {
-		var fn1:Void->Void;
-		var fn2:Void->Void;
+		var fn1:()->Void;
+		var fn2:()->Void;
 		eq(ClosureDummy.testStatic, ClosureDummy.testStatic);
 		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
 		// t(ClosureDummy.testStatic == ClosureDummy.testStatic);
@@ -345,7 +345,7 @@ enum Annotation {
 	Const(i:String);
 }
 
-private typedef Func = Void->Void;
+private typedef Func = ()->Void;
 
 private abstract FunctionCaller(Func->Void) to Func->Void {
 	public function new(f:Func->Void) this = f;

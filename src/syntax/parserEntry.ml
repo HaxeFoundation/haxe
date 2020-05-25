@@ -153,13 +153,13 @@ class condition_handler = object(self)
 		| e :: el ->
 			conditional_stack <- (self#negate e) :: el
 		| [] ->
-			assert false
+			die "" __LOC__
 
 	method cond_elseif (e : expr) =
 		self#cond_else;
 		self#cond_if' e;
 		match depths with
-		| [] -> assert false
+		| [] -> die "" __LOC__
 		| depth :: depths' ->
 			depths <- (depth + 1) :: depths'
 
@@ -169,7 +169,7 @@ class condition_handler = object(self)
 			else loop (d - 1) (List.tl el)
 		in
 		match depths with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| depth :: depths' ->
 				conditional_stack <- loop depth conditional_stack;
 				depths <- depths'
@@ -213,7 +213,7 @@ let parse ctx code file =
 	let old_macro = !in_macro in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
-	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
+	in_display_file := !in_display && display_position#is_in_file file;
 	syntax_errors := [];
 	let restore =
 		(fun () ->
@@ -402,8 +402,9 @@ let parse_string com s p error inlined =
 		syntax_errors := old_syntax_errors;
 		Lexer.restore old
 	in
-	Lexer.init p.pfile;
-	if not inlined then begin
+	if inlined then
+		Lexer.init p.pfile
+	else begin
 		display_position#reset;
 		in_display_file := false;
 	end;

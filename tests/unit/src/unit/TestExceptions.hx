@@ -4,6 +4,7 @@ import haxe.Exception;
 import haxe.ValueException;
 import haxe.CallStack;
 import utest.Assert;
+import unit.HelperMacros;
 
 private enum EnumError {
 	EError;
@@ -303,6 +304,17 @@ class TestExceptions extends Test {
 		return result;
 	}
 
+	function testCatch_noTypeHint() {
+		try {
+			throw new Exception('Terrible error');
+		} catch(e) {
+			Assert.notNull(Std.downcast(e, Exception));
+		}
+
+		HelperMacros.parseAndPrint('try { } catch(e) { }');
+		eq('haxe.Exception', HelperMacros.typeString(try throw new Exception('') catch(e) e));
+	}
+
 #if java
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
@@ -315,7 +327,7 @@ class TestExceptions extends Test {
 		eq("caught Throwable: msg", raise(() -> throw new java.lang.Exception("msg")));
 	}
 
-	function raise<T>(f:Void -> String) {
+	function raise<T>(f:() -> String) {
 		return try {
 			f();
 		} catch(e:NativeExceptionChild) {

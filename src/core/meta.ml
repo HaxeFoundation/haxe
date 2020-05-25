@@ -40,7 +40,7 @@ let get_documentation d =
 			| HasParam s -> params := s :: !params
 			| Platforms fl -> pfs := fl @ !pfs
 			| UsedOn ul -> used := ul @ !used
-			| UsedInternally -> assert false
+			| UsedInternally -> die "" __LOC__
 			| Link _ -> ()
 		) flags;
 		let params = (match List.rev !params with

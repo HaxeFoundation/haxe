@@ -146,9 +146,7 @@ let spr ctx s =
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> begin
-            Buffer.add_string ctx.buf s
-        end)
+    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -237,7 +235,7 @@ let mk_mr_box ctx e =
         match follow e.etype with
         | TInst (c,_) ->
             String.concat ", " (List.map (fun f -> "\"" ^ f.cf_name ^ "\"") c.cl_ordered_fields)
-        | _ -> assert false
+        | _ -> Globals.die "" __LOC__
     in
     add_feature ctx "use._hx_box_mr";
     add_feature ctx "use._hx_table";
@@ -251,7 +249,7 @@ let mk_mr_select com e ecall name =
         | TInst (c,_) ->
             index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
         | _ ->
-            assert false
+            Globals.die "" __LOC__
     in
     if i == 0 then
         mk_lua_code com "{0}" [ecall] e.etype e.epos
@@ -320,7 +318,7 @@ let gen_constant ctx p = function
     | TBool b -> spr ctx (if b then "true" else "false")
     | TNull -> spr ctx "nil"
     | TThis -> spr ctx (this ctx)
-    | TSuper -> assert false
+    | TSuper -> Globals.die "" __LOC__
 
 
 
@@ -460,7 +458,7 @@ and gen_call ctx e el =
          print ctx "}, %i)" !count;
      | TIdent "`trace", [e;infos] ->
          if has_feature ctx "haxe.Log.trace" then begin
-             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
+             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> Globals.die "" __LOC__) in
              spr ctx (ctx.type_accessor t);
              spr ctx ".trace(";
              gen_value ctx e;
@@ -691,7 +689,7 @@ and gen_expr ?(local=true) ctx e = begin
          | [(EConst(String(id,_)), _)] ->
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
-             assert false);
+             Globals.die "" __LOC__);
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
@@ -781,7 +779,7 @@ and gen_expr ?(local=true) ctx e = begin
                         | TInst (c, _) ->
                             List.map (fun f -> id ^ "_" ^name ^ "_" ^ f.cf_name) c.cl_ordered_fields
                         | _ ->
-                            assert false
+                            Globals.die "" __LOC__
                     in
                     spr ctx "local ";
                     spr ctx (String.concat ", " names);
@@ -956,7 +954,7 @@ and gen_expr ?(local=true) ctx e = begin
         | [v,e] ->
             print ctx "  local %s = _hx_result;" v.v_name;
             gen_block_element ctx e;
-        | _ -> assert false
+        | _ -> Globals.die "" __LOC__
         );
         bend();
         newline ctx;
@@ -1058,7 +1056,7 @@ and gen_block_element ctx e  =
             else (match eelse with
                 | [] -> ()
                 | [e] -> gen_block_element ctx e
-                | _ -> assert false)
+                | _ -> Globals.die "" __LOC__)
         | _ ->
             newline ctx;
             gen_expr ctx e;
@@ -1104,7 +1102,7 @@ and gen_anon_value ctx e =
 and gen_value ctx e =
     let assign e =
         mk (TBinop (Ast.OpAssign,
-                    mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
+                    mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
                     e
                    )) e.etype e.epos
     in
@@ -1815,7 +1813,7 @@ let alloc_ctx com =
         break_depth = 0;
         handle_continue = false;
         id_counter = 0;
-        type_accessor = (fun _ -> assert false);
+        type_accessor = (fun _ -> Globals.die "" __LOC__);
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
@@ -2029,13 +2027,12 @@ let generate com =
     newline ctx;
 
     let b = open_block ctx in
-    println ctx "local _hx_static_init = function()";
-    (* Generate statics *)
-    List.iter (generate_static ctx) (List.rev ctx.statics);
     (* Localize init variables inside a do-block *)
-    (* Note: __init__ logic can modify static variables. *)
+    println ctx "local _hx_static_init = function()";
     (* Generate static inits *)
     List.iter (gen_block_element ctx) (List.rev ctx.inits);
+    (* Generate statics *)
+    List.iter (generate_static ctx) (List.rev ctx.statics);
     b();
     newline ctx;
     println ctx "end";
@@ -2084,9 +2081,25 @@ let generate com =
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
-    (match com.main with
+    match com.main with
      | None -> ()
-     | Some e -> gen_expr ctx e; newline ctx);
+     | Some e ->
+        spr ctx "_G.xpcall(";
+        (match e.eexpr with
+         | TCall(e2,[]) ->
+            gen_value ctx e2;
+         | _->
+            let fn =
+                {
+                    tf_args = [];
+                    tf_type = com.basic.tvoid;
+                    tf_expr = mk (TBlock [e]) com.basic.tvoid e.epos;
+                }
+            in
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
+        );
+        spr ctx ", _hx_error)";
+        newline ctx;
 
     if anyExposed then
         println ctx "return _hx_exports";

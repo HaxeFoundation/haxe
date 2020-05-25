@@ -121,17 +121,17 @@ let prepare com =
 			let is_true defines e =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
-			Hashtbl.iter (fun file cfile ->
-				if DisplayPosition.display_position#is_in_file file then begin
+			Hashtbl.iter (fun file_key cfile ->
+				if DisplayPosition.display_position#is_in_file cfile.CompilationServer.c_file_path then begin
 					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
-						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file in
+						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file_key in
 						(* Intersect *)
 						let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
-						Hashtbl.replace dctx.dead_blocks file dead_blocks2
+						Hashtbl.replace dctx.dead_blocks file_key dead_blocks2
 					with Not_found ->
-						Hashtbl.add dctx.dead_blocks file dead_blocks
+						Hashtbl.add dctx.dead_blocks file_key dead_blocks
 				end
 			) cc#get_files
 		| None ->

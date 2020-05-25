@@ -95,18 +95,14 @@ let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s : Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
 let get_exc_error_message ctx v stack p =
-	if is v key_haxe_Exception then
+	let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
+	let pl = List.filter (fun p -> p <> null_pos) pl in
+	match pl with
+	| [] ->
 		uncaught_exception_string v p ""
-	else begin
-		let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
-		let pl = List.filter (fun p -> p <> null_pos) pl in
-		match pl with
-		| [] ->
-			uncaught_exception_string v p ""
-		| _ ->
-			let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
-			Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
-	end
+	| _ ->
+		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
+		Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
 
 let build_exception_stack ctx env =
 	let eval = env.env_eval in
@@ -116,7 +112,7 @@ let build_exception_stack ctx env =
 			List.rev acc
 		else match env'.env_parent with
 			| Some env -> loop acc env
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	let d = match eval.env with
 	| Some env -> loop [] env
@@ -146,12 +142,28 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
-			let v1 = field v key_message in
+			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
 			GlobalState.get_ctx_ref := prev;
 			final();
-			match v1,v2 with
-				| VString s,VInstance {ikind = IPos p} ->
+			match v1 with
+				| VString s ->
+					let p =
+						match v2 with
+						| VInstance { ikind = IPos p } -> p
+						| VObject o ->
+							(try
+								let fields = object_fields o in
+								let min = match List.assoc key_min fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
+								and max = match List.assoc key_max fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
+								and file = match List.assoc key_file fields with VString s -> s.sstring | _ -> raise Not_found
+								in
+								{ pmin = min; pmax = max; pfile = file }
+							with Not_found ->
+								null_pos
+							)
+						| _ -> null_pos
+					in
 					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
 					Error.error "Something went wrong" null_pos

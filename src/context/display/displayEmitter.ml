@@ -101,8 +101,10 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
 				snd c.cl_path,SKConstructor cf
+			| _,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				cf.cf_name,SKField (cf,Some c.cl_path)
 			| _ ->
-				cf.cf_name,SKField cf
+				cf.cf_name,SKField (cf,None)
 		in
 		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->

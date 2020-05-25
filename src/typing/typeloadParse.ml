@@ -112,8 +112,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file = Path.unique_full_path file in
-		if List.exists (fun path -> ExtString.String.starts_with file (try Path.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+		let file_key = Path.UniqueKey.create file in
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (Path.UniqueKey.create path)) com.std_path then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com file p in
@@ -123,14 +123,15 @@ let resolve_module_file com m remap p =
 			| (EEnum d,_) :: _ -> d.d_meta
 			| (EAbstract d,_) :: _ -> d.d_meta
 			| (ETypedef d,_) :: _ -> d.d_meta
+			| (EStatic d,_) :: _ -> d.d_meta
 			| [] -> []
 		in
-		let meta =  match parse_result with
+		let meta = match parse_result with
 			| ParseSuccess((_,decls),_,_) -> loop decls
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
-			let x = (match fst m with [] -> assert false | x :: _ -> x) in
+			let x = (match fst m with [] -> die "" __LOC__ | x :: _ -> x) in
 			raise (Forbid_package ((x,m,p),[],platform_name_macro com));
 		end;
 	end;
@@ -212,7 +213,7 @@ so it should be avoided if backwards-compatibility with earlier versions is need
 					DisplayException.raise_hover (CompletionItem.make_ci_define n (match v with
 						| TNull -> None
 						| TString s -> Some (StringHelper.s_escape s)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					) (tpair com.basic.tstring)) None p
 				| _ ->
 					()
@@ -337,6 +338,7 @@ let parse_module ctx m p =
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
 			| EAbstract d -> build AbPrivate d
+			| EStatic d -> build (AStatic,null_pos) d
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else

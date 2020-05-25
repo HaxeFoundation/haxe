@@ -78,7 +78,7 @@ let normalize_path path =
 		| Str.Text t :: [] ->
 			List.rev (t :: acc)
 		| Str.Text _ :: Str.Text  _ :: _ ->
-			assert false
+			Globals.die "" __LOC__
 	in
 	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
@@ -95,13 +95,34 @@ let get_real_path =
 	else
 		get_full_path
 
-(** Returns absolute path guaranteed to be the same for different letter case.
-    Use where equality comparison is required, lowercases the path on Windows *)
-let unique_full_path =
-	if Globals.is_windows then
-		(fun f -> String.lowercase (get_full_path f))
-	else
-		get_full_path
+module UniqueKey : sig
+	type t
+	(**
+		Returns absolute path guaranteed to be the same for different letter case.
+		Use where equality comparison is required, lowercases the path on Windows
+	*)
+	val create : string -> t
+	(**
+		Check if the first key starts with the second key
+	*)
+	val starts_with : t -> t -> bool
+	(**
+		Get string representation of a key
+	*)
+	val to_string : t -> string
+end = struct
+	type t = string
+	let create =
+		if Globals.is_windows then
+			(fun f -> String.lowercase (get_full_path f))
+		else
+			get_full_path
+
+	let starts_with subj start =
+		ExtString.String.starts_with subj start
+
+	let to_string k = k
+end
 
 let add_trailing_slash p =
 	let l = String.length p in
@@ -163,15 +184,18 @@ let module_name_of_file file =
 	| s :: _ ->
 		let s = match List.rev (ExtString.String.nsplit s ".") with
 		| [s] -> s
-		| _ :: sl -> String.concat "." (List.rev sl)
+		(* file_ext; module_name *)
+		| [_; s] -> s
+		(* file_ext; platform_ext; ...module_name *)
+		| _ :: _ :: sl -> String.concat "." (List.rev sl)
 		| [] -> ""
 		in
 		s
 	| [] ->
-		assert false
+		Globals.die "" __LOC__
 
 let rec create_file bin ext acc = function
-	| [] -> assert false
+	| [] -> Globals.die "" __LOC__
 	| d :: [] ->
 		let d = make_valid_filename d in
 		let maxlen = 200 - String.length ext in
@@ -248,13 +272,18 @@ module FilePath = struct
 			in
 			let file,ext = if String.length path = 0 then
 				None,None
-			else begin
+			else begin try
 				let cp = String.rindex path '.' in
-				if cp <> -1 then begin
-					let file,ext = split path cp in
-					Some file,Some ext
-				end else
-					Some path,None
+				let file,ext = split path cp in
+				Some file,Some ext
+			with Not_found ->
+				Some path,None
 			end in
 			create dir file ext backslash
+
+	let name_and_extension path = match path.file_name with
+		| None -> failwith "File path has no name"
+		| Some name -> match path.extension with
+			| None -> name
+			| Some ext -> name ^ "." ^ ext
 end

@@ -22,21 +22,21 @@ let collect_statistics ctx pfilter with_expressions =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
-	let full_path =
+	let path_key =
 		let paths = Hashtbl.create 0 in
 		(fun path ->
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = Path.unique_full_path path in
+				let unique = Path.UniqueKey.create path in
 				Hashtbl.add paths path unique;
 				unique
 		)
 	in
 	let check_pos = match pfilter with
 		| SFNone -> (fun p -> p <> null_pos)
-		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && p.pfile = full_path p'.pfile)
-		| SFFile s -> (fun p -> full_path p.pfile = s)
+		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && path_key p.pfile = path_key p'.pfile)
+		| SFFile s -> (fun p -> path_key p.pfile = path_key s)
 	in
 	let add_relation p r =
 		if check_pos p then try
@@ -153,7 +153,7 @@ let collect_statistics ctx pfilter with_expressions =
 					| FInstance(c,_,cf) | FClosure(Some(c,_),cf) ->
 						field_reference (Some c) cf e.epos
 					| FAnon cf ->
-						declare  (SKField cf) cf.cf_name_pos;
+						declare  (SKField (cf,None)) cf.cf_name_pos;
 						field_reference None cf e.epos
 					| FEnum(_,ef) ->
 						add_relation ef.ef_name_pos (Referenced,patch_string_pos e.epos ef.ef_name)
@@ -232,7 +232,7 @@ let collect_statistics ctx pfilter with_expressions =
 			if c.cl_interface then
 				collect_implementations c;
 			let field cf =
-				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
+				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c.cl_path)) cf.cf_name_pos;
 				if with_expressions then begin
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e

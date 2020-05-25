@@ -1,0 +1,8 @@
+-main Main
+--macro Macro.lowerCase()
+--macro Macro.UpperCase()
+--macro Macro.Macro.lowerCase()
+--macro Macro.Macro.UpperCase()
+-lib utest
+-js test.js
+-cmd node test.js

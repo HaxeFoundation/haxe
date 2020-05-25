@@ -330,7 +330,7 @@ typedef Catch = {
 	/**
 		The type of the catch.
 	**/
-	var type:ComplexType;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the catch.
@@ -953,35 +953,28 @@ enum TypeDefKind {
 		Represents an abstract kind.
 	**/
 	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
+
+	/**
+		Represents a module-level field.
+	**/
+	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
 }
 
 /**
 	This error can be used to handle or produce compilation errors in macros.
 **/
-class Error {
-	/**
-		The error message.
-	**/
-	public var message:String;
-
+class Error extends Exception {
 	/**
 		The position of the error.
 	**/
-	public var pos:Expr.Position;
+	public var pos:Position;
 
 	/**
 		Instantiates an error with given message and position.
 	**/
-	public function new(m, p) {
-		this.message = m;
-		this.pos = p;
-	}
-
-	/**
-		Returns the string representation of the error.
-	**/
-	function toString() {
-		return message;
+	public function new(message:String, pos:Position, ?previous:Exception) {
+		super(message, previous);
+		this.pos = pos;
 	}
 }
 

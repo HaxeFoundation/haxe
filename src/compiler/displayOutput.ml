@@ -78,7 +78,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ | ITDefine _ -> die "" __LOC__
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -141,7 +141,7 @@ let print_type t p doc =
 	if p = null_pos then
 		Buffer.add_string b "<type"
 	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" (Path.unique_full_path file) line in
+		let error_printer file line = Printf.sprintf "%s:%d:" (Path.get_full_path file) line in
 		let epos = Lexer.get_error_pos error_printer p in
 		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\"")
 	end;
@@ -235,7 +235,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
-		let file_unique = Path.unique_full_path file in
+		let file_unique = Path.UniqueKey.create file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
@@ -243,7 +243,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				DMDefinition
 			| "usage" ->
 				Common.define com Define.NoCOpt;
-				DMUsage false
+				DMUsage (false,false,false)
 			(*| "rename" ->
 				Common.define com Define.NoCOpt;
 				DMUsage true*)
@@ -284,12 +284,12 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
-			pfile = file_unique;
+			pfile = Path.get_full_path file;
 			pmin = pos;
 			pmax = pos;
 		}
 
-let file_input_marker = Path.unique_full_path "? input"
+let file_input_marker = Path.get_full_path "? input"
 
 type display_path_kind =
 	| DPKNormal of path
@@ -354,7 +354,7 @@ let process_display_file com classes =
 						classes := path :: !classes;
 						DPKNormal path
 					| e ->
-						assert false
+						die "" __LOC__
 				in
 				path
 			| None ->
@@ -413,7 +413,7 @@ let promote_type_hints tctx =
 let process_global_display_mode com tctx =
 	promote_type_hints tctx;
 	match com.display.dms_kind with
-	| DMUsage with_definition ->
+	| DMUsage (with_definition,_,_) ->
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
@@ -428,7 +428,8 @@ let process_global_display_mode com tctx =
 			| None -> []
 			| Some cs ->
 				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
-				List.fold_left (fun acc (file,cfile) ->
+				List.fold_left (fun acc (file_key,cfile) ->
+					let file = cfile.CompilationServer.c_file_path in
 					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
@@ -490,7 +491,7 @@ let handle_syntax_completion com kind subj =
 			Buffer.add_string b "<il>\n";
 			List.iter (fun item -> match item.ci_kind with
 				| ITKeyword kwd -> Buffer.add_string b (Printf.sprintf "<i k=\"keyword\">%s</i>" (s_keyword kwd));
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) l;
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in

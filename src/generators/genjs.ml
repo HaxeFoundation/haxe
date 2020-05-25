@@ -151,6 +151,18 @@ let static_field ctx c f =
 	| s ->
 		field s
 
+let module_field m f =
+	try
+		fst (TypeloadCheck.get_native_name f.cf_meta)
+	with Not_found ->
+		Path.flat_path m.m_path ^ "_" ^ f.cf_name
+
+let module_field_expose_path mpath f =
+	try
+		fst (TypeloadCheck.get_native_name f.cf_meta)
+	with Not_found ->
+		(dot_path mpath) ^ "." ^ f.cf_name
+
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
@@ -339,7 +351,7 @@ let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_iterator_field_access fa = match field_name fa with
 	| "iterator" | "keyValueIterator" -> true
-	| _ -> true
+	| _ -> false
 
 let is_dynamic_iterator ctx e =
 	let check x =
@@ -379,6 +391,9 @@ let is_code_injection_function e =
 		-> true
 	| _ ->
 		false
+
+let var ctx =
+	if ctx.es_version >= 6 then "let" else "var"
 
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
@@ -462,7 +477,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx "]";
 	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
-			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
+			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> die "" __LOC__) in
 			spr ctx (ctx.type_accessor t);
 			spr ctx ".trace(";
 			gen_value ctx e;
@@ -528,6 +543,14 @@ and gen_expr ctx e =
 		spr ctx (field (field_name f));
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
+	| TBinop ((OpEq | OpNotEq) as op,{ eexpr = TField (x,(FClosure _ as f)) },{ eexpr = TConst TNull }) ->
+		gen_value ctx x;
+		spr ctx (field (field_name f));
+		print ctx " %s null" (Ast.s_binop op)
+	| TBinop ((OpEq | OpNotEq) as op,{ eexpr = TConst TNull },{ eexpr = TField (x,(FClosure _ as f)) }) ->
+		print ctx "null %s " (Ast.s_binop op);
+		gen_value ctx x;
+		spr ctx (field (field_name f))
 	| TBinop (op,e1,e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
@@ -582,7 +605,7 @@ and gen_expr ctx e =
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
 		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
-			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" __LOC__ ) in
 			print ctx ".%s" (ident fname)
 		else
 			print ctx "[%i]" (i + 2)
@@ -590,6 +613,8 @@ and gen_expr ctx e =
 		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
+	| TField (_,FStatic ({ cl_kind = KModuleFields m },f)) ->
+		spr ctx (module_field m f)
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
@@ -612,7 +637,7 @@ and gen_expr ctx e =
 			gen_expr ctx e
 		| TBreak ->
 			print ctx "break _hx_loop%s" n;
-		| _ -> assert false)
+		| _ -> die "" __LOC__)
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo ->
@@ -648,7 +673,7 @@ and gen_expr ctx e =
 		spr ctx "throw ";
 		gen_value ctx e;
 	| TVar (v,eo) ->
-		spr ctx "var ";
+		spr ctx ((var ctx) ^ " ");
 		check_var_declaration v;
 		spr ctx (ident v.v_name);
 		begin match eo with
@@ -722,7 +747,7 @@ and gen_expr ctx e =
 				let id = ctx.id_counter in
 				ctx.id_counter <- ctx.id_counter + 1;
 				let name = "$it" ^ string_of_int id in
-				print ctx "var %s = " name;
+				print ctx "%s %s = " (var ctx) name;
 				gen_value ctx it;
 				newline ctx;
 				name
@@ -730,7 +755,7 @@ and gen_expr ctx e =
 		print ctx "while( %s.hasNext() ) {" it;
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "var %s = %s.next()" (ident v.v_name) it;
+		print ctx "%s %s = %s.next()" (var ctx) (ident v.v_name) it;
 		gen_block_element ctx e;
 		bend();
 		newline ctx;
@@ -807,31 +832,31 @@ and gen_function ?(keyword="function") ctx f pos =
 	ctx.in_loop <- snd old;
 	ctx.separator <- true
 
-and gen_block_element ?(after=false) ctx e =
+and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 	match e.eexpr with
-	| TBlock el ->
-		List.iter (gen_block_element ~after ctx) el
+	| TBlock el when not keep_blocks ->
+		List.iter (gen_block_element ~newline_after ctx) el
 	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
-			gen_block_element ~after ctx eif
+			gen_block_element ~newline_after ctx eif
 		else (match eelse with
 			| [] -> ()
-			| [e] -> gen_block_element ~after ctx e
-			| _ -> assert false)
+			| [e] -> gen_block_element ~newline_after ctx e
+			| _ -> die "" __LOC__)
 	| TFunction _ ->
-		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+		gen_block_element ~newline_after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
-		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
+		List.iter (fun (_,e) -> gen_block_element ~newline_after ctx e) fl
 	| _ ->
-		if not after then newline ctx;
+		if not newline_after then newline ctx;
 		gen_expr ctx e;
-		if after then newline ctx
+		if newline_after then newline ctx
 
 and gen_value ctx e =
 	let clear_mapping = add_mapping ctx e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
-			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
+			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
 			e
 		)) e.etype e.epos
 	in
@@ -1073,6 +1098,31 @@ let check_field_name c f =
 let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
+
+let gen_module_fields ctx m c fl =
+	List.iter (fun f ->
+		let name = module_field m f in
+		match f.cf_expr with
+		| None when not (is_physical_field f) ->
+			()
+		| None ->
+			print ctx "var %s = null" name;
+			newline ctx
+		| Some e ->
+			match e.eexpr with
+			| TFunction fn ->
+				ctx.id_counter <- 0;
+				print ctx "function %s" name;
+				gen_function ~keyword:"" ctx fn e.epos;
+				ctx.separator <- false;
+				newline ctx;
+				process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s ->
+					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
+					newline ctx
+				)
+			| _ -> 
+				ctx.statics <- (c,f,e) :: ctx.statics
+	) fl
 
 let gen_class_static_field ctx c cl_path f =
 	match f.cf_expr with
@@ -1429,10 +1479,14 @@ let generate_class ctx c =
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
 	| _ -> ());
-	if ctx.es_version >= 6 then
-		generate_class_es6 ctx c
-	else
-		generate_class_es3 ctx c
+	match c.cl_kind with
+	| KModuleFields m ->
+		gen_module_fields ctx m c c.cl_ordered_statics
+	| _ ->
+		if ctx.es_version >= 6 then
+			generate_class_es6 ctx c
+		else
+			generate_class_es3 ctx c
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1526,9 +1580,16 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	let cl_path = get_generated_class_path c in
-	process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
-	print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
+	begin
+	match c.cl_kind with 
+	| KModuleFields m ->
+		print ctx "var %s = " (module_field m f);
+		process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	| _ ->
+		let cl_path = get_generated_class_path c in
+		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
+	end;
 	gen_value ctx e;
 	newline ctx
 
@@ -1620,7 +1681,7 @@ let alloc_ctx com es_version =
 		in_value = None;
 		in_loop = false;
 		id_counter = 0;
-		type_accessor = (fun _ -> assert false);
+		type_accessor = (fun _ -> die "" __LOC__);
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
@@ -1672,11 +1733,18 @@ let generate com =
 		List.iter (
 			function
 			| TClassDecl c ->
-				let path = dot_path c.cl_path in
 				let add s = r := s :: !r in
-				process_expose c.cl_meta (fun () -> path) add;
+				let get_expose_path = 
+					match c.cl_kind with
+					| KModuleFields m ->
+						module_field_expose_path m.m_path
+					| _ ->
+						let path = dot_path c.cl_path in
+						process_expose c.cl_meta (fun () -> path) add;
+						fun f -> path ^ "." ^ f.cf_name
+				in
 				List.iter (fun f ->
-					process_expose f.cf_meta (fun () -> path ^ "." ^ f.cf_name) add
+					process_expose f.cf_meta (fun () -> get_expose_path f) add
 				) c.cl_ordered_statics
 			| _ -> ()
 		) com.types;
@@ -1884,7 +1952,7 @@ let generate com =
 		add_feature ctx "js.Lib.global";
 		print ctx "$global.$haxeUID |= 0;\n";
 	end;
-	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
+	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()

@@ -193,122 +193,6 @@ let dynarray_map f d =
 let dynarray_mapi f d =
 	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f i e)) d
 
-module TexprKindMapper = struct
-	type kind =
-		| KRead         (* Expression is read. *)
-		| KAccess       (* Structure of expression is accessed. *)
-		| KWrite        (* Expression is lhs of =. *)
-		| KReadWrite    (* Expression is lhs of += .*)
-		| KStore        (* Expression is stored (via =, += or in array/object declaration). *)
-		| KEq           (* Expression is lhs or rhs of == or != *)
-		| KEqNull       (* Expression is lhs or rhs of == null or != null *)
-		| KCalled       (* Expression is being called. *)
-		| KCallArgument (* Expression is call argument (leaves context). *)
-		| KReturn       (* Expression is returned (leaves context). *)
-		| KThrow        (* Expression is thrown (leaves context). *)
-
-	let rec map kind f e = match e.eexpr with
-		| TConst _
-		| TLocal _
-		| TBreak
-		| TContinue
-		| TTypeExpr _
-		| TIdent _ ->
-			e
-		| TArray(e1,e2) ->
-			let e1 = f KAccess e1 in
-			let e2 = f KRead e2 in
-			{ e with eexpr = TArray (e1,e2) }
-		| TBinop(OpAssign,e1,e2) ->
-			let e1 = f KWrite e1 in
-			let e2 = f KStore e2 in
-			{ e with eexpr = TBinop(OpAssign,e1,e2) }
-		| TBinop(OpAssignOp op,e1,e2) ->
-			let e1 = f KReadWrite e1 in
-			let e2 = f KStore e2 in
-			{ e with eexpr = TBinop(OpAssignOp op,e1,e2) }
-		| TBinop((OpEq | OpNotEq) as op,e1,e2) ->
-			let e1,e2 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
-				| TConst TNull,TConst TNull ->
-					let e1 = f KRead e1 in
-					let e2 = f KRead e2 in
-					e1,e2
-				| TConst TNull,_ ->
-					let e1 = f KRead e1 in
-					let e2 = f KEqNull e2 in
-					e1,e2
-				| _,TConst TNull ->
-					let e1 = f KEqNull e1 in
-					let e2 = f KRead e2 in
-					e1,e2
-				| _ ->
-					let e1 = f KEq e1 in
-					let e2 = f KEq e2 in
-					e1,e2
-			in
-			{e with eexpr = TBinop(op,e1,e2)}
-		| TBinop(op,e1,e2) ->
-			let e1 = f KRead e1 in
-			let e2 = f KRead e2 in
-			{ e with eexpr = TBinop(op,e1,e2) }
-		| TFor (v,e1,e2) ->
-			let e1 = f KRead e1 in
-			{ e with eexpr = TFor (v,e1,f KRead e2) }
-		| TWhile (e1,e2,flag) ->
-			let e1 = f KRead e1 in
-			{ e with eexpr = TWhile (e1,f KRead e2,flag) }
-		| TThrow e1 ->
-			{ e with eexpr = TThrow (f KThrow e1) }
-		| TEnumParameter (e1,ef,i) ->
-			{ e with eexpr = TEnumParameter(f KAccess e1,ef,i) }
-		| TEnumIndex e1 ->
-			{ e with eexpr = TEnumIndex (f KAccess e1) }
-		| TField (e1,v) ->
-			{ e with eexpr = TField (f KAccess e1,v) }
-		| TParenthesis e1 ->
-			{ e with eexpr = TParenthesis (f kind e1) }
-		| TUnop (op,pre,e1) ->
-			{ e with eexpr = TUnop (op,pre,f KRead e1) }
-		| TArrayDecl el ->
-			{ e with eexpr = TArrayDecl (List.map (f KStore) el) }
-		| TNew (t,pl,el) ->
-			{ e with eexpr = TNew (t,pl,List.map (f KCallArgument) el) }
-		| TBlock el ->
-			let rec loop acc el = match el with
-				| [e] -> f kind e :: acc
-				| e1 :: el -> loop (f KRead e1 :: acc) el
-				| [] -> []
-			in
-			let el = List.rev (loop [] el) in
-			{ e with eexpr = TBlock el }
-		| TObjectDecl el ->
-			{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f KStore e) el) }
-		| TCall (e1,el) ->
-			let e1 = f KCalled e1 in
-			{ e with eexpr = TCall (e1, List.map (f KCallArgument) el) }
-		| TVar (v,eo) ->
-			{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f KStore e)) }
-		| TFunction fu ->
-			{ e with eexpr = TFunction { fu with tf_expr = f KRead fu.tf_expr } }
-		| TIf (ec,e1,e2) ->
-			let ec = f KRead ec in
-			let e1 = f kind e1 in
-			{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f kind e)) }
-		| TSwitch (e1,cases,def) ->
-			let e1 = f KRead e1 in
-			let cases = List.map (fun (el,e2) -> List.map (f KRead) el, f kind e2) cases in
-			{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f kind e)) }
-		| TTry (e1,catches) ->
-			let e1 = f kind e1 in
-			{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f kind e) catches) }
-		| TReturn eo ->
-			{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f KReturn e)) }
-		| TCast (e1,t) ->
-			{ e with eexpr = TCast (f kind e1,t) }
-		| TMeta (m,e1) ->
-			{e with eexpr = TMeta(m,f kind e1)}
-end
-
 (*
 	This module rewrites some expressions to reduce the amount of special cases for subsequent analysis. After analysis
 	it restores some of these expressions back to their original form.
@@ -709,7 +593,10 @@ module Fusion = struct
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (ExtType.has_variable_semantics v.v_type) &&
+					not (
+						ExtType.has_variable_semantics v.v_type &&
+						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+					) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
@@ -749,7 +636,7 @@ module Fusion = struct
 					in
 					let e,_ = map_values check_assign e1 in
 					let e = match !e' with
-						| None -> assert false
+						| None -> die "" __LOC__
 						| Some(e1,f) ->
 							begin match e1.eexpr with
 								| TLocal v -> state#change_writes v (- !i + 1)
@@ -1082,8 +969,6 @@ module Fusion = struct
 end
 
 module Cleanup = struct
-	open TexprKindMapper
-
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
@@ -1150,15 +1035,7 @@ module Cleanup = struct
 			| _ ->
 				Type.map_expr loop e
 		in
-		let e = loop e in
-		let rec loop kind e = match kind,e.eexpr with
-			| KEqNull,TField(e1,FClosure(Some(c,tl),cf)) ->
-				let e1 = loop KAccess e1 in
-				{e with eexpr = TField(e1,FInstance(c,tl,cf))}
-			| _ ->
-				TexprKindMapper.map kind loop e
-		in
-		TexprKindMapper.map KRead loop e
+		loop e
 end
 
 module Purity = struct

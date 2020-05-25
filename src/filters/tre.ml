@@ -18,7 +18,7 @@ let rec assign_args vars exprs =
 	| (v, Some e) :: rest_vars, rest_exprs ->
 		let arg = { e with eexpr = TLocal v } in
 		{ e with eexpr = TBinop (OpAssign, arg, e) } :: assign_args rest_vars rest_exprs
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let replacement_for_TReturn ctx fn args p =
 	let temps_rev, args_rev = collect_new_args_values ctx args [] [] 0
@@ -102,10 +102,8 @@ let is_recursive_method_call cls field callee args =
 	| TField (_, FStatic (_, cf)), { eexpr = TLocal v } :: _ when has_meta Meta.Impl cf.cf_meta ->
 		cf == field && has_meta Meta.This v.v_meta
 	(* static method *)
-	| TField (_, FStatic (_, cf)), _
-	(* instance method *)
-	| TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)), _ ->
-		cf == field && not (FiltersCommon.is_overridden cls field)
+	| TField (_, FStatic (_, cf)), _ ->
+		cf == field
 	| _ -> false
 
 let rec transform_function ctx is_recursive_call fn =
@@ -200,23 +198,30 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 	| _ ->
 		check_expr (has_tail_recursion is_recursive_call cancel_tre function_end) e
 
-let run ctx e =
-	match e.eexpr with
-	| TFunction fn ->
-		let is_tre_eligible =
-			match ctx.curfield.cf_kind with
-			| Method MethDynamic -> false
-			| Method MethInline -> true
-			| Method _ when ctx.curfun = FunStatic -> true
-			| _ -> has_class_field_flag ctx.curfield CfFinal
-			in
-		let is_recursive_call callee args =
-			is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
-		in
-		if has_tail_recursion is_recursive_call false true fn.tf_expr then
-			(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
-			let fn = transform_function ctx is_recursive_call fn in
-			{ e with eexpr = TFunction fn }
-		else
-			e
-	| _ -> e
+let run ctx =
+	if Common.defined ctx.com Define.NoTre then
+		(fun e -> e)
+	else
+		(fun e ->
+			match e.eexpr with
+			| TFunction fn ->
+				let is_tre_eligible =
+					match ctx.curfield.cf_kind with
+					| Method MethDynamic -> false
+					| Method MethInline -> true
+					| Method MethNormal ->
+						PMap.mem ctx.curfield.cf_name ctx.curclass.cl_statics
+					| _ ->
+						has_class_field_flag ctx.curfield CfFinal
+					in
+				let is_recursive_call callee args =
+					is_tre_eligible && is_recursive_method_call ctx.curclass ctx.curfield callee args
+				in
+				if has_tail_recursion is_recursive_call false true fn.tf_expr then
+					(* print_endline ("TRE: " ^ ctx.curfield.cf_pos.pfile ^ ": " ^ ctx.curfield.cf_name); *)
+					let fn = transform_function ctx is_recursive_call fn in
+					{ e with eexpr = TFunction fn }
+				else
+					e
+			| _ -> e
+		)

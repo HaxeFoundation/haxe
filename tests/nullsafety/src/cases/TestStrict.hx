@@ -185,12 +185,12 @@ class TestStrict {
 	}
 
 	static function call_onNullableValue_shouldFail() {
-		var fn:Null<Void->Void> = null;
+		var fn:Null<()->Void> = null;
 		shouldFail(fn());
 	}
 
 	static function call_onNotNullableValue_shouldPass() {
-		var fn:Void->Void = function() {}
+		var fn:()->Void = function() {}
 		fn();
 	}
 
@@ -734,8 +734,8 @@ class TestStrict {
 	}
 
 	static function functionWithNullableReturnType_toVoidFunction_shouldPass() {
-		var n:Void->Null<String> = () -> null;
-		var f:Void->Void = n;
+		var n:()->Null<String> = () -> null;
+		var f:()->Void = n;
 	}
 
 	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
@@ -804,7 +804,7 @@ class TestStrict {
 			recursive(() -> a.length);
 		}
 	}
-	static function recursive(cb:Void->Int) {
+	static function recursive(cb:()->Int) {
 		if(Std.random(10) == 0) {
 			recursive(cb);
 		} else {
@@ -943,6 +943,31 @@ class TestStrict {
 
 	@:shouldFail @:nullSafety(InvalidArgument)
 	static function invalidMetaArgument_shouldFail() {}
+
+	static function issue9474_becomesSafeInIf() {
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = null
+		else a = 'hello';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hello'
+		else a = null;
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(a == null) a = 'hi';
+		var s:String = a;
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi'
+		else a = 'hello';
+		var s:String = a;
+	}
 }
 
 private class FinalNullableFields {

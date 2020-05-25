@@ -289,7 +289,7 @@ and context = {
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "" __LOC__)
 
 	let sid : int ref = ref (-1)
 
@@ -414,7 +414,7 @@ let create_env_info static pfile kind capture_infos num_locals num_captures =
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
-		pfile_unique = hash (Path.unique_full_path pfile);
+		pfile_unique = hash (Path.UniqueKey.to_string (Path.UniqueKey.create pfile));
 		capture_infos = capture_infos;
 		num_locals = num_locals;
 		num_captures = num_captures;

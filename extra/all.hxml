@@ -33,8 +33,7 @@
 -xml java.xml
 
 --next
--java all_jvm
--D jvm
+--jvm all_jvm
 -xml jvm.xml
 
 --next

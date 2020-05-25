@@ -75,7 +75,7 @@ let find_in_syntax symbols (pack,decls) =
 		| ETry(e1,catches) ->
 			expr e1;
 			List.iter (fun (_,th,e,_) ->
-				type_hint th;
+				Option.may type_hint th;
 				expr e
 			) catches;
 		| ECheckType(e1,th) ->
@@ -97,7 +97,9 @@ let find_in_syntax symbols (pack,decls) =
 		expr_opt f.f_expr
 	and field cff =
 		check KClassField (fst cff.cff_name);
-		match cff.cff_kind with
+		field_kind cff.cff_kind
+	and field_kind cff_kind =
+		match cff_kind with
 		| FVar(tho,eo) ->
 			Option.may type_hint tho;
 			expr_opt eo
@@ -152,6 +154,9 @@ let find_in_syntax symbols (pack,decls) =
 				| AbFrom th | AbTo th | AbOver th -> type_hint th
 				| _ -> ()
 			) d.d_flags;
+		| EStatic d ->
+			check KModuleType (fst d.d_name);
+			field_kind d.d_data
 	) decls
 
 let explore_uncached_modules tctx cs symbols =
@@ -160,8 +165,8 @@ let explore_uncached_modules tctx cs symbols =
 	let files = cc#get_files in
 	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
-	let acc = Hashtbl.fold (fun file cfile acc ->
-		let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+	let acc = Hashtbl.fold (fun file_key cfile acc ->
+		let module_name = CompilationServer.get_module_name_of_cfile cfile.CompilationServer.c_file_path cfile in
 		if Hashtbl.mem modules (cfile.c_package,module_name) then
 			acc
 		else try

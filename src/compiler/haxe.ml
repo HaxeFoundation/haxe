@@ -273,14 +273,14 @@ module Initialize = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> assert false);
+				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
 				"hl"
 			| Eval ->
 				add_std "eval";
 				"eval"
 end
 
-let generate tctx ext interp swf_header =
+let generate tctx ext interp jvm_flag swf_header =
 	let com = tctx.Typecore.com in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -299,7 +299,8 @@ let generate tctx ext interp swf_header =
 	begin match com.platform with
 		| Neko | Hl | Eval when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Cs | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| Java when not jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if interp then
@@ -324,7 +325,7 @@ let generate tctx ext interp swf_header =
 			Gencs.generate,"cs"
 		| Java ->
 			if Common.defined com Jvm then
-				Genjvm.generate,"java"
+				Genjvm.generate jvm_flag,"java"
 			else
 				Genjava.generate,"java"
 		| Python ->
@@ -334,7 +335,7 @@ let generate tctx ext interp swf_header =
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
 		| Cross ->
-			assert false
+			die "" __LOC__
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
 		let t = Timer.timer ["generate";name] in
@@ -394,7 +395,7 @@ let setup_common_context ctx com =
 	) (List.rev ctx.messages))) in
 	com.get_messages <- (fun () -> (List.map (fun msg ->
 		(match msg with
-		| CMError(_,_) -> assert false;
+		| CMError(_,_) -> die "" __LOC__;
 		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
 	) (filter_messages false (fun _ -> true))));
 	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
@@ -676,7 +677,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -696,6 +697,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
+	let jvm_flag = ref false in
 	let swf_version = ref false in
 	let native_libs = ref [] in
 	let add_native_lib file extern = native_libs := (file,extern) :: !native_libs in
@@ -713,10 +715,10 @@ try
 	in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
-		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
-		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
-		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
-		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
+		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","generate JavaScript code into target file");
+		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","generate Lua code into target file");
+		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","generate Flash SWF bytecode into target file");
+		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","generate Neko bytecode into target file");
 		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
@@ -727,7 +729,7 @@ try
 		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
 			Common.define com Define.Cppia;
 			Initialize.set_platform com Cpp file;
-		),"<file>","generate Cppia code into target file");
+		),"<file>","generate Cppia bytecode into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			Initialize.set_platform com Cs dir;
@@ -736,12 +738,18 @@ try
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
+		("Target",["--jvm"],[],Arg.String (fun dir ->
+			cp_libs := "hxjava" :: !cp_libs;
+			Common.define com Define.Jvm;
+			jvm_flag := true;
+			Initialize.set_platform com Java dir;
+		),"<file>","generate JVM bytecode into target file");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
-		),"<file>","generate Python code as target file");
+		),"<file>","generate Python code into target file");
 		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
-		),"<file>","compile HL code as target file");
+		),"<file>","generate HashLink .hl bytecode or .c code into target file");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
@@ -757,6 +765,7 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
+		("Target",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","interpret a Haxe module with command line arguments");
 
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
@@ -809,7 +818,6 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
-		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
@@ -881,8 +889,8 @@ try
 		),"<command>","run the specified command after successful compilation");
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
-		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
-		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all Haxe compilations separated by --next");
+		("Batch",["--next"],[], Arg.Unit (fun() -> die "" __LOC__), "","separate several haxe compilations");
+		("Batch",["--each"],[], Arg.Unit (fun() -> die "" __LOC__), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
@@ -929,7 +937,7 @@ try
 			wait_loop process_params com.verbose accept
 		),"[host:]port]","connect to the given port and wait for commands to run");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
-			assert false
+			die "" __LOC__
 		),"<[host:]port>","connect on the given port and run commands there");
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			(* This is handled by process_params, but passed through so we know we did something. *)
@@ -1057,7 +1065,7 @@ try
 		if ctx.has_error then raise Abort;
 		check_auxiliary_output com !xml_out !json_out;
 		com.stage <- CGenerationStart;
-		if not !no_output then generate tctx ext !interp !swf_header;
+		if not !no_output then generate tctx ext !interp !jvm_flag !swf_header;
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
@@ -1104,7 +1112,7 @@ with
 			| Some api ->
 				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
 				api.send_result (DisplayException.to_json ctx de)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
 		begin match com.json_out with
@@ -1113,7 +1121,7 @@ with
 			let fields = DisplayToplevel.collect tctx true Typecore.NoValue in
 			let jctx = Genjson.create_context Genjson.GMMinimum in
 			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
-		| _ -> assert false
+		| _ -> die "" __LOC__
 		end *)
 	| DisplayException(DisplayPackage pack) ->
 		DisplayPosition.display_position#reset;

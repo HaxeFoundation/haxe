@@ -142,12 +142,12 @@ exception WithTypeError of error_msg * pos
 
 let memory_marker = [|Unix.time()|]
 
-let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
-let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
-let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
-let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> assert false)
-let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
+let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
+let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
+let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> die "" __LOC__)
+let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LOC__)
+let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
+let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -227,28 +227,32 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let check_identifier_name ctx name kind p =
+let display_identifier_error ctx ?prepend_msg msg p =
+	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
+	display_error ctx (prepend ^ msg) p
+
+let check_identifier_name ?prepend_msg ctx name kind p =
 	if starts_with name '$' then
-		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
+		display_identifier_error ctx ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
 	else if not (Lexer.is_valid_identifier name) then
-		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+		display_identifier_error ctx ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
 
 let check_field_name ctx name p =
 	match name with
 	| "new" -> () (* the only keyword allowed in field names *)
 	| _ -> check_identifier_name ctx name "field" p
 
-let check_uppercase_identifier_name ctx name kind p =
+let check_uppercase_identifier_name ?prepend_msg ctx name kind p =
 	if String.length name = 0 then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty") p
+		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name must not be empty.") p
 	else if Ast.is_lower_ident name then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
+		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
 	else
-		check_identifier_name ctx name kind p
+		check_identifier_name ?prepend_msg ctx name kind p
 
-let check_module_path ctx path p =
-	check_uppercase_identifier_name ctx (snd path) "module" p;
-	let pack = fst path in
+let check_module_path ctx (pack,name) p =
+	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
+	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") ctx name "module" p;
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
@@ -348,15 +352,17 @@ let exc_protect ?(force=true) ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Path.unique_full_path file in
-	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
+	let key = Path.UniqueKey.create file in
+	let file = Path.get_full_path file in
+	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
 		} in
-		Hashtbl.add fake_modules file mdep;
+		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
@@ -449,7 +455,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
 					| Some cf ->

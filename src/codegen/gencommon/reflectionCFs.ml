@@ -536,7 +536,7 @@ let get_delete_field ctx cl is_dynamic =
 		] in
 
 		if ctx.rcf_optimize then
-			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+			let v_name = match tf_args with (v,_) :: _ -> v | _ -> Globals.die "" __LOC__ in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
@@ -647,7 +647,7 @@ let implement_dynamic_object_ctor ctx cl =
 			match e1.eexpr, e2.eexpr with
 				| TConst(TInt i1), TConst(TInt i2) -> compare i1 i2
 				| TConst(TString s1), TConst(TString s2) -> compare s1 s2
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 		in
 
 		let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
@@ -999,7 +999,7 @@ let implement_get_set ctx cl =
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
-				(if names = [] then assert false);
+				(if names = [] then Globals.die "" __LOC__);
 				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 			) fields in
 			let default = Some(do_default()) in
@@ -1482,8 +1482,8 @@ struct
 				match md with
 				| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-				| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
-					(* don't add any base classes to abstract implementations *)
+				| TClassDecl ({ cl_kind = KAbstractImpl _ | KModuleFields _ }) ->
+					(* don't add any base classes to abstract implementations and module field containers *)
 					()
 				| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_super <- Some (baseclass,[])
@@ -1518,7 +1518,7 @@ let has_field_override cl name =
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
+		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
 			if is_some cl.cl_super then begin
 				ignore (has_field_override cl (mk_internal_name "hx" "setField"));
 				ignore (has_field_override cl (mk_internal_name "hx" "setField_f"));

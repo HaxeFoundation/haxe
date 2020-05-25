@@ -93,7 +93,7 @@ class DisplayTestContext {
 		return if (result == null) [] else result.diagnostics;
 	}
 
-	public function hasErrorMessage(f:Void->Void, message:String) {
+	public function hasErrorMessage(f:()->Void, message:String) {
 		return try {
 			f();
 			false;

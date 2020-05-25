@@ -68,6 +68,16 @@ class Jvm {
 		return Type.enumEq(v1, v2);
 	}
 
+	static public function maybeEnumEq(v1:Dynamic, v2:Dynamic) {
+		if (!instanceof(v1, jvm.Enum)) {
+			return compare(v1, v2) == 0;
+		}
+		if (!instanceof(v2, jvm.Enum)) {
+			return compare(v1, v2) == 0;
+		}
+		return Type.enumEq(v1, v2);
+	}
+
 	// calls
 
 	static public function getArgumentTypes(args:NativeArray<Dynamic>):NativeArray<java.lang.Class<Dynamic>> {
@@ -297,9 +307,24 @@ class Jvm {
 		return new jvm.Closure(obj, method);
 	}
 
+	static function readStaticField<T>(cl:java.lang.Class<T>, name:String):Dynamic {
+		var methods = cl.getMethods();
+		for (m in methods) {
+			if (m.getName() == name && !m.isSynthetic()) {
+				return new jvm.Closure(null, m);
+			}
+		}
+		try {
+			var field = cl.getField(name);
+			field.setAccessible(true);
+			return field.get(null);
+		} catch (_:java.lang.NoSuchFieldException) {
+			return null;
+		}
+	}
+
 	static public function readFieldNoObject(obj:Dynamic, name:String):Dynamic {
-		var isStatic = instanceof(obj, java.lang.Class);
-		var cl = isStatic ? obj : (obj : java.lang.Object).getClass();
+		var cl = (obj : java.lang.Object).getClass();
 		try {
 			var field = cl.getField(name);
 			field.setAccessible(true);
@@ -309,21 +334,10 @@ class Jvm {
 				var methods = cl.getMethods();
 				for (m in methods) {
 					if (m.getName() == name && !m.isSynthetic()) {
-						var context = null;
-						if (!isStatic || cl == cast java.lang.Class) {
-							context = obj;
-						}
-						return new jvm.Closure(context, m);
+						return new jvm.Closure(obj, m);
 					}
 				}
-				if (isStatic) {
-					if (cl == cast java.lang.Class) {
-						break;
-					}
-					cl = cast java.lang.Class;
-				} else {
-					cl = cl.getSuperclass();
-				}
+				cl = cl.getSuperclass();
 			}
 			return null;
 		}
@@ -339,32 +353,35 @@ class Jvm {
 		if (instanceof(obj, jvm.Object)) {
 			return (cast obj : jvm.Object)._hx_getField(name);
 		}
+		if (instanceof(obj, java.lang.Class)) {
+			return readStaticField(cast obj, name);
+		}
 		if (instanceof(obj, java.NativeString)) {
 			switch (name) {
 				case "length":
 					return (obj : String).length;
 				case "charAt":
-					return (readFieldNoObject(jvm.StringExt, "charAt") : Closure).bindTo(obj);
+					return StringExt.charAt.bind(obj);
 				case "charCodeAt":
-					return (readFieldNoObject(jvm.StringExt, "charCodeAt") : Closure).bindTo(obj);
+					return StringExt.charCodeAt.bind(obj);
 				case "indexOf":
-					return (readFieldNoObject(jvm.StringExt, "indexOf") : Closure).bindTo(obj);
+					return StringExt.indexOf.bind(obj);
 				case "iterator":
 					return function() return new haxe.iterators.StringIterator(obj);
 				case "keyValueIterator":
 					return function() return new haxe.iterators.StringKeyValueIterator(obj);
 				case "lastIndexOf":
-					return (readFieldNoObject(jvm.StringExt, "lastIndexOf") : Closure).bindTo(obj);
+					return StringExt.lastIndexOf.bind(obj);
 				case "split":
-					return (readFieldNoObject(jvm.StringExt, "split") : Closure).bindTo(obj);
+					return StringExt.split.bind(obj);
 				case "substr":
-					return (readFieldNoObject(jvm.StringExt, "substr") : Closure).bindTo(obj);
+					return StringExt.substr.bind(obj);
 				case "substring":
-					return (readFieldNoObject(jvm.StringExt, "substring") : Closure).bindTo(obj);
+					return StringExt.substring.bind(obj);
 				case "toLowerCase":
-					return (readFieldNoObject(jvm.StringExt, "toLowerCase") : Closure).bindTo(obj);
+					return StringExt.toLowerCase.bind(obj);
 				case "toUpperCase":
-					return (readFieldNoObject(jvm.StringExt, "toUpperCase") : Closure).bindTo(obj);
+					return StringExt.toUpperCase.bind(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);

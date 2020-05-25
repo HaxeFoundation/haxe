@@ -12,27 +12,42 @@ open Typecore
 let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
-	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos (mk_type_path cl) in
-		let fmode, ft, r = (match t with
-		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
-		| TClassDecl c ->
+	| Some path ->
+		let p = null_pos in
+		let pack,name = path in
+		let m = Typeload.load_module ctx (pack,name) p in
+		let c,f =
+			let p = ref p in
 			try
-				let f = PMap.find "main" c.cl_statics in
-				let t = Type.field_type f in
-				(match follow t with
-				| TFun ([],r) -> FStatic (c,f), t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
-			with
-				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
-		) in
-		let emain = type_type ctx cl null_pos in
+				match m.m_statics with
+				| None ->
+					raise Not_found
+				| Some c ->
+					p := c.cl_pos;
+					c, PMap.find "main" c.cl_statics
+			with Not_found -> try
+				let t = Typeload.find_type_in_module_raise m name null_pos in
+				match t with
+				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
+					error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
+				| TClassDecl c ->
+					p := c.cl_pos;
+					c, PMap.find "main" c.cl_statics
+			with Not_found ->
+				error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
+		in
+		let ft = Type.field_type f in
+		let fmode, r = 
+			match follow ft with
+			| TFun ([],r) -> FStatic (c,f), r
+			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
+		in
+		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
 		(* add haxe.EntryPoint.run() call *)
 		let main = (try
 			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
+			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
 			let ef = PMap.find "run" ec.cl_statics in
 			let p = null_pos in
 			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
@@ -117,7 +132,7 @@ let sort_types com modules =
 			| TClassDecl c -> loop_class p c
 			| TEnumDecl e -> loop_enum p e
 			| TAbstractDecl a -> loop_abstract p a
-			| TTypeDecl _ -> assert false)
+			| TTypeDecl _ -> die "" __LOC__)
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
 			loop_class p c;

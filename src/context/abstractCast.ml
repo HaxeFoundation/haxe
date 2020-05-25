@@ -21,11 +21,12 @@ let rec make_static_call ctx c cf a pl args t p =
 				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
 				f();
 				e
-			| _ -> assert false
+			| _ -> die "" __LOC__
 	end else
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
 and do_check_cast ctx tleft eright p =
+	let uctx = default_unification_context in
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -49,7 +50,7 @@ and do_check_cast ctx tleft eright p =
 				let ret = make_static_call ctx c cf a tl [eright] tleft p in
 				{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
 			)
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	if type_iseq tleft eright.etype then
 		eright
@@ -61,9 +62,9 @@ and do_check_cast ctx tleft eright p =
 				let stack = (tleft,tright) :: stack in
 				match follow tleft,follow tright with
 				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-					Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
+					Abstract.find_to_from uctx find a1 tl1 a2 tl2 tleft eright.etype
 				| TAbstract(a,tl),_ ->
-					begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+					begin try find a tl (fun () -> Abstract.find_from uctx a tl eright.etype tleft)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -74,7 +75,7 @@ and do_check_cast ctx tleft eright p =
 						loop2 a.a_from
 					end
 				| _,TAbstract(a,tl) ->
-					begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+					begin try find a tl (fun () -> Abstract.find_to uctx a tl tleft)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -110,7 +111,8 @@ and cast_or_unify ctx tleft eright p =
 let find_array_access_raise ctx a pl e1 e2o p =
 	let is_set = e2o <> None in
 	let ta = apply_params a.a_params pl a.a_this in
-	let rec loop cfl = match cfl with
+	let rec loop cfl =
+		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -122,10 +124,14 @@ let find_array_access_raise ctx a pl e1 e2o p =
 					| _ -> ()
 				) monos cf.cf_params;
 			in
+			let get_ta() =
+				if has_meta Meta.Impl cf.cf_meta then ta
+				else TAbstract(a,pl)
+			in
 			match follow (map cf.cf_type) with
 			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
 					check_constraints();
@@ -135,7 +141,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				end
 			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 				begin try
-					Type.unify tab ta;
+					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1,None
@@ -148,13 +154,16 @@ let find_array_access_raise ctx a pl e1 e2o p =
 
 let find_array_access ctx a tl e1 e2o p =
 	try find_array_access_raise ctx a tl e1 e2o p
-	with Not_found -> match e2o with
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		match e2o with
 		| None ->
-			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 		| Some e2 ->
-			error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
+	let uctx = default_unification_context in
 	let m = mk_mono() in
 	let tl = match Meta.get Meta.MultiType a.a_meta with
 		| _,[],_ -> pl
@@ -197,13 +206,13 @@ let find_multitype_specialization com a pl p =
 						end
 					in
 					ignore(loop t1)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			tl
 	in
 	let _,cf =
 		try
-			Abstract.find_to a tl m
+			Abstract.find_to uctx a tl m
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
@@ -239,7 +248,7 @@ let handle_abstract_casts ctx e =
 						e
 					end
 				| _ ->
-					assert false
+					die "" __LOC__
 			end
 		| TCall(e1, el) ->
 			begin try

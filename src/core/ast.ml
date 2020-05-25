@@ -212,7 +212,7 @@ and expr_def =
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
-	| ETry of expr * (placed_name * type_hint * expr * pos) list
+	| ETry of expr * (placed_name * type_hint option * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -321,6 +321,7 @@ type type_def =
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
+	| EStatic of (placed_access, class_field_kind) definition
 	| EImport of import
 	| EUsing of placed_name list
 
@@ -697,7 +698,7 @@ let map_expr loop (e,p) =
 		ESwitch (e, cases, def)
 	| ETry (e,catches) ->
 		let e = loop e in
-		let catches = List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches in
+		let catches = List.map (fun (n,t,e,p) -> n,Option.map type_hint t,loop e,p) catches in
 		ETry (e,catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -890,8 +891,9 @@ module Printer = struct
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e,_) =
-		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
+	and s_catch tabs ((n,_),t,e,_) =
+		let hint = Option.map_default (fun (t,_) -> ":" ^ s_complex_type tabs t) "" t in
+		" catch(" ^ n ^ hint ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls
 	and s_expr_omit_block tabs e =
@@ -1101,7 +1103,7 @@ module Expr = struct
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
 			| EDisplayNew _ ->
-				assert false
+				die "" __LOC__
 		in
 		loop' "" e;
 		Buffer.contents buf

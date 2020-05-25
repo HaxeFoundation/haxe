@@ -3,14 +3,14 @@ open JvmSignature
 open NativeSignatures
 
 type signature_classification =
+	| CBool
 	| CByte
 	| CChar
-	| CDouble
-	| CFloat
+	| CShort
 	| CInt
 	| CLong
-	| CShort
-	| CBool
+	| CFloat
+	| CDouble
 	| CObject
 
 type method_signature = {
@@ -144,7 +144,7 @@ class typed_functions = object(self)
 			| [],[] ->
 				()
 			| _,[] ->
-				assert false
+				Globals.die "" __LOC__
 		in
 		loop args meth_to.dargs;
 		jm#invokevirtual jc#get_this_path meth_to.name (method_sig meth_to.dargs meth_to.dret);
@@ -181,8 +181,7 @@ class typed_functions = object(self)
 			)
 		) in
 		let def = (fun () ->
-			jm#string "Invalid call";
-			jm#invokestatic (["haxe";"jvm"],"Exception") "wrap" (method_sig [object_sig] (Some exception_sig));
+			jm#construct ConstructInit (["java";"lang"],"IllegalArgumentException") (fun () -> []);
 			jm#get_code#athrow;
 			jm#set_terminated true;
 		) in
@@ -215,7 +214,7 @@ class typed_functions = object(self)
 		let jc = new JvmClass.builder (["haxe";"jvm"],"VarArgs") haxe_function_path in
 		jc#add_access_flag 1; (* public *)
 		let jm_ctor = jc#spawn_method "<init>" (method_sig [haxe_function_sig] None) [MPublic] in
-		jm_ctor#add_argument_and_field "func" haxe_function_sig;
+		jm_ctor#add_argument_and_field "func" haxe_function_sig [FdPublic;FdFinal];
 		jm_ctor#finalize_arguments;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
@@ -352,6 +351,7 @@ module JavaFunctionalInterfaces = struct
 end
 
 open JavaFunctionalInterfaces
+open JvmGlobals
 
 class typed_function
 	(functions : typed_functions)
@@ -363,11 +363,6 @@ class typed_function
 = object(self)
 
 	val jc_closure =
-		let patch_name name = match name with
-			| "<init>" -> "new"
-			| "<clinit>" -> "__init__"
-			| name -> name
-		in
 		let name = match kind with
 			| FuncLocal ->
 				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id
@@ -386,7 +381,7 @@ class typed_function
 		let context_sigs = List.map snd context in
 		let jm_ctor = jc_closure#spawn_method "<init>" (method_sig context_sigs None) (if public then [MPublic] else []) in
 		List.iter (fun (name,jsig) ->
-			jm_ctor#add_argument_and_field name jsig;
+			jm_ctor#add_argument_and_field name jsig [FdPublic;FdFinal];
 		) context;
 		jm_ctor#load_this;
 		jm_ctor#call_super_ctor ConstructInit (method_sig [] None);
