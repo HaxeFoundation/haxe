@@ -441,6 +441,11 @@ and jit_expr jit return e =
 						| [exec1;exec2] -> emit_string_cca exec1 exec2 e.epos
 						| _ -> die "" __LOC__
 					end
+				| FStatic({cl_path=[],"StringTools"},{cf_name="unsafeCodeAt"}) ->
+					begin match execs with
+						| [exec1;exec2] -> emit_string_cca_unsafe exec1 exec2 e.epos
+						| _ -> die "" __LOC__
+					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some e.epos in
