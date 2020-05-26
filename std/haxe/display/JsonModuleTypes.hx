@@ -288,7 +288,7 @@ enum abstract JsonClassKindKind<T>(String) {
 	var KMacroType;
 	var KAbstractImpl:JsonClassKindKind<JsonTypePath>;
 	var KGenericBuild;
-	var KModuleFields;
+	var KModuleFields:JsonClassKindKind<JsonModulePath>;
 }
 
 typedef JsonClassKind<T> = {
