@@ -139,7 +139,7 @@ let reify in_macro =
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
 		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
-		| CTIntersection tl -> ct "TIntersection" (List.map (fun t -> to_ctype t p) tl)
+		| CTIntersection tl -> ct "TIntersection" [to_array to_ctype tl p]
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
