@@ -2081,14 +2081,12 @@ let generate com =
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
-    match com.main with
-     | None -> ()
-     | Some e ->
+    Option.may (fun e ->
         spr ctx "_G.xpcall(";
         (match e.eexpr with
-         | TCall(e2,[]) ->
+        | TCall(e2,[]) ->
             gen_value ctx e2;
-         | _->
+        | _->
             let fn =
                 {
                     tf_args = [];
@@ -2099,7 +2097,8 @@ let generate com =
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
         );
         spr ctx ", _hx_error)";
-        newline ctx;
+        newline ctx
+    ) com.main;
 
     if anyExposed then
         println ctx "return _hx_exports";
