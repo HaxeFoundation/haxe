@@ -1,3 +1,9 @@
+2020-XX-XX 4.1.2
+
+	Bugfixes:
+
+	macro : fixed type intersection syntax in macro reification (#9404)
+
 2020-22-05 4.1.1
 
 	New features:
