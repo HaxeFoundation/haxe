@@ -70,20 +70,24 @@ let collect_statistics ctx pfilter with_expressions =
 		) c.cl_overrides
 	in
 	let collect_implementations c =
+		let memo = Hashtbl.create 0 in
 		let rec loop c' =
-			if c'.cl_interface then
-				add_relation c.cl_name_pos (Extended,c'.cl_name_pos)
-			else begin
-				add_relation c.cl_name_pos (Implemented,c'.cl_name_pos);
-				List.iter (fun cf ->
-					try
-						let cf' = PMap.find cf.cf_name c'.cl_fields in
-						add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
-					with Not_found ->
-						()
-				) c.cl_ordered_fields
-			end;
-			List.iter loop c'.cl_descendants
+			if not (Hashtbl.mem memo c'.cl_path) then begin
+				Hashtbl.add memo c'.cl_path true;
+				if c'.cl_interface then
+					add_relation c.cl_name_pos (Extended,c'.cl_name_pos)
+				else begin
+					add_relation c.cl_name_pos (Implemented,c'.cl_name_pos);
+					List.iter (fun cf ->
+						try
+							let cf' = PMap.find cf.cf_name c'.cl_fields in
+							add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
+						with Not_found ->
+							()
+					) c.cl_ordered_fields
+				end;
+				List.iter loop c'.cl_descendants
+			end
 		in
 		List.iter loop c.cl_descendants
 	in
