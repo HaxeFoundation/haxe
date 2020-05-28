@@ -70,20 +70,19 @@ let collect_statistics ctx pfilter with_expressions =
 		) c.cl_overrides
 	in
 	let collect_implementations c =
-		List.iter (fun cf ->
-			let rec loop c =
-				begin try
-					let cf' = PMap.find cf.cf_name c.cl_fields in
-					add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
-				with Not_found ->
-					()
-				end;
-				List.iter loop c.cl_descendants
-			in
-			List.iter loop c.cl_descendants
-		) c.cl_ordered_fields;
 		let rec loop c' =
-			add_relation c.cl_name_pos ((if c'.cl_interface then Extended else Implemented),c'.cl_name_pos);
+			if c'.cl_interface then
+				add_relation c.cl_name_pos (Extended,c'.cl_name_pos)
+			else begin
+				add_relation c.cl_name_pos (Implemented,c'.cl_name_pos);
+				List.iter (fun cf ->
+					try
+						let cf' = PMap.find cf.cf_name c'.cl_fields in
+						add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
+					with Not_found ->
+						()
+				) c.cl_ordered_fields
+			end;
 			List.iter loop c'.cl_descendants
 		in
 		List.iter loop c.cl_descendants
