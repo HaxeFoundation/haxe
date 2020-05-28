@@ -504,7 +504,7 @@ class StringTools {
 		This operation is not guaranteed to work if `s` contains the `\0`
 		character.
 	**/
-	public static inline function unsafeCodeAt(s:String, index:Int):Int {
+	public static #if !eval inline #end function unsafeCodeAt(s:String, index:Int):Int {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp

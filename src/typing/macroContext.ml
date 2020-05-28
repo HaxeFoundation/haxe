@@ -126,21 +126,16 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
 		typing_timer ctx false (fun() ->
-			try
-				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
-					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
-					| ParseSuccess(data,_,_) -> data
-					| ParseError _ -> raise MacroApi.Invalid_expr
-				end
-			with Exit ->
-				raise MacroApi.Invalid_expr)
+			match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
+				| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
+				| ParseSuccess(data,_,_) -> data
+				| ParseError _ -> raise MacroApi.Invalid_expr)
 	in
 	let parse_metadata s p =
 		try
-			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
-			| ParseSuccess((_,[ETypedef t,_]),_,_) -> t.d_meta
+			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos error false with
+			| ParseSuccess(meta,_,_) -> meta
 			| ParseError(_,_,_) -> error "Malformed metadata string" p
-			| _ -> die "" __LOC__
 		with _ ->
 			error "Malformed metadata string" p
 	in
@@ -231,15 +226,14 @@ let make_macro_api ctx p =
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
-					| ParseSuccess((_,[ETypedef { d_data = ct },_]),_,_) -> Some ct
+					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos error false with
+					| ParseSuccess((ct,_),_,_) -> Some ct
 					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
-					| _ -> die "" __LOC__
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
 				match v with
 				| None -> tp.tp_remove <- true
-				| Some _ -> tp.tp_type <- Option.map fst v
+				| Some t -> tp.tp_type <- Some t
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s p ->

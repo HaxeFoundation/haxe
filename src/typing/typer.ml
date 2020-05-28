@@ -1551,16 +1551,16 @@ and format_string ctx s p =
 		let slen = send - pos - 1 in
 		let scode = String.sub s (pos + 1) slen in
 		min := !min + 2;
-		if slen > 0 then begin
+		begin
 			let e =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
-				try
-					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
-						| ParseSuccess(data,_,_) -> data
-						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
-					end
-				with Exit ->
-					error "Invalid interpolated expression" ep
+				let error msg pos =
+					if Lexer.string_is_whitespace scode then error "Expression cannot be empty" ep
+					else error msg pos
+				in
+				match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
+					| ParseSuccess(data,_,_) -> data
+					| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 			in
 			add_expr e slen
 		end;

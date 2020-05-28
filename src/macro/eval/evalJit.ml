@@ -441,6 +441,11 @@ and jit_expr jit return e =
 						| [exec1;exec2] -> emit_string_cca exec1 exec2 e.epos
 						| _ -> die "" __LOC__
 					end
+				| FStatic({cl_path=[],"StringTools"},{cf_name="unsafeCodeAt"}) ->
+					begin match execs with
+						| [exec1;exec2] -> emit_string_cca_unsafe exec1 exec2 e.epos
+						| _ -> die "" __LOC__
+					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some e.epos in
@@ -687,23 +692,27 @@ and jit_tfunction jit static pos tf =
 and get_env_creation jit static file info =
 	create_env_info static file info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
 
+let jit_timer ctx f =
+	Std.finally (Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"]) f ()
+
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
-	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
-	(* Create a new JitContext with an initial scope *)
-	let jit = EvalJitContext.create ctx in
-	let fl,exec = jit_tfunction jit static pos tf in
-	(* Create the [vfunc] instance depending on the number of arguments. *)
-	let hasret = jit.has_nonfinal_return in
-	let eci = get_env_creation jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
-	let f = if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl in
-	t();
-	f
+	let f () =
+		(* Create a new JitContext with an initial scope *)
+		let jit = EvalJitContext.create ctx in
+		let fl,exec = jit_tfunction jit static pos tf in
+		(* Create the [vfunc] instance depending on the number of arguments. *)
+		let hasret = jit.has_nonfinal_return in
+		let eci = get_env_creation jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
+		if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl
+	in
+	jit_timer ctx f
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
-	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
-	let jit = EvalJitContext.create ctx in
-	let f = jit_expr jit false (mk_block e) in
-	t();
-	jit,f
+	let f () =
+		let jit = EvalJitContext.create ctx in
+		let f = jit_expr jit false (mk_block e) in
+		jit,f
+	in
+	jit_timer ctx f

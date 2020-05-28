@@ -1,3 +1,10 @@
+Unreleased 4.1.2
+
+	Bugfixes:
+
+	lua : fix output not being generated when there is no -main entry point (#9489)
+	macro : fix reification for type intersection syntax (#9404)
+
 2020-22-05 4.1.1
 
 	New features:
@@ -18,7 +25,7 @@
 	interp : fixed throwing `haxe.macro.Error` outside of a macro context (#9390)
 	lua : fixed lua.PairTools.ipairsMap method
 	php : fixed an edge case in String methods generation (#9464)
-	
+
 2020-05-13: 4.1.0
 
 	New features:

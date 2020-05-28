@@ -1,2 +1,2 @@
-Main.hx:5: characters 20-21 : Invalid interpolated expression
+Main.hx:5: characters 20-21 : Expression cannot be empty
 Main.hx:5: characters 20-21 : For function argument 'v'

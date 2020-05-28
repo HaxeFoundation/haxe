@@ -283,6 +283,20 @@ let sharp_ident = [%sedlex.regexp?
 	)
 ]
 
+let is_whitespace = function
+	| ' ' | '\n' | '\r' | '\t' -> true
+	| _ -> false
+
+let string_is_whitespace s =
+	try
+		for i = 0 to String.length s - 1 do
+			if not (is_whitespace (String.unsafe_get s i)) then
+				raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
