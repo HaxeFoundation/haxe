@@ -440,6 +440,7 @@ and flush_macro_context mint ctx =
 			c.cl_restore <- (fun() ->
 				c.cl_meta <- meta;
 				c.cl_path <- path;
+				c.cl_descendants <- [];
 				Option.may (fun fn -> fn()) ctor_restore;
 				List.iter (fun fn -> fn()) field_restores;
 				List.iter (fun fn -> fn()) static_restores;
