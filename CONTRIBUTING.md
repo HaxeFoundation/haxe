@@ -2,7 +2,7 @@
 
 - Check if you actually suspect that there's an issue in the Haxe code. If you find yourself writing "How do I..." you may want to consider a different communication channel. Refer to https://haxe.org/community/community-support.html for more information.
 - Reduce your code to a minimal example (see http://sscce.org/). In particular avoid library dependencies: If you cannot reproduce your issue without using a specific library, it might not be a Haxe issue to begin with.
-- Check if your problems are already resolved in the Haxe development version (for builds see http://builds.haxe.org/).
+- Check if your problems are already resolved in the Haxe development version (for builds see http://build.haxe.org/).
 - Most targets produce readable code. If you suspect the generated code to be wrong, try checking the output. Note that you can add `-D dump=pretty` to your compilation parameters and find the code which is passed to the generators in a `dump` subdirectory.
 
 ## Is this the right repository to report the issue?
