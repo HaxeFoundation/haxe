@@ -90,7 +90,13 @@ let parse_hxml_data data =
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
 		let l = unquote (ExtString.String.strip l) in
-		if l = "" || l.[0] = '#' then
+		let l =
+			try
+				let hash_pos = ExtString.String.index l '#' in
+				ExtString.String.sub l 0 hash_pos
+			with Not_found -> l
+		in
+		if l = "" then
 			[]
 		else if l.[0] = '-' then
 			try
