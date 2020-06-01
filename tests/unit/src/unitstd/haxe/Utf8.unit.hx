@@ -37,6 +37,12 @@ haxe.Utf8.compare(haxe.Utf8.sub(str, 0, 2), "あé") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 2), "éい") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 0, 0), "") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), "") == 0;
+var i = 0;
+haxe.Utf8.iter(str, function(char) {
+    i == 0 ? char == 0x3042 : i == 1 ? char == 0xE9 : i == 2 ? char == 0x3044 : false;
+    i++;
+});
+i == 3;
 
 // unspecify outside of range Utf8.sub
 // haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
