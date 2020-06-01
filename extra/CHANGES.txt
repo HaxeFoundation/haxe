@@ -4,6 +4,7 @@
 
 	macro : fixed type intersection syntax in macro reification (#9404)
 	lua : fixed lua code generation without `--main` compilation argument (#9489)
+	php : added an overload signature for `session_set_cookie_params` function (#9507)
 	nullsafety : fixed various scenarios of `if..else` branching (#9474)
 
 2020-22-05 4.1.1

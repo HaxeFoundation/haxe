@@ -1385,6 +1385,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.session-set-cookie-params.php
 	**/
+	@:overload(function(options:NativeStructArray<{?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
 	static function session_set_cookie_params(lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
