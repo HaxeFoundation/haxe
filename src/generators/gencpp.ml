@@ -1296,6 +1296,14 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
       tail)
 ;;
 
+let with_debug ctx metadata run =
+   let old_debug = ctx.ctx_debug_level in
+   let no_debug = has_meta_key metadata Meta.NoDebug in
+   if no_debug then ctx.ctx_debug_level <- 0;
+   run no_debug;
+   ctx.ctx_debug_level <- old_debug;
+;;
+
 let hx_stack_push ctx output clazz func_name pos gc_stack =
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
@@ -1461,6 +1469,7 @@ and tcpp_expr_expr =
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
+   | CppNewNative of tcppexpr
    | CppAddressOf of tcppexpr
    | CppDereference of tcppexpr
    | CppArray of tcpparrayloc
@@ -1540,6 +1549,7 @@ let rec s_tcpp = function
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncExtern _,_) -> "CppCallExtern"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
+   | CppNewNative _ -> "CppNewNative"
    | CppAddressOf _  -> "CppAddressOf"
    | CppDereference _  -> "CppDereference"
    | CppFunctionAddress  _ -> "CppFunctionAddress"
@@ -2519,6 +2529,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member, retypedObj.cpptype)), exprType
+                  | CppSuper this ->
+                     CppFunction( FuncSuper(this, retypedObj.cpptype,member), funcReturn ), exprType
                   | _ -> if (is_var_field member) then
                          CppVar( VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
                      else
@@ -2830,7 +2842,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
             let retypedArgs = retype_function_args args arg_types in
             let created_type = cpp_type_of expr.etype in
-            gc_stack := !gc_stack || (match created_type with | TCppInst(_) -> true | _ -> false );
+            gc_stack := !gc_stack || (match created_type with | TCppInst(t) -> not (is_native_class t) | _ -> false );
             CppCall( FuncNew(created_type), retypedArgs), created_type
 
          | TFunction func ->
@@ -3249,10 +3261,15 @@ let retype_expression ctx request_type function_args function_type expression_tr
              let ptrCast =  mk_cppexpr (CppCast(cppExpr,ptrType)) ptrType in
              mk_cppexpr (CppCast(ptrCast,TCppDynamic)) TCppDynamic
 
-
+         | TCppStar(t,const), TCppReference _
          | TCppStar(t,const), TCppInst _
          | TCppStar(t,const), TCppStruct _ ->
              mk_cppexpr (CppDereference(cppExpr)) return_type
+
+         | TCppInst(t), TCppStar _ when (is_native_class t) && (match cppExpr.cppexpr with
+            | CppCall(FuncNew(_), _) -> true
+            | _ -> false) ->
+            mk_cppexpr (CppNewNative(cppExpr)) return_type
 
          | TCppInst _, TCppStar(p,const)
          | TCppStruct _, TCppStar(p,const) ->
@@ -3405,7 +3422,7 @@ let rec implements_native_interface class_def =
 ;;
 
 let can_quick_alloc klass =
-   not (implements_native_interface klass)
+   (not (is_native_class klass)) && (not (implements_native_interface klass))
 ;;
 
 
@@ -3569,6 +3586,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out (")")
 
       | CppCall(func, args) ->
+         let doCall = ref true in
          let closeCall = ref "" in
          let argsRef = ref args in
          (match func with
@@ -3617,10 +3635,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
-         | FuncSuperConstruct _ -> out ((if not ctx.ctx_real_this_ptr then "__this->" else "") ^  "super::__construct")
+         | FuncSuperConstruct(TCppInst klass) when is_native_class klass ->
+            doCall := false;
+
+         | FuncSuperConstruct _ ->
+            out ((if not ctx.ctx_real_this_ptr then "__this->" else "") ^  "super::__construct")
+
+         | FuncSuper(_,TCppInst(klass),field) when is_native_class klass ->
+            out ((cpp_class_path_of klass) ^ "::" ^ (cpp_member_name_of field));
 
          | FuncSuper(this,_,field) ->
-              out ( (if this==ThisReal then "this->" else "__->") ^ "super::" ^ (cpp_member_name_of field) )
+            out ( (if this==ThisReal then "this->" else "__->") ^ "super::" ^ (cpp_member_name_of field) )
 
          | FuncNew(newType) ->
             let objName = match newType with
@@ -3630,6 +3655,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >::__new"
             | TCppObjC klass ->  (cpp_class_path_of klass) ^ "_obj::__new"
             | TCppNativePointer klass -> "new " ^ (cpp_class_path_of klass);
+            | TCppInst klass when is_native_class klass -> cpp_class_path_of klass
             | TCppInst klass -> (cpp_class_path_of klass) ^ "_obj::__new"
             | TCppClass -> "::hx::Class_obj::__new";
             | TCppFunction _ -> tcpp_to_string newType
@@ -3646,13 +3672,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | FuncExpression(expr)  ->
               gen expr;
          );
-         let sep = ref "" in
-         out "(";
-         List.iter (fun arg ->
-            out !sep; sep := ",";
-            gen arg;
-            ) !argsRef;
-         out (")" ^ !closeCall);
+         if !doCall then begin
+            let sep = ref "" in
+            out "(";
+            List.iter (fun arg ->
+               out !sep; sep := ",";
+               gen arg;
+               ) !argsRef;
+            out (")" ^ !closeCall);
+         end
+      | CppNewNative(e) ->
+         out "new "; gen e;
       | CppAddressOf(e) ->
          out ("&("); gen e; out ")";
       | CppDereference(e) ->
@@ -5765,14 +5795,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          if isHeader then begin
            match class_def.cl_constructor with
             | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
-               let old_debug = ctx.ctx_debug_level in
-               if has_meta_key definition.cf_meta Meta.NoDebug then
-                  ctx.ctx_debug_level <- 0;
-               ctx.ctx_real_this_ptr <- false;
-               gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
-               out "\n";
-
-               ctx.ctx_debug_level <- old_debug;
+               with_debug ctx definition.cf_meta (fun no_debug ->
+                  ctx.ctx_real_this_ptr <- false;
+                  gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
+                  out "\n";
+               )
             | _ -> ()
          end else
             out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
@@ -5780,6 +5807,45 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          out ("\treturn __this;\n");
          out ("}\n\n");
       end;
+   in
+
+   let outputNativeConstructor ctx out isHeader =
+      match class_def.cl_constructor with
+      | Some ({ cf_expr = Some { eexpr = TFunction(function_def) } } as definition) ->
+         if isHeader then begin
+            out ("\t\t" ^ class_name ^ "(" ^ constructor_type_args ^ ");\n\n");
+         end else begin
+            with_debug ctx definition.cf_meta (fun no_debug ->
+               ctx.ctx_real_this_ptr <- true;
+               out (class_name ^ "::" ^ class_name ^ "(" ^ constructor_type_args ^ ")");
+
+               (match class_def.cl_super with
+               | Some (klass, _) ->
+                  let rec find_super_args = function
+                     | TCall ({ eexpr = TConst TSuper }, args) :: _ -> Some args
+                     | (TParenthesis(e) | TMeta(_,e) | TCast(e,None)) :: rest -> find_super_args (e.eexpr :: rest)
+                     | TBlock e :: rest -> find_super_args ((List.map (fun e -> e.eexpr) e) @ rest)
+                     | _ :: rest -> find_super_args rest
+                     | _ -> None
+                  in
+                  (match find_super_args [function_def.tf_expr.eexpr] with
+                  | Some args ->
+                     out ("\n:" ^ (cpp_class_path_of klass) ^ "(");
+                     let sep = ref "" in
+                     List.iter (fun arg ->
+                        out !sep; sep := ",";
+                        gen_cpp_ast_expression_tree ctx "" "" [] t_dynamic None arg;
+                     ) args;
+                     out ")\n";
+                  | _ -> ());
+               | _ -> ());
+
+               let head_code = get_code definition.cf_meta Meta.FunctionCode in
+               let tail_code = get_code definition.cf_meta Meta.FunctionTailCode in
+               gen_cpp_function_body ctx class_def false "new" function_def head_code tail_code no_debug;
+            )
+         end
+      | _ -> ()
    in
 
    (* State *)
@@ -5831,14 +5897,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
       (match class_def.cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
-            let old_debug = ctx.ctx_debug_level in
-            if has_meta_key definition.cf_meta Meta.NoDebug then
-               ctx.ctx_debug_level <- 0;
-
-            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
-            output_cpp "\n";
-
-            ctx.ctx_debug_level <- old_debug;
+            with_debug ctx definition.cf_meta (fun no_debug ->
+               gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
+               output_cpp "\n";
+            )
          | _ ->  output_cpp " { }\n\n"
       );
 
@@ -5996,7 +6058,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end;
 
    if (not (has_class_flag class_def CInterface)) && not nativeGen && not inlineContructor && not (has_class_flag class_def CAbstract) then
-      outputConstructor ctx output_cpp false;
+      outputConstructor ctx output_cpp false
+   else if nativeGen then
+      outputNativeConstructor ctx output_cpp false;
 
 
    (* Initialise non-static variables *)
@@ -6706,6 +6770,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end else if not nativeGen then begin
       output_h ("\t\tHX_DO_INTERFACE_RTTI;\n\n");
    end else begin
+      outputNativeConstructor ctx output_h true;
       (* native interface *) ( )
    end;
 
@@ -7918,8 +7983,12 @@ class script_writer ctx filename asciiOut =
             | FuncEnumConstruct(enum,field) ->
                this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^
                    (this#commentOf field.ef_name) ^ "\n");
+            | FuncSuperConstruct(TCppInst klass) when (is_native_gen_class klass) && (is_native_class klass) ->
+               abort "Unsupported super for native class constructor" expression.cpppos;
             | FuncSuperConstruct childType ->
                this#write ((this#op IaCallSuperNew) ^ (this#astType childType) ^ " " ^ argN ^ "\n");
+            | FuncSuper(_,TCppInst(klass),_) when (is_native_gen_class klass) && (is_native_class klass) ->
+               abort "Unsupported super for native class method" expression.cpppos;
             | FuncSuper(_,objType,field) ->
                this#write ( (this#op IaCallSuper) ^ (this#astType objType) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ (this#commentOf field.cf_name) ^ "\n");
@@ -8119,6 +8188,7 @@ class script_writer ctx filename asciiOut =
 
          | CppCode _
          | CppFunctionAddress _
+         | CppNewNative _
          | CppDereference _
          | CppAddressOf _
          | CppFor _
