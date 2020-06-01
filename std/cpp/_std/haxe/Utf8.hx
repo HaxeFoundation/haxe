@@ -57,7 +57,7 @@ class Utf8 {
 
 	public #if !cppia inline #end static function iter(s:String, chars:Int->Void):Void {
 		var src = s.c_str();
-		var end = src.add(s.length);
+		var end = src.add(untyped strlen(s));
 
 		while (src.lt(end))
 			chars(src.ptr.utf8DecodeAdvance());
