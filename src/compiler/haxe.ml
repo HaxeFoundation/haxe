@@ -765,7 +765,9 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
-
+		("Target",["--run"],[], Arg.Unit (fun() ->
+			raise (Arg.Bad "--run requires an argument: a Haxe module name")
+		), "<module> [args...]","interpret a Haxe module with command line arguments");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
@@ -817,7 +819,6 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
-		("Misc",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","compile and execute a Haxe module with command line arguments");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->

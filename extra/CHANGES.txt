@@ -4,6 +4,7 @@
 
 	all : added `contains` and `keyValueIterator` methods to haxe.ds.ReadOnlyArray
 	all : fixed super constructor call when extending externs (#7837, #9501)
+	all : fixed compiler crash for "--run" argument without a value (#9513)
 	display : fixed completion for out-of-bounds argument in a call (#9435)
 	display : fixed "find references" through interfaces (#9470)
 	display : optimized "find references" (#9504)
