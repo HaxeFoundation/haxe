@@ -765,8 +765,9 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
-		("Target",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","interpret a Haxe module with command line arguments");
-
+		("Target",["--run"],[], Arg.Unit (fun() ->
+			raise (Arg.Bad "--run requires an argument: a Haxe module name")
+		), "<module> [args...]","interpret a Haxe module with command line arguments");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
