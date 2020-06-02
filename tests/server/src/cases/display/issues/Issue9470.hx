@@ -18,8 +18,7 @@ class Issue9470 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(1)});
-		trace(haxe.Json.parse(lastResult.stderr));
+		runHaxeJson([], DisplayMethods.FindReferences, {file: file, kind: WithBaseAndDescendants, offset: offset(1)});
 		var result = parseGotoDefinitionLocations();
 		/*
 			TODO:
@@ -28,7 +27,7 @@ class Issue9470 extends DisplayTestCase {
 			Similar test #9446 works fine in the test suite.
 			Another test which does not work here, but works in vshaxe: #9423.
 		*/
-		// Assert.same([range(2, 3)], result.map(l -> l.range));
+		Assert.same([range(2, 3)], result.map(l -> l.range));
 		Assert.pass();
 	}
 }
