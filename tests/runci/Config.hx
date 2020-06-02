@@ -6,6 +6,7 @@ enum Ci {
 	TravisCI;
 	AppVeyor;
 	AzurePipelines;
+	GithubActions;
 }
 
 class Config {
@@ -29,6 +30,8 @@ class Config {
 			AppVeyor;
 		else if (Sys.getEnv("TF_BUILD") == "True")
 			AzurePipelines;
+		else if (Sys.getEnv("GITHUB_WORKSPACE") != null)
+			GithubActions;
 		else
 			null;
 
@@ -38,6 +41,7 @@ class Config {
 
 	static public final colorSupported = switch [ci, systemName] {
 		case [AzurePipelines, _]: true; // not sure
+		case [GithubActions, _]: true;
 		case [TravisCI | AppVeyor, _]: true;
 		case [_, "Linux" | "Mac"]: true;
 		case [_, "Windows"]: false;

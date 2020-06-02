@@ -1,0 +1,173 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  windows64-build:
+    runs-on: windows-latest
+    env:
+      PLATFORM: windows64
+      OPAMYES: 1
+      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
+      ARCH: 64
+      MINGW_ARCH: x86_64
+      CYGWIN_SETUP: https://cygwin.com/setup-x86_64.exe
+      CYG_ROOT: C:/cygwin64
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+
+      @import install-neko-windows.yml
+      @import build-windows.yml
+
+  windows-build:
+    runs-on: windows-latest
+    env:
+      PLATFORM: windows
+      OPAMYES: 1
+      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
+      ARCH: 32
+      MINGW_ARCH: i686
+      CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
+      CYG_ROOT: C:/cygwin
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+
+      @import install-neko-windows.yml
+      @import build-windows.yml
+
+  linux-build:
+    runs-on: ubuntu-latest
+    env:
+      PLATFORM: linux64
+      OPAMYES: 1
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+
+      @import build-linux.yml
+
+  mac-build:
+    runs-on: macos-latest
+    env:
+      PLATFORM: mac
+      OPAMYES: 1
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+
+      @import install-neko-mac.yml
+      @import build-mac.yml
+
+  windows64-test:
+    needs: windows64-build
+    runs-on: windows-latest
+    env:
+      PLATFORM: windows64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      ARCH: 64
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: win${{env.ARCH}}Binaries
+
+      @import install-neko-windows.yml
+      @import test-windows.yml
+
+  windows-test:
+    needs: windows-build
+    runs-on: windows-latest
+    env:
+      PLATFORM: windows
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      ARCH: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
+        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: win${{env.ARCH}}Binaries
+
+      @import install-neko-windows.yml
+      @import test-windows.yml
+
+  linux-test:
+    needs: linux-build
+    runs-on: ubuntu-latest
+    env:
+      PLATFORM: linux64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        include:
+          - target: js
+            # SAUCE: 1
+            # SAUCE_TUNNEL_ID: 'linux-test'
+            # SAUCE_BUILD: '${{env.GITHUB_RUN_NUMBER}}' # $(Build.BuildNumber)
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: cpp
+            APT_PACKAGES: gcc-multilib g++-multilib
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: flash9
+            APT_PACKAGES: libglib2.0 libfreetype6 xvfb
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: linuxBinaries
+
+      @import install-neko-linux.yml
+      @import test-linux.yml
+
+  mac-test:
+    needs: mac-build
+    runs-on: macos-latest
+    env:
+      PLATFORM: mac
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        include:
+          - target: hl
+            BREW_PACKAGES: ninja
+    steps:
+      - uses: actions/checkout@master
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: macBinaries
+
+      @import install-neko-mac.yml
+      @import test-mac.yml
