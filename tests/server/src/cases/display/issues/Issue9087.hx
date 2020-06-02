@@ -11,19 +11,7 @@ class Issue9087 extends DisplayTestCase {
 		}
 		runHaxeJson(args, DisplayMethods.GotoImplementation, {file: new FsPath("A.hx"), offset: markers.offset(1), contents: markers.source});
 		var result = parseGotoDefintion().result;
-		// TODO: We should use the markers, but I forgot how to get lines and characters from offsets
-		// Also That Assert.same doesn't work
-		Assert.equals(9, result[0].range.start.line);
-		Assert.equals(19, result[0].range.start.character);
-		Assert.equals(9, result[0].range.end.line);
-		Assert.equals(23, result[0].range.end.character);
-		// Assert.same([
-		// 	{
-		// 		range: {
-		// 			start: {line: 9, character: 1},
-		// 			end: {line: 11, character: 2}
-		// 		}
-		// 	}
-		// ], result);
+		Assert.equals(1, result.length);
+		Assert.same(markers.range(2, 3), result[0].range);
 	}
 }
