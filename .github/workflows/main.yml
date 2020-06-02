@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
 
   linux-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     env:
       PLATFORM: linux64
       OPAMYES: 1
@@ -51,7 +51,7 @@ jobs:
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
