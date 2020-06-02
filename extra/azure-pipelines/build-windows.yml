@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout: self
         submodules: recursive
-      - powershell: choco install --no-progress nsis.portable --version 3.5 -y
+      - powershell: choco install --no-progress nsis.portable --version 3.05 -y
         displayName: choco install nsis
       - powershell: choco install --no-progress curl wget 7zip.portable -y
         displayName: choco install things
