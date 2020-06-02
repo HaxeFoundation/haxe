@@ -35,8 +35,11 @@ jobs:
       
       
       - name: choco install nsis
-        shell: pwsh
-        run: choco install --no-progress nsis.portable --version 3.02 -y
+        uses: nick-invision/retry@v1
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          command: choco install --no-progress nsis.portable --version 3.02 -y
       - name: choco install things
         shell: pwsh
         run: choco install --no-progress curl wget 7zip.portable -y
@@ -118,8 +121,11 @@ jobs:
       
       
       - name: choco install nsis
-        shell: pwsh
-        run: choco install --no-progress nsis.portable --version 3.02 -y
+        uses: nick-invision/retry@v1
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          command: choco install --no-progress nsis.portable --version 3.02 -y
       - name: choco install things
         shell: pwsh
         run: choco install --no-progress curl wget 7zip.portable -y
