@@ -856,7 +856,7 @@ try
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add an external JAR or class directory library");
-		("Target-specific",["--java-lib-extern"],["-java-lib-extern"],Arg.String (fun file ->
+		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
 			add_native_lib file true;
 		),"<file>","use an external JAR or class directory library for type checking");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
