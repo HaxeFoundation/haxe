@@ -5,7 +5,14 @@
     brew unlink python@2
     brew bundle --file=tests/Brewfile --no-upgrade
 
+- uses: actions/cache@v2
+  id: opam-cache
+  with:
+    path: ~/.opam
+    key: ${{ runner.os }}-${{ hashFiles('opam') }}
+
 - name: Install OCaml libraries
+  if: steps.opam-cache.outputs.cache-hit != 'true'
   run: |
     set -ex
     opam init # --disable-sandboxing

@@ -193,7 +193,14 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build neko neko-dev
       
+      - uses: actions/cache@v2
+        id: opam-cache
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-${{ hashFiles('opam') }}
+      
       - name: Install OCaml libraries
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init # --disable-sandboxing
@@ -260,7 +267,14 @@ jobs:
           brew unlink python@2
           brew bundle --file=tests/Brewfile --no-upgrade
       
+      - uses: actions/cache@v2
+        id: opam-cache
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-${{ hashFiles('opam') }}
+      
       - name: Install OCaml libraries
+        if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init # --disable-sandboxing
