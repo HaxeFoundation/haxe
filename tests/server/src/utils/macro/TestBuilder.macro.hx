@@ -38,7 +38,7 @@ class TestBuilder {
 							el.push(macro @:pos(pos) $i{asyncName}.done());
 							f.expr = macro {
 								$i{asyncName}.setTimeout(10000);
-								${transformHaxeCalls(el)};
+								${transformHaxeCalls(asyncName, el)};
 							}
 						case _:
 							Context.error("Block expression expected", f.expr.pos);
@@ -49,29 +49,39 @@ class TestBuilder {
 		return fields;
 	}
 
-	static function transformHaxeCalls(el:Array<Expr>) {
+	static function transformHaxeCalls(asyncName:String, el:Array<Expr>) {
 		var e0 = el.shift();
 		if (el.length == 0) {
 			return e0;
 		} else {
 			var e = switch e0 {
 				case macro runHaxe($a{args}):
-					var e = transformHaxeCalls(el);
-					args.push(macro() -> $e);
+					var e = transformHaxeCalls(asyncName, el);
+					args.push(macro() -> ${failOnException(asyncName, e)});
 					macro runHaxe($a{args});
 				case macro runHaxeJson($a{args}):
-					var e = transformHaxeCalls(el);
-					args.push(macro() -> $e);
+					var e = transformHaxeCalls(asyncName, el);
+					args.push(macro() -> ${failOnException(asyncName, e)});
 					macro runHaxeJson($a{args});
 				case macro complete($a{args}):
-					var e = transformHaxeCalls(el);
-					args.push(macro function(response, markers) $e);
+					var e = transformHaxeCalls(asyncName, el);
+					args.push(macro function(response, markers) ${failOnException(asyncName, e)});
 					macro complete($a{args});
 				case _:
-					macro {$e0; ${transformHaxeCalls(el)}};
+					macro {$e0; ${transformHaxeCalls(asyncName, el)}};
 			}
 			e.pos = e0.pos;
 			return e;
+		}
+	}
+
+	static function failOnException(asyncName:String, e:Expr):Expr {
+		return macro try {
+			$e;
+		} catch(e) {
+			Assert.fail(e.details());
+			$i{asyncName}.done();
+			return;
 		}
 	}
 }
