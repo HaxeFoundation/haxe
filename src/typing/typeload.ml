@@ -316,9 +316,10 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let is_generic,is_generic_build = match mt with
-			| TClassDecl {cl_kind = KGeneric} -> true,false
-			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
+		let is_generic,is_generic_build,is_extern = match mt with
+			| TClassDecl {cl_kind = KGeneric} -> true,false,false
+			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
+			| TClassDecl {cl_extern = true} -> false,false,true
 			| TTypeDecl td ->
 				DeprecationCheck.if_enabled ctx.com (fun() ->
 					try
@@ -330,8 +331,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					with Not_found ->
 						()
 				);
-				false,false
-			| _ -> false,false
+				false,false,false
+			| _ -> false,false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
@@ -352,6 +353,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| [TPType t] -> TDynamic (load_complex_type ctx true t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
+			let is_java_rest = ctx.com.platform = Java && is_extern in
+			let is_rest = is_rest || is_java_rest in
 			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let tparams = List.map (fun t ->
 				match t with
@@ -402,10 +405,13 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					[]
 				| [],["Rest",_] when is_generic_build ->
 					[]
-				| [],(_,t) :: tl when ctx.com.display.dms_error_policy = EPIgnore ->
-					t :: loop [] tl is_rest
-				| [],_ ->
-					error ("Not enough type parameters for " ^ s_type_path path) p
+				| [],(_,t) :: tl ->
+					if is_java_rest then
+						t_dynamic :: loop [] tl is_rest
+					else if ctx.com.display.dms_error_policy = EPIgnore then
+						t :: loop [] tl is_rest
+					else
+						error ("Not enough type parameters for " ^ s_type_path path) p
 				| t :: tl,[] ->
 					if is_rest then
 						t :: loop tl [] true
