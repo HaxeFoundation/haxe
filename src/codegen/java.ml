@@ -660,7 +660,7 @@ let compare_type com s1 s2 =
 				let implements = List.map (japply_params jparams) c.cinterfaces in
 				loop ~first_error:first_error super s2 || List.exists (fun super -> loop ~first_error:first_error super s2) implements
 			with | Not_found ->
-				print_endline ("-java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
+				print_endline ("--java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
 				print_endline "Did you forget to include a needed lib?";
 				if first_error then
 					not (loop ~first_error:false s2 s1)
