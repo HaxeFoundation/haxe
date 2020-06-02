@@ -43,6 +43,12 @@ jobs:
           ldd -v ./haxe
           ldd -v ./haxelib
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries
+          path: out
+
   linux-test:
     needs: linux-build
     runs-on: ubuntu-latest
