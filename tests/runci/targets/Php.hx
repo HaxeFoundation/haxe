@@ -17,6 +17,14 @@ class Php {
 			null;
 
 		if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 7.0) {
+			switch systemName {
+				case "Linux":
+					var phpInfo = commandResult("php", ["-i"]);
+					if(phpInfo.stdout.indexOf("mbstring => enabled") < 0) {
+						Linux.requireAptPackages(["php-mbstring"]);
+					}
+				case _:
+			}
 			infoMsg('php ${phpVer} has already been installed.');
 			return;
 		}
