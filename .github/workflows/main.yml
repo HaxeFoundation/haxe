@@ -29,11 +29,10 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
       - name: choco install nsis
         uses: nick-invision/retry@v1
         with:
@@ -46,7 +45,7 @@ jobs:
       - name: Prepend Chocolatey path
         shell: pwsh
         run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
-      
+
       - name: Install OCaml and OCaml libraries
         shell: pwsh
         run: |
@@ -65,11 +64,11 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
-      
+
       - name: Expose mingw dll files
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
-      
+
       - name: Build Haxe
         shell: pwsh
         run: |
@@ -81,13 +80,13 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxe.exe')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
         with:
           name: win${{env.ARCH}}Binaries
           path: out
-      
+
 
   windows-build:
     runs-on: windows-latest
@@ -115,11 +114,11 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       - name: choco install nsis
         uses: nick-invision/retry@v1
         with:
@@ -132,7 +131,7 @@ jobs:
       - name: Prepend Chocolatey path
         shell: pwsh
         run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
-      
+
       - name: Install OCaml and OCaml libraries
         shell: pwsh
         run: |
@@ -151,11 +150,11 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
-      
+
       - name: Expose mingw dll files
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
-      
+
       - name: Build Haxe
         shell: pwsh
         run: |
@@ -167,13 +166,13 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxe.exe')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
         with:
           name: win${{env.ARCH}}Binaries
           path: out
-      
+
 
   linux-build:
     runs-on: ubuntu-latest
@@ -192,13 +191,13 @@ jobs:
           sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
           sudo apt-get update -qqy
           sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build neko neko-dev
-      
+
       - uses: actions/cache@v2
         id: opam-cache
         with:
           path: ~/.opam
           key: ${{ runner.os }}-${{ hashFiles('opam') }}
-      
+
       - name: Install OCaml libraries
         if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
@@ -209,7 +208,7 @@ jobs:
           opam install haxe --deps-only
           opam list
           ocamlopt -v
-      
+
       - name: Build Haxe
         run: |
           set -ex
@@ -220,7 +219,7 @@ jobs:
           ls -l out
           ldd -v ./haxe
           ldd -v ./haxelib
-      
+
       - name: Build xmldoc
         run: |
           set -ex
@@ -231,13 +230,13 @@ jobs:
               "branch": "$GITHUB_REF"
             }
           EOL
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
         with:
           name: linuxBinaries
           path: out
-      
+
 
   mac-build:
     runs-on: macos-latest
@@ -255,24 +254,24 @@ jobs:
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       - name: Install dependencies
         run: |
           set -ex
           brew update
           brew unlink python@2
           brew bundle --file=tests/Brewfile --no-upgrade
-      
+
       - uses: actions/cache@v2
         id: opam-cache
         with:
           path: ~/.opam
           key: ${{ runner.os }}-${{ hashFiles('opam') }}
-      
+
       - name: Install OCaml libraries
         if: steps.opam-cache.outputs.cache-hit != 'true'
         run: |
@@ -283,7 +282,7 @@ jobs:
           opam install haxe --deps-only
           opam list
           ocamlopt -v
-      
+
       - name: Build Haxe
         run: |
           set -ex
@@ -294,13 +293,13 @@ jobs:
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
         with:
           name: macBinaries
           path: out
-      
+
 
   windows64-test:
     needs: windows64-build
@@ -334,18 +333,18 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       # - name: Quick test
       #   shell: pwsh
       #   run: |
       #     $DOWNLOADDIR="./win$($env:ARCH)Binaries"
       #     new-item -Name $DOWNLOADDIR -ItemType directory
       #     Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
-      
+
       - name: Setup Haxe
         shell: pwsh
         run: |
@@ -355,11 +354,11 @@ jobs:
           $HAXEPATH = Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory
           Write-Host "::add-path::$HAXEPATH"
           Write-Host "::set-env name=HAXELIB_ROOT::$HAXEPATH\lib"
-      
+
       - name: Print Haxe version
         shell: pwsh
         run: haxe -version
-      
+
       - name: "Make Python 3 be available as python3 in the cmdline"
         shell: pwsh
         run: |
@@ -368,7 +367,7 @@ jobs:
           $py3path = $pypath.replace("python.exe","python3.exe")
           cmd /c mklink $py3path $pypath
           python3 -V
-      
+
       - name: Install hererocks
         if: matrix.target == 'lua'
         shell: cmd
@@ -376,18 +375,18 @@ jobs:
           pip install hererocks
           hererocks lua53 -l5.3 -rlatest
           call lua53/bin/activate
-      
+
       - name: Setup haxelib
         shell: pwsh
         run: |
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
-      
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-      
+
 
   windows-test:
     needs: windows-build
@@ -422,18 +421,18 @@ jobs:
           $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
           Write-Host "::add-path::$NEKOPATH"
           Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       # - name: Quick test
       #   shell: pwsh
       #   run: |
       #     $DOWNLOADDIR="./win$($env:ARCH)Binaries"
       #     new-item -Name $DOWNLOADDIR -ItemType directory
       #     Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
-      
+
       - name: Setup Haxe
         shell: pwsh
         run: |
@@ -443,11 +442,11 @@ jobs:
           $HAXEPATH = Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory
           Write-Host "::add-path::$HAXEPATH"
           Write-Host "::set-env name=HAXELIB_ROOT::$HAXEPATH\lib"
-      
+
       - name: Print Haxe version
         shell: pwsh
         run: haxe -version
-      
+
       - name: "Make Python 3 be available as python3 in the cmdline"
         shell: pwsh
         run: |
@@ -456,7 +455,7 @@ jobs:
           $py3path = $pypath.replace("python.exe","python3.exe")
           cmd /c mklink $py3path $pypath
           python3 -V
-      
+
       - name: Install hererocks
         if: matrix.target == 'lua'
         shell: cmd
@@ -464,18 +463,18 @@ jobs:
           pip install hererocks
           hererocks lua53 -l5.3 -rlatest
           call lua53/bin/activate
-      
+
       - name: Setup haxelib
         shell: pwsh
         run: |
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
-      
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-      
+
 
   linux-test:
     needs: linux-build
@@ -516,18 +515,18 @@ jobs:
           sudo add-apt-repository ppa:haxe/snapshots -y
           sudo apt-get update -qqy
           sudo apt-get install -qqy neko
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       - name: Setup Haxe
         run: |
           # mkdir ./linuxBinaries
           # curl -sSL https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz -o ./linuxBinaries/haxe_bin.tar.gz
-      
+
           sudo apt install -qqy libmbedtls-dev
-      
+
           set -ex
           tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
           sudo mkdir -p /usr/local/bin/
@@ -535,39 +534,39 @@ jobs:
           sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
           sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
           sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
-      
+
       - name: Print Haxe version
         run: haxe -version
-      
+
       - name: Setup haxelib
         run: |
           set -ex
           mkdir ~/haxelib
           haxelib setup ~/haxelib
-      
+
       - name: Install apt packages
         if: matrix.APT_PACKAGES
         run: |
           set -ex
           sudo apt update -qqy
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
-      
+
       - name: Flash setup
         if: matrix.target == 'flash9'
         run: export DISPLAY=:99.0
-      
+
       - name: Test
         if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-      
+
       - name: Test (with SauceLabs)
         if: matrix.target == 'js' && success() && matrix.SAUCE && matrix.SAUCE_ACCESS_KEY
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
         env:
           SAUCE_ACCESS_KEY: matrix.SAUCE_ACCESS_KEY
-      
+
 
   mac-test:
     needs: mac-build
@@ -597,16 +596,16 @@ jobs:
           set -ex
           HOMEBREW_NO_AUTO_UPDATE=1
           brew install neko
-      
+
       - name: Print Neko version
         run: neko -version 2>&1
-      
-      
+
+
       - name: Setup Haxe
         run: |
           # mkdir ./macBinaries
           # curl -sSL https://build.haxe.org/builds/haxe/mac/haxe_latest.tar.gz -o ./macBinaries/haxe_bin.tar.gz
-      
+
           set -ex
           tar -xf macBinaries/*_bin.tar.gz -C macBinaries --strip-components=1
           sudo mkdir -p /usr/local/bin/
@@ -614,24 +613,24 @@ jobs:
           sudo ln -s `pwd`/macBinaries/haxe /usr/local/bin/haxe
           sudo ln -s `pwd`/macBinaries/haxelib /usr/local/bin/haxelib
           sudo ln -s `pwd`/macBinaries/std /usr/local/share/haxe/std
-      
+
       - name: Print Haxe version
         run: haxe -version
-      
+
       - name: Setup haxelib
         run: |
           set -ex
           mkdir ~/haxelib
           haxelib setup ~/haxelib
-      
+
       - name: Install homebrew packages
         if: matrix.BREW_PACKAGES
         run: brew install ${{matrix.BREW_PACKAGES}}
-      
+
       - name: Test
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
           haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-      
+
