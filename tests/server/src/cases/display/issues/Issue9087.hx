@@ -10,7 +10,7 @@ class Issue9087 extends DisplayTestCase {
 			return haxe.Json.parse(lastResult.stderr).result;
 		}
 		runHaxeJson(args, DisplayMethods.GotoImplementation, {file: new FsPath("A.hx"), offset: markers.offset(1), contents: markers.source});
-		trace(haxe.Json.parse(lastResult.stderr));
+		trace(haxe.Json.parse(lastResult.stderr).error);
 		var result = parseGotoDefintion().result;
 		Assert.equals(1, result.length);
 		Assert.same(markers.range(2, 3), result[0].range);
