@@ -7,19 +7,19 @@ import runci.Config.*;
 
 class Hl {
     static var hlSrc = switch [ci, systemName] {
-      case [AppVeyor | AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink";
+      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink"]);
     };
     static var hlBuild = switch [ci, systemName] {
-      case [AppVeyor | AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build";
+      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
     };
     static var hlBinDir = switch [ci, systemName] {
-      case [AppVeyor | AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
+      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
     };
     static var hlBinary = switch [ci, systemName] {
-      case [AppVeyor | AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
+      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
     };
 

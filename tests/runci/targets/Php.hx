@@ -28,17 +28,15 @@ class Php {
 			infoMsg('php ${phpVer} has already been installed.');
 			return;
 		}
-		switch [ci, systemName] {
-			case [TravisCI, "Linux"]:
-				runCommand("phpenv", ["global", "7.0"], false, true);
-			case [_, "Linux"]:
+		switch systemName {
+			case "Linux":
 				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
-			case [_, "Mac"]:
+			case "Mac":
 				runCommand("brew", ["install", "php"], true);
-			case [_, "Windows"]:
+			case "Windows":
 				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
 			case _:
-				throw 'unknown combination: $ci, $systemName';
+				throw 'unknown system: $systemName';
 		}
 		runCommand("php", ["-v"]);
 	}
@@ -77,11 +75,6 @@ class Php {
 
 	static function runThroughPhpVersions(fn:(phpCmd:String)->Void) {
 		switch [ci, systemName] {
-			case [TravisCI, "Linux"]:
-				for(version in ['7.0', '7.1'/*, '7.2', '7.3'*/]) { //7.2 and 7.3 are not available on travis Ubuntu trusty
-					runCommand("phpenv", ["global", version]);
-					fn('php');
-				}
 			case [GithubActions, "Linux"]:
 				for(version in ['7.1', '7.2', '7.3', '7.4']) {
 					fn('php$version');
