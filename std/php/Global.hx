@@ -766,6 +766,31 @@ extern class Global {
 	static function is_dir(filename:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.is-executable.php
+	**/
+	static function is_executable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-file.php
+	**/
+	static function is_file(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-link.php
+	**/
+	static function is_link(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-readable.php
+	**/
+	static function is_readable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-writable.php
+	**/
+	static function is_writable(filename:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.rename.php
 	**/
 	static function rename(oldname:String, newname:String, ?context:Resource):Bool;
