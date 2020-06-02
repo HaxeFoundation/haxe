@@ -61,44 +61,44 @@ class Js {
 		// runCommand("haxe", ["run.hxml"]);
 
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");
-		var env = Sys.environment();
-		if (
-			env.exists("SAUCE") &&
-			env.exists("SAUCE_USERNAME") &&
-			env.exists("SAUCE_ACCESS_KEY")
-		) {
-			var sc = switch (ci) {
-				case AzurePipelines:
-					var scVersion = "sc-4.5.3-linux";
-					runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
-					runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+		// var env = Sys.environment();
+		// if (
+		// 	env.exists("SAUCE") &&
+		// 	env.exists("SAUCE_USERNAME") &&
+		// 	env.exists("SAUCE_ACCESS_KEY")
+		// ) {
+		// 	var sc = switch (ci) {
+		// 		case AzurePipelines:
+		// 			var scVersion = "sc-4.5.3-linux";
+		// 			runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+		// 			runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
 
-					//start sauce-connect
-					var scReadyFile = "sauce-connect-ready-" + Std.random(100);
-					var p = new Process('${scVersion}/bin/sc', [
-						"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
-						"-f", scReadyFile
-					]);
-					while(!FileSystem.exists(scReadyFile)) {
-						Sys.sleep(0.5);
-					}
-					p;
-				case _:
-					// sauce-connect should have been started
-					null;
-			}
+		// 			//start sauce-connect
+		// 			var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+		// 			var p = new Process('${scVersion}/bin/sc', [
+		// 				"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
+		// 				"-f", scReadyFile
+		// 			]);
+		// 			while(!FileSystem.exists(scReadyFile)) {
+		// 				Sys.sleep(0.5);
+		// 			}
+		// 			p;
+		// 		case _:
+		// 			// sauce-connect should have been started
+		// 			null;
+		// 	}
 
-			changeDirectory(unitDir);
-			runCommand("npm", ["install", "wd", "q"], true);
-			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
-			var server = new Process("nekotools", ["server"]);
-			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
+		// 	changeDirectory(unitDir);
+		// 	runCommand("npm", ["install", "wd", "q"], true);
+		// 	runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
+		// 	var server = new Process("nekotools", ["server"]);
+		// 	runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
-			server.close();
+		// 	server.close();
 
-			if (sc != null)
-				sc.close();
-		}
+		// 	if (sc != null)
+		// 		sc.close();
+		// }
 
 		// infoMsg("Test optimization:");
 		// changeDirectory(optDir);

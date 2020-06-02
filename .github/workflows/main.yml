@@ -43,24 +43,6 @@ jobs:
           ldd -v ./haxe
           ldd -v ./haxelib
 
-      - name: Build xmldoc
-        run: |
-          set -ex
-          make -s xmldoc
-          cat >extra/doc/info.json <<EOL
-            {
-              "commit": "$GITHUB_SHA",
-              "branch": "$GITHUB_REF"
-            }
-          EOL
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
-        with:
-          name: linuxBinaries
-          path: out
-
-
   linux-test:
     needs: linux-build
     runs-on: ubuntu-latest
@@ -74,17 +56,6 @@ jobs:
         target: [js]
         include:
           - target: js
-            # SAUCE: 1
-            # SAUCE_TUNNEL_ID: 'linux-test'
-            # SAUCE_BUILD: '${{env.GITHUB_RUN_NUMBER}}' # $(Build.BuildNumber)
-          - target: hl
-            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
-          - target: cpp
-            APT_PACKAGES: gcc-multilib g++-multilib
-          - target: lua
-            APT_PACKAGES: ncurses-dev
-          - target: flash9
-            APT_PACKAGES: libglib2.0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@master
         with:
