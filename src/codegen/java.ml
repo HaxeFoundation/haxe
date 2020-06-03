@@ -307,6 +307,34 @@ let convert_java_enum ctx p pe =
 				| _ -> ()
 		) field.jf_throws;
 
+		let extract_local_names () =
+			let default i =
+				"param" ^ string_of_int i
+			in
+			match field.jf_code with
+			| None ->
+				default
+			| Some attribs -> try
+				let rec loop attribs = match attribs with
+					| AttrLocalVariableTable locals :: _ ->
+						locals
+					| _ :: attribs ->
+						loop attribs
+					| [] ->
+						raise Not_found
+				in
+				let locals = loop attribs in
+				let h = Hashtbl.create 0 in
+				List.iter (fun local ->
+					Hashtbl.replace h local.ld_index local.ld_name
+				) locals;
+				(fun i ->
+					try Hashtbl.find h (i - 1) (* they are 1-based *)
+					with Not_found -> "param" ^ string_of_int i
+				)
+			with Not_found ->
+				default
+		in
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
 				FProp (("default",null_pos), ("null",null_pos), Some (convert_signature ctx p field.jf_signature,null_pos), None)
@@ -315,6 +343,7 @@ let convert_java_enum ctx p pe =
 			| JKMethod ->
 				match field.jf_signature with
 				| TMethod (args, ret) ->
+					let local_names = extract_local_names() in
 					let old_types = ctx.jtparams in
 					(match ctx.jtparams with
 					| c :: others -> ctx.jtparams <- (c @ field.jf_types) :: others
@@ -322,7 +351,7 @@ let convert_java_enum ctx p pe =
 					let i = ref 0 in
 					let args = List.map (fun s ->
 						incr i;
-						("param" ^ string_of_int !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
+						(local_names !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_meta := (Meta.Overload, [], p) :: !cff_meta;

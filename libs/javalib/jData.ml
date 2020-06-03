@@ -92,8 +92,6 @@ type jconstant =
   | ConstInvokeDynamic of (bootstrap_method * unqualified_name * jsignature) (* tag = 18 *)
   | ConstUnusable
 
-type jcode = unit (* TODO *)
-
 type jaccess_flag =
   | JPublic (* 0x0001 *)
   | JPrivate (* 0x0002 *)
@@ -135,11 +133,22 @@ and jannotation_value =
   | ValAnnotation of jannotation (* @ *)
   | ValArray of jannotation_value list (* [ *)
 
+type jlocal = {
+	ld_start_pc : int;
+	ld_length : int;
+	ld_name : string;
+	ld_descriptor : string;
+	ld_index : int;
+}
+
 type jattribute =
   | AttrDeprecated
   | AttrVisibleAnnotations of jannotation list
   | AttrInvisibleAnnotations of jannotation list
+  | AttrLocalVariableTable of jlocal list
   | AttrUnknown of string * string
+
+type jcode = jattribute list (* TODO *)
 
 type jfield_kind =
   | JKField
