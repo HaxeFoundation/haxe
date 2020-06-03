@@ -20,7 +20,8 @@ class Issue9087 extends DisplayTestCase {
 	**/
 	function test(_) {
 		runHaxeJson([], DisplayMethods.GotoImplementation, {file: file, offset: offset(1), contents: source});
-		js.Syntax.code('console.log({0})', parseGotoDefintion());
+		js.Syntax.code('console.log({0})', lastResult.stderr);
+		js.Syntax.code('console.log({0})', haxe.Json.parse(lastResult.stderr));
 		var result = parseGotoDefintion().result;
 		Assert.equals(1, result.length);
 		Assert.same(range(2, 3), result[0].range);
