@@ -1071,20 +1071,24 @@ class java_library_jar com name file_path = object(self)
 	val zip = lazy (Zip.open_in file_path)
 	val mutable cached_files = None
 	val cached_types = Hashtbl.create 12
+	val mutable loaded = false
 	val mutable closed = false
 
 	method load =
-		List.iter (function
-			| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
-				let pack = String.nsplit filename "/" in
-				(match List.rev pack with
-					| [] -> ()
-					| name :: pack ->
-						let name = String.sub name 0 (String.length name - 6) in
-						let pack = List.rev pack in
-						Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
-			| _ -> ()
-		) (Zip.entries (Lazy.force zip))
+		if not loaded then begin
+			loaded <- true;
+			List.iter (function
+				| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
+					let pack = String.nsplit filename "/" in
+					(match List.rev pack with
+						| [] -> ()
+						| name :: pack ->
+							let name = String.sub name 0 (String.length name - 6) in
+							let pack = List.rev pack in
+							Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
+				| _ -> ()
+			) (Zip.entries (Lazy.force zip))
+		end
 
 	method private lookup' ((pack,name) : path) : java_lib_type =
 		try
@@ -1101,17 +1105,18 @@ class java_library_jar com name file_path = object(self)
 		try
 			Hashtbl.find cached_types path
 		with | Not_found -> try
+			self#load;
 			let pack, name = self#convert_path path in
 			let try_file (pack,name) =
 				match self#lookup' (pack,name) with
 				| None ->
-						Hashtbl.add cached_types path None;
-						None
+					Hashtbl.add cached_types path None;
+					None
 				| Some (i, p1, p2) ->
-						Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
-						let ret = Some (normalize_jclass com i, p1, p2) in
-						Hashtbl.replace cached_types path ret;
-						ret
+					Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
+					let ret = Some (normalize_jclass com i, p1, p2) in
+					Hashtbl.replace cached_types path ret;
+					ret
 			in
 			try_file (pack,name)
 		with Not_found ->
