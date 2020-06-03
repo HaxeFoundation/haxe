@@ -10,10 +10,12 @@ class Issue9087 extends DisplayTestCase {
 			function init() {}
 		}
 
-		class B extends A {
+		class Main extends A {
 			override function {-2-}init{-3-}() {
 				super.init();
 			}
+
+			static public function main() {}
 		}
 	**/
 	function test(_) {
