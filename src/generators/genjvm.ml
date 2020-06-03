@@ -2794,7 +2794,11 @@ module Preprocessor = struct
 			()
 		else if mt.mt_private && has_primary_type mt.mt_module then begin
 			let m = mt.mt_module in
-			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
+			let pack = match fst m.m_path with
+				| [] -> ["haxe";"root"]
+				| pack -> pack
+			in
+			mt.mt_path <- (pack,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
 		end else if fst mt.mt_path = [] then
 			mt.mt_path <- make_root mt.mt_path
 
