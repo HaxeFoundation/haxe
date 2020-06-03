@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        target: [js]
         include:
           - target: js
             # SAUCE: 1
