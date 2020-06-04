@@ -324,6 +324,7 @@ and module_def_display = {
 
 and module_def_extra = {
 	m_file : string;
+	m_file_key : unit -> Path.UniqueKey.t;
 	m_sign : string;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
