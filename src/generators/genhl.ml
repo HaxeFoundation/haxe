@@ -4003,7 +4003,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			if not ctx.is_macro then List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			if not ctx.is_macro then List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with

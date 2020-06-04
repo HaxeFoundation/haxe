@@ -674,7 +674,7 @@ and decode_meta_content m = decode_opt_array decode_meta_entry m
 
 and decode_doc = opt (fun s -> { doc_own = Some (decode_string s); doc_inherited = [] })
 
-and decode_class_field_kind v = 
+and decode_class_field_kind v =
 	match decode_enum v with
 	| 0, [t;e] ->
 		FVar (opt decode_ctype t, opt decode_expr e)
@@ -1003,7 +1003,7 @@ and encode_tclass c =
 		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
 		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
-		"overrides", (encode_array (List.map encode_cfref c.cl_overrides))
+		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
 and encode_ttype t =

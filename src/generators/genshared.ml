@@ -364,7 +364,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			super_call_fields = DynArray.to_list super_call_fields;
 		}
 
-	method check_overrides c = match c.cl_overrides with
+	method check_overrides c = match List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields with
 		| [] ->
 			()
 		| fields ->

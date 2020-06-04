@@ -52,22 +52,20 @@ let collect_statistics ctx pfilter with_expressions =
 			Hashtbl.replace symbols p kind;
 		end
 	in
-	let collect_overrides c =
-		List.iter (fun cf ->
-			let rec loop c = match c.cl_super with
-				| Some (c,_) ->
-					begin try
-						let cf' = PMap.find cf.cf_name c.cl_fields in
-						add_relation cf'.cf_name_pos (Overridden,cf.cf_name_pos)
-					with Not_found ->
-						()
-					end;
-					loop c
-				| _ ->
+	let check_override c cf =
+		let rec loop c = match c.cl_super with
+			| Some (c,_) ->
+				begin try
+					let cf' = PMap.find cf.cf_name c.cl_fields in
+					add_relation cf'.cf_name_pos (Overridden,cf.cf_name_pos)
+				with Not_found ->
 					()
-			in
-			loop c
-		) c.cl_overrides
+				end;
+				loop c
+			| _ ->
+				()
+		in
+		loop c
 	in
 	let collect_implementations c =
 		let memo = Hashtbl.create 0 in
@@ -231,7 +229,6 @@ let collect_statistics ctx pfilter with_expressions =
 					in
 					loop c'
 			end;
-			collect_overrides c;
 			if c.cl_interface then
 				collect_implementations c;
 			let field cf =
@@ -242,7 +239,10 @@ let collect_statistics ctx pfilter with_expressions =
 				end
 			in
 			Option.may field c.cl_constructor;
-			List.iter field c.cl_ordered_fields;
+			List.iter (fun cf ->
+				check_override c cf;
+				field cf;
+			) c.cl_ordered_fields;
 			List.iter field c.cl_ordered_statics;
 		| TEnumDecl en ->
 			check_module en.e_module;

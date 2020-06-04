@@ -885,7 +885,9 @@ let run com main mode =
 					| Some (csup,_) -> loop csup
 					| None -> false
 				in
-				loop c
+				let b = loop c in
+				if not b then remove_class_field_flag s CfOverride;
+				b
 			) c.cl_overrides;
 		| _ -> ()
 	) com.types;

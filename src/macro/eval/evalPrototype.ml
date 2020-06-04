@@ -333,7 +333,7 @@ let add_types ctx types ready =
 				| _ ->
 					false
 			in
-			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			create_constructor ctx c;
 			DynArray.add fl_instance (create_instance_prototype ctx c);
 			DynArray.add fl_static (create_static_prototype ctx mt);
