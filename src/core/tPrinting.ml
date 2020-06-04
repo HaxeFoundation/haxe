@@ -512,7 +512,6 @@ module Printer = struct
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
 			"cl_array_access",s_opt s_type c.cl_array_access;
-			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
 			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
 			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
 			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;

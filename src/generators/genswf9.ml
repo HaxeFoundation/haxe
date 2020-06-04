@@ -2068,7 +2068,7 @@ let generate_field_kind ctx f c stat =
 				PMap.exists name c.cl_fields || loop c name
 		in
 		(match f.cf_kind with
-		| Method MethDynamic when List.memq f c.cl_overrides ->
+		| Method MethDynamic when has_class_field_flag f CfOverride ->
 			None
 		| Var _ | Method MethDynamic ->
 			Some (HFVar {
@@ -2080,7 +2080,7 @@ let generate_field_kind ctx f c stat =
 			let name, kind = method_kind() in
 			let m = generate_method ctx fdata stat f.cf_meta in
 			let is_override = not stat && (
-				if kind = MK3Normal then List.memq f c.cl_overrides
+				if kind = MK3Normal then has_class_field_flag f CfOverride
 				else (loop c name || loop c f.cf_name)
 			) in
 			Some (HFMethod {
@@ -2160,14 +2160,8 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 	| Some (_, _, prop_cf) ->
 		let accessor_cl = find_first_nonextern_accessor_implementor cl accessor_cf.cf_name in
 		if accessor_cl == cl then begin
-			let was_override = ref false in
-			cl.cl_overrides <- List.filter (fun f2 ->
-				if f2 == accessor_cf then
-					(was_override := true; false)
-				else
-					true
-			) cl.cl_overrides;
-
+			let was_override = has_class_field_flag accessor_cf CfOverride in
+			if was_override then remove_class_field_flag accessor_cf CfOverride;
 			let name, mtype =
 				if cl.cl_interface then begin
 					let (args,tret) = f_iface prop_cf in
@@ -2186,7 +2180,7 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 				hlf_kind = HFMethod {
 					hlm_type = mtype;
 					hlm_final = has_class_field_flag accessor_cf CfFinal;
-					hlm_override = !was_override;
+					hlm_override = was_override;
 					hlm_kind = kind;
 				};
 				hlf_metas = None;
@@ -2434,7 +2428,7 @@ let generate_class ctx c =
 		let rec find_meta c =
 			try
 				let f = PMap.find f.cf_name (if stat then c.cl_statics else c.cl_fields) in
-				if List.memq f c.cl_overrides then raise Not_found;
+				if has_class_field_flag f CfOverride then raise Not_found;
 				f.cf_meta
 			with Not_found ->
 				match c.cl_super with

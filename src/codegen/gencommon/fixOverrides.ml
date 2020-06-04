@@ -255,7 +255,13 @@ let run ~explicit_fn_name ~get_vmtype gen =
 				| _ -> f
 			in
 			if not c.cl_extern then
-				c.cl_overrides <- List.map (fun f -> check_f f) c.cl_overrides;
+				List.iter (fun f ->
+					if has_class_field_flag f CfOverride then begin
+						remove_class_field_flag f CfOverride;
+						let f2 = check_f f in
+						add_class_field_flag f2 CfOverride
+					end
+				) c.cl_ordered_fields;
 			md
 		| _ -> md
 	in

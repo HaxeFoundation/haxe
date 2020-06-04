@@ -204,7 +204,7 @@ struct
 
 		cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
 		cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
-		cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
+		add_class_field_flag getTag_cf CfOverride;
 		cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 		gen.gadd_to_module (TClassDecl cl) (max_dep);
 

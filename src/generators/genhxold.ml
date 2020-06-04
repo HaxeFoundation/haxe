@@ -234,7 +234,7 @@ let generate_type com t =
 		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> not (List.memq f c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> not (has_class_field_flag f CfOverride)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

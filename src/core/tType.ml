@@ -226,7 +226,6 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
@@ -373,3 +372,4 @@ type flag_tclass_field =
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
+	| CfOverride

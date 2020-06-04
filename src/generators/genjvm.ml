@@ -2249,7 +2249,8 @@ class tclass_to_jvm gctx c = object(self)
 			) c_int.cl_implements
 		in
 		loop (fun t -> t) c;
-		begin match c.cl_overrides,c.cl_super with
+		let overrides = List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields in
+		begin match overrides,c.cl_super with
 		| [],_ ->
 			()
 		| fields,Some(c_sup,tl) ->

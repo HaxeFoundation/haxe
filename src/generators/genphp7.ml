@@ -919,7 +919,6 @@ class class_wrapper (cls) =
 								cl_ordered_fields  = [];
 								cl_ordered_statics  = [];
 								cl_constructor = None;
-								cl_overrides = [];
 								cl_init = Some body
 						} in
 						Some (TClassDecl additional_cls)

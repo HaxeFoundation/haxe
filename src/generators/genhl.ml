@@ -626,7 +626,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			| Method m when m <> MethDynamic && not statics ->
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
-				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
+				let virt = if has_class_field_flag f CfOverride then
 					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> die "" __LOC__) in
 					DynArray.set virtuals vid g;
 					Some vid
@@ -640,7 +640,7 @@ and class_type ?(tref=None) ctx c pl statics =
 				in
 				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; };
 				None
-			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
+			| Method MethDynamic when has_class_field_flag f CfOverride ->
 				Some (try fst (get_index f.cf_name p) with Not_found -> die "" __LOC__)
 			| _ ->
 				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
@@ -663,7 +663,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			(* check toString *)
 			(try
 				let cf = PMap.find "toString" c.cl_fields in
-				if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
+				if has_class_field_flag cf CfOverride || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
 				DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 			with Not_found ->
 				());
@@ -3359,7 +3359,7 @@ let rec generate_member ctx c f =
 			) c.cl_ordered_fields;
 		) in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
-		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
+		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
@@ -4003,7 +4003,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			if not ctx.is_macro then List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			if not ctx.is_macro then List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with

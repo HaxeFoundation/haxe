@@ -166,7 +166,7 @@ let check_native_name_override ctx child base =
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		if List.memq f c.cl_overrides then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
+		if has_class_field_flag f CfOverride then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
@@ -182,7 +182,7 @@ let check_overriding ctx c f =
 			| _ -> ());
 			if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
 				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
-			else if not (List.memq f c.cl_overrides) then
+			else if not (has_class_field_flag f CfOverride) then
 				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
@@ -205,7 +205,7 @@ let check_overriding ctx c f =
 					display_error ctx (error_msg (Unify l)) p;
 		with
 			Not_found ->
-				if List.memq f c.cl_overrides then
+				if has_class_field_flag f CfOverride then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
 					else begin

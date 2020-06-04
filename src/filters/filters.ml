@@ -318,7 +318,7 @@ let save_class_state ctx t = match t with
 			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
 		in
 
-		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern and over = c.cl_overrides in
+		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
 		let sup = c.cl_super and impl = c.cl_implements in
 		let csr = Option.map (mk_field_restore) c.cl_constructor in
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
@@ -337,7 +337,6 @@ let save_class_state ctx t = match t with
 			c.cl_fields <- mk_pmap c.cl_ordered_fields;
 			c.cl_statics <- mk_pmap c.cl_ordered_statics;
 			c.cl_constructor <- Option.map restore_field csr;
-			c.cl_overrides <- over;
 			c.cl_descendants <- [];
 			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)

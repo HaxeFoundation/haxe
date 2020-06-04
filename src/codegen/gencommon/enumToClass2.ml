@@ -30,7 +30,7 @@ let add_static c cf =
 let add_field c cf override =
 	c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 	c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-	if override then c.cl_overrides <- cf :: c.cl_overrides
+	if override then add_class_field_flag cf CfOverride
 
 let add_meta com en cl_enum =
 	Option.may (fun expr ->

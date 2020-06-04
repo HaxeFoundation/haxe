@@ -878,15 +878,18 @@ let run com main mode =
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with
 		| TClassDecl c ->
-			c.cl_overrides <- List.filter (fun s ->
-				let rec loop c =
-					match c.cl_super with
-					| Some (csup,_) when PMap.mem s.cf_name csup.cl_fields -> true
-					| Some (csup,_) -> loop csup
-					| None -> false
-				in
-				loop c
-			) c.cl_overrides;
+			List.iter (fun cf ->
+				if has_class_field_flag cf CfOverride then begin
+					let rec loop c =
+						match c.cl_super with
+						| Some (csup,_) when PMap.mem cf.cf_name csup.cl_fields -> true
+						| Some (csup,_) -> loop csup
+						| None -> false
+					in
+					let b = loop c in
+					if not b then remove_class_field_flag cf CfOverride;
+				end
+			) c.cl_ordered_fields;
 		| _ -> ()
 	) com.types;
 

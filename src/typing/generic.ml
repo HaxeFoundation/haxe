@@ -331,9 +331,6 @@ let rec build_generic ctx c p tl =
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
 		) c.cl_ordered_fields;
-		cg.cl_overrides <- List.map (fun f ->
-			try PMap.find f.cf_name cg.cl_fields with Not_found -> die "" __LOC__
-		) c.cl_overrides;
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
