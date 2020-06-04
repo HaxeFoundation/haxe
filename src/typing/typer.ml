@@ -2085,6 +2085,8 @@ and type_local_function ctx kind f with_type p =
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+		if ctx.in_display && DisplayPosition.display_position#enclosed_in v.v_pos then
+			DisplayEmitter.display_variable ctx v v.v_pos;
 		let rec loop = function
 			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
 			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
