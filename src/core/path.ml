@@ -86,7 +86,7 @@ let path_sep = if Globals.is_windows then "\\" else "/"
 
 (**
 	Returns absolute path.
-	Resolves `.`, `..` and trailing slashes.
+	Resolves `.`, `..`, double slashes and trailing slashesw.
 	Doesn't resolve symbolic links.
 	Doesn't fix path case on Windows.
 	Doesn't access file system (see https://github.com/HaxeFoundation/haxe/issues/9509#issuecomment-636360777)
@@ -105,11 +105,11 @@ let get_full_path =
 					| '/' -> i + 1
 					| _ -> skip_past_slash (i + 1)
 			in
-			let rec has_dots i =
+			let rec has_dots_or_double_slash i =
 				if i >= length then
 					false
 				else
-					let dots =
+					let has =
 						match String.unsafe_get f i with
 						| '.' ->
 							if i + 2 < length then
@@ -122,11 +122,13 @@ let get_full_path =
 								| _ -> false
 							else
 								true (* path ends with `.` *)
+						| '/' when i > 0 -> (* double slash *)
+							true
 						| _ ->
 							false
 					in
-					if dots then true
-					else has_dots (skip_past_slash i)
+					if has then true
+					else has_dots_or_double_slash (skip_past_slash i)
 			in
 			let absolute_path =
 				if length > 0 && String.unsafe_get f 0 = '/' then f
@@ -136,9 +138,9 @@ let get_full_path =
 			let has_trailing_slash =
 				length > 0 && String.unsafe_get f (length - 1) = '/'
 			in
-			if not has_trailing_slash && not (has_dots 0) then
+			if not has_trailing_slash && not (has_dots_or_double_slash 0) then
 				absolute_path
-			else
+			else begin
 				let parts = ExtString.String.split_on_char '/' absolute_path in
 				let skip = ref 0 in
 				let normalized_parts =
@@ -157,6 +159,7 @@ let get_full_path =
 					) [] (List.rev parts)
 				in
 				"/" ^ String.concat "/" normalized_parts
+			end
 		)
 
 (** Returns absolute path (on Windows ensures proper case with drive letter upper-cased)
