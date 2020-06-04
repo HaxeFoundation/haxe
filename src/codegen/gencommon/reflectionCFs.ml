@@ -777,7 +777,7 @@ let implement_final_lookup ctx cl =
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ cfs;
 		List.iter (fun cf ->
 			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-			if is_override then cl.cl_overrides <- cf :: cl.cl_overrides
+			if is_override then add_class_field_flag cf CfOverride
 		) cfs
 	in
 	if not is_override then begin
@@ -1028,7 +1028,7 @@ let implement_get_set ctx cl =
 			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cfield];
 			cl.cl_fields <- PMap.add fun_name cfield cl.cl_fields;
 
-			(if is_override then cl.cl_overrides <- cfield	:: cl.cl_overrides)
+			(if is_override then add_class_field_flag cfield CfOverride)
 		end else ()
 	in
 	mk_cfield true true;
@@ -1065,7 +1065,7 @@ let implement_getFields ctx cl =
 		List.map (fun (_,cf) ->
 			match cf.cf_kind with
 				| Var _
-				| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
+				| Method MethDynamic when not (has_class_field_flag cf CfOverride) ->
 					has_value := true;
 					mk_push (make_string gen.gcon.basic cf.cf_name pos)
 				| _ -> null basic.tvoid pos
@@ -1100,7 +1100,7 @@ let implement_getFields ctx cl =
 	if !has_value || not (is_override cl) then begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
 		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-		(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
+		(if is_override cl then add_class_field_flag cf CfOverride)
 	end
 
 
@@ -1194,7 +1194,7 @@ let implement_invokeField ctx slow_invoke cl =
 		in
 
 		let cfs = List.filter (fun (_,cf) -> match cf.cf_kind with
-			| Method _ -> if List.memq cf cl.cl_overrides then false else true
+			| Method _ -> if has_class_field_flag cf CfOverride then false else true
 			| _ -> true) cfs
 		in
 
@@ -1244,7 +1244,7 @@ let implement_invokeField ctx slow_invoke cl =
 
 		let nonstatics =
 			List.filter (fun (n,cf) ->
-				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
+				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || has_class_field_flag cf CfOverride in
 				(if is_old then old_nonstatics := cf :: !old_nonstatics);
 				not is_old
 			) nonstatics
@@ -1267,7 +1267,7 @@ let implement_invokeField ctx slow_invoke cl =
 	if !is_override && not (!has_method) then () else begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [dyn_fun];
 		cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
-		(if !is_override then cl.cl_overrides <- dyn_fun :: cl.cl_overrides)
+		(if !is_override then add_class_field_flag dyn_fun CfOverride)
 	end
 
 let implement_varargs_cl ctx cl =
@@ -1322,7 +1322,7 @@ let implement_varargs_cl ctx cl =
 	) all_cfs;
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) cl.cl_ordered_fields
 
 let implement_closure_cl ctx cl =
@@ -1380,7 +1380,7 @@ let implement_closure_cl ctx cl =
 	let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) all_cfs;
 	let all_cfs = cfs @ all_cfs in
 

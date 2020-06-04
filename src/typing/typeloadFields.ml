@@ -1407,7 +1407,7 @@ let init_field (ctx,cctx,fctx) f =
 		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
 		| _ -> ()
 	end;
-	let cf = 
+	let cf =
 		match f.cff_kind with
 		| FVar (t,e) ->
 			create_variable (ctx,cctx,fctx) c f t e p
@@ -1543,7 +1543,10 @@ let init_class ctx c p context_init herits fields =
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
-				if fctx.override <> None then c.cl_overrides <- cf :: c.cl_overrides;
+				if fctx.override <> None then begin
+					c.cl_overrides <- cf :: c.cl_overrides;
+					add_class_field_flag cf CfOverride
+				end;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then

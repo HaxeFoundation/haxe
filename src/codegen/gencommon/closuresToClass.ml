@@ -524,7 +524,7 @@ let configure gen ft =
 		(* add invoke function to the class *)
 		cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
 		cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
-		cls.cl_overrides <- invoke_field :: cls.cl_overrides;
+		add_class_field_flag invoke_field CfOverride;
 
 		(match tvar with
 		| None -> ()

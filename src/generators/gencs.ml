@@ -2078,7 +2078,7 @@ let generate con =
 			let is_virtual = not (is_interface || is_final || (has_class_field_flag prop CfFinal) || fn_is_final get || fn_is_final set) in
 
 			let fn_is_override = function
-				| Some cf -> List.memq cf cl.cl_overrides
+				| Some cf -> has_class_field_flag cf CfOverride
 				| None -> false
 			in
 			let is_override = fn_is_override get || fn_is_override set in
@@ -2249,7 +2249,7 @@ let generate con =
 					) overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
 					let is_virtual = if not is_virtual || (has_class_field_flag cf CfFinal) then false else is_virtual in
-					let is_override = List.memq cf cl.cl_overrides in
+					let is_override = has_class_field_flag cf CfOverride in
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
 						| "Equals", TFun([_,_,targ], tret) ->
 							(match follow targ, follow tret with
@@ -3124,7 +3124,7 @@ let generate con =
 
 		List.iter (fun cl ->
 			List.iter (fun cf ->
-				if cf.cf_name = dynamic_name then cl.cl_overrides <- cf :: cl.cl_overrides
+				if cf.cf_name = dynamic_name then add_class_field_flag cf CfOverride
 			) cl.cl_ordered_fields
 		) [closure_cl; varargs_cl];
 

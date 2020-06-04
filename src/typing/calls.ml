@@ -38,7 +38,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				(* Delay this to filters because that's when cl_descendants is set. *)
 				ctx.com.callbacks#add_before_save (fun () ->
 					let rec has_override c =
-						List.exists (fun cf -> cf.cf_name = f.cf_name) c.cl_overrides
+						has_class_field_flag f CfOverride
 						|| List.exists has_override c.cl_descendants
 					in
 					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
@@ -460,7 +460,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				end
 			end else begin
 				let cf2 = mk_cf2 name in
-				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
+				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
 				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
 				finalize_field c cf2;

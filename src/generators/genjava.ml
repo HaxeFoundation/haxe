@@ -1962,9 +1962,9 @@ let generate con =
 								(match (real_type t, real_type ret) with
 									| TDynamic _, TAbstract ({ a_path = ([], "Bool") },[])
 									| TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
-									| _ -> List.memq cf cl.cl_overrides
+									| _ -> has_class_field_flag cf CfOverride
 								)
-							| _ -> List.memq cf cl.cl_overrides)
+							| _ -> has_class_field_flag cf CfOverride)
 					| "toString" when not is_static ->
 						(match cf.cf_type with
 							| TFun([], ret) ->
@@ -1972,7 +1972,7 @@ let generate con =
 									| TInst( { cl_path = ([], "String") }, []) -> true
 									| _ -> gen.gcon.error "A toString() function should return a String!" cf.cf_pos; false
 								)
-							| _ -> List.memq cf cl.cl_overrides
+							| _ -> has_class_field_flag cf CfOverride
 						)
 					| "hashCode" when not is_static ->
 						(match cf.cf_type with
@@ -1982,9 +1982,9 @@ let generate con =
 										true
 									| _ -> gen.gcon.error "A hashCode() function should return an Int!" cf.cf_pos; false
 								)
-							| _ -> List.memq cf cl.cl_overrides
+							| _ -> has_class_field_flag cf CfOverride
 						)
-					| _ -> List.memq cf cl.cl_overrides
+					| _ -> has_class_field_flag cf CfOverride
 				in
 				let visibility = if is_interface then "" else "public" in
 

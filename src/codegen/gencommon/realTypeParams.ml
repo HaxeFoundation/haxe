@@ -430,7 +430,7 @@ struct
 					gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
 					cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
 					cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
-					if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
+					if level <> 0 then add_class_field_flag cfield CfOverride
 				end
 			end;
 			let get_reverse super supertl =
@@ -708,7 +708,7 @@ struct
 					let fields = List.filter (fun cf -> match cf.cf_kind with
 						| Var _ | Method MethDynamic -> false
 						| _ ->
-							let is_override = List.memq cf cl.cl_overrides in
+							let is_override = has_class_field_flag cf CfOverride in
 							let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
 								match find_first_declared_field gen cl cf.cf_name with
 									| Some(_,_,declared_t,_,_,_,_) -> declared_t

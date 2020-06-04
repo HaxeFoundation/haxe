@@ -4301,8 +4301,8 @@ let is_data_member field =
    | _ -> false;;
 
 
-let is_override class_def field =
-   List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
+let is_override field =
+   has_class_field_flag field CfOverride
 ;;
 
 (*
@@ -4315,7 +4315,7 @@ let current_virtual_functions_rev clazz base_functions =
    List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
       | TFun (args,return_type), Method _  ->
-          if (is_override clazz elem.cf_name ) then
+          if (is_override elem ) then
              List.map (fun (e,a,r) ->  if e.cf_name<>elem.cf_name then (e,a,r) else  (elem,args,return_type) ) result
           else
              (elem,args,return_type) :: result
@@ -4452,7 +4452,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-         let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
+         let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
          (* generate dynamic version too ... *)
          if ( doDynamic ) then begin
             let tcpp_args = List.map (fun (v,_) -> cpp_type_of ctx v.v_type  ) function_def.tf_args in
@@ -4626,7 +4626,7 @@ let gen_member_def ctx class_def is_static is_interface field =
       (match  field.cf_expr with
       | Some { eexpr = TFunction function_def } ->
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-         let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
+         let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
          if ( is_dynamic_haxe_method field ) then begin
             if ( doDynamic ) then begin
                output ("::Dynamic " ^ remap_name ^ ";\n");

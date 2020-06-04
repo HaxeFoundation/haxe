@@ -2068,7 +2068,7 @@ let generate_field_kind ctx f c stat =
 				PMap.exists name c.cl_fields || loop c name
 		in
 		(match f.cf_kind with
-		| Method MethDynamic when List.memq f c.cl_overrides ->
+		| Method MethDynamic when has_class_field_flag f CfOverride ->
 			None
 		| Var _ | Method MethDynamic ->
 			Some (HFVar {
@@ -2080,7 +2080,7 @@ let generate_field_kind ctx f c stat =
 			let name, kind = method_kind() in
 			let m = generate_method ctx fdata stat f.cf_meta in
 			let is_override = not stat && (
-				if kind = MK3Normal then List.memq f c.cl_overrides
+				if kind = MK3Normal then has_class_field_flag f CfOverride
 				else (loop c name || loop c f.cf_name)
 			) in
 			Some (HFMethod {
@@ -2434,7 +2434,7 @@ let generate_class ctx c =
 		let rec find_meta c =
 			try
 				let f = PMap.find f.cf_name (if stat then c.cl_statics else c.cl_fields) in
-				if List.memq f c.cl_overrides then raise Not_found;
+				if has_class_field_flag f CfOverride then raise Not_found;
 				f.cf_meta
 			with Not_found ->
 				match c.cl_super with
