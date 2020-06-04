@@ -108,7 +108,6 @@ let mk_class m path pos name_pos =
 		cl_array_access = None;
 		cl_constructor = None;
 		cl_init = None;
-		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];

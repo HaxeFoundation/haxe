@@ -226,7 +226,6 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
