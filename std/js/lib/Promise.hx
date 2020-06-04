@@ -85,7 +85,8 @@ extern class Promise<T> {
 		or to its original fulfillment value if the promise is instead fulfilled.
 	**/
 	@:native("catch")
-	function catchError<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<TOut>;
+	@:overload(function<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<EitherType<T, TOut>> {})
+	function catchError(onRejected:PromiseHandler<Dynamic, T>):Promise<T>;
 }
 
 /**

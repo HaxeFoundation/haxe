@@ -24,6 +24,10 @@ Main.hx:19: characters 35-36 : Warning : String
 Main.hx:19: characters 87-88 : Warning : Unknown<0>
 Main.hx:19: characters 9-119 : Warning : js.lib.Promise<Int>
 Main.hx:21: characters 41-42 : Warning : Unknown<0>
-Main.hx:21: characters 9-46 : Warning : js.lib.Promise<Void>
+Main.hx:21: characters 41-42 : Warning : Unknown<0>
+Main.hx:21: characters 9-46 : Warning : js.lib.Promise<haxe.extern.EitherType<String, Void>>
 Main.hx:22: characters 41-42 : Warning : Unknown<0>
-Main.hx:22: characters 9-73 : Warning : js.lib.Promise<Int>
+Main.hx:22: characters 41-42 : Warning : Unknown<0>
+Main.hx:22: characters 9-73 : Warning : js.lib.Promise<haxe.extern.EitherType<String, Int>>
+Main.hx:23: characters 41-42 : Warning : Unknown<0>
+Main.hx:23: characters 9-77 : Warning : js.lib.Promise<String>
