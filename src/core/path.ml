@@ -84,8 +84,80 @@ let normalize_path path =
 
 let path_sep = if Globals.is_windows then "\\" else "/"
 
-(** Returns absolute path. Doesn't fix path case on Windows. *)
-let get_full_path f = try Extc.get_full_path f with _ -> f
+(**
+	Returns absolute path.
+	Resolves `.`, `..` and trailing slashes.
+	Doesn't resolve symbolic links.
+	Doesn't fix path case on Windows.
+	Doesn't access file system (see https://github.com/HaxeFoundation/haxe/issues/9509#issuecomment-636360777)
+*)
+let get_full_path =
+	if Globals.is_windows then
+		(fun f -> try Extc.get_full_path f with _ -> f)
+	else
+		(fun f ->
+			let length = String.length f in
+			let rec skip_past_slash i =
+				if i >= length then
+					i
+				else
+					match String.unsafe_get f i with
+					| '/' -> i + 1
+					| _ -> skip_past_slash (i + 1)
+			in
+			let rec has_dots i =
+				if i >= length then
+					false
+				else
+					let dots =
+						match String.unsafe_get f i with
+						| '.' ->
+							if i + 2 < length then
+								match String.unsafe_get f (i + 1), String.unsafe_get f (i + 2) with
+								| '.', '/' | '/', _ -> true (* path contains `../` or `./` *)
+								| _ -> false
+							else if i + 1 < length then
+								match String.unsafe_get f (i + 1) with
+								| '/' | '.' -> true (* path ends with `./` or `..` *)
+								| _ -> false
+							else
+								true (* path ends with `.` *)
+						| _ ->
+							false
+					in
+					if dots then true
+					else has_dots (skip_past_slash i)
+			in
+			let absolute_path =
+				if length > 0 && String.unsafe_get f 0 = '/' then f
+				else if length = 0 then Unix.getcwd()
+				else (Unix.getcwd()) ^ "/" ^ f
+			in
+			let has_trailing_slash =
+				length > 0 && String.unsafe_get f (length - 1) = '/'
+			in
+			if not has_trailing_slash && not (has_dots 0) then
+				absolute_path
+			else
+				let parts = ExtString.String.split_on_char '/' absolute_path in
+				let skip = ref 0 in
+				let normalized_parts =
+					List.fold_left (fun acc current ->
+						match current with
+						| ".." ->
+							incr skip;
+							acc
+						| "." | "" ->
+							acc
+						| _ when !skip > 0 ->
+							decr skip;
+							acc
+						| _ ->
+							current :: acc
+					) [] (List.rev parts)
+				in
+				"/" ^ String.concat "/" normalized_parts
+		)
 
 (** Returns absolute path (on Windows ensures proper case with drive letter upper-cased)
     Use for returning positions from IDE support functions *)
@@ -110,8 +182,11 @@ module UniqueKey : sig
 		Get string representation of a key
 	*)
 	val to_string : t -> string
+
 end = struct
+
 	type t = string
+
 	let create =
 		if Globals.is_windows then
 			(fun f -> String.lowercase (get_full_path f))
