@@ -1368,8 +1368,25 @@ let generate con =
 									| _ -> ()
 								*)
 							| TFloat s ->
-								write w s;
-								(if String.get s (String.length s - 1) = '.' then write w "0");
+								let len = String.length s in
+								let rec loop i prev_c =
+									if i >= len then begin
+										write w s;
+										if prev_c = '.' then write w "0"
+									end else begin
+										let c = String.unsafe_get s i in
+										if (c = 'e' || c = 'E') && prev_c = '.' then
+											let first = String.sub s 0 i in
+											let second = String.sub s i (len - i) in
+											write w first;
+											write w "0";
+											write w second
+										else
+											loop (i + 1) c
+									end
+								in
+								loop 0 '#'
+
 								(*match real_type e.etype with
 									| TType( { t_path = ([], "Single") }, [] ) -> write w "f"
 									| _ -> ()
