@@ -1502,15 +1502,10 @@ end;;
 *)
 let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-let add_override cl cf =
-	if List.memq cf cl.cl_overrides then
-		cl.cl_overrides
-	else
-		cf :: cl.cl_overrides
-
 let has_field_override cl name =
 	try
-		cl.cl_overrides <- add_override cl (PMap.find name cl.cl_fields);
+		let cf = PMap.find name cl.cl_fields in
+		add_class_field_flag cf CfOverride;
 		true
 	with | Not_found ->
 		false

@@ -2160,14 +2160,8 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 	| Some (_, _, prop_cf) ->
 		let accessor_cl = find_first_nonextern_accessor_implementor cl accessor_cf.cf_name in
 		if accessor_cl == cl then begin
-			let was_override = ref false in
-			cl.cl_overrides <- List.filter (fun f2 ->
-				if f2 == accessor_cf then
-					(was_override := true; false)
-				else
-					true
-			) cl.cl_overrides;
-
+			let was_override = has_class_field_flag accessor_cf CfOverride in
+			if was_override then remove_class_field_flag accessor_cf CfOverride;
 			let name, mtype =
 				if cl.cl_interface then begin
 					let (args,tret) = f_iface prop_cf in
@@ -2186,7 +2180,7 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 				hlf_kind = HFMethod {
 					hlm_type = mtype;
 					hlm_final = has_class_field_flag accessor_cf CfFinal;
-					hlm_override = !was_override;
+					hlm_override = was_override;
 					hlm_kind = kind;
 				};
 				hlf_metas = None;
