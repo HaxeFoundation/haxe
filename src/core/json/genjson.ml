@@ -38,11 +38,18 @@ let generate_module_path' mpath =
 
 let generate_module_path mpath = jobject (generate_module_path' mpath)
 
-let generate_type_path' mpath tpath =
+let generate_type_path' mpath tpath meta =
 	("typeName",jstring (snd tpath)) ::
 	generate_module_path' mpath
 
-let generate_type_path mpath tpath = jobject (generate_type_path' mpath tpath)
+let generate_type_path mpath tpath meta =
+ 	let rec loop = function
+ 		| [] -> tpath
+ 		| (Meta.RealPath,[(Ast.EConst (Ast.String(s,_)),_)],_) :: _ -> parse_path s
+ 		| _ :: l -> loop l
+ 	in
+ 	let tpath = loop meta in
+	jobject (generate_type_path' mpath tpath meta)
 
 let generate_adt ctx tpath name args =
 	let field = ("kind",jstring name) in
@@ -52,13 +59,22 @@ let generate_adt ctx tpath name args =
 	in
 	jobject fields
 
-let class_ref ctx c = generate_type_path c.cl_module.m_path c.cl_path
-let enum_ref ctx en = generate_type_path en.e_module.m_path  en.e_path
-let typedef_ref ctx td = generate_type_path td.t_module.m_path td.t_path
-let abstract_ref ctx a = generate_type_path a.a_module.m_path a.a_path
+let field_name name meta =
+	try
+ 		begin match Meta.get Meta.RealPath meta with
+ 			| _,[EConst (String (s,_)),_],_ -> s
+ 			| _ -> raise Not_found
+ 		end;
+ 	with Not_found ->
+ 		name
+
+let class_ref ctx c = generate_type_path c.cl_module.m_path c.cl_path c.cl_meta
+let enum_ref ctx en = generate_type_path en.e_module.m_path  en.e_path en.e_meta
+let typedef_ref ctx td = generate_type_path td.t_module.m_path td.t_path td.t_meta
+let abstract_ref ctx a = generate_type_path a.a_module.m_path a.a_path a.a_meta
 let moduletype_ref ctx mt = generate_module_path (t_path mt)
-let classfield_ref ctx cf = jstring cf.cf_name
-let enumfield_ref ctx ef = jstring ef.ef_name
+let classfield_ref ctx cf = jstring (field_name cf.cf_name cf.cf_meta)
+let enumfield_ref ctx ef = jstring (field_name ef.ef_name ef.ef_meta)
 let local_ref ctx v = jint v.v_id
 
 let generate_pos ctx p =
@@ -149,7 +165,7 @@ let rec generate_expr ctx e =
 and generate_metadata_entry ctx (m,el,p) =
 	jobject [
 		"name",jstring (Meta.to_string m);
-		"params",jlist (generate_expr ctx) el;
+		"args",jlist (generate_expr ctx) el;
 		"pos",generate_pos ctx p;
 	]
 
@@ -198,10 +214,10 @@ let rec generate_type ctx t =
 			(* return_partial_type := false; *)
 			loop t
 		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
-		| TInst(c,tl) -> "TInst",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl)
-		| TEnum(en,tl) -> "TEnum",Some (generate_type_path_with_params ctx en.e_module.m_path en.e_path tl)
-		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl)
-		| TAbstract(a,tl) -> "TAbstract",Some (generate_type_path_with_params ctx a.a_module.m_path a.a_path tl)
+		| TInst(c,tl) -> "TInst",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)
+		| TEnum(en,tl) -> "TEnum",Some (generate_type_path_with_params ctx en.e_module.m_path en.e_path tl en.e_meta)
+		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl td.t_meta)
+		| TAbstract(a,tl) -> "TAbstract",Some (generate_type_path_with_params ctx a.a_module.m_path a.a_path tl a.a_meta)
 		| TAnon an -> "TAnonymous", Some(generate_anon ctx an)
 		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
 	in
@@ -246,9 +262,9 @@ and generate_function_signature ctx tl tr =
 and generate_types ctx tl =
 	jlist (generate_type ctx) tl
 
-and generate_type_path_with_params ctx mpath tpath tl =
+and generate_type_path_with_params ctx mpath tpath tl meta =
 	jobject [
-		"path",generate_type_path mpath tpath;
+		"path",generate_type_path mpath tpath meta;
 		"params",generate_types ctx tl;
 	]
 
@@ -531,7 +547,7 @@ and generate_class_field' ctx cfs cf =
 			jnull
 	in
 	[
-		"name",jstring cf.cf_name;
+		"name",jstring (field_name cf.cf_name cf.cf_meta);
 		"type",generate_type ctx cf.cf_type;
 		"isPublic",jbool (has_class_field_flag cf CfPublic);
 		"isFinal",jbool (has_class_field_flag cf CfFinal);
@@ -550,7 +566,7 @@ and generate_class_field ctx cfs cf =
 
 let generate_enum_field ctx ef =
 	jobject [
-		"name",jstring ef.ef_name;
+		"name",jstring (field_name ef.ef_name ef.ef_meta);
 		"type",generate_type ctx ef.ef_type;
 		"pos",generate_pos ctx ef.ef_pos;
 		"meta",generate_metadata ctx ef.ef_meta;
@@ -580,7 +596,7 @@ let generate_class ctx c =
 		| KTypeParameter tl -> "KTypeParameter",Some (generate_types ctx tl)
 		| KExpr e -> "KExpr",Some (generate_expr ctx e)
 		| KGeneric -> "KGeneric",None
-		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl)
+		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)
 		| KMacroType -> "KMacroType",None
 		| KGenericBuild _ -> "KGenericBuild",None
 		| KAbstractImpl a -> "KAbstractImpl",Some (abstract_ref ctx a)
@@ -590,7 +606,7 @@ let generate_class ctx c =
 	in
 	let generate_class_relation (c,tl) =
 		jobject [
-			"t",class_ref ctx c;
+			"path",class_ref ctx c;
 			"params",generate_types ctx tl;
 		]
 	in
@@ -685,7 +701,7 @@ let generate_module ctx m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
-		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
+		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path (t_infos mt).mt_meta) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
 		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
