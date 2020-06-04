@@ -1532,8 +1532,9 @@ let macro_api ccom get_api =
 				let dfile = display_pos#get.pfile in
 				dfile = p.pfile
 				|| (
+					let com = ccom() in
 					(Filename.is_relative p.pfile || Filename.is_relative dfile)
-					&& (Path.UniqueKey.create dfile = Path.UniqueKey.create p.pfile)
+					&& (com.file_keys#get dfile = com.file_keys#get p.pfile)
 				)
 			in
 			vbool (display_pos#enclosed_in p && same_file())
@@ -1930,9 +1931,10 @@ let macro_api ccom get_api =
 		);
 		"server_invalidate_files", vfun1 (fun a ->
 			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
+			let com = ccom() in
 			List.iter (fun v ->
 				let s = decode_string v in
-				let s = Path.UniqueKey.create s in
+				let s = com.file_keys#get s in
 				cs#taint_modules s;
 				cs#remove_files s;
 			) (decode_array a);

@@ -2633,7 +2633,7 @@ let generate con =
 		output_string f v;
 		close_out f;
 
-		out_files := (Path.UniqueKey.create full_path) :: !out_files
+		out_files := (gen.gcon.file_keys#get full_path) :: !out_files
 	) gen.gcon.resources;
 	(try
 		let c = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
@@ -2659,7 +2659,7 @@ let generate con =
 	) gen.gtypes_list;
 
 	if not (Common.defined gen.gcon Define.KeepOldOutput) then
-		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
+		clean_files gen (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	let path_s_desc path = path_s path [] in
 	dump_descriptor gen ("hxjava_build.txt") path_s_desc (fun md -> path_s_desc (t_infos md).mt_path);

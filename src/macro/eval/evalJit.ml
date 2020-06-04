@@ -690,7 +690,7 @@ and jit_tfunction jit static pos tf =
 	fl,exec
 
 and get_env_creation jit static file info =
-	create_env_info static file info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
+	create_env_info static file (jit.ctx.file_keys#get file) info jit.capture_infos jit.max_num_locals (Hashtbl.length jit.captures)
 
 let jit_timer ctx f =
 	Std.finally (Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"]) f ()

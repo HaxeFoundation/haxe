@@ -47,7 +47,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match !Parser.display_mode,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
+		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
 			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
@@ -63,7 +63,7 @@ let parse_file_from_string com file p string =
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file (com.file_keys#get file) in
 	if use_stdin then
 		let s =
 			match !current_stdin with
@@ -112,8 +112,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file_key = Path.UniqueKey.create file in
-		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (Path.UniqueKey.create path)) com.std_path then raise Not_found;
+		let file_key = com.file_keys#get file in
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.file_keys#get path)) com.std_path then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com file p in

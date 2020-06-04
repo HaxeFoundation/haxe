@@ -515,7 +515,7 @@ module Inheritance = struct
 				in
 				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
-				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				if Diagnostics.is_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
 		fl
