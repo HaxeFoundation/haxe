@@ -1884,7 +1884,7 @@ and type_try ctx e1 catches with_type p =
 		| [] ->
 			()
 	in
-	let check_catch_type path params =
+	let check_catch_type_params params =
 		List.iter (fun pt ->
 			if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 		) params
@@ -1895,12 +1895,11 @@ and type_try ctx e1 catches with_type p =
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
-			| TInst ({ cl_path = path },params)
-			| TEnum ({ e_path = path },params) ->
-				check_catch_type path params;
+			| TInst (_,params) | TEnum (_,params) ->
+				check_catch_type_params params;
 				t
 			| TAbstract(a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
-				check_catch_type a.a_path params;
+				check_catch_type_params params;
 				t
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				loop (Abstract.get_underlying_type a tl)
