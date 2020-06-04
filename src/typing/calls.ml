@@ -38,7 +38,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				(* Delay this to filters because that's when cl_descendants is set. *)
 				ctx.com.callbacks#add_before_save (fun () ->
 					let rec has_override c =
-						has_class_field_flag f CfOverride
+						PMap.mem f.cf_name c.cl_fields
 						|| List.exists has_override c.cl_descendants
 					in
 					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
