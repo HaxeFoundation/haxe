@@ -494,7 +494,7 @@ let init_module_type ctx context_init (decl,p) =
 			let types = md.m_types in
 			let no_private (t,_) = not (t_infos t).mt_private in
 			let error_private p = error "Importing private declarations from a module is not allowed" p in
-			let chk_private t p = if (t_infos t).mt_private then error_private p in
+			let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
 				let t = (try List.find (has_name tname) types with Not_found -> error (StringError.string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
