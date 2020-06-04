@@ -240,7 +240,7 @@ let collect_statistics ctx pfilter with_expressions =
 			in
 			Option.may field c.cl_constructor;
 			List.iter (fun cf ->
-				check_override c cf;
+				if has_class_field_flag cf CfOverride then check_override c cf;
 				field cf;
 			) c.cl_ordered_fields;
 			List.iter field c.cl_ordered_statics;
