@@ -26,7 +26,7 @@ let get_main ctx types =
 					p := c.cl_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
-				let t = Typeload.find_type_in_module_raise m name null_pos in
+				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
 				match t with
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 					error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
@@ -37,7 +37,7 @@ let get_main ctx types =
 				error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
 		in
 		let ft = Type.field_type f in
-		let fmode, r = 
+		let fmode, r =
 			match follow ft with
 			| TFun ([],r) -> FStatic (c,f), r
 			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos

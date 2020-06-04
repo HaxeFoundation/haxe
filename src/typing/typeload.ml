@@ -86,12 +86,12 @@ let find_type_in_module m tname =
 	) m.m_types
 
 (* raises Type_not_found *)
-let find_type_in_module_raise m tname p =
+let find_type_in_module_raise ctx m tname p =
 	try
 		List.find (fun mt ->
 			let infos = t_infos mt in
 			if snd infos.mt_path = tname then
-				if infos.mt_private then
+				if ctx.m.curmod != infos.mt_module && infos.mt_private then
 					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
 				else
 					true
@@ -104,7 +104,7 @@ let find_type_in_module_raise m tname p =
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
 	let m = ctx.g.do_load_module ctx mpath p in
-	find_type_in_module_raise m tname p
+	find_type_in_module_raise ctx m tname p
 
 (* raises Not_found *)
 let load_type ctx mpath tname p = try
@@ -193,7 +193,7 @@ let load_unqualified_type_def ctx mname tname p =
 		if resume then
 			find_type_in_module m tname
 		else
-			find_type_in_module_raise m tname p
+			find_type_in_module_raise ctx m tname p
 	in
 	find_in_unqualified_modules ctx mname p find_type ~resume:false
 
@@ -209,7 +209,7 @@ let load_module ctx path p =
 
 let load_qualified_type_def ctx pack mname tname p =
 	let m = load_module ctx (pack,mname) p in
-	find_type_in_module_raise m tname p
+	find_type_in_module_raise ctx m tname p
 
 (*
 	load a type or a subtype definition
