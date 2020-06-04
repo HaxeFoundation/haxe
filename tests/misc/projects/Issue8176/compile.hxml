@@ -1,0 +1,5 @@
+-main Main
+-js main.js
+-dce full
+--macro exclude("Test")
+--cmd node main.js
