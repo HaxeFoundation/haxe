@@ -558,7 +558,8 @@ let handle_display ctx tctx display_file_dot_path =
 	if ctx.com.display.dms_exit_during_typing then begin
 		if ctx.has_next || ctx.has_error then raise Abort;
 		(* If we didn't find a completion point, load the display file in macro mode. *)
-		ignore(load_display_module_in_macro tctx display_file_dot_path true);
+		if com.display_information.display_module_has_macro_defines then
+			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		let no_completion_point_found = "No completion point was found" in
 		match com.json_out with
 		| Some _ -> (match ctx.com.display.dms_kind with
