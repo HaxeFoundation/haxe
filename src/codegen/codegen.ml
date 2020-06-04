@@ -282,7 +282,10 @@ module Dump = struct
 
 	let dump_types com s_expr =
 		let s_type = s_type (Type.print_context()) in
-		let params tl = match tl with [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
+		let params tl = match tl with
+			| [] -> ""
+			| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map Printer.s_type_param l))
+		in
 		List.iter (fun mt ->
 			let path = Type.t_path mt in
 			let buf,close = create_dumpfile_from_path com path in

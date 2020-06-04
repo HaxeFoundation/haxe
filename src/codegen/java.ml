@@ -176,15 +176,6 @@ let convert_constant ctx p const =
 		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
 		| _ -> None) None const
 
-let rec same_sig parent jsig =
-	match jsig with
-	| TObject (p,targs) -> parent = p || List.exists (function | TType (_,s) -> same_sig parent s | _ -> false) targs
-	| TObjectInner(p, ntargs) ->
-			parent = (p, String.concat "$" (List.map fst ntargs)) ||
-			List.exists (fun (_,targs) -> List.exists (function | TType(_,s) -> same_sig parent s | _ -> false) targs) ntargs
-	| TArray(s,_) -> same_sig parent s
-	| _ -> false
-
 let convert_constraints ctx p tl = match tl with
 	| [] -> None
 	| [t] -> Some (convert_signature ctx p t,null_pos)
@@ -197,7 +188,6 @@ let convert_param ctx p parent param =
 		| (name, None, implemem_sig) ->
 			name, implemem_sig
 		in
-		let constraints = List.map (fun s -> if same_sig parent s then (TObject( (["java";"lang"], "Object"), [])) else s) constraints in
 		{
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];

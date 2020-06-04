@@ -475,7 +475,7 @@ module Printer = struct
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
 			begin match tl1 with
 			| [] -> s
-			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
+			| _ -> Printf.sprintf "%s:%s" s (String.concat " & " (List.map s_type tl1))
 			end
 		| _ -> die "" __LOC__
 
