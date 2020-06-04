@@ -123,12 +123,16 @@ class TestCase implements ITest {
 		return Json.parse(lastResult.stderr).result;
 	}
 
-	function parseGotoDefinition():GotoTypeDefinitionResult {
+	function parseGotoTypeDefinition():GotoTypeDefinitionResult {
 		return Json.parse(lastResult.stderr).result;
 	}
 
+	function parseGotoDefintion():GotoDefinitionResult {
+		return haxe.Json.parse(lastResult.stderr).result;
+	}
+
 	function parseGotoDefinitionLocations():Array<Location> {
-		switch parseGotoDefinition().result {
+		switch parseGotoTypeDefinition().result {
 			case null:
 				throw new Exception('No result for GotoDefinition found');
 			case result:
