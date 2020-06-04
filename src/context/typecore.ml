@@ -377,11 +377,13 @@ let push_this ctx e = match e.eexpr with
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field ctx f =
-	has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
-	|| (match f.cf_kind with
-		| Var {v_read = AccRequire (s,_)} -> true
-		| Method MethMacro -> not ctx.in_macro
-		| _ -> false)
+	not (has_class_field_flag f CfOverride) && (
+		has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
+		|| (match f.cf_kind with
+			| Var {v_read = AccRequire (s,_)} -> true
+			| Method MethMacro -> not ctx.in_macro
+			| _ -> false)
+	)
 
 (** checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
