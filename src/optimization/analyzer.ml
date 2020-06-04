@@ -527,11 +527,13 @@ module CopyPropagation = DataFlow(struct
 		| Top
 		| Bottom
 		| Local of tvar
+		| This of Type.t
 
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
 		| Local v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+		| This _ -> "this"
 
 	let conditional = false
 	let flag = FlagCopyPropagation
@@ -547,12 +549,15 @@ module CopyPropagation = DataFlow(struct
 		| Top,Top -> true
 		| Bottom,Bottom -> true
 		| Local v1,Local v2 -> v1.v_id = v2.v_id
+		| This t1,This t2 -> t1 == t2
 		| _ -> false
 
 	let transfer ctx bb e =
 		let rec loop e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
 				Local v
+			| TConst TThis ->
+				This e.etype
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				loop e1
 			| _ ->
@@ -572,18 +577,25 @@ module CopyPropagation = DataFlow(struct
 						Hashtbl.remove lattice v.v_id;
 						raise Not_found
 					in
-					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
-					let v'' = get_var_origin ctx.graph v' in
-					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
-					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
-					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = (get_var_info ctx.graph v'').vi_writes in
-					begin match writes with
-						| [bb'] when in_scope bb bb' -> ()
-						| _ -> leave()
+					begin match lat with
+					| Local v' ->
+						if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
+						let v'' = get_var_origin ctx.graph v' in
+						(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+						the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+						considering variables whose origin-variables are assigned to at most once. *)
+						let writes = (get_var_info ctx.graph v'').vi_writes in
+						begin match writes with
+							| [bb'] when in_scope bb bb' -> ()
+							| _ -> leave()
+						end;
+						commit bb {e with eexpr = TLocal v'}
+					| This t ->
+						if not (type_change_ok ctx.com t v.v_type) then leave();
+						mk (TConst TThis) t e.epos
+					| Top | Bottom ->
+						leave()
 					end;
-					commit bb {e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
