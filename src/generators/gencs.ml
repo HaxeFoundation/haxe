@@ -2455,7 +2455,7 @@ let generate con =
 			(try
 				if cl.cl_interface then raise Not_found;
 				let cf = PMap.find "toString" cl.cl_fields in
-				(if List.exists (fun c -> c.cf_name = "toString" && has_class_field_flag c CfOverride) cl.cl_ordered_fields then raise Not_found);
+				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
 					| TFun([], ret) ->
 						(match real_type ret with
@@ -2475,7 +2475,7 @@ let generate con =
 			(try
 				if cl.cl_interface then raise Not_found;
 				let cf = PMap.find "finalize" cl.cl_fields in
-				(if List.exists (fun c -> c.cf_name = "finalize" && has_class_field_flag c CfOverride) cl.cl_ordered_fields then raise Not_found);
+				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
 					| TFun([], ret) ->
 						(match real_type ret with
