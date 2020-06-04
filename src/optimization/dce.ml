@@ -747,10 +747,12 @@ let mark dce =
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				let pop = push_class dce c in
-				opt (expr dce) cf.cf_expr;
-				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-				pop();
+				if not c.cl_extern then begin
+					let pop = push_class dce c in
+					opt (expr dce) cf.cf_expr;
+					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
+					pop()
+				end
 			) cfl;
 			loop ()
 	in
