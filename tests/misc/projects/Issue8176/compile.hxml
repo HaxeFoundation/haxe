@@ -1,5 +1,5 @@
 -main Main
--js main.js
+-js bin/main.js
 -dce full
 --macro exclude("Test")
---cmd node main.js
+--cmd node bin/main.js
