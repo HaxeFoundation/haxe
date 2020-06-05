@@ -203,7 +203,7 @@ module Pattern = struct
 				v
 			| _ ->
 				let v = alloc_var (VUser TVOPatternVariable) name t p in
-				if final then v.v_final <- true;
+				if final then add_var_flag v VFinal;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v

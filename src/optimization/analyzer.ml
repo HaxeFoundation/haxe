@@ -145,7 +145,7 @@ module Ssa = struct
 			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
-			v'.v_capture <- v.v_capture;
+			if has_var_flag v VCaptured then add_var_flag v' VCaptured;
 			add_var_def ctx.graph bb v';
 			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
 			set_reaching_def ctx.graph v (Some v');
@@ -394,7 +394,7 @@ module ConstPropagation = DataFlow(struct
 			| TTypeExpr mt ->
 				ModuleType(mt,e.etype)
 			| TLocal v ->
-				if (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
 				else
 					get_cell v.v_id
@@ -486,7 +486,7 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
-		let is_special_var v = v.v_capture || ExtType.has_variable_semantics v.v_type in
+		let is_special_var v = has_var_flag v VCaptured || ExtType.has_variable_semantics v.v_type in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not (is_special_var v) ->
 				begin try
@@ -554,7 +554,7 @@ module CopyPropagation = DataFlow(struct
 
 	let transfer ctx bb e =
 		let rec loop e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				Local v
 			| TConst TThis ->
 				This e.etype
@@ -570,7 +570,7 @@ module CopyPropagation = DataFlow(struct
 
 	let commit ctx =
 		let rec commit bb e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				begin try
 					let lat = get_cell v.v_id in
 					let leave () =
@@ -652,7 +652,7 @@ module LocalDce = struct
 			Meta.has Meta.Used v.v_meta
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin

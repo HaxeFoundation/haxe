@@ -502,7 +502,7 @@ let rename_block_var ctx v =
 let define_local ctx ?(init=false) v p =
 	let name = v.v_name in
 	let t = v.v_type in
-	let l = (if v.v_capture then begin
+	let l = (if has_var_flag v VCaptured then begin
 			let topt = type_opt ctx t in
 			if List.exists (fun (_,x,_) -> name = x) ctx.block_vars || is_member ctx name then rename_block_var ctx v;
 			let pos = List.length ctx.block_vars + 1 in

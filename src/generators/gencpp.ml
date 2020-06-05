@@ -2457,7 +2457,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             end else begin
                (*print_endline ("Missing tvar " ^ tvar.v_name);*)
                Hashtbl.replace !undeclared name tvar;
-               if tvar.v_capture then
+               if has_var_flag tvar VCaptured then
                   CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
                else
                   CppExtern(name,false), cpp_type_of tvar.v_type
@@ -7423,7 +7423,7 @@ class script_writer ctx filename asciiOut =
    method writeVar v =
       this#ident v.v_name;
       this#wint v.v_id;
-      this#writeBool v.v_capture;
+      this#writeBool (has_var_flag v VCaptured);
       this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
    method wpos p = if debug then

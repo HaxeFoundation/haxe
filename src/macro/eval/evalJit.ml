@@ -62,7 +62,7 @@ open EvalJitContext
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
-		if var.v_capture then emit_capture_write (get_capture_slot jit var) exec
+		if has_var_flag var VCaptured then emit_capture_write (get_capture_slot jit var) exec
 		else emit_local_write (get_slot jit var.v_id e1.epos) exec
 	| TField(ef,fa) ->
 		let name = hash (field_name fa) in
@@ -111,7 +111,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
-		if var.v_capture then emit_capture_read_write (get_capture_slot jit var) exec op prefix
+		if has_var_flag var VCaptured then emit_capture_read_write (get_capture_slot jit var) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
 	| TField(ef,fa) ->
 		let name = hash (field_name fa) in
@@ -163,7 +163,7 @@ and unop jit op flag e1 p =
 		emit_op_sub p (fun _ -> vint32 (Int32.minus_one)) exec
 	| Increment ->
 		begin match Texpr.skip e1 with
-		| {eexpr = TLocal v} when not v.v_capture ->
+		| {eexpr = TLocal v} when not (has_var_flag v VCaptured) ->
 			let slot = get_slot jit v.v_id e1.epos in
 			if flag = Prefix then emit_local_incr_prefix slot e1.epos
 			else emit_local_incr_postfix slot e1.epos
@@ -522,7 +522,7 @@ and jit_expr jit return e =
 		end
 	(* read *)
 	| TLocal var ->
-		if var.v_capture then emit_capture_read (get_capture_slot jit var)
+		if has_var_flag var VCaptured then emit_capture_read (get_capture_slot jit var)
 		else emit_local_read (get_slot jit var.v_id e.epos)
 	| TField(e1,fa) ->
 		let name = hash (field_name fa) in
