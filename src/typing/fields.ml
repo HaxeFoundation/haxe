@@ -118,10 +118,6 @@ let field_type ctx c pl f p =
 		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
 		apply_params l monos f.cf_type
 
-let fast_enum_field e ef p =
-	let et = mk (TTypeExpr (TEnumDecl e)) (mk_anon (ref (EnumStatics e))) p in
-	TField (et,FEnum (e,ef))
-
 let get_constructor ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->
@@ -490,7 +486,11 @@ let rec type_field cfg ctx e i p mode =
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__), Type.field_type f
+				| EnumStatics e ->
+					let ef = try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__ in
+					let monos = List.map (fun _ -> mk_mono()) e.e_params in
+					let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
+					FEnum (e,ef), enum_field_type ctx e ef monos monos2 p
 				| _ ->
 					match f.cf_params with
 					| [] ->
