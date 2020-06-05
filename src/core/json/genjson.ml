@@ -283,7 +283,9 @@ and generate_type_parameter ctx (s,t) =
 (* texpr *)
 
 and generate_tvar ctx v =
-	let generate_extra (params,eo) = jobject (
+	let generate_extra ve =
+		let (params,eo) = (ve.v_params,ve.v_expr) in
+		jobject (
 		("params",jlist (generate_type_parameter ctx) params) ::
 		(match eo with
 		| None -> []
@@ -300,7 +302,7 @@ and generate_tvar ctx v =
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
 		"isFinal",jbool (has_var_flag v VFinal);
-		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
+		"isInline",jbool (match v.v_extra with Some {v_expr = Some _} -> true | _ -> false);
 	] in
 	let origin_to_int = function
 		| TVOLocalVariable -> 0

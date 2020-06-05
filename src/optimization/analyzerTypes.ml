@@ -176,7 +176,7 @@ module Graph = struct
 
 	type var_info = {
 		vi_var : tvar;                            (* The variable itself *)
-		vi_extra : tvar_extra;                    (* The original v_extra *)
+		vi_extra : tvar_extra option;             (* The original v_extra *)
 		vi_bb_declare : BasicBlock.t;             (* The block where this variable was declared *)
 		mutable vi_origin : tvar;                 (* The origin variable of this variable *)
 		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
@@ -210,11 +210,11 @@ module Graph = struct
 		} in
 		DynArray.add g.g_var_infos vi;
 		let i = DynArray.length g.g_var_infos - 1 in
-		v.v_extra <- Some([],Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos));
+		v.v_extra <- Some(var_extra [] (Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos)));
 		vi
 
 	let get_var_info g v = match v.v_extra with
-		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
+		| Some({v_expr = Some {eexpr = TConst (TInt i32)}}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
 		| _ ->
 			print_endline "Unbound variable, please report this";
 			print_endline (Printer.s_tvar v);

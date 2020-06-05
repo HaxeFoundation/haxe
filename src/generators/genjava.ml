@@ -2438,7 +2438,7 @@ let generate con =
 	TArrayTransform.configure gen (
 	fun e _ ->
 		match e.eexpr with
-			| TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
+			| TArray ({ eexpr = TLocal { v_extra = Some({v_params = _ :: _}) } }, _) -> (* captured transformation *)
 				false
 			| TArray(e1, e2) ->
 				( match run_follow gen (follow e1.etype) with

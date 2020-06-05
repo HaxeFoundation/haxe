@@ -255,7 +255,7 @@ let handle_abstract_casts ctx e =
 				let rec find_abstract e t = match follow t,e.eexpr with
 					| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
 					| _,TCast(e1,None) -> find_abstract e1 e1.etype
-					| _,TLocal {v_extra = Some(_,Some e')} ->
+					| _,TLocal {v_extra = Some({v_expr = Some e'})} ->
 						begin match follow e'.etype with
 						| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
 						| _ -> raise Not_found

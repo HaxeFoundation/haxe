@@ -589,7 +589,7 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
-			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
+			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&

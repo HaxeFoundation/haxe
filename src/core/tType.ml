@@ -67,7 +67,10 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = {
+	v_params : type_params;
+	v_expr : texpr option;
+}
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -89,7 +92,7 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_extra : tvar_extra;
+	mutable v_extra : tvar_extra option;
 	mutable v_meta : metadata;
 	mutable v_flags : int;
 	v_pos : pos;

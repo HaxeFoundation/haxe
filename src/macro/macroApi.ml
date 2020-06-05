@@ -1142,10 +1142,10 @@ and encode_tconst c =
 	encode_enum ITConstant tag pl
 
 and encode_tvar v =
-	let f_extra (pl,e) =
+	let f_extra ve =
 		encode_obj [
-			"params",encode_type_params pl;
-			"expr",vopt encode_texpr e
+			"params",encode_type_params ve.v_params;
+			"expr",vopt encode_texpr ve.v_expr;
 		]
 	in
 	encode_obj [

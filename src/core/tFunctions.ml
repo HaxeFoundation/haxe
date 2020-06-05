@@ -772,3 +772,9 @@ let type_has_meta t m =
 		| TType ({ t_meta = metadata }, _)
 		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
 
+(* tvar *)
+
+let var_extra params e = {
+	v_params = params;
+	v_expr = e;
+}

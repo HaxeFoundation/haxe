@@ -128,8 +128,8 @@ let captured_vars com e =
 			let tmp_used = ref used in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
-				| Use ({ v_extra = Some( _ :: _, _) })
-				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Use ({ v_extra = Some({v_params = _ :: _}) })
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java and C# deal with functions with type parameters in a different way *)
 					(* so they do should not be wrapped *)
 					()
@@ -219,8 +219,8 @@ let captured_vars com e =
 					incr depth;
 					f (collect_vars false);
 					decr depth;
-				| Use ({ v_extra = Some( _ :: _, _) })
-				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Use ({ v_extra = Some({v_params = _ :: _}) })
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java/C# use a special handling for functions with type parmaters *)
 					()
 				| Declare v ->
@@ -256,8 +256,8 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
-		| Use ({ v_extra = Some( _ :: _, _) })
-		| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+		| Use ({ v_extra = Some({v_params = _ :: _}) })
+		| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 			()
 		| Use v ->
 			(try

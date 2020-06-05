@@ -582,8 +582,8 @@ module Printer = struct
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
-	let s_tvar_extra (tl,eo) =
-		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
+	let s_tvar_extra ve =
+		Printf.sprintf "Some(%s, %s)" (s_type_params ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
 
 	let s_tvar v =
 		s_record_fields "" [

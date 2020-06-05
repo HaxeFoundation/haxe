@@ -334,7 +334,8 @@ let rec type_ident_raise ctx i p mode =
 	try
 		let v = PMap.find i ctx.locals in
 		(match v.v_extra with
-		| Some (params,e) ->
+		| Some ve ->
+			let (params,e) = (ve.v_params,ve.v_expr) in
 			let t = monomorphs params v.v_type in
 			(match e with
 			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
@@ -2061,7 +2062,7 @@ and type_local_function ctx kind f with_type p =
 		| None -> None
 		| Some v ->
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
-			if params <> [] then v.v_extra <- Some (params,None);
+			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	) in
 	let curfun = match ctx.curfun with
@@ -2084,7 +2085,7 @@ and type_local_function ctx kind f with_type p =
 	| Some v ->
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
-		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+		if params <> [] || inline then v.v_extra <- Some (var_extra params (if inline then Some e else None));
 		if ctx.in_display && DisplayPosition.display_position#enclosed_in v.v_pos then
 			DisplayEmitter.display_variable ctx v v.v_pos;
 		let rec loop = function

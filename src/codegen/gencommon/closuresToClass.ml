@@ -191,29 +191,29 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				| None -> Type.map_expr run e
 				| Some tparam_anon_decl ->
 					(match (vv, ve) with
-						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
-						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some ({ eexpr = TFunction tf } as f)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 							tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 							{ e with eexpr = TBlock([]) }
 						| _ ->
 							Type.map_expr run { e with eexpr = TVar(vv, ve) })
 					)
-			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
+			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some({v_params = _ :: _}) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
 				(match tparam_anon_decl with
 					| None -> die "" __LOC__
 					| Some tparam_anon_decl ->
 						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 						{ e with eexpr = TBlock([]) }
 				)
-			| TLocal ({ v_extra = Some( _ :: _, _) } as v) ->
+			| TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v e false)
-			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr), _) -> (* captured transformation *)
+			| TArray ( ({ eexpr = TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) } as expr), _) -> (* captured transformation *)
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v { expr with etype = e.etype } false)
-			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr)) ->
+			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some({v_params = _ :: _}) } as v) } as expr)) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v expr true)
@@ -334,12 +334,12 @@ let get_captured expr =
 				Type.iter traverse expr
 			| TVar (v, opt) ->
 				(match v.v_extra with
-					| Some(_ :: _, _) -> ()
+					| Some({v_params = _ :: _}) -> ()
 					| _ ->
 						check_params v.v_type);
 				Hashtbl.add ignored v.v_id v;
 				ignore(Option.map traverse opt)
-			| TLocal { v_extra = Some( (_ :: _ ),_) } ->
+			| TLocal { v_extra = Some({v_params = (_ :: _ )}) } ->
 				()
 			| TLocal v when has_var_flag v VCaptured ->
 				(if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
@@ -528,7 +528,7 @@ let configure gen ft =
 
 		(match tvar with
 		| None -> ()
-		| Some ({ v_extra = Some(_ :: _, _) } as v) ->
+		| Some ({ v_extra = Some({v_params = _ :: _}) } as v) ->
 			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
 		| _ -> ());
 
@@ -596,7 +596,7 @@ let configure gen ft =
 				| _ -> die "" __LOC__) captured
 			in
 			let types = match v.v_extra with
-				| Some(t,_) -> t
+				| Some ve -> ve.v_params
 				| _ -> die "" __LOC__
 			in
 			let monos = List.map (fun _ -> mk_mono()) types in
