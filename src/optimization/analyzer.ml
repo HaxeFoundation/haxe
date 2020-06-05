@@ -649,14 +649,14 @@ module LocalDce = struct
 
 	let rec apply ctx =
 		let is_used v =
-			Meta.has Meta.Used v.v_meta
+			has_var_flag v VUsed
 		in
 		let keep v =
 			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				add_var_flag v VUsed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None -> use (get_var_origin ctx.graph v)

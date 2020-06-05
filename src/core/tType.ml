@@ -379,3 +379,4 @@ type flag_tclass_field =
 type flag_tvar =
 	| VCaptured
 	| VFinal
+	| VUsed (* used by the analyzer *)
