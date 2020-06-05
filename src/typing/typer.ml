@@ -1954,7 +1954,10 @@ and type_map_declaration ctx e1 el with_type p =
 			display_error ctx "Duplicate key" e_key.epos;
 			error "Previously defined here" p
 		with Not_found ->
-			Hashtbl.add keys e_key.eexpr e_key.epos;
+			begin match e_key.eexpr with
+			| TConst _ -> Hashtbl.add keys e_key.eexpr e_key.epos;
+			| _ -> ()
+			end
 	in
 	let el = e1 :: el in
 	let el_kv = List.map (fun e -> match fst e with
