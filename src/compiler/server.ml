@@ -123,8 +123,8 @@ let current_stdin = ref None
 let parse_file cs com file p =
 	let cc = CommonCache.get_cache cs com in
 	let ffile = Path.get_full_path file
-	and fkey = Path.UniqueKey.create file in
-	let is_display_file = DisplayPosition.display_position#is_in_file ffile in
+	and fkey = com.file_keys#get file in
+	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
 	match is_display_file, !current_stdin with
 	| true, Some stdin when Common.defined com Define.DisplayStdin ->
 		TypeloadParse.parse_file_from_string com file p stdin
@@ -287,7 +287,7 @@ let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache sctx.cs com in
 	let content_changed m file =
-		let fkey = Path.UniqueKey.create file in
+		let fkey = ctx.com.file_keys#get file in
 		try
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
@@ -331,7 +331,7 @@ let check_module sctx ctx m p =
 						match load m.m_path p with
 						| None -> loop l
 						| Some _ ->
-							if Path.UniqueKey.create file <> Path.UniqueKey.create m.m_extra.m_file then begin
+							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m.m_extra.m_file) then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 								raise Not_found;
 							end
@@ -358,12 +358,13 @@ let check_module sctx ctx m p =
 			| _ -> false
 		in
 		let check_file () =
-			if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
-					ServerMessage.unchanged_content com "" m.m_extra.m_file;
+			let file = Path.UniqueKey.lazy_path m.m_extra.m_file in
+			if file_time file <> m.m_extra.m_time then begin
+				if has_policy CheckFileContentModification && not (content_changed m file) then begin
+					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m;
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.create m.m_extra.m_file);
+					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m.m_extra.m_file);
 					raise Not_found;
 				end
 			end
@@ -385,7 +386,7 @@ let check_module sctx ctx m p =
 				m.m_extra.m_mark <- mark;
 				if old_mark <= start_mark then begin
 					if not (has_policy NoCheckShadowing) then check_module_path();
-					if not (has_policy NoCheckFileTimeModification) || file_extension m.m_extra.m_file <> "hx" then check_file();
+					if not (has_policy NoCheckFileTimeModification) || file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
 				end;
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None

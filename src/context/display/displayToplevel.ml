@@ -108,11 +108,11 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 let read_class_paths com timer =
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
-		if not (DisplayPosition.display_position#is_in_file file) then begin
+		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file_key = Path.UniqueKey.create file in
+				let file_key = com.file_keys#get file in
 				(CommonCache.get_cache cs com)#remove_file_for_real file_key
 			| _ ->
 				()

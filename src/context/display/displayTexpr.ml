@@ -150,7 +150,7 @@ let check_display_file ctx cs =
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (Path.UniqueKey.create p.pfile) in
+			let cfile = cc#find_file (ctx.com.file_keys#get p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be

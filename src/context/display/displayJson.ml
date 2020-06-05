@@ -197,7 +197,7 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			let key = Path.UniqueKey.create file in
+			let key = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files key file
@@ -221,7 +221,7 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let fkey = Path.UniqueKey.create file in
+			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey;
 			cs#remove_files fkey;

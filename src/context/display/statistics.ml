@@ -28,7 +28,7 @@ let collect_statistics ctx pfilter with_expressions =
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = Path.UniqueKey.create path in
+				let unique = ctx.com.file_keys#get path in
 				Hashtbl.add paths path unique;
 				unique
 		)

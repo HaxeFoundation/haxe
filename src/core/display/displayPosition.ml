@@ -50,12 +50,11 @@ class display_position_container =
 		method enclosed_in p =
 			encloses_position pos p
 		(**
-			Check if `file` contains current display position
+			Check if a file with `file_key` contains current display position
 		*)
-		method is_in_file file =
-			file <> "?"
-			&& pos.pfile <> "?"
-			&& self#get_file_key = Path.UniqueKey.create file
+		method is_in_file file_key =
+			pos.pfile <> "?"
+			&& self#get_file_key = file_key
 		(**
 			Cut `p` at the position of the latest `display_position#set pos` call.
 		*)

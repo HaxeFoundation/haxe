@@ -7,11 +7,10 @@ open DiagnosticsTypes
 
 type t = DiagnosticsKind.t * pos
 
-let is_diagnostics_file file =
-	let key = Path.UniqueKey.create file in
+let is_diagnostics_file file_key =
 	match (!Parser.display_mode) with
 	| DMDiagnostics [] -> true
-	| DMDiagnostics file_keys -> List.exists (fun key' -> key = key') file_keys
+	| DMDiagnostics file_keys -> List.exists (fun key' -> file_key = key') file_keys
 	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct
@@ -42,8 +41,9 @@ let json_of_diagnostics dctx =
 		if not (Hashtbl.mem diag p) then
 			Hashtbl.add diag p (dk,p,sev,args)
 	in
+	let file_keys = new Common.file_keys in
 	let add dk p sev args =
-		if p = null_pos || is_diagnostics_file p.pfile then add dk p sev args
+		if p = null_pos || is_diagnostics_file (file_keys#get p.pfile) then add dk p sev args
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->

@@ -432,11 +432,12 @@ module Dump = struct
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
-			print "%s:\n" m.m_extra.m_file;
+			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			PMap.iter (fun _ m2 ->
-				print "\t%s\n" (m2.m_extra.m_file);
-				let l = try Hashtbl.find dep m2.m_extra.m_file with Not_found -> [] in
-				Hashtbl.replace dep m2.m_extra.m_file (m :: l)
+				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
+				print "\t%s\n" file;
+				let l = try Hashtbl.find dep file with Not_found -> [] in
+				Hashtbl.replace dep file (m :: l)
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
@@ -446,7 +447,7 @@ module Dump = struct
 		Hashtbl.iter (fun n ml ->
 			print "%s:\n" n;
 			List.iter (fun m ->
-				print "\t%s\n" (m.m_extra.m_file);
+				print "\t%s\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			) ml;
 		) dep;
 		close()

@@ -279,6 +279,7 @@ and context = {
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
 	mutable constructors : value Lazy.t IntMap.t;
+	file_keys : Common.file_keys;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	toplevel : value;
@@ -409,12 +410,12 @@ let no_debug = {
 	debug_pos = null_pos;
 }
 
-let create_env_info static pfile kind capture_infos num_locals num_captures =
+let create_env_info static pfile pfile_key kind capture_infos num_locals num_captures =
 	let info = {
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
-		pfile_unique = hash (Path.UniqueKey.to_string (Path.UniqueKey.create pfile));
+		pfile_unique = hash (Path.UniqueKey.to_string pfile_key);
 		capture_infos = capture_infos;
 		num_locals = num_locals;
 		num_captures = num_captures;

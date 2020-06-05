@@ -126,7 +126,7 @@ let mk_class m path pos name_pos =
 
 let module_extra file sign time kind policy =
 	{
-		m_file = file;
+		m_file = Path.UniqueKey.create_lazy file;
 		m_sign = sign;
 		m_display = {
 			m_inline_calls = [];
