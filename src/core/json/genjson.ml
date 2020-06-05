@@ -299,7 +299,7 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
-		"isFinal",jbool v.v_final;
+		"isFinal",jbool (has_var_flag v VFinal);
 		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
 	] in
 	let origin_to_int = function

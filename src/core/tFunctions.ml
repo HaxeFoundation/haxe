@@ -31,6 +31,18 @@ let remove_class_field_flag cf (flag : flag_tclass_field) =
 let has_class_field_flag cf (flag : flag_tclass_field) =
 	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
+let int_of_var_flag (flag : flag_tvar) =
+	Obj.magic flag
+
+let add_var_flag v (flag : flag_tvar) =
+	v.v_flags <- set_flag v.v_flags (int_of_var_flag flag)
+
+let remove_var_flag v (flag : flag_tvar) =
+	v.v_flags <- unset_flag v.v_flags (int_of_var_flag flag)
+
+let has_var_flag v (flag : flag_tvar) =
+	has_flag v.v_flags (int_of_var_flag flag)
+
 (* ======= General utility ======= *)
 
 let alloc_var =
@@ -43,10 +55,10 @@ let alloc_var =
 			v_type = t;
 			v_id = !uid;
 			v_capture = false;
-			v_final = (match kind with VUser TVOLocalFunction -> true | _ -> false);
 			v_extra = None;
 			v_meta = [];
-			v_pos = p
+			v_pos = p;
+			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
 	)
 
