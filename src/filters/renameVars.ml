@@ -290,7 +290,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		name := v.v_name ^ (string_of_int !count);
 	done;
 	v.v_name <- !name;
-	if rc.rc_no_shadowing || (v.v_capture && rc.rc_hoisting) then reserve reserved v.v_name
+	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`

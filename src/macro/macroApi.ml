@@ -1152,7 +1152,7 @@ and encode_tvar v =
 		"id", vint v.v_id;
 		"name", encode_string v.v_name;
 		"t", encode_type v.v_type;
-		"capture", vbool v.v_capture;
+		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
 		"$", encode_unsafe (Obj.repr v);

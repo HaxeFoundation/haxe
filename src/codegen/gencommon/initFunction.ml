@@ -49,7 +49,7 @@ let ensure_simple_expr com e =
 
 let handle_override_dynfun acc e this field =
 	let v = mk_temp ("super_" ^ field) e.etype in
-	v.v_capture <- true;
+	add_var_flag v  VCaptured;
 
 	let add_expr = ref None in
 

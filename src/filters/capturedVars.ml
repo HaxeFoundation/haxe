@@ -163,7 +163,7 @@ let captured_vars com e =
 					| TLocal v ->
 						begin try
 							let v' = List.assoc v.v_id new_vars in
-							v'.v_capture <- true;
+							add_var_flag v' VCaptured;
 							{e with eexpr = TLocal v'}
 						with Not_found ->
 							e
@@ -192,7 +192,7 @@ let captured_vars com e =
 			let used = PMap.map (fun v ->
 				let vt = v.v_type in
 				v.v_type <- impl#captured_type vt;
-				v.v_capture <- true;
+				add_var_flag v VCaptured;
 				vt
 			) used in
 			wrap used e
@@ -280,7 +280,7 @@ let captured_vars com e =
 		local_usage collect_vars e;
 
 		(* mark all capture variables - also used in rename_local_vars at later stage *)
-		PMap.iter (fun _ v -> v.v_capture <- true) !used;
+		PMap.iter (fun _ v -> add_var_flag v VCaptured) !used;
 
 		!assigned
 	in

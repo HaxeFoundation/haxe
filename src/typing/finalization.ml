@@ -42,6 +42,7 @@ let get_main ctx types =
 			| TFun ([],r) -> FStatic (c,f), r
 			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
+		if not (ExtType.is_void (follow r)) then error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
 		(* add haxe.EntryPoint.run() call *)

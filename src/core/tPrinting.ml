@@ -174,7 +174,7 @@ let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
 	let loop = s_expr s_type in
-	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if v.v_capture then "[c]" else "" in
+	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if has_var_flag v VCaptured then "[c]" else "" in
 	let str = (match e.eexpr with
 	| TConst c ->
 		"Const " ^ s_const c
@@ -590,7 +590,7 @@ module Printer = struct
 			"v_id",string_of_int v.v_id;
 			"v_name",v.v_name;
 			"v_type",s_type v.v_type;
-			"v_capture",string_of_bool v.v_capture;
+			"v_capture",string_of_bool (has_var_flag v VCaptured);
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
 			"v_pos",s_pos v.v_pos;

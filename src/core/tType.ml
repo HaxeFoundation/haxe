@@ -89,10 +89,9 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_capture : bool;
-	mutable v_final : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
+	mutable v_flags : int;
 	v_pos : pos;
 }
 
@@ -373,3 +372,7 @@ type flag_tclass_field =
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 	| CfOverride
+
+type flag_tvar =
+	| VCaptured
+	| VFinal

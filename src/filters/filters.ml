@@ -243,7 +243,7 @@ let check_unification ctx e t =
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
 			(* TODO: this smells of hack, but we have to deal with it somehow *)
-			v.v_capture <- true
+			add_var_flag v VCaptured;
 		| _ ->
 			()
 	end;

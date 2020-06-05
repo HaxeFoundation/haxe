@@ -35,7 +35,7 @@ open Calls
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_final = true} ->
+	| TLocal v when has_var_flag v VFinal ->
 		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
@@ -1448,7 +1448,7 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
-			if final then v.v_final <- true;
+			if final then add_var_flag v VFinal;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e

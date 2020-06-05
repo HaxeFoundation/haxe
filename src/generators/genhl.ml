@@ -966,7 +966,7 @@ let common_type ctx e1 e2 for_eq p =
 	loop t1 t2
 
 let captured_index ctx v =
-	if not v.v_capture then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
+	if not (has_var_flag v VCaptured) then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
 
 let real_name v =
 	let rec loop = function
@@ -3040,10 +3040,10 @@ and build_capture_vars ctx f =
 	let used_vars = ref PMap.empty in
 	(* get all captured vars in scope, ignore vars that are declared *)
 	let decl_var v =
-		if v.v_capture then ignored_vars := PMap.add v.v_id () !ignored_vars
+		if has_var_flag v VCaptured then ignored_vars := PMap.add v.v_id () !ignored_vars
 	in
 	let use_var v =
-		if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
+		if has_var_flag v VCaptured then used_vars := PMap.add v.v_id v !used_vars
 	in
 	let rec loop e =
 		(match e.eexpr with
