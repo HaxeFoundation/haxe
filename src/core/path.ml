@@ -171,12 +171,29 @@ let get_real_path =
 		get_full_path
 
 module UniqueKey : sig
+	(**
+		Stores a unique key for a file path.
+	*)
 	type t
+	(**
+		Stores an original file path along with a lazily-calculated key.
+	*)
+	type lazy_t
 	(**
 		Returns absolute path guaranteed to be the same for different letter case.
 		Use where equality comparison is required, lowercases the path on Windows
 	*)
 	val create : string -> t
+
+	val create_lazy : string -> lazy_t
+	(**
+		Calculates a key or retrieve a cached key.
+	*)
+	val lazy_key : lazy_t -> t
+	(**
+		Returns original path, which was used to create `lazy_t`
+	*)
+	val lazy_path : lazy_t -> string
 	(**
 		Check if the first key starts with the second key
 	*)
@@ -190,11 +207,29 @@ end = struct
 
 	type t = string
 
+	type lazy_t = string * string option ref
+
+	(* type file_key *)
+
 	let create =
 		if Globals.is_windows then
 			(fun f -> String.lowercase (get_full_path f))
 		else
 			get_full_path
+
+	let create_lazy f =
+		(f, ref None)
+
+	let lazy_key l =
+		match l with
+		| f,{ contents = Some key } -> key
+		| f,k ->
+			let key = create f in
+			k := Some key;
+			key
+
+	let lazy_path l =
+		fst l
 
 	let starts_with subj start =
 		ExtString.String.starts_with subj start

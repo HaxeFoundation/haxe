@@ -235,7 +235,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
-		let file_unique = Path.UniqueKey.create file in
+		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
@@ -430,7 +430,7 @@ let process_global_display_mode com tctx =
 				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file_key,cfile) ->
 					let file = cfile.CompilationServer.c_file_path in
-					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
+					if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
 						(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc

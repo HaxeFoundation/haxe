@@ -704,7 +704,7 @@ let generate_module ctx m =
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path (t_infos mt).mt_meta) m.m_types;
-		"file",jstring m.m_extra.m_file;
+		"file",jstring (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
 		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
 			"path",jstring (s_type_path m.m_path);

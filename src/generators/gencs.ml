@@ -3382,7 +3382,7 @@ let generate con =
 				output_string f v;
 				close_out f;
 
-				out_files := (Path.UniqueKey.create full_path) :: !out_files
+				out_files := (gen.gcon.file_keys#get full_path) :: !out_files
 			) gen.gcon.resources;
 		end;
 		(* add resources array *)
@@ -3494,7 +3494,7 @@ let generate con =
 		) gen.gmodules;
 
 		if not (Common.defined gen.gcon Define.KeepOldOutput) then
-			clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
+			clean_files gen (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 		dump_descriptor gen ("hxcs_build.txt") s_type_path module_s;
 		if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin

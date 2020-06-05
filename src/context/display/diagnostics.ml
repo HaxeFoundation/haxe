@@ -12,7 +12,7 @@ open DiagnosticsTypes
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
-let is_diagnostics_run p = DiagnosticsPrinter.is_diagnostics_file p.pfile
+let is_diagnostics_run com p = DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get p.pfile)
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -107,7 +107,7 @@ let prepare com =
 		unresolved_identifiers = [];
 	} in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file c.cl_pos.pfile ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
@@ -122,7 +122,7 @@ let prepare com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file cfile.CompilationServer.c_file_path then begin
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.CompilationServer.c_file_path) then begin
 					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
@@ -161,7 +161,7 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	if is_diagnostics_run e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
+	if is_diagnostics_run ctx.com e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 
 let print com =
 	let dctx = prepare com in

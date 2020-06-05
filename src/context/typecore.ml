@@ -352,7 +352,7 @@ let exc_protect ?(force=true) ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let key = Path.UniqueKey.create file in
+	let key = ctx.com.file_keys#get file in
 	let file = Path.get_full_path file in
 	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
 		let mdep = {

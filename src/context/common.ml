@@ -212,6 +212,18 @@ class compiler_callbacks = object(self)
 	method get_null_safety_report = null_safety_report
 end
 
+class file_keys = object(self)
+	val cache = Hashtbl.create 0
+
+	method get file =
+		try
+			Hashtbl.find cache file
+		with Not_found ->
+			let key = Path.UniqueKey.create file in
+			Hashtbl.add cache file key;
+			key
+end
+
 type shared_display_information = {
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
@@ -281,6 +293,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	file_keys : file_keys;
 	readdir_cache : (string * string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
@@ -662,6 +675,7 @@ let create version s_version args =
 			tarray = (fun _ -> die "" __LOC__);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		file_keys = new file_keys;
 		readdir_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
@@ -1027,7 +1041,7 @@ let is_legacy_completion com = match com.json_out with
 let get_entry_point com =
 	Option.map (fun path ->
 		let m = List.find (fun m -> m.m_path = path) com.modules in
-		let c = 
+		let c =
 			match m.m_statics with
 			| Some c when (PMap.mem "main" c.cl_statics) -> c
 			| _ -> ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types

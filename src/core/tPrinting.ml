@@ -605,7 +605,7 @@ module Printer = struct
 
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
-			"m_file",me.m_file;
+			"m_file",Path.UniqueKey.lazy_path me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
 			"m_dirty",s_opt s_type_path me.m_dirty;
