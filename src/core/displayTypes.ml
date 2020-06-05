@@ -23,6 +23,7 @@ module SymbolKind = struct
 		| Operator
 		| EnumMember
 		| Constant
+		| Module
 
 	let to_int = function
 		| Class -> 1
@@ -41,6 +42,7 @@ module SymbolKind = struct
 		| Operator -> 14
 		| EnumMember -> 15
 		| Constant -> 16
+		| Module -> 17
 end
 
 module SymbolInformation = struct
