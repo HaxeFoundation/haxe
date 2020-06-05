@@ -144,7 +144,7 @@ module Ssa = struct
 			update_reaching_def ctx v bb;
 			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
-			v'.v_meta <- v.v_meta;
+			set_var_meta v' (get_var_meta v);
 			if has_var_flag v VCaptured then add_var_flag v' VCaptured;
 			add_var_def ctx.graph bb v';
 			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
@@ -649,14 +649,14 @@ module LocalDce = struct
 
 	let rec apply ctx =
 		let is_used v =
-			Meta.has Meta.Used v.v_meta
+			var_has_meta v Meta.Used
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || var_has_meta v Meta.This
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				add_var_meta v (Meta.Used,[],null_pos);
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None -> use (get_var_origin ctx.graph v)

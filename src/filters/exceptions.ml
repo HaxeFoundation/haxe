@@ -179,8 +179,8 @@ let throw_native ctx e_thrown t p =
 	mk (TThrow e_native) t p
 
 let set_needs_exception_stack v =
-	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
-		v.v_meta <- (Meta.NeedsExceptionStack,[],null_pos) :: v.v_meta
+	if not (var_has_meta v Meta.NeedsExceptionStack) then
+		add_var_meta v (Meta.NeedsExceptionStack,[],null_pos)
 
 (**
 	Transform user-written `catches` to a set of catches, which would not require
@@ -433,7 +433,7 @@ let insert_save_stacks tctx =
 		let rec contains_insertion_points e =
 			match e.eexpr with
 			| TTry (e, catches) ->
-				List.exists (fun (v, _) -> Meta.has Meta.NeedsExceptionStack v.v_meta) catches
+				List.exists (fun (v, _) -> var_has_meta v Meta.NeedsExceptionStack) catches
 				|| contains_insertion_points e
 				|| List.exists (fun (_, e) -> contains_insertion_points e) catches
 			| _ ->
@@ -462,7 +462,7 @@ let insert_save_stacks tctx =
 				let e1 = map_expr run e1 in
 				let catches =
 					List.map (fun ((v, body) as catch) ->
-						if Meta.has Meta.NeedsExceptionStack v.v_meta then
+						if var_has_meta v Meta.NeedsExceptionStack then
 							let exprs =
 								match body.eexpr with
 								| TBlock exprs ->

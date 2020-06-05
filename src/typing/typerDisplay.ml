@@ -47,7 +47,7 @@ let completion_item_of_expr ctx e =
 		make_ci_expr e t
 	in
 	let rec loop e = match e.eexpr with
-		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
+		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta (get_var_meta v)) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
@@ -257,7 +257,7 @@ let rec handle_signature_display ctx e_ast with_type =
 				| TConst TSuper ->
 					find_constructor_types e1.etype
 				| TLocal v ->
-					[e1.etype,None,get_value_meta v.v_meta]
+					[e1.etype,None,get_value_meta (get_var_meta v)]
 				| _ -> [e1.etype,None,PMap.empty]
 			in
 			handle_call tl el e1.epos

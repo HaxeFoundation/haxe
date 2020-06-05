@@ -37,7 +37,7 @@ let check_assign ctx e =
 	match e.eexpr with
 	| TLocal v when has_var_flag v VFinal ->
 		error "Cannot assign to final" e.epos
-	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
+	| TLocal _ | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
@@ -640,11 +640,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			let l = save_locals ctx in
 			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
-				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
+				| TLocal v when not (var_has_meta v Meta.This) -> v,[],None
 				| _ ->
 					let v = gen_local ctx ta ef.epos in
 					(match et.eexpr with
-					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
+					| TLocal v' -> set_var_meta v (Meta.copy_from_to Meta.This (get_var_meta v') (get_var_meta v))
 					| _ -> ()
 					);
 					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
@@ -2062,7 +2062,7 @@ and type_local_function ctx kind f with_type p =
 		| None -> None
 		| Some v ->
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
-			if params <> [] then v.v_extra <- Some (var_extra params None);
+			if params <> [] then set_var_params v params;
 			Some v
 	) in
 	let curfun = match ctx.curfun with
@@ -2083,9 +2083,10 @@ and type_local_function ctx kind f with_type p =
 	match v with
 	| None -> e
 	| Some v ->
-		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
+		Typeload.generate_args_meta ctx.com None (fun m -> add_var_meta v m) f.f_args;
 		let open LocalUsage in
-		if params <> [] || inline then v.v_extra <- Some (var_extra params (if inline then Some e else None));
+		if params <> [] then set_var_params v params;
+		if inline then set_var_expr v e;
 		if ctx.in_display && DisplayPosition.display_position#enclosed_in v.v_pos then
 			DisplayEmitter.display_variable ctx v v.v_pos;
 		let rec loop = function

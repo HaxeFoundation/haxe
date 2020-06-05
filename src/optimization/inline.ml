@@ -309,7 +309,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_var = v;
 				i_subst = v';
 				i_outside = false;
-				i_abstract_this = Meta.has Meta.This v.v_meta;
+				i_abstract_this = var_has_meta v Meta.This;
 				i_captured = false;
 				i_write = false;
 				i_called = 0;
@@ -317,7 +317,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_read = 0;
 				i_default_value = None;
 			} in
-			i.i_subst.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.This) v.v_meta;
+			set_var_meta i.i_subst (List.filter (fun (m,_,_) -> m <> Meta.This) (get_var_meta v));
 			Hashtbl.add locals v.v_id i;
 			Hashtbl.add locals i.i_subst.v_id i;
 			i
@@ -330,7 +330,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_var = v;
 				i_subst = v;
 				i_outside = true;
-				i_abstract_this = Meta.has Meta.This v.v_meta;
+				i_abstract_this = var_has_meta v Meta.This;
 				i_captured = false;
 				i_write = false;
 				i_called = 0;
@@ -449,7 +449,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					l.i_force_temp <- true;
 				end;
 				(* We use a null expression because we only care about the type (for abstract casts). *)
-				if l.i_abstract_this then l.i_subst.v_extra <- Some (var_extra [] (Some {e with eexpr = TConst TNull}));
+				if l.i_abstract_this then set_var_expr l.i_subst {e with eexpr = TConst TNull};
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
@@ -598,8 +598,8 @@ class inline_state ctx ethis params cf f p = object(self)
 				if not (self#read v).i_outside then begin
 					v.v_type <- map_type v.v_type;
 					match v.v_extra with
-					| Some ({v_expr = Some e} as ve) ->
-						v.v_extra <- Some(var_extra ve.v_params (Some (map_expr_type map_type e)));
+					| Some {v_expr = Some e} ->
+						set_var_expr v (map_expr_type map_type e);
 					| _ ->
 						()
 				end

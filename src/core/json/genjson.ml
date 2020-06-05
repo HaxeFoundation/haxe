@@ -299,7 +299,7 @@ and generate_tvar ctx v =
 		"type",generate_type ctx v.v_type;
 		"capture",jbool (has_var_flag v VCaptured);
 		"extra",jopt generate_extra v.v_extra;
-		"meta",generate_metadata ctx v.v_meta;
+		"meta",generate_metadata ctx (get_var_meta v);
 		"pos",generate_pos ctx v.v_pos;
 		"isFinal",jbool (has_var_flag v VFinal);
 		"isInline",jbool (match v.v_extra with Some {v_expr = Some _} -> true | _ -> false);

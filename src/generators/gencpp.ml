@@ -2173,7 +2173,7 @@ let ctx_function_signature ctx include_names tfun abi =
 
 
 let cpp_var_name_of var =
-   let rename = get_meta_string var.v_meta Meta.Native in
+   let rename = get_meta_string (get_var_meta var) Meta.Native in
    if rename <> "" then
       rename
    else
@@ -2186,7 +2186,7 @@ let cpp_var_debug_name_of v =
       | _ :: meta -> loop meta
       | [] -> v.v_name
    in
-   loop v.v_meta
+   loop (get_var_meta v)
 ;;
 
 

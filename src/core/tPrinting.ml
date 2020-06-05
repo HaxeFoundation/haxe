@@ -592,7 +592,7 @@ module Printer = struct
 			"v_type",s_type v.v_type;
 			"v_capture",string_of_bool (has_var_flag v VCaptured);
 			"v_extra",s_opt s_tvar_extra v.v_extra;
-			"v_meta",s_metadata v.v_meta;
+			"v_meta",s_metadata (get_var_meta v);
 			"v_pos",s_pos v.v_pos;
 		]
 

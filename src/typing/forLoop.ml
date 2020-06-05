@@ -287,7 +287,7 @@ module IterationKind = struct
 		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
-			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
+			add_var_meta index (Meta.ForLoopVariable,[],null_pos);
 			let arr, avars = (match e1.eexpr with
 				| TLocal _ -> e1, None
 				| _ ->

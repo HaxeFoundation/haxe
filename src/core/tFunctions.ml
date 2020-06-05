@@ -55,7 +55,6 @@ let alloc_var =
 			v_type = t;
 			v_id = !uid;
 			v_extra = None;
-			v_meta = [];
 			v_pos = p;
 			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
@@ -777,4 +776,39 @@ let type_has_meta t m =
 let var_extra params e = {
 	v_params = params;
 	v_expr = e;
+	v_meta = [];
 }
+
+let set_var_params v params = match v.v_extra with
+	| Some ve ->
+		v.v_extra <- Some {ve with v_params = params}
+	| None ->
+		v.v_extra <- Some (var_extra params None)
+
+let set_var_expr v e = match v.v_extra with
+	| Some ve ->
+		v.v_extra <- Some {ve with v_expr = Some e}
+	| None ->
+		v.v_extra <- Some (var_extra [] (Some e))
+
+let var_has_meta v m = match v.v_extra with
+	| Some ve -> has_meta m ve.v_meta
+	| None -> false
+
+let get_var_meta v = match v.v_extra with
+	| Some ve -> ve.v_meta
+	| None -> []
+
+let set_var_meta v m = match v.v_extra with
+	| Some ve ->
+		v.v_extra <- Some {ve with v_meta = m}
+	| None ->
+		let ve = var_extra [] None in
+		v.v_extra <- Some {ve with v_meta = m}
+
+let add_var_meta v m = match v.v_extra with
+	| Some ve ->
+		v.v_extra <- Some {ve with v_meta = m :: ve.v_meta}
+	| None ->
+		let ve = var_extra [] None in
+		v.v_extra <- Some {ve with v_meta = [m]}

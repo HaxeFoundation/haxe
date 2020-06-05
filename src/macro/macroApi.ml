@@ -1154,7 +1154,7 @@ and encode_tvar v =
 		"t", encode_type v.v_type;
 		"capture", vbool (has_var_flag v VCaptured);
 		"extra", vopt f_extra v.v_extra;
-		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
+		"meta", encode_meta (get_var_meta v) (fun m -> set_var_meta v m);
 		"$", encode_unsafe (Obj.repr v);
 	]
 

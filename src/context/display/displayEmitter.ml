@@ -89,7 +89,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMTypeDefinition -> raise_position_of_type v.v_type
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,SKVariable v)
 	| DMHover ->
-		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta v.v_meta) v.v_type in
+		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta (get_var_meta v)) v.v_type in
 		raise_hover (make_ci_local v (v.v_type,ct)) None p
 	| _ -> ()
 

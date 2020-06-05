@@ -682,9 +682,9 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx " end )({";
         concat ctx ", " (fun ((f,_,_),e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
         spr ctx "})";
-    | TField ({eexpr = TLocal v}, f) when Meta.has Meta.MultiReturn v.v_meta ->
+    | TField ({eexpr = TLocal v}, f) when var_has_meta v Meta.MultiReturn ->
         (* field of a multireturn local var is actually just a local var *)
-        let (_, args, pos) =  Meta.get (Meta.Custom ":lua_mr_id") v.v_meta  in
+        let (_, args, pos) =  Meta.get (Meta.Custom ":lua_mr_id") (get_var_meta v)  in
         (match args with
          | [(EConst(String(id,_)), _)] ->
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
@@ -768,11 +768,11 @@ and gen_expr ?(local=true) ctx e = begin
                     spr ctx " = ";
                     gen_value ctx e1;
 
-                | _ when Meta.has Meta.MultiReturn v.v_meta ->
+                | _ when var_has_meta v Meta.MultiReturn ->
                     (* multi-return var is generated as several vars for unpacking *)
                     let id = temp ctx in
                     let temp_expr = (EConst(String(id,SDoubleQuotes)), Globals.null_pos) in
-                    v.v_meta <- (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos) :: v.v_meta;
+                    add_var_meta v (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos);
                     let name = ident v.v_name in
                     let names =
                         match follow v.v_type with
@@ -794,7 +794,7 @@ and gen_expr ?(local=true) ctx e = begin
 
                     (* if it was a multi-return var but it was used as a value itself, *)
                     (* we have to box it in an object conforming to a multi-return extern class *)
-                    let is_boxed_multireturn = Meta.has (Meta.Custom ":lua_mr_box") v.v_meta in
+                    let is_boxed_multireturn = var_has_meta v (Meta.Custom ":lua_mr_box") in
                     let e = if is_boxed_multireturn then mk_mr_box ctx e else e in
                     (match e.eexpr with
                     | TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
@@ -1851,7 +1851,7 @@ let transform_multireturn ctx = function
                         so it will later be generated as multiple locals unpacking the value
                     *)
                     | TVar (v, Some ({ eexpr = TCall _ } as ecall)) when is_multireturn v.v_type ->
-                        v.v_meta <- (Meta.MultiReturn,[],v.v_pos) :: v.v_meta;
+						add_var_meta v (Meta.MultiReturn,[],v.v_pos);
                         let ecall = Type.map_expr loop ecall in
                         { e with eexpr = TVar (v, Some ecall) }
 
@@ -1876,7 +1876,7 @@ let transform_multireturn ctx = function
 
 
                         (* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
-                    | TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
+                    | TField ({ eexpr = TLocal v}, _) when var_has_meta v Meta.MultiReturn ->
                         e
                     | TReturn Some(e2) ->
                         if is_multireturn e2.etype then
@@ -1887,9 +1887,9 @@ let transform_multireturn ctx = function
 						if we found usage of local var we previously marked with @:multiReturn as a value itself,
 						remove the @:multiReturn meta and add "box me" meta so it'll be boxed on var initialization
 					*)
-                    | TLocal v when Meta.has Meta.MultiReturn v.v_meta ->
-                        v.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.MultiReturn) v.v_meta;
-                        v.v_meta <- (Meta.Custom ":lua_mr_box", [], v.v_pos) :: v.v_meta;
+                    | TLocal v when var_has_meta v Meta.MultiReturn ->
+                        set_var_meta v (List.filter (fun (m,_,_) -> m <> Meta.MultiReturn) (get_var_meta v));
+                        add_var_meta v (Meta.Custom ":lua_mr_box", [], v.v_pos);
                         e
 
                     | _ ->

@@ -283,7 +283,7 @@ let collect ctx tk with_type sort =
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
-				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
+				add (make_ci_local v (tpair ~values:(get_value_meta (get_var_meta v)) v.v_type)) (Some v.v_name)
 		) ctx.locals;
 
 		let add_field scope origin cf =

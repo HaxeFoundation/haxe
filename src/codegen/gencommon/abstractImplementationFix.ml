@@ -28,7 +28,7 @@ let add_abstract_params = function
 				cf.cf_params <- cf.cf_params @ a.a_params
 			| cf when Meta.has Meta.Impl cf.cf_meta ->
 				(match cf.cf_expr with
-				| Some({ eexpr = TFunction({ tf_args = (v, _) :: _ }) }) when Meta.has Meta.This v.v_meta ->
+				| Some({ eexpr = TFunction({ tf_args = (v, _) :: _ }) }) when var_has_meta v Meta.This ->
 					cf.cf_params <- cf.cf_params @ a.a_params
 				| _ -> ())
 			| _ -> ()

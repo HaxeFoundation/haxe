@@ -47,10 +47,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 		let config = Inline.inline_config cl f params t in
 		ignore(follow f.cf_type); (* force evaluation *)
 		(match cl, ctx.curclass.cl_kind, params with
-			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
+			| Some c, KAbstractImpl _, { eexpr = TLocal v } :: _ when c == ctx.curclass ->
 				if
 					f.cf_name <> "_new"
-					&& has_meta Meta.This v_meta
+					&& var_has_meta v Meta.This
 					&& has_class_field_flag f CfModifiesThis
 				then
 					if assign_to_this_is_allowed ctx then

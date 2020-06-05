@@ -974,7 +974,7 @@ let real_name v =
 		| (Meta.RealPath,[EConst (String(name,_)),_],_) :: _ -> name
 		| _ :: l -> loop l
 	in
-	match loop v.v_meta with
+	match loop (get_var_meta v) with
 	| "_gthis" -> "this"
 	| name -> name
 

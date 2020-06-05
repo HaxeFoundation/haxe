@@ -88,7 +88,7 @@ let captured_vars com e =
 
 	let mk_var v used =
 		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
-		v2.v_meta <- v.v_meta;
+		set_var_meta v2 (get_var_meta v);
 		v2
 	in
 

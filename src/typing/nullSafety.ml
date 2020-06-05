@@ -197,7 +197,7 @@ let get_arguments_meta callee expected_args_count =
 				empty_list expected_args_count
 			)
 		| TFunction { tf_args = args } when expected_args_count = List.length args ->
-			List.map (fun (v,_) -> v.v_meta) args
+			List.map (fun (v,_) -> get_var_meta v) args
 		| _ ->
 			empty_list expected_args_count
 
@@ -1344,7 +1344,7 @@ class expr_checker mode immediate_execution report =
 					check_both();
 					if not (self#can_pass_expr right_expr left_expr.etype p) then
 						match left_expr.eexpr with
-						| TLocal v when contains_unsafe_meta v.v_meta -> ()
+						| TLocal v when contains_unsafe_meta (get_var_meta v) -> ()
 						| _ ->
 							self#error "Cannot assign nullable value here." [p; right_expr.epos; left_expr.epos]
 					else

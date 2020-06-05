@@ -70,6 +70,7 @@ and tconstant =
 and tvar_extra = {
 	v_params : type_params;
 	v_expr : texpr option;
+	v_meta : metadata;
 }
 
 and tvar_origin =
@@ -93,7 +94,6 @@ and tvar = {
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
 	mutable v_extra : tvar_extra option;
-	mutable v_meta : metadata;
 	mutable v_flags : int;
 	v_pos : pos;
 }

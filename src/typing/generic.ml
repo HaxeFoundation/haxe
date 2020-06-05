@@ -94,7 +94,7 @@ let generic_substitute_expr gctx e =
 			Hashtbl.find vars v.v_id
 		with Not_found ->
 			let v2 = alloc_var v.v_kind v.v_name (generic_substitute_type gctx v.v_type) v.v_pos in
-			v2.v_meta <- v.v_meta;
+			set_var_meta v2 (get_var_meta v);
 			Hashtbl.add vars v.v_id v2;
 			v2
 	in

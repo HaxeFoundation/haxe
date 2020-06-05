@@ -210,7 +210,7 @@ module Graph = struct
 		} in
 		DynArray.add g.g_var_infos vi;
 		let i = DynArray.length g.g_var_infos - 1 in
-		v.v_extra <- Some(var_extra [] (Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos)));
+		set_var_expr v (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos);
 		vi
 
 	let get_var_info g v = match v.v_extra with

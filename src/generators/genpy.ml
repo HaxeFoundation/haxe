@@ -96,7 +96,7 @@ module KeywordHandler = struct
 		else s
 
 	let check_var_declaration v =
-		if not (Meta.has Meta.This v.v_meta) then
+		if not (var_has_meta v Meta.This) then
 			if Hashtbl.mem kwds2 v.v_name then v.v_name <- "_hx_" ^ v.v_name
 end
 
@@ -1862,7 +1862,7 @@ module Generator = struct
 			| TFunction(f) ->
 				let args = if add_self then
 					let v = alloc_var VGenerated "self" t_dynamic p in
-					v.v_meta <- (Meta.This,[],p) :: v.v_meta;
+					add_var_meta v (Meta.This,[],p);
 					(v,None) :: f.tf_args
 				else
 					f.tf_args

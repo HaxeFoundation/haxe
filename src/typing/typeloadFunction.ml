@@ -99,10 +99,10 @@ let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		let c = process_function_arg ctx n t c do_display pn in
 		let v = add_local_with_origin ctx TVOArgument n t pn in
-		v.v_meta <- v.v_meta @ m;
+		set_var_meta v (get_var_meta v @ m);
 		if do_display && DisplayPosition.display_position#enclosed_in pn then
 			DisplayEmitter.display_variable ctx v pn;
-		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
+		if n = "this" then add_var_meta v(Meta.This,[],null_pos);
 		v,c
 	) args f.f_args in
 	ctx.curfun <- fmode;
