@@ -353,6 +353,7 @@ module ConstPropagation = DataFlow(struct
 		| Const of tconstant
 		| EnumValue of int * t list
 		| ModuleType of module_type * Type.t
+		| FieldClosure of tvar * tclass * tparams * tclass_field * Type.t
 
 	let conditional = true
 	let flag = FlagExecutable
@@ -371,6 +372,7 @@ module ConstPropagation = DataFlow(struct
 		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && List.for_all2 equals tl1 tl2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
+		| FieldClosure(v1,c1,tl1,cf1,_),FieldClosure(v2,c2,tl2,cf2,_) -> v1 == v2 && c1 == c2 && cf1 == cf2
 		| _ -> false
 
 	let transfer ctx bb e =
@@ -398,6 +400,8 @@ module ConstPropagation = DataFlow(struct
 					Bottom
 				else
 					get_cell v.v_id
+			| TField({eexpr = TLocal v}, FClosure(Some(c,tl),cf)) ->
+				FieldClosure(v,c,tl,cf,e.etype)
 			| TBinop(OpAssign,_,e2) ->
 				eval bb e2
 			| TBinop(op,e1,e2) ->
@@ -476,7 +480,7 @@ module ConstPropagation = DataFlow(struct
 
 	let commit ctx =
 		let inline e i = match get_cell i with
-			| Top | Bottom | EnumValue _ | Null _ ->
+			| Top | Bottom | EnumValue _ | Null _ | FieldClosure _ ->
 				raise Not_found
 			| Const ct ->
 				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
@@ -505,6 +509,19 @@ module ConstPropagation = DataFlow(struct
 			| TVar(v,Some e1) when not (has_side_effect e1) ->
 				let e1 = try inline e1 v.v_id with Not_found -> commit e1 in
 				{e with eexpr = TVar(v,Some e1)}
+			| TCall({eexpr = TLocal v} as e1,el) when not (is_special_var v) ->
+				let el = List.map commit el in
+				let default () =
+					let e1 = commit e1 in
+					{e with eexpr = TCall(e1,el)}
+				in
+				begin match get_cell v.v_id with
+				| FieldClosure(v,c,tl,cf,t) ->
+					let ef = mk (TField(Texpr.Builder.make_local v e.epos,FInstance(c,tl,cf))) t e.epos in
+					mk (TCall(ef,el)) e.etype e.epos
+				| _ ->
+					default()
+				end
 			| _ ->
 				Type.map_expr commit e
 		in
