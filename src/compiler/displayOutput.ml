@@ -431,7 +431,7 @@ let process_global_display_mode com tctx =
 				List.fold_left (fun acc (file_key,cfile) ->
 					let file = cfile.CompilationServer.c_file_path in
 					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
-						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
+						(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc
 				) [] l

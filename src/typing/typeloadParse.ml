@@ -48,7 +48,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	begin match !Parser.display_mode,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
 		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
-			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
+			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
 			()

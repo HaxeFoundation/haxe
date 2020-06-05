@@ -2,7 +2,7 @@ open Ast
 open Globals
 open DisplayTypes.SymbolKind
 
-let collect_module_symbols with_locals (pack,decls) =
+let collect_module_symbols mname with_locals (pack,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent deprecated =
 		let si = DisplayTypes.SymbolInformation.make name kind location (if parent = "" then None else Some parent) deprecated in
@@ -67,6 +67,7 @@ let collect_module_symbols with_locals (pack,decls) =
 	let field parent parent_kind cff =
 		field' parent parent_kind cff.cff_name cff.cff_kind cff.cff_access cff.cff_pos cff.cff_meta
 	in
+	let type_decls = Hashtbl.create 0 in
 	List.iter (fun (td,p) ->
 		let get_decl_path d =
 			let module_name = Path.module_name_of_file p.pfile in
@@ -78,6 +79,7 @@ let collect_module_symbols with_locals (pack,decls) =
 		let string_of_path l = String.concat "." l in
 		let add_type d kind =
 			let type_path, type_name = get_decl_path d in
+			Hashtbl.add type_decls type_name ();
 			add type_name kind p (string_of_path type_path) (is_deprecated d.d_meta);
 			string_of_path (type_path @ [type_name])
 		in
@@ -110,6 +112,12 @@ let collect_module_symbols with_locals (pack,decls) =
 			let dotpath = string_of_path (path @ [name]) in
 			field' dotpath Class d.d_name d.d_data d.d_flags p d.d_meta
 	) decls;
+	begin match mname with
+	| Some(file,mname) when not (Hashtbl.mem type_decls mname) ->
+		add mname Module {pfile = file; pmin = 0; pmax = 0} (String.concat "." pack) false
+	| _ ->
+		()
+	end;
 	l
 
 module Printer = struct
