@@ -58,6 +58,7 @@ let alloc_var =
 			v_meta = [];
 			v_pos = p;
 			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
+			v_mark = 0;
 		}
 	)
 

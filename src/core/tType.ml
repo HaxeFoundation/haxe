@@ -95,6 +95,7 @@ and tvar = {
 	mutable v_extra : tvar_extra option;
 	mutable v_meta : metadata;
 	mutable v_flags : int;
+	mutable v_mark : int;
 	v_pos : pos;
 }
 
