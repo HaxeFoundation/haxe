@@ -222,7 +222,7 @@ and gen_expr ctx e =
 	| TIdent s when s.[0] = '$' ->
 		(EConst (Builtin (String.sub s 1 (String.length s - 1))),p)
 	| TLocal v ->
-		if v.v_capture then
+		if has_var_flag v VCaptured then
 			(EArray (ident p v.v_name,int p 0),p)
 		else
 			ident p v.v_name
@@ -274,13 +274,13 @@ and gen_expr ctx e =
 		(EVars (
 			let e = (match eo with
 				| None ->
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [null p])
 					else
 						None
 				| Some e ->
 					let e = gen_expr ctx e in
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [e])
 					else
 						Some e
@@ -289,7 +289,7 @@ and gen_expr ctx e =
 		),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
-			let acc = if a.v_capture then
+			let acc = if has_var_flag a VCaptured then
 				(EBinop ("=",ident p a.v_name,call p (builtin p "array") [ident p a.v_name]),p) :: acc
 			else
 				acc
@@ -307,7 +307,7 @@ and gen_expr ctx e =
 		let it = gen_expr ctx it in
 		let e = gen_expr ctx e in
 		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
+		let next = (if has_var_flag v VCaptured then call p (builtin p "array") [next] else next) in
 		(EBlock
 			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
@@ -341,7 +341,7 @@ and gen_expr ctx e =
 					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
 				let id = ident p "@tmp" in
-				let id = (if v.v_capture then call p (builtin p "array") [id] else id) in
+				let id = (if has_var_flag v VCaptured then call p (builtin p "array") [id] else id) in
 				let e = gen_expr ctx e in
 				(EIf (cond,(EBlock [
 					EVars [v.v_name,Some id],p;

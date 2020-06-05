@@ -89,7 +89,6 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
 	mutable v_flags : int;

@@ -125,7 +125,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 			| _ -> ())
 		| _ -> ()) ctor_types;
 		let me = alloc_var "__hx_this" (TInst(cl, List.map snd ctor_types)) in
-		me.v_capture <- true;
+		add_var_flag me VCaptured;
 
 		let fn_args, _ = get_fun ctor.cf_type in
 		let ctor_params = List.map snd ctor_types in
@@ -140,7 +140,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let local_map = Hashtbl.create (List.length cur_tf_args) in
 		let static_tf_args = (me, None) :: List.map (fun (v,b) ->
 			let new_v = alloc_var v.v_name (apply_params cl.cl_params ctor_params v.v_type) in
-			new_v.v_capture <- v.v_capture;
+			add_var_flag new_v VCaptured;
 			Hashtbl.add local_map v.v_id new_v;
 			(new_v, b)
 		) cur_tf_args in

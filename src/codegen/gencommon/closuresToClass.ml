@@ -119,11 +119,11 @@ let mk_conversion_fun gen e =
 	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
-			v.v_capture <- true;
+			add_var_flag v VCaptured;
 			[],e
 		| _ ->
 			let tmp = mk_temp "delegate_conv" e.etype in
-			tmp.v_capture <- true;
+			add_var_flag tmp VCaptured;
 			[{ eexpr = TVar(tmp,Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }], mk_local tmp e.epos
 	in
 	let body = {
@@ -341,7 +341,7 @@ let get_captured expr =
 				ignore(Option.map traverse opt)
 			| TLocal { v_extra = Some( (_ :: _ ),_) } ->
 				()
-			| TLocal(( { v_capture = true } ) as v) ->
+			| TLocal v when has_var_flag v VCaptured ->
 				(if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
 			| _ -> Type.iter traverse expr
 	in traverse expr;
@@ -454,7 +454,7 @@ let configure gen ft =
 		(* change all captured variables to this.capturedVariable *)
 		let rec change_captured e =
 			match e.eexpr with
-				| TLocal( ({ v_capture = true }) as v ) when Hashtbl.mem captured_ht v.v_id ->
+				| TLocal v when has_var_flag v VCaptured && Hashtbl.mem captured_ht v.v_id ->
 					mk_this v e.epos
 				| _ -> Type.map_expr change_captured e
 		in

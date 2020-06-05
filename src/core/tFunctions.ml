@@ -54,7 +54,6 @@ let alloc_var =
 			v_name = n;
 			v_type = t;
 			v_id = !uid;
-			v_capture = false;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;

@@ -295,7 +295,7 @@ and generate_tvar ctx v =
 		"id",jint v.v_id;
 		"name",jstring v.v_name;
 		"type",generate_type ctx v.v_type;
-		"capture",jbool v.v_capture;
+		"capture",jbool (has_var_flag v VCaptured);
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
