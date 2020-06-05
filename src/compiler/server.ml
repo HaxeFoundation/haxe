@@ -331,7 +331,7 @@ let check_module sctx ctx m p =
 						match load m.m_path p with
 						| None -> loop l
 						| Some _ ->
-							if com.file_keys#get file <> m.m_extra.m_file_key() then begin
+							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m.m_extra.m_file) then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 								raise Not_found;
 							end
@@ -358,12 +358,13 @@ let check_module sctx ctx m p =
 			| _ -> false
 		in
 		let check_file () =
-			if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
-					ServerMessage.unchanged_content com "" m.m_extra.m_file;
+			let file = Path.UniqueKey.lazy_path m.m_extra.m_file in
+			if file_time file <> m.m_extra.m_time then begin
+				if has_policy CheckFileContentModification && not (content_changed m file) then begin
+					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m;
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (m.m_extra.m_file_key());
+					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m.m_extra.m_file);
 					raise Not_found;
 				end
 			end
@@ -385,7 +386,7 @@ let check_module sctx ctx m p =
 				m.m_extra.m_mark <- mark;
 				if old_mark <= start_mark then begin
 					if not (has_policy NoCheckShadowing) then check_module_path();
-					if not (has_policy NoCheckFileTimeModification) || file_extension m.m_extra.m_file <> "hx" then check_file();
+					if not (has_policy NoCheckFileTimeModification) || file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
 				end;
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None

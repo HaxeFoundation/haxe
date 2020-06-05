@@ -83,7 +83,7 @@ let keep_metas = [Meta.Keep;Meta.Expose]
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has_one_of keep_metas c.cl_meta
-	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file) || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
@@ -95,7 +95,7 @@ let keep_whole_class dce c =
 
 let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
-	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
 
 let mk_used_meta pos =
 	Meta.Used,[],(mk_zero_range_pos pos)

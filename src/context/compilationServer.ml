@@ -163,7 +163,7 @@ class cache = object(self)
 	method taint_modules file_key =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if m.m_extra.m_file_key() = file_key then m.m_extra.m_dirty <- Some m.m_path
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some m.m_path
 			) cc#get_modules
 		) contexts
 

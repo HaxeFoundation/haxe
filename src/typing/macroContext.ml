@@ -307,7 +307,7 @@ let make_macro_api ctx p =
 			in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx ~dont_check_path:(has_native_meta) m mdep.m_extra.m_file [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 			in
@@ -336,7 +336,7 @@ let make_macro_api ctx p =
 				let m = Hashtbl.find ctx.g.modules mpath in
 				ignore(TypeloadModule.type_types_into_module ctx m types pos)
 			with Not_found ->
-				let mnew = TypeloadModule.type_module ctx mpath ctx.m.curmod.m_extra.m_file types pos in
+				let mnew = TypeloadModule.type_module ctx mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
 			end

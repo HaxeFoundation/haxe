@@ -948,7 +948,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (m.m_extra.m_file_key()));
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
@@ -983,7 +983,7 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = match List.rev (Path.get_path_parts m.m_extra.m_file) with
+	let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
 		| [] -> []
 		| _ :: l -> l
 	in

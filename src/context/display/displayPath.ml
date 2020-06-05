@@ -192,7 +192,7 @@ let handle_path_display ctx path p =
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
-			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
+			let p = { pfile = (Path.UniqueKey.lazy_path mt.m_extra.m_file); pmin = 0; pmax = 0} in
 			raise_positions [p]
 		| (IDKModule(sl,s),_),DMHover ->
 			let m = ctx.g.do_load_module ctx (sl,s) p in

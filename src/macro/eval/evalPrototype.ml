@@ -312,7 +312,7 @@ let add_types ctx types ready =
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
 			if ctx.debug.support_debugger then begin
-				let file_key = hash inf.mt_module.m_extra.m_file in
+				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
 				if not (Hashtbl.mem ctx.debug.breakpoints file_key) then begin
 					Hashtbl.add ctx.debug.breakpoints file_key (Hashtbl.create 0)
 				end
