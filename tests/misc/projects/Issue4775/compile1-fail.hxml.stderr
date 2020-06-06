@@ -1,2 +1,2 @@
-Main1.hx:7: characters 3-27 : Constraint check failure for Contain.T
-Main1.hx:7: characters 3-27 : Main1 should be String
+Main1.hx:7: characters 15-26 : Main1 should be String
+Main1.hx:7: characters 15-26 : For function argument 't'

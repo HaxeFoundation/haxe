@@ -417,10 +417,8 @@ let rec type_ident_raise ctx i p mode =
 					try
 						let ef = PMap.find i e.e_constrs in
 						let et = type_module_type ctx t None p in
-						let monos = List.map (fun _ -> mk_mono()) e.e_params in
-						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
 						ImportHandling.mark_import_position ctx pt;
-						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
+						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
 					with
 						Not_found -> loop l
 		in
@@ -1012,7 +1010,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 					| TFun([(_,_,t1);(_,_,t2)],tret) ->
 						let check e1 e2 swapped =
 							let map_arguments () =
-								let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+								let monos = spawn_constrained_monos ctx p (fun t -> t) cf.cf_params in
 								let map t = map (apply_params cf.cf_params monos t) in
 								let t1 = map t1 in
 								let t2 = map t2 in
@@ -1029,7 +1027,6 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 								Type.type_eq EqStrict e2.etype t2;
 								AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
 							let check_null e t = if is_eq_op then match e.eexpr with
 								| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
 								| _ -> ()
@@ -1794,14 +1791,11 @@ and type_new ctx path el with_type force_inline p =
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
-			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
+			let monos = spawn_constrained_monos ctx p (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try
-				let t = Generic.build_generic ctx c p monos in
-				let map = apply_params c.cl_params monos in
-				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
-				t
+				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with
@@ -2403,8 +2397,10 @@ and type_call_target ctx e with_type inline p =
 
 and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
-		let e = type_call_target ctx e with_type inline p in
-		build_call ~mode ctx e el with_type p
+		with_contextual_monos ctx (fun () ->
+			let e = type_call_target ctx e with_type inline p in
+			build_call ~mode ctx e el with_type p;
+		)
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2695,6 +2691,7 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		in_call_args = false;
+		monomorphs = [];
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		memory_marker = Typecore.memory_marker;
 	} in

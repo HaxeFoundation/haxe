@@ -57,65 +57,18 @@ let remove_constant_flag t callb =
 		restore();
 		raise e
 
-let check_constraints ctx tname tpl tl map delayed p =
-	List.iter2 (fun m (name,t) ->
-		match follow t with
-		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			let f = (fun() ->
-				List.iter (fun ct ->
-					try
-						Type.unify (map m) (map ct)
-					with Unify_error l ->
-						let l = Constraint_failure (tname ^ "." ^ name) :: l in
-						raise (Unify_error l)
-				) constr
-			) in
-			if delayed then
-				delay ctx PCheckConstraint (fun () -> try f() with Unify_error l -> display_error ctx (error_msg (Unify l)) p)
-			else
-				f()
-		| _ ->
-			()
-	) tl tpl
-
-let enum_field_type ctx en ef tl_en tl_ef p =
-	let map t = apply_params en.e_params tl_en (apply_params ef.ef_params tl_ef t) in
-	begin try
-		check_constraints ctx (s_type_path en.e_path) en.e_params tl_en map true p;
-		check_constraints ctx ef.ef_name ef.ef_params tl_ef map true p;
-	with Unify_error l ->
-		display_error ctx (error_msg (Unify l)) p
-	end;
+let enum_field_type ctx en ef p =
+	let tl_en = spawn_constrained_monos ctx p (fun t -> t) en.e_params in
+	let map = apply_params en.e_params tl_en in
+	let tl_ef = spawn_constrained_monos ctx p map ef.ef_params in
+	let map t = map (apply_params ef.ef_params tl_ef t) in
 	map ef.ef_type
-
-let add_constraint_checks ctx ctypes pl f tl p =
-	List.iter2 (fun m (name,t) ->
-		match follow t with
-		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			let constr = List.map (fun t ->
-				let t = apply_params f.cf_params tl t in
-				(* only apply params if not static : in that case no param is passed *)
-				let t = (if pl = [] then t else apply_params ctypes pl t) in
-				t
-			) constr in
-			delay ctx PCheckConstraint (fun() ->
-				List.iter (fun ct ->
-					try
-						(* if has_mono m then raise (Unify_error [Unify_custom "Could not resolve full type for constraint checks"; Unify_custom ("Type was " ^ (s_type (print_context()) m))]); *)
-						Type.unify m ct
-					with Unify_error l ->
-						display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
-				) constr
-			);
-		| _ -> ()
-	) tl f.cf_params
 
 let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
-		let monos = List.map (fun _ -> mk_mono()) l in
-		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
+		let monos = spawn_constrained_monos ctx p (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
 
 let get_constructor ctx c params p =
@@ -488,18 +441,16 @@ let rec type_field cfg ctx e i p mode =
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
 				| EnumStatics e ->
 					let ef = try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__ in
-					let monos = List.map (fun _ -> mk_mono()) e.e_params in
-					let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-					FEnum (e,ef), enum_field_type ctx e ef monos monos2 p
+					let t = enum_field_type ctx e ef p in
+					FEnum (e,ef),t
 				| _ ->
 					match f.cf_params with
 					| [] ->
 						FAnon f, Type.field_type f
 					| l ->
 						(* handle possible constraints *)
-						let monos = List.map (fun _ -> mk_mono()) l in
+						let monos = spawn_constrained_monos ctx p (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
-						add_constraint_checks ctx [] [] f monos p;
 						FAnon f, t
 			) in
 			field_access ctx mode f fmode ft e p

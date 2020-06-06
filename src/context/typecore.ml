@@ -132,6 +132,7 @@ and typer = {
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
+	mutable monomorphs : tmono list;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 	memory_marker : float array;
@@ -512,6 +513,45 @@ let merge_core_doc ctx mt =
 			| _ -> ()
 		end
 	| _ -> ())
+
+let check_constraints map params tl p =
+	List.iter2 (fun (_,t) tm ->
+		begin match follow t with
+		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path; cl_name_pos = p; },_) ->
+			if constr <> [] then begin match tm with
+			| TMono mono ->
+				List.iter (fun t -> Monomorph.constrain_to_type mono (s_type_path path) p (map t)) constr
+			| _ ->
+				let tm = map tm in
+				check_constraint (s_type_path path) (fun () ->
+					List.iter (fun t ->
+						Type.unify tm (map t)
+					) constr
+				)
+			end
+		| _ ->
+			assert false
+		end;
+	) params tl
+
+let spawn_constrained_monos ctx p map params =
+	let monos = List.map (fun (s,_) ->
+		let mono = Monomorph.create() in
+		(* if ctx.curclass.cl_path = ([],"Main") then Monomorph.add_constraint mono "debug" p (MDebug s); *)
+		ctx.monomorphs <- mono :: ctx.monomorphs;
+		TMono mono
+	) params in
+	let map t = map (apply_params params monos t) in
+	check_constraints map params monos p;
+	monos
+
+let with_contextual_monos ctx f =
+	let old_monos = ctx.monomorphs in
+	ctx.monomorphs <- [];
+	let r = f() in
+	List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs;
+	ctx.monomorphs <- old_monos @ ctx.monomorphs;
+	r
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

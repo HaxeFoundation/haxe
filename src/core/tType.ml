@@ -45,6 +45,19 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
+	mutable tm_constraints : tmono_constraint list;
+}
+
+and tmono_constraint_kind =
+	| MMono of tmono
+	| MField of tclass_field
+	| MType of t
+	| MDebug of string
+
+and tmono_constraint = {
+	mc_kind : tmono_constraint_kind;
+	mc_pos : pos;
+	mc_name : string;
 }
 
 and tlazy =

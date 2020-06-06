@@ -354,7 +354,8 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| _ -> die "" __LOC__
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
+	let monos = spawn_constrained_monos ctx p map cf.cf_params in
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
@@ -373,12 +374,9 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| WithType.WithType(t,_) -> unify ctx ret t p
 		| _ -> ()
 	end;
-	let el,_ = unify_call_args ctx el args ret p false false in
-	begin try
-		check_constraints ctx cf.cf_name cf.cf_params monos map false p
-	with Unify_error l ->
-		display_error ctx (error_msg (Unify l)) p
-	end;
+	let el,_ = with_contextual_monos ctx (fun () ->
+		unify_call_args ctx el args ret p false false
+	) in
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in

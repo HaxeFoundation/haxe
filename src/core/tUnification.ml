@@ -3,17 +3,174 @@ open TType
 open TFunctions
 open TPrinting
 
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+	| Has_no_runtime_field of t * string
+	| Has_extra_field of t * string
+	| Invalid_kind of string * field_kind * field_kind
+	| Invalid_visibility of string
+	| Not_matching_optional of string
+	| Cant_force_optional
+	| Invariant_parameter of int
+	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int (* index *) * int (* total *)
+	| Invalid_return_type
+	| Unify_custom of string
+
+exception Unify_error of unify_error list
+
+type eq_kind =
+	| EqStrict
+	| EqCoreType
+	| EqRightDynamic
+	| EqBothDynamic
+	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
+
+type unification_context = {
+	allow_transitive_cast : bool;
+	equality_kind         : eq_kind;
+}
+
+let error l = raise (Unify_error l)
+
+let check_constraint name f =
+	try
+		f()
+	with Unify_error l ->
+		raise (Unify_error ((Constraint_failure name) :: l))
+
+let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
+
+let default_unification_context = {
+	allow_transitive_cast = true;
+	equality_kind         = EqStrict;
+}
+
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
+		tm_constraints = [];
 	}
+
+	(* constraining *)
+
+	let extract_name m =
+		let rec loop l = match l with
+			| [] -> "?"
+			| {mc_kind = MDebug s} :: _ -> s
+			| _ :: l -> loop l
+		in
+		loop m.tm_constraints
+
+	let s_constraint = function
+		| MMono m -> Printf.sprintf "MMono %s" (extract_name m)
+		| MField cf -> Printf.sprintf "MField %s" cf.cf_name
+		| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
+		| MDebug _ -> "MDebug"
+
+	let make_constraint name p kind =
+		{mc_kind = kind; mc_name = name; mc_pos = p}
+
+	let add_constraint m name p kind =
+		m.tm_constraints <- (make_constraint name p kind) :: m.tm_constraints
+
+	let constraint_of_type t = match follow t with
+		| TMono m2 ->
+			[MMono m2]
+		| TAnon an when not (PMap.is_empty an.a_fields) ->
+			PMap.fold (fun cf l ->
+				(MField cf) :: l
+			) an.a_fields []
+		| _ ->
+			[MType t]
+
+	let constrain_to_type m name p t =
+		List.iter (add_constraint m name p) (constraint_of_type t)
+
+	let check_constraints m t =
+		let fields = DynArray.create () in
+		let rec check constr = match constr.mc_kind with
+			| MMono m2 ->
+				begin match m2.tm_type with
+				| None ->
+					()
+				| Some t ->
+					List.iter (fun kind -> check (make_constraint constr.mc_name constr.mc_pos kind)) (constraint_of_type t)
+				end;
+			| MField cf ->
+				DynArray.add fields cf
+			| MType t2 ->
+				check_constraint constr.mc_name (fun () -> (!unify_ref) default_unification_context t t2);
+			| MDebug name ->
+				let s_constr = String.concat "" (List.map (fun constr -> Printf.sprintf "\n\t%s" (s_constraint constr.mc_kind)) m.tm_constraints) in
+				print_endline (Printf.sprintf "Checking constraints of %s against %s%s" name (s_type_kind t) s_constr);
+		in
+		List.iter check m.tm_constraints;
+		if DynArray.length fields > 0 then begin
+			let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty (DynArray.to_list fields) in
+			let t2 = mk_anon ~fields (ref Opened) in
+			check_constraint "" (fun () -> (!unify_ref) default_unification_context t t2);
+		end
+
+	(* binding *)
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		m.tm_type <- Some t
 
 	let rec bind m t =
-		m.tm_type <- Some t
+		begin match t with
+		| TMono m2 ->
+			begin match m2.tm_type with
+			| None ->
+				do_bind m t;
+				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints
+			| Some t ->
+				bind m t
+			end
+		| _ ->
+			check_constraints m t;
+			do_bind m t
+		end
+
+	let close m = match m.tm_type with
+		| Some _ ->
+			false
+		| None ->
+			let rec loop fields l = match l with
+			(* If we have a monomorph that has a type now, expand to the constraints of that type *)
+			| ({mc_kind = MMono {tm_type = Some t}} as constr) :: l ->
+				let l2 = List.map (fun kind -> make_constraint constr.mc_name constr.mc_pos kind) (constraint_of_type t) in
+				loop fields (l2 @ l)
+			(* If we have a concrete type, bind to that *)
+			| {mc_kind = MType t} :: l ->
+				do_bind m t;
+				true
+			(* Collect fields *)
+			| {mc_kind = MField cf} :: l ->
+				loop (cf :: fields) l
+			| {mc_kind = MDebug name} :: l ->
+				let s_constr = String.concat "" (List.map (fun constr -> Printf.sprintf "\n\t%s" (s_constraint constr.mc_kind)) m.tm_constraints) in
+				print_endline (Printf.sprintf "Closing %s%s" name s_constr);
+				loop fields l
+			| _ :: l ->
+				loop fields l
+			| [] ->
+				begin match fields with
+				| [] ->
+					false
+				| fields ->
+					(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
+					let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty fields in
+					do_bind m (mk_anon ~fields (ref Closed));
+					true
+				end;
+			in
+			loop [] m.tm_constraints
 
 	let unbind m =
 		m.tm_type <- None
@@ -149,33 +306,12 @@ let rec shallow_eq a b =
    it's also the one that is pointed by the position.
    It's actually a typecheck of  A :> B where some mutations can happen *)
 
-type unify_error =
-	| Cannot_unify of t * t
-	| Invalid_field_type of string
-	| Has_no_field of t * string
-	| Has_no_runtime_field of t * string
-	| Has_extra_field of t * string
-	| Invalid_kind of string * field_kind * field_kind
-	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
-	| Invariant_parameter of int
-	| Constraint_failure of string
-	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int (* index *) * int (* total *)
-	| Invalid_return_type
-	| Unify_custom of string
-
-exception Unify_error of unify_error list
-
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
 let invalid_kind n a b = Invalid_kind (n,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
-let error l = raise (Unify_error l)
 
 (*
 	we can restrict access as soon as both are runtime-compatible
@@ -265,23 +401,6 @@ let rec_stack_bool stack value fcheck frun =
 				stack.rec_stack <- List.tl stack.rec_stack;
 				raise e
 	end
-
-type eq_kind =
-	| EqStrict
-	| EqCoreType
-	| EqRightDynamic
-	| EqBothDynamic
-	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
-
-type unification_context = {
-	allow_transitive_cast : bool;
-	equality_kind         : eq_kind;
-}
-
-let default_unification_context = {
-	allow_transitive_cast = true;
-	equality_kind         = EqStrict;
-}
 
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
@@ -872,3 +991,6 @@ let unify = unify default_unification_context
 
 let type_eq_custom = type_eq
 let type_eq param = type_eq {default_unification_context with equality_kind = param}
+
+;;
+unify_ref := unify_custom;;
