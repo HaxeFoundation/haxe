@@ -225,10 +225,10 @@ let inline_constructors ctx e =
 			when captured && not (List.memq cf seen_ctors) ->
 			begin
 				let io_id = !current_io_id in
-				let rec loop (vs, decls, es) el = match el with
+				let rec loop (vs, es) el = match el with
 					| e :: el ->
 						begin match e.eexpr with
-						| TConst _ -> loop (vs, decls, e::es) el
+						| TConst _ -> loop (vs, e::es) el
 						| _ ->
 							let v = alloc_var VGenerated "arg" e.etype e.epos in
 							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
@@ -236,11 +236,11 @@ let inline_constructors ctx e =
 							ignore(analyze_aliases true decle);
 							let mde = (Meta.InlineConstructorArgument (v.v_id, io_id_start)), [], e.epos in
 							let e = mk (TMeta(mde, e)) e.etype e.epos in
-							loop (v::vs, decle::decls, e::es) el
+							loop (v::vs, e::es) el
 						end
-					| [] -> vs, (List.rev decls), (List.rev es)
+					| [] -> vs, (List.rev es)
 				in
-				let argvs, argvdecls, pl = loop ([],[],[]) pl in
+				let argvs, pl = loop ([],[]) pl in
 				let _, cname = c.cl_path in
 				let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
 				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
