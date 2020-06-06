@@ -549,8 +549,8 @@ let with_contextual_monos ctx f =
 	let old_monos = ctx.monomorphs in
 	ctx.monomorphs <- [];
 	let r = f() in
-	List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs;
-	ctx.monomorphs <- old_monos @ ctx.monomorphs;
+	(* List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs; *)
+	ctx.monomorphs <- old_monos;
 	r
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
