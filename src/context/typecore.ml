@@ -139,7 +139,7 @@ and typer = {
 }
 
 and monomorphs = {
-	mutable percall : tmono list;
+	mutable percall : (tmono * pos) list;
 	mutable perfunction : (tmono * pos) list;
 }
 
@@ -544,7 +544,7 @@ let spawn_constrained_monos ctx p map params =
 	let monos = List.map (fun (s,_) ->
 		let mono = Monomorph.create() in
 		(* if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" p (MDebug s); *)
-		ctx.monomorphs.percall <- mono :: ctx.monomorphs.percall;
+		ctx.monomorphs.percall <- (mono,p) :: ctx.monomorphs.percall;
 		TMono mono
 	) params in
 	let map t = map (apply_params params monos t) in
@@ -563,7 +563,7 @@ let with_contextual_monos ctx f =
 	let old_monos = ctx.monomorphs.percall in
 	ctx.monomorphs.percall <- [];
 	let r = f() in
-	(* List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs; *)
+	(* List.iter (fun (m,p) -> ignore(safe_mono_close ctx m p)) ctx.monomorphs.percall; *)
 	ctx.monomorphs.percall <- old_monos;
 	r
 

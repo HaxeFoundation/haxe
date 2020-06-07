@@ -123,7 +123,7 @@ module Monomorph = struct
 
 	let rec bind m t =
 		begin match t with
-		| TAnon _ | TMono _ when List.exists (fun constr -> constr.mc_kind = MOpenStructure) m.tm_constraints ->
+		| TAnon _ when List.exists (fun constr -> constr.mc_kind = MOpenStructure) m.tm_constraints ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
 			let fields = ExtList.List.filter_map (fun constr -> match constr.mc_kind with
