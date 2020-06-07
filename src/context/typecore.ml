@@ -140,7 +140,7 @@ and typer = {
 
 and monomorphs = {
 	mutable percall : tmono list;
-	mutable perfunction : tmono list;
+	mutable perfunction : (tmono * pos) list;
 }
 
 exception Forbid_package of (string * path * pos) * pos list * string
@@ -543,13 +543,21 @@ let check_constraints map params tl p =
 let spawn_constrained_monos ctx p map params =
 	let monos = List.map (fun (s,_) ->
 		let mono = Monomorph.create() in
-		if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" p (MDebug s);
+		(* if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" p (MDebug s); *)
 		ctx.monomorphs.percall <- mono :: ctx.monomorphs.percall;
 		TMono mono
 	) params in
 	let map t = map (apply_params params monos t) in
 	check_constraints map params monos p;
 	monos
+
+let safe_mono_close ctx m p =
+	try
+		Monomorph.close m
+	with
+		Unify_error l ->
+			raise_or_display ctx l p;
+			false
 
 let with_contextual_monos ctx f =
 	let old_monos = ctx.monomorphs.percall in

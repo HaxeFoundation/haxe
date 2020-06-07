@@ -224,7 +224,7 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
-	List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs.perfunction;
+	List.iter (fun (m,p) -> ignore(safe_mono_close ctx m p)) ctx.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 

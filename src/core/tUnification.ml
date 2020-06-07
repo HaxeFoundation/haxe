@@ -77,6 +77,17 @@ module Monomorph = struct
 	let constrain_to_type m name p t =
 		List.iter (add_constraint m name p) (constraint_of_type t)
 
+	let get_field_constraint m name =
+		let rec loop l = match l with
+			| {mc_kind = MField cf} :: _ when cf.cf_name = name ->
+				Some cf
+			| _ :: l ->
+				loop l
+			| [] ->
+				None
+		in
+		loop m.tm_constraints
+
 	let check_constraints m t =
 		let fields = DynArray.create () in
 		let rec check constr = match constr.mc_kind with
@@ -91,6 +102,8 @@ module Monomorph = struct
 				DynArray.add fields cf
 			| MType t2 ->
 				check_constraint constr.mc_name (fun () -> (!unify_ref) default_unification_context t t2);
+			| MOpenStructure ->
+				()
 			| MDebug name ->
 				let s_constr = String.concat "" (List.map (fun constr -> Printf.sprintf "\n\t%s" (s_constraint constr.mc_kind)) m.tm_constraints) in
 				print_endline (Printf.sprintf "Checking constraints of %s against %s%s" name (s_type_kind t) s_constr);
@@ -110,6 +123,16 @@ module Monomorph = struct
 
 	let rec bind m t =
 		begin match t with
+		| TAnon _ | TMono _ when List.exists (fun constr -> constr.mc_kind = MOpenStructure) m.tm_constraints ->
+			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
+			   fields. This is kinda weird, but that's how it has always worked. *)
+			let fields = ExtList.List.filter_map (fun constr -> match constr.mc_kind with
+				| MField cf -> Some cf
+				| _ -> None
+			) m.tm_constraints in
+			let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty fields in
+			let t2 = mk_anon ~fields (ref Opened) in
+			check_constraint "" (fun () -> (!unify_ref) default_unification_context t2 t);
 		| TMono m2 ->
 			begin match m2.tm_type with
 			| None ->
@@ -123,7 +146,7 @@ module Monomorph = struct
 			do_bind m t
 		end
 
-	let close m = match m.tm_type with
+	and close m = match m.tm_type with
 		| Some _ ->
 			false
 		| None ->
@@ -150,8 +173,22 @@ module Monomorph = struct
 				| [] ->
 					false
 				| fields ->
+					let check_recursion cf =
+						let rec loop t = match t with
+						| TMono m2 when m == m2 ->
+							let pctx = print_context() in
+							let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+							raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
+						| _ ->
+							TFunctions.map loop t
+						in
+						ignore(loop cf.cf_type);
+					in
 					(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
-					let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty fields in
+					let fields = List.fold_left (fun map cf ->
+						check_recursion cf;
+						PMap.add cf.cf_name cf map
+					) PMap.empty fields in
 					do_bind m (mk_anon ~fields (ref Closed));
 					true
 				end;

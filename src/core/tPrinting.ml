@@ -28,6 +28,8 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
+let is_simn = false
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
@@ -35,7 +37,8 @@ let rec s_type ctx t =
 		| None ->
 			let s_const = match r.tm_constraints with
 				| [] -> ""
-				| l -> Printf.sprintf " : %s" (String.concat " & " (List.map (fun constr -> s_constraint constr.mc_kind) l))
+				| l when is_simn -> Printf.sprintf " : %s" (String.concat " & " (List.map (fun constr -> s_constraint constr.mc_kind) l))
+				| _ -> ""
 			in
 			begin try
 				let id = List.assq t (!ctx) in
@@ -117,6 +120,7 @@ and s_constraint = function
 	| MMono m -> Printf.sprintf "MMono %s" (extract_mono_name m)
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MOpenStructure -> "MOpenStructure"
 	| MDebug _ -> "MDebug"
 
 let s_access is_read = function
