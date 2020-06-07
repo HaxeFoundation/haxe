@@ -56,6 +56,11 @@ module Monomorph = struct
 		tm_constraints = [];
 	}
 
+	type constraint_kind =
+		| CUnknown
+		| CStructural of (string,tclass_field) PMap.t * bool
+		| CTypes of (string * pos * t) list
+
 	(* constraining *)
 
 	let make_constraint name p kind =
@@ -88,8 +93,10 @@ module Monomorph = struct
 		in
 		loop m.tm_constraints
 
-	let check_constraints m t =
-		let fields = DynArray.create () in
+	let classify_constraints m =
+		let types = DynArray.create () in
+		let fields = ref PMap.empty in
+		let is_open = ref false in
 		let rec check constr = match constr.mc_kind with
 			| MMono m2 ->
 				begin match m2.tm_type with
@@ -99,21 +106,30 @@ module Monomorph = struct
 					List.iter (fun kind -> check (make_constraint constr.mc_name constr.mc_pos kind)) (constraint_of_type t)
 				end;
 			| MField cf ->
-				DynArray.add fields cf
+				fields := PMap.add cf.cf_name cf !fields;
 			| MType t2 ->
-				check_constraint constr.mc_name (fun () -> (!unify_ref) default_unification_context t t2);
+				DynArray.add types (constr.mc_name,constr.mc_pos,t2)
 			| MOpenStructure ->
-				()
+				is_open := true
 			| MDebug name ->
-				let s_constr = String.concat "" (List.map (fun constr -> Printf.sprintf "\n\t%s" (s_constraint constr.mc_kind)) m.tm_constraints) in
-				print_endline (Printf.sprintf "Checking constraints of %s against %s%s" name (s_type_kind t) s_constr);
+				()
 		in
 		List.iter check m.tm_constraints;
-		if DynArray.length fields > 0 then begin
-			let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty (DynArray.to_list fields) in
+		if DynArray.length types > 0 then
+			CTypes (DynArray.to_list types)
+		else if not (PMap.is_empty !fields) then
+			CStructural(!fields,!is_open)
+		else
+			CUnknown
+
+	let check_constraints m t = match classify_constraints m with
+		| CUnknown ->
+			()
+		| CTypes tl ->
+			List.iter (fun (name,_,t2) -> check_constraint name (fun () -> (!unify_ref) default_unification_context t t2)) tl
+		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Opened) in
-			check_constraint "" (fun () -> (!unify_ref) default_unification_context t t2);
-		end
+			check_constraint "" (fun () -> (!unify_ref) default_unification_context t t2)
 
 	(* binding *)
 
@@ -150,51 +166,30 @@ module Monomorph = struct
 	and close m = match m.tm_type with
 		| Some _ ->
 			false
-		| None ->
-			let rec loop fields l = match l with
-			(* If we have a monomorph that has a type now, expand to the constraints of that type *)
-			| ({mc_kind = MMono {tm_type = Some t}} as constr) :: l ->
-				let l2 = List.map (fun kind -> make_constraint constr.mc_name constr.mc_pos kind) (constraint_of_type t) in
-				loop fields (l2 @ l)
-			(* If we have a concrete type, bind to that *)
-			| {mc_kind = MType t} :: l ->
+		| None -> match classify_constraints m with
+			| CUnknown ->
+				false
+			| CTypes [(_,_,t)] ->
 				do_bind m t;
 				true
-			(* Collect fields *)
-			| {mc_kind = MField cf} :: l ->
-				loop (cf :: fields) l
-			| {mc_kind = MDebug name} :: l ->
-				let s_constr = String.concat "" (List.map (fun constr -> Printf.sprintf "\n\t%s" (s_constraint constr.mc_kind)) m.tm_constraints) in
-				print_endline (Printf.sprintf "Closing %s%s" name s_constr);
-				loop fields l
-			| _ :: l ->
-				loop fields l
-			| [] ->
-				begin match fields with
-				| [] ->
-					false
-				| fields ->
-					let check_recursion cf =
-						let rec loop t = match t with
-						| TMono m2 when m == m2 ->
-							let pctx = print_context() in
-							let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
-							raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
-						| _ ->
-							TFunctions.map loop t
-						in
-						ignore(loop cf.cf_type);
+			| CTypes _ ->
+				false
+			| CStructural(fields,_) ->
+				let check_recursion cf =
+					let rec loop t = match t with
+					| TMono m2 when m == m2 ->
+						let pctx = print_context() in
+						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+						raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
+					| _ ->
+						TFunctions.map loop t
 					in
-					(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
-					let fields = List.fold_left (fun map cf ->
-						check_recursion cf;
-						PMap.add cf.cf_name cf map
-					) PMap.empty fields in
-					do_bind m (mk_anon ~fields (ref Closed));
-					true
-				end;
-			in
-			loop [] m.tm_constraints
+					ignore(loop cf.cf_type);
+				in
+				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
+				PMap.iter (fun _ cf -> check_recursion cf) fields;
+				do_bind m (mk_anon ~fields (ref Closed));
+				true
 
 	let unbind m =
 		m.tm_type <- None

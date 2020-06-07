@@ -476,28 +476,53 @@ let rec type_field cfg ctx e i p mode =
 				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
-		let f = match Monomorph.get_field_constraint r i with
-		| Some f ->
-			if mode = MSet then begin match f.cf_kind with
-			(* We previously inferred to read-only, but now we want to write. This can happen in cases like #8079. *)
-			| Var ({v_write = AccNo} as acc) -> f.cf_kind <- Var {acc with v_write = AccNormal}
-			| _ -> ()
-			end;
-			f
-		| None ->
-			let f = {
-				(mk_field i (mk_mono()) p null_pos) with
-				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-			} in
-			Monomorph.add_constraint r "FA" p (MField f);
+		let mk_field () = {
+			(mk_field i (mk_mono()) p null_pos) with
+			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
+		} in
+		let access f =
+			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+		in
+		begin match Monomorph.classify_constraints r with
+		| CStructural(fields,is_open) ->
+			begin try
+				let f = PMap.find i fields in
+				if is_open && mode = MSet then begin match f.cf_kind with
+					(* We previously inferred to read-only, but now we want to write. This can happen in cases like #8079. *)
+					| Var ({v_write = AccNo} as acc) -> f.cf_kind <- Var {acc with v_write = AccNormal}
+					| _ -> ()
+				end;
+				access f
+			with Not_found ->
+				if not is_open then
+					no_field()
+				else begin
+					let f = mk_field() in
+					Monomorph.add_constraint r "FA" p (MField f);
+					access f
+				end
+			end
+		| CTypes tl ->
+			let rec loop tl = match tl with
+				| [] ->
+					no_field()
+				| (_,_,t) :: tl ->
+					try
+						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode
+					with Not_found ->
+						loop tl
+			in
+			loop tl
+		| CUnknown ->
 			if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then begin
 				ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
-				Monomorph.add_constraint r "FA" p MOpenStructure;
 				(* if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint r "debug" p (MDebug "FA"); *)
 			end;
-			f
-		in
-		field_access ctx mode f (FAnon f) (Type.field_type f) e p
+			let f = mk_field() in
+			Monomorph.add_constraint r "FA" p (MField f);
+			Monomorph.add_constraint r "FA" p MOpenStructure;
+			access f
+		end
 	| TAbstract (a,pl) ->
 		let static_abstract_access_through_instance = ref false in
 		(try
