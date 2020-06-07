@@ -2691,7 +2691,10 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		in_call_args = false;
-		monomorphs = [];
+		monomorphs = {
+			percall = [];
+			perfunction = [];
+		};
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		memory_marker = Typecore.memory_marker;
 	} in

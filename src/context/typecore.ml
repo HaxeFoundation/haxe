@@ -132,11 +132,17 @@ and typer = {
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
-	mutable monomorphs : tmono list;
+	mutable monomorphs : monomorphs;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 	memory_marker : float array;
 }
+
+and monomorphs = {
+	mutable percall : tmono list;
+	mutable perfunction : tmono list;
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
@@ -537,8 +543,8 @@ let check_constraints map params tl p =
 let spawn_constrained_monos ctx p map params =
 	let monos = List.map (fun (s,_) ->
 		let mono = Monomorph.create() in
-		(* if ctx.curclass.cl_path = ([],"Main") then Monomorph.add_constraint mono "debug" p (MDebug s); *)
-		ctx.monomorphs <- mono :: ctx.monomorphs;
+		if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" p (MDebug s);
+		ctx.monomorphs.percall <- mono :: ctx.monomorphs.percall;
 		TMono mono
 	) params in
 	let map t = map (apply_params params monos t) in
@@ -546,11 +552,11 @@ let spawn_constrained_monos ctx p map params =
 	monos
 
 let with_contextual_monos ctx f =
-	let old_monos = ctx.monomorphs in
-	ctx.monomorphs <- [];
+	let old_monos = ctx.monomorphs.percall in
+	ctx.monomorphs.percall <- [];
 	let r = f() in
 	(* List.iter (fun m -> ignore(Monomorph.close m)) ctx.monomorphs; *)
-	ctx.monomorphs <- old_monos;
+	ctx.monomorphs.percall <- old_monos;
 	r
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)

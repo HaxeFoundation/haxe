@@ -33,13 +33,17 @@ let rec s_type ctx t =
 	| TMono r ->
 		(match r.tm_type with
 		| None ->
+			let s_const = match r.tm_constraints with
+				| [] -> ""
+				| l -> Printf.sprintf " : %s" (String.concat " & " (List.map (fun constr -> s_constraint constr.mc_kind) l))
+			in
 			begin try
 				let id = List.assq t (!ctx) in
-				Printf.sprintf "Unknown<%d>" id
+				Printf.sprintf "Unknown<%d>%s" id s_const
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-				Printf.sprintf "Unknown<%d>" id
+				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -100,6 +104,20 @@ and s_fun ctx t void =
 and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
+and extract_mono_name m =
+	let rec loop l = match l with
+		| [] -> "?"
+		| {mc_kind = MDebug s} :: _ -> s
+		| _ :: l -> loop l
+	in
+	loop m.tm_constraints
+
+and s_constraint = function
+	| MMono m -> Printf.sprintf "MMono %s" (extract_mono_name m)
+	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
+	| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MDebug _ -> "MDebug"
 
 let s_access is_read = function
 	| AccNormal -> "default"

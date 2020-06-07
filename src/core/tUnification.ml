@@ -58,20 +58,6 @@ module Monomorph = struct
 
 	(* constraining *)
 
-	let extract_name m =
-		let rec loop l = match l with
-			| [] -> "?"
-			| {mc_kind = MDebug s} :: _ -> s
-			| _ :: l -> loop l
-		in
-		loop m.tm_constraints
-
-	let s_constraint = function
-		| MMono m -> Printf.sprintf "MMono %s" (extract_name m)
-		| MField cf -> Printf.sprintf "MField %s" cf.cf_name
-		| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
-		| MDebug _ -> "MDebug"
-
 	let make_constraint name p kind =
 		{mc_kind = kind; mc_name = name; mc_pos = p}
 
