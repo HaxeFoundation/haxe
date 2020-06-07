@@ -119,7 +119,8 @@ module Monomorph = struct
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
-		m.tm_type <- Some t
+		m.tm_type <- Some t;
+		m.tm_constraints <- []
 
 	let rec bind m t =
 		begin match t with
@@ -136,8 +137,8 @@ module Monomorph = struct
 		| TMono m2 ->
 			begin match m2.tm_type with
 			| None ->
+				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
 				do_bind m t;
-				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints
 			| Some t ->
 				bind m t
 			end
