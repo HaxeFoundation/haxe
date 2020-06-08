@@ -294,6 +294,17 @@ let unify_field_call ctx fa el args ret p inline =
 	let rec loop candidates = match candidates with
 		| [] -> [],[]
 		| (t,cf) :: candidates ->
+			let unbound = DynArray.create () in
+			List.iter (fun (m,_) -> match m.tm_type with
+				| None ->
+					DynArray.add unbound m
+				| Some t ->
+					let rec loop t = match follow t with
+						| TMono m -> DynArray.add unbound m
+						| _ -> TFunctions.iter loop t
+					in
+					loop t
+			) ctx.monomorphs.perfunction;
 			begin try
 				let candidate = attempt_call t cf in
 				if ctx.com.config.pf_overload && is_overload then begin
@@ -302,6 +313,9 @@ let unify_field_call ctx fa el args ret p inline =
 				end else
 					[candidate],[]
 			with Error ((Call_error cerr as err),p) ->
+				DynArray.iter (fun m ->
+					if m.tm_type <> None then Monomorph.unbind m
+				) unbound;
 				maybe_raise_unknown_ident cerr p;
 				let candidates,failures = loop candidates in
 				candidates,(cf,err,p) :: failures

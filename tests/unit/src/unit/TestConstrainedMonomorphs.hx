@@ -18,6 +18,23 @@ private class MyNotString {
 	}
 }
 
+#if java
+@:native("unit.DetectiveHaxeExtern")
+extern private class DetectiveHaxeExtern {
+	@:overload static function itWasYou(i1:Int, i2:Int):String;
+	@:overload static function itWasYou(s1:String, s2:String):String;
+	@:overload static function itWasYou(f1:Float, f2:Float):String;
+}
+
+@:native("unit.DetectiveHaxeExtern")
+@:keep
+private class DetectiveHaxeImplementation {
+	@:overload static function itWasYou(s1:String, s2:String) {
+		return s1 + s2;
+	}
+}
+#end
+
 class TestConstrainedMonomorphs extends Test {
 
 	function infer(arg) {
@@ -30,4 +47,11 @@ class TestConstrainedMonomorphs extends Test {
 	function testNarrowingInference() {
 		eq("fooFOO", infer(new MyNotString("foo")));
 	}
+
+	#if java
+	function testDetectiveHaxe() {
+		var a = null;
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
+	}
+	#end
 }

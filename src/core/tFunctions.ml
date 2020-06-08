@@ -270,6 +270,33 @@ let map loop t =
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
 
+let iter loop t =
+	match t with
+	| TMono r ->
+		(match r.tm_type with
+		| None -> ()
+		| Some t -> loop t)
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+		()
+	| TEnum (e,tl) ->
+		List.iter loop tl
+	| TInst (c,tl) ->
+		List.iter loop tl
+	| TType (t2,tl) ->
+		List.iter loop tl
+	| TAbstract (a,tl) ->
+		List.iter loop tl
+	| TFun (tl,r) ->
+		List.iter (fun (_,_,t) -> loop t) tl;
+		loop r
+	| TAnon a ->
+		PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
+	| TLazy f ->
+		let ft = lazy_type f in
+		loop ft
+	| TDynamic t2 ->
+		if t != t2 then	loop t2
+
 let duplicate t =
 	let monos = ref [] in
 	let rec loop t =
