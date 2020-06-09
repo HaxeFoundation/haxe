@@ -56,14 +56,17 @@ class TestConstrainedMonomorphs extends Test {
 	#end
 
 	static function merge<A:{}, B:{}, C:A & B>(a:A, b:B):C {
-		return null;
+		return cast {
+			foo: (cast a).foo,
+			bar: (cast b).bar
+		};
 	}
+
 	function testMergedConstraints() {
 		var a = merge({foo: 5}, {bar: "bar"});
-		#if todo
-		HelperMacros.typedAs(a, (null : { foo: Int, bar: String }));
-		#end
-		Assert.pass();
+		eq(5, a.foo);
+		eq("bar", a.bar);
+		t(HelperMacros.typeError(a.oh));
 	}
 
 	public static function returnC<C:{foo:Int}>():C {
