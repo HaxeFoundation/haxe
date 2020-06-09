@@ -54,4 +54,12 @@ class TestConstrainedMonomorphs extends Test {
 		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
 	}
 	#end
+
+	static function merge<A:{}, B:{}, C:A & B>(a:A, b:B):C {
+		return null;
+	}
+	function testMergedConstraints() {
+		var a = merge({foo: 5}, {bar: "bar"});
+		HelperMacros.typedAs(a, (null : { foo: Int, bar: String }));
+	}
 }

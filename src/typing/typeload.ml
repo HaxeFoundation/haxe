@@ -708,7 +708,6 @@ let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
 		| None ->
 			let mono = Monomorph.create () in
-			if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" pcur (MDebug "type-hint");
 			ctx.monomorphs.perfunction <- (mono,pcur) :: ctx.monomorphs.perfunction;
 			TMono mono
 		| Some (t,p) ->	load_complex_type ctx true (t,p)

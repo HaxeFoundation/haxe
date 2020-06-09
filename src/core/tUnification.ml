@@ -61,6 +61,10 @@ module Monomorph = struct
 		| CStructural of (string,tclass_field) PMap.t * bool
 		| CTypes of (string * pos * t) list
 
+	type closing_mode =
+		| CContextual
+		| CRequired
+
 	(* constraining *)
 
 	let make_constraint name p kind =
@@ -81,17 +85,6 @@ module Monomorph = struct
 
 	let constrain_to_type m name p t =
 		List.iter (add_constraint m name p) (constraint_of_type t)
-
-	let get_field_constraint m name =
-		let rec loop l = match l with
-			| {mc_kind = MField cf} :: _ when cf.cf_name = name ->
-				Some cf
-			| _ :: l ->
-				loop l
-			| [] ->
-				None
-		in
-		loop m.tm_constraints
 
 	let classify_constraints m =
 		let types = DynArray.create () in
@@ -163,13 +156,13 @@ module Monomorph = struct
 			do_bind m t
 		end
 
-	and close m = match m.tm_type with
+	and close m mode = match m.tm_type with
 		| Some _ ->
 			false
 		| None -> match classify_constraints m with
 			| CUnknown ->
 				false
-			| CTypes [(_,_,t)] ->
+			| CTypes [(_,_,t)] when mode = CRequired ->
 				do_bind m t;
 				true
 			| CTypes _ ->
