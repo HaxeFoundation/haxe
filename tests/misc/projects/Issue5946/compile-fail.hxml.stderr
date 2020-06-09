@@ -1,4 +1,8 @@
-Main.hx:5: characters 3-15 : Constraint check failure for downcast.S
-Main.hx:5: characters 3-15 : ITwo should be IOne
-Main.hx:4: characters 3-15 : Constraint check failure for downcast.S
-Main.hx:4: characters 3-15 : Two should be One
+Main.hx:4: characters 28-31 : Class<Two> should be Class<Unknown<0>>
+Main.hx:4: characters 28-31 : Constraint check failure for downcast.S
+Main.hx:4: characters 28-31 : Two should be One
+Main.hx:4: characters 28-31 : For function argument 'c'
+Main.hx:5: characters 29-33 : Class<ITwo> should be Class<Unknown<0>>
+Main.hx:5: characters 29-33 : Constraint check failure for downcast.S
+Main.hx:5: characters 29-33 : ITwo should be IOne
+Main.hx:5: characters 29-33 : For function argument 'c'
