@@ -3,6 +3,53 @@ open TType
 open TFunctions
 open TPrinting
 
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+	| Has_no_runtime_field of t * string
+	| Has_extra_field of t * string
+	| Invalid_kind of string * field_kind * field_kind
+	| Invalid_visibility of string
+	| Not_matching_optional of string
+	| Cant_force_optional
+	| Invariant_parameter of int
+	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int (* index *) * int (* total *)
+	| Invalid_return_type
+	| Unify_custom of string
+
+exception Unify_error of unify_error list
+
+type eq_kind =
+	| EqStrict
+	| EqCoreType
+	| EqRightDynamic
+	| EqBothDynamic
+	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
+
+type unification_context = {
+	allow_transitive_cast : bool;
+	equality_kind         : eq_kind;
+}
+
+let error l = raise (Unify_error l)
+
+let check_constraint name f =
+	try
+		f()
+	with Unify_error l ->
+		raise (Unify_error ((Constraint_failure name) :: l))
+
+let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
+
+let default_unification_context = {
+	allow_transitive_cast = true;
+	equality_kind         = EqStrict;
+}
+
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
@@ -149,33 +196,12 @@ let rec shallow_eq a b =
    it's also the one that is pointed by the position.
    It's actually a typecheck of  A :> B where some mutations can happen *)
 
-type unify_error =
-	| Cannot_unify of t * t
-	| Invalid_field_type of string
-	| Has_no_field of t * string
-	| Has_no_runtime_field of t * string
-	| Has_extra_field of t * string
-	| Invalid_kind of string * field_kind * field_kind
-	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
-	| Invariant_parameter of int
-	| Constraint_failure of string
-	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int (* index *) * int (* total *)
-	| Invalid_return_type
-	| Unify_custom of string
-
-exception Unify_error of unify_error list
-
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
 let invalid_kind n a b = Invalid_kind (n,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
-let error l = raise (Unify_error l)
 
 (*
 	we can restrict access as soon as both are runtime-compatible
@@ -265,23 +291,6 @@ let rec_stack_bool stack value fcheck frun =
 				stack.rec_stack <- List.tl stack.rec_stack;
 				raise e
 	end
-
-type eq_kind =
-	| EqStrict
-	| EqCoreType
-	| EqRightDynamic
-	| EqBothDynamic
-	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
-
-type unification_context = {
-	allow_transitive_cast : bool;
-	equality_kind         : eq_kind;
-}
-
-let default_unification_context = {
-	allow_transitive_cast = true;
-	equality_kind         = EqStrict;
-}
 
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
@@ -872,3 +881,6 @@ let unify = unify default_unification_context
 
 let type_eq_custom = type_eq
 let type_eq param = type_eq {default_unification_context with equality_kind = param}
+
+;;
+unify_ref := unify_custom;;
