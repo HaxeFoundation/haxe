@@ -374,9 +374,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| WithType.WithType(t,_) -> unify ctx ret t p
 		| _ -> ()
 	end;
-	let el,_ = with_contextual_monos ctx (fun () ->
-		unify_call_args ctx el args ret p false false
-	) in
+	let el,_ = unify_call_args ctx el args ret p false false in
 	begin try
 		check_constraints ctx cf.cf_name cf.cf_params monos map false p
 	with Unify_error l ->
