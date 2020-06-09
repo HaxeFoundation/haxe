@@ -543,7 +543,6 @@ let check_constraints map params tl p =
 let spawn_constrained_monos ctx p map params =
 	let monos = List.map (fun (s,_) ->
 		let mono = Monomorph.create() in
-		(* if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint mono "debug" p (MDebug s); *)
 		ctx.monomorphs.percall <- (mono,p) :: ctx.monomorphs.percall;
 		TMono mono
 	) params in

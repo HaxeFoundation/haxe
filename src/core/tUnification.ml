@@ -104,8 +104,6 @@ module Monomorph = struct
 				DynArray.add types (constr.mc_name,constr.mc_pos,t2)
 			| MOpenStructure ->
 				is_open := true
-			| MDebug name ->
-				()
 		in
 		List.iter check m.tm_constraints;
 		if DynArray.length types > 0 then

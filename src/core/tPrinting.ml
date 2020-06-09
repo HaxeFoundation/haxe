@@ -108,20 +108,11 @@ and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
-and extract_mono_name m =
-	let rec loop l = match l with
-		| [] -> "?"
-		| {mc_kind = MDebug s} :: _ -> s
-		| _ :: l -> loop l
-	in
-	loop m.tm_constraints
-
 and s_constraint = function
-	| MMono m -> Printf.sprintf "MMono %s" (extract_mono_name m)
+	| MMono m -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
 	| MOpenStructure -> "MOpenStructure"
-	| MDebug _ -> "MDebug"
 
 let s_access is_read = function
 	| AccNormal -> "default"

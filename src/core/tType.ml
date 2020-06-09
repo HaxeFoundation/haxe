@@ -53,7 +53,6 @@ and tmono_constraint_kind =
 	| MField of tclass_field
 	| MType of t
 	| MOpenStructure
-	| MDebug of string
 
 and tmono_constraint = {
 	mc_kind : tmono_constraint_kind;

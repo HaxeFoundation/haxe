@@ -516,7 +516,6 @@ let rec type_field cfg ctx e i p mode =
 		| CUnknown ->
 			if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then begin
 				ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
-				(* if Meta.has (Meta.Custom ":debug.monomorphs") ctx.curfield.cf_meta then Monomorph.add_constraint r "debug" p (MDebug "FA"); *)
 			end;
 			let f = mk_field() in
 			Monomorph.add_constraint r "FA" p (MField f);
