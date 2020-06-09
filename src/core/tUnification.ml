@@ -56,11 +56,6 @@ module Monomorph = struct
 		tm_constraints = [];
 	}
 
-	type constraint_kind =
-		| CUnknown
-		| CStructural of (string,tclass_field) PMap.t * bool
-		| CTypes of (t * string option) list
-
 	(* constraining *)
 
 	let add_constraint m constr =
@@ -997,3 +992,4 @@ let type_eq param = type_eq {default_unification_context with equality_kind = pa
 
 ;;
 unify_ref := unify_custom;;
+monomorph_classify_constraints_ref := Monomorph.classify_constraints

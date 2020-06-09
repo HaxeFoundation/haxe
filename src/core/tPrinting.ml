@@ -28,24 +28,22 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
-let is_simn = false
-
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
 		(match r.tm_type with
 		| None ->
-			let s_const = match r.tm_constraints with
-				| [] -> ""
-				| l when is_simn -> Printf.sprintf " : %s" (String.concat " & " (List.map s_constraint l))
-				| _ -> ""
-			in
 			begin try
 				let id = List.assq t (!ctx) in
-				Printf.sprintf "Unknown<%d>%s" id s_const
+				Printf.sprintf "Unknown<%d>" id
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
+			let s_const = match !monomorph_classify_constraints_ref r with
+				| CUnknown -> ""
+				| CTypes tl -> " : " ^ String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+				| CStructural(fields,_) -> " : " ^ s_type ctx (mk_anon ~fields (ref Closed))
+			in
 				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
 		| Some t -> s_type ctx t)

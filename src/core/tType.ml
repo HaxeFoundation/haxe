@@ -54,6 +54,11 @@ and tmono_constraint =
 	| MType of t * string option
 	| MOpenStructure
 
+and tmono_constraint_kind =
+	| CUnknown
+	| CStructural of (string,tclass_field) PMap.t * bool
+	| CTypes of (t * string option) list
+
 and tlazy =
 	| LAvailable of t
 	| LProcessing of (unit -> t)
