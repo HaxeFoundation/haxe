@@ -971,6 +971,10 @@ let type_types_into_module ctx m tdecls p =
 		in_loop = false;
 		opened = [];
 		in_call_args = false;
+		monomorphs = {
+			percall = [];
+			perfunction = [];
+		};
 		vthis = None;
 		memory_marker = Typecore.memory_marker;
 	} in

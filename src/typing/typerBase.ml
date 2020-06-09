@@ -119,7 +119,7 @@ let rec type_module_type ctx t tparams p =
 		let t_tmp = class_module_type c in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
+		let types = (match tparams with None -> spawn_constrained_monos ctx p (fun t -> t) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in

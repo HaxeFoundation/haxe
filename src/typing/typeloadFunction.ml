@@ -45,12 +45,14 @@ let save_field_state ctx =
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
+	let old_monos = ctx.monomorphs.perfunction in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
 		ctx.ret <- old_ret;
 		ctx.curfun <- old_fun;
 		ctx.opened <- old_opened;
+		ctx.monomorphs.perfunction <- old_monos;
 	)
 
 let type_var_field ctx t e stat do_display p =
@@ -108,6 +110,7 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
+	ctx.monomorphs.perfunction <- [];
 	let e = match f.f_expr with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then

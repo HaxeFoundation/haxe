@@ -497,7 +497,7 @@ let rec type_field cfg ctx e i p mode =
 						FAnon f, Type.field_type f
 					| l ->
 						(* handle possible constraints *)
-						let monos = List.map (fun _ -> mk_mono()) l in
+						let monos = spawn_constrained_monos ctx p (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
 						add_constraint_checks ctx [] [] f monos p;
 						FAnon f, t
