@@ -2397,10 +2397,8 @@ and type_call_target ctx e with_type inline p =
 
 and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
-		with_contextual_monos ctx (fun () ->
-			let e = type_call_target ctx e with_type inline p in
-			build_call ~mode ctx e el with_type p;
-		)
+		let e = type_call_target ctx e with_type inline p in
+		build_call ~mode ctx e el with_type p;
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2692,7 +2690,6 @@ let rec create com =
 		vthis = None;
 		in_call_args = false;
 		monomorphs = {
-			percall = [];
 			perfunction = [];
 		};
 		on_error = (fun ctx msg p -> ctx.com.error msg p);

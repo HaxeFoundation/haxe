@@ -972,7 +972,6 @@ let type_types_into_module ctx m tdecls p =
 		opened = [];
 		in_call_args = false;
 		monomorphs = {
-			percall = [];
 			perfunction = [];
 		};
 		vthis = None;

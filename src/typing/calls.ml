@@ -388,9 +388,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| WithType.WithType(t,_) -> unify ctx ret t p
 		| _ -> ()
 	end;
-	let el,_ = with_contextual_monos ctx (fun () ->
-		unify_call_args ctx el args ret p false false
-	) in
+	let el,_ = unify_call_args ctx el args ret p false false in
 	List.iter (fun t -> match follow t with
 		| TMono m -> ignore(safe_mono_close ctx m p)
 		| _ -> ()

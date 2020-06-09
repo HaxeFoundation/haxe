@@ -139,7 +139,6 @@ and typer = {
 }
 
 and monomorphs = {
-	mutable percall : (tmono * pos) list;
 	mutable perfunction : (tmono * pos) list;
 }
 
@@ -543,7 +542,6 @@ let check_constraints map params tl p =
 let spawn_constrained_monos ctx p map params =
 	let monos = List.map (fun (s,_) ->
 		let mono = Monomorph.create() in
-		ctx.monomorphs.percall <- (mono,p) :: ctx.monomorphs.percall;
 		TMono mono
 	) params in
 	let map t = map (apply_params params monos t) in
@@ -557,14 +555,6 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p;
 			false
-
-let with_contextual_monos ctx f =
-	let old_monos = ctx.monomorphs.percall in
-	ctx.monomorphs.percall <- [];
-	let r = f() in
-	(* List.iter (fun (m,p) -> ignore(safe_mono_close ctx m p)) ctx.monomorphs.percall; *)
-	ctx.monomorphs.percall <- old_monos;
-	r
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
