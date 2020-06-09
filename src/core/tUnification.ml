@@ -144,15 +144,15 @@ module Monomorph = struct
 
 	and close m = match m.tm_type with
 		| Some _ ->
-			false
+			()
 		| None -> match classify_constraints m with
 			| CUnknown ->
-				false
+				()
 			| CTypes [(t,_)] ->
 				do_bind m t;
-				true
+				()
 			| CTypes _ ->
-				false
+				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
 					let rec loop t = match t with
@@ -168,7 +168,7 @@ module Monomorph = struct
 				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
 				PMap.iter (fun _ cf -> check_recursion cf) fields;
 				do_bind m (mk_anon ~fields (ref Closed));
-				true
+				()
 
 	let unbind m =
 		m.tm_type <- None

@@ -553,8 +553,7 @@ let safe_mono_close ctx m p =
 		Monomorph.close m
 	with
 		Unify_error l ->
-			raise_or_display ctx l p;
-			false
+			raise_or_display ctx l p
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

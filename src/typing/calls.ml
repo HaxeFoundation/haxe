@@ -376,7 +376,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	end;
 	let el,_ = unify_call_args ctx el args ret p false false in
 	List.iter (fun t -> match follow t with
-		| TMono m -> ignore(safe_mono_close ctx m p)
+		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
 	let el = match using_param with None -> el | Some e -> e :: el in
