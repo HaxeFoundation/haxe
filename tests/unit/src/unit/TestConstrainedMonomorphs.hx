@@ -48,7 +48,7 @@ class TestConstrainedMonomorphs extends Test {
 		eq("fooFOO", infer(new MyNotString("foo")));
 	}
 
-	#if java
+	#if todo
 	function testDetectiveHaxe() {
 		var a = null;
 		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
