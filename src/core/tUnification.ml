@@ -59,7 +59,7 @@ module Monomorph = struct
 	type constraint_kind =
 		| CUnknown
 		| CStructural of (string,tclass_field) PMap.t * bool
-		| CTypes of (string * pos * t) list
+		| CTypes of (t * string option) list
 
 	type closing_mode =
 		| CContextual
@@ -67,41 +67,38 @@ module Monomorph = struct
 
 	(* constraining *)
 
-	let make_constraint name p kind =
-		{mc_kind = kind; mc_name = name; mc_pos = p}
+	let add_constraint m constr =
+		m.tm_constraints <- constr :: m.tm_constraints
 
-	let add_constraint m name p kind =
-		m.tm_constraints <- (make_constraint name p kind) :: m.tm_constraints
-
-	let constraint_of_type t = match follow t with
+	let constraint_of_type name t = match follow t with
 		| TMono m2 ->
-			[MMono m2]
+			[MMono(m2,name)]
 		| TAnon an when not (PMap.is_empty an.a_fields) ->
 			PMap.fold (fun cf l ->
 				(MField cf) :: l
 			) an.a_fields []
 		| _ ->
-			[MType t]
+			[MType(t,name)]
 
-	let constrain_to_type m name p t =
-		List.iter (add_constraint m name p) (constraint_of_type t)
+	let constrain_to_type m name t =
+		List.iter (add_constraint m) (constraint_of_type name t)
 
 	let classify_constraints m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
-		let rec check constr = match constr.mc_kind with
-			| MMono m2 ->
+		let rec check constr = match constr with
+			| MMono(m2,name) ->
 				begin match m2.tm_type with
 				| None ->
 					()
 				| Some t ->
-					List.iter (fun kind -> check (make_constraint constr.mc_name constr.mc_pos kind)) (constraint_of_type t)
+					List.iter (fun constr -> check constr) (constraint_of_type name t)
 				end;
 			| MField cf ->
 				fields := PMap.add cf.cf_name cf !fields;
-			| MType t2 ->
-				DynArray.add types (constr.mc_name,constr.mc_pos,t2)
+			| MType(t2,name) ->
+				DynArray.add types (t2,name)
 			| MOpenStructure ->
 				is_open := true
 		in
@@ -117,10 +114,15 @@ module Monomorph = struct
 		| CUnknown ->
 			()
 		| CTypes tl ->
-			List.iter (fun (name,_,t2) -> check_constraint name (fun () -> (!unify_ref) default_unification_context t t2)) tl
+			List.iter (fun (t2,name) ->
+				let f () = (!unify_ref) default_unification_context t t2 in
+				match name with
+				| Some name -> check_constraint name f
+				| None -> f()
+			) tl
 		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Closed) in
-			check_constraint "" (fun () -> (!unify_ref) default_unification_context t t2)
+			(!unify_ref) default_unification_context t t2
 
 	(* binding *)
 
@@ -131,10 +133,10 @@ module Monomorph = struct
 
 	let rec bind m t =
 		begin match t with
-		| TAnon _ when List.exists (fun constr -> constr.mc_kind = MOpenStructure) m.tm_constraints ->
+		| TAnon _ when List.mem MOpenStructure m.tm_constraints ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
-			constrain_to_type m "implicit" null_pos t;
+			constrain_to_type m None t;
 			ignore(close m CContextual)
 		| TMono m2 ->
 			begin match m2.tm_type with
@@ -155,7 +157,7 @@ module Monomorph = struct
 		| None -> match classify_constraints m with
 			| CUnknown ->
 				false
-			| CTypes [(_,_,t)] when mode = CRequired ->
+			| CTypes [(t,_)] when mode = CRequired ->
 				do_bind m t;
 				true
 			| CTypes _ ->

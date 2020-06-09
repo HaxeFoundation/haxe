@@ -37,7 +37,7 @@ let rec s_type ctx t =
 		| None ->
 			let s_const = match r.tm_constraints with
 				| [] -> ""
-				| l when is_simn -> Printf.sprintf " : %s" (String.concat " & " (List.map (fun constr -> s_constraint constr.mc_kind) l))
+				| l when is_simn -> Printf.sprintf " : %s" (String.concat " & " (List.map s_constraint l))
 				| _ -> ""
 			in
 			begin try
@@ -109,9 +109,9 @@ and s_type_params ctx = function
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
 and s_constraint = function
-	| MMono m -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
+	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
-	| MType t -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
 	| MOpenStructure -> "MOpenStructure"
 
 let s_access is_read = function

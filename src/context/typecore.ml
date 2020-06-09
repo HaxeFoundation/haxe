@@ -526,7 +526,7 @@ let check_constraints map params tl p =
 		| TInst ({ cl_kind = KTypeParameter constr; cl_path = path; cl_name_pos = p; },_) ->
 			if constr <> [] then begin match tm with
 			| TMono mono ->
-				List.iter (fun t -> Monomorph.constrain_to_type mono (s_type_path path) p (map t)) constr
+				List.iter (fun t -> Monomorph.constrain_to_type mono (Some (s_type_path path)) (map t)) constr
 			| _ ->
 				let tm = map tm in
 				check_constraint (s_type_path path) (fun () ->

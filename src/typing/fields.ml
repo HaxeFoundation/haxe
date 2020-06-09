@@ -498,7 +498,7 @@ let rec type_field cfg ctx e i p mode =
 					no_field()
 				else begin
 					let f = mk_field() in
-					Monomorph.add_constraint r "FA" p (MField f);
+					Monomorph.add_constraint r (MField f);
 					access f
 				end
 			end
@@ -506,7 +506,7 @@ let rec type_field cfg ctx e i p mode =
 			let rec loop tl = match tl with
 				| [] ->
 					no_field()
-				| (_,_,t) :: tl ->
+				| (t,_) :: tl ->
 					try
 						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode
 					with Not_found ->
@@ -518,8 +518,8 @@ let rec type_field cfg ctx e i p mode =
 				ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
 			end;
 			let f = mk_field() in
-			Monomorph.add_constraint r "FA" p (MField f);
-			Monomorph.add_constraint r "FA" p MOpenStructure;
+			Monomorph.add_constraint r (MField f);
+			Monomorph.add_constraint r MOpenStructure;
 			access f
 		end
 	| TAbstract (a,pl) ->

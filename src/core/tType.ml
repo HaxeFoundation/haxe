@@ -48,17 +48,11 @@ and tmono = {
 	mutable tm_constraints : tmono_constraint list;
 }
 
-and tmono_constraint_kind =
-	| MMono of tmono
+and tmono_constraint =
+	| MMono of tmono * string option
 	| MField of tclass_field
-	| MType of t
+	| MType of t * string option
 	| MOpenStructure
-
-and tmono_constraint = {
-	mc_kind : tmono_constraint_kind;
-	mc_pos : pos;
-	mc_name : string;
-}
 
 and tlazy =
 	| LAvailable of t
