@@ -61,10 +61,6 @@ module Monomorph = struct
 		| CStructural of (string,tclass_field) PMap.t * bool
 		| CTypes of (t * string option) list
 
-	type closing_mode =
-		| CContextual
-		| CRequired
-
 	(* constraining *)
 
 	let add_constraint m constr =
@@ -137,7 +133,7 @@ module Monomorph = struct
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
 			constrain_to_type m None t;
-			ignore(close m CContextual)
+			ignore(close m)
 		| TMono m2 ->
 			begin match m2.tm_type with
 			| None ->
@@ -151,13 +147,13 @@ module Monomorph = struct
 			do_bind m t
 		end
 
-	and close m mode = match m.tm_type with
+	and close m = match m.tm_type with
 		| Some _ ->
 			false
 		| None -> match classify_constraints m with
 			| CUnknown ->
 				false
-			| CTypes [(t,_)] when mode = CRequired ->
+			| CTypes [(t,_)] ->
 				do_bind m t;
 				true
 			| CTypes _ ->

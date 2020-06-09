@@ -550,9 +550,9 @@ let spawn_constrained_monos ctx p map params =
 	check_constraints map params monos p;
 	monos
 
-let safe_mono_close ctx m mode p =
+let safe_mono_close ctx m p =
 	try
-		Monomorph.close m mode
+		Monomorph.close m
 	with
 		Unify_error l ->
 			raise_or_display ctx l p;
@@ -562,7 +562,7 @@ let with_contextual_monos ctx f =
 	let old_monos = ctx.monomorphs.percall in
 	ctx.monomorphs.percall <- [];
 	let r = f() in
-	List.iter (fun (m,p) -> ignore(safe_mono_close ctx m CContextual p)) ctx.monomorphs.percall;
+	(* List.iter (fun (m,p) -> ignore(safe_mono_close ctx m p)) ctx.monomorphs.percall; *)
 	ctx.monomorphs.percall <- old_monos;
 	r
 

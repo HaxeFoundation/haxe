@@ -50,7 +50,7 @@ let make_generic ctx ps pt p =
 				| _ when not top ->
 					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono ({ tm_type = None } as m) ->
-					if safe_mono_close ctx m CRequired p then loop top t
+					if safe_mono_close ctx m p then loop top t
 					else raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TDynamic _ -> "Dynamic"
 				| t ->
