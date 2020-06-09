@@ -121,7 +121,7 @@ module Monomorph = struct
 		| CTypes tl ->
 			List.iter (fun (name,_,t2) -> check_constraint name (fun () -> (!unify_ref) default_unification_context t t2)) tl
 		| CStructural(fields,is_open) ->
-			let t2 = mk_anon ~fields (ref Opened) in
+			let t2 = mk_anon ~fields (ref Closed) in
 			check_constraint "" (fun () -> (!unify_ref) default_unification_context t t2)
 
 	(* binding *)
@@ -136,13 +136,8 @@ module Monomorph = struct
 		| TAnon _ when List.exists (fun constr -> constr.mc_kind = MOpenStructure) m.tm_constraints ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
-			let fields = ExtList.List.filter_map (fun constr -> match constr.mc_kind with
-				| MField cf -> Some cf
-				| _ -> None
-			) m.tm_constraints in
-			let fields = List.fold_left (fun m cf -> PMap.add cf.cf_name cf m) PMap.empty fields in
-			let t2 = mk_anon ~fields (ref Opened) in
-			check_constraint "" (fun () -> (!unify_ref) default_unification_context t2 t);
+			constrain_to_type m "implicit" null_pos t;
+			ignore(close m CContextual)
 		| TMono m2 ->
 			begin match m2.tm_type with
 			| None ->
