@@ -255,19 +255,13 @@ let rec using_field ctx mode e i p =
 		try
 			let cf = PMap.find i c.cl_statics in
 			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
-			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let monos = spawn_constrained_monos ctx p (fun t -> t) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
 			let t = map cf.cf_type in
 			begin match follow t with
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let e = unify_static_extension ctx e t0 p in
-					(* early constraints check is possible because e.etype has no monomorphs *)
-					List.iter2 (fun m (name,t) -> match follow t with
-						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
-							List.iter (fun tc -> Type.unify m (map tc)) constr
-						| _ -> ()
-					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
 					ImportHandling.mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
