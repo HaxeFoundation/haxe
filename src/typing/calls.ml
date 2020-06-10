@@ -232,7 +232,8 @@ let unify_call_args ctx el args r p inline force_inline =
 
 let unify_field_call ctx fa el args ret p inline =
 	let map_cf cf0 map cf =
-		let t = map (monomorphs cf.cf_params cf.cf_type) in
+		let monos = spawn_constrained_monos ctx p map cf.cf_params in
+		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		begin match cf.cf_expr,cf.cf_kind with
 		| None,Method MethInline when not ctx.com.config.pf_overload ->
 			(* This is really awkward and shouldn't be here. We'll keep it for
@@ -260,7 +261,10 @@ let unify_field_call ctx fa el args ret p inline =
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
 				List.map (map_cf cf map) cf.cf_overloads
 			else
-				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Overloads.get_overloads c cf.cf_name)
+				List.map (fun (t,cf) ->
+					let monos = spawn_constrained_monos ctx p map cf.cf_params in
+					map (apply_params cf.cf_params monos t),cf
+				) (Overloads.get_overloads c cf.cf_name)
 			in
 			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->

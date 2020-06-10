@@ -35,6 +35,22 @@ private class DetectiveHaxeImplementation {
 }
 #end
 
+#if neko
+@:native("unit.Issue6065Extern")
+extern class Issue6065Extern {
+    @:overload(function(t:String):String {})
+    static function f<T:Int>(t:T):T;
+}
+
+@:native("unit.Issue6065Extern")
+@:keep
+class Issue6065Implementation {
+    static public function f<T>(t:T) {
+		return t;
+	}
+}
+#end
+
 class TestConstrainedMonomorphs extends Test {
 
 	function infer(arg) {
@@ -76,5 +92,11 @@ class TestConstrainedMonomorphs extends Test {
 	public static function notMerge<C:{foo:Int}>():C {
 		return null;
 	}
+
+	#if neko
+	public function testIssue6065() {
+		eq("hi", Issue6065Extern.f("hi"));
+	}
+	#end
 
 }
