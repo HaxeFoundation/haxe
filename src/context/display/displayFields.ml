@@ -120,7 +120,23 @@ let collect ctx e_ast e dk with_type p =
 	in
 	let rec loop items t =
 		let is_new_item items name = not (PMap.mem name items) in
-		match follow_and_close t with
+		match follow t with
+		| TMono m ->
+			begin match Monomorph.classify_constraints m with
+			| CStructural(fields,is_open) ->
+				if not is_open then begin
+					Monomorph.close m;
+					begin match m.tm_type with
+					| None -> items
+					| Some t -> loop items t
+					end
+				end else
+					loop items (mk_anon ~fields (ref Closed))
+			| CTypes tl ->
+				items
+			| CUnknown ->
+				items
+			end
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items tl

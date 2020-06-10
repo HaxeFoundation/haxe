@@ -244,7 +244,7 @@ let rec using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
 	let is_dynamic = match follow e.etype with
-		| TMono _ -> raise Not_found
+		| TMono {tm_constraints = []} -> raise Not_found
 		| t -> t == t_dynamic
 	in
 	let check_constant_struct = ref false in
@@ -479,7 +479,10 @@ let rec type_field cfg ctx e i p mode =
 				access f
 			with Not_found ->
 				if not is_open then
-					no_field()
+					try
+						using_field ctx mode e i p
+					with Not_found ->
+						no_field()
 				else begin
 					let f = mk_field() in
 					Monomorph.add_constraint r (MField f);
