@@ -168,7 +168,7 @@ let get_real_path =
 	if Globals.is_windows then
 		(fun p -> try Extc.get_real_path p with _ -> p)
 	else
-		get_full_path
+		(fun p -> try Extc.get_full_path p with _ -> p)
 
 module UniqueKey : sig
 	(**
