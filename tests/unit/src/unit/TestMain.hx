@@ -109,7 +109,8 @@ function main() {
 		new TestMapComprehension(),
 		new TestMacro(),
 		new TestKeyValueIterator(),
-		new TestFieldVariance()
+		new TestFieldVariance(),
+		new TestConstrainedMonomorphs()
 		//new TestUnspecified(),
 		//new TestRemoting(),
 	];

@@ -375,11 +375,10 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| _ -> ()
 	end;
 	let el,_ = unify_call_args ctx el args ret p false false in
-	begin try
-		check_constraints ctx cf.cf_name cf.cf_params monos map false p
-	with Unify_error l ->
-		display_error ctx (error_msg (Unify l)) p
-	end;
+	List.iter (fun t -> match follow t with
+		| TMono m -> safe_mono_close ctx m p
+		| _ -> ()
+	) monos;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in

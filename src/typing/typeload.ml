@@ -239,36 +239,6 @@ let resolve_position_by_path ctx path p =
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
 
-let check_param_constraints ctx types t pl c p =
-	match follow t with
-	| TMono _ -> ()
-	| _ ->
-		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
-		List.iter (fun ti ->
-			let ti = apply_params types pl ti in
-			let ti = (match follow ti with
-				| TInst ({ cl_kind = KGeneric } as c,pl) ->
-					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
-					f pl
-				| _ -> ti
-			) in
-			try
-				unify_raise ctx t ti p
-			with Error(Unify l,p) ->
-				let fail() =
-					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
-				in
-				match follow t with
-				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
-					begin try unify_raise ctx e.etype ti p
-					with Error (Unify _,_) -> fail() end
-				| _ ->
-					fail()
-
-		) ctl
-
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 	(match values with
@@ -337,16 +307,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let pl = ref [] in
-			pl := List.map (fun (name,t) ->
-				match follow t with
-				| TInst (c,_) ->
-					let t = mk_mono() in
-					if c.cl_kind <> KTypeParameter [] || is_generic then delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t (!pl) c p);
-					t;
-				| _ -> die "" __LOC__
-			) types;
-			f (!pl)
+			let monos = spawn_constrained_monos ctx p (fun t -> t) types in
+			f (monos)
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
@@ -356,7 +318,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			let is_java_rest = ctx.com.platform = Java && is_extern in
 			let is_rest = is_rest || is_java_rest in
 			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
-			let tparams = List.map (fun t ->
+			let load_param t =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
@@ -372,9 +334,10 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx true t
-			) t.tparams in
+			in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
+					let t = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -387,17 +350,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
-						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when not is_generic ->
-							check_const c;
-							t
 						| TInst (c,[]) ->
 							check_const c;
-							let r = exc_protect ctx (fun r ->
-								r := lazy_available t;
-								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
-								t
-							) "constraint" in
-							TLazy r
+							t
 						| _ -> die "" __LOC__
 					in
 					t :: loop tl1 tl2 is_rest
@@ -413,6 +368,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					else
 						error ("Not enough type parameters for " ^ s_type_path path) p
 				| t :: tl,[] ->
+					let t = load_param t in
 					if is_rest then
 						t :: loop tl [] true
 					else if ctx.com.display.dms_error_policy = EPIgnore then
@@ -420,7 +376,26 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					else
 						error ("Too many parameters for " ^ s_type_path path) p
 			in
-			let params = loop tparams types false in
+			let params = loop t.tparams types false in
+			if not is_rest then begin
+				let map t =
+					let t = apply_params types params t in
+					let t = (match follow t with
+						| TInst ({ cl_kind = KGeneric } as c,pl) ->
+							(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
+							let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
+							f pl
+						| _ -> t
+					) in
+					t
+				in
+				delay ctx PCheckConstraint (fun () ->
+					try
+						check_constraints map types params p;
+					with Unify_error l ->
+						raise_error (Unify l) p
+				);
+			end;
 			f params
 		end
 	in

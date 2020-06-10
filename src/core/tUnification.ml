@@ -53,14 +53,122 @@ let default_unification_context = {
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
+		tm_constraints = [];
 	}
+
+	(* constraining *)
+
+	let add_constraint m constr =
+		m.tm_constraints <- constr :: m.tm_constraints
+
+	let constraint_of_type name t = match follow t with
+		| TMono m2 ->
+			[MMono(m2,name)]
+		| TAnon an when not (PMap.is_empty an.a_fields) ->
+			PMap.fold (fun cf l ->
+				(MField cf) :: l
+			) an.a_fields []
+		| _ ->
+			[MType(t,name)]
+
+	let constrain_to_type m name t =
+		List.iter (add_constraint m) (constraint_of_type name t)
+
+	let classify_constraints m =
+		let types = DynArray.create () in
+		let fields = ref PMap.empty in
+		let is_open = ref false in
+		let rec check constr = match constr with
+			| MMono(m2,name) ->
+				begin match m2.tm_type with
+				| None ->
+					()
+				| Some t ->
+					List.iter (fun constr -> check constr) (constraint_of_type name t)
+				end;
+			| MField cf ->
+				fields := PMap.add cf.cf_name cf !fields;
+			| MType(t2,name) ->
+				DynArray.add types (t2,name)
+			| MOpenStructure ->
+				is_open := true
+		in
+		List.iter check m.tm_constraints;
+		if DynArray.length types > 0 then
+			CTypes (DynArray.to_list types)
+		else if not (PMap.is_empty !fields) then
+			CStructural(!fields,!is_open)
+		else
+			CUnknown
+
+	let check_constraints m t = match classify_constraints m with
+		| CUnknown ->
+			()
+		| CTypes tl ->
+			List.iter (fun (t2,name) ->
+				let f () = (!unify_ref) default_unification_context t t2 in
+				match name with
+				| Some name -> check_constraint name f
+				| None -> f()
+			) tl
+		| CStructural(fields,is_open) ->
+			let t2 = mk_anon ~fields (ref Closed) in
+			(!unify_ref) default_unification_context t t2
+
+	(* binding *)
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
-		m.tm_type <- Some t
+		m.tm_type <- Some t;
+		m.tm_constraints <- []
 
 	let rec bind m t =
-		m.tm_type <- Some t
+		begin match t with
+		| TAnon _ when List.mem MOpenStructure m.tm_constraints ->
+			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
+			   fields. This is kinda weird, but that's how it has always worked. *)
+			constrain_to_type m None t;
+			ignore(close m)
+		| TMono m2 ->
+			begin match m2.tm_type with
+			| None ->
+				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				do_bind m t;
+			| Some t ->
+				bind m t
+			end
+		| _ ->
+			check_constraints m t;
+			do_bind m t
+		end
+
+	and close m = match m.tm_type with
+		| Some _ ->
+			()
+		| None -> match classify_constraints m with
+			| CUnknown ->
+				()
+			| CTypes [(t,_)] ->
+				do_bind m t;
+				()
+			| CTypes _ ->
+				()
+			| CStructural(fields,_) ->
+				let check_recursion cf =
+					let rec loop t = match t with
+					| TMono m2 when m == m2 ->
+						let pctx = print_context() in
+						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+						raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
+					| _ ->
+						TFunctions.map loop t
+					in
+					ignore(loop cf.cf_type);
+				in
+				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
+				PMap.iter (fun _ cf -> check_recursion cf) fields;
+				do_bind m (mk_anon ~fields (ref Closed));
+				()
 
 	let unbind m =
 		m.tm_type <- None
@@ -884,3 +992,4 @@ let type_eq param = type_eq {default_unification_context with equality_kind = pa
 
 ;;
 unify_ref := unify_custom;;
+monomorph_classify_constraints_ref := Monomorph.classify_constraints

@@ -417,10 +417,8 @@ let rec type_ident_raise ctx i p mode =
 					try
 						let ef = PMap.find i e.e_constrs in
 						let et = type_module_type ctx t None p in
-						let monos = List.map (fun _ -> mk_mono()) e.e_params in
-						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
 						ImportHandling.mark_import_position ctx pt;
-						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
+						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
 					with
 						Not_found -> loop l
 		in
@@ -1029,7 +1027,6 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 								Type.type_eq EqStrict e2.etype t2;
 								AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
 							let check_null e t = if is_eq_op then match e.eexpr with
 								| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
 								| _ -> ()
@@ -1798,10 +1795,7 @@ and type_new ctx path el with_type force_inline p =
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try
-				let t = Generic.build_generic ctx c p monos in
-				let map = apply_params c.cl_params monos in
-				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
-				t
+				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with

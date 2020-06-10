@@ -39,7 +39,12 @@ let rec s_type ctx t =
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-				Printf.sprintf "Unknown<%d>" id
+			let s_const = match !monomorph_classify_constraints_ref r with
+				| CUnknown -> ""
+				| CTypes tl -> " : " ^ String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+				| CStructural(fields,_) -> " : " ^ s_type ctx (mk_anon ~fields (ref Closed))
+			in
+				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -100,6 +105,12 @@ and s_fun ctx t void =
 and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
+and s_constraint = function
+	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
+	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
+	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MOpenStructure -> "MOpenStructure"
 
 let s_access is_read = function
 	| AccNormal -> "default"

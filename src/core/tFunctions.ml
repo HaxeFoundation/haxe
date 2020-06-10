@@ -4,6 +4,7 @@ open TType
 
 let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> die "" __LOC__)
 let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> die "" __LOC__)
+let monomorph_classify_constraints_ref : (tmono -> tmono_constraint_kind) ref = ref (fun _ -> die "" __LOC__)
 
 let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
