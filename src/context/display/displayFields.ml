@@ -120,7 +120,7 @@ let collect ctx e_ast e dk with_type p =
 	in
 	let rec loop items t =
 		let is_new_item items name = not (PMap.mem name items) in
-		match follow t with
+		match follow_and_close t with
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items tl

@@ -174,6 +174,14 @@ module Monomorph = struct
 		m.tm_type <- None
 end
 
+let rec follow_and_close t = match follow t with
+	| TMono r as t ->
+		Monomorph.close r;
+		if r.tm_type <> None then follow_and_close t
+		else t
+	| t ->
+		t
+
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
