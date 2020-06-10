@@ -227,7 +227,6 @@ let rec generate_type ctx t =
 and generate_anon_status ctx status =
 	let name,args = match status with
 		| Closed -> "AClosed",None
-		| Opened -> "AOpened",None
 		| Const -> "AConst",None
 		| Extend tl -> "AExtend", Some (generate_types ctx tl)
 		| Statics c -> "AClassStatics",Some (class_ref ctx c)

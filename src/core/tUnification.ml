@@ -216,19 +216,6 @@ let rec link e a b =
 		true
 	end
 
-let would_produce_recursive_anon field_acceptor field_donor =
-	try
-		(match !(field_acceptor.a_status) with
-		| Opened ->
-			PMap.iter (fun n field ->
-				match follow field.cf_type with
-				| TAnon a when field_acceptor == a -> raise Exit
-				| _ -> ()
-			) field_donor.a_fields;
-		| _ -> ());
-		false
-	with Exit -> true
-
 let link_dynamic a b = match follow a,follow b with
 	| TMono r,TDynamic _ -> Monomorph.bind r b
 	| TDynamic _,TMono r -> Monomorph.bind r a
@@ -299,7 +286,6 @@ let rec shallow_eq a b =
 				| AbstractStatics a, AbstractStatics a2 -> a == a2
 				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
 				| Closed, Closed -> fields_eq()
-				| Opened, Opened -> fields_eq()
 				| Const, Const -> fields_eq()
 				| _ -> false
 				)
@@ -476,7 +462,6 @@ let rec type_eq uctx a b =
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
 			);
-			if would_produce_recursive_anon a1 a2 || would_produce_recursive_anon a2 a1 then error [cannot_unify a b];
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
@@ -486,15 +471,11 @@ let rec type_eq uctx a b =
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
 				with
 					Not_found ->
-						if is_closed a2 then error [has_no_field b n];
-						if not (link (Monomorph.create()) b f1.cf_type) then error [cannot_unify a b];
-						a2.a_fields <- PMap.add n f1 a2.a_fields
+						error [has_no_field b n];
 			) a1.a_fields;
 			PMap.iter (fun n f2 ->
 				if not (PMap.mem n a1.a_fields) then begin
-					if is_closed a1 then error [has_no_field a n];
-					if not (link (Monomorph.create()) a f2.cf_type) then error [cannot_unify a b];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
+					error [has_no_field a n];
 				end;
 			) a2.a_fields;
 		with
@@ -715,7 +696,6 @@ let rec unify (uctx : unification_context) a b =
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
-			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
 			| Closed | Extend _ | Const -> ())
 		with
@@ -779,7 +759,6 @@ let rec unify (uctx : unification_context) a b =
 			(try
 				(match !(an.a_status) with
 				| Statics _ | EnumStatics _ -> error []
-				| Opened -> an.a_status := Closed
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
@@ -817,16 +796,12 @@ and unify_abstracts uctx a b a1 tl1 a2 tl2 =
 		error [cannot_unify a b]
 
 and unify_anons uctx a b a1 a2 =
-	if would_produce_recursive_anon a1 a2 then error [cannot_unify a b];
 	(try
 		PMap.iter (fun n f2 ->
 		try
 			let f1 = PMap.find n a1.a_fields in
 			if not (unify_kind f1.cf_kind f2.cf_kind) then
-				(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
-				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
-					f1.cf_kind <- f2.cf_kind;
-				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
+				error [invalid_kind n f1.cf_kind f2.cf_kind];
 			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
 				let f1_type =
@@ -842,9 +817,6 @@ and unify_anons uctx a b a1 a2 =
 		with
 			Not_found ->
 				match !(a1.a_status) with
-				| Opened ->
-					if not (link (Monomorph.create()) a f2.cf_type) then error [];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
 				| Const when Meta.has Meta.Optional f2.cf_meta ->
 					()
 				| _ ->
@@ -853,14 +825,11 @@ and unify_anons uctx a b a1 a2 =
 		(match !(a1.a_status) with
 		| Const when not (PMap.is_empty a2.a_fields) ->
 			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-		| Opened ->
-			a1.a_status := Closed
 		| _ -> ());
 		(match !(a2.a_status) with
 		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
-		| Opened -> a2.a_status := Closed
 		| Const | Extend _ | Closed -> ())
 	with
 		Unify_error l -> error (cannot_unify a b :: l))

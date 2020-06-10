@@ -1022,7 +1022,6 @@ and encode_tanon a =
 and encode_anon_status s =
 	let tag, pl = (match s with
 		| Closed -> 0, []
-		| Opened -> 1, []
 		| Type.Const -> 2, []
 		| Extend tl -> 3, [encode_ref tl (fun tl -> encode_array (List.map encode_type tl)) (fun() -> "<extended types>")]
 		| Statics cl -> 4, [encode_clref cl]

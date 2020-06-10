@@ -153,9 +153,6 @@ let field_access ctx mode f fmode t e p =
 			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Opened when mode = MSet ->
-					f.cf_kind <- Var { v with v_write = AccNormal };
-					normal()
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
@@ -463,17 +460,10 @@ let rec type_field cfg ctx e i p mode =
 				| _ ->
 					raise Not_found
 			with Not_found ->
-				if is_closed a then try
+				try
 					using_field ctx mode e i p
 				with Not_found ->
 					no_field()
-				else
-				let f = {
-					(mk_field i (mk_mono()) p null_pos) with
-					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-				} in
-				a.a_fields <- PMap.add i f a.a_fields;
-				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
 		let mk_field () = {

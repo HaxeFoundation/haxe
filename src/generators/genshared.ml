@@ -136,7 +136,7 @@ exception Typedef_result of path_field_mapping
 
 class ['a] tanon_identification (empty_path : string list * string) =
 	let is_normal_anon an = match !(an.a_status) with
-		| Closed | Const | Opened -> true
+		| Closed | Const -> true
 		| _ -> false
 	in
 object(self)

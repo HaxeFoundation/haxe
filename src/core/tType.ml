@@ -118,7 +118,6 @@ and tfunc = {
 
 and anon_status =
 	| Closed
-	| Opened
 	| Const
 	| Extend of t list
 	| Statics of tclass

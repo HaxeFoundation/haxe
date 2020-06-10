@@ -257,13 +257,7 @@ let map loop t =
 		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 	| TAnon a ->
 		let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-		begin match !(a.a_status) with
-			| Opened ->
-				a.a_fields <- fields;
-				t
-			| _ ->
-				mk_anon ~fields a.a_status
-		end
+		mk_anon ~fields a.a_status
 	| TLazy f ->
 		let ft = lazy_type f in
 		let ft2 = loop ft in
@@ -414,13 +408,7 @@ let apply_params ?stack cparams params t =
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon a ->
 			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-			begin match !(a.a_status) with
-				| Opened ->
-					a.a_fields <- fields;
-					t
-				| _ ->
-					mk_anon ~fields a.a_status
-			end
+			mk_anon ~fields a.a_status
 		| TLazy f ->
 			let ft = lazy_type f in
 			let ft2 = loop ft in
@@ -598,8 +586,6 @@ let concat e1 e2 =
 		| _ , _ -> TBlock [e1;e2]
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
-
-let is_closed a = !(a.a_status) <> Opened
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,List.map snd c.cl_params)

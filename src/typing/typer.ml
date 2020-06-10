@@ -477,7 +477,8 @@ let unify_int ctx e k =
 		match follow t with
 		| TMono _ | TDynamic _ -> maybe_dynamic_mono e
 		(* we might have inferenced a tmono into a single field *)
-		| TAnon a when !(a.a_status) = Opened -> maybe_dynamic_mono e
+		(* TODO: check what this did exactly *)
+		(* | TAnon a when !(a.a_status) = Opened -> maybe_dynamic_mono e *)
 		| _ -> false
 	in
 	match k with
@@ -1689,7 +1690,6 @@ and type_object_decl ctx fl with_type p =
 	| ODKWithStructure a when PMap.is_empty a.a_fields && !dynamic_parameter = None -> type_plain_fields()
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
-		if !(a.a_status) = Opened then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
