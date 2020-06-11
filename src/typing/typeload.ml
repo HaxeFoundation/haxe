@@ -417,9 +417,11 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					) in
 					t
 				in
-				DynArray.iter (fun (t,c) ->
-					check_param_constraints ctx t map c p
-				) checks
+				delay ctx PCheckConstraint (fun () ->
+					DynArray.iter (fun (t,c) ->
+						check_param_constraints ctx t map c p
+					) checks
+				);
 			end;
 			f params
 		end
