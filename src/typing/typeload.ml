@@ -277,6 +277,29 @@ let make_extension_type ctx tl =
 	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
+let check_param_constraints ctx t map c p =
+	match follow t with
+	| TMono _ -> ()
+	| _ ->
+		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
+		List.iter (fun ti ->
+			let ti = map ti in
+			try
+				unify_raise ctx t ti p
+			with Error(Unify l,p) ->
+				let fail() =
+					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+				in
+				match follow t with
+				| TInst({cl_kind = KExpr e},_) ->
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+					begin try unify_raise ctx e.etype ti p
+					with Error (Unify _,_) -> fail() end
+				| _ ->
+					fail()
+
+		) ctl
+
 (* build an instance from a full type *)
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
@@ -335,6 +358,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx true t
 			in
+			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
 					let t = load_param t in
@@ -350,8 +374,12 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
+						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when not is_generic ->
+							check_const c;
+							t
 						| TInst (c,[]) ->
 							check_const c;
+							DynArray.add checks (t,c);
 							t
 						| _ -> die "" __LOC__
 					in
@@ -389,12 +417,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					) in
 					t
 				in
-				delay ctx PCheckConstraint (fun () ->
-					try
-						Monomorph.check_constraints map types params;
-					with Unify_error l ->
-						raise_error (Unify l) p
-				);
+				DynArray.iter (fun (t,c) ->
+					check_param_constraints ctx t map c p
+				) checks
 			end;
 			f params
 		end

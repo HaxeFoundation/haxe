@@ -905,7 +905,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 	match cctx.abstract with
 		| Some a ->
 			let m = mk_mono() in
-			let ta = TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) in
+			let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 			let rec loop ml =
