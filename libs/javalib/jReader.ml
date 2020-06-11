@@ -87,10 +87,18 @@ let parse_constant max idx ch =
     KMethodHandle (reft, dynref)
   | 16 ->
     KMethodType (index())
+  | 17 ->
+    let bootstrapref = read_ui16 ch in (* not index *)
+    let nametyperef = index() in
+    KDynamic (bootstrapref, nametyperef)
   | 18 ->
     let bootstrapref = read_ui16 ch in (* not index *)
     let nametyperef = index() in
     KInvokeDynamic (bootstrapref, nametyperef)
+  | 19 ->
+    KModule (index())
+  | 20 ->
+    KPackage (index())
   | n ->
     error()
 
@@ -328,9 +336,16 @@ let rec expand_constant consts i =
     ConstMethodHandle (reference_type, expand_constant consts dynref)
   | KMethodType utf8ref ->
     ConstMethodType (parse_method_signature (expand_string utf8ref))
+  | KDynamic(bootstrapref, nametyperef) ->
+    let n, t = expand_nametype nametyperef in
+    ConstDynamic(bootstrapref, n, t)
   | KInvokeDynamic (bootstrapref, nametyperef) ->
     let n, t = expand_nametype nametyperef in
     ConstInvokeDynamic(bootstrapref, n, t)
+  | KModule n ->
+    ConstModule (expand_string n)
+  | KPackage n ->
+    ConstPackage (expand_string n)
   | KUnusable ->
     ConstUnusable
 
@@ -543,7 +558,7 @@ let parse_class ch =
       c
   ) in
   let consts = Array.mapi (fun i _ -> expand_constant consts i) consts in
-  let flags = parse_access_flags ch [JPublic; JUnusable; JUnusable; JUnusable; JFinal; JSuper; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JUnusable; JSynthetic; JAnnotation; JEnum] in
+  let flags = parse_access_flags ch [JPublic; JUnusable; JUnusable; JUnusable; JFinal; JSuper; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JUnusable; JSynthetic; JAnnotation; JEnum; JModule] in
   let this = get_class consts ch in
   let super_idx = read_ui16 ch in
   let super = match super_idx with
