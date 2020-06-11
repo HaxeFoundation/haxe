@@ -856,10 +856,10 @@ try
 		),"<file>","use the SWF library for type checking");
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			add_native_lib file false;
-		),"<file>","add an external JAR or class directory library");
+		),"<file>","add an external JAR or directory of JAR files");
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
 			add_native_lib file true;
-		),"<file>","use an external JAR or class directory library for type checking");
+		),"<file>","use an external JAR or directory of JAR files for type checking");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
