@@ -89,7 +89,10 @@ type jconstant =
   (** invokeDynamic-specific *)
   | ConstMethodHandle of (reference_type * jconstant) (* tag = 15 *)
   | ConstMethodType of jmethod_signature (* tag = 16 *)
+  | ConstDynamic of (bootstrap_method * unqualified_name * jsignature) (* tag = 17 *)
   | ConstInvokeDynamic of (bootstrap_method * unqualified_name * jsignature) (* tag = 18 *)
+  | ConstModule of unqualified_name (* tag = 19 *)
+  | ConstPackage of unqualified_name (* tag = 20 *)
   | ConstUnusable
 
 type jaccess_flag =
@@ -110,6 +113,7 @@ type jaccess_flag =
   | JInterface (* 0x0200 *)
   | JAbstract (* 0x0400 *)
   | JAnnotation (* 0x2000 *)
+  | JModule (* 0x8000 *)
   (** method flags *)
   | JBridge (* 0x0040 *)
   | JVarArgs (* 0x0080 *)
@@ -204,7 +208,10 @@ type jconstant_raw =
   | KUtf8String of string (* 1 *)
   | KMethodHandle of (reference_type * dynref) (* 15 *)
   | KMethodType of utf8ref (* 16 *)
+  | KDynamic of (bootstrapref * nametyperef) (* 17 *)
   | KInvokeDynamic of (bootstrapref * nametyperef) (* 18 *)
+  | KModule of utf8ref (* 19 *)
+  | KPackage of utf8ref (* 20 *)
   | KUnusable
 
 (* jData debugging *)
