@@ -343,8 +343,9 @@ module Pattern = struct
 				let e1 = type_expr ctx e1 (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
-						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-						let map t = apply_params en.e_params tl (apply_params ef.ef_params monos t) in
+						let map = apply_params en.e_params tl in
+						let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
+						let map t = map (apply_params ef.ef_params monos t) in
 						unify ctx (map ef.ef_type) e1.etype e1.epos;
 						let args = match follow e1.etype with
 							| TFun(args,r) ->
@@ -959,7 +960,7 @@ module Compile = struct
 	let rec get_sub_subjects mctx e con arg_positions =
 		match fst con with
 		| ConEnum(en,ef) ->
-			let tl = List.map (fun _ -> mk_mono()) en.e_params in
+			let tl = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
 			let t_en = TEnum(en,tl) in
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with

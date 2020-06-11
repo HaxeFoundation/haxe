@@ -846,7 +846,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
-							unify ctx t (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) p;
+							unify ctx t (TAbstract(a,(Monomorph.spawn_constrained_monos (fun t -> t) a.a_params))) p;
 							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
 							unify ctx e1.etype a.a_this e1.epos
 						| _ ->
@@ -905,7 +905,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 	match cctx.abstract with
 		| Some a ->
 			let m = mk_mono() in
-			let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
+			let ta = TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 			let rec loop ml =

@@ -530,7 +530,7 @@ let rec acc_get ctx g p =
 				let f = match c.cl_kind with
 					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
 						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
-						let monos = List.map (fun _ -> mk_mono()) a.a_params in
+						let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
 						apply_params a.a_params monos;
 					| _ -> (fun t -> t)
 				in
