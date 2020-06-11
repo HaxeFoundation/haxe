@@ -888,14 +888,10 @@ and unify_from_field uctx ab tl a b (t,cf) =
 			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
 			match follow cf.cf_type with
 			| TFun(_,r) ->
-				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
+				let map = apply_params ab.a_params tl in
+				let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+				let map t = map (apply_params cf.cf_params monos t) in
 				unify_func a (map t);
-				List.iter2 (fun m (name,t) -> match follow t with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify uctx m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
 				unify_func (map r) b;
 				true
 			| _ -> die "" __LOC__)
@@ -908,18 +904,12 @@ and unify_to_field uctx ab tl b (t,cf) =
 			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
 			match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
-				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
+				let map = apply_params ab.a_params tl in
+				let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+				let map t = map (apply_params cf.cf_params monos t) in
 				let athis = map ab.a_this in
 				(* we cannot allow implicit casts when the this type is not completely known yet *)
-				(* if has_mono athis then raise (Unify_error []); *)
 				with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
-				(* immediate constraints checking is ok here because we know there are no monomorphs *)
-				List.iter2 (fun m (name,t) -> match follow t with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify uctx m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
 				unify_func (map t) b;
 			| _ -> die "" __LOC__)
 
