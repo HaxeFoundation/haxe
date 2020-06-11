@@ -1011,7 +1011,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 					| TFun([(_,_,t1);(_,_,t2)],tret) ->
 						let check e1 e2 swapped =
 							let map_arguments () =
-								let monos = spawn_constrained_monos ctx p (fun t -> t) cf.cf_params in
+								let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 								let map t = map (apply_params cf.cf_params monos t) in
 								let t1 = map t1 in
 								let t2 = map t2 in
@@ -1791,7 +1791,7 @@ and type_new ctx path el with_type force_inline p =
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
-			let monos = spawn_constrained_monos ctx p (fun t -> t) c.cl_params in
+			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try

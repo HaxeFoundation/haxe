@@ -232,7 +232,7 @@ let unify_call_args ctx el args r p inline force_inline =
 
 let unify_field_call ctx fa el args ret p inline =
 	let map_cf cf0 map cf =
-		let monos = spawn_constrained_monos ctx p map cf.cf_params in
+		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		begin match cf.cf_expr,cf.cf_kind with
 		| None,Method MethInline when not ctx.com.config.pf_overload ->
@@ -262,7 +262,7 @@ let unify_field_call ctx fa el args ret p inline =
 				List.map (map_cf cf map) cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
-					let monos = spawn_constrained_monos ctx p map cf.cf_params in
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads c cf.cf_name)
 			in
@@ -359,7 +359,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
-	let monos = spawn_constrained_monos ctx p map cf.cf_params in
+	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in

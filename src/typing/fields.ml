@@ -58,9 +58,9 @@ let remove_constant_flag t callb =
 		raise e
 
 let enum_field_type ctx en ef p =
-	let tl_en = spawn_constrained_monos ctx p (fun t -> t) en.e_params in
+	let tl_en = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
 	let map = apply_params en.e_params tl_en in
-	let tl_ef = spawn_constrained_monos ctx p map ef.ef_params in
+	let tl_ef = Monomorph.spawn_constrained_monos map ef.ef_params in
 	let map t = map (apply_params ef.ef_params tl_ef t) in
 	map ef.ef_type
 
@@ -68,7 +68,7 @@ let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
-		let monos = spawn_constrained_monos ctx p (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
+		let monos = Monomorph.spawn_constrained_monos (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
 
 let get_constructor ctx c params p =
@@ -255,7 +255,7 @@ let rec using_field ctx mode e i p =
 		try
 			let cf = PMap.find i c.cl_statics in
 			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
-			let monos = spawn_constrained_monos ctx p (fun t -> t) cf.cf_params in
+			let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
 			let t = map cf.cf_type in
 			begin match follow t with
@@ -440,7 +440,7 @@ let rec type_field cfg ctx e i p mode =
 						FAnon f, Type.field_type f
 					| l ->
 						(* handle possible constraints *)
-						let monos = spawn_constrained_monos ctx p (fun t -> t) f.cf_params in
+						let monos = Monomorph.spawn_constrained_monos (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
 						FAnon f, t
 			) in
