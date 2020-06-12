@@ -380,6 +380,8 @@ let inline_constructors ctx e =
 		| _ ->
 			handle_default_case e
 	in
+	let original_e = e in
+	let e = mark_ctors e in
 	ignore(analyze_aliases [] false false (mark_ctors e));
 	let rec get_iv_var_decls (iv:inline_var) : texpr list =
 		match iv with
@@ -508,7 +510,7 @@ let inline_constructors ctx e =
 	in
 	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
 		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
-		e
+		original_e
 	end else begin
 		let el,_ = final_map e in
 		let cf = ctx.curfield in
