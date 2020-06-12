@@ -343,21 +343,7 @@ let rec type_field cfg ctx e i p mode =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_params params t in
-				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
-					let f = PMap.find "resolve" c.cl_fields in
-					begin match f.cf_kind with
-						| Method MethMacro -> display_error ctx "The macro accessor is not allowed for field resolve" f.cf_pos
-						| _ -> ()
-					end;
-					let texpect = tfun [ctx.t.tstring] t in
-					let tfield = apply_params c.cl_params params (monomorphs f.cf_params f.cf_type) in
-					(try Type.unify tfield texpect
-					with Unify_error l ->
-						display_error ctx "Field resolve has an invalid type" f.cf_pos;
-						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Texpr.type_constant ctx.com.basic (String(i,SDoubleQuotes)) p] t p)
-				end else
-					AKExpr (mk (TField (e,FDynamic i)) t p)
+				AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
 				match c.cl_super with
 				| None -> raise Not_found
