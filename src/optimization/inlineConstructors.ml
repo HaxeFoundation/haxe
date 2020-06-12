@@ -172,18 +172,27 @@ let inline_constructors ctx e =
 		| _ -> mk (TBlock (el)) t p
 	in
 	let make_expr_for_rev_list (el:texpr list) (t:t) (p:pos) : texpr = make_expr_for_list (List.rev el) t p in
-	let current_io_id = ref 0 in
-	let increment_io_id e = match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) -> incr current_io_id
-		| _ -> ()
+	let curr_io_id = ref 0 in
+	let rec mark_ctors ?(force_inline=false) e =
+		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
+		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
+		match e.eexpr with
+			| TObjectDecl _
+			| TArrayDecl _
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_)
+			| TNew _ when force_inline ->
+				incr curr_io_id;
+				let id_expr = (EConst(Int (string_of_int !curr_io_id)), e.epos) in
+				let meta = (Meta.Custom "inline_object", [id_expr], e.epos) in
+				mk (TMeta(meta, e)) e.etype e.epos
+			| _ -> e
 	in
 	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =
-		increment_io_id e;
 		let mk_io ?(has_untyped=false) (iok : inline_object_kind) (id:int) (expr:texpr) : inline_object =
 			let io = {
 				io_kind = iok;
 				io_expr = expr;
-				io_pos = e.epos;
+				io_pos = expr.epos;
 				io_cancelled = false;
 				io_declared = false;
 				io_fields = PMap.empty;
@@ -219,94 +228,109 @@ let inline_constructors ctx e =
 			| _ -> None
 			end
 		in
+		let handle_default_case e =
+			let old = !scoped_ivs in
+			scoped_ivs := [];
+			let f e = ignore(analyze_aliases false e) in
+			Type.iter f e;
+			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
+			scoped_ivs := old;
+			None
+		in
+		let handle_inline_object_case (io_id:int) (force_inline:bool) (e:texpr) =
+			match e.eexpr, e.etype with
+			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
+			(*| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_*)
+				when captured && not (List.memq cf seen_ctors) ->
+				begin
+					let rec loop (vs, es) el = match el with
+						| e :: el ->
+							begin match e.eexpr with
+							| TConst _ -> loop (vs, e::es) el
+							| _ ->
+								let v = alloc_var VGenerated "arg" e.etype e.epos in
+								let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
+								ignore(analyze_aliases true decle);
+								let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
+								let e = mk (TMeta(mde, e)) e.etype e.epos in
+								loop (v::vs, e::es) el
+							end
+						| [] -> vs, (List.rev es)
+					in
+					let argvs, pl = loop ([],[]) pl in
+					let _, cname = c.cl_path in
+					let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
+					match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
+					| Some inlined_expr ->
+						let inlined_expr = mark_ctors inlined_expr in
+						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
+						let forced = is_extern_ctor c cf || force_inline in
+						let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+						let rec loop (c:tclass) (tl:t list) =
+							let apply = apply_params c.cl_params tl in
+							List.iter (fun cf ->
+								match cf.cf_kind,cf.cf_expr with
+								| Var _, _ ->
+									let fieldt = apply cf.cf_type in
+									ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
+								| _ -> ()
+							) c.cl_ordered_fields;
+							match c.cl_super with
+							| Some (c,tl) -> loop c (List.map apply tl)
+							| None -> ()
+						in loop c tl;
+						let iv = add v IVKLocal in
+						set_iv_alias iv io;
+						ignore(analyze_aliases_in_ctor cf true io.io_expr);
+						Some iv
+					| _ ->
+						List.iter (fun v -> cancel_v v v.v_pos) argvs;
+						if is_extern_ctor c cf then display_error ctx "Extern constructor could not be inlined" e.epos;
+						None
+				end
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
+				error "Extern constructor could not be inlined" e.epos;
+			| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
+				let v = alloc_var VGenerated "inlobj" e.etype e.epos in
+				let ev = mk (TLocal v) v.v_type e.epos in
+				let el = List.map (fun ((s,_,_),e) ->
+					let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
+					let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
+					e
+				) fl in
+				let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
+				let io = mk_io (IOKStructure) io_id io_expr in
+				List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
+				let iv = add v IVKLocal in
+				set_iv_alias iv io;
+				List.iter (fun e -> ignore(analyze_aliases true e)) el;
+				Some iv
+			| TArrayDecl el, TInst(_, [elemtype]) when captured ->
+				let len = List.length el in
+				let v = alloc_var VGenerated "inlarr" e.etype e.epos in
+				let ev = mk (TLocal v) v.v_type e.epos in
+				let el = List.mapi (fun i e ->
+					let ef = mk (TArray(ev,(mk (TConst(TInt (Int32.of_int i))) e.etype e.epos))) elemtype e.epos in
+					mk (TBinop(OpAssign,ef,e)) elemtype e.epos
+				) el in
+				let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
+				let io = mk_io (IOKArray(len)) io_id io_expr in
+				ignore(alloc_const_io_field io "length" (mk (TConst(TInt (Int32.of_int len))) ctx.t.tint e.epos));
+				for i = 0 to len-1 do ignore(alloc_io_field io (int_field_name i) elemtype v.v_pos) done;
+				let iv = add v IVKLocal in
+				set_iv_alias iv io;
+				List.iter (fun e -> ignore(analyze_aliases true e)) el;
+				Some iv
+			| _ ->
+				handle_default_case e
+		in
 		match e.eexpr, e.etype with
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
-		| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_
-			when captured && not (List.memq cf seen_ctors) ->
-			begin
-				let io_id = !current_io_id in
-				let rec loop (vs, es) el = match el with
-					| e :: el ->
-						begin match e.eexpr with
-						| TConst _ -> loop (vs, e::es) el
-						| _ ->
-							let v = alloc_var VGenerated "arg" e.etype e.epos in
-							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
-							let io_id_start = !current_io_id in
-							ignore(analyze_aliases true decle);
-							let mde = (Meta.InlineConstructorArgument (v.v_id, io_id_start)), [], e.epos in
-							let e = mk (TMeta(mde, e)) e.etype e.epos in
-							loop (v::vs, e::es) el
-						end
-					| [] -> vs, (List.rev es)
-				in
-				let argvs, pl = loop ([],[]) pl in
-				let _, cname = c.cl_path in
-				let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
-				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
-				| Some inlined_expr ->
-					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-					let forced = is_extern_ctor c cf || (match e.eexpr with TMeta _ -> true | _ -> false) in
-					let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
-					let rec loop (c:tclass) (tl:t list) =
-						let apply = apply_params c.cl_params tl in
-						List.iter (fun cf ->
-							match cf.cf_kind,cf.cf_expr with
-							| Var _, _ ->
-								let fieldt = apply cf.cf_type in
-								ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
-							| _ -> ()
-						) c.cl_ordered_fields;
-						match c.cl_super with
-						| Some (c,tl) -> loop c (List.map apply tl)
-						| None -> ()
-					in loop c tl;
-					let iv = add v IVKLocal in
-					set_iv_alias iv io;
-					io.io_id_start <- !current_io_id;
-					ignore(analyze_aliases_in_ctor cf true io.io_expr);
-					io.io_id_end <- !current_io_id;
-					Some iv
-				| _ ->
-					List.iter (fun v -> cancel_v v v.v_pos) argvs;
-					if is_extern_ctor c cf then display_error ctx "Extern constructor could not be inlined" e.epos;
-					None
-			end
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
-			error "Extern constructor could not be inlined" e.epos;
-		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
-			let v = alloc_var VGenerated "inlobj" e.etype e.epos in
-			let ev = mk (TLocal v) v.v_type e.epos in
-			let el = List.map (fun ((s,_,_),e) ->
-				let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
-				let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
-				e
-			) fl in
-			let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
-			let io = mk_io (IOKStructure) !current_io_id io_expr in
-			List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
-			let iv = add v IVKLocal in
-			set_iv_alias iv io;
-			List.iter (fun e -> ignore(analyze_aliases true e)) el;
-			io.io_id_end <- !current_io_id;
-			Some iv
-		| TArrayDecl el, TInst(_, [elemtype]) when captured ->
-			let len = List.length el in
-			let v = alloc_var VGenerated "inlarr" e.etype e.epos in
-			let ev = mk (TLocal v) v.v_type e.epos in
-			let el = List.mapi (fun i e ->
-				let ef = mk (TArray(ev,(mk (TConst(TInt (Int32.of_int i))) e.etype e.epos))) elemtype e.epos in
-				mk (TBinop(OpAssign,ef,e)) elemtype e.epos
-			) el in
-			let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
-			let io = mk_io (IOKArray(len)) !current_io_id io_expr in
-			ignore(alloc_const_io_field io "length" (mk (TConst(TInt (Int32.of_int len))) ctx.t.tint e.epos));
-			for i = 0 to len-1 do ignore(alloc_io_field io (int_field_name i) elemtype v.v_pos) done;
-			let iv = add v IVKLocal in
-			set_iv_alias iv io;
-			List.iter (fun e -> ignore(analyze_aliases true e)) el;
-			io.io_id_end <- !current_io_id;
-			Some iv
+		| TMeta((Meta.Inline,_,_),{eexpr = TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e)}),_ ->
+			let io_id = int_of_string id_str in
+			handle_inline_object_case io_id true e
+		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e), _ ->
+			let io_id = int_of_string id_str in
+			handle_inline_object_case io_id false e
 		| TVar(v,None),_ -> ignore(add v IVKLocal); None
 		| TVar(v,Some rve),_ ->
 			begin match analyze_aliases true rve with
@@ -354,16 +378,9 @@ let inline_constructors ctx e =
 		| TParenthesis e,_ | TMeta(_,e),_ | TCast(e,None),_ ->
 			analyze_aliases captured e
 		| _,_ ->
-			let old = !scoped_ivs in
-			scoped_ivs := [];
-			let f e = ignore(analyze_aliases false e) in
-			Type.iter f e;
-			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
-			scoped_ivs := old;
-			None
+			handle_default_case e
 	in
-	ignore(analyze_aliases [] false false e);
-	current_io_id := 0;
+	ignore(analyze_aliases [] false false (mark_ctors e));
 	let rec get_iv_var_decls (iv:inline_var) : texpr list =
 		match iv with
 		| {iv_state = IVSAliasing io} -> get_io_var_decls io
@@ -380,7 +397,6 @@ let inline_constructors ctx e =
 	in
 	let included_untyped = ref false in
 	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) =
-		increment_io_id e;
 		let default_case e =
 			let f e =
 				let (el,_) = final_map e in
@@ -389,21 +405,15 @@ let inline_constructors ctx e =
 			([Type.map_expr f e], None)
 		in
 		match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) ->
+		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e) ->
+			let io_id = int_of_string id_str in
 			begin try
-				let io = get_io !current_io_id in
-				if io.io_cancelled then begin
-					let result = default_case e in
-					current_io_id := io.io_id_end;
-					result
-				end else begin
-					if io.io_has_untyped then included_untyped := true;
-					current_io_id := io.io_id_start;
-					let el,_ = final_map ~unwrap_block:true io.io_expr in
-					let el = el @ get_io_var_decls io in
-					assert (!current_io_id = io.io_id_end);
-					(el,Some io)
-				end
+				let io = get_io io_id in
+				if io.io_cancelled then raise Not_found;
+				if io.io_has_untyped then included_untyped := true;
+				let el,_ = final_map ~unwrap_block:true io.io_expr in
+				let el = el @ get_io_var_decls io in
+				(el,Some io)
 			with Not_found ->
 				default_case e
 			end
@@ -484,11 +494,7 @@ let inline_constructors ctx e =
 			let el = if unwrap_block || Option.is_some io then el else [mk (TBlock (List.rev el)) e.etype e.epos] in
 			el, io
 		| TMeta((Meta.InlineConstructorArgument (_,io_id_start),_,_),e) ->
-			let old_io_id = !current_io_id in
-			current_io_id := io_id_start;
-			let result = final_map e in
-			current_io_id := old_io_id;
-			result
+			final_map e
 		| TParenthesis e' | TCast(e',None) | TMeta(_,e') ->
 			let el, io = final_map e' in
 			begin match io with
