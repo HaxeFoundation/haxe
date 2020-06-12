@@ -324,15 +324,15 @@ let inline_constructors ctx e =
 			| _ ->
 				handle_default_case e
 		in
-		match e.eexpr, e.etype with
-		| TMeta((Meta.Inline,_,_),{eexpr = TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e)}),_ ->
+		match e.eexpr with
+		| TMeta((Meta.Inline,_,_),{eexpr = TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e)}) ->
 			let io_id = int_of_string id_str in
 			handle_inline_object_case io_id true e
-		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e), _ ->
+		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e) ->
 			let io_id = int_of_string id_str in
 			handle_inline_object_case io_id false e
-		| TVar(v,None),_ -> ignore(add v IVKLocal); None
-		| TVar(v,Some rve),_ ->
+		| TVar(v,None) -> ignore(add v IVKLocal); None
+		| TVar(v,Some rve) ->
 			begin match analyze_aliases true rve with
 			| Some({iv_state = IVSAliasing(io)}) ->
 				let iv = add v IVKLocal in
@@ -340,7 +340,7 @@ let inline_constructors ctx e =
 			| _ -> ()
 			end;
 			None
-		| TBinop(OpAssign, lve, rve),_ ->
+		| TBinop(OpAssign, lve, rve) ->
 			begin match analyze_aliases_in_lvalue lve with
 			| Some({iv_state = IVSUnassigned} as iv) ->
 				begin match analyze_aliases true rve with
@@ -353,31 +353,31 @@ let inline_constructors ctx e =
 			| Some(iv) -> cancel_iv iv e.epos; ignore(analyze_aliases false rve); None
 			| _ -> ignore(analyze_aliases false rve); None
 			end
-		| TField(te, fa),_ ->
+		| TField(te, fa) ->
 			handle_field_case te (field_name fa) (fun _ -> true)
-		| TArray(te,{eexpr = TConst (TInt i)}),_ ->
+		| TArray(te,{eexpr = TConst (TInt i)}) ->
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
 			handle_field_case te (int_field_name i) validate_io
-		| TLocal(v),_ when v.v_id < 0 ->
+		| TLocal(v) when v.v_id < 0 ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || not captured then cancel_iv iv e.epos;
 			Some iv
-		| TBlock(el),_ ->
+		| TBlock(el) ->
 			let rec loop = function
 				| [e] -> analyze_aliases captured e
 				| e::el -> ignore(analyze_aliases true e); loop (el)
 				| [] -> None
 			in loop el
-		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_),_ ->
+		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_) ->
 			(try
 				let iv = get_iv vid in
 				if iv.iv_closed || not captured then cancel_iv iv e.epos;
 				Some(get_iv vid)
 			with Not_found -> None)
-		| TParenthesis e,_ | TMeta(_,e),_ | TCast(e,None),_ ->
+		| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 			analyze_aliases captured e
-		| _,_ ->
+		| _ ->
 			handle_default_case e
 	in
 	ignore(analyze_aliases [] false false (mark_ctors e));
