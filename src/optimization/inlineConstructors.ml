@@ -176,11 +176,11 @@ let inline_constructors ctx e =
 	let rec mark_ctors ?(force_inline=false) e =
 		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
 		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
-		match e.eexpr with
-			| TObjectDecl _
-			| TArrayDecl _
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_)
-			| TNew _ when force_inline ->
+		match e.eexpr, force_inline with
+			| TObjectDecl _, _
+			| TArrayDecl _, _
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_), _
+			| TNew _, true ->
 				incr curr_io_id;
 				let id_expr = (EConst(Int (string_of_int !curr_io_id)), e.epos) in
 				let meta = (Meta.Custom "inline_object", [id_expr], e.epos) in
@@ -382,7 +382,7 @@ let inline_constructors ctx e =
 	in
 	let original_e = e in
 	let e = mark_ctors e in
-	ignore(analyze_aliases [] false false (mark_ctors e));
+	ignore(analyze_aliases [] false false e);
 	let rec get_iv_var_decls (iv:inline_var) : texpr list =
 		match iv with
 		| {iv_state = IVSAliasing io} -> get_io_var_decls io
