@@ -63,8 +63,6 @@ and inline_object = {
 	mutable io_declared : bool;
 	mutable io_aliases : inline_var list;
 	mutable io_fields : (string,inline_var) PMap.t;
-	mutable io_id_start : int;
-	mutable io_id_end : int;
 }
 
 and inline_var_kind =
@@ -197,8 +195,6 @@ let inline_constructors ctx e =
 				io_declared = false;
 				io_fields = PMap.empty;
 				io_aliases = [];
-				io_id_start = id;
-				io_id_end = id;
 				io_has_untyped = has_untyped;
 			} in
 			inline_objs := IntMap.add id io !inline_objs;
@@ -495,7 +491,7 @@ let inline_constructors ctx e =
 			let el, io = loop [] el in
 			let el = if unwrap_block || Option.is_some io then el else [mk (TBlock (List.rev el)) e.etype e.epos] in
 			el, io
-		| TMeta((Meta.InlineConstructorArgument (_,io_id_start),_,_),e) ->
+		| TMeta((Meta.InlineConstructorArgument (_,_),_,_),e) ->
 			final_map e
 		| TParenthesis e' | TCast(e',None) | TMeta(_,e') ->
 			let el, io = final_map e' in
