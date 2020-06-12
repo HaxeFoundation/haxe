@@ -340,7 +340,6 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		else begin
 			let is_java_rest = ctx.com.platform = Java && is_extern in
 			let is_rest = is_rest || is_java_rest in
-			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let load_param t =
 				match t with
 				| TPExpr e ->
@@ -355,13 +354,13 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					) in
 					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
-					TInst (c,[])
-				| TPType t -> load_complex_type ctx true t
+					TInst (c,[]),pos e
+				| TPType t -> load_complex_type ctx true t,pos t
 			in
 			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
-					let t = load_param t in
+					let t,pt = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -379,7 +378,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							t
 						| TInst (c,[]) ->
 							check_const c;
-							DynArray.add checks (t,c);
+							DynArray.add checks (t,c,pt);
 							t
 						| _ -> die "" __LOC__
 					in
@@ -396,13 +395,13 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					else
 						error ("Not enough type parameters for " ^ s_type_path path) p
 				| t :: tl,[] ->
-					let t = load_param t in
+					let t,pt = load_param t in
 					if is_rest then
 						t :: loop tl [] true
 					else if ctx.com.display.dms_error_policy = EPIgnore then
 						[]
 					else
-						error ("Too many parameters for " ^ s_type_path path) p
+						error ("Too many type parameters for " ^ s_type_path path) pt
 			in
 			let params = loop t.tparams types false in
 			if not is_rest then begin
@@ -418,7 +417,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					t
 				in
 				delay ctx PCheckConstraint (fun () ->
-					DynArray.iter (fun (t,c) ->
+					DynArray.iter (fun (t,c,p) ->
 						check_param_constraints ctx t map c p
 					) checks
 				);
