@@ -64,7 +64,7 @@ let basDebugPrint title ctx e =
 *)
 
 type inline_object_kind =
-	| IOKCtor of tclass_field * bool * tvar list
+	| IOKCtor of tclass * tclass_field * bool * tvar list
 	| IOKStructure
 	| IOKArray of int
 
@@ -95,6 +95,11 @@ and inline_var = {
 	mutable iv_closed : bool
 }
 
+and inline_object_field = 
+	| IOFInlineMethod of inline_object * tclass_field * tfunc
+	| IOFInlineVar of inline_var
+	| IOFNone
+
 let inline_constructors ctx e =
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
@@ -107,7 +112,7 @@ let inline_constructors ctx e =
 			List.iter (fun iv -> cancel_iv iv p) io.io_aliases;
 			PMap.iter (fun _ iv -> cancel_iv iv p) io.io_fields;
 			match io.io_kind with
-			| IOKCtor(_,isextern,vars) ->
+			| IOKCtor(_,_,isextern,vars) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
 				if isextern then begin
 					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
@@ -217,26 +222,49 @@ let inline_constructors ctx e =
 		let analyze_aliases_in_lvalue e = analyze_aliases seen_ctors captured true e in
 		let analyze_aliases_in_ctor cf captured e = analyze_aliases (cf::seen_ctors) captured false e in
 		let analyze_aliases captured e = analyze_aliases seen_ctors captured false e in
-		let handle_field_case te fname validate_io =
+		let get_io_inline_method io fname = 
+			begin match io.io_kind with
+			| IOKCtor(c,_,_,_) ->
+				begin try
+					let f = PMap.find fname c.cl_fields in
+					begin match f.cf_params, f.cf_kind, f.cf_expr with
+					| [], Method MethInline, Some({eexpr = TFunction tf}) -> Some (f, tf)
+					| _ -> None
+					end
+				with Not_found -> None
+				end
+			| _ -> None
+			end
+		in
+		let handle_field_case te fname validate_io : inline_object_field =
 			begin match analyze_aliases true te with
 			| Some({iv_state = IVSAliasing io} as iv) when validate_io io ->
-				begin try
-					let fiv = get_io_field io fname in
-					if not (type_iseq_strict fiv.iv_var.v_type e.etype) then raise Not_found;
-					let iv_is_const iv = match iv.iv_kind with IVKField(_,_,Some(_)) -> true | _ -> false in
-					if is_lvalue && iv_is_const fiv then raise Not_found;
-					if fiv.iv_closed then raise Not_found;
-					if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv e.epos;
-					Some(fiv)
-				with Not_found ->
-					cancel_iv iv e.epos;
-					None
+				begin match get_io_inline_method io fname with
+				| Some(cf, tf)-> IOFInlineMethod(io,cf,tf)
+				| None ->
+					begin try
+						let fiv = get_io_field io fname in
+						if not (type_iseq_strict fiv.iv_var.v_type e.etype) then raise Not_found;
+						let iv_is_const iv = match iv.iv_kind with IVKField(_,_,Some(_)) -> true | _ -> false in
+						if is_lvalue && iv_is_const fiv then raise Not_found;
+						if fiv.iv_closed then raise Not_found;
+						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv e.epos;
+						IOFInlineVar(fiv)
+					with Not_found ->
+						cancel_iv iv e.epos;
+						IOFNone
+					end
 				end
 			| Some(iv) ->
 				cancel_iv iv e.epos;
-				None
-			| _ -> None
+				IOFNone
+			| _ -> IOFNone
 			end
+		in
+		let handle_field_case_no_methods te fname validate_io = match handle_field_case te fname validate_io with
+			| IOFInlineMethod(io,_,_) -> cancel_io io e.epos; None
+			| IOFInlineVar(iv) -> Some(iv)
+			| IOFNone -> None
 		in
 		let handle_default_case e =
 			let old = !scoped_ivs in
@@ -276,7 +304,7 @@ let inline_constructors ctx e =
 						let inlined_expr = mark_ctors inlined_expr in
 						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 						let forced = is_extern_ctor c cf || force_inline in
-						let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+						let io = mk_io (IOKCtor(c,cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 						let rec loop (c:tclass) (tl:t list) =
 							let apply = apply_params c.cl_params tl in
 							List.iter (fun cf ->
@@ -370,11 +398,11 @@ let inline_constructors ctx e =
 			| _ -> ignore(analyze_aliases false rve); None
 			end
 		| TField(te, fa) ->
-			handle_field_case te (field_name fa) (fun _ -> true)
+			handle_field_case_no_methods te (field_name fa) (fun _ -> true)
 		| TArray(te,{eexpr = TConst (TInt i)}) ->
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
-			handle_field_case te (int_field_name i) validate_io
+			handle_field_case_no_methods te (int_field_name i) validate_io
 		| TLocal(v) when v.v_id < 0 ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || not captured then cancel_iv iv e.epos;
