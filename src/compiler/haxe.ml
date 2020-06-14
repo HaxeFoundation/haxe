@@ -947,7 +947,7 @@ try
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			(* This is handled by process_params, but passed through so we know we did something. *)
 			did_something := true;
-		),"<dir>","set current working directory");
+		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 	] in
 	let args_callback cl =
