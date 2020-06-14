@@ -32,8 +32,8 @@ let basDebugPrint2 ctx printer =
 let basDebugPrint title ctx e =
 	let printer () = 
 		print_endline title;
-		(*let se t = s_expr_ast true "\t" (s_type (print_context())) in (*s_expr_pretty true t true (s_type (print_context())) in*)
-		print_endline (se "\t" e);*)
+		let se t = s_expr_ast true "\t" (s_type (print_context())) in (*s_expr_pretty true t true (s_type (print_context())) in*)
+		print_endline (se "\t" e);
 		let se t = s_expr_pretty true "\t" true (s_type (print_context())) in (*s_expr_pretty true t true (s_type (print_context())) in*)
 		print_endline (se "\t" e)
 	in basDebugPrint2 ctx printer
@@ -283,6 +283,7 @@ let inline_constructors ctx e =
 			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
 			(*| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_*)
 				when captured && not (List.memq cf seen_ctors) ->
+				basDebugPrint2 ctx (fun _ -> print_endline "TNew inline object case");
 				begin
 					let rec loop (vs, es) el = match el with
 						| e :: el ->
@@ -371,6 +372,11 @@ let inline_constructors ctx e =
 			handle_inline_object_case io_id true e
 		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e) ->
 			let io_id = int_of_string id_str in
+			basDebugPrint2 ctx (fun _ ->
+				print_endline "inline object case";
+				print_endline (string_of_int io_id);
+				basDebugPrint "ioc" ctx e
+			);
 			handle_inline_object_case io_id false e
 		| TVar(v,None) -> ignore(add v IVKLocal); None
 		| TVar(v,Some rve) ->
@@ -428,7 +434,7 @@ let inline_constructors ctx e =
 				| Some e ->
 					let e = mark_ctors e in
 					io.io_inline_methods <- io.io_inline_methods @ [e];
-					analyze_aliases captured e (* TODO: If it results in an inline variable then cancelling io has to also cancel the result inline variable *)
+					analyze_aliases false e (* TODO: Forward the value of captured and make cancelling the parent io cancel the resulting inline variable *)
 				| None ->
 					cancel_io io e.epos;
 					None
@@ -446,6 +452,7 @@ let inline_constructors ctx e =
 	in
 	let original_e = e in
 	let e = mark_ctors e in
+	basDebugPrint "marked" ctx e;
 	ignore(analyze_aliases [] false false e);
 	let rec get_iv_var_decls (iv:inline_var) : texpr list =
 		match iv with
@@ -623,5 +630,6 @@ let inline_constructors ctx e =
 				v.v_name <- get_pretty_name iv
 			end
 		) !vars;
+		basDebugPrint "inlined" ctx e;
 		e
 	end
