@@ -1216,7 +1216,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				begin if ctx.com.platform = Flash && c.cl_extern then
 					()
 				else
-					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
+					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not c.cl_extern && not fctx.is_extern) pn)
 				end;
 				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
