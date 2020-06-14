@@ -360,6 +360,7 @@ let reify in_macro =
 		to_obj [
 			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
+			"meta", to_meta t.tp_meta p;
 			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p)
 		] p
 	and to_type_def (t,p) =
