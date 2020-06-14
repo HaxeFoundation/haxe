@@ -77,6 +77,7 @@ and inline_object = {
 	mutable io_declared : bool;
 	mutable io_aliases : inline_var list;
 	mutable io_fields : (string,inline_var) PMap.t;
+	mutable io_inline_methods : texpr list;
 }
 
 and inline_var_kind =
@@ -215,6 +216,7 @@ let inline_constructors ctx e =
 				io_fields = PMap.empty;
 				io_aliases = [];
 				io_has_untyped = has_untyped;
+				io_inline_methods = [];
 			} in
 			inline_objs := IntMap.add id io !inline_objs;
 			io
@@ -236,7 +238,7 @@ let inline_constructors ctx e =
 			| _ -> None
 			end
 		in
-		let handle_field_case te fname validate_io : inline_object_field =
+		let handle_field_case ?(captured=false) ?(is_lvalue=false) fe te fname validate_io : inline_object_field =
 			begin match analyze_aliases true te with
 			| Some({iv_state = IVSAliasing io} as iv) when validate_io io ->
 				begin match get_io_inline_method io fname with
@@ -244,25 +246,26 @@ let inline_constructors ctx e =
 				| None ->
 					begin try
 						let fiv = get_io_field io fname in
-						if not (type_iseq_strict fiv.iv_var.v_type e.etype) then raise Not_found;
+						if not (type_iseq_strict fiv.iv_var.v_type fe.etype) then raise Not_found;
 						let iv_is_const iv = match iv.iv_kind with IVKField(_,_,Some(_)) -> true | _ -> false in
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
-						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv e.epos;
+						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv fe.epos;
 						IOFInlineVar(fiv)
 					with Not_found ->
-						cancel_iv iv e.epos;
+						cancel_iv iv fe.epos;
 						IOFNone
 					end
 				end
 			| Some(iv) ->
-				cancel_iv iv e.epos;
+				cancel_iv iv fe.epos;
 				IOFNone
-			| _ -> IOFNone
+			| _ ->
+				IOFNone
 			end
 		in
-		let handle_field_case_no_methods te fname validate_io = match handle_field_case te fname validate_io with
-			| IOFInlineMethod(io,_,_) -> cancel_io io e.epos; None
+		let handle_field_case_no_methods fe te fname validate_io = match handle_field_case ~captured:captured ~is_lvalue:is_lvalue fe te fname validate_io with
+			| IOFInlineMethod(io,_,_) -> cancel_io io fe.epos; None
 			| IOFInlineVar(iv) -> Some(iv)
 			| IOFNone -> None
 		in
@@ -398,11 +401,11 @@ let inline_constructors ctx e =
 			| _ -> ignore(analyze_aliases false rve); None
 			end
 		| TField(te, fa) ->
-			handle_field_case_no_methods te (field_name fa) (fun _ -> true)
+			handle_field_case_no_methods e te (field_name fa) (fun _ -> true)
 		| TArray(te,{eexpr = TConst (TInt i)}) ->
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
-			handle_field_case_no_methods te (int_field_name i) validate_io
+			handle_field_case_no_methods e te (int_field_name i) validate_io
 		| TLocal(v) when v.v_id < 0 ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || not captured then cancel_iv iv e.epos;
@@ -421,6 +424,29 @@ let inline_constructors ctx e =
 			with Not_found -> None)
 		| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 			analyze_aliases captured e
+		| TCall(({eexpr=TField(fe,fa)} as field_expr),call_args) ->
+			let fname = field_name fa in
+			let fiv = handle_field_case field_expr fe fname (fun _ -> true) in
+			begin match fiv with 
+			| IOFInlineMethod(io, cf, tf) ->
+				(* TODO: Analyze aliases on call args *)
+				begin match Inline.type_inline ctx cf tf fe call_args e.etype None e.epos false with
+				| Some e ->
+					let e = mark_ctors e in
+					io.io_inline_methods <- io.io_inline_methods @ [e];
+					analyze_aliases captured e (* TODO: If it results in an inline variable then cancelling io has to also cancel the result inline variable *)
+				| None ->
+					cancel_io io e.epos;
+					None
+				end
+			| IOFInlineVar(iv) ->
+				cancel_iv iv e.epos;
+				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
+				None
+			| IOFNone ->
+				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
+				None
+			end
 		| _ ->
 			handle_default_case e
 	in
@@ -450,6 +476,33 @@ let inline_constructors ctx e =
 				make_expr_for_rev_list el e.etype e.epos
 			in
 			([Type.map_expr f e], None)
+		in
+		let field_case te fa fe : ((texpr list) * (inline_object option) * bool) =
+			let (tel, thiso) = final_map te in
+			begin match thiso with
+			| Some io ->
+				let fname = field_name fa in
+				begin try match get_io_field io fname with
+				| {iv_state = IVSAliasing io} ->
+					tel, Some io, false
+				| iv ->
+					let newexpr = match iv.iv_kind with
+						| IVKField(_,_,Some constexpr) -> {constexpr with epos = e.epos}
+						| _ -> mk (TLocal iv.iv_var) fe.etype fe.epos
+					in
+					(newexpr::tel), None, false
+				with Not_found ->
+					match io.io_inline_methods with
+					| e::el ->
+						io.io_inline_methods <- el;
+						let el, io = final_map e in
+						el, io, true
+					| _ -> die "" __LOC__
+				end
+			| None ->
+				let te = make_expr_for_rev_list tel te.etype te.epos in
+				[mk (TField(te, fa)) fe.etype fe.epos], None, false
+			end
 		in
 		match e.eexpr with
 		| TMeta((Meta.Custom "inline_object", [(EConst(Int (id_str)), _)], _), e) ->
@@ -484,25 +537,23 @@ let inline_constructors ctx e =
 					(e::el), None
 				end
 			end
-		| TField(te, fa) ->
-			let (tel, thiso) = final_map te in
-			begin match thiso with
-			| Some io ->
-				let fname = field_name fa in
-				begin match get_io_field io fname with
-				| {iv_state = IVSAliasing io} ->
-					tel, Some io
-				| iv ->
-					let newexpr = match iv.iv_kind with
-						| IVKField(_,_,Some constexpr) -> {constexpr with epos = e.epos}
-						| _ -> mk (TLocal iv.iv_var) e.etype e.epos
-					in
-					(newexpr::tel), None
-				end
-			| None ->
-				let te = make_expr_for_rev_list tel te.etype te.epos in
-				[mk (TField(te, fa)) e.etype e.epos], None
+		| TCall(({eexpr=TField(te,fa)} as fe),call_args) ->
+			begin match field_case te fa fe with
+			| el, io, true ->
+				el, io
+			| el, _, false ->
+				let f e =
+					let (el,_) = final_map e in
+					make_expr_for_rev_list el e.etype e.epos
+				in
+				let e1 = make_expr_for_rev_list el fe.etype fe.epos in
+				let e = {e with eexpr = TCall(e1, List.map f call_args)} in
+				[e], None
 			end
+		| TField(te, fa) ->
+			let el, io, is_method = field_case te fa e in
+			assert(not is_method);
+			el, io
 		| TArray(te, ({eexpr = TConst (TInt i)} as indexexpr)) ->
 			let (tel, thiso) = final_map te in
 			begin match thiso with
