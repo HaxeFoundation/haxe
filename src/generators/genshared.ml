@@ -263,7 +263,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 	in
 	let rec get_constructor c =
 		match c.cl_constructor, c.cl_super with
-		| Some cf, _ -> c,cf
+		| Some cf, _ -> cf
 		| None, None -> raise Not_found
 		| None, Some (csup,cparams) -> get_constructor csup
 	in
@@ -424,7 +424,11 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		match c.cl_constructor with
 		| None ->
 			begin try
-				let csup,cf = get_constructor c in
+				let cf = get_constructor c in
+				let csup = match c.cl_super with
+					| Some(c,_) -> c
+					| _ -> die "" __LOC__
+				in
 				List.iter (fun cf -> self#add_implicit_ctor c csup cf) (cf :: cf.cf_overloads)
 			with Not_found ->
 				()
