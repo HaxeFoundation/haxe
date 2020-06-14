@@ -336,7 +336,7 @@ let rec type_ident_raise ctx i p mode =
 		(match v.v_extra with
 		| Some ve ->
 			let (params,e) = (ve.v_params,ve.v_expr) in
-			let t = monomorphs params v.v_type in
+			let t = apply_params params (Monomorph.spawn_constrained_monos (fun t -> t) params) v.v_type in
 			(match e with
 			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
 				begin match mode with
@@ -2011,7 +2011,6 @@ and type_local_function ctx kind f with_type p =
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
-	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
 	let v,pname = (match name with
 		| None -> None,p
 		| Some (v,pn) -> Some v,pn
