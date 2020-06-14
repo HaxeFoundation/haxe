@@ -496,7 +496,7 @@ let inline_constructors ctx e =
 					| e::el ->
 						io.io_inline_methods <- el;
 						let el, io = final_map e in
-						el, io, true
+						el @ tel, io, true
 					| _ -> die "" __LOC__
 				end
 			| None ->
