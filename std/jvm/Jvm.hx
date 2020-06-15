@@ -419,10 +419,8 @@ class Jvm {
 
 	// string
 
-	static public function toString<T:java.lang.Object>(obj:T):String {
-		if (obj == null) {
-			return "null";
-		} else if (instanceof(obj, java.lang.Double.DoubleClass)) {
+	static public function toStringNonNull<T:java.lang.Object>(obj:T):String {
+		if (instanceof(obj, java.lang.Double.DoubleClass)) {
 			var n:java.lang.Number = cast obj;
 			if (n.doubleValue() == n.intValue()) {
 				return java.lang.Integer.IntegerClass.valueOf(n.intValue()).toString();
@@ -433,8 +431,26 @@ class Jvm {
 		}
 	}
 
+	static public function toString<T:java.lang.Object>(obj:T):String {
+		if (obj == null) {
+			return null;
+		} else {
+			return toStringNonNull(obj);
+		}
+	}
+
 	static public function stringConcat<A:java.lang.Object, B:java.lang.Object>(a:A, b:B):String {
-		return (cast toString(a) : java.NativeString).concat(toString(b));
+		if (a == null) {
+			if (b == null) {
+				return "nullnull";
+			} else {
+				return (cast "null" : java.NativeString).concat(toStringNonNull(b));
+			}
+		} else if (b == null) {
+			return (cast toStringNonNull(a) : java.NativeString).concat("null");
+		} else {
+			return (cast toStringNonNull(a) : java.NativeString).concat(toStringNonNull(b));
+		}
 	}
 
 	// ops

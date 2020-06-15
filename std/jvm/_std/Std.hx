@@ -55,7 +55,10 @@ class Std {
 	}
 
 	public static function string(s:Dynamic):String {
-		return jvm.Jvm.toString(s);
+		if (s == null) {
+			return "null";
+		}
+		return jvm.Jvm.toStringNonNull(s);
 	}
 
 	public static function int(x:Float):Int {

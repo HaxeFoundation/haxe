@@ -615,7 +615,7 @@ class builder jc name jsig = object(self)
 			code#get_stack#push TBool;
 		| TObject(path1,_),TObject(path2,_) when path1 = path2 ->
 			()
-		| TObject((["java";"lang"],"String"),_),_ when allow_to_string ->
+		| TObject((["java";"lang"],"String"),_),_ when allow_to_string || jsig' = object_sig ->
 			self#expect_reference_type;
 			self#invokestatic (["haxe";"jvm"],"Jvm") "toString" (method_sig [object_sig] (Some string_sig))
 		| TObject(path1,_),TObject(path2,_) ->
