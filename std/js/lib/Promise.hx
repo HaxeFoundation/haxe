@@ -87,6 +87,13 @@ extern class Promise<T> {
 	@:native("catch")
 	@:overload(function<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<EitherType<T, TOut>> {})
 	function catchError(onRejected:PromiseHandler<Dynamic, T>):Promise<T>;
+
+	/**
+		Returns a Promise. When the promise is settled, i.e either fulfilled or rejected,
+		the specified callback function is executed. This provides a way for code to be run
+		whether the promise was fulfilled successfully or rejected once the Promise has been dealt with.
+	**/
+	function finally(onFinally:()->Void):Promise<T>;
 }
 
 /**
