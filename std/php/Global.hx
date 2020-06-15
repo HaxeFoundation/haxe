@@ -1484,4 +1484,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.gc-collect-cycles.php
 	**/
 	static function gc_collect_cycles():Int;
+
+	/**
+		@see http://php.net/manual/en/function.cli-set-process-title.php
+	**/
+	static function cli_set_process_title(title:String):Bool;
 }
