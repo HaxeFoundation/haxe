@@ -452,7 +452,12 @@ let inline_constructors ctx e =
 				| Some e ->
 					let e = mark_ctors e in
 					io.io_inline_methods <- io.io_inline_methods @ [e];
-					analyze_aliases false e (* TODO: Forward the value of captured and make cancelling the parent io cancel the resulting inline variable *)
+					begin match analyze_aliases captured e with
+						| Some(iv) ->
+							io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
+							Some(iv)
+						| None -> None
+					end
 				| None ->
 					cancel_io io e.epos;
 					None
