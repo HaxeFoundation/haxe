@@ -64,7 +64,7 @@ let basDebugPrint title ctx e =
 *)
 
 type inline_object_kind =
-	| IOKCtor of tclass * Type.tparams * tclass_field * bool * tvar list
+	| IOKCtor of tclass * Type.tparams * tclass_field * bool
 	| IOKStructure
 	| IOKArray of int
 
@@ -78,6 +78,7 @@ and inline_object = {
 	mutable io_aliases : inline_var list;
 	mutable io_fields : (string,inline_var) PMap.t;
 	mutable io_inline_methods : texpr list;
+	mutable io_dependent_vars : tvar list;
 }
 
 and inline_var_kind =
@@ -113,8 +114,8 @@ let inline_constructors ctx e =
 			List.iter (fun iv -> cancel_iv iv p) io.io_aliases;
 			PMap.iter (fun _ iv -> cancel_iv iv p) io.io_fields;
 			match io.io_kind with
-			| IOKCtor(_,_,_,isextern,vars) ->
-				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
+			| IOKCtor(_,_,_,isextern) ->
+				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if isextern then begin
 					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ctx "Cancellation happened here" p;
@@ -217,6 +218,7 @@ let inline_constructors ctx e =
 				io_aliases = [];
 				io_has_untyped = has_untyped;
 				io_inline_methods = [];
+				io_dependent_vars = [];
 			} in
 			inline_objs := IntMap.add id io !inline_objs;
 			io
@@ -226,7 +228,7 @@ let inline_constructors ctx e =
 		let analyze_aliases captured e = analyze_aliases seen_ctors captured false e in
 		let get_io_inline_method io fname = 
 			begin match io.io_kind with
-			| IOKCtor(c,tl,_,_,_) ->
+			| IOKCtor(c,tl,_,_) ->
 				begin try
 					let f = PMap.find fname c.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
@@ -307,7 +309,8 @@ let inline_constructors ctx e =
 						let inlined_expr = mark_ctors inlined_expr in
 						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 						let forced = is_extern_ctor c cf || force_inline in
-						let io = mk_io (IOKCtor(c,tl,cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+						let io = mk_io (IOKCtor(c,tl,cf,forced)) io_id inlined_expr ~has_untyped:has_untyped in
+						io.io_dependent_vars <- argvs;
 						let rec loop (c:tclass) (tl:t list) =
 							let apply = apply_params c.cl_params tl in
 							List.iter (fun cf ->
@@ -429,8 +432,24 @@ let inline_constructors ctx e =
 			let fiv = handle_field_case efield ethis fname (fun _ -> true) in
 			begin match fiv with 
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
-				(* TODO: Analyze aliases on call args *)
-				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) call_args e.etype None e.epos true with
+				(* Analyze aliases on call args *)
+				let rec loop (vs, es) el = match el with
+					| e :: el ->
+						begin match e.eexpr with
+						| TConst _ -> loop (vs, e::es) el
+						| _ ->
+							let v = alloc_var VGenerated "arg" e.etype e.epos in
+							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
+							ignore(analyze_aliases true decle);
+							let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
+							let e = mk (TMeta(mde, e)) e.etype e.epos in
+							loop (v::vs, e::es) el
+						end
+					| [] -> vs, (List.rev es)
+				in
+				let argvs, pl = loop ([],[]) call_args in
+				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
+				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
 				| Some e ->
 					let e = mark_ctors e in
 					io.io_inline_methods <- io.io_inline_methods @ [e];
