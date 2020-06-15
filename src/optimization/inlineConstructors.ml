@@ -283,7 +283,6 @@ let inline_constructors ctx e =
 		let handle_inline_object_case (io_id:int) (force_inline:bool) (e:texpr) =
 			match e.eexpr, e.etype with
 			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
-			(*| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_*)
 				when captured && not (List.memq cf seen_ctors) ->
 				basDebugPrint2 ctx (fun _ -> print_endline "TNew inline object case");
 				begin
