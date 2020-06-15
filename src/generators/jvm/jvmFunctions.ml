@@ -307,7 +307,14 @@ module JavaFunctionalInterfaces = struct
 				jpath = juf,"BiConsumer";
 				jname = "accept";
 				jparams = ["T";"U"]
-			}
+			};
+			{
+				jargs = [tp "T"];
+				jret = Some (tp "R");
+				jpath = juf,"Function";
+				jname = "apply";
+				jparams = ["T";"R"]
+			};
 		]
 
 	let unify jfi args ret =
