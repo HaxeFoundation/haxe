@@ -238,34 +238,34 @@ let inline_constructors ctx e =
 			| _ -> None
 			end
 		in
-		let handle_field_case ?(captured=false) ?(is_lvalue=false) fe te fname validate_io : inline_object_field =
-			begin match analyze_aliases true te with
+		let handle_field_case ?(captured=false) ?(is_lvalue=false) efield ethis fname validate_io : inline_object_field =
+			begin match analyze_aliases true ethis with
 			| Some({iv_state = IVSAliasing io} as iv) when validate_io io ->
 				begin match get_io_inline_method io fname with
 				| Some(c, tl, cf, tf)-> IOFInlineMethod(io,iv,c,tl,cf,tf)
 				| None ->
 					begin try
 						let fiv = get_io_field io fname in
-						if not (type_iseq_strict fiv.iv_var.v_type fe.etype) then raise Not_found;
+						if not (type_iseq_strict fiv.iv_var.v_type efield.etype) then raise Not_found;
 						let iv_is_const iv = match iv.iv_kind with IVKField(_,_,Some(_)) -> true | _ -> false in
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
-						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv fe.epos;
+						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv efield.epos;
 						IOFInlineVar(fiv)
 					with Not_found ->
-						cancel_iv iv fe.epos;
+						cancel_iv iv efield.epos;
 						IOFNone
 					end
 				end
 			| Some(iv) ->
-				cancel_iv iv fe.epos;
+				cancel_iv iv efield.epos;
 				IOFNone
 			| _ ->
 				IOFNone
 			end
 		in
-		let handle_field_case_no_methods fe te fname validate_io = match handle_field_case ~captured:captured ~is_lvalue:is_lvalue fe te fname validate_io with
-			| IOFInlineMethod(io,_,_,_,_,_) -> cancel_io io fe.epos; None
+		let handle_field_case_no_methods efield ethis fname validate_io = match handle_field_case ~captured:captured ~is_lvalue:is_lvalue efield ethis fname validate_io with
+			| IOFInlineMethod(io,_,_,_,_,_) -> cancel_io io efield.epos; None
 			| IOFInlineVar(iv) -> Some(iv)
 			| IOFNone -> None
 		in
@@ -400,12 +400,12 @@ let inline_constructors ctx e =
 			| Some(iv) -> cancel_iv iv e.epos; ignore(analyze_aliases false rve); None
 			| _ -> ignore(analyze_aliases false rve); None
 			end
-		| TField(te, fa) ->
-			handle_field_case_no_methods e te (field_name fa) (fun _ -> true)
-		| TArray(te,{eexpr = TConst (TInt i)}) ->
+		| TField(ethis, fa) ->
+			handle_field_case_no_methods e ethis (field_name fa) (fun _ -> true)
+		| TArray(ethis,{eexpr = TConst (TInt i)}) ->
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
-			handle_field_case_no_methods e te (int_field_name i) validate_io
+			handle_field_case_no_methods e ethis (int_field_name i) validate_io
 		| TLocal(v) when v.v_id < 0 ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || not captured then cancel_iv iv e.epos;
@@ -424,9 +424,9 @@ let inline_constructors ctx e =
 			with Not_found -> None)
 		| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 			analyze_aliases captured e
-		| TCall(({eexpr=TField(fe,fa)} as field_expr),call_args) ->
+		| TCall(({eexpr=TField(ethis,fa)} as efield),call_args) ->
 			let fname = field_name fa in
-			let fiv = handle_field_case field_expr fe fname (fun _ -> true) in
+			let fiv = handle_field_case efield ethis fname (fun _ -> true) in
 			begin match fiv with 
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
 				(* TODO: Analyze aliases on call args *)
@@ -477,8 +477,8 @@ let inline_constructors ctx e =
 			in
 			([Type.map_expr f e], None)
 		in
-		let field_case te fa fe : ((texpr list) * (inline_object option) * bool) =
-			let (tel, thiso) = final_map te in
+		let field_case ethis fa efield : ((texpr list) * (inline_object option) * bool) =
+			let (tel, thiso) = final_map ethis in
 			begin match thiso with
 			| Some io ->
 				let fname = field_name fa in
@@ -488,7 +488,7 @@ let inline_constructors ctx e =
 				| iv ->
 					let newexpr = match iv.iv_kind with
 						| IVKField(_,_,Some constexpr) -> {constexpr with epos = e.epos}
-						| _ -> mk (TLocal iv.iv_var) fe.etype fe.epos
+						| _ -> mk (TLocal iv.iv_var) efield.etype efield.epos
 					in
 					(newexpr::tel), None, false
 				with Not_found ->
@@ -500,8 +500,8 @@ let inline_constructors ctx e =
 					| _ -> die "" __LOC__
 				end
 			| None ->
-				let te = make_expr_for_rev_list tel te.etype te.epos in
-				[mk (TField(te, fa)) fe.etype fe.epos], None, false
+				let te = make_expr_for_rev_list tel ethis.etype ethis.epos in
+				[mk (TField(te, fa)) efield.etype efield.epos], None, false
 			end
 		in
 		match e.eexpr with
@@ -537,8 +537,8 @@ let inline_constructors ctx e =
 					(e::el), None
 				end
 			end
-		| TCall(({eexpr=TField(te,fa)} as fe),call_args) ->
-			begin match field_case te fa fe with
+		| TCall(({eexpr=TField(ethis,fa)} as efield),call_args) ->
+			begin match field_case ethis fa efield with
 			| el, io, true ->
 				el, io
 			| el, _, false ->
@@ -546,16 +546,16 @@ let inline_constructors ctx e =
 					let (el,_) = final_map e in
 					make_expr_for_rev_list el e.etype e.epos
 				in
-				let e1 = make_expr_for_rev_list el fe.etype fe.epos in
+				let e1 = make_expr_for_rev_list el efield.etype efield.epos in
 				let e = {e with eexpr = TCall(e1, List.map f call_args)} in
 				[e], None
 			end
-		| TField(te, fa) ->
-			let el, io, is_method = field_case te fa e in
+		| TField(ethis, fa) ->
+			let el, io, is_method = field_case ethis fa e in
 			assert(not is_method);
 			el, io
-		| TArray(te, ({eexpr = TConst (TInt i)} as indexexpr)) ->
-			let (tel, thiso) = final_map te in
+		| TArray(ethis, ({eexpr = TConst (TInt i)} as indexexpr)) ->
+			let (tel, thiso) = final_map ethis in
 			begin match thiso with
 			| Some io ->
 				let i = Int32.to_int i in
@@ -568,7 +568,7 @@ let inline_constructors ctx e =
 					(local::tel), None
 				end
 			| None ->
-				let te = make_expr_for_rev_list tel te.etype te.epos in
+				let te = make_expr_for_rev_list tel ethis.etype ethis.epos in
 				[mk (TArray(te, indexexpr)) e.etype e.epos], None
 			end
 		| TLocal v when v.v_id < 0 ->
