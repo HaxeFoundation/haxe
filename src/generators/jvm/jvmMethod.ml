@@ -560,7 +560,7 @@ class builder jc name jsig = object(self)
 				self#expect_reference_type
 			end else if is_number_sig name jsig then
 				number_to name
-			else if jsig = object_sig then
+			else if is_dynamic_at_runtime jsig then
 				dynamic_to name
 			else
 				code#checkcast (["java";"lang"],name)
