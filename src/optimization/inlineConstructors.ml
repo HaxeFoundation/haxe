@@ -29,8 +29,7 @@ open Globals
 (*
 	First pass:
 	Finds all inline objects and variables that alias them.
-	Inline objects reference instances of TNew TObjectDecl and TArrayDecl, identified a number
-	assigned by order of appearance in the expression.
+	Inline objects reference instances of TNew TObjectDecl and TArrayDecl.
 	When an inline object is assigned to a variable, this variable is considered an alias of it.
 	If an aliasing variable is assigned more than once then inlining will be cancelled for the inline
 	object the variable would have aliased.
@@ -42,45 +41,62 @@ open Globals
 	inlining.
 
 	Second pass:
-	Replace variables that alias inline objects with their respective field inline variables.
-	Identify inline objects by order of appearance and replace them with their inlined constructor expressions.
-	Replace field access of aliasing variables with the respective field inline variable.
+	Replaces inline objects with their inlined constructor expressions.
+	Replaces field access of aliasing variables with the respective field inline variable or inlined methods.
 	Because some replacements turn a single expression into many, this pass will map texpr into texpr list,
 	which is converted into TBlocks by the caller as needed.
 *)
 
 type inline_object_kind =
-	| IOKCtor of tclass * Type.tparams * tclass_field * bool
+	| IOKCtor of
+		tclass *
+		Type.tparams *
+		tclass_field *
+		bool (* Wether the inline constructor is forced or not. Cancelling a forced constructor should produce an error *)
 	| IOKStructure
 	| IOKArray of int
 
+(*
+	inline_object
+	Represents an instance of TNew TObjectDecl or TArrayDecl that has potential to be inlined.
+	Wether the inlining is cancelled or not is decided during the analysis phase.
+*)
 and inline_object = {
 	io_kind : inline_object_kind;
-	io_expr : texpr;
-	io_pos : pos;
-	io_has_untyped : bool;
-	mutable io_cancelled : bool;
-	mutable io_declared : bool;
-	mutable io_aliases : inline_var list;
-	mutable io_fields : (string,inline_var) PMap.t;
-	mutable io_inline_methods : texpr list;
-	mutable io_dependent_vars : tvar list;
+	io_expr : texpr; (* This is the inlined constructor expression *)
+	io_pos : pos; (* The original position of the constructor expression *)
+	io_has_untyped : bool; (* Wether inlining this object would bring untyped expressions into the parent expression *)
+	mutable io_cancelled : bool; (* Wether this inline object has been cancelled *)
+	mutable io_declared : bool; (* Wether the variable declarations for this inline object's fields have already been output. (Used in final_map) *)
+	mutable io_aliases : inline_var list; (* List of variables that are aliasing/referencing this inline object *)
+	mutable io_fields : (string,inline_var) PMap.t; (* The fields that this inline object supports, fields are inline variables which might alias other inline_objects *)
+	mutable io_inline_methods : texpr list; (* List of inlined method calls. Populated during analysis and consumed by the final_map phase *)
+	mutable io_dependent_vars : tvar list; (* List of variables that should be cancelled if this inline object is cancelled *)
 }
 
 and inline_var_kind =
-	| IVKField of inline_object * string * texpr option
+	| IVKField of
+		inline_object *
+		string * (* The field name *)
+		texpr option (* If this is Some _ then this field is a constant. (Used for Array .length property) *)
 	| IVKLocal
 
 and inline_var_state =
-	| IVSUnassigned
-	| IVSAliasing of inline_object
-	| IVSCancelled
+	| IVSUnassigned (* The variable isn't yet assigned *)
+	| IVSAliasing of inline_object (* The variable is aliasing an inline object *)
+	| IVSCancelled (* The variable was cancelled and should no longer be considered for aliasing inline objects *)
 
+(*
+	inline_var
+	Represents a local variable that is tracked by the inline constructor analysis.
+	It's main purpose is to track variables that are considered aliases of inline objects.
+	It also tracks all unassigned variables in the program.
+*)
 and inline_var = {
 	iv_var : tvar;
 	mutable iv_state : inline_var_state;
 	mutable iv_kind : inline_var_kind;
-	mutable iv_closed : bool
+	mutable iv_closed : bool (* Inline variables are marked as closed when the scope they were first assigned on ends, any appearance of this variable after it has been closed causes cancellation *)
 }
 
 and inline_object_field = 
@@ -178,6 +194,11 @@ let inline_constructors ctx e =
 	in
 	let make_expr_for_rev_list (el:texpr list) (t:t) (p:pos) : texpr = make_expr_for_list (List.rev el) t p in
 	let curr_io_id = ref 0 in
+	(*
+		mark_ctors
+		Finds all instances of inline objects in an expression and wraps them with metadata @:inline_object(id).
+		The id is incremented each time and is used later in the final_map phase to identify the correct inline object.
+	*)
 	let rec mark_ctors ?(force_inline=false) e =
 		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
 		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
