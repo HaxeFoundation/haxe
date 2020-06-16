@@ -53,6 +53,7 @@ and tmono_constraint =
 	| MField of tclass_field
 	| MType of t * string option
 	| MOpenStructure
+	| MEmptyStructure
 
 and tmono_constraint_kind =
 	| CUnknown
