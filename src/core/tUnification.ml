@@ -848,10 +848,6 @@ and unify_anons uctx a b a1 a2 =
 				| _ ->
 					error [has_no_field a n];
 		) a2.a_fields;
-		(match !(a1.a_status) with
-		| Const when not (PMap.is_empty a2.a_fields) ->
-			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-		| _ -> ());
 		(match !(a2.a_status) with
 		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
