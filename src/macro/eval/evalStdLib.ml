@@ -566,6 +566,9 @@ module StdNativeStackTrace = struct
 		) envs;
 		encode_array (DynArray.to_list l)
 
+	let make_stack_value envs =
+		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let envs = call_stack (get_eval ctx) in
@@ -573,7 +576,7 @@ module StdNativeStackTrace = struct
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
 		in
-		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+		make_stack_value  envs
 	)
 
 	let getExceptionStack = vfun0 (fun () ->

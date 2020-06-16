@@ -381,8 +381,17 @@ let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		set_instance_field i key_exception_message (EvalString.create_unknown msg);
+		let msg = EvalString.create_unknown msg in
+		set_instance_field i key_exception_message msg;
 		set_instance_field i key_pos (encode_pos pos);
+		set_instance_field i key_native_exception msg;
+		let ctx = get_ctx() in
+		let eval = get_eval ctx in
+		(match eval.env with
+		| Some _ ->
+			let stack = EvalStdLib.StdNativeStackTrace.make_stack_value (call_stack eval) in
+			set_instance_field i key_native_stack stack;
+		| None -> ());
 		exc vi
 	| _ ->
 		die "" __LOC__
