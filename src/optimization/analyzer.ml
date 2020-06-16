@@ -369,7 +369,7 @@ module ConstPropagation = DataFlow(struct
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && List.for_all2 equals tl1 tl2
+		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && safe_for_all2 equals tl1 tl2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
