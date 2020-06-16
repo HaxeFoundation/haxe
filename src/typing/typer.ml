@@ -2446,10 +2446,16 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		e
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
-		(match follow et.etype with
-			| TEnum _ ->
-				Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
-			| _ -> def ())
+		let is_enum_match = match follow et.etype with
+			| TEnum _ -> true
+			| TAbstract _ as t when (match Abstract.follow_with_abstracts_forward t with TEnum _ -> true | _ -> false) ->
+				(try ignore (type_field (TypeFieldConfig.create true) ctx et "match" p mode); false with _ -> true)
+			| _ -> false
+		in
+		if is_enum_match then
+			Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
+		else
+			def ()
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
 		if Common.platform ctx.com Flash then
