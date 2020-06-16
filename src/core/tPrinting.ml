@@ -111,6 +111,7 @@ and s_constraint = function
 	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
 	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
 	| MOpenStructure -> "MOpenStructure"
+	| MEmptyStructure -> "MEmptyStructure"
 
 let s_access is_read = function
 	| AccNormal -> "default"
