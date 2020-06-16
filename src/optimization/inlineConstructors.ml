@@ -65,7 +65,7 @@ and inline_object = {
 	io_kind : inline_object_kind;
 	io_expr : texpr; (* This is the inlined constructor expression *)
 	io_pos : pos; (* The original position of the constructor expression *)
-	io_has_untyped : bool; (* Wether inlining this object would bring untyped expressions into the parent expression *)
+	mutable io_has_untyped : bool; (* Wether inlining this object would bring untyped expressions into the parent expression *)
 	mutable io_cancelled : bool; (* Wether this inline object has been cancelled *)
 	mutable io_declared : bool; (* Wether the variable declarations for this inline object's fields have already been output. (Used in final_map) *)
 	mutable io_aliases : inline_var list; (* List of variables that are aliasing/referencing this inline object *)
@@ -437,6 +437,7 @@ let inline_constructors ctx e =
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
+				io.io_has_untyped <- io.io_has_untyped or (Meta.has Meta.HasUntyped cf.cf_meta);
 				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
 				| Some e ->
 					let e = mark_ctors e in
