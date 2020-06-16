@@ -266,26 +266,29 @@ let inline_constructors ctx e =
 			scoped_ivs := old;
 			None
 		in
+		let analyze_call_args call_args =
+			let rec loop (vs, es) el = match el with
+				| e :: el ->
+					begin match e.eexpr with
+					| TConst _ -> loop (vs, e::es) el
+					| _ ->
+						let v = alloc_var VGenerated "arg" e.etype e.epos in
+						let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
+						ignore(analyze_aliases true decle);
+						let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
+						let e = mk (TMeta(mde, e)) e.etype e.epos in
+						loop (v::vs, e::es) el
+					end
+				| [] -> vs, (List.rev es)
+			in
+			loop ([],[]) call_args
+		in
 		let handle_inline_object_case (io_id:int) (force_inline:bool) (e:texpr) =
 			match e.eexpr, e.etype with
 			| TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
 				when captured && not (List.memq cf seen_ctors) ->
 				begin
-					let rec loop (vs, es) el = match el with
-						| e :: el ->
-							begin match e.eexpr with
-							| TConst _ -> loop (vs, e::es) el
-							| _ ->
-								let v = alloc_var VGenerated "arg" e.etype e.epos in
-								let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
-								ignore(analyze_aliases true decle);
-								let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
-								let e = mk (TMeta(mde, e)) e.etype e.epos in
-								loop (v::vs, e::es) el
-							end
-						| [] -> vs, (List.rev es)
-					in
-					let argvs, pl = loop ([],[]) pl in
+					let argvs, pl = analyze_call_args pl in
 					let _, cname = c.cl_path in
 					let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
 					match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
@@ -411,22 +414,7 @@ let inline_constructors ctx e =
 			let fiv = handle_field_case efield ethis fname (fun _ -> true) in
 			begin match fiv with 
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
-				(* Analyze aliases on call args *)
-				let rec loop (vs, es) el = match el with
-					| e :: el ->
-						begin match e.eexpr with
-						| TConst _ -> loop (vs, e::es) el
-						| _ ->
-							let v = alloc_var VGenerated "arg" e.etype e.epos in
-							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
-							ignore(analyze_aliases true decle);
-							let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
-							let e = mk (TMeta(mde, e)) e.etype e.epos in
-							loop (v::vs, e::es) el
-						end
-					| [] -> vs, (List.rev es)
-				in
-				let argvs, pl = loop ([],[]) call_args in
+				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
 				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
 				| Some e ->
