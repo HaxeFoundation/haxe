@@ -68,6 +68,8 @@ module Monomorph = struct
 			PMap.fold (fun cf l ->
 				(MField cf) :: l
 			) an.a_fields []
+		| TAnon _ ->
+			[MOpenStructure]
 		| _ ->
 			[MType(t,name)]
 
@@ -96,7 +98,7 @@ module Monomorph = struct
 		List.iter check m.tm_constraints;
 		if DynArray.length types > 0 then
 			CTypes (DynArray.to_list types)
-		else if not (PMap.is_empty !fields) then
+		else if not (PMap.is_empty !fields) || !is_open then
 			CStructural(!fields,!is_open)
 		else
 			CUnknown
