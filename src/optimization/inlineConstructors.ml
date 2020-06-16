@@ -196,7 +196,7 @@ let inline_constructors ctx e =
 	let curr_io_id = ref 0 in
 	(*
 		mark_ctors
-		Finds all instances of inline objects in an expression and wraps them with metadata @:inlineObject(id).
+		Finds all instances of potential inline objects in an expression and wraps them with metadata @:inlineObject(id).
 		The id is incremented each time and is used later in the final_map phase to identify the correct inline_object.
 	*)
 	let rec mark_ctors ?(force_inline=false) e : texpr =
@@ -213,6 +213,23 @@ let inline_constructors ctx e =
 				mk (TMeta(meta, e)) e.etype e.epos
 			| _ -> e
 	in
+
+	(*
+		analyze_aliases is the main work-horse of the constructor inliner analysis.
+		It runs recursively over all expressions, it must do so in code execution order.
+		The expression being analyzed should have been processed with mark_ctors before hand.
+
+		returns: Some(inline variable) if the expression being analyzed returns an inline variable. None otherwise.
+		
+		seen_ctors: used to avoid infinite constructor inlining loops.
+
+		captured: Wether the caller is ready to accept an inline variable. If analysis results in an inline
+		variable and this argument is false then the inline variable must be cancelled before returning.
+
+		is_lvalue: Wether the expression being analyzed is on the left side of an assignment.
+
+		e: The expression to analyze
+	*)
 	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =
 		let mk_io ?(has_untyped=false) (iok : inline_object_kind) (id:int) (expr:texpr) : inline_object =
 			let io = {
@@ -423,6 +440,7 @@ let inline_constructors ctx e =
 				| [] -> None
 			in loop el
 		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_) ->
+			(* The contents have already been analyzed, so we must skip the wrapped expression *)
 			(try
 				let iv = get_iv vid in
 				if iv.iv_closed || not captured then cancel_iv iv e.epos;
@@ -489,6 +507,10 @@ let inline_constructors ctx e =
 			in
 			([Type.map_expr f e], None)
 		in
+		(*
+			field_case handles the final map of TField expressions.
+			The last bool in the returned tuple indicates that the field was handled as an inlined method.
+		*)
 		let field_case ethis fa efield : ((texpr list) * (inline_object option) * bool) =
 			let (tel, thiso) = final_map ethis in
 			begin match thiso with
@@ -504,8 +526,10 @@ let inline_constructors ctx e =
 					in
 					(newexpr::tel), None, false
 				with Not_found ->
+					(* Since the field is not an inline variable then it must be an inlined method call *)
 					match io.io_inline_methods with
 					| e::el ->
+						(* method fields will appear in the same order as they did during analysis, so we consume the first and remove it from the list *)
 						io.io_inline_methods <- el;
 						let el, io = final_map e in
 						el @ tel, io, true
@@ -551,9 +575,13 @@ let inline_constructors ctx e =
 			end
 		| TCall(({eexpr=TField(ethis,fa)} as efield),call_args) ->
 			begin match field_case ethis fa efield with
-			| el, io, true ->
+			| el, io, true -> (* the field was an inlined method *)
 				el, io
-			| el, _, false ->
+			| el, _, false -> (* the field was a normal field access *)
+				(*
+					This is equivalent to `default_case e`, but field_case already run final_map
+					on the TField expression so we must reuse those results.
+				*)
 				let f e =
 					let (el,_) = final_map e in
 					make_expr_for_rev_list el e.etype e.epos
