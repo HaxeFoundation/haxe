@@ -451,6 +451,13 @@ let unify_int ctx e k =
 		match follow t with
 		| TAnon a ->
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
+		| TMono m ->
+			begin match Monomorph.classify_constraints m with
+			| CStructural(fields,_) ->
+				(try is_dynamic (PMap.find f fields).cf_type with Not_found -> false)
+			| _ ->
+				true
+			end
 		| TInst (c,tl) ->
 			(try is_dynamic (apply_params c.cl_params tl ((let _,t,_ = Type.class_field c tl f in t))) with Not_found -> false)
 		| _ ->
