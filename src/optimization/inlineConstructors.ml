@@ -199,7 +199,7 @@ let inline_constructors ctx e =
 		Finds all instances of inline objects in an expression and wraps them with metadata @:inline_object(id).
 		The id is incremented each time and is used later in the final_map phase to identify the correct inline object.
 	*)
-	let rec mark_ctors ?(force_inline=false) e =
+	let rec mark_ctors ?(force_inline=false) e : texpr =
 		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
 		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
 		match e.eexpr, force_inline with
