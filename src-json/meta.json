@@ -574,6 +574,12 @@
 		"internal": true
 	},
 	{
+		"name": "InlineObject",
+		"metadata": ":inlineObject",
+		"doc": "Internally used by inline constructors filter to mark potentially inlineable objects.",
+		"internal": true
+	},
+	{
 		"name": "Internal",
 		"metadata": ":internal",
 		"doc": "Generates the annotated field/class with 'internal' access.",
