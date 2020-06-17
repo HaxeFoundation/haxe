@@ -292,7 +292,8 @@ let inline_constructors ctx original_e =
 				begin match get_io_inline_method io fname with
 				| Some(c, tl, cf, tf)->
 					let method_type = apply_params c.cl_params tl cf.cf_type in
-					if type_iseq_strict method_type efield.etype then
+					let field_is_function = match efield.etype with | TFun _  -> true	| _ -> false in
+					if field_is_function && Type.does_unify method_type efield.etype then
 						IOFInlineMethod(io,iv,c,tl,cf,tf)
 					else begin
 						cancel_iv iv efield.epos;
