@@ -47,12 +47,15 @@ open Globals
 	which is converted into TBlocks by the caller as needed.
 *)
 
-type inline_object_kind =
-	| IOKCtor of
-		tclass *
-		Type.tparams *
-		tclass_field *
-		bool (* Wether the inline constructor is forced or not. Cancelling a forced constructor should produce an error *)
+type inline_object_ctor = {
+	ioc_class : Type.tclass;
+	ioc_tparams : Type.tparams;
+	ioc_field : Type.tclass_field;
+	ioc_forced : bool; (* Cancelling a forced constructor should produce an error *)
+}
+
+and inline_object_kind =
+	| IOKCtor of inline_object_ctor
 	| IOKStructure
 	| IOKArray of int
 
@@ -116,9 +119,9 @@ let inline_constructors ctx e =
 			List.iter (fun iv -> cancel_iv iv p) io.io_aliases;
 			PMap.iter (fun _ iv -> cancel_iv iv p) io.io_fields;
 			match io.io_kind with
-			| IOKCtor(_,_,_,isextern) ->
+			| IOKCtor(ioc) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
-				if isextern then begin
+				if ioc.ioc_forced then begin
 					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ctx "Cancellation happened here" p;
 				end
@@ -252,11 +255,11 @@ let inline_constructors ctx e =
 		let analyze_aliases captured e = analyze_aliases seen_ctors captured false e in
 		let get_io_inline_method io fname = 
 			begin match io.io_kind with
-			| IOKCtor(c,tl,_,_) ->
+			| IOKCtor(ctor) ->
 				begin try
-					let f = PMap.find fname c.cl_fields in
+					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
-					| [], Method MethInline, Some({eexpr = TFunction tf}) -> Some (c, tl, f, tf)
+					| [], Method MethInline, Some({eexpr = TFunction tf}) -> Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
 					| _ -> None
 					end
 				with Not_found -> None
@@ -334,7 +337,7 @@ let inline_constructors ctx e =
 						let inlined_expr = mark_ctors inlined_expr in
 						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 						let forced = is_extern_ctor c cf || force_inline in
-						let io = mk_io (IOKCtor(c,tl,cf,forced)) io_id inlined_expr ~has_untyped:has_untyped in
+						let io = mk_io (IOKCtor{ioc_class=c; ioc_tparams=tl; ioc_field=cf; ioc_forced=forced}) io_id inlined_expr ~has_untyped:has_untyped in
 						io.io_dependent_vars <- argvs;
 						let rec loop (c:tclass) (tl:t list) =
 							let apply = apply_params c.cl_params tl in
