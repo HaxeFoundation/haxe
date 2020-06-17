@@ -290,7 +290,14 @@ let inline_constructors ctx original_e =
 			begin match analyze_aliases true ethis with
 			| Some({iv_state = IVSAliasing io} as iv) when validate_io io ->
 				begin match get_io_inline_method io fname with
-				| Some(c, tl, cf, tf)-> IOFInlineMethod(io,iv,c,tl,cf,tf)
+				| Some(c, tl, cf, tf)->
+					let method_type = apply_params c.cl_params tl cf.cf_type in
+					if type_iseq_strict method_type efield.etype then
+						IOFInlineMethod(io,iv,c,tl,cf,tf)
+					else begin
+						cancel_iv iv efield.epos;
+						IOFNone
+					end
 				| None ->
 					begin try
 						let fiv = get_io_field io fname in
