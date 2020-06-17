@@ -7,5 +7,13 @@ class Issue9593 extends Test {
 		utest.Assert.pass();
 	}
 
+	function test2() {
+		foo(function(res) {
+			res.error;
+			res.file;
+		});
+		utest.Assert.pass();
+	}
+
 	static function foo<T:{}>(cb:T->Void):Void {}
 }
