@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:native("flash.ui.KeyboardType") extern enum abstract KeyboardType(String) {
+@:native("flash.ui.KeyLocation") extern enum abstract KeyLocation(UInt) from UInt to UInt {
 	var ALPHANUMERIC;
 	var KEYPAD;
 	var NONE;
