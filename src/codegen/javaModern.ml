@@ -240,27 +240,38 @@ module Converter = struct
 			let default i =
 				"param" ^ string_of_int i
 			in
-			match jf.jf_code with
-			| None ->
-				default
-			| Some attribs -> try
-				let rec loop attribs = match attribs with
-					| AttrLocalVariableTable locals :: _ ->
-						locals
-					| _ :: attribs ->
-						loop attribs
-					| [] ->
-						raise Not_found
-				in
-				let locals = loop attribs in
+			let rec loop attribs = match attribs with
+				| AttrLocalVariableTable locals :: _ ->
+					List.map (fun loc ->
+						loc.ld_index,loc.ld_name
+					) locals
+				| AttrMethodParameters l :: _ ->
+					List.mapi (fun i (name,_) ->
+						(i,name)
+					) l
+				| _ :: attribs ->
+					loop attribs
+				| [] ->
+					raise Not_found
+			in
+			let use locals =
 				let h = Hashtbl.create 0 in
-				List.iter (fun local ->
-					Hashtbl.replace h local.ld_index local.ld_name
+				List.iter (fun (index,name) ->
+					Hashtbl.replace h index name
 				) locals;
 				(fun i ->
 					try Hashtbl.find h (i - 1) (* they are 1-based *)
 					with Not_found -> "param" ^ string_of_int i
 				)
+			in
+			try
+				use (loop jf.jf_attributes)
+			with Not_found -> try
+				match jf.jf_code with
+				| None ->
+					default
+				| Some attribs ->
+					use (loop attribs)
 			with Not_found ->
 				default
 		in

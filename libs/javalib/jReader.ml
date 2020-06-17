@@ -448,6 +448,14 @@ let parse_attribute on_special consts ch =
 		}
 	) in
 	Some (AttrLocalVariableTable locals)
+  | "MethodParameters" ->
+	let len = IO.read_byte ch in
+	let parameters = List.init len (fun _ ->
+		let name = get_string consts ch in
+		let flags = read_ui16 ch in
+		(name,flags)
+	) in
+	Some (AttrMethodParameters parameters)
   | "RuntimeVisibleAnnotations" ->
     let anncount = read_ui16 ch in
     Some (AttrVisibleAnnotations (List.init anncount (fun _ -> parse_annotation consts ch)))
