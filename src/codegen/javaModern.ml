@@ -21,6 +21,8 @@ let jname_to_hx name =
 		die "" __LOC__
 	| [_] ->
 		None,name
+	| [x;""] ->
+		None,x ^ "_" (* trailing $ *)
 	| x :: l ->
 		let name = String.concat "_" (x :: l) in
 		if x = "" then None,name (* leading $ *)
