@@ -340,23 +340,37 @@ module Converter = struct
 		let fields = DynArray.create () in
 		let known_names = Hashtbl.create 0 in
 		let known_sigs = Hashtbl.create 0 in
+		let should_generate jf =
+			try
+				List.iter (function
+					| JPrivate -> raise Exit
+					| _ -> ()
+				) jf.jf_flags;
+				true
+			with Exit ->
+				false
+		in
 		if jc.cpath <> (["java";"lang"], "CharSequence") then begin
 			List.iter (fun jf ->
-				Hashtbl.replace known_names jf.jf_name jf;
-				let sig_key = match jf.jf_signature with
-					| TMethod(jsigs,_) -> TMethod(jsigs,None) (* lack of return type variance *)
-					| jsig -> jsig
-				in
-				let key = (jf.jf_name,sig_key) in
-				if not (Hashtbl.mem known_sigs key) then begin
-					Hashtbl.add known_sigs key jf;
-					DynArray.add fields (convert_field ctx jc jf p)
+				if should_generate jf then begin
+					Hashtbl.replace known_names jf.jf_name jf;
+					let sig_key = match jf.jf_signature with
+						| TMethod(jsigs,_) -> TMethod(jsigs,None) (* lack of return type variance *)
+						| jsig -> jsig
+					in
+					let key = (jf.jf_name,sig_key) in
+					if not (Hashtbl.mem known_sigs key) then begin
+						Hashtbl.add known_sigs key jf;
+						DynArray.add fields (convert_field ctx jc jf p)
+					end
 				end
 			) jc.cmethods;
 			List.iter (fun jf ->
-				if not (Hashtbl.mem known_names jf.jf_name) then begin
-					Hashtbl.add known_names jf.jf_name jf;
-					DynArray.add fields (convert_field ctx jc jf p)
+				if should_generate jf then begin
+					if not (Hashtbl.mem known_names jf.jf_name) then begin
+						Hashtbl.add known_names jf.jf_name jf;
+						DynArray.add fields (convert_field ctx jc jf p)
+					end
 				end
 			) jc.cfields;
 		end;
