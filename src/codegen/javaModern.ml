@@ -152,8 +152,11 @@ module Converter = struct
 			| Some jsig -> jsig :: implements
 			| None -> implements
 		in
-		let constraints = List.map (fun jsig ->
-			convert_signature ctx p jsig,p
+		let constraints = ExtList.List.filter_map (fun jsig -> match jsig with
+			| TTypeParameter name' when name = name' ->
+				None
+			| _ ->
+				Some (convert_signature ctx p jsig,p)
 		) jsigs in
 		let tp = {
 			tp_name = (name,p);
