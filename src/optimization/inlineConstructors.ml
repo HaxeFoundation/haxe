@@ -107,7 +107,7 @@ and inline_object_field =
 	| IOFInlineVar of inline_var
 	| IOFNone
 
-let inline_constructors ctx e =
+let inline_constructors ctx original_e =
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
 	let scoped_ivs = ref [] in
@@ -197,6 +197,25 @@ let inline_constructors ctx e =
 	in
 	let make_expr_for_rev_list (el:texpr list) (t:t) (p:pos) : texpr = make_expr_for_list (List.rev el) t p in
 	let curr_io_id = ref 0 in
+
+	(*
+		check_for_ctors
+		Returns true if there are any potential inline objects in the expression.
+		It is used to save work before running mark_ctors and analyze_aliases.
+	*)
+	let rec check_for_ctors ?(force_inline=false) e = 
+		let is_ctor, is_meta_inline = match e.eexpr, force_inline with
+			| TMeta((Meta.Inline,_,_),_), _ ->
+				false, true
+			| TObjectDecl _, _
+			| TArrayDecl _, _
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_), _
+			| TNew _, true ->
+				true, false
+			| _ -> false, false
+		in
+		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
+	in
 	(*
 		mark_ctors
 		Finds all instances of potential inline objects in an expression and wraps them with metadata @:inlineObject(id).
@@ -484,9 +503,6 @@ let inline_constructors ctx e =
 		| _ ->
 			handle_default_case e
 	in
-	let original_e = e in
-	let e = mark_ctors e in
-	ignore(analyze_aliases [] false false e);
 	let rec get_iv_var_decls (iv:inline_var) : texpr list =
 		match iv with
 		| {iv_state = IVSAliasing io} -> get_io_var_decls io
@@ -647,6 +663,9 @@ let inline_constructors ctx e =
 			end
 		| _ -> default_case e
 	in
+	if not (check_for_ctors original_e) then original_e else
+	let e = mark_ctors original_e in
+	ignore(analyze_aliases [] false false e);
 	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
 		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
 		original_e
