@@ -26,7 +26,7 @@ let add_native_lib com file is_extern = match com.platform with
 	| Globals.Java ->
 		let add file =
 			let std = file = "lib/hxjava-std.jar" in
-			Java.add_java_lib com file std is_extern
+			Java.add_java_lib com file std is_extern (Define.raw_defined com.defines "java-modern-loader")
 		in
 		if try Sys.is_directory file with Sys_error _ -> false then
 			let dir = file in
