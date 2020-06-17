@@ -89,4 +89,12 @@ class TestInlineConstructors extends TestBase {
 		var a : {function method() : String;} = new InlineClass();
 		return a.method();
 	}
+
+	@:js('var b = new InlineClass();return [new InlineClass().method(1),b.method(2)];')
+	static function testIncompatibleMethodCancelling() {
+		// InlineClass.method doesn't take any arguments, the method should not be inlined.
+		var a : {function method(arg : Int) : String;} = cast new InlineClass();
+		var b : Dynamic = new InlineClass();
+		return [a.method(1), b.method(2)];
+	}
 }
