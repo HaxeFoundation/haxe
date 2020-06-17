@@ -22,7 +22,9 @@ let jname_to_hx name =
 	| [_] ->
 		None,name
 	| x :: l ->
-		Some x,String.concat "_" (x :: l)
+		let name = String.concat "_" (x :: l) in
+		if x = "" then None,name (* leading $ *)
+		else Some x,name
 
 let normalize_pack pack =
 	List.map (function
@@ -32,7 +34,7 @@ let normalize_pack pack =
 		| str -> str
 	) pack
 
-let jpath_to_hx' (pack,name) =
+let jpath_to_hx (pack,name) =
 	let pack,name = match pack,name with
 	| ["haxe";"root"],name ->
 		[],name
@@ -48,8 +50,7 @@ let jpath_to_hx' (pack,name) =
 	let pack = normalize_pack pack in
 	pack,jname_to_hx name
 
-let jpath_to_hx path =
-	let pack,(mname,name) = jpath_to_hx' path in
+let jpath_to_path (pack,(mname,name)) =
 	let pack,name = match mname with
 		| None -> pack,name
 		| Some mname -> pack @ [mname],name
@@ -61,7 +62,7 @@ let is_haxe_keyword = function
 	| _ -> false
 
 let mk_type_path path params =
-	let pack,(mname,name) = jpath_to_hx' path in
+	let pack,(mname,name) = jpath_to_hx path in
 	match mname with
 	| None ->
 		CTPath {
@@ -371,35 +372,14 @@ module Converter = struct
 	let convert_type ctx jc file =
 		if List.mem JEnum jc.cflags then convert_enum jc file else convert_class ctx jc file
 
-	let convert_module lookup jc file =
-		let types = DynArray.create () in
-		let paths = Hashtbl.create 0 in
-		let _,module_name = jname_to_hx (snd jc.cpath) in
-		let rec loop jc file =
-			if not (Hashtbl.mem paths jc.cpath) then begin
-				Hashtbl.add paths jc.cpath ();
-				let ctx = {
-					type_params = type_param_lut PMap.empty jc.ctypes;
-				} in
-				DynArray.add types (convert_type ctx jc file);
-				List.iter (fun (path,_,_,_) ->
-					let pack,(mname,name) = jpath_to_hx' path in
-					match mname with
-					| Some mname when mname = module_name ->
-						begin match lookup (pack @ [mname],name) with
-						| Some(jc',_,file) ->
-							loop jc' file
-						| None ->
-							print_endline (Printf.sprintf "%s: TYPE NOT FOUND: %s" (s_type_path jc.cpath) (s_type_path path));
-						end
-					| _ ->
-						()
-				) jc.cinner_types
-			end
-		in
-		loop jc file;
-		let types = DynArray.to_list types in
-		(fst jc.cpath,types)
+	let convert_module pack jcs =
+		let types = List.map (fun (jc,_,file) ->
+			let ctx = {
+				type_params = type_param_lut PMap.empty jc.ctypes;
+			} in
+			convert_type ctx jc file;
+		) jcs in
+		(pack,types)
 end
 
 class java_library_modern com name file_path = object(self)
@@ -409,6 +389,7 @@ class java_library_modern com name file_path = object(self)
 	val cached_types = Hashtbl.create 0
 	val mutable cached_files = []
 	val hxpack_to_jpack = Hashtbl.create 0
+	val modules = Hashtbl.create 0
 	val mutable loaded = false
 	val mutable closed = false
 
@@ -418,37 +399,34 @@ class java_library_modern com name file_path = object(self)
 			List.iter (function
 				| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
 					let pack = String.nsplit filename "/" in
-					(match List.rev pack with
+					begin match List.rev pack with
 						| [] -> ()
 						| name :: pack ->
 							let name = String.sub name 0 (String.length name - 6) in
 							let pack = List.rev pack in
-							let path = jpath_to_hx (pack,name) in
+							let pack,(mname,tname) = jpath_to_hx (pack,name) in
+							let path = jpath_to_path (pack,(mname,tname)) in
+							let mname = match mname with
+								| None ->
+									Hashtbl.add hxpack_to_jpack path tname;
+									tname
+								| Some mname -> mname
+							in
+							Hashtbl.add modules (pack,mname) filename;
 							cached_files <- path :: cached_files;
-							Hashtbl.add hxpack_to_jpack path (pack,name))
+						end
 				| _ -> ()
 			) (Zip.entries (Lazy.force zip))
 		end
 
-	method private lookup' (pack,name) =
+	method private lookup' filename =
 		let zip = Lazy.force zip in
-		let location = (String.concat "/" (pack @ [name]) ^ ".class") in
-		let entry = Zip.find_entry zip location in
+		let entry = Zip.find_entry zip filename in
 		let data = Zip.read_entry zip entry in
-		(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ location)
+		(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ filename)
 
 	method lookup path : java_lib_type =
-		try
-			Hashtbl.find cached_types path
-		with Not_found ->
-			let t = try
-				let path = Hashtbl.find hxpack_to_jpack path in
-				Some (self#lookup' path)
-			with Not_found ->
-				None
-			in
-			Hashtbl.add cached_types path t;
-			t
+		None
 
 	method close =
 		if not closed then begin
@@ -460,14 +438,18 @@ class java_library_modern com name file_path = object(self)
 		cached_files
 
 	method build path (p : pos) : Ast.package option =
-		let rec build path =
+		let build path =
 			if path = (["java";"lang"],"String") then
 				None
-			else match self#lookup path with
-			| Some(jc,_,file) ->
-				Some (Converter.convert_module self#lookup jc file)
-			| None ->
-				None
+			else begin
+				try
+					let files = Hashtbl.find_all modules path in
+					if files = [] then raise Not_found;
+					let jcs = List.map self#lookup' files in
+					Some (Converter.convert_module (fst path) jcs)
+				with Not_found ->
+					None
+			end
 		in
 		build path
 
