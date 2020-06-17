@@ -413,6 +413,7 @@ class java_library_modern com name file_path = object(self)
 	method load =
 		if not loaded then begin
 			loaded <- true;
+			let close = Timer.timer ["jar";"load"] in
 			List.iter (function
 				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
 					let pack = String.nsplit filename "/" in
@@ -431,12 +432,15 @@ class java_library_modern com name file_path = object(self)
 							cached_files <- path :: cached_files;
 						end
 				| _ -> ()
-			) (Zip.entries (Lazy.force zip))
+			) (Zip.entries (Lazy.force zip));
+			close();
 		end
 
 	method private read zip (filename,entry) =
-		let data = Zip.read_entry zip entry in
-		(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ filename)
+		Std.finally (Timer.timer ["jar";"read"]) (fun () ->
+			let data = Zip.read_entry zip entry in
+			(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ filename)
+		) ()
 
 	method lookup path : java_lib_type =
 		None
@@ -460,7 +464,9 @@ class java_library_modern com name file_path = object(self)
 					if entries = [] then raise Not_found;
 					let zip = Lazy.force zip in
 					let jcs = List.map (self#read zip) entries in
-					Some (Converter.convert_module (fst path) jcs)
+					Std.finally (Timer.timer ["jar";"convert"]) (fun () ->
+						Some (Converter.convert_module (fst path) jcs)
+					) ();
 				with Not_found ->
 					None
 			end
