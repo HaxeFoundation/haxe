@@ -403,9 +403,7 @@ class java_library_modern com name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
 	val zip = lazy (Zip.open_in file_path)
-	val cached_types = Hashtbl.create 0
 	val mutable cached_files = []
-	val hxpack_to_jpack = Hashtbl.create 0
 	val modules = Hashtbl.create 0
 	val mutable loaded = false
 	val mutable closed = false
@@ -414,7 +412,7 @@ class java_library_modern com name file_path = object(self)
 		if not loaded then begin
 			loaded <- true;
 			List.iter (function
-				| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
+				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
 					let pack = String.nsplit filename "/" in
 					begin match List.rev pack with
 						| [] -> ()
@@ -424,21 +422,17 @@ class java_library_modern com name file_path = object(self)
 							let pack,(mname,tname) = jpath_to_hx (pack,name) in
 							let path = jpath_to_path (pack,(mname,tname)) in
 							let mname = match mname with
-								| None ->
-									Hashtbl.add hxpack_to_jpack path tname;
-									tname
+								| None -> tname
 								| Some mname -> mname
 							in
-							Hashtbl.add modules (pack,mname) filename;
+							Hashtbl.add modules (pack,mname) (filename,entry);
 							cached_files <- path :: cached_files;
 						end
 				| _ -> ()
 			) (Zip.entries (Lazy.force zip))
 		end
 
-	method private lookup' filename =
-		let zip = Lazy.force zip in
-		let entry = Zip.find_entry zip filename in
+	method private read zip (filename,entry) =
 		let data = Zip.read_entry zip entry in
 		(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ filename)
 
@@ -460,9 +454,10 @@ class java_library_modern com name file_path = object(self)
 				None
 			else begin
 				try
-					let files = Hashtbl.find_all modules path in
-					if files = [] then raise Not_found;
-					let jcs = List.map self#lookup' files in
+					let entries = Hashtbl.find_all modules path in
+					if entries = [] then raise Not_found;
+					let zip = Lazy.force zip in
+					let jcs = List.map (self#read zip) entries in
 					Some (Converter.convert_module (fst path) jcs)
 				with Not_found ->
 					None
