@@ -489,152 +489,160 @@ module JReaderModern = struct
 		}
 end
 
+module PathConverter = struct
+	let jname_to_hx name =
+		let name =
+			if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
+				Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+			else
+				name
+		in
+		let name = String.concat "__" (String.nsplit name "_") in
+		match String.nsplit name "$" with
+		| [] ->
+			die "" __LOC__
+		| [_] ->
+			None,name
+		| [x;""] ->
+			None,x ^ "_" (* trailing $ *)
+		| x :: l ->
+			let name = String.concat "_" (x :: l) in
+			if x = "" then None,name (* leading $ *)
+			else Some x,name
+
+	let normalize_pack pack =
+		List.map (function
+			| "" -> ""
+			| str when String.get str 0 >= 'A' && String.get str 0 <= 'Z' ->
+				String.lowercase str
+			| str -> str
+		) pack
+
+	let jpath_to_hx (pack,name) =
+		let pack,name = match pack,name with
+		| ["haxe";"root"],name ->
+			[],name
+		| "com" :: ("oracle" | "sun") :: _, _
+		| "javax" :: _, _
+		| "org" :: ("ietf" | "jcp" | "omg" | "w3c" | "xml") :: _, _
+		| "sun" :: _, _
+		| "sunw" :: _, _ ->
+			"java" :: pack,name
+		| _ ->
+			pack,name
+		in
+		let pack = normalize_pack pack in
+		pack,jname_to_hx name
+
+	let jpath_to_path (pack,(mname,name)) =
+		let pack,name = match mname with
+			| None -> pack,name
+			| Some mname -> pack @ [mname],name
+		in
+		pack,name
+
+	let is_haxe_keyword = function
+		| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+		| _ -> false
+end
+
 type java_lib_ctx = {
 	type_params : (string,complex_type) PMap.t;
 }
 
-let jname_to_hx name =
-	let name =
-		if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-			Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
-		else
-			name
-	in
-	let name = String.concat "__" (String.nsplit name "_") in
-	match String.nsplit name "$" with
-	| [] ->
-		die "" __LOC__
-	| [_] ->
-		None,name
-	| [x;""] ->
-		None,x ^ "_" (* trailing $ *)
-	| x :: l ->
-		let name = String.concat "_" (x :: l) in
-		if x = "" then None,name (* leading $ *)
-		else Some x,name
+module SignatureConverter = struct
+	open PathConverter
 
-let normalize_pack pack =
-	List.map (function
-		| "" -> ""
-		| str when String.get str 0 >= 'A' && String.get str 0 <= 'Z' ->
-			String.lowercase str
-		| str -> str
-	) pack
+	let mk_type_path path params =
+		let pack,(mname,name) = jpath_to_hx path in
+		match mname with
+		| None ->
+			CTPath {
+				tpackage = pack;
+				tname = name;
+				tparams = params;
+				tsub = None;
+			}
+		| Some mname ->
+			CTPath {
+				tpackage = pack;
+				tname = mname;
+				tparams = params;
+				tsub = Some name;
+			}
 
-let jpath_to_hx (pack,name) =
-	let pack,name = match pack,name with
-	| ["haxe";"root"],name ->
-		[],name
-	| "com" :: ("oracle" | "sun") :: _, _
-	| "javax" :: _, _
-	| "org" :: ("ietf" | "jcp" | "omg" | "w3c" | "xml") :: _, _
-	| "sun" :: _, _
-	| "sunw" :: _, _ ->
-		"java" :: pack,name
-	| _ ->
-		pack,name
-	in
-	let pack = normalize_pack pack in
-	pack,jname_to_hx name
+	let ct_type_param name = CTPath {
+		tpackage = [];
+		tname = name;
+		tparams = [];
+		tsub = None
+	}
 
-let jpath_to_path (pack,(mname,name)) =
-	let pack,name = match mname with
-		| None -> pack,name
-		| Some mname -> pack @ [mname],name
-	in
-	pack,name
+	let ct_void = CTPath {
+		tpackage = [];
+		tname = "Void";
+		tparams = [];
+		tsub = None;
+	}
 
-let is_haxe_keyword = function
-	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-	| _ -> false
+	let ct_dynamic = CTPath {
+		tpackage = [];
+		tname = "Dynamic";
+		tparams = [];
+		tsub = None;
+	}
 
-let mk_type_path path params =
-	let pack,(mname,name) = jpath_to_hx path in
-	match mname with
-	| None ->
-		CTPath {
-			tpackage = pack;
-			tname = name;
-			tparams = params;
-			tsub = None;
-		}
-	| Some mname ->
-		CTPath {
-			tpackage = pack;
-			tname = mname;
-			tparams = params;
-			tsub = Some name;
-		}
+	let ct_string = CTPath {
+		tpackage = [];
+		tname = "String";
+		tparams = [];
+		tsub = None;
+	}
 
-let ct_type_param name = CTPath {
-	tpackage = [];
-	tname = name;
-	tparams = [];
-	tsub = None
-}
+	let rec convert_arg ctx p arg =
+		match arg with
+		| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [],p)
+		| TType (_, jsig) -> TPType (convert_signature ctx p jsig,p)
 
-let ct_void = CTPath {
-	tpackage = [];
-	tname = "Void";
-	tparams = [];
-	tsub = None;
-}
-
-let ct_dynamic = CTPath {
-	tpackage = [];
-	tname = "Dynamic";
-	tparams = [];
-	tsub = None;
-}
-
-let ct_string = CTPath {
-	tpackage = [];
-	tname = "String";
-	tparams = [];
-	tsub = None;
-}
-
-let rec convert_arg ctx p arg =
-	match arg with
-	| TAny | TType (WSuper, _) -> TPType (mk_type_path ([], "Dynamic") [],p)
-	| TType (_, jsig) -> TPType (convert_signature ctx p jsig,p)
-
-and convert_signature ctx p jsig =
-	match jsig with
-	| TByte -> mk_type_path (["java"; "types"], "Int8") []
-	| TChar -> mk_type_path (["java"; "types"], "Char16") []
-	| TDouble -> mk_type_path ([], "Float") []
-	| TFloat -> mk_type_path ([], "Single") []
-	| TInt -> mk_type_path ([], "Int") []
-	| TLong -> mk_type_path (["haxe"], "Int64") []
-	| TShort -> mk_type_path (["java"; "types"], "Int16") []
-	| TBool -> mk_type_path ([], "Bool") []
-	| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args)
-	| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") []
-	| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") []
-	| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") []
-	| TObject ( path, [] ) ->
-		mk_type_path path []
-	| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args)
-	| TObjectInner (pack, (name, params) :: inners) ->
-		let actual_param = match List.rev inners with
-		| (_, p) :: _ -> p
-		| _ -> die "" __LOC__ in
-		mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
-	| TObjectInner (pack, inners) -> die "" __LOC__
-	| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ]
-	| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
-	| TTypeParameter s ->
-		try
-			PMap.find s ctx.type_params
-		with Not_found ->
-			ct_dynamic
+	and convert_signature ctx p jsig =
+		match jsig with
+		| TByte -> mk_type_path (["java"; "types"], "Int8") []
+		| TChar -> mk_type_path (["java"; "types"], "Char16") []
+		| TDouble -> mk_type_path ([], "Float") []
+		| TFloat -> mk_type_path ([], "Single") []
+		| TInt -> mk_type_path ([], "Int") []
+		| TLong -> mk_type_path (["haxe"], "Int64") []
+		| TShort -> mk_type_path (["java"; "types"], "Int16") []
+		| TBool -> mk_type_path ([], "Bool") []
+		| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ([], name) (List.map (convert_arg ctx p) args)
+		| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ([], "Dynamic") []
+		| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ([], "String") []
+		| TObject ( (["java";"lang"], "Enum"), [_] ) -> mk_type_path ([], "EnumValue") []
+		| TObject ( path, [] ) ->
+			mk_type_path path []
+		| TObject ( path, args ) -> mk_type_path path (List.map (convert_arg ctx p) args)
+		| TObjectInner (pack, (name, params) :: inners) ->
+			let actual_param = match List.rev inners with
+			| (_, p) :: _ -> p
+			| _ -> die "" __LOC__ in
+			mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
+		| TObjectInner (pack, inners) -> die "" __LOC__
+		| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ]
+		| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
+		| TTypeParameter s ->
+			try
+				PMap.find s ctx.type_params
+			with Not_found ->
+				ct_dynamic
+end
 
 let get_type_path ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 module Converter = struct
 
 	open JReaderModern
+	open PathConverter
+	open SignatureConverter
 
 	let convert_type_parameter ctx (name,extends,implements) p =
 		let jsigs = match extends with
@@ -885,6 +893,7 @@ end
 class java_library_modern com name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
+
 	val zip = lazy (Zip.open_in file_path)
 	val mutable cached_files = []
 	val modules = Hashtbl.create 0
@@ -903,8 +912,8 @@ class java_library_modern com name file_path = object(self)
 						| name :: pack ->
 							let name = String.sub name 0 (String.length name - 6) in
 							let pack = List.rev pack in
-							let pack,(mname,tname) = jpath_to_hx (pack,name) in
-							let path = jpath_to_path (pack,(mname,tname)) in
+							let pack,(mname,tname) = PathConverter.jpath_to_hx (pack,name) in
+							let path = PathConverter.jpath_to_path (pack,(mname,tname)) in
 							let mname = match mname with
 								| None ->
 									cached_files <- path :: cached_files;
