@@ -2,7 +2,492 @@ open Globals
 open Ast
 open ExtString
 open NativeLibraries
-open JData
+
+module AccessFlags = struct
+	type t =
+		| MPublic
+		| MPrivate
+		| MProtected
+		| MStatic
+		| MFinal
+		| MSynchronized
+		| MBridge
+		| MVarargs
+		| MNative
+		| MInterface
+		| MAbstract
+		| MStrict
+		| MSynthetic
+		| MEnum
+
+	let to_int = function
+		| MPublic -> 0x1
+		| MPrivate -> 0x2
+		| MProtected -> 0x4
+		| MStatic -> 0x8
+		| MFinal -> 0x10
+		| MSynchronized -> 0x20
+		| MBridge -> 0x40
+		| MVarargs -> 0x80
+		| MNative -> 0x100
+		| MInterface -> 0x200
+		| MAbstract -> 0x400
+		| MStrict -> 0x800
+		| MSynthetic -> 0x1000
+		| MEnum -> 0x4000
+
+	let has_flag b flag =
+		b land (to_int flag) <> 0
+end
+
+module JDataHoldovers = struct
+	type jwildcard =
+		| WExtends (* + *)
+		| WSuper (* -  *)
+		| WNone
+
+	type jtype_argument =
+		| TType of jwildcard * jsignature
+		| TAny (* * *)
+
+	and jsignature =
+		| TByte (* B *)
+		| TChar (* C *)
+		| TDouble (* D *)
+		| TFloat (* F *)
+		| TInt (* I *)
+		| TLong (* J *)
+		| TShort (* S *)
+		| TBool (* Z *)
+		| TObject of path * jtype_argument list (* L Classname *)
+		| TObjectInner of (string list) * (string * jtype_argument list) list (* L Classname ClassTypeSignatureSuffix *)
+		| TArray of jsignature * int option (* [ *)
+		| TMethod of jmethod_signature (* ( *)
+		| TTypeParameter of string (* T *)
+
+	(* ( jsignature list ) ReturnDescriptor (| V | jsignature) *)
+	and jmethod_signature = jsignature list * jsignature option
+
+	type jtypes = (string * jsignature option * jsignature list) list
+end
+
+open JDataHoldovers
+
+module JReaderHoldovers = struct
+	open JDataHoldovers
+
+	let rec parse_type_parameter_part s = match s.[0] with
+		| '*' -> TAny, 1
+		| c ->
+			let wildcard, i = match c with
+			| '+' -> WExtends, 1
+			| '-' -> WSuper, 1
+			| _ -> WNone, 0
+			in
+			let jsig, l = parse_signature_part (String.sub s i (String.length s - 1)) in
+			(TType (wildcard, jsig), l + i)
+
+	and parse_signature_part s =
+		let len = String.length s in
+		if len = 0 then raise Exit;
+		match s.[0] with
+		| 'B' -> TByte, 1
+		| 'C' -> TChar, 1
+		| 'D' -> TDouble, 1
+		| 'F' -> TFloat, 1
+		| 'I' -> TInt, 1
+		| 'J' -> TLong, 1
+		| 'S' -> TShort, 1
+		| 'Z' -> TBool, 1
+		| 'L' ->
+			(try
+			let orig_s = s in
+			let rec loop start i acc =
+				match s.[i] with
+				| '/' -> loop (i + 1) (i + 1) (String.sub s start (i - start) :: acc)
+				| ';' | '.' -> List.rev acc, (String.sub s start (i - start)), [], (i)
+				| '<' ->
+				let name = String.sub s start (i - start) in
+				let rec loop_params i acc =
+					let s = String.sub s i (len - i) in
+					match s.[0] with
+					| '>' -> List.rev acc, i + 1
+					| _ ->
+					let tp, l = parse_type_parameter_part s in
+					loop_params (l + i) (tp :: acc)
+				in
+				let params, _end = loop_params (i + 1) [] in
+				List.rev acc, name, params, (_end)
+				| _ -> loop start (i+1) acc
+			in
+			let pack, name, params, _end = loop 1 1 [] in
+			let rec loop_inner i acc =
+				match s.[i] with
+				| '.' ->
+				let pack, name, params, _end = loop (i+1) (i+1) [] in
+				if pack <> [] then failwith ("Inner types must not define packages. For '" ^ orig_s ^ "'.");
+				loop_inner _end ( (name,params) :: acc )
+				| ';' -> List.rev acc, i + 1
+				| c -> failwith ("End of complex type signature expected after type parameter. Got '" ^ Char.escaped c ^ "' for '" ^ orig_s ^ "'." );
+			in
+			let inners, _end = loop_inner _end [] in
+			match inners with
+			| [] -> TObject((pack,name), params), _end
+			| _ -> TObjectInner( pack, (name,params) :: inners ), _end
+			with
+			Invalid_string -> raise Exit)
+		| '[' ->
+			let p = ref 1 in
+			while !p < String.length s && s.[!p] >= '0' && s.[!p] <= '9' do
+			incr p;
+			done;
+			let size = (if !p > 1 then Some (int_of_string (String.sub s 1 (!p - 1))) else None) in
+			let s , l = parse_signature_part (String.sub s !p (String.length s - !p)) in
+			TArray (s,size) , l + !p
+		| '(' ->
+			let p = ref 1 in
+			let args = ref [] in
+			while !p < String.length s && s.[!p] <> ')' do
+			let a , l = parse_signature_part (String.sub s !p (String.length s - !p)) in
+			args := a :: !args;
+			p := !p + l;
+			done;
+			incr p;
+			if !p >= String.length s then raise Exit;
+			let ret , l = (match s.[!p] with 'V' -> None , 1 | _ ->
+			let s, l = parse_signature_part (String.sub s !p (String.length s - !p)) in
+			Some s, l
+			) in
+			TMethod (List.rev !args,ret) , !p + l
+		| 'T' ->
+			(try
+			let s1 , _ = String.split s ";" in
+			let len = String.length s1 in
+			TTypeParameter (String.sub s1 1 (len - 1)) , len + 1
+			with
+			Invalid_string -> raise Exit)
+		| _ ->
+			raise Exit
+
+	let parse_signature s =
+		try
+			let sign , l = parse_signature_part s in
+			if String.length s <> l then raise Exit;
+			sign
+		with
+			Exit -> failwith ("Invalid signature '" ^ s ^ "'")
+
+	let parse_method_signature s =
+		match parse_signature s with
+		| (TMethod m) -> m
+		| _ -> failwith ("Unexpected signature '" ^ s ^ "'. Expecting method")
+
+	let parse_formal_type_params s = match s.[0] with
+		| '<' ->
+			let rec read_id i =
+			match s.[i] with
+			| ':' | '>' -> i
+			| _ -> read_id (i + 1)
+			in
+			let len = String.length s in
+			let rec parse_params idx acc =
+			let idi = read_id (idx + 1) in
+			let id = String.sub s (idx + 1) (idi - idx - 1) in
+			(* next must be a : *)
+			(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
+			let ext, l = match s.[idi + 1] with
+				| ':' | '>' -> None, idi + 1
+				| _ ->
+				let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
+				Some sgn, l + idi + 1
+			in
+			let rec loop idx acc =
+				match s.[idx] with
+				| ':' ->
+				let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
+				loop (idx + ifacei + 1) (ifacesig :: acc)
+				| _ -> acc, idx
+			in
+			let ifaces, idx = loop l [] in
+			let acc = (id, ext, ifaces) :: acc in
+			if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
+			in
+			parse_params 0 []
+		| _ -> [], 0
+
+	let parse_throws s =
+		let len = String.length s in
+		let rec loop idx acc =
+			if idx > len then raise Exit
+			else if idx = len then acc, idx
+			else match s.[idx] with
+			| '^' ->
+			let tsig, l = parse_signature_part (String.sub s (idx+1) (len - idx - 1)) in
+			loop (idx + l + 1) (tsig :: acc)
+			| _ -> acc, idx
+		in
+		loop 0 []
+
+	let parse_complete_method_signature s =
+		try
+			let len = String.length s in
+			let tparams, i = parse_formal_type_params s in
+			let sign, l = parse_signature_part (String.sub s i (len - i)) in
+			let throws, l2 = parse_throws (String.sub s (i+l) (len - i - l)) in
+			if (i + l + l2) <> len then raise Exit;
+
+			match sign with
+			| TMethod msig -> tparams, msig, throws
+			| _ -> raise Exit
+		with
+			Exit -> failwith ("Invalid method extended signature '" ^ s ^ "'")
+end
+
+module JReaderModern = struct
+	open IO
+	open IO.BigEndian
+
+	open JReaderHoldovers
+
+	type constant_pool = {
+		strings : string array;
+		paths : path array;
+		name_and_types : (string * string) array;
+	}
+
+	type jlocal = {
+		ld_start_pc : int;
+		ld_length : int;
+		ld_name : string;
+		ld_descriptor : string;
+		ld_index : int;
+	}
+
+	type jattribute =
+		| AttrCode of jattribute list
+		| AttrDeprecated
+		| AttrLocalVariableTable of jlocal list
+  		| AttrMethodParameters of (string * int) list
+		| AttrSignature of string
+  		| AttrOther
+
+	type jfield = {
+		jf_name : string;
+		jf_flags : int;
+		jf_types : jtypes;
+		jf_descriptor : jsignature;
+		jf_attributes : jattribute list;
+		jf_code : jattribute list option;
+	}
+
+	type jclass = {
+		jc_path : path;
+		jc_flags : int;
+		jc_super : jsignature;
+		jc_interfaces : jsignature list;
+		jc_types : jtypes;
+		jc_fields : jfield list;
+		jc_methods : jfield list;
+		jc_attributes : jattribute list;
+	}
+
+	let read_constant_pool ch =
+		let count = read_ui16 ch in
+		let strings = Array.make count "" in
+		let paths = Array.make count 0 in
+		let name_and_types = Array.make count (0,0) in
+		let i = ref 1 in
+		while !i < count do
+			begin match read_byte ch with
+			| 1 ->
+				strings.(!i) <- nread_string ch (read_ui16 ch)
+			| 3 ->
+				ignore(read_real_i32 ch)
+			| 4 ->
+				ignore(read_float32 ch)
+			| 5 ->
+				incr i;
+				ignore(read_i64 ch)
+			| 6 ->
+				incr i;
+				ignore(read_double ch)
+			| 7 ->
+				paths.(!i) <- read_ui16 ch
+			| 8 ->
+				ignore(read_ui16 ch)
+			| 9 | 10 | 11 ->
+				ignore(read_ui16 ch);
+				ignore(read_ui16 ch);
+			| 12 ->
+				let name = read_ui16 ch in
+				let t = read_ui16 ch in
+				name_and_types.(!i) <- (name,t);
+			| 15 ->
+				ignore(read_byte ch);
+				ignore(read_ui16 ch);
+			| 16 ->
+				ignore(read_ui16 ch);
+			| 17 | 18 ->
+				ignore(read_ui16 ch);
+				ignore(read_ui16 ch);
+			| 19 | 20 ->
+				ignore(read_ui16 ch);
+			| i ->
+				failwith (Printf.sprintf "Invalid constant pool byte: %i" i);
+			end;
+			incr i;
+		done;
+		let as_path s = match List.rev (String.nsplit s "/") with
+			| [x] -> [],x
+			| x :: l -> List.rev l,x
+			| [] -> assert false
+		in
+		let paths = Array.map (fun index ->
+			if index > 0 then as_path (strings.(index))
+			else ([],"")
+		) paths in
+		let name_and_types = Array.map (fun (name,t) ->
+			let name = if name > 0 then strings.(name) else "" in
+			let t = if t > 0 then strings.(t) else "" in
+			(name,t)
+		) name_and_types in
+		{strings;paths;name_and_types}
+
+	let rec parse_attribute consts ch =
+		let name = consts.strings.(read_ui16 ch) in
+		let length = read_i32 ch in
+		match name with
+		| "Code" ->
+			ignore(read_ui16 ch); (* max stack *)
+			ignore(read_ui16 ch); (* max locals *)
+			let len = read_i32 ch in
+			ignore(IO.nread_string ch len); (* code *)
+			let len = read_ui16 ch in
+			for i = 0 to len - 1 do
+				ignore(IO.nread_string ch 8);
+			done; (* exceptions *)
+			let attribs = parse_attributes consts ch in
+			AttrCode attribs
+		| "Deprecated" ->
+			AttrDeprecated
+		| "LocalVariableTable" ->
+			let len = read_ui16 ch in
+			let locals = List.init len (fun _ ->
+				let start_pc = read_ui16 ch in
+				let length = read_ui16 ch in
+				let name = consts.strings.(read_ui16 ch) in
+				let descriptor = consts.strings.(read_ui16 ch) in
+				let index = read_ui16 ch in
+				{
+					ld_start_pc = start_pc;
+					ld_length = length;
+					ld_name = name;
+					ld_descriptor = descriptor;
+					ld_index = index
+				}
+			) in
+			AttrLocalVariableTable locals
+		| "MethodParameters" ->
+			let len = IO.read_byte ch in
+			let parameters = List.init len (fun _ ->
+				let name = consts.strings.(read_ui16 ch) in
+				let flags = read_ui16 ch in
+				(name,flags)
+			) in
+			AttrMethodParameters parameters
+		| "Signature" ->
+			let s = consts.strings.(read_ui16 ch) in
+			AttrSignature s
+		| _ ->
+			ignore(nread ch length);
+			AttrOther
+
+	and parse_attributes consts ch =
+		Array.to_list (Array.init (read_ui16 ch) (fun _ ->
+			parse_attribute consts ch
+		))
+
+	let parse_field consts is_method ch =
+		let flags = read_ui16 ch in
+		let name = consts.strings.(read_ui16 ch) in
+		let descriptor = consts.strings.(read_ui16 ch) in
+		let attributes = parse_attributes consts ch in
+		let types = ref [] in
+		let jsig = ref None in
+		let code = ref None in
+		List.iter (function
+			| AttrCode code' ->
+				code := Some code'
+			| AttrSignature s ->
+				if is_method then begin
+					let tp, sgn, thr = parse_complete_method_signature s in
+					types := tp;
+					jsig := Some (TMethod(sgn));
+				end else
+					jsig := Some (parse_signature s)
+			| _ ->
+				()
+		) attributes;
+		{
+			jf_name = name;
+			jf_flags = flags;
+			jf_types = !types;
+			jf_descriptor = (match !jsig with
+				| None -> parse_signature descriptor;
+				| Some jsig -> jsig);
+			jf_attributes = attributes;
+			jf_code = !code;
+		}
+
+	let parse_class ch =
+		if read_real_i32 ch <> 0xCAFEBABEl then failwith "Invalid header";
+		let _ = read_ui16 ch in
+		let _ = read_ui16 ch in
+		let consts = read_constant_pool ch in
+		let flags = read_ui16 ch in
+		let this = consts.paths.(read_ui16 ch) in
+		let super = TObject(consts.paths.(read_ui16 ch),[]) in
+		let interfaces = List.init (read_ui16 ch) (fun _ ->
+			TObject(consts.paths.(read_ui16 ch),[])
+		) in
+		let fields = List.init (read_ui16 ch) (fun _ -> parse_field consts false ch) in
+		let methods = List.init (read_ui16 ch) (fun _ -> parse_field consts true ch) in
+		let attributes = parse_attributes consts ch in
+		let types = ref [] in
+		let interfaces = ref interfaces in
+		let super = ref super in
+		List.iter (function
+			| AttrSignature s ->
+				let formal, idx = parse_formal_type_params s in
+				types := formal;
+				let s = String.sub s idx (String.length s - idx) in
+				let len = String.length s in
+				let sup, idx = parse_signature_part s in
+				let rec loop idx acc =
+					if idx = len then
+					acc
+					else begin
+					let s = String.sub s idx (len - idx) in
+					let iface, i2 = parse_signature_part s in
+					loop (idx + i2) (iface :: acc)
+					end
+				in
+				interfaces := loop idx [];
+				super := sup;
+			| _ ->
+				()
+		) attributes;
+		{
+			jc_path = this;
+			jc_flags = flags;
+			jc_super = !super;
+			jc_interfaces = !interfaces;
+			jc_types = !types;
+			jc_fields = fields;
+			jc_methods = methods;
+			jc_attributes = attributes;
+		}
+end
 
 type java_lib_ctx = {
 	type_params : (string,complex_type) PMap.t;
@@ -138,7 +623,7 @@ and convert_signature ctx p jsig =
 		mk_type_path (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
 	| TObjectInner (pack, inners) -> die "" __LOC__
 	| TArray (jsig, _) -> mk_type_path (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,p) ]
-	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
+	| TMethod _ -> failwith "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s ->
 		try
 			PMap.find s ctx.type_params
@@ -148,6 +633,8 @@ and convert_signature ctx p jsig =
 let get_type_path ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 module Converter = struct
+
+	open JReaderModern
 
 	let convert_type_parameter ctx (name,extends,implements) p =
 		let jsigs = match extends with
@@ -179,14 +666,14 @@ module Converter = struct
 		let meta = ref [] in
 		let add_meta m = meta := m :: !meta in
 		let data = ref [] in
-		List.iter (fun f ->
-			match f.jf_vmsignature with
-			| TObject( path, [] ) when path = jc.cpath && List.mem JStatic f.jf_flags && List.mem JFinal f.jf_flags ->
-				data := { ec_name = f.jf_name,p; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+		List.iter (fun (jf : jfield) ->
+			match jf.jf_descriptor with
+			| TObject( path, [] ) when path = jc.jc_path && AccessFlags.has_flag jf.jf_flags MStatic && AccessFlags.has_flag jf.jf_flags MFinal ->
+				data := { ec_name = jf.jf_name,p; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
 			| _ -> ()
-		) jc.cfields;
-		let _,class_name = jname_to_hx (snd jc.cpath) in
-		add_meta (Meta.Native, [EConst (String (s_type_path jc.cpath,SDoubleQuotes) ),p],p);
+		) jc.jc_fields;
+		let _,class_name = jname_to_hx (snd jc.jc_path) in
+		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;
@@ -202,26 +689,27 @@ module Converter = struct
 			PMap.add s (ct_type_param s) acc
 		) acc params
 
-	let convert_field ctx (jc : jclass) (jf : jfield) p =
+	let convert_field ctx is_method (jc : jclass) (jf : jfield) p =
 		let ctx = {
 			type_params = type_param_lut ctx.type_params jf.jf_types;
 		} in
 		let p = {p with pfile = p.pfile ^ "@" ^ jf.jf_name} in
-		let is_static = List.mem JStatic jf.jf_flags in
+		let is_static = AccessFlags.has_flag jf.jf_flags MStatic in
 		let access = ref [] in
 		let meta = ref [] in
 		let add_access a = access := a :: !access in
 		let add_meta m = meta := m :: !meta in
 		if is_static then add_access (AStatic,p);
 		List.iter (function
-			| AttrDeprecated when jc.cpath <> (["java";"util"],"Date") ->
+			| AttrDeprecated when jc.jc_path <> (["java";"util"],"Date") ->
 				add_meta (Meta.Deprecated,[],p);
-			| AttrVisibleAnnotations ann ->
+			(* TODO: Do we need this? *)
+			(* | AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
 						add_access (AOverride,null_pos);
 					| _ -> ()
-				) ann
+				) ann *)
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =
@@ -240,8 +728,8 @@ module Converter = struct
 				add_native_meta();
 				String.concat "_" parts
 		in
-		if jf.jf_kind = JKMethod then add_meta (Meta.Overload,[],p);
-		if List.mem JFinal jf.jf_flags then add_access (AFinal,p);
+		if is_method then add_meta (Meta.Overload,[],p);
+		if AccessFlags.has_flag jf.jf_flags MFinal then add_access (AFinal,p);
 		let extract_local_names () =
 			let default i =
 				"param" ^ string_of_int i
@@ -281,11 +769,10 @@ module Converter = struct
 			with Not_found ->
 				default
 		in
-		let kind = match jf.jf_kind with
-			| JKField ->
-				FVar(Some (convert_signature ctx p jf.jf_signature,p),None)
-			| JKMethod ->
-				begin match jf.jf_signature with
+		let kind = if not is_method then
+				FVar(Some (convert_signature ctx p jf.jf_descriptor,p),None)
+			else
+				begin match jf.jf_descriptor with
 				| TMethod(args,ret) ->
 					let local_names = extract_local_names() in
 					let convert_arg i jsig =
@@ -324,10 +811,11 @@ module Converter = struct
 		let add_flag f = flags := f :: !flags in
 		let add_meta m = meta := m :: !meta in
 		add_meta (Meta.LibType,[],p);
-		let is_interface = List.mem JInterface jc.cflags in
+		let is_interface = AccessFlags.has_flag jc.jc_flags MInterface in
 		if is_interface then add_flag HInterface;
-		begin match jc.csuper with
-			| TObject( (["java";"lang"], "Object"), _ ) ->
+		begin match jc.jc_super with
+			| TObject(([],""),_)
+			| TObject((["java";"lang"],"Object"),_) ->
 				()
 			| jsig ->
 				add_flag (HExtends (get_type_path (convert_signature ctx p jsig),p))
@@ -338,50 +826,43 @@ module Converter = struct
 				add_flag (HExtends path)
 			else
 				add_flag (HImplements path)
-		) jc.cinterfaces;
+		) jc.jc_interfaces;
 		let fields = DynArray.create () in
 		let known_names = Hashtbl.create 0 in
 		let known_sigs = Hashtbl.create 0 in
 		let should_generate jf =
-			try
-				List.iter (function
-					| JPrivate -> raise Exit
-					| _ -> ()
-				) jf.jf_flags;
-				true
-			with Exit ->
-				false
+			not (AccessFlags.has_flag jf.jf_flags MPrivate)
 		in
-		if jc.cpath <> (["java";"lang"], "CharSequence") then begin
+		if jc.jc_path <> (["java";"lang"], "CharSequence") then begin
 			List.iter (fun jf ->
 				if should_generate jf then begin
 					Hashtbl.replace known_names jf.jf_name jf;
-					let sig_key = match jf.jf_signature with
+					let sig_key = match jf.jf_descriptor with
 						| TMethod(jsigs,_) -> TMethod(jsigs,None) (* lack of return type variance *)
 						| jsig -> jsig
 					in
 					let key = (jf.jf_name,sig_key) in
 					if not (Hashtbl.mem known_sigs key) then begin
 						Hashtbl.add known_sigs key jf;
-						DynArray.add fields (convert_field ctx jc jf p)
+						DynArray.add fields (convert_field ctx true jc jf p)
 					end
 				end
-			) jc.cmethods;
+			) jc.jc_methods;
 			List.iter (fun jf ->
 				if should_generate jf then begin
 					if not (Hashtbl.mem known_names jf.jf_name) then begin
 						Hashtbl.add known_names jf.jf_name jf;
-						DynArray.add fields (convert_field ctx jc jf p)
+						DynArray.add fields (convert_field ctx false jc jf p)
 					end
 				end
-			) jc.cfields;
+			) jc.jc_fields;
 		end;
-		let _,class_name = jname_to_hx (snd jc.cpath) in
-		add_meta (Meta.Native, [EConst (String (s_type_path jc.cpath,SDoubleQuotes) ),p],p);
+		let _,class_name = jname_to_hx (snd jc.jc_path) in
+		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;
-			d_params = List.map (fun tp -> convert_type_parameter ctx tp p) jc.ctypes;
+			d_params = List.map (fun tp -> convert_type_parameter ctx tp p) jc.jc_types;
 			d_meta = !meta;
 			d_flags = !flags;
 			d_data = DynArray.to_list fields;
@@ -389,12 +870,12 @@ module Converter = struct
 		(EClass d,p)
 
 	let convert_type ctx jc file =
-		if List.mem JEnum jc.cflags then convert_enum jc file else convert_class ctx jc file
+		if AccessFlags.has_flag jc.jc_flags MEnum then convert_enum jc file else convert_class ctx jc file
 
 	let convert_module pack jcs =
 		let types = List.map (fun (jc,_,file) ->
 			let ctx = {
-				type_params = type_param_lut PMap.empty jc.ctypes;
+				type_params = type_param_lut PMap.empty jc.jc_types;
 			} in
 			convert_type ctx jc file;
 		) jcs in
@@ -440,7 +921,8 @@ class java_library_modern com name file_path = object(self)
 	method private read zip (filename,entry) =
 		Std.finally (Timer.timer ["jar";"read"]) (fun () ->
 			let data = Zip.read_entry zip entry in
-			(JReader.parse_class (IO.input_string data),file_path,file_path ^ "@" ^ filename)
+			let jc = JReaderModern.parse_class (IO.input_string data) in
+			(jc,file_path,file_path ^ "@" ^ filename)
 		) ()
 
 	method lookup path : java_lib_type =
