@@ -372,7 +372,7 @@ module JReaderModern = struct
 			AttrDeprecated
 		| "LocalVariableTable" ->
 			let len = read_ui16 ch in
-			let locals = List.init len (fun _ ->
+			let locals = ExtList.List.init len (fun _ ->
 				let start_pc = read_ui16 ch in
 				let length = read_ui16 ch in
 				let name = consts.strings.(read_ui16 ch) in
@@ -389,7 +389,7 @@ module JReaderModern = struct
 			AttrLocalVariableTable locals
 		| "MethodParameters" ->
 			let len = IO.read_byte ch in
-			let parameters = List.init len (fun _ ->
+			let parameters = ExtList.List.init len (fun _ ->
 				let name = consts.strings.(read_ui16 ch) in
 				let flags = read_ui16 ch in
 				(name,flags)
@@ -447,11 +447,11 @@ module JReaderModern = struct
 		let flags = read_ui16 ch in
 		let this = consts.paths.(read_ui16 ch) in
 		let super = TObject(consts.paths.(read_ui16 ch),[]) in
-		let interfaces = List.init (read_ui16 ch) (fun _ ->
+		let interfaces = ExtList.List.init (read_ui16 ch) (fun _ ->
 			TObject(consts.paths.(read_ui16 ch),[])
 		) in
-		let fields = List.init (read_ui16 ch) (fun _ -> parse_field consts false ch) in
-		let methods = List.init (read_ui16 ch) (fun _ -> parse_field consts true ch) in
+		let fields = ExtList.List.init (read_ui16 ch) (fun _ -> parse_field consts false ch) in
+		let methods = ExtList.List.init (read_ui16 ch) (fun _ -> parse_field consts true ch) in
 		let attributes = parse_attributes consts ch in
 		let types = ref [] in
 		let interfaces = ref interfaces in
