@@ -30,7 +30,7 @@ package haxe.ds;
 	Other code holding a reference to the underlying `Array` can still modify it,
 	and the reference can be obtained with a `cast`.
 **/
-@:forward(concat, copy, filter, indexOf, iterator, join, lastIndexOf, map, slice, toString)
+@:forward(concat, copy, filter, indexOf, iterator, keyValueIterator, join, lastIndexOf, map, slice, contains, toString)
 abstract ReadOnlyArray<T>(Array<T>) from Array<T> to Iterable<T> {
 	/**
 		The length of `this` Array.
