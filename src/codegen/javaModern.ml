@@ -425,11 +425,12 @@ class java_library_modern com name file_path = object(self)
 							let pack,(mname,tname) = jpath_to_hx (pack,name) in
 							let path = jpath_to_path (pack,(mname,tname)) in
 							let mname = match mname with
-								| None -> tname
+								| None ->
+									cached_files <- path :: cached_files;
+									tname
 								| Some mname -> mname
 							in
 							Hashtbl.add modules (pack,mname) (filename,entry);
-							cached_files <- path :: cached_files;
 						end
 				| _ -> ()
 			) (Zip.entries (Lazy.force zip));
