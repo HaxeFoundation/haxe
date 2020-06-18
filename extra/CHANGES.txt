@@ -13,6 +13,7 @@
 	analyzer : fixed compiler crash upon handling code branches with enums with optional arguments (#9591)
 	jvm : added "--java-lib-extern" to use jar files as externs without adding them to the compiled project (#9515)
 	macro : fixed type intersection syntax in macro reification (#9404)
+	eval : fixed exception message when catching compiler-generated `haxe.macro.Error` as `Dynamic` (#9600)
 	lua : fixed lua code generation without `--main` compilation argument (#9489)
 	php : added an overload signature for `session_set_cookie_params` function (#9507)
 	nullsafety : fixed various scenarios of `if..else` branching (#9474)
