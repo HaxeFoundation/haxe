@@ -115,8 +115,17 @@ let mk_class m path pos name_pos =
 	}
 
 let module_extra file sign time kind policy =
+	let file_key = ref None in
 	{
 		m_file = file;
+		m_file_key = (fun () ->
+			match !file_key with
+			| Some key -> key
+			| None ->
+				let key = Path.UniqueKey.create file in
+				file_key := Some key;
+				key
+		);
 		m_sign = sign;
 		m_display = {
 			m_inline_calls = [];
