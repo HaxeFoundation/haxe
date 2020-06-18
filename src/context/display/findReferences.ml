@@ -43,25 +43,41 @@ let collect_reference_positions com =
 				in
 				loop com.types
 			in
-			let cf,c =
-				if find_base then
-					let rec loop c =
-						match c.cl_super with
-						| None -> (PMap.find cf.cf_name c.cl_fields),c
-						| Some (csup,_) ->
-							try loop csup
-							with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
-					in
-					try loop c
-					with Not_found -> cf,c
-				else
-					cf,c
+			let field_class_pairs =
+				(* check classes hierarchy *)
+				let cf,c =
+					if find_base then
+						let rec loop c =
+							match c.cl_super with
+							| None -> (PMap.find cf.cf_name c.cl_fields),c
+							| Some (csup,_) ->
+								try loop csup
+								with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
+						in
+						try loop c
+						with Not_found -> cf,c
+					else
+						cf,c
+				in
+				(* check interfaces of the found base class *)
+				let rec fold_interface acc (i,_) =
+					try loop i @ acc
+					with Not_found -> acc
+				and loop c =
+					match List.fold_left fold_interface [] c.cl_implements with
+					| [] -> [(PMap.find cf.cf_name c.cl_fields),c]
+					| pairs -> pairs
+				in
+				match List.fold_left fold_interface [] c.cl_implements with
+				| [] -> [cf,c]
+				| pairs -> pairs
 			in
 			let full_pos p = { p with pfile = Path.get_full_path p.pfile } in
 			if find_descendants then
+				let extends child_cls (_,c) = extends child_cls c in
 				List.fold_left (fun acc t ->
 					match t with
-					| TClassDecl child_cls when extends child_cls c ->
+					| TClassDecl child_cls when List.exists (extends child_cls) field_class_pairs ->
 						(try
 							let cf = PMap.find cf.cf_name child_cls.cl_fields in
 							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
@@ -71,7 +87,7 @@ let collect_reference_positions com =
 						acc
 				) [] com.types
 			else
-				[name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)]
+				List.map (fun (cf,c) -> name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)) field_class_pairs;
 		in
 		(try collect()
 		with Exit -> [name,pos,kind])
