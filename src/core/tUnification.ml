@@ -141,7 +141,10 @@ module Monomorph = struct
 				bind m t
 			end
 		| _ ->
-			check_constraints m t;
+			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
+			   against before checking the constraints. *)
+			m.tm_type <- Some t;
+			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints m t) ();
 			do_bind m t
 		end
 
