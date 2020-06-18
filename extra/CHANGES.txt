@@ -10,6 +10,7 @@
 	display : fixed "find references" through interfaces (#9470)
 	display : optimized "find references" (#9504)
 	display : optimized "server/invalidate" requests (#9509)
+	analyzer : fixed compiler crash upon handling code branches with enums with optional arguments (#9591)
 	jvm : added "--java-lib-extern" to use jar files as externs without adding them to the compiled project (#9515)
 	macro : fixed type intersection syntax in macro reification (#9404)
 	lua : fixed lua code generation without `--main` compilation argument (#9489)
