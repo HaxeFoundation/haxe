@@ -229,8 +229,20 @@ let type_function ctx args ret fmode f do_display p =
 	Std.finally save (type_function ctx args ret fmode f do_display) p
 
 let add_constructor ctx c force_constructor p =
-	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+	let super() =
+		match c.cl_super with
+		| None -> None
+		| Some ({ cl_constructor = Some cfsup } as csup,cparams) ->
+			Some(cfsup,csup,cparams)
+		| Some (csup,cparams) ->
+			try
+				let _,cfsup = Type.get_constructor (fun ctor -> apply_params csup.cl_params cparams ctor.cf_type) csup in
+				Some(cfsup,csup,cparams)
+			with Not_found ->
+				None
+	in
+	match c.cl_constructor, super() with
+	| None, Some(cfsup,csup,cparams) when not c.cl_extern ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
