@@ -1875,13 +1875,10 @@ and type_try ctx e1 catches with_type p =
 		| [] ->
 			()
 	in
-	let check_catch_type path params =
+	let check_catch_type_params params =
 		List.iter (fun pt ->
 			if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
-		) params;
-		(match path with
-		| x :: _ , _ -> x
-		| [] , name -> name)
+		) params
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
 		let th = Option.default (CTPath { tpackage = ["haxe"]; tname = "Exception"; tsub = None; tparams = [] },null_pos) t in
@@ -1889,17 +1886,18 @@ and type_try ctx e1 catches with_type p =
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
-			| TInst ({ cl_path = path },params)
-			| TEnum ({ e_path = path },params) ->
-				check_catch_type path params,t
+			| TInst (_,params) | TEnum (_,params) ->
+				check_catch_type_params params;
+				t
 			| TAbstract(a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
-				check_catch_type a.a_path params,t
+				check_catch_type_params params;
+				t
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				loop (Abstract.get_underlying_type a tl)
-			| TDynamic _ -> "",t
+			| TDynamic _ -> t
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
-		let name,t2 = loop t in
+		let t2 = loop t in
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
@@ -1911,7 +1909,6 @@ and type_try ctx e1 catches with_type p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
-		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 		((v,e) :: acc1),(e :: acc2)
 	) ([],[e1]) catches in
 	let e1,catches,t = match with_type with
