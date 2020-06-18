@@ -420,7 +420,7 @@ let process_global_display_mode com tctx =
 	| DMDiagnostics _ ->
 		Diagnostics.run com
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) true in
+		let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->

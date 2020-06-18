@@ -18,7 +18,7 @@ type statistics_filter =
 	| SFPos of pos
 	| SFFile of string
 
-let collect_statistics ctx pfilter with_expressions =
+let collect_statistics ctx pos_filters with_expressions =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
@@ -33,10 +33,13 @@ let collect_statistics ctx pfilter with_expressions =
 				unique
 		)
 	in
-	let check_pos = match pfilter with
-		| SFNone -> (fun p -> p <> null_pos)
-		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && path_key p.pfile = path_key p'.pfile)
-		| SFFile s -> (fun p -> path_key p.pfile = path_key s)
+	let check_pos p =
+		List.exists (fun pfilter ->
+			match pfilter with
+			| SFNone -> p <> null_pos
+			| SFPos p1 -> p1.pmin = p.pmin && p1.pmax = p.pmax && path_key p1.pfile = path_key p.pfile
+			| SFFile s -> path_key p.pfile = path_key s
+		) pos_filters
 	in
 	let add_relation p r =
 		if check_pos p then try
@@ -71,22 +74,22 @@ let collect_statistics ctx pfilter with_expressions =
 	in
 	let collect_implementations c =
 		let memo = Hashtbl.create 0 in
-		let rec loop c' =
-			if not (Hashtbl.mem memo c'.cl_path) then begin
-				Hashtbl.add memo c'.cl_path true;
-				if c'.cl_interface then
-					add_relation c.cl_name_pos (Extended,c'.cl_name_pos)
+		let rec loop c1 =
+			if not (Hashtbl.mem memo c1.cl_path) then begin
+				Hashtbl.add memo c1.cl_path true;
+				if c1.cl_interface then
+					add_relation c.cl_name_pos (Extended,c1.cl_name_pos)
 				else begin
-					add_relation c.cl_name_pos (Implemented,c'.cl_name_pos);
+					add_relation c.cl_name_pos (Implemented,c1.cl_name_pos);
 					List.iter (fun cf ->
 						try
-							let cf' = PMap.find cf.cf_name c'.cl_fields in
+							let cf' = PMap.find cf.cf_name c1.cl_fields in
 							add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
 						with Not_found ->
 							()
 					) c.cl_ordered_fields
 				end;
-				List.iter loop c'.cl_descendants
+				List.iter loop c1.cl_descendants
 			end
 		in
 		List.iter loop c.cl_descendants
@@ -101,21 +104,21 @@ let collect_statistics ctx pfilter with_expressions =
 	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
 	let related_fields = Hashtbl.create 0 in
 	let field_reference co cf p =
-		let p' = patch_string_pos p cf.cf_name in
-		add_relation cf.cf_name_pos (Referenced,p');
+		let p1 = patch_string_pos p cf.cf_name in
+		add_relation cf.cf_name_pos (Referenced,p1);
 		(* extend to related classes for instance fields *)
 		if check_pos cf.cf_name_pos then match co with
 		| Some c ->
 			let id = (c.cl_path,cf.cf_name) in
 			begin try
 				let cfl = Hashtbl.find related_fields id in
-				List.iter (fun cf -> add_relation cf.cf_name_pos (Referenced,p')) cfl
+				List.iter (fun cf -> add_relation cf.cf_name_pos (Referenced,p1)) cfl
 			with Not_found ->
 				let cfl = ref [] in
 				let check c =
 					try
 						let cf = PMap.find cf.cf_name c.cl_fields in
-						add_relation cf.cf_name_pos (Referenced,p');
+						add_relation cf.cf_name_pos (Referenced,p1);
 						cfl := cf :: !cfl
 					with Not_found ->
 						()
