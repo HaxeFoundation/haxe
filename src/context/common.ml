@@ -108,6 +108,10 @@ type var_scoping_flags =
 	*)
 	| NoShadowing
 	(**
+		It's not allowed to shadow a `catch` variable.
+	*)
+	| NoCatchVarShadowing
+	(**
 		Local vars cannot have the same name as the current top-level package or
 		(if in the root package) current class name
 	*)
@@ -416,7 +420,7 @@ let get_config com =
 				vs_scope = if es6 then BlockScope else FunctionScope;
 				vs_flags =
 					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
-					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting];
+					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting; NoCatchVarShadowing];
 			}
 		}
 	| Lua ->

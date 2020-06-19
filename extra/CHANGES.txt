@@ -17,6 +17,7 @@
 	eval : fixed exception message when catching compiler-generated `haxe.macro.Error` as `Dynamic` (#9600)
 	lua : fixed lua code generation without `--main` compilation argument (#9489)
 	php : added an overload signature for `session_set_cookie_params` function (#9507)
+	js : fixed name collisions for catch variables to avoid closure compiler errors (#9617)
 	nullsafety : fixed various scenarios of `if..else` branching (#9474)
 
 2020-22-05 4.1.1
