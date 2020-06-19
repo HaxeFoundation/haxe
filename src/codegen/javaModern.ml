@@ -744,8 +744,9 @@ module Converter = struct
 			in
 			let rec loop attribs = match attribs with
 				| AttrLocalVariableTable locals :: _ ->
+					let shift = if is_static then 0 else -1 in
 					List.map (fun loc ->
-						loc.ld_index,loc.ld_name
+						loc.ld_index + shift,loc.ld_name
 					) locals
 				| AttrMethodParameters l :: _ ->
 					List.mapi (fun i (name,_) ->
