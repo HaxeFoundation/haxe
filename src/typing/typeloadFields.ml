@@ -1509,7 +1509,7 @@ let init_class ctx c p context_init herits fields =
 			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
-				error "You can't declare static fields in interfaces" p;
+				error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
 				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
 			in
