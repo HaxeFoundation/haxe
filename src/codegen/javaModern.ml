@@ -69,6 +69,18 @@ module JDataHoldovers = struct
 	and jmethod_signature = jsignature list * jsignature option
 
 	type jtypes = (string * jsignature option * jsignature list) list
+
+	type jannotation = {
+		ann_type : jsignature;
+		ann_elements : (string * jannotation_value) list;
+	}
+
+	and jannotation_value =
+		| ValConst of jsignature * int
+		| ValEnum of jsignature * string (* e *)
+		| ValClass of jsignature (* c *) (* V -> Void *)
+		| ValAnnotation of jannotation (* @ *)
+		| ValArray of jannotation_value list (* [ *)
 end
 
 open JDataHoldovers
@@ -269,6 +281,7 @@ module JReaderModern = struct
 		| AttrLocalVariableTable of jlocal list
   		| AttrMethodParameters of (string * int) list
 		| AttrSignature of string
+		| AttrVisibleAnnotations of jannotation list
   		| AttrOther
 
 	type jfield = {
@@ -353,6 +366,51 @@ module JReaderModern = struct
 		) name_and_types in
 		{strings;paths;name_and_types}
 
+
+	let rec parse_element_value consts ch =
+		let tag = IO.read_byte ch in
+		match Char.chr tag with
+		| 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' ->
+			let jsig = match (Char.chr tag) with
+				| 's' ->
+					TObject( (["java";"lang"],"String"), [] )
+				| tag ->
+					fst (parse_signature_part (Char.escaped tag))
+			in
+			ValConst(jsig,(read_ui16 ch))
+		| 'e' ->
+			let path = parse_signature (consts.strings.(read_ui16 ch)) in
+			let name = consts.strings.(read_ui16 ch) in
+			ValEnum (path, name)
+		| 'c' ->
+			let name = consts.strings.(read_ui16 ch) in
+			let jsig = if name = "V" then
+				TObject(([], "Void"), [])
+			else
+				parse_signature name
+			in
+			ValClass jsig
+		| '@' ->
+			ValAnnotation (parse_annotation consts ch)
+		| '[' ->
+			let num_vals = read_ui16 ch in
+			ValArray (List.init (num_vals) (fun _ -> parse_element_value consts ch))
+		| tag ->
+			failwith ("Invalid element value: '" ^  Char.escaped tag ^ "'")
+
+	and parse_ann_element consts ch =
+		let name = consts.strings.(read_ui16 ch) in
+		let element_value = parse_element_value consts ch in
+		name, element_value
+
+	and parse_annotation consts ch =
+		let anntype = parse_signature (consts.strings.(read_ui16 ch)) in
+		let count = read_ui16 ch in
+		{
+			ann_type = anntype;
+			ann_elements = List.init count (fun _ -> parse_ann_element consts ch)
+		}
+
 	let rec parse_attribute consts ch =
 		let name = consts.strings.(read_ui16 ch) in
 		let length = read_i32 ch in
@@ -395,6 +453,9 @@ module JReaderModern = struct
 				(name,flags)
 			) in
 			AttrMethodParameters parameters
+		| "RuntimeVisibleAnnotations" ->
+    		let count = read_ui16 ch in
+    		AttrVisibleAnnotations (List.init count (fun _ -> parse_annotation consts ch))
 		| "Signature" ->
 			let s = consts.strings.(read_ui16 ch) in
 			AttrSignature s
@@ -711,13 +772,12 @@ module Converter = struct
 		List.iter (function
 			| AttrDeprecated when jc.jc_path <> (["java";"util"],"Date") ->
 				add_meta (Meta.Deprecated,[],p);
-			(* TODO: Do we need this? *)
-			(* | AttrVisibleAnnotations ann ->
+			| AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
 						add_access (AOverride,null_pos);
 					| _ -> ()
-				) ann *)
+				) ann
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =
