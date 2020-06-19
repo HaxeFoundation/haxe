@@ -394,7 +394,7 @@ module JReaderModern = struct
 			ValAnnotation (parse_annotation consts ch)
 		| '[' ->
 			let num_vals = read_ui16 ch in
-			ValArray (List.init (num_vals) (fun _ -> parse_element_value consts ch))
+			ValArray (ExtList.List.init (num_vals) (fun _ -> parse_element_value consts ch))
 		| tag ->
 			failwith ("Invalid element value: '" ^  Char.escaped tag ^ "'")
 
@@ -408,7 +408,7 @@ module JReaderModern = struct
 		let count = read_ui16 ch in
 		{
 			ann_type = anntype;
-			ann_elements = List.init count (fun _ -> parse_ann_element consts ch)
+			ann_elements = ExtList.List.init count (fun _ -> parse_ann_element consts ch)
 		}
 
 	let rec parse_attribute consts ch =
@@ -455,7 +455,7 @@ module JReaderModern = struct
 			AttrMethodParameters parameters
 		| "RuntimeVisibleAnnotations" ->
     		let count = read_ui16 ch in
-    		AttrVisibleAnnotations (List.init count (fun _ -> parse_annotation consts ch))
+    		AttrVisibleAnnotations (ExtList.List.init count (fun _ -> parse_annotation consts ch))
 		| "Signature" ->
 			let s = consts.strings.(read_ui16 ch) in
 			AttrSignature s
