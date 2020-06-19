@@ -472,7 +472,11 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
-			}
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting];
+			};
 		}
 	| Php ->
 		{
