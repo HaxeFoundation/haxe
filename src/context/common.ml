@@ -304,6 +304,7 @@ type context = {
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	pass_debug_messages : string DynArray.t;
+	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -669,6 +670,7 @@ let create version s_version args =
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
+		overload_cache = Hashtbl.create 0;
 		basic = {
 			tvoid = m;
 			tint = m;
@@ -713,6 +715,7 @@ let clone com =
 			defines_signature = com.defines.defines_signature;
 		};
 		native_libs = create_native_libs();
+		overload_cache = Hashtbl.create 0;
 	}
 
 let file_time file = Extc.filetime file

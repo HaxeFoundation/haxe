@@ -259,14 +259,14 @@ let unify_field_call ctx fa el args ret p inline =
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
-				List.map (map_cf cf map) cf.cf_overloads
+				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					map (apply_params cf.cf_params monos t),cf
-				) (Overloads.get_overloads c cf.cf_name)
+				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
+			cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
 			let c = match co with None -> None | Some (c,_) -> Some c in
 			expand_overloads (fun t -> t) cf,c,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))

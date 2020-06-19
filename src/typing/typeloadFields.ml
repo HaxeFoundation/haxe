@@ -1251,7 +1251,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				let f = PMap.find m c.cl_statics in
 				(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
 			else
-				Overloads.get_overloads c m
+				Overloads.get_overloads ctx.com c m
 		else
 			[ if fctx.is_static then
 				let f = PMap.find m c.cl_statics in

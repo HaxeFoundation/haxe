@@ -219,7 +219,7 @@ let check_overriding ctx c f =
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
-			let overloads = Overloads.get_overloads csup i in
+			let overloads = Overloads.get_overloads ctx.com csup i in
 			List.iter (fun (t,f2) ->
 				(* check if any super class fields are vars *)
 				match f2.cf_kind with
@@ -348,7 +348,7 @@ module Inheritance = struct
 				let t2, f2 = class_field_no_interf c i in
 				let t2, f2 =
 					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
-						let overloads = Overloads.get_overloads c i in
+						let overloads = Overloads.get_overloads ctx.com c i in
 						is_overload := true;
 						let t = (apply_params intf.cl_params params f.cf_type) in
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
