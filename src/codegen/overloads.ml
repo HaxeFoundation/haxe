@@ -71,29 +71,45 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
-(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
-let rec get_overloads c i =
-	let ret = try
-			let f = PMap.find i c.cl_fields in
-			match f.cf_kind with
+let collect_overloads c i =
+	let acc = ref [] in
+	let rec loop map c =
+		let maybe_add cf =
+			let t = map cf.cf_type in
+			if not (List.exists (fun (t2,cf2) -> same_overload_args t t2 cf cf2) !acc) then acc := (t,cf) :: !acc
+		in
+		begin try
+			let cf = PMap.find i c.cl_fields in
+			begin match cf.cf_kind with
 				| Var _ ->
-					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)
-					[]
+					()
 				| Method _ ->
-					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-		with | Not_found -> []
+					maybe_add cf;
+					List.iter maybe_add cf.cf_overloads
+			end;
+		with Not_found ->
+			()
+		end;
+		match c.cl_super with
+			| None when c.cl_interface ->
+				List.iter (fun (c,tl) ->
+					loop (fun t -> apply_params c.cl_params tl (map t)) c
+				) c.cl_implements
+			| None ->
+				()
+			| Some (c,tl) ->
+				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
-	let rsup = match c.cl_super with
-	| None when c.cl_interface ->
-			let ifaces = List.concat (List.map (fun (c,tl) ->
-				List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i)
-			) c.cl_implements) in
-			ret @ ifaces
-	| None -> ret
-	| Some (c,tl) ->
-			ret @ ( List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i) )
-	in
-	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
+	loop (fun t -> t) c;
+	List.rev !acc
+
+let get_overloads (com : Common.context) c i =
+	try
+		Hashtbl.find com.overload_cache (c.cl_path,i)
+	with Not_found ->
+		let l = collect_overloads c i in
+		Hashtbl.add com.overload_cache (c.cl_path,i) l;
+		l
 
 (** Overload resolution **)
 module Resolution =

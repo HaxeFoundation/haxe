@@ -264,7 +264,7 @@ let unify_field_call ctx fa el args ret p inline =
 				List.map (fun (t,cf) ->
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					map (apply_params cf.cf_params monos t),cf
-				) (Overloads.get_overloads c cf.cf_name)
+				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
 			cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
