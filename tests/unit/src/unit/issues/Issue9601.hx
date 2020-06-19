@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue9601 extends Test {
-	#if java
+	#if (java || eval)
 	public function test() {
 		utest.Assert.same(["", "Test"], ~/^/g.split("Test"));
 		utest.Assert.same(["Test", ""], ~/$/g.split("Test"));
