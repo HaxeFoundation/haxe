@@ -93,23 +93,27 @@ let collect_overloads c i =
 		match c.cl_super with
 			| None when c.cl_interface ->
 				List.iter (fun (c,tl) ->
+					let tl = List.map map tl in
 					loop (fun t -> apply_params c.cl_params tl (map t)) c
 				) c.cl_implements
 			| None ->
 				()
 			| Some (c,tl) ->
+				let tl = List.map map tl in
 				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
 	loop (fun t -> t) c;
 	List.rev !acc
 
 let get_overloads (com : Common.context) c i =
-	try
+	collect_overloads c i
+	(* TODO: check why this kills Java *)
+	(* try
 		Hashtbl.find com.overload_cache (c.cl_path,i)
 	with Not_found ->
 		let l = collect_overloads c i in
 		Hashtbl.add com.overload_cache (c.cl_path,i) l;
-		l
+		l *)
 
 (** Overload resolution **)
 module Resolution =
