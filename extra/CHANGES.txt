@@ -6,6 +6,7 @@
 	all : fixed super constructor call when extending externs (#7837, #9501)
 	all : fixed compiler crash for "--run" argument without a value (#9513)
 	all : fixed local variable name collision in `try..catch` (#9533)
+	all : fixed memory leak in completion server related to haxe.Exception (#9537)
 	display : fixed completion for out-of-bounds argument in a call (#9435)
 	display : fixed "find references" through interfaces (#9470)
 	display : optimized "find references" (#9504)
