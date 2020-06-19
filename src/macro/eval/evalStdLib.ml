@@ -971,25 +971,45 @@ module StdEReg = struct
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [v_empty_string]
+		let slength = String.length s in
+		if slength = 0 then
+			encode_array [v_empty_string]
 		else begin
-			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
-			let rec loop split cur acc l = match l with
-				| Text s :: l ->
-					loop split (cur ^ s) acc l
-				| Delim s :: l ->
-					if split then
-						loop this.r_global "" ((create_unknown cur) :: acc) l
-					else
-						loop false (cur ^ s) acc l
-				| _ :: l ->
-					loop split cur acc l
-				| [] ->
-					List.rev ((create_unknown cur) :: acc)
+			let copy_offset = ref 0 in
+			let acc = DynArray.create () in
+			let add first last =
+				let sub = String.sub s first (last - first) in
+				DynArray.add acc (create_unknown sub)
 			in
-			let l = loop true "" [] l in
-			encode_array l
+			let exec = Pcre.exec ~iflags:0x2000 ~rex:this.r in
+			let step pos =
+				try
+					let substrings = exec ~pos s in
+					let (first,last) = Pcre.get_substring_ofs substrings 0 in
+					add !copy_offset first;
+					copy_offset := last;
+					let next_start = if pos = last then last + 1 else last in
+					if next_start >= slength then begin
+						DynArray.add acc (create_unknown "");
+						None
+					end else
+						Some next_start
+				with Not_found ->
+					add !copy_offset slength;
+					None
+			in
+			let rec loop pos =
+				match step pos with
+				| Some next ->
+					if this.r_global then
+						loop next
+					else
+						add !copy_offset slength
+				| _ ->
+					()
+			in
+			loop 0;
+			encode_array (DynArray.to_list acc)
 		end
 	)
 end
