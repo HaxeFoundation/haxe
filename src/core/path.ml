@@ -133,6 +133,7 @@ let get_full_path =
 			let absolute_path =
 				if length > 0 && String.unsafe_get f 0 = '/' then f
 				else if length = 0 then Unix.getcwd()
+				else if f = "?" then f
 				else (Unix.getcwd()) ^ "/" ^ f
 			in
 			let has_trailing_slash =
