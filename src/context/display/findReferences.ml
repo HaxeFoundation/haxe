@@ -27,7 +27,7 @@ let find_references tctx com with_definition pos_filters =
 		with Not_found -> acc)
 	) symbols [] in
 	t();
-	Display.ReferencePosition.set ("",null_pos,SKOther);
+	Display.ReferencePosition.reset();
 	usages
 
 let collect_reference_positions com =
@@ -129,7 +129,7 @@ let find_implementations tctx com name pos kind =
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) usages in
 	t();
-	Display.ReferencePosition.set ("",null_pos,SKOther);
+	Display.ReferencePosition.reset();
 	DisplayException.raise_positions usages
 
 let find_implementations tctx com =

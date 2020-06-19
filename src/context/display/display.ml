@@ -23,8 +23,14 @@ let parse_module ctx m p =
 
 module ReferencePosition = struct
 	let reference_position = ref ("",null_pos,SKOther)
-	let set (s,p,k) = reference_position := (s,{p with pfile = Path.get_full_path p.pfile},k)
+	let set (s,p,k) =
+		let p =
+			if p = null_pos then p
+			else {p with pfile = Path.get_full_path p.pfile}
+		in
+		reference_position := (s,p,k)
 	let get () = !reference_position
+	let reset () = reference_position := ("",null_pos,SKOther)
 end
 
 module ExprPreprocessing = struct

@@ -38,6 +38,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t) -> t
 		| _ -> error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
+	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
 	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
 
 (**
@@ -332,11 +333,11 @@ let catch_native ctx catches t p =
 				in
 				let transformed_catches = transform rest in
 				(* haxe.Exception.caught(catch_var) *)
-				let caught = haxe_exception_static_call ctx "caught" [catch_local] null_pos in
 				let exprs = [
 					(* var haxe_exception_local = haxe.Exception.caught(catch_var); *)
 					if !needs_haxe_exception then
-						(mk (TVar (haxe_exception_var, Some caught)) ctx.basic.tvoid null_pos)
+						let caught = haxe_exception_static_call ctx "caught" [catch_local] null_pos in
+						mk (TVar (haxe_exception_var, Some caught)) ctx.basic.tvoid null_pos
 					else
 						mk (TBlock[]) ctx.basic.tvoid null_pos;
 					(* var unwrapped_local = haxe_exception_local.unwrap(); *)
@@ -452,7 +453,10 @@ let insert_save_stacks tctx =
 					| _ -> error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
-				make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type null_pos
+				begin
+					add_dependency tctx.curclass.cl_module native_stack_trace_cls.cl_module;
+					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type null_pos
+				end
 			else
 				mk (TBlock[]) tctx.t.tvoid null_pos
 		in
