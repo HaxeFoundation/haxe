@@ -281,6 +281,12 @@
 		"doc": "The code is compiled to be run with `--interp`."
 	},
 	{
+		"name": "JarLegacyLoader",
+		"define": "jar-legacy-loader",
+		"doc": "Use the legacy loader to load .jar files on the JVM target.",
+		"platforms": ["java"]
+	},
+	{
 		"name": "JavaVer",
 		"define": "java_ver",
 		"doc": "Sets the Java version to be targeted.",

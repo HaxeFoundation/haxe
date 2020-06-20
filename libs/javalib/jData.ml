@@ -150,6 +150,7 @@ type jattribute =
   | AttrVisibleAnnotations of jannotation list
   | AttrInvisibleAnnotations of jannotation list
   | AttrLocalVariableTable of jlocal list
+  | AttrMethodParameters of (string * int) list
   | AttrUnknown of string * string
 
 type jcode = jattribute list (* TODO *)

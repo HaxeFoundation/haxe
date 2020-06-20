@@ -202,8 +202,8 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			begin match List.rev !skipped with
 				| [] ->
 					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
-						let e = type_expr ctx (e,p) WithType.value in
-						(e,false) :: loop el []
+						ignore(type_expr ctx (e,p) WithType.value);
+						loop el []
 					end	else call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end

@@ -1212,7 +1212,7 @@ class java_library_dir com name file_path = object(self)
 			| _ -> None
 end
 
-let add_java_lib com name std extern =
+let add_java_lib com name std extern modern =
 	let file = if Sys.file_exists name then
 		name
 	else try Common.find_file com name with
@@ -1220,11 +1220,14 @@ let add_java_lib com name std extern =
 		| Not_found ->
 			failwith ("Java lib " ^ name ^ " not found")
 	in
-	let java_lib = match (Unix.stat file).st_kind with
+	let java_lib =
+		if modern then
+			(new JavaModern.java_library_modern com name file :> (java_lib_type,unit) native_library)
+		else match (Unix.stat file).st_kind with
 		| S_DIR ->
-			(new java_library_dir com name file :> java_library)
+			(new java_library_dir com name file :> (java_lib_type,unit) native_library)
 		| _ ->
-			(new java_library_jar com name file :> java_library)
+			(new java_library_jar com name file :> (java_lib_type,unit) native_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
 	if extern then java_lib#add_flag FlagIsExtern;

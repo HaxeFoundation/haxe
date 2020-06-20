@@ -231,7 +231,7 @@ struct
 			raise Not_found
 
 	let is_best arg1 arg2 =
-		(List.for_all2 (fun v1 v2 ->
+		(Ast.safe_for_all2 (fun v1 v2 ->
 			v1 <= v2)
 		arg1 arg2) && (List.exists2 (fun v1 v2 ->
 			v1 < v2)
