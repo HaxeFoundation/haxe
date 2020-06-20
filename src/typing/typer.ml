@@ -2446,13 +2446,15 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		e
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
-		let is_enum_match = match follow et.etype with
+		let rec has_enum_match t = match follow t with
 			| TEnum _ -> true
-			| TAbstract _ as t when (match Abstract.follow_with_abstracts_forward t with TEnum _ -> true | _ -> false) ->
-				(try ignore (type_field (TypeFieldConfig.create true) ctx et "match" p mode); false with _ -> true)
+			| TAbstract (a,tl) when (Meta.has Meta.Forward a.a_meta) && not (Meta.has Meta.CoreType a.a_meta) ->
+				(match a.a_impl with
+					| Some c when (PMap.exists "match" c.cl_statics) && (Meta.has Meta.Impl (PMap.find "match" c.cl_statics).cf_meta) -> false
+					| _ -> has_enum_match (Abstract.get_underlying_type ~return_first:true a tl))
 			| _ -> false
 		in
-		if is_enum_match then
+		if has_enum_match et.etype then
 			Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 		else
 			def ()

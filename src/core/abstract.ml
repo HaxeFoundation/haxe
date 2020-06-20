@@ -111,9 +111,3 @@ let rec follow_with_abstracts_without_null t = match follow_without_null t with
 		follow_with_abstracts_without_null (get_underlying_type a tl)
 	| t ->
 		t
-
-let rec follow_with_abstracts_forward t = match follow t with
-	| TAbstract(a,tl) when (Meta.has Meta.Forward a.a_meta) && not (Meta.has Meta.CoreType a.a_meta) ->
-		follow_with_abstracts_forward (get_underlying_type ~return_first:true a tl)
-	| t ->
-		t
