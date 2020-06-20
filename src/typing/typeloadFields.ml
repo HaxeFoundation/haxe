@@ -968,6 +968,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					fctx.expr_presence_matters <- true;
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
+				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
+					error (cf.cf_name ^ ": Ternary overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
