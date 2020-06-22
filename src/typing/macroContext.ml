@@ -730,7 +730,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							else
 								List.map Interp.decode_field (Interp.decode_array v)
 						in
-						Some (EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
+						Some (EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None,[]],p)
 					)
 				| MMacroType ->
 					"ComplexType",(fun () ->

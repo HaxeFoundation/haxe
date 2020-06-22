@@ -72,7 +72,7 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
-					| ((s,pn),final,tho,eo) as v :: vl ->
+					| ((s,pn),final,tho,eo,ml) as v :: vl ->
 						if mark then
 							loop2 (v :: acc) mark vl
 						else if is_annotated pn then
@@ -96,7 +96,7 @@ module ExprPreprocessing = struct
 								in
 								let p = {p0 with pmax = (pos e).pmin} in
 								let e = if is_annotated p then annotate_marked e else e in
-								loop2 (((s,pn),final,tho,(Some e)) :: acc) mark vl
+								loop2 (((s,pn),final,tho,(Some e),ml) :: acc) mark vl
 						end
 					| [] ->
 						List.rev acc,mark
@@ -196,7 +196,7 @@ module ExprPreprocessing = struct
 				raise Exit
 			| EVars vl when is_annotated (pos e) ->
 				(* We only want to mark EVars if we're on a var name. *)
-				if List.exists (fun ((_,pn),_,_,_) -> is_annotated pn) vl then
+				if List.exists (fun ((_,pn),_,_,_,_) -> is_annotated pn) vl then
 					annotate_marked e
 				else
 					raise Exit

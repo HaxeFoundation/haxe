@@ -103,7 +103,7 @@ module TExprToExpr = struct
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (FKAnonymous,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), has_var_flag v VFinal, mk_type_hint v.v_type v.v_pos, eopt eo])
+			EVars ([(v.v_name,v.v_pos), has_var_flag v VFinal, mk_type_hint v.v_type v.v_pos, eopt eo, v.v_meta])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in

@@ -1443,7 +1443,7 @@ and type_array_access ctx e1 e2 p mode =
 	Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
-	let vl = List.map (fun ((v,pv),final,t,e) ->
+	let vl = List.map (fun ((v,pv),final,t,e,ml) ->
 		try
 			let t = Typeload.load_type_hint ctx p t in
 			let e = (match e with
@@ -1454,6 +1454,7 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
+			v.v_meta <- ml;
 			if final then add_var_flag v VFinal;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;

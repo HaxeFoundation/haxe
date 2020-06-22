@@ -208,8 +208,13 @@ class Printer {
 			+ opt(func.expr, printExpr, " ");
 	}
 
-	public function printVar(v:Var)
-		return v.name + opt(v.type, printComplexType, ":") + opt(v.expr, printExpr, " = ");
+	public function printVar(v:Var) {
+		var s = v.name + opt(v.type, printComplexType, ":") + opt(v.expr, printExpr, " = ");
+		return switch v.meta {
+			case null|[]: s;
+			case meta: meta.map(printMetadata).join(" ") + " " + s;
+		}
+	}
 
 	public function printObjectFieldKey(of:ObjectField) {
 		return switch (of.quotes) {
