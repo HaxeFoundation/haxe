@@ -200,10 +200,10 @@ let module_pass_1 ctx m tdecls loadp =
 			error "Previous declaration here" prev_pos;
 		in
 		List.iter (fun (t2,(_,p2)) ->
-			if snd (t_path t2) = name then error p2
+			if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
 		) !decls;
-		List.iter (fun (d,p) ->
-			if fst d.d_name = name then error p
+		List.iter (fun (d,_) ->
+			if fst d.d_name = name then error (snd d.d_name)
 		) !statics
 	in
 	let make_path name priv p =
@@ -222,7 +222,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if !has_declaration then error "import and using may not appear after a declaration" p;
 			acc
 		| EStatic d ->
-			check_name (fst d.d_name) p;
+			check_name (fst d.d_name) (snd d.d_name);
 			has_declaration := true;
 			statics := (d,p) :: !statics;
 			acc;
@@ -230,7 +230,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv (snd d.d_name) in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
