@@ -306,7 +306,7 @@
 		"define": "js_es",
 		"doc": "Generate JS compliant with given ES standard version. (default: 5)",
 		"platforms": ["js"],
-		"params": ["version number"],
+		"params": ["version: 3 | 5 | 6"],
 		"links": ["https://haxe.org/manual/target-javascript-es6.html"]
 	},
 	{
