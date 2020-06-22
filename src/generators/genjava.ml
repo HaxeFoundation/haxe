@@ -117,9 +117,7 @@ let is_dynamic gen t =
 		| TDynamic _ -> true
 		| _ -> false
 
-let is_type_param t = match follow t with
-	| TInst({ cl_kind = KTypeParameter _ }, _) -> true
-	| _ -> false
+let is_type_param t = ExtType.is_type_param (follow t)
 
 let rec t_has_type_param_shallow last t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, []) -> true

@@ -48,7 +48,7 @@ class HxOverrides {
 		return Syntax.callField(x, "keyValueIterator");
 	}
 
-	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
+	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=", "type_param_binop_==", "type_param_binop_!=")
 	static function eq(a:Dynamic, b:Dynamic):Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
 			return Syntax.code('a is b');

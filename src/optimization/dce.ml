@@ -627,8 +627,16 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_binop_==";
 		expr dce e1;
 		expr dce e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_==";
+		expr dce e1;
+		expr dce e2;
 	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
 		check_and_add_feature dce "dynamic_binop_!=";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_!=";
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpMod,e1,e2) ->
