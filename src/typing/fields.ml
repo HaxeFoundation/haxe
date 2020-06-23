@@ -319,7 +319,11 @@ let rec type_field cfg ctx e i p mode =
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| _ ->
-				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
+				match follow t with
+				| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
+					display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
+				| _ ->
+					display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
