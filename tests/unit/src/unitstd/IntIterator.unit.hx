@@ -8,7 +8,7 @@ var ii = new IntIterator(0, 2);
 var r = [];
 for (i in ii)
 	r.push(i);
-r == [1, 2];
+r == [0, 1];
 for (i in ii)
 	r.push(i);
-r == [1, 2];
+r == [0, 1];

@@ -29,7 +29,7 @@ using StringTools;
 
 class UnitBuilder {
 
-	static public macro function generateSpec(basePath:String, filter:String = ".unit.hx") {
+	static public macro function generateSpec(basePath:String) {
 		var ret = [];
 		var numFiles = 0;
 
@@ -38,7 +38,7 @@ class UnitBuilder {
 			path = path.endsWith("\\") || path.endsWith("/") ? path : path + "/";
 			for (file in dir) {
 				var filePath = path + file;
-				if (file.endsWith(filter)) {
+				if (file.endsWith('.unit.hx')) {
 					numFiles++;
 					var func = {
 						args: [],
@@ -81,6 +81,8 @@ class UnitBuilder {
 					ret.push(macro new $tp());
 				} else if (sys.FileSystem.isDirectory(filePath)) {
 					readDir(filePath, pack.concat([file]));
+				} else if(filePath.endsWith('.hx')) {
+					Context.error('$filePath: specification tests filenames should end with ".unit.hx"', Context.currentPos());
 				}
 			}
 		}

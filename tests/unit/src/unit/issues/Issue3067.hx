@@ -1,4 +1,4 @@
-package unit.unitstd;
+package unit.issues;
 
 private abstract TestAbstract(Int) from Int to Int
 {
