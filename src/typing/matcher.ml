@@ -409,61 +409,59 @@ module Pattern = struct
 				in
 				pattern t
 			| EObjectDecl fl ->
-				let rec known_fields t = match follow t with
+				let fields = ref StringMap.empty in
+				let collect_field cf t filter =	match filter with
+					| Some sl when not (List.mem cf.cf_name sl) -> ()
+					| _ -> fields := StringMap.add cf.cf_name (cf,t) !fields
+				in
+				let rec collect_fields t filter = match follow t with
 					| TAnon an ->
-						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
+						PMap.iter (fun _ cf -> collect_field cf cf.cf_type filter) an.a_fields
 					| TInst(c,tl) ->
-						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf ->
-								if Typecore.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
-								else acc
-							) fields c.cl_ordered_fields in
-							match c.cl_super with
-								| None -> fields
-								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
+						let rec loop c tl =
+							(match c.cl_super with
+								| Some (csup,tlsup) -> loop csup (List.map (apply_params c.cl_params tl) tlsup)
+								| _ -> ());
+							List.iter (fun cf ->
+								if Typecore.can_access ctx c cf false then
+									collect_field cf (apply_params c.cl_params tl cf.cf_type) filter
+							) c.cl_ordered_fields
 						in
-						loop [] c tl
+						loop c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
-						let abstract_fields = ExtList.List.filter_map (fun cf ->
-							if Meta.has Meta.Impl cf.cf_meta then
-								Some (cf,apply_params a.a_params tl cf.cf_type)
-							else
-								None
-						) c.cl_ordered_statics in
-						let forward_fields = try
+						(if Meta.has Meta.Forward a.a_meta then
 							let _,el,_ = Meta.get Meta.Forward a.a_meta in
 							let sl = ExtList.List.filter_map (fun e -> match fst e with
 								| EConst(Ident s) -> Some s
 								| _ -> None
 							) el in
-							let fields = known_fields (Abstract.get_underlying_type a tl) in
-							let fields = if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields in
-							let fields = List.filter (fun (fcf,_) ->
-								not (List.exists (fun (acf,_) -> fcf.cf_name = acf.cf_name) abstract_fields))
-							fields in
-							fields
-						with Not_found ->
-							[]
-						in
-						abstract_fields @ forward_fields
+							let filter = if sl = [] then filter else Some (match filter with
+								| Some fsl -> List.filter (fun s -> List.mem s fsl) sl
+								| None -> sl
+							) in
+							collect_fields (Abstract.get_underlying_type a tl) filter);
+						List.iter (fun cf ->
+							if Meta.has Meta.Impl cf.cf_meta then
+								collect_field cf (apply_params a.a_params tl cf.cf_type) filter
+						) c.cl_ordered_statics;
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
-				let known_fields = known_fields t in
+				collect_fields t None;
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
-				let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
+				let patterns,fields = StringMap.fold (fun name (cf,t) (patterns,fields) ->
 					try
-						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
-						let e1 = Expr.field_assoc cf.cf_name fl in
-						make pctx false t e1 :: patterns,cf.cf_name :: fields
+						if pctx.in_reification && name = "pos" then raise Not_found;
+						let e1 = Expr.field_assoc name fl in
+						make pctx false t e1 :: patterns,name :: fields
 					with Not_found ->
 						if is_matchable cf then
-							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
+							(PatAny,cf.cf_pos) :: patterns,name :: fields
 						else
 							patterns,fields
-				) ([],[]) known_fields in
+				) !fields ([],[]) in
 				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(con_fields fields (pos e),patterns)
 			| EBinop(OpOr,e1,e2) ->
