@@ -409,43 +409,54 @@ module Pattern = struct
 				in
 				pattern t
 			| EObjectDecl fl ->
-				let rec known_fields t = match follow t with
+				let known_fields = ref UniqueMap.empty in
+				let add (cf,v) = known_fields := UniqueMap.maybe_add cf.cf_name (cf,v) !known_fields in
+				let rec collect_known_fields whitelist t =
+					let add = match whitelist with
+						| [] ->
+							add
+						| _ ->
+							(fun (cf,v) -> if List.mem cf.cf_name whitelist then add (cf,v))
+					in
+					match follow t with
 					| TAnon an ->
-						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
+						PMap.iter (fun _ cf -> add (cf,cf.cf_type)) an.a_fields
 					| TInst(c,tl) ->
-						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf ->
-								if Typecore.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
-								else acc
-							) fields c.cl_ordered_fields in
+						let rec loop c tl =
+							List.iter (fun cf ->
+								if Typecore.can_access ctx c cf false then
+									add (cf,apply_params c.cl_params tl cf.cf_type)
+							) c.cl_ordered_fields;
 							match c.cl_super with
-								| None -> fields
-								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
+								| None -> ()
+								| Some (csup,tlsup) -> loop csup (List.map (apply_params c.cl_params tl) tlsup)
 						in
-						loop [] c tl
+						loop c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
-						let fields = try
+						begin
+							List.iter (fun cf ->
+								if Meta.has Meta.Impl cf.cf_meta then
+									add (cf,apply_params a.a_params tl cf.cf_type)
+								else
+									()
+							) c.cl_ordered_statics;
+						end;
+						begin try
 							let _,el,_ = Meta.get Meta.Forward a.a_meta in
 							let sl = ExtList.List.filter_map (fun e -> match fst e with
 								| EConst(Ident s) -> Some s
 								| _ -> None
 							) el in
-							let fields = known_fields (Abstract.get_underlying_type a tl) in
-							if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields
+							collect_known_fields sl (Abstract.get_underlying_type a tl);
 						with Not_found ->
-							[]
-						in
-						let fields = List.fold_left (fun acc cf ->
-							if Meta.has Meta.Impl cf.cf_meta then
-								(cf,apply_params a.a_params tl cf.cf_type) :: acc
-							else
-								acc
-						) fields c.cl_ordered_statics in
-						fields
+							()
+						end;
+						()
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
-				let known_fields = known_fields t in
+				collect_known_fields [] t;
+				let known_fields = UniqueMap.values !known_fields in
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
