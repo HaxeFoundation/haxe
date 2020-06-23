@@ -424,25 +424,28 @@ module Pattern = struct
 						in
 						loop [] c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
-						let fields = try
+						let abstract_fields = ExtList.List.filter_map (fun cf ->
+							if Meta.has Meta.Impl cf.cf_meta then
+								Some (cf,apply_params a.a_params tl cf.cf_type)
+							else
+								None
+						) c.cl_ordered_statics in
+						let forward_fields = try
 							let _,el,_ = Meta.get Meta.Forward a.a_meta in
 							let sl = ExtList.List.filter_map (fun e -> match fst e with
 								| EConst(Ident s) -> Some s
 								| _ -> None
 							) el in
 							let fields = known_fields (Abstract.get_underlying_type a tl) in
-							if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields
+							let fields = if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields in
+							let fields = List.filter (fun (fcf,_) ->
+								not (List.exists (fun (acf,_) -> fcf.cf_name = acf.cf_name) abstract_fields))
+							fields in
+							fields
 						with Not_found ->
 							[]
 						in
-						let fields = List.fold_left (fun acc cf ->
-							if Meta.has Meta.Impl cf.cf_meta then
-								let acc = List.filter (fun (fcf,_) -> fcf.cf_name <> cf.cf_name) acc in
-								(cf,apply_params a.a_params tl cf.cf_type) :: acc
-							else
-								acc
-						) fields c.cl_ordered_statics in
-						fields
+						abstract_fields @ forward_fields
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
