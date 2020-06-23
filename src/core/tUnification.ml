@@ -76,7 +76,9 @@ module Monomorph = struct
 	let constrain_to_type m name t =
 		List.iter (add_constraint m) (constraint_of_type name t)
 
-	let classify_constraints' m =
+	(* Note: This function is called by printing and others and should thus not modify state. *)
+
+	let rec classify_constraints' m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
@@ -85,7 +87,16 @@ module Monomorph = struct
 			| MMono(m2,name) ->
 				begin match m2.tm_type with
 				| None ->
-					monos := m2 :: !monos;
+					let more_monos,kind = classify_constraints' m2 in
+					monos := !monos @ more_monos;
+					begin match kind with
+					| CUnknown ->
+						(* Collect unconstrained monomorphs because we have to bind them. *)
+						monos := m2 :: !monos;
+					| _ ->
+						(* Recursively inherit constraints. *)
+						List.iter check m2.tm_constraints
+					end
 				| Some t ->
 					List.iter (fun constr -> check constr) (constraint_of_type name t)
 				end;
@@ -106,7 +117,7 @@ module Monomorph = struct
 			else
 				CUnknown
 		in
-		monos,kind
+		!monos,kind
 
 	let classify_constraints m = snd (classify_constraints' m)
 
@@ -152,8 +163,11 @@ module Monomorph = struct
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
 			let monos,kind = classify_constraints' m in
-			(* TODO: do something sensible with `monos` *)
 			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
+			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
+			List.iter (fun m2 ->
+				constrain_to_type m2 None t;
+			) monos;
 			do_bind m t
 		end
 
