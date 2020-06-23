@@ -1891,7 +1891,7 @@ and type_try ctx e1 catches with_type p =
 	in
 	let check_catch_type_params params p =
 		List.iter (fun pt ->
-			if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
+			if Abstract.follow_with_abstracts pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 		) params
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
