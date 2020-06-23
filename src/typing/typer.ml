@@ -1443,26 +1443,28 @@ and type_array_access ctx e1 e2 p mode =
 	Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
-	let vl = List.map (fun ((v,pv),final,t,e,ml) ->
+	let vl = List.map (fun ev ->
+		let n = fst ev.ev_name
+		and pv = snd ev.ev_name in
 		try
-			let t = Typeload.load_type_hint ctx p t in
-			let e = (match e with
+			let t = Typeload.load_type_hint ctx p ev.ev_type in
+			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
 					let e = type_expr ctx e (WithType.with_type t) in
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
-			v.v_meta <- ml;
-			if final then add_var_flag v VFinal;
+			let v = add_local_with_origin ctx TVOLocalVariable n t pv in
+			v.v_meta <- ev.ev_meta;
+			if ev.ev_final then add_var_flag v VFinal;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
 			Error (e,p) ->
 				check_error ctx e p;
-				add_local ctx VGenerated v t_dynamic pv, None (* TODO: What to do with this... *)
+				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	delay ctx PTypeField (fun() ->
 		List.iter

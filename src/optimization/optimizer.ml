@@ -669,10 +669,10 @@ let optimize_completion_expr e args =
 				());
 			map e
 		| EVars vl ->
-			let vl = List.map (fun ((v,pv),final,t,e,ml) ->
-				let e = (match e with None -> None | Some e -> Some (loop e)) in
-				decl v (Option.map fst t) e;
-				((v,pv),final,t,e,ml)
+			let vl = List.map (fun v ->
+				let e = (match v.ev_expr with None -> None | Some e -> Some (loop e)) in
+				decl (fst v.ev_name) (Option.map fst v.ev_type) e;
+				{ v with ev_expr = e }
 			) vl in
 			(EVars vl,p)
 		| EBlock el ->
@@ -719,7 +719,7 @@ let optimize_completion_expr e args =
 						(fun (name, pos) ->
 							let etmp = (EConst (Ident "`tmp"),pos) in
 							decl name None (Some (EBlock [
-								(EVars [("`tmp",null_pos),false,None,None,[]],p);
+								(EVars [mk_evar ("`tmp",null_pos)],p);
 								(EFor(header,(EBinop (OpAssign,etmp,(EConst (Ident name),p)),p)), p);
 								etmp
 							],p));
@@ -815,9 +815,9 @@ let optimize_completion_expr e args =
 							let name = (try
 								PMap.find id (!tmp_hlocals)
 							with Not_found ->
-								let e = subst_locals lc e in
+								let eo = subst_locals lc e in
 								let name = "`tmp_" ^ string_of_int id in
-								tmp_locals := ((name,null_pos),false,None,Some e,[]) :: !tmp_locals;
+								tmp_locals := (mk_evar ~eo (name,null_pos)) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name
 							) in

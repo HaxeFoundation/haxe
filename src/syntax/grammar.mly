@@ -1163,7 +1163,7 @@ and parse_var_assignment = parser
 
 and parse_var_assignment_resume final vl name pn t meta s =
 	let eo = parse_var_assignment s in
-	((name,pn),final,t,eo,meta)
+	mk_evar ~final ?t ?eo ~meta (name,pn)
 
 and parse_var_decls_next final vl = parser
 	| [< '(Comma,p1); meta,name,final,t,pn = parse_var_decl_head final; s >] ->
@@ -1501,8 +1501,8 @@ and parse_guard = parser
 		e
 
 and expr_or_var = parser
-	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),false,None,None,[]],punion p1 p2
-	| [< '(Kwd Final,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),true,None,None,[]],punion p1 p2
+	| [< '(Kwd Var,p1); np = dollar_ident; >] -> EVars [mk_evar np],punion p1 (snd np)
+	| [< '(Kwd Final,p1); np = dollar_ident; >] -> EVars [mk_evar ~final:true np],punion p1 (snd np)
 	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser

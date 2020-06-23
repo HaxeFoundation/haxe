@@ -329,10 +329,10 @@ let rec expr_to_value ctx env e =
 			let v1 = loop e1 in
 			throw v1 (pos e)
 		| EVars vl ->
-			List.iter (fun ((n,_),_,_,eo,_) ->
-				match eo with
+			List.iter (fun v ->
+				match v.ev_expr with
 				| Some e ->
-					env.env_extra_locals <- IntMap.add (hash n) (loop e) env.env_extra_locals
+					env.env_extra_locals <- IntMap.add (hash (fst v.ev_name)) (loop e) env.env_extra_locals
 				| _ ->
 					()
 			) vl;
