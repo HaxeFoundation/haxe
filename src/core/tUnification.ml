@@ -76,15 +76,16 @@ module Monomorph = struct
 	let constrain_to_type m name t =
 		List.iter (add_constraint m) (constraint_of_type name t)
 
-	let classify_constraints m =
+	let classify_constraints' m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
+		let monos = ref [] in
 		let rec check constr = match constr with
 			| MMono(m2,name) ->
 				begin match m2.tm_type with
 				| None ->
-					()
+					monos := m2 :: !monos;
 				| Some t ->
 					List.iter (fun constr -> check constr) (constraint_of_type name t)
 				end;
@@ -97,14 +98,20 @@ module Monomorph = struct
 				is_open := true
 		in
 		List.iter check m.tm_constraints;
-		if DynArray.length types > 0 then
-			CTypes (DynArray.to_list types)
-		else if not (PMap.is_empty !fields) || !is_open then
-			CStructural(!fields,!is_open)
-		else
-			CUnknown
+		let kind =
+			if DynArray.length types > 0 then
+				CTypes (DynArray.to_list types)
+			else if not (PMap.is_empty !fields) || !is_open then
+				CStructural(!fields,!is_open)
+			else
+				CUnknown
+		in
+		monos,kind
 
-	let check_constraints m t = match classify_constraints m with
+	let classify_constraints m = snd (classify_constraints' m)
+
+	let check_constraints constr t =
+		match constr with
 		| CUnknown ->
 			()
 		| CTypes tl ->
@@ -144,7 +151,9 @@ module Monomorph = struct
 			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
-			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints m t) ();
+			let monos,kind = classify_constraints' m in
+			(* TODO: do something sensible with `monos` *)
+			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
 			do_bind m t
 		end
 
