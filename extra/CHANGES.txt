@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
+	nullsafety: fixed "Type not found NullSafetyMode_Impl_" (#9483)
 
 2020-06-19 4.1.2
 
