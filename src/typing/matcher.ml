@@ -450,8 +450,9 @@ module Pattern = struct
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
 				let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
-					if List.mem cf.cf_name fields then patterns,fields else
-					try
+					if List.mem cf.cf_name fields then
+						patterns,fields
+					else try
 						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
 						let e1 = Expr.field_assoc cf.cf_name fl in
 						make pctx false t e1 :: patterns,cf.cf_name :: fields
