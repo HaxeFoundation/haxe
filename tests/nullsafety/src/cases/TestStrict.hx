@@ -78,6 +78,19 @@ private class TestWithoutConstructor {
 	@:shouldFail var notInitializedField:String;
 }
 
+class Issue9643 {
+	static var tmp:Null<()->Void>;
+
+	final field: String;
+
+	public function new() {
+		tmp = () -> @:nullSafety(Off) method();
+		field = 'hello';
+	}
+
+	function method() {}
+}
+
 class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 	var v:Int;
 
