@@ -1608,7 +1608,7 @@ class class_checker cls immediate_execution report =
 							List.iter (check_unsafe_usage init_list safety_enabled) args
 						| TConst TThis when safety_enabled ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
-						| TLocal v when Hashtbl.mem this_vars v.v_id ->
+						| TLocal v when safety_enabled && Hashtbl.mem this_vars v.v_id ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) ->
 							iter (check_unsafe_usage init_list false) e
