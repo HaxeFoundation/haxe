@@ -1317,15 +1317,16 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Extracts type path from Type.t value and execute self#use on it
 			@return Unique alias for specified type.
 		*)
-		method use_t (t_inst:Type.t) =
+		method use_t ?(for_doc=false) (t_inst:Type.t) =
 			match follow t_inst with
 				| TEnum (tenum, _) -> self#use tenum.e_path
-				| TInst (tcls, _) ->
+				| TInst (tcls, params) ->
 					(match tcls.cl_kind with
 						| KTypeParameter _ -> "mixed"
 						| _ ->
-							(match tcls.cl_path with
-								| ([], "String") -> "string"
+							(match tcls.cl_path, params with
+								| ([], "String"), _ -> "string"
+								| ([], "Array"), [param] when for_doc -> (self#use_t param) ^ "[]|" ^ (self#use tcls.cl_path)
 								| _ -> self#use ~prefix:(not tcls.cl_extern) tcls.cl_path
 							)
 					)
@@ -1346,7 +1347,12 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
 						| ([],"Enum") -> "Enum"
-						| ([], "Class") -> "Class"
+						| ([],"Class") -> "Class"
+						| (["php"],"NativeArray") when for_doc ->
+							(match Type.follow t_inst with
+								| TAbstract ({ a_path = ["php"],"NativeIndexedArray" }, [param]) -> (self#use_t param) ^ "[]"
+								| _ -> "array"
+							)
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
@@ -3035,11 +3041,11 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			let write_arg arg =
 				match arg with
 					| (arg_name, is_optional, arg_type) ->
-						writer#write_line (" * @param " ^ (writer#use_t arg_type) ^ " $" ^ arg_name)
+						writer#write_line (" * @param " ^ (writer#use_t ~for_doc:true arg_type) ^ " $" ^ arg_name)
 			in
 			List.iter write_arg args;
 			if List.length args > 0 then writer#write_line " * ";
-			writer#write_line (" * @return " ^ (writer#use_t return_type));
+			writer#write_line (" * @return " ^ (writer#use_t ~for_doc:true return_type));
 			writer#write_line " */"
 		(**
 			Writes rtti meta to output buffer
@@ -3654,7 +3660,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_var field is_static =
 			writer#indent 1;
-			self#write_doc (DocVar (writer#use_t field.cf_type, (gen_doc_text_opt field.cf_doc)));
+			self#write_doc (DocVar (writer#use_t ~for_doc:true field.cf_type, (gen_doc_text_opt field.cf_doc)));
 			writer#write_indentation;
 			if is_static then writer#write "static ";
 			let visibility = get_visibility field.cf_meta in
