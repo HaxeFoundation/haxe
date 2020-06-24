@@ -409,10 +409,10 @@ module Pattern = struct
 				in
 				pattern t
 			| EObjectDecl fl ->
-				let fields = ref StringMap.empty in
+				let known_fields = ref [] in
 				let collect_field cf t filter =	match filter with
 					| Some sl when not (List.mem cf.cf_name sl) -> ()
-					| _ -> fields := StringMap.add cf.cf_name (cf,t) !fields
+					| _ -> known_fields := (cf,t) :: (List.filter (fun (cf',_) -> cf'.cf_name <> cf.cf_name) !known_fields)
 				in
 				let rec collect_fields t filter = match follow t with
 					| TAnon an ->
@@ -451,17 +451,17 @@ module Pattern = struct
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
-				let patterns,fields = StringMap.fold (fun name (cf,t) (patterns,fields) ->
+				let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 					try
-						if pctx.in_reification && name = "pos" then raise Not_found;
-						let e1 = Expr.field_assoc name fl in
-						make pctx false t e1 :: patterns,name :: fields
+						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
+						let e1 = Expr.field_assoc cf.cf_name fl in
+						make pctx false t e1 :: patterns,cf.cf_name :: fields
 					with Not_found ->
 						if is_matchable cf then
-							(PatAny,cf.cf_pos) :: patterns,name :: fields
+							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
 						else
 							patterns,fields
-				) !fields ([],[]) in
+				) ([],[]) !known_fields in
 				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(con_fields fields (pos e),patterns)
 			| EBinop(OpOr,e1,e2) ->
