@@ -45,6 +45,18 @@ class TestPhp extends Test
 		t(result);
 	}
 
+	function testCustomArrayDecl() {
+		var a = Syntax.customArrayDecl([1 => 'hello', 'world' => true]);
+		var keys:Array<Dynamic> = [];
+		var values:Array<Dynamic> = [];
+		for(k => v in a) {
+			keys.push(k);
+			values.push(v);
+		}
+		aeq(([1, 'world']:Array<Dynamic>), keys);
+		aeq((['hello', true]:Array<Dynamic>), values);
+	}
+
 	function testIssue1828() {
 		var x = try {
 			throw "foo";
