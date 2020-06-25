@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
+	macro : fixed compiler crash if `@:genericBuild` meta is removed by a macro during building (#9391)
 	nullsafety: fixed `@:nullSafety(Off)` in closures inside of constructors (#9643)
 	nullsafety: fixed "Type not found NullSafetyMode_Impl_" (#9483)
 
