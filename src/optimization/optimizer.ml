@@ -95,18 +95,6 @@ let sanitize_expr com e =
 		| _ -> false
 	in
 	match e.eexpr with
-	| TConst TNull ->
-		if com.config.pf_static && not (is_nullable e.etype) then begin
-			let rec loop t = match follow t with
-				| TMono _ -> () (* in these cases the null will cast to default value *)
-				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
-				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
-				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
-				| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
-			in
-			loop e.etype
-		end;
-		e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
 			let p1, left1 = standard_precedence op1 in
