@@ -1710,7 +1710,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			end
 		| TBool true -> code#bconst true
 		| TBool false -> code#bconst false
-		| TNull -> code#aconst_null (self#vtype t)
+		| TNull -> jm#load_default_value (self#vtype t)
 		| TThis ->
 			let _,load,_ = self#get_local_by_id (0,"this") in
 			load()
