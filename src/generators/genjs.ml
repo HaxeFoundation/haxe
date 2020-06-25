@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open Ast
 open Type
@@ -1120,7 +1120,7 @@ let gen_module_fields ctx m c fl =
 					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
 					newline ctx
 				)
-			| _ -> 
+			| _ ->
 				ctx.statics <- (c,f,e) :: ctx.statics
 	) fl
 
@@ -1581,7 +1581,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	begin
-	match c.cl_kind with 
+	match c.cl_kind with
 	| KModuleFields m ->
 		print ctx "var %s = " (module_field m f);
 		process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
@@ -1734,7 +1734,7 @@ let generate com =
 			function
 			| TClassDecl c ->
 				let add s = r := s :: !r in
-				let get_expose_path = 
+				let get_expose_path =
 					match c.cl_kind with
 					| KModuleFields m ->
 						module_field_expose_path m.m_path
