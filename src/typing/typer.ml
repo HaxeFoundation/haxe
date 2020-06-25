@@ -1826,7 +1826,7 @@ and type_new ctx path el with_type force_inline p =
 		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
 		raise exc
 	in
-	DisplayEmitter.check_display_type ctx t (pos path);
+	DisplayEmitter.check_display_type ctx t path;
 	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
