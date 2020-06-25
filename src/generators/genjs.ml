@@ -1503,8 +1503,11 @@ let generate_enum ctx e =
 	else if has_feature ctx "Type.resolveEnum" then
 		print ctx "$hxClasses[\"%s\"] = " dotp);
 	spr ctx "{";
-	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ dotp ^ "\"" else "true");
-	print ctx " __constructs__ : [%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__:%s," (if has_feature ctx "Type.getEnumName" then "\"" ^ dotp ^ "\"" else "true");
+	if as_objects then
+		print ctx "__constructs__:null"
+	else
+		print ctx "__constructs__:[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	let bend =
 		if not as_objects then begin
 			spr ctx " }";
@@ -1531,7 +1534,7 @@ let generate_enum ctx e =
 				print ctx "($_=function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
 				if has_enum_feature then
 					spr ctx ",toString:$estr";
-				print ctx "}; },$_.__params__ = [%s],$_)" sparams
+				print ctx "}; },$_._hx_name=\"%s\",$_.__params__ = [%s],$_)" f.ef_name sparams
 			end else begin
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 				if has_enum_feature then
@@ -1540,7 +1543,7 @@ let generate_enum ctx e =
 			end end;
 		| _ ->
 			if as_objects then
-				print ctx "{_hx_index:%d,__enum__:\"%s\"%s}" f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
+				print ctx "{_hx_name:\"%s\",_hx_index:%d,__enum__:\"%s\"%s}" f.ef_name f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
 			else begin
 				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 				newline ctx;
@@ -1558,6 +1561,8 @@ let generate_enum ctx e =
 	if as_objects then begin
 		spr ctx "\n}";
 		ctx.separator <- true;
+		newline ctx;
+		print ctx "%s.__constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s%s" p (field s)) e.e_names));
 		newline ctx;
 	end;
 	if has_feature ctx "Type.allEnums" then begin
