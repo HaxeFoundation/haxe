@@ -1073,6 +1073,7 @@ class expr_checker mode immediate_execution report =
 		*)
 		method can_pass_expr expr to_type p =
 			match expr.eexpr, to_type with
+				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
 				| TObjectDecl fields, TAnon to_type ->
 					List.for_all
 						(fun ((name, _, _), field_expr) ->

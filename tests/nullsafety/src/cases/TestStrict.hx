@@ -237,6 +237,13 @@ class TestStrict {
 		shouldFail(var s:String = null);
 	}
 
+	static function unsafeNullableVar_assignedToNonNullablePlases_shouldPass() {
+		var @:nullSafety(Off) n:Null<String> = null;
+		var s:String = n;
+		function test(s:String) {}
+		test(n);
+	}
+
 	static function assign_nullableValueToNotNullable_shouldFail() {
 		var a:Null<Int> = null;
 		var b = 10;
