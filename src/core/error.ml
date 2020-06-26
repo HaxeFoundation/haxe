@@ -259,7 +259,7 @@ module BetterErrors = struct
 			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
-			Printf.sprintf "error: %s\n have: %s\n want: %s" (Buffer.contents message_buffer) slhs srhs
+			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
 let rec error_msg = function

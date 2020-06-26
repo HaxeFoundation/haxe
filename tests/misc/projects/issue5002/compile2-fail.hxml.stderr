@@ -1,17 +1,17 @@
 "0_variable" is not a valid variable name.
-Main2.hx:6: characters 3-32 : Called from macro here
+Main2.hx:6: characters 3-32 : ... Called from macro here
 "var" is not a valid variable name.
-Main2.hx:7: characters 3-25 : Called from macro here
+Main2.hx:7: characters 3-25 : ... Called from macro here
 "new" is not a valid variable name.
-Main2.hx:8: characters 3-25 : Called from macro here
+Main2.hx:8: characters 3-25 : ... Called from macro here
 "foo \"\t\n" is not a valid variable name.
-Main2.hx:9: characters 3-32 : Called from macro here
+Main2.hx:9: characters 3-32 : ... Called from macro here
 "0_catchVariable" is not a valid catch variable name.
-Main2.hx:10: characters 3-25 : Called from macro here
+Main2.hx:10: characters 3-25 : ... Called from macro here
 "0_function" is not a valid function name.
-Main2.hx:11: characters 3-24 : Called from macro here
+Main2.hx:11: characters 3-24 : ... Called from macro here
 "0_argument" is not a valid function argument name.
-Main2.hx:12: characters 3-32 : Called from macro here
+Main2.hx:12: characters 3-32 : ... Called from macro here
 Main2.hx:13: characters 3-27 : Pattern variables must be lower-case
 Main2.hx:14: characters 3-23 : "0_forVariable" is not a valid for variable name.
 Main2.hx:15: characters 3-31 : "0_forVariableKey" is not a valid for variable name.

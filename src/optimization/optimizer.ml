@@ -412,7 +412,7 @@ let inline_constructors ctx e =
 			begin match ii.ii_kind with
 				| IKCtor(cf,true) ->
 					display_error ctx "Extern constructor could not be inlined" p;
-					error "Variable is used here" p;
+					error "... Variable is used here" p;
 				| _ ->
 					()
 			end;

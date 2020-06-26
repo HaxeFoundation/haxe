@@ -514,7 +514,7 @@ let create_class_context ctx c context_init p =
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
 			let open TFunctions in
-			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error "Defined in this class" c.cl_pos
+			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error "... Defined in this class" c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)
@@ -1285,7 +1285,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			(match f2.cf_kind with
 				| Method MethMacro ->
 					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-					display_error ctx (f2.cf_name ^ ": Accessor method is here") f2.cf_pos;
+					display_error ctx ("... " ^ f2.cf_name ^ ": Accessor method is here") f2.cf_pos;
 				| _ -> ());
 			unify_raise ctx t2 t f2.cf_pos;
 			if (fctx.is_abstract_member && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (fctx.is_abstract_member)) then
@@ -1431,7 +1431,7 @@ let check_overload ctx f fs =
 			) fs
 		in
 		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ctx ("The second field is declared here") f2.cf_pos
+		display_error ctx ("... The second field is declared here") f2.cf_pos
 	with Not_found ->
 		try
 			let f2 =
@@ -1445,7 +1445,7 @@ let check_overload ctx f fs =
 				f.cf_name ^
 				"\nThe signatures are different in Haxe, but not in the target language"
 			) f.cf_pos;
-			display_error ctx ("The second field is declared here") f2.cf_pos
+			display_error ctx ("... The second field is declared here") f2.cf_pos
 		with | Not_found -> ()
 
 let check_overloads ctx c =

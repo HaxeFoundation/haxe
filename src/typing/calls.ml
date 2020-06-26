@@ -391,7 +391,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 			unify_raise ctx tcf t p
 		with Error(Unify _,_) as err ->
 			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx "Conflicting field was defined here" pcf;
+			display_error ctx "... Conflicting field was defined here" pcf;
 			raise err
 		in
 		let c, cf2 = try
@@ -701,7 +701,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 				TypeloadFields.locate_macro_error := false;
 				old ctx msg ep;
 				TypeloadFields.locate_macro_error := true;
-				ctx.com.error "Called from macro here" p;
+				ctx.com.error "... Called from macro here" p;
 			end else
 				old ctx msg ep;
 		);

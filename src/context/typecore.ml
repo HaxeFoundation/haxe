@@ -225,7 +225,7 @@ let add_local ctx k n t p =
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
 				ctx.com.warning "This variable shadows a previously declared variable" p;
-				ctx.com.warning "Previous variable was here" v'.v_pos
+				ctx.com.warning "... Previous variable was here" v'.v_pos
 			end
 		with Not_found ->
 			()

@@ -1179,7 +1179,7 @@ module Purity = struct
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
 					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.error "Pure field is here" p;
+					Error.error "... Pure field is here" p;
 				end
 			| _ -> ()
 		) com.types;
