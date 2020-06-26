@@ -687,7 +687,13 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TVar (v,eo) ->
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
 		| TReturn eo when not state#in_local_fun ->
-			if not term then error "Cannot inline a not final return" po;
+			if not term then begin
+				match cf.cf_kind with
+				| Method MethInline ->
+					error "Cannot inline a not final return" po
+				| _ ->
+					error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
+			end;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
 			| Some e ->
