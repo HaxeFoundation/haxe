@@ -339,6 +339,7 @@ let rec unfold_null t =
 	match t with
 		| TMono r -> (match r.tm_type with None -> t | Some t -> unfold_null t)
 		| TAbstract ({ a_path = ([],"Null") }, [t]) -> unfold_null t
+		| TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) -> unfold_null (apply_params abstr.a_params tl abstr.a_this)
 		| TLazy f -> unfold_null (lazy_type f)
 		| TType (t,tl) -> unfold_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
