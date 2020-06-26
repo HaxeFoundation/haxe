@@ -1,3 +1,3 @@
 Main1.hx:7: characters 7-9 : Constraint check failure for E.T
-Main1.hx:7: characters 7-9 : Int should be String
-Main1.hx:7: characters 7-9 : For function argument 't'
+Main1.hx:7: characters 7-9 : ... Int should be String
+Main1.hx:7: characters 7-9 : ... For function argument 't'

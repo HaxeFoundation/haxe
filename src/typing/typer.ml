@@ -1958,7 +1958,7 @@ and type_map_declaration ctx e1 el with_type p =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
 			display_error ctx "Duplicate key" e_key.epos;
-			error "Previously defined here" p
+			error (compl_msg "Previously defined here") p
 		with Not_found ->
 			begin match e_key.eexpr with
 			| TConst _ -> Hashtbl.add keys e_key.eexpr e_key.epos;

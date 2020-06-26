@@ -1,6 +1,6 @@
 NativeMeta.hx:4: characters 11-24 : Field some has different @:native value than in superclass
-NativeMeta.hx:16: characters 11-25 : Base field is defined here
-NativeMeta.hx:1: lines 1-13 : Defined in this class
+NativeMeta.hx:16: characters 11-25 : ... Base field is defined here
+NativeMeta.hx:1: lines 1-13 : ... Defined in this class
 NativeMeta.hx:9: characters 11-25 : Field noNative has different @:native value than in superclass
-NativeMeta.hx:20: characters 18-26 : Base field is defined here
-NativeMeta.hx:1: lines 1-13 : Defined in this class
+NativeMeta.hx:20: characters 18-26 : ... Base field is defined here
+NativeMeta.hx:1: lines 1-13 : ... Defined in this class

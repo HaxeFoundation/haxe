@@ -1,2 +1,2 @@
 Main.hx:4: characters 4-19 : Recursive type
-Main.hx:4: characters 4-19 : Unknown<0> appears in { args: Unknown<0> : { field : Unknown<1>, args : Unknown<0> } }
+Main.hx:4: characters 4-19 : ... Unknown<0> appears in { args: Unknown<0> : { field : Unknown<1>, args : Unknown<0> } }

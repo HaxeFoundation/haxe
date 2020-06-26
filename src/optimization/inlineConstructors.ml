@@ -99,7 +99,7 @@ let inline_constructors ctx e =
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
 				if isextern then begin
 					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
-					display_error ctx "Cancellation happened here" p;
+					display_error ctx (compl_msg "Cancellation happened here") p;
 				end
 			| _ -> ()
 		end

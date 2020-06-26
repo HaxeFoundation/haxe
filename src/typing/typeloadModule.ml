@@ -197,7 +197,7 @@ let module_pass_1 ctx m tdecls loadp =
 	let check_name name p =
 		let error prev_pos =
 			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
-			error "Previous declaration here" prev_pos;
+			error (compl_msg "Previous declaration here") prev_pos;
 		in
 		List.iter (fun (t2,(_,p2)) ->
 			if snd (t_path t2) = name then error (t_infos t2).mt_name_pos

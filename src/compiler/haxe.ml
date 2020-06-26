@@ -1098,7 +1098,7 @@ with
 			ctx.messages <- [];
 		end else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ctx "    referenced here") (List.rev pl);
+			List.iter (error ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
