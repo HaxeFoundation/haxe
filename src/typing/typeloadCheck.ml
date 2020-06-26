@@ -151,7 +151,7 @@ let get_native_name meta =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ctx ("... Base field is defined here") base_pos
+		display_error ctx (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -201,8 +201,8 @@ let check_overriding ctx c f =
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx ("... Base field is defined here") f2.cf_name_pos;
-					display_error ctx ("... " ^ (error_msg (Unify l))) p;
+					display_error ctx (compl_msg "Base field is defined here") f2.cf_name_pos;
+					display_error ctx (compl_msg (error_msg (Unify l))) p;
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -372,8 +372,8 @@ module Inheritance = struct
 					Unify_error l ->
 						if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
 							display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-							display_error ctx ("... Interface field is defined here") f.cf_pos;
-							display_error ctx ("... " ^ (error_msg (Unify l))) p;
+							display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
+							display_error ctx (compl_msg (error_msg (Unify l))) p;
 						end
 			with
 				| Not_found when not c.cl_interface ->

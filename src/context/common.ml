@@ -61,7 +61,14 @@ let compiler_message_string msg =
 	else begin
 		let error_printer file line = Printf.sprintf "%s:%d:" file line in
 		let epos = Lexer.get_error_pos error_printer p in
-		let str = String.concat ("\n" ^ epos ^ " : ... ") (ExtString.String.nsplit str "\n") in
+		let str =
+			let lines =
+				match (ExtString.String.nsplit str "\n") with
+				| first :: rest -> first :: List.map Error.compl_msg rest
+				| l -> l
+			in
+			String.concat ("\n" ^ epos ^ " : ") lines
+		in
 		Printf.sprintf "%s : %s" epos str
 	end
 
