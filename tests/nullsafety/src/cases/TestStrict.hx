@@ -946,6 +946,12 @@ class TestStrict {
 		x += x;
 	}
 
+	static function issue9649_nullCheckedAbstractShouldUnify_shouldPass() {
+		var x:NullFloat = null;
+		var y:Float = 0.0;
+		if(x!=null) y = x;
+	}
+
 	static function issue8443_nullPassedToInline_shouldPass() {
 		inline function method(?map: (Int)->Int) {
 			return map != null ? map(0) : -1;
