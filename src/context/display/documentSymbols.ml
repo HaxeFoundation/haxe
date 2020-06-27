@@ -109,7 +109,7 @@ let collect_module_symbols mname with_locals (pack,decls) =
 			List.iter (field parent kind) d.d_data
 		| EStatic d ->
 			let path, name = get_decl_path d in
-			let dotpath = string_of_path (path @ [name]) in
+			let dotpath = string_of_path path in
 			field' dotpath Class d.d_name d.d_data d.d_flags p d.d_meta
 	) decls;
 	begin match mname with
