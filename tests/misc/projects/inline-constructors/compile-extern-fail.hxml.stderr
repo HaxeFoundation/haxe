@@ -1,2 +1,2 @@
 Extern.hx:8: characters 11-20 : Forced inline constructor could not be inlined
-Extern.hx:9: characters 9-10 : Cancellation happened here
+Extern.hx:9: characters 9-10 : ... Cancellation happened here
