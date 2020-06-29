@@ -36,7 +36,7 @@ abstract Thread(ThreadHandle) {
 	static var queue_mutex:Mutex = null;
 	static var threads_queues:Array<{t:ThreadHandle, q:Deque<Dynamic>}> = null;
 
-	public static function __init__() {
+	static function __init__() {
 		queue_mutex = new Mutex();
 		threads_queues = [];
 	}
