@@ -502,8 +502,18 @@ let inline_constructors ctx original_e =
 					io.io_inline_methods <- io.io_inline_methods @ [e];
 					begin match analyze_aliases captured e with
 						| Some(iv) ->
-							io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
-							Some(iv)
+							(*
+								The parent inline object might have been cancelled while analyzing the inlined method body
+								If the parent inline object is cancelled the inlining of this method will no longer happen,
+								so the return value must be cancelled.
+							*)
+							if io.io_cancelled then begin
+								cancel_iv iv e.epos;
+								None 
+							end else begin
+								io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
+								Some(iv)
+							end
 						| None -> None
 					end
 				| None ->
