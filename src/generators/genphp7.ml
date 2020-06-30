@@ -2297,44 +2297,40 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match fields with
 				| [] -> self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
 				| _ ->
-					let consts,args_exprs,args_names,args_fields =
-						List.fold_left (fun (consts,args_exprs,args_names,args_fields) ((name,_,quotes), e) ->
+					let inits,args_exprs,args_names =
+						List.fold_left (fun (inits,args_exprs,args_names) ((name,p,quotes), e) ->
 							match (reveal_expr e).eexpr with
 							| TConst _ ->
-								(name,quotes,e) :: consts, args_exprs, args_names, args_fields
-							| _ ->
-								let arg_name =
+								let field =
 									if quotes = NoQuotes then name
-									else "_hx_" ^ (string_of_int (List.length args_exprs))
+									else "{" ^ (quote_string name) ^ "}"
 								in
-								consts, e :: args_exprs, arg_name :: args_names, (name, arg_name) :: args_fields
-						) ([],[],[],[]) fields
+								(field,e) :: inits, args_exprs, args_names
+							| _ ->
+								let field,arg_name =
+									if quotes = NoQuotes then name,name
+									else "{" ^ (quote_string name) ^ "}", "_hx_" ^ (string_of_int (List.length args_exprs))
+								in
+								(field,mk (TIdent ("$"^arg_name)) e.etype p) :: inits, e :: args_exprs, arg_name :: args_names
+						) ([],[],[]) fields
 					in
 					self#write "new class (";
-					write_args self#write self#write_expr args_exprs;
+					write_args self#write self#write_expr (List.rev args_exprs);
 					self#write (") extends " ^ (self#use hxanon_type_path) ^ " {\n");
 					self#indent_more;
 					self#write_indentation;
 					self#write "function __construct(";
-					write_args self#write (fun name -> self#write ("$" ^ name)) args_names;
+					write_args self#write (fun name -> self#write ("$" ^ name)) (List.rev args_names);
 					self#write ") {\n";
 					self#indent_more;
-					List.iter (fun (name,quotes,e) ->
+					List.iter (fun (field,e) ->
 						self#write_indentation;
 						self#write "$this->";
-						if quotes = NoQuotes then self#write name
-						else self#write ("{" ^ (quote_string name) ^ "}");
+						self#write field;
 						self#write " = ";
 						self#write_expr e;
 						self#write ";\n";
-					) consts;
-					List.iter (fun (name,arg_name) ->
-						self#write_indentation;
-						self#write "$this->";
-						if name = arg_name then self#write name
-						else self#write ("{" ^ (quote_string name) ^ "}");
-						self#write (" = $" ^ arg_name ^ ";\n");
-					) args_fields;
+					) (List.rev inits);
 					self#indent_less;
 					self#write_line "}";
 					self#indent_less;

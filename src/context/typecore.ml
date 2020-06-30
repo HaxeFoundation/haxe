@@ -122,6 +122,7 @@ and typer = {
 	(* per-function *)
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
+	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable in_macro : bool;

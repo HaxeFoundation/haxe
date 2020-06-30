@@ -46,6 +46,7 @@ let save_field_state ctx =
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
 	let old_monos = ctx.monomorphs.perfunction in
+	let old_in_function = ctx.in_function in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
@@ -53,6 +54,7 @@ let save_field_state ctx =
 		ctx.curfun <- old_fun;
 		ctx.opened <- old_opened;
 		ctx.monomorphs.perfunction <- old_monos;
+		ctx.in_function <- old_in_function;
 	)
 
 let type_var_field ctx t e stat do_display p =
@@ -107,6 +109,7 @@ let type_function ctx args ret fmode f do_display p =
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
+	ctx.in_function <- true;
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
