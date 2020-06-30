@@ -22,49 +22,135 @@
 
 package haxe.ds;
 
+import haxe.Constraints.IMap;
+import Type.ValueType;
+
 /**
 	EnumValueMap allows mapping of enum value keys to arbitrary values.
-
-	Keys are compared by value and recursively over their parameters. If any
-	parameter is not an enum value, `Reflect.compare` is used to compare them.
 **/
-class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
-	override function compare(k1:EnumValue, k2:EnumValue):Int {
-		var d = k1.getIndex() - k2.getIndex();
-		if (d != 0)
-			return d;
-		var p1 = k1.getParameters();
-		var p2 = k2.getParameters();
-		if (p1.length == 0 && p2.length == 0)
-			return 0;
-		return compareArgs(p1, p2);
-	}
+class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
+	var enums:Array<K> = [];
+	var values:Array<V> = [];
 
-	function compareArgs(a1:Array<Dynamic>, a2:Array<Dynamic>):Int {
-		var ld = a1.length - a2.length;
-		if (ld != 0)
-			return ld;
-		for (i in 0...a1.length) {
-			var d = compareArg(a1[i], a2[i]);
-			if (d != 0)
-				return d;
+	public function new() {}
+
+	public function get(k:K):Null<V> {
+		for(index => e in enums) {
+			if(equalEnums(e, k)) {
+				return values[index];
+			}
 		}
-		return 0;
+		return null;
 	}
 
-	function compareArg(v1:Dynamic, v2:Dynamic):Int {
-		return if (Reflect.isEnumValue(v1) && Reflect.isEnumValue(v2)) {
-			compare(v1, v2);
-		} else if (Std.isOfType(v1, Array) && Std.isOfType(v2, Array)) {
-			compareArgs(v1, v2);
-		} else {
-			Reflect.compare(v1, v2);
+	public function set(k:K, v:V):Void {
+		for(index => e in enums) {
+			if(equalEnums(e, k)) {
+				values[index] = v;
+				return;
+			}
+		}
+		enums.push(k);
+		values.push(v);
+	}
+
+	public function exists(k:K):Bool {
+		for(e in enums) {
+			if(equalEnums(e, k)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function remove(k:K):Bool {
+		for(index => e in enums) {
+			if(equalEnums(e, k)) {
+				enums.splice(index, 1);
+				values.splice(index, 1);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function keys():Iterator<K> {
+		return enums.iterator();
+	}
+
+	public inline function iterator():Iterator<V> {
+		return values.iterator();
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
+	public function copy():IMap<K, V> {
+		var result = new EnumValueMap();
+		result.enums = enums.copy();
+		result.values = values.copy();
+		return result;
+	}
+
+	public function toString():String {
+		var pairs = [for(i => e in enums) Std.string(e) + ' => ' + Std.string(values[i])];
+		return '[' + pairs.join(', ') + ']';
+	}
+
+	public function clear():Void {
+		enums.resize(0);
+		values.resize(0);
+	}
+
+	static function equal(v1:Dynamic, v2:Dynamic):Bool {
+		if(v1 == v2)
+			return true;
+
+		return switch [Type.typeof(v1), Type.typeof(v2)] {
+			case [TClass(Array), TClass(Array)]:
+				equalArrays(v1, v2);
+			case [TEnum(_), TEnum(_)]:
+				equalEnums(v1, v2);
+			case _:
+				false;
 		}
 	}
 
-	override function copy():EnumValueMap<K, V> {
-		var copied = new EnumValueMap<K, V>();
-		copied.root = root;
-		return copied;
+	static function equalEnums(e1:EnumValue, e2:EnumValue) {
+		if(e1 == e2)
+			return true;
+
+		if(Type.enumIndex(e1) != Type.enumIndex(e2))
+			return false;
+
+		if(Type.getEnum(e1) != Type.getEnum(e2))
+			return false;
+
+		var params1 = Type.enumParameters(e1);
+		var params2 = Type.enumParameters(e2);
+		if(params1.length != params2.length)
+			return false;
+
+		for(i => v1 in params1) {
+			if(!equal(v1, params2[i]))
+				return false;
+		}
+
+		return true;
+	}
+
+	static function equalArrays(a1:Array<Dynamic>, a2:Array<Dynamic>):Bool {
+		if(a1 == a2)
+			return false;
+
+		if(a1.length != a2.length)
+			return false;
+
+		for(i => v1 in a1) {
+			if(!equal(v1, a2[i]))
+				return false;
+		}
+		return true;
 	}
 }
