@@ -567,11 +567,7 @@ let create_field_context (ctx,cctx) c cff =
 		| _ ->
 			()
 	) cff.cff_meta;
-	let allow_inline = cctx.abstract <> None || match cff.cff_kind with
-		| FFun _ -> ctx.g.doinline || !is_extern || c.cl_extern
-		| _ -> true
-	in
-	let is_inline = allow_inline && List.mem_assoc AInline cff.cff_access in
+	let is_inline = List.mem_assoc AInline cff.cff_access in
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
