@@ -6,6 +6,10 @@ open Common
 open Typecore
 open Error
 
+let needs_inline ctx is_extern_class cf =
+	cf.cf_kind = Method MethInline
+	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);

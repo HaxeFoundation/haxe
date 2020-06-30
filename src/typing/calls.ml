@@ -29,7 +29,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			if f.cf_kind <> Method MethInline then raise Exit;
+			let is_extern_class = match cl with Some c -> c.cl_extern | _ -> false in
+			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
 		end else begin
 			match cl with
 			| None ->
