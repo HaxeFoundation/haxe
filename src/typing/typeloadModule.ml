@@ -194,8 +194,8 @@ let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
 	let statics = ref [] in
-	let check_name name p =
-		DeprecationCheck.check_is com name p;
+	let check_name name meta p =
+		DeprecationCheck.check_is com name meta p;
 		let error prev_pos =
 			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
 			error (compl_msg "Previous declaration here") prev_pos;
@@ -207,8 +207,8 @@ let module_pass_1 ctx m tdecls loadp =
 			if fst d.d_name = name then error (snd d.d_name)
 		) !statics
 	in
-	let make_path name priv p =
-		check_name name p;
+	let make_path name priv meta p =
+		check_name name meta p;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
 	let has_declaration = ref false in
@@ -223,7 +223,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if !has_declaration then error "import and using may not appear after a declaration" p;
 			acc
 		| EStatic d ->
-			check_name (fst d.d_name) (snd d.d_name);
+			check_name (fst d.d_name) d.d_meta (snd d.d_name);
 			has_declaration := true;
 			statics := (d,p) :: !statics;
 			acc;
@@ -231,7 +231,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv (snd d.d_name) in
+			let path = make_path name priv d.d_meta (snd d.d_name) in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -252,7 +252,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let name = fst d.d_name in
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -278,7 +278,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -303,7 +303,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 	let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -442,7 +442,7 @@ let load_enum_field ctx e et is_flat index c =
 		ef_params = params;
 		ef_meta = c.ec_meta;
 	} in
-	DeprecationCheck.check_is ctx.com f.ef_name f.ef_name_pos;
+	DeprecationCheck.check_is ctx.com f.ef_name f.ef_meta f.ef_name_pos;
 	let cf = {
 		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
 		cf_kind = (match follow f.ef_type with
