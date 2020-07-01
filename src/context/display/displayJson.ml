@@ -122,22 +122,18 @@ let handler =
 			hctx.display#enable_display DMDefault;
 		);
 		"display/definition", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
 		"display/implementation", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
 		);
 		"display/typeDefinition", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMTypeDefinition;
 		);
 		"display/references", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
 			| "withBaseAndDescendants" ->
@@ -148,7 +144,6 @@ let handler =
 				hctx.display#enable_display (DMUsage (false,false,false));
 		);
 		"display/hover", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMHover;
 		);

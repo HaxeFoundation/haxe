@@ -229,7 +229,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		did_something := true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		Common.define com Define.NoCOpt;
 		com.display <- DisplayMode.create (DMDiagnostics []);
 		Parser.display_mode := DMDiagnostics [];
 	| _ ->
@@ -239,32 +238,24 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
-				Common.define com Define.NoCOpt;
 				DMDefinition
 			| "usage" ->
-				Common.define com Define.NoCOpt;
 				DMUsage (false,false,false)
 			(*| "rename" ->
-				Common.define com Define.NoCOpt;
 				DMUsage true*)
 			| "package" ->
 				DMPackage
 			| "type" ->
-				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
 				DMDefault
 			| "module-symbols" ->
-				Common.define com Define.NoCOpt;
 				DMModuleSymbols None;
 			| "diagnostics" ->
-				Common.define com Define.NoCOpt;
 				DMDiagnostics [file_unique];
 			| "statistics" ->
-				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
-				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
 				DMDefault
@@ -274,7 +265,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 					| "resolve" ->
 						DMResolve arg
 					| "workspace-symbols" ->
-						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
 						DMDefault
