@@ -721,7 +721,7 @@ let run com tctx main =
 		check_abstract_as_value;
 		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		Optimizer.reduce_expression tctx;
-		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
+		InlineConstructors.inline_constructors tctx;
 		Exceptions.filter tctx;
 		CapturedVars.captured_vars com;
 	] in
