@@ -1476,7 +1476,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let c,cf = match cf.cf_overloads with
 				| [] -> c,cf
-				| _ -> match filter_overloads (find_overload (fun t -> t) c cf el) with
+				| _ -> match OverloadResolution.filter_overloads (OverloadResolution.find_overload (fun t -> t) c cf el) with
 					| None ->
 						Error.error "Could not find overload" e1.epos
 					| Some(c,cf,_) ->
@@ -1515,7 +1515,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				self#texpr rvalue_any e1;
 				false
 			in
-			begin match find_overload_rec false (apply_params c.cl_params tl) c cf el with
+			begin match OverloadResolution.maybe_resolve_instance_overload false (apply_params c.cl_params tl) c cf el with
 			| None -> Error.error "Could not find overload" e1.epos
 			| Some(c,cf,_) ->
 				let tl,tr = self#call_arguments cf.cf_type el in
@@ -1877,7 +1877,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TNew(c,tl,el) ->
 			begin match get_constructor (fun cf -> cf.cf_type) c with
 			|_,cf ->
-				begin match find_overload_rec true (apply_params c.cl_params tl) c cf el with
+				begin match OverloadResolution.maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el with
 				| None -> Error.error "Could not find overload" e.epos
 				| Some (c',cf,_) ->
 					let f () =
@@ -2238,7 +2238,7 @@ class tclass_to_jvm gctx c = object(self)
 							| TFun(tl,_) -> tl
 							| _ -> die "" __LOC__
 						in
-						begin match find_overload_rec' false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
+						begin match OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
 							| Some(_,cf_impl,_) -> check true cf cf_impl
 							| None -> ()
 						end;
