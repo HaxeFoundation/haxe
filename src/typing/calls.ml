@@ -235,18 +235,6 @@ let unify_field_call ctx fa el args ret p inline =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		begin match cf.cf_expr,cf.cf_kind with
-		| None,Method MethInline when not ctx.com.config.pf_overload ->
-			(* This is really awkward and shouldn't be here. We'll keep it for
-			   3.2 in order to not break code that relied on the quirky behavior
-			   in 3.1.3, but it should really be reviewed afterwards.
-			   Related issue: https://github.com/HaxeFoundation/haxe/issues/3846
-			*)
-			cf.cf_expr <- cf0.cf_expr;
-			cf.cf_kind <- cf0.cf_kind;
-		| _ ->
-			()
-		end;
 		t,cf
 	in
 	let expand_overloads map cf =
