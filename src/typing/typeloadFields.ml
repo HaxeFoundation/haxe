@@ -546,6 +546,8 @@ let create_class_context ctx c context_init p =
 	ctx,cctx
 
 let create_field_context (ctx,cctx) c cff =
+	if c.cl_path <> ([],"Std") then
+		DeprecationCheck.check_is ctx.com (fst cff.cff_name) (snd cff.cff_name);
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)

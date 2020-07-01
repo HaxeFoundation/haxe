@@ -195,6 +195,7 @@ let module_pass_1 ctx m tdecls loadp =
 	let decls = ref [] in
 	let statics = ref [] in
 	let check_name name p =
+		DeprecationCheck.check_is com name p;
 		let error prev_pos =
 			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
 			error (compl_msg "Previous declaration here") prev_pos;
@@ -441,6 +442,7 @@ let load_enum_field ctx e et is_flat index c =
 		ef_params = params;
 		ef_meta = c.ec_meta;
 	} in
+	DeprecationCheck.check_is ctx.com f.ef_name f.ef_name_pos;
 	let cf = {
 		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
 		cf_kind = (match follow f.ef_type with
