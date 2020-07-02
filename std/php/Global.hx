@@ -1493,6 +1493,5 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.http-response-code.php
 	**/
-	@:overload(function():Int {})
-	static function http_response_code(response_code:Int):Int;
+	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
 }
