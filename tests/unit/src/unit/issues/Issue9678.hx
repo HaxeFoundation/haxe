@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue9678 extends unit.Test {
+	#if !cpp
 	function test() {
 		var called = 0;
 		function returnVoid() {
@@ -11,6 +12,7 @@ class Issue9678 extends unit.Test {
 	}
 
 	@:keep static function explicitVoidArg(arg:Void) {}
+	#end
 }
 
 private class C<T> {
