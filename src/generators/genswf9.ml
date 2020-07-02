@@ -247,7 +247,7 @@ let rec type_id ctx t =
 
 let type_opt ctx t =
 	match follow_basic t with
-	| TDynamic _ | TMono _ -> None
+	| TDynamic _ | TMono _ | TAbstract ({a_path = [],"Void"},_) -> None
 	| _ -> Some (type_id ctx t)
 
 let type_void ctx t =
