@@ -664,6 +664,8 @@ module StdContext = struct
 		Hashtbl.find GlobalState.macro_lib f
 	)
 
+	let plugins = ref PMap.empty
+
 	let plugin_data = ref None
 
 	let register data = plugin_data := Some data
@@ -671,12 +673,18 @@ module StdContext = struct
 	let loadPlugin = vfun1 (fun filePath ->
 		let filePath = decode_string filePath in
 		let filePath = Dynlink.adapt_filename filePath in
-		(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
-		match !plugin_data with
-			| None ->
-				vnull
-			| Some l ->
-				encode_obj_s l
+		if PMap.mem filePath !plugins then
+			PMap.find filePath !plugins
+		else begin
+			(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
+			match !plugin_data with
+				| Some l ->
+					let vapi = encode_obj_s l in
+					plugins := PMap.add filePath vapi !plugins;
+					vapi
+				| None ->
+					vnull
+		end
 	)
 end
 
