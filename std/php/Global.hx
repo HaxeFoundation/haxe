@@ -1489,4 +1489,10 @@ extern class Global {
 		@see http://php.net/manual/en/function.cli-set-process-title.php
 	**/
 	static function cli_set_process_title(title:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.http-response-code.php
+	**/
+	@:overload(function():Int {})
+	static function http_response_code(response_code:Int):Int;
 }
