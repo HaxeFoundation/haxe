@@ -28,5 +28,8 @@
 			],
 			"url": "./.vscode/schemas/meta.schema.json"
 		}
+	],
+	"haxe.configurations": [
+		["--cwd", "tests/asys", "compile-dummy.hxml"]
 	]
 }

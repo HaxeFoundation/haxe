@@ -1,0 +1,3 @@
+--class-path src
+--main Main
+--library utest
