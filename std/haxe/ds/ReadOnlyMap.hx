@@ -35,7 +35,7 @@ abstract ReadOnlyMap<K, V>(Map<K, V>) from Map<K, V> {
 	@:arrayAccess inline function get(key:K)
 		return this[key];
 	
-	inline function copy():ReadOnlyMap<K, V>
+	public inline function copy():ReadOnlyMap<K, V>
 		return this.copy();
 	
 	@:to inline function toIterable():Iterable<V>

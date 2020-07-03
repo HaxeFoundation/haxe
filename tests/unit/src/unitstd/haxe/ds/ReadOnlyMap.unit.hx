@@ -17,6 +17,7 @@ romap['bar'] == null;
 [for(v in romap) v] == [2];
 [for(k => v in romap) k + v] == ['foo2'];
 Lambda.count(romap) == 1;
+romap != romap.copy();
 
 
 var map:Map<Int, Int> = new Map();
@@ -37,4 +38,5 @@ romap[65] == null;
 [for(k in romap.keys()) k] == [64];
 [for(v in romap) v] == [2];
 [for(k => v in romap) k + v] == [66];
+romap != romap.copy();
 Lambda.count(romap) == 1;
