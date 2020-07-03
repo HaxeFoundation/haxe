@@ -1,0 +1,268 @@
+package asys.native.filesystem;
+
+import haxe.io.Bytes;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
+import haxe.NoData;
+import haxe.Callback;
+import haxe.exceptions.NotImplementedException;
+
+/**
+	File system operations.
+**/
+class FileSystem {
+	/**
+		Open file for reading and/or writing.
+
+		Depending on `flags` value `callback` will be invoked with the appropriate
+		object type to read and/or write the file:
+		- `asys.native.filesystem.File` for reading and writing;
+		- `asys.native.filesystem.FileRead` for reading only;
+		- `asys.native.filesystem.FileWrite` for writing only;
+		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
+
+		@see asys.native.filesystem.FileOpenFlag for more details.
+
+		`mode` is used to set permissions for a created file in case of appropriate
+		`flags` are chosen.
+		Default `mode` equals to octal `0666`, which means read+write permissions
+		for everyone.
+	**/
+	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<Null<T>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Create and open a unique temporary file for writing and reading.
+
+		The file will be automatically deleted when it is closed or the program terminates.
+
+		TODO: Can Haxe guarantee automatic file deletion for all targets?
+	**/
+	static public function tempFile(path:FilePath, callback:Callback<Null<File>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Read the contents of a file specified by `path`.
+	**/
+	static public function readBytes(path:FilePath, callback:Callback<Null<Bytes>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Read the contents of a file specified by `path` as a `String`.
+	**/
+	static public function readString(path:FilePath, callback:Callback<Null<String>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Write `data` into a file specified by `path`
+
+		`flags` controls the behavior.
+		By default the file truncated if it exists and created if it does not exist.
+
+		@see asys.native.filesystem.FileOpenFlag for more details.
+
+		`mode` is used to set permissions for a created file in case of appropriate
+		`flags` are chosen.
+		Default `mode` equals to octal `0666`, which means read+write permissions
+		for everyone.
+	**/
+	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Write `text` into a file specified by `path`
+
+		`flags` controls the behavior.
+		By default the file is truncated if it exists and is created if it does not exist.
+
+		@see asys.native.filesystem.FileOpenFlag for more details.
+
+		`mode` is used to set permissions for a created file in case of appropriate
+		`flags` are chosen.
+		Default `mode` equals to octal `0666`, which means read+write permissions
+		for everyone.
+	**/
+	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Open directory for listing.
+	**/
+	static public function openDirectory(path:FilePath, callback:Callback<Null<Directory>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Create a directory.
+
+		Default `mode` equals to octal `0777`, which means read+write+execution
+		permissions for everyone.
+
+		If `recursive` is `true`: create missing directories tree all the way down to `path`.
+		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
+	**/
+	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Create a unique temporary directory.
+
+		For a directory name `prefix` gets appended with random characters.
+		The created directory path is passed to the `callback`.
+
+		Created directory will _not_ be deleted automatically.
+	**/
+	static public function createTempDirectory(prefix:FilePath, callback:Callback<Null<FilePath>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Renames the file or directory located at `oldPath` to `newPath`.
+
+		If `newPath` already exists and `overwrite` is `true` (which is the default)
+		the destination is overwritten.
+	**/
+	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Remove a file or symbolic link.
+	**/
+	static public function deleteFile(path:FilePath, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Remove an empty directory.
+	**/
+	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Remove everything at the given `path`.
+
+		Removes files, symbolic links and recursively removes directories and their contents.
+	**/
+	static public function delete(path:FilePath, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Get file or directory information at the given path.
+	**/
+	static public function info(path:FilePath, callback:Callback<Null<FileInfo>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Check user's access for a path.
+
+		Example:
+		```haxe
+		import asys.native.filesystem.FileAccessMode;
+		//check path existence
+		FileSystem.check(path, Exists, (error, result) -> trace(result));
+		//check if file is executable
+		FileSystem.check(path, Executable, (error, result) -> trace(result));
+		//check if file is readable and writable
+		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
+		```
+	**/
+	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Set path permissions.
+
+		If `recursive` is `true` and `path` points to a directory: apply `mode`
+		recursively to the directory contents as well.
+	**/
+	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Set path owner and group.
+
+		If `recursive` is `true` and `path` points to a directory: apply recursively
+		to the directory contents as well.
+	**/
+	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Set path owning group.
+
+		If `recursive` is `true` and `path` points to a directory: apply recursively
+		to the directory contents as well.
+	**/
+	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Create a link to `target` at `path`.
+
+		If `path` is omitted a link to `target` will be created in the current
+		directory with the same name as the last component of `target` path.
+		For example `FileSystem.link('/path/to/file.ext', callback)` will create
+		a link named `file.ext` in the current directory.
+	**/
+	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Get the value of a symbolic link.
+	**/
+	static public function readLink(path:FilePath, callback:Callback<Null<FilePath>>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Copy a file from `source` path to `destination` path.
+	**/
+	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Copy all the contents of `source` path to `destination` path.
+		If `source` is a directory, it will be copied recursively.
+	**/
+	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Shrink or expand a file specified by `path` to `newSize` bytes.
+
+		If the file does not exist, it is created.
+
+		If the file is larger than `newSize`, the extra data is lost.
+		If the file is shorter, zero bytes are used to fill the added length.
+	**/
+	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+
+	/**
+		Change access and modification times of a file.
+
+		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
+	**/
+	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
+		callback.fail(new NotImplementedException());
+	}
+}

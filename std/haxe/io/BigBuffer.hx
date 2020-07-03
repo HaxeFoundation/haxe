@@ -1,6 +1,6 @@
 package haxe.io;
 
-import haxe.errors.NotImplemented;
+import haxe.exceptions.NotImplementedException;
 
 enum abstract Endian(Int) {
 	var BigEndian;
@@ -17,28 +17,28 @@ class BigBuffer {
 		Current byte order for reading and writing numbers.
 	**/
 	public var endian(get,set):Endian;
-	function get_endian():Endian throw new NotImplemented();
-	function set_endian(v:Endian):Endian throw new NotImplemented();
+	function get_endian():Endian throw new NotImplementedException();
+	function set_endian(v:Endian):Endian throw new NotImplementedException();
 
 	/**
 		Buffer size (amount of bytes).
 	**/
 	public function getLength():Int64 {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
 		Move internal pointer to the beginning - to the byte at index 0.
 	**/
 	public function rewind():Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
 		Move internal pointer past the last byte.
 	**/
 	public function fastForward():Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -46,7 +46,7 @@ class BigBuffer {
 		or backward (if `step` is negative)
 	**/
 	public function movePointer(step:Int):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -58,7 +58,7 @@ class BigBuffer {
 		Advances internal pointer by the return value.
 	**/
 	public function copyTo(buffer:Bytes, offset:Int, length:Int):Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -70,7 +70,7 @@ class BigBuffer {
 		Advances internal pointer by the return value.
 	**/
 	public function copyFrom(buffer:Bytes, offset:Int, length:Int):Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -82,7 +82,7 @@ class BigBuffer {
 		Advances internal pointer by the return value.
 	**/
 	public function fill(length:Int, value:Int):Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -94,7 +94,7 @@ class BigBuffer {
 		Advances internal pointer by the amount of bytes returned.
 	**/
 	public function slice(length:Int):Bytes {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -105,7 +105,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function getDouble():Float {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -116,7 +116,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function getFloat():Float {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -128,7 +128,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function setDouble(value:Float):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -140,7 +140,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function setFloat(value:Float):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -151,7 +151,7 @@ class BigBuffer {
 		Advances internal pointer by 1 byte.
 	**/
 	public function getByte():Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -163,7 +163,7 @@ class BigBuffer {
 		Advances internal pointer by 1 byte.
 	**/
 	public function setByte(value:Int):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -175,7 +175,7 @@ class BigBuffer {
 		Advances internal pointer by 2 bytes.
 	**/
 	public function getUInt16():Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -188,7 +188,7 @@ class BigBuffer {
 		Advances internal pointer by 2 bytes.
 	**/
 	public function setUInt16(value:Int):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -200,7 +200,7 @@ class BigBuffer {
 		Advances internal pointer by 4 bytes.
 	**/
 	public function getInt32():Int {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -212,7 +212,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function getInt64():Int64 {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -225,7 +225,7 @@ class BigBuffer {
 		Advances internal pointer by 4 bytes.
 	**/
 	public function setInt32(value:Int):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -237,7 +237,7 @@ class BigBuffer {
 		Advances internal pointer by 8 bytes.
 	**/
 	public function setInt64(v:Int64):Void {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -250,7 +250,7 @@ class BigBuffer {
 		Advances internal pointer by `length` bytes.
 	**/
 	public function getString(length:Int, ?encoding:Encoding):String {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	public function toString():String {
@@ -262,7 +262,7 @@ class BigBuffer {
 		bytes are not initialized and may not be zero.
 	**/
 	public static function alloc(length:Int64, endian:Endian = LittleEndian):BigBuffer {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -271,6 +271,6 @@ class BigBuffer {
 		Total length of the result buffer always equals the sum of `bytes` lengths.
 	**/
 	public static function join(bytes:Array<Bytes>, endian:Endian = LittleEndian):BigBuffer {
-		throw new NotImplemented();
+		throw new NotImplementedException();
 	}
 }
