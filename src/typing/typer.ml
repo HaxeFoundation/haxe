@@ -2668,6 +2668,19 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
 		type_meta ~mode ctx m e1 with_type p
+	| EIs (e,(t,p_t)) ->
+		let pz = mk_zero_range_pos p in
+		let e_isOfType = EField ((EConst (Ident "Std"),pz),"isOfType"),pz in
+		let e_type =
+			match t with
+			| CTPath t ->
+				expr_of_type_path (t.tpackage,t.tname) p_t
+			| _ ->
+				display_error ctx "Unsupported type for `is` operator" p_t;
+				EConst (Ident "Dynamic"), p_t
+		in
+		let ecall = ECall (e_isOfType,[e;e_type]),p in
+		type_expr ctx ecall with_type
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)

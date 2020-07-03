@@ -1490,10 +1490,10 @@ and expr_next' e1 = parser
 		end
 	| [< '(Kwd In,_); e2 = expr >] ->
 		make_binop OpIn e1 e2
-	| [< '(Const (Ident "is"),p_is); tp = parse_type_path; s >] ->
+	| [< '(Const (Ident "is"),p_is); t = parse_complex_type; s >] ->
 		let p1 = pos e1 in
-		let p2 = pos tp in
-		let e_is = make_is e1 tp (punion p1 p2) p_is in
+		let p2 = pos t in
+		let e_is = EIs (e1,t), (punion p1 p2) in
 		expr_next e_is s
 	| [< >] -> e1
 

@@ -328,6 +328,8 @@ let reify in_macro =
 			expr "EThrow" [loop e]
 		| ECast (e,ct) ->
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
+		| EIs (e,ct) ->
+			expr "EIs" [loop e; to_type_hint ct p]
 		| EDisplay (e,dk) ->
 			expr "EDisplay" [loop e; to_display_kind dk p]
 		| EDisplayNew t ->

@@ -502,6 +502,8 @@ and encode_expr e =
 				27, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
 				28, [encode_meta_entry m;loop e]
+			| EIs (e,t) ->
+				29, [loop e;encode_ctype t]
 		in
 		encode_obj [
 			"pos", encode_pos p;
@@ -827,8 +829,8 @@ and decode_expr v =
 			ECheckType (loop e, (decode_ctype t))
 		| 28, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
-		| 29, [e;f] ->
-			EField (loop e, decode_string f) (*** deprecated EType, keep until haxe 3 **)
+		| 29, [e;t] ->
+			EIs (loop e,decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
