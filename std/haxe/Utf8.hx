@@ -63,7 +63,7 @@ class Utf8 {
 		Encode the input ISO string into the corresponding UTF8 one.
 	**/
 	public static function encode(s:String):String {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**
@@ -71,7 +71,7 @@ class Utf8 {
 		Throw an exception if a given UTF8 character is not supported by the decoder.
 	**/
 	public static function decode(s:String):String {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**

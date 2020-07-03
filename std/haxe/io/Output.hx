@@ -44,7 +44,7 @@ class Output {
 		Write one byte.
 	**/
 	public function writeByte(c:Int):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**

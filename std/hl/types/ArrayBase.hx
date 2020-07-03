@@ -25,16 +25,16 @@ package hl.types;
 @:keep
 class ArrayAccess {
 	public function getDyn(pos:Int):Dynamic {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return 0;
 	}
 
 	public function setDyn(pos:Int, v:Dynamic) {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function blit(pos:Int, src:ArrayAccess, srcpos:Int, len:Int):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 }
 
@@ -43,67 +43,67 @@ class ArrayBase extends ArrayAccess {
 	public var length(default, null):Int;
 
 	public function pushDyn(v:Dynamic):Int {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return 0;
 	}
 
 	public function popDyn():Null<Dynamic> {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function shiftDyn():Null<Dynamic> {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function unshiftDyn(v:Dynamic):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function insertDyn(pos:Int, v:Dynamic):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function containsDyn(v:Dynamic):Bool {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return false;
 	}
 
 	public function removeDyn(v:Dynamic):Bool {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return false;
 	}
 
 	public function sortDyn(f:Dynamic->Dynamic->Int):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function slice(pos:Int, ?end:Int):ArrayBase {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function splice(pos:Int, len:Int):ArrayBase {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function join(sep:String):String {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
 	public function reverse() {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function resize(len:Int) {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function toString():String {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 

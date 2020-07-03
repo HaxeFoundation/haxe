@@ -183,7 +183,7 @@ class HttpBase {
 		this method returns.
 	**/
 	public function request(?post:Bool):Void {
-		throw new haxe.exceptions.NotImplementedException("Not implemented");
+		throw throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**
