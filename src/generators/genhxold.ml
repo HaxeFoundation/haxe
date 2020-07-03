@@ -107,7 +107,7 @@ let generate_type com t =
 		| TDynamic t2 ->
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
 		| TFun ([],ret) ->
-			"Void -> " ^ ftype ret
+			"() -> " ^ ftype ret
 		| TFun (args,ret) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
 	and ftype t =
@@ -196,7 +196,7 @@ let generate_type com t =
 						a,(if o then Some (loop f.cf_meta) else None ),t
 					) args, ret
 				| _ ->
-					assert false
+					die "" __LOC__
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);
@@ -234,7 +234,7 @@ let generate_type com t =
 		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> not (List.memq f c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> not (has_class_field_flag f CfOverride)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

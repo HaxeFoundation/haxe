@@ -46,7 +46,12 @@ let build_macro_type ctx pl p =
 	t
 
 let build_macro_build ctx c pl cfl p =
-	let path, field, args = match Meta.get Meta.GenericBuild c.cl_meta with
+	let path, field, args =
+		let build_expr =
+			try Meta.get Meta.GenericBuild c.cl_meta
+			with Not_found -> error ((s_type_path c.cl_path) ^ " is missing @:genericBuild meta. Was it removed by a macro?") p
+		in
+		match build_expr with
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> error "genericBuild requires a single expression call parameter" p
 	in

@@ -45,12 +45,16 @@ let save_field_state ctx =
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
+	let old_monos = ctx.monomorphs.perfunction in
+	let old_in_function = ctx.in_function in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
 		ctx.ret <- old_ret;
 		ctx.curfun <- old_fun;
 		ctx.opened <- old_opened;
+		ctx.monomorphs.perfunction <- old_monos;
+		ctx.in_function <- old_in_function;
 	)
 
 let type_var_field ctx t e stat do_display p =
@@ -82,7 +86,7 @@ let type_function_arg_value ctx t c do_display =
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
-                | TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
+				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
@@ -91,13 +95,13 @@ let type_function_arg_value ctx t c do_display =
 			in
 			loop e
 
-let process_function_arg ctx n t c do_display p =
-	if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
+let process_function_arg ctx n t c do_display check_name p =
+	if check_name && starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
 	type_function_arg_value ctx t c do_display
 
 let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-		let c = process_function_arg ctx n t c do_display pn in
+		let c = process_function_arg ctx n t c do_display true pn in
 		let v = add_local_with_origin ctx TVOArgument n t pn in
 		v.v_meta <- v.v_meta @ m;
 		if do_display && DisplayPosition.display_position#enclosed_in pn then
@@ -105,9 +109,11 @@ let type_function ctx args ret fmode f do_display p =
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
+	ctx.in_function <- true;
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
+	ctx.monomorphs.perfunction <- [];
 	let e = match f.f_expr with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then
@@ -221,6 +227,7 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 
@@ -229,8 +236,20 @@ let type_function ctx args ret fmode f do_display p =
 	Std.finally save (type_function ctx args ret fmode f do_display) p
 
 let add_constructor ctx c force_constructor p =
-	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+	let super() =
+		match c.cl_super with
+		| None -> None
+		| Some ({ cl_constructor = Some cfsup } as csup,cparams) ->
+			Some(cfsup,csup,cparams)
+		| Some (csup,cparams) ->
+			try
+				let _,cfsup = Type.get_constructor (fun ctor -> apply_params csup.cl_params cparams ctor.cf_type) csup in
+				Some(cfsup,csup,cparams)
+			with Not_found ->
+				None
+	in
+	match c.cl_constructor, super() with
+	| None, Some(cfsup,csup,cparams) when not c.cl_extern ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
@@ -255,7 +274,7 @@ let add_constructor ctx c force_constructor p =
 				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
 				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) when not csup.cl_extern -> v, null()
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
 				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def
@@ -275,7 +294,7 @@ let add_constructor ctx c force_constructor p =
 							in
 							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
-					| _ -> assert false
+					| _ -> die "" __LOC__
 			) in
 			let p = c.cl_pos in
 			let vars = List.map (fun (v,def) -> alloc_var (VUser TVOArgument) v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in

@@ -75,7 +75,7 @@ class HelperMacros {
 		var result = try {
 			typeof(e);
 			"no error";
-		} catch (e:Dynamic) Std.string(e.message);
+		} catch (e:haxe.Exception) Std.string(e.message);
 		return macro $v{result};
 	}
 

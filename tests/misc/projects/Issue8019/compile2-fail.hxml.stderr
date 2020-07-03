@@ -1,2 +1,1 @@
-Type not found : 0.Foo
-Main.hx:4: lines 4-15 : Defined in this class
+Main.hx:6: characters 3-19 : Type not found : 0.Foo

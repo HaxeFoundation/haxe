@@ -22,9 +22,9 @@
 
 import cs.Boot;
 import cs.Lib;
-import cs.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}

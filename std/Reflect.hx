@@ -35,7 +35,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	public static function hasField(o:Dynamic, field:String):Bool;
+	static function hasField(o:Dynamic, field:String):Bool;
 
 	/**
 		Returns the value of the field named `field` on object `o`.
@@ -48,7 +48,7 @@ extern class Reflect {
 
 		If `field` is null, the result is unspecified.
 	**/
-	public static function field(o:Dynamic, field:String):Dynamic;
+	static function field(o:Dynamic, field:String):Dynamic;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`.
@@ -58,7 +58,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	public static function setField(o:Dynamic, field:String, value:Dynamic):Void;
+	static function setField(o:Dynamic, field:String, value:Dynamic):Void;
 
 	/**
 		Returns the value of the field named `field` on object `o`, taking
@@ -69,7 +69,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	public static function getProperty(o:Dynamic, field:String):Dynamic;
+	static function getProperty(o:Dynamic, field:String):Dynamic;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`, taking
@@ -80,7 +80,7 @@ extern class Reflect {
 
 		If `field` is null, the result is unspecified.
 	**/
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void;
+	static function setProperty(o:Dynamic, field:String, value:Dynamic):Void;
 
 	/**
 		Call a method `func` with the given arguments `args`.
@@ -95,7 +95,7 @@ extern class Reflect {
 			or by using `(object : Dynamic).field`. However, if `func` has a context, `o` is
 			ignored like on other targets.
 	**/
-	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic;
+	static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic;
 
 	/**
 		Returns the fields of structure `o`.
@@ -105,14 +105,14 @@ extern class Reflect {
 
 		If `o` is null, the result is unspecified.
 	**/
-	public static function fields(o:Dynamic):Array<String>;
+	static function fields(o:Dynamic):Array<String>;
 
 	/**
 		Returns true if `f` is a function, false otherwise.
 
 		If `f` is null, the result is false.
 	**/
-	public static function isFunction(f:Dynamic):Bool;
+	static function isFunction(f:Dynamic):Bool;
 
 	/**
 		Compares `a` and `b`.
@@ -135,7 +135,7 @@ extern class Reflect {
 		If `a` and `b` are null, the result is 0. If only one of them is null,
 		the result is unspecified.
 	**/
-	public static function compare<T>(a:T, b:T):Int;
+	static function compare<T>(a:T, b:T):Int;
 
 	/**
 		Compares the functions `f1` and `f2`.
@@ -149,7 +149,7 @@ extern class Reflect {
 		If `f1` or `f2` are member method closures, the result is true if they
 		are closures of the same method on the same object value, false otherwise.
 	**/
-	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool;
+	static function compareMethods(f1:Dynamic, f2:Dynamic):Bool;
 
 	/**
 		Tells if `v` is an object.
@@ -163,7 +163,7 @@ extern class Reflect {
 
 		Otherwise, including if `v` is null, the result is false.
 	**/
-	public static function isObject(v:Dynamic):Bool;
+	static function isObject(v:Dynamic):Bool;
 
 	/**
 		Tells if `v` is an enum value.
@@ -173,7 +173,7 @@ extern class Reflect {
 
 		Otherwise, including if `v` is null, the result is false.
 	**/
-	public static function isEnumValue(v:Dynamic):Bool;
+	static function isEnumValue(v:Dynamic):Bool;
 
 	/**
 		Removes the field named `field` from structure `o`.
@@ -182,7 +182,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	public static function deleteField(o:Dynamic, field:String):Bool;
+	static function deleteField(o:Dynamic, field:String):Bool;
 
 	/**
 		Copies the fields of structure `o`.
@@ -191,12 +191,12 @@ extern class Reflect {
 
 		If `o` is null, the result is `null`.
 	**/
-	public static function copy<T>(o:Null<T>):Null<T>;
+	static function copy<T>(o:Null<T>):Null<T>;
 
 	/**
 		Transform a function taking an array of arguments into a function that can
 		be called with any number of arguments.
 	**/
 	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic;
+	static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic;
 }

@@ -83,7 +83,7 @@ let keep_metas = [Meta.Keep;Meta.Expose]
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has_one_of keep_metas c.cl_meta
-	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file) || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
@@ -95,7 +95,7 @@ let keep_whole_class dce c =
 
 let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
-	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
+	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
 
 let mk_used_meta pos =
 	Meta.Used,[],(mk_zero_range_pos pos)
@@ -111,7 +111,7 @@ let mk_keep_meta pos =
 let rec keep_field dce cf c is_static =
 	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| not (is_physical_field cf)
+	|| has_class_field_flag cf CfExtern
 	|| (not is_static && overrides_extern_field cf c)
 	|| (
 		cf.cf_name = "new"
@@ -443,6 +443,9 @@ and expr_field dce e fa is_call_expr =
 			| FDynamic _ ->
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
+			| FClosure _ ->
+				check_and_add_feature dce "closure_read";
+				check_and_add_feature dce ("closure_read." ^ n);
 			| _ -> ());
 			begin match follow e.etype, fa with
 				| TInst(c,_), _
@@ -624,8 +627,16 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_binop_==";
 		expr dce e1;
 		expr dce e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_==";
+		expr dce e1;
+		expr dce e2;
 	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
 		check_and_add_feature dce "dynamic_binop_!=";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		check_and_add_feature dce "type_param_binop_!=";
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpMod,e1,e2) ->
@@ -744,10 +755,12 @@ let mark dce =
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				let pop = push_class dce c in
-				opt (expr dce) cf.cf_expr;
-				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-				pop();
+				if not c.cl_extern then begin
+					let pop = push_class dce c in
+					opt (expr dce) cf.cf_expr;
+					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
+					pop()
+				end
 			) cfl;
 			loop ()
 	in
@@ -836,7 +849,7 @@ let run com main mode =
 		com = com;
 		full = full;
 		dependent_types = Hashtbl.create 0;
-		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
+		std_dirs = if full then [] else List.map Path.get_full_path com.std_path;
 		debug = Common.defined com Define.DceDebug;
 		added_fields = [];
 		follow_expr = expr;
@@ -875,15 +888,18 @@ let run com main mode =
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with
 		| TClassDecl c ->
-			c.cl_overrides <- List.filter (fun s ->
-				let rec loop c =
-					match c.cl_super with
-					| Some (csup,_) when PMap.mem s.cf_name csup.cl_fields -> true
-					| Some (csup,_) -> loop csup
-					| None -> false
-				in
-				loop c
-			) c.cl_overrides;
+			List.iter (fun cf ->
+				if has_class_field_flag cf CfOverride then begin
+					let rec loop c =
+						match c.cl_super with
+						| Some (csup,_) when PMap.mem cf.cf_name csup.cl_fields -> true
+						| Some (csup,_) -> loop csup
+						| None -> false
+					in
+					let b = loop c in
+					if not b then remove_class_field_flag cf CfOverride;
+				end
+			) c.cl_ordered_fields;
 		| _ -> ()
 	) com.types;
 

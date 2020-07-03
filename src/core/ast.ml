@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 
 type keyword =
@@ -205,14 +205,14 @@ and expr_def =
 	| ECall of expr * expr list
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
-	| EVars of (placed_name * bool * type_hint option * expr option) list
+	| EVars of evar list
 	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
-	| ETry of expr * (placed_name * type_hint * expr * pos) list
+	| ETry of expr * (placed_name * type_hint option * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -271,6 +271,14 @@ and class_field = {
 	mutable cff_kind : class_field_kind;
 }
 
+and evar = {
+	ev_name : placed_name;
+	ev_final : bool;
+	ev_type : type_hint option;
+	ev_expr : expr option;
+	ev_meta : metadata;
+}
+
 type enum_flag =
 	| EPrivate
 	| EExtern
@@ -321,12 +329,27 @@ type type_def =
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
+	| EStatic of (placed_access, class_field_kind) definition
 	| EImport of import
 	| EUsing of placed_name list
 
 type type_decl = type_def * pos
 
 type package = string list * type_decl list
+
+let mk_type_path ?(params=[]) ?sub (pack,name) =
+	if name = "" then
+		raise (Invalid_argument "Empty module name is not allowed");
+	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
+
+let mk_evar ?(final=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
+	{
+		ev_name = name;
+		ev_final = final;
+		ev_type = t;
+		ev_expr = eo;
+		ev_meta = meta;
+	}
 
 let is_lower_ident i =
 	if String.length i = 0 then
@@ -660,10 +683,10 @@ let map_expr loop (e,p) =
 		ENew (t,el)
 	| EUnop (op,f,e) -> EUnop (op,f,loop e)
 	| EVars vl ->
-		EVars (List.map (fun (n,b,t,eo) ->
-			let t = opt type_hint t in
-			let eo = opt loop eo in
-			n,b,t,eo
+		EVars (List.map (fun v ->
+			let t = opt type_hint v.ev_type in
+			let eo = opt loop v.ev_expr in
+			{ v with ev_type = t; ev_expr = eo }
 		) vl)
 	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
@@ -692,7 +715,7 @@ let map_expr loop (e,p) =
 		ESwitch (e, cases, def)
 	| ETry (e,catches) ->
 		let e = loop e in
-		let catches = List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches in
+		let catches = List.map (fun (n,t,e,p) -> n,Option.map type_hint t,loop e,p) catches in
 		ETry (e,catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -744,7 +767,7 @@ let iter_expr loop (e,p) =
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
-	| EVars vl -> List.iter (fun (_,_,_,eo) -> opt eo) vl
+	| EVars vl -> List.iter (fun v -> opt v.ev_expr) vl
 
 let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
@@ -824,15 +847,35 @@ module Printer = struct
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
-		match f.cff_doc with
-		| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
-		| None -> "" ^
-		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
-		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
-		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp ((get,_),(set,_),t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
+		let doc = match f.cff_doc with
+			| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
+			| None -> ""
+		in
+		let s_separated f sep list =
+			if list <> [] then ((String.concat sep (List.map f list)) ^ sep) else ""
+		in
+		let s_meta = s_separated (s_metadata tabs) ("\n" ^ tabs) in
+		let s_access = s_separated s_placed_access " " in
+		(match f.cff_kind with
+		| FVar (t,e) ->
+			doc ^
+			let keyword = ref "var " in
+			let question = ref "" in
+			let access = List.filter (fun (a,_) -> if a = AFinal then (keyword := "final "; false) else true) f.cff_access in
+			let meta = List.filter (fun (m,_,_) -> if m = Meta.Optional then (question := "?"; false) else true) f.cff_meta in
+			s_meta meta ^
+			s_access access ^
+			!keyword ^ !question ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp ((get,_),(set,_),t,e) ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"function " ^ (fst f.cff_name) ^ s_func tabs func)
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
 	and s_opt_expr tabs e pre =
@@ -859,14 +902,17 @@ module Printer = struct
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
 	and s_func_arg tabs ((n,_),o,_,t,e) =
 		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
-	and s_var tabs ((n,_),_,t,e) =
-		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
+	and s_var tabs v =
+		let s = (fst v.ev_name) ^ (s_opt_type_hint tabs v.ev_type ":") ^ s_opt_expr tabs v.ev_expr " = " in
+		if v.ev_meta = [] then s
+		else (String.concat " " (List.map (s_metadata tabs) v.ev_meta)) ^ " " ^ s
 	and s_case tabs (el,e1,e2,_) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e,_) =
-		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
+	and s_catch tabs ((n,_),t,e,_) =
+		let hint = Option.map_default (fun (t,_) -> ":" ^ s_complex_type tabs t) "" t in
+		" catch(" ^ n ^ hint ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls
 	and s_expr_omit_block tabs e =
@@ -1005,9 +1051,14 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,cto,eo) ->
-					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
-					match eo with
+				List.iter (fun v ->
+					let t_hint =
+						match v.ev_type with
+						| None -> ""
+						| Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct
+					in
+					add (Printf.sprintf "%s  %s%s" tabs (fst v.ev_name) t_hint);
+					match v.ev_expr with
 					| None -> ()
 					| Some e ->
 						loop' (Printf.sprintf "%s      " tabs) e
@@ -1076,7 +1127,7 @@ module Expr = struct
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
 			| EDisplayNew _ ->
-				assert false
+				die "" __LOC__
 		in
 		loop' "" e;
 		Buffer.contents buf

@@ -36,15 +36,15 @@ import haxe.extern.Rest;
 		var elements = NativeArray.make(1,2,3,4,5,6);
 		```
 	**/
-	public static function make<T>(elements:Rest<T>):NativeArray<T>;
+	static function make<T>(elements:Rest<T>):NativeArray<T>;
 
 	/**
 		The length of the array
 	**/
-	public var length(default, null):Int;
+	var length(default, null):Int;
 
 	/**
 		Allocates a new array with size `len`
 	**/
-	public function new(len:Int):Void;
+	function new(len:Int):Void;
 }

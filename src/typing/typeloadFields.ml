@@ -115,11 +115,13 @@ let dump_field_context fctx =
 	]
 
 
-let is_java_native_function meta = try
+let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
-		| (Meta.Native,[],_) -> true
+		| (Meta.Native,[],_) ->
+			ctx.com.warning "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			true
 		| _ -> false
-	with | Not_found -> false
+	with | Not_found -> Meta.has Meta.NativeJni meta
 
 (**** end of strict meta handling *****)
 
@@ -135,15 +137,18 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl,el =
+			let tl_rev,el_rev =
 				List.fold_left (fun (args,exprs) (v,value) ->
-					let opt = match value with Some _ -> true | None -> false in
+					let opt = match value with
+						| Some _ -> true
+						| None -> Meta.has Meta.Optional v.v_meta
+					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
 					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
 				) ([],[]) args
 			in
-			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
-			(args,Some super_expr,tl)
+			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
+			(args,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
@@ -179,6 +184,8 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
+				if opt && not (Meta.has Meta.Optional v.v_meta) then
+					v.v_meta <- (Meta.Optional,[],null_pos) :: v.v_meta;
 				(* this.field = <constructor_argument> *)
 				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
@@ -219,7 +226,7 @@ let transform_abstract_field com this_t a_t a f =
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
-		let init p = (EVars [("this",null_pos),false,Some this_t,None],p) in
+		let init p = (EVars [mk_evar ~t:this_t ("this",null_pos)],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],null_pos) :: (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
@@ -412,7 +419,7 @@ let build_enum_abstract ctx c a fields p =
 		| _ ->
 			()
 	) fields;
-	EVars [("",null_pos),false,Some (CTAnonymous fields,p),None],p
+	EVars [mk_evar ~t:(CTAnonymous fields,p) ("",null_pos)],p
 
 let apply_macro ctx mode path el p =
 	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
@@ -506,7 +513,8 @@ let create_class_context ctx c context_init p =
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			if !locate_macro_error && (ep.pfile <> c.cl_pos.pfile || ep.pmax < c.cl_pos.pmin || ep.pmin > c.cl_pos.pmax) then ctx.com.error "Defined in this class" c.cl_pos
+			let open TFunctions in
+			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)
@@ -538,6 +546,7 @@ let create_class_context ctx c context_init p =
 	ctx,cctx
 
 let create_field_context (ctx,cctx) c cff =
+	DeprecationCheck.check_is ctx.com (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
 	let ctx = {
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
@@ -559,11 +568,7 @@ let create_field_context (ctx,cctx) c cff =
 		| _ ->
 			()
 	) cff.cff_meta;
-	let allow_inline = cctx.abstract <> None || match cff.cff_kind with
-		| FFun _ -> ctx.g.doinline || !is_extern || c.cl_extern
-		| _ -> true
-	in
-	let is_inline = allow_inline && List.mem_assoc AInline cff.cff_access in
+	let is_inline = List.mem_assoc AInline cff.cff_access in
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
@@ -598,7 +603,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
+		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
@@ -609,7 +614,8 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf is_static =
+let add_field c cf =
+	let is_static = has_class_field_flag cf CfStatic in
 	if is_static then begin
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
@@ -630,6 +636,24 @@ let type_opt (ctx,cctx) p t =
 	| _ ->
 		load_type_hint ctx p t
 
+let transform_field (ctx,cctx) c f fields p =
+	let f = match cctx.abstract with
+		| Some a ->
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+			transform_abstract_field ctx.com this_t a_t a f
+		| None ->
+			f
+	in
+	if List.mem_assoc AMacro f.cff_access then
+		(match ctx.g.macros with
+		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
+			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
+				error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
+		| _ -> ());
+	f
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -637,25 +661,8 @@ let build_fields (ctx,cctx) c fields =
 	c.cl_build <- (fun() -> BuildMacro pending);
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
-		| EVars [_,_,Some (CTAnonymous f,p),None] ->
-			let f = List.map (fun f ->
-				let f = match cctx.abstract with
-					| Some a ->
-						let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
-						let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-						transform_abstract_field ctx.com this_t a_t a f
-					| None ->
-						f
-				in
-				if List.mem_assoc AMacro f.cff_access then
-					(match ctx.g.macros with
-					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
-						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
-						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
-							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
-					| _ -> ());
-				f
-			) f in
+		| EVars [{ ev_type = Some (CTAnonymous f,p); ev_expr = None }] ->
+			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
 			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
@@ -836,7 +843,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
-							unify ctx t (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) p;
+							unify ctx t (TAbstract(a,(Monomorph.spawn_constrained_monos (fun t -> t) a.a_params))) p;
 							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
 							unify ctx e1.etype a.a_this e1.epos
 						| _ ->
@@ -895,7 +902,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 	match cctx.abstract with
 		| Some a ->
 			let m = mk_mono() in
-			let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
+			let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 			let rec loop ml =
@@ -942,7 +949,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
 								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> assert false
+								| _ -> die "" __LOC__
 							in
 							args
 						end else
@@ -958,6 +965,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					fctx.expr_presence_matters <- true;
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
+				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
+					error (cf.cf_name ^ ": Ternary overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
@@ -1049,7 +1058,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		if ctx.in_macro then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			c.cl_extern <- false;
-			let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
 				| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
@@ -1063,7 +1072,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = fd.f_expr;
 			}
 		end else
-			let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None },null_pos) in
+			let tdyn = Some (CTPath (mk_type_path ([],"Dynamic")),null_pos) in
 			let to_dyn p t = match t with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
@@ -1097,7 +1106,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
+	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
+	let is_override = Option.is_some fctx.override in
+	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
+
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
 	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
@@ -1141,7 +1153,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			with Not_found ->
 				()
 	) parent;
-	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
+	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
@@ -1161,9 +1173,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
 			begin match ctx.com.platform with
-				| Java when is_java_native_function cf.cf_meta ->
+				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if fd.f_expr <> None then
-						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
@@ -1203,7 +1215,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				begin if ctx.com.platform = Flash && c.cl_extern then
 					()
 				else
-					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
+					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not c.cl_extern && not fctx.is_extern) pn)
 				end;
 				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
@@ -1238,7 +1250,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				let f = PMap.find m c.cl_statics in
 				(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
 			else
-				Overloads.get_overloads c m
+				Overloads.get_overloads ctx.com c m
 		else
 			[ if fctx.is_static then
 				let f = PMap.find m c.cl_statics in
@@ -1270,7 +1282,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			(match f2.cf_kind with
 				| Method MethMacro ->
 					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-					display_error ctx (f2.cf_name ^ ": Accessor method is here") f2.cf_pos;
+					display_error ctx (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
 				| _ -> ());
 			unify_raise ctx t2 t f2.cf_pos;
 			if (fctx.is_abstract_member && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (fctx.is_abstract_member)) then
@@ -1394,14 +1406,18 @@ let init_field (ctx,cctx,fctx) f =
 		| Some a when fctx.is_abstract_member -> ctx.type_params <- a.a_params;
 		| _ -> ()
 	end;
-	match f.cff_kind with
-	| FVar (t,e) ->
-		create_variable (ctx,cctx,fctx) c f t e p
-	| FFun fd ->
-		reject_final_static_method ctx cctx fctx f;
-		create_method (ctx,cctx,fctx) c f fd p
-	| FProp (get,set,t,eo) ->
-		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	let cf =
+		match f.cff_kind with
+		| FVar (t,e) ->
+			create_variable (ctx,cctx,fctx) c f t e p
+		| FFun fd ->
+			reject_final_static_method ctx cctx fctx f;
+			create_method (ctx,cctx,fctx) c f fd p
+		| FProp (get,set,t,eo) ->
+			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
+	in
+	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	cf
 
 let check_overload ctx f fs =
 	try
@@ -1412,7 +1428,7 @@ let check_overload ctx f fs =
 			) fs
 		in
 		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ctx ("The second field is declared here") f2.cf_pos
+		display_error ctx (compl_msg "The second field is declared here") f2.cf_pos
 	with Not_found ->
 		try
 			let f2 =
@@ -1426,7 +1442,7 @@ let check_overload ctx f fs =
 				f.cf_name ^
 				"\nThe signatures are different in Haxe, but not in the target language"
 			) f.cf_pos;
-			display_error ctx ("The second field is declared here") f2.cf_pos
+			display_error ctx (compl_msg "The second field is declared here") f2.cf_pos
 		with | Not_found -> ()
 
 let check_overloads ctx c =
@@ -1477,15 +1493,22 @@ let init_class ctx c p context_init herits fields =
 	in
 	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
+	let has_init = ref false in
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
 			let ctx,fctx = create_field_context (ctx,cctx) c f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
+			if fctx.field_kind = FKInit then begin
+				if !has_init then
+					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+					has_init := true
+			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
-				error "You can't declare static fields in interfaces" p;
+				error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
 				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
 			in
@@ -1519,7 +1542,8 @@ let init_class ctx c p context_init herits fields =
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
-				if fctx.override <> None then c.cl_overrides <- cf :: c.cl_overrides;
+				if fctx.override <> None then
+					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then
@@ -1534,7 +1558,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
+				if fctx.do_add then add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p

@@ -56,12 +56,19 @@ let rec display_type ctx t p =
 			| _ ->
 				()
 
-let check_display_type ctx t p =
+let check_display_type ctx t path =
 	let add_type_hint () =
-		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,p,t) :: ctx.g.type_hints;
+		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,pos path,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && display_position#enclosed_in p then
+		if ctx.is_display_file && display_position#enclosed_in (pos path) then
+			let p =
+				match path with
+				| ({ tpackage = pack; tname = name; tsub = sub },p) ->
+					let strings = match sub with None -> name :: pack | Some s -> s :: name :: pack in
+					let length = String.length (String.concat "." strings) in
+					{ p with pmax = p.pmin + length }
+			in
 			display_type ctx t p
 	in
 	add_type_hint();
@@ -101,8 +108,10 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
 				snd c.cl_path,SKConstructor cf
+			| _,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				cf.cf_name,SKField (cf,Some c.cl_path)
 			| _ ->
-				cf.cf_name,SKField cf
+				cf.cf_name,SKField (cf,None)
 		in
 		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->

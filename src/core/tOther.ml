@@ -7,18 +7,9 @@ open TPrinting
 module TExprToExpr = struct
 	let tpath p mp pl =
 		if snd mp = snd p then
-			CTPath {
-				tpackage = fst p;
-				tname = snd p;
-				tparams = pl;
-				tsub = None;
-			}
-		else CTPath {
-				tpackage = fst mp;
-				tname = snd mp;
-				tparams = pl;
-				tsub = Some (snd p);
-			}
+			CTPath (mk_type_path ~params:pl p)
+		else
+			CTPath (mk_type_path ~params:pl ~sub:(snd p) mp)
 
 	let rec convert_type = function
 		| TMono r ->
@@ -29,12 +20,7 @@ module TExprToExpr = struct
 		| TEnum ({e_private = true; e_path=_,name},tl)
 		| TType ({t_private = true; t_path=_,name},tl)
 		| TAbstract ({a_private = true; a_path=_,name},tl) ->
-			CTPath {
-				tpackage = [];
-				tname = name;
-				tparams = List.map tparam tl;
-				tsub = None;
-			}
+			CTPath (mk_type_path ~params:(List.map tparam tl) ([],name))
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map tparam pl)
 		| TInst({cl_kind = KExpr e} as c,pl) ->
@@ -111,13 +97,16 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die "" __LOC__),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (FKAnonymous,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
+			let final = has_var_flag v VFinal
+			and t = mk_type_hint v.v_type v.v_pos
+			and eo = eopt eo in
+			EVars ([mk_evar ~final ?t ?eo ~meta:v.v_meta (v.v_name,v.v_pos)])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -133,13 +122,13 @@ module TExprToExpr = struct
 		| TEnumIndex _
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
-			assert false
+			die "" __LOC__
 		| TTry (e,catches) ->
 			let e1 = convert_expr e in
 			let catches = List.map (fun (v,e) ->
-				let ct = try convert_type v.v_type,null_pos with Exit -> assert false in
+				let ct = try convert_type v.v_type,null_pos with Exit -> die "" __LOC__ in
 				let e = convert_expr e in
-				(v.v_name,v.v_pos),ct,e,(pos e)
+				(v.v_name,v.v_pos),(Some ct),e,(pos e)
 			) catches in
 			ETry (e1,catches)
 		| TReturn e -> EReturn (eopt e)
@@ -151,7 +140,7 @@ module TExprToExpr = struct
 				| None -> None
 				| Some t ->
 					let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
-					Some (try convert_type t,null_pos with Exit -> assert false)
+					Some (try convert_type t,null_pos with Exit -> die "" __LOC__)
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1
@@ -189,6 +178,11 @@ module ExtType = struct
 
 	let is_bool t = match t with
 		| TAbstract({a_path=[],"Bool"},_) -> true
+		| _ -> false
+
+	let is_type_param t =
+		match t with
+		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| _ -> false
 
 	type semantics =
@@ -234,10 +228,7 @@ let class_module_type c = {
 	t_doc = None;
 	t_pos = c.cl_pos;
 	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = c.cl_statics;
-		a_status = ref (Statics c);
-	};
+	t_type = mk_anon ~fields:c.cl_statics (ref (Statics c));
 	t_private = true;
 	t_params = [];
 	t_using = [];
@@ -263,10 +254,7 @@ let abstract_module_type a tl = {
 	t_doc = None;
 	t_pos = a.a_pos;
 	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
+	t_type = mk_anon (ref (AbstractStatics a));
 	t_private = true;
 	t_params = [];
 	t_using = [];

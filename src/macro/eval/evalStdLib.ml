@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open EvalValue
 open EvalEncode
@@ -152,6 +152,15 @@ module StdArray = struct
 		vstring s
 	)
 
+	let keyValueIterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_array_key_value_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
 	let lastIndexOf = vifun2 (fun vthis x fromIndex ->
 		let this = this vthis in
 		let last = this.alength - 1 in
@@ -186,6 +195,11 @@ module StdArray = struct
 	let remove = vifun1 (fun vthis x ->
 		let this = this vthis in
 		vbool (EvalArray.remove this equals x)
+	)
+
+	let contains = vifun1 (fun vthis x ->
+		let this = this vthis in
+		vbool (EvalArray.contains this equals x)
 	)
 
 	let reverse = vifun0 (fun vthis ->
@@ -300,7 +314,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let value = decode_int value in
-		(try Bytes.fill this pos len (char_of_int value) with _ -> outside_bounds());
+		(try Bytes.fill this pos len (char_of_int (value land 0xFF)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -532,7 +546,7 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdCallStack = struct
+module StdNativeStackTrace = struct
 	let make_stack envs =
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
@@ -552,6 +566,9 @@ module StdCallStack = struct
 		) envs;
 		encode_array (DynArray.to_list l)
 
+	let make_stack_value envs =
+		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let envs = call_stack (get_eval ctx) in
@@ -559,7 +576,7 @@ module StdCallStack = struct
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
 		in
-		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+		make_stack_value  envs
 	)
 
 	let getExceptionStack = vfun0 (fun () ->
@@ -618,7 +635,7 @@ module StdCompress = struct
 			| 2 -> Z_FULL_FLUSH
 			| 3 -> Z_FINISH
 			| 4 -> Z_PARTIAL_FLUSH
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		(this vthis).z_flush <- mode;
 		vnull
@@ -647,6 +664,8 @@ module StdContext = struct
 		Hashtbl.find GlobalState.macro_lib f
 	)
 
+	let plugins = ref PMap.empty
+
 	let plugin_data = ref None
 
 	let register data = plugin_data := Some data
@@ -654,12 +673,18 @@ module StdContext = struct
 	let loadPlugin = vfun1 (fun filePath ->
 		let filePath = decode_string filePath in
 		let filePath = Dynlink.adapt_filename filePath in
-		(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
-		match !plugin_data with
-			| None ->
-				vnull
-			| Some l ->
-				encode_obj_s l
+		if PMap.mem filePath !plugins then
+			PMap.find filePath !plugins
+		else begin
+			(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
+			match !plugin_data with
+				| Some l ->
+					let vapi = encode_obj_s l in
+					plugins := PMap.add filePath vapi !plugins;
+					vapi
+				| None ->
+					vnull
+		end
 	)
 end
 
@@ -928,7 +953,9 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let pos = decode_int pos in
-		let len = default_int len (String.length s - pos) in
+		let len_default = String.length s - pos in
+		let len = default_int len len_default in
+		let len = if len < 0 then len_default else len in
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
@@ -952,25 +979,45 @@ module StdEReg = struct
 	let split = vifun1 (fun vthis s ->
 		let this = this vthis in
 		let s = decode_string s in
-		if String.length s = 0 then encode_array [v_empty_string]
+		let slength = String.length s in
+		if slength = 0 then
+			encode_array [v_empty_string]
 		else begin
-			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.full_split ~iflags:0x2000 ~max ~rex:this.r s in
-			let rec loop split cur acc l = match l with
-				| Text s :: l ->
-					loop split (cur ^ s) acc l
-				| Delim s :: l ->
-					if split then
-						loop this.r_global "" ((create_unknown cur) :: acc) l
-					else
-						loop false (cur ^ s) acc l
-				| _ :: l ->
-					loop split cur acc l
-				| [] ->
-					List.rev ((create_unknown cur) :: acc)
+			let copy_offset = ref 0 in
+			let acc = DynArray.create () in
+			let add first last =
+				let sub = String.sub s first (last - first) in
+				DynArray.add acc (create_unknown sub)
 			in
-			let l = loop true "" [] l in
-			encode_array l
+			let exec = Pcre.exec ~iflags:0x2000 ~rex:this.r in
+			let step pos =
+				try
+					let substrings = exec ~pos s in
+					let (first,last) = Pcre.get_substring_ofs substrings 0 in
+					add !copy_offset first;
+					copy_offset := last;
+					let next_start = if pos = last then last + 1 else last in
+					if next_start >= slength then begin
+						DynArray.add acc (create_unknown "");
+						None
+					end else
+						Some next_start
+				with Not_found ->
+					add !copy_offset slength;
+					None
+			in
+			let rec loop pos =
+				match step pos with
+				| Some next ->
+					if this.r_global then
+						loop next
+					else
+						add !copy_offset slength
+				| _ ->
+					()
+			in
+			loop 0;
+			encode_array (DynArray.to_list acc)
 		end
 	)
 end
@@ -1071,7 +1118,7 @@ module StdFileInput = struct
 		r := false;
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> assert false);
+		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> die "" __LOC__);
 		vnull
 	)
 
@@ -1123,7 +1170,7 @@ module StdFileOutput = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let mode,_ = decode_enum mode in
-		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> assert false);
+		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> die "" __LOC__);
 		vnull
 	)
 
@@ -1990,7 +2037,7 @@ module StdSocket = struct
 		let s = catch_unix_error Unix.string_of_inet_addr addr in
 		match List.map Int32.of_string (ExtString.String.nsplit s ".") with
 			| [a;b;c;d] -> Int32.add (Int32.add (Int32.add (Int32.shift_left a 24) (Int32.shift_left b 16)) (Int32.shift_left c 8)) d
-			| _ -> assert false
+			| _ -> die "" __LOC__
 
 	let this vthis = match vthis with
 		| VInstance {ikind = ISocket sock} -> sock
@@ -1999,7 +2046,7 @@ module StdSocket = struct
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
 		let socket,_ = catch_unix_error Unix.accept this in
-		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
+		encode_instance key_eval_vm_NativeSocket ~kind:(ISocket socket)
 	)
 
 	let bind = vifun2 (fun vthis host port ->
@@ -2030,7 +2077,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	)
 
 	let listen = vifun1 (fun vthis connections ->
@@ -2047,7 +2094,7 @@ module StdSocket = struct
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	)
 
 	let receive = vifun3 (fun vthis buf pos len ->
@@ -2379,7 +2426,7 @@ module StdStringBuf = struct
 		let s = decode_vstring s in
 		let c_pos = decode_int pos in
 		let c_len = match len with
-			| VNull -> String.length s.sstring - c_pos
+			| VNull -> s.slength - c_pos
 			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
@@ -3119,7 +3166,7 @@ let init_constructors builtins =
 			match vl with
 			| [size] ->
 				encode_vector_instance (Array.make (decode_int size) vnull)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_Date
 		(fun vl ->
@@ -3130,24 +3177,24 @@ let init_constructors builtins =
 					Unix.mktime {t with tm_sec=s;tm_min=mi;tm_hour=h;tm_mday=d;tm_mon=m;tm_year=y - 1900}
 				) () in
 				encode_instance key_Date ~kind:(IDate (fst f))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		);
 	add key_EReg
 		(fun vl -> match vl with
 			| [r;opt] -> encode_instance key_EReg ~kind:(StdEReg.create (decode_string r) (decode_string opt))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_String
 		(fun vl -> match vl with
 			| [s] -> s
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
 	add key_haxe_Utf8
 		(fun vl -> match vl with
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
@@ -3163,7 +3210,7 @@ let init_constructors builtins =
 				Bytes.blit b 0 b' 0 blit_length;
 				encode_bytes b'
 			| _ ->
-				assert false
+				die "" __LOC__
 		);
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
@@ -3175,11 +3222,11 @@ let init_constructors builtins =
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
-	add key_sys_net__Socket_NativeSocket
+	add key_eval_vm_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_eval_vm_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3187,7 +3234,7 @@ let init_constructors builtins =
 				let level = decode_int level in
 				let z = Extc.zlib_deflate_init level in
 				encode_instance key_haxe_zip_Compress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_haxe_zip_Uncompress
 		(fun vl -> match vl with
@@ -3195,7 +3242,7 @@ let init_constructors builtins =
 				let windowBits = default_int windowBits 15 in
 				let z = Extc.zlib_inflate_init2 windowBits in
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_eval_vm_Thread
 		(fun vl -> match vl with
@@ -3204,7 +3251,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		);
 	add key_sys_net_Mutex
 		(fun _ ->
@@ -3230,7 +3277,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	EvalSsl.init_constructors add
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3256,12 +3304,14 @@ let init_standard_library builtins =
 		"insert",StdArray.insert;
 		"iterator",StdArray.iterator;
 		"join",StdArray.join;
+		"keyValueIterator",StdArray.keyValueIterator;
 		"lastIndexOf",StdArray.lastIndexOf;
 		"map",StdArray.map;
 		"pop",StdArray.pop;
 		"push",StdArray.push;
 		"remove",StdArray.remove;
 		"resize",StdArray.resize;
+		"contains",StdArray.contains;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
@@ -3319,9 +3369,9 @@ let init_standard_library builtins =
 		"addBytes",StdBytesBuffer.addBytes;
 		"getBytes",StdBytesBuffer.getBytes;
 	];
-	init_fields builtins (["haxe"],"CallStack") [
-		"getCallStack",StdCallStack.getCallStack;
-		"getExceptionStack",StdCallStack.getExceptionStack;
+	init_fields builtins (["haxe"],"NativeStackTrace") [
+		"_callStack",StdNativeStackTrace.getCallStack;
+		"exceptionStack",StdNativeStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
@@ -3526,7 +3576,7 @@ let init_standard_library builtins =
 		"encode",StdSha1.encode;
 		"make",StdSha1.make;
 	] [];
-	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
+	init_fields builtins (["eval";"vm"],"NativeSocket") [
 		"select",StdSocket.select;
 	] [
 		"accept",StdSocket.accept;
@@ -3663,4 +3713,5 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	EvalSsl.init_fields init_fields builtins

@@ -24,16 +24,22 @@ import python.lib.Time;
 import python.lib.Os;
 import sys.io.FileInput;
 import sys.io.FileOutput;
+import haxe.ds.StringMap;
 
 @:coreApi
 class Sys {
-	static var environ:haxe.ds.StringMap<String> = {
-		environ = new haxe.ds.StringMap();
-		var env = Os.environ;
-		for (key in env.keys()) {
-			environ.set(key, env.get(key, null));
+	static var environ(get,default):StringMap<String>;
+	static function get_environ():StringMap<String> {
+		return switch environ {
+			case null:
+				var environ = new StringMap();
+				var env = Os.environ;
+				for (key in env.keys()) {
+					environ.set(key, env.get(key, null));
+				}
+				Sys.environ = environ;
+			case env: env;
 		}
-		environ;
 	}
 
 	public static inline function time():Float {

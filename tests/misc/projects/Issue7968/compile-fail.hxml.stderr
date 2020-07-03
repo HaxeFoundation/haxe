@@ -1,0 +1,2 @@
+Foo.hx:2: characters 1-18 : Name A is already defined in this module
+Foo.hx:1: characters 9-10 : ... Previous declaration here

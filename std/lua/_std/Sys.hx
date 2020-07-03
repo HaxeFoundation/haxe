@@ -76,8 +76,8 @@ class Sys {
 	}
 
 	public static function environment():Map<String, String> {
-        var env = lua.lib.luv.Os.environ();
-        return lua.Table.toMap(env);
+		var env = lua.lib.luv.Os.environ();
+		return lua.Table.toMap(env);
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath():String {
@@ -111,16 +111,16 @@ class Sys {
 		lua.lib.luv.Thread.sleep(Math.floor(seconds * 1000));
 
 	public inline static function stderr():haxe.io.Output
-		return new FileOutput(Io.stderr);
+		return @:privateAccess new FileOutput(Io.stderr);
 
 	public inline static function stdin():haxe.io.Input
-		return new FileInput(Io.stdin);
+		return @:privateAccess new FileInput(Io.stdin);
 
 	public inline static function stdout():haxe.io.Output
-		return new FileOutput(Io.stdout);
+		return @:privateAccess new FileOutput(Io.stdout);
 
-	public static function time():Float{
-        var stamp = lua.lib.luv.Misc.gettimeofday();
-        return stamp.seconds + (stamp.microseconds / 100000);
-    }
+	public static function time():Float {
+		var stamp = lua.lib.luv.Misc.gettimeofday();
+		return stamp.seconds + (stamp.microseconds / 100000);
+	}
 }

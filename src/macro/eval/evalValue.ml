@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open EvalHash
 
@@ -165,6 +165,13 @@ and vinstance_kind =
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
 	| IRef of Obj.t
+	(* SSL *)
+	| IMbedtlsConfig of Mbedtls.mbedtls_ssl_config
+	| IMbedtlsCtrDrbg of Mbedtls.mbedtls_ctr_drbg_context
+	| IMbedtlsEntropy of Mbedtls.mbedtls_entropy_context
+	| IMbedtlsPkContext of Mbedtls.mbedtls_pk_context
+	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
+	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
 
 and vinstance = {

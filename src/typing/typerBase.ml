@@ -19,8 +19,8 @@ type object_decl_kind =
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
 
-let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
+let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -64,6 +64,10 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
+let is_lower_ident s p =
+	try Ast.is_lower_ident s
+	with Invalid_argument msg -> error msg p
+
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
@@ -84,7 +88,7 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> die "" __LOC__) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
@@ -107,7 +111,7 @@ let rec type_module_type ctx t tparams p =
 		let mt = try
 			module_type_of_type t
 		with Exit ->
-			if follow t == t_dynamic then Typeload.load_type_def ctx p { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
 			else error "Invalid module type" p
 		in
 		type_module_type ctx mt None p
@@ -115,12 +119,11 @@ let rec type_module_type ctx t tparams p =
 		let t_tmp = class_module_type c in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
+		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in
-		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-			DeprecationCheck.check_typedef ctx.com s p;
+		DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p
@@ -138,7 +141,11 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
 let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
+	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
+
+let mk_module_type_access ctx t p : access_mode -> access_kind =
+	let e = type_module_type ctx t None p in
+	(fun _ -> AKExpr e)
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in
@@ -193,7 +200,7 @@ let unify_static_extension ctx e t p =
 	if multitype_involed e.etype t then
 		AbstractCast.cast_or_unify_raise ctx t e p
 	else begin
-		Type.unify e.etype t;
+		Type.unify_custom {default_unification_context with allow_transitive_cast = false} e.etype t;
 		e
 	end
 

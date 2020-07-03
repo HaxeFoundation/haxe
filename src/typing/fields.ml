@@ -57,70 +57,19 @@ let remove_constant_flag t callb =
 		restore();
 		raise e
 
-let check_constraints ctx tname tpl tl map delayed p =
-	List.iter2 (fun m (name,t) ->
-		match follow t with
-		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			let f = (fun() ->
-				List.iter (fun ct ->
-					try
-						Type.unify (map m) (map ct)
-					with Unify_error l ->
-						let l = Constraint_failure (tname ^ "." ^ name) :: l in
-						raise (Unify_error l)
-				) constr
-			) in
-			if delayed then
-				delay ctx PCheckConstraint (fun () -> try f() with Unify_error l -> display_error ctx (error_msg (Unify l)) p)
-			else
-				f()
-		| _ ->
-			()
-	) tl tpl
-
-let enum_field_type ctx en ef tl_en tl_ef p =
-	let map t = apply_params en.e_params tl_en (apply_params ef.ef_params tl_ef t) in
-	begin try
-		check_constraints ctx (s_type_path en.e_path) en.e_params tl_en map true p;
-		check_constraints ctx ef.ef_name ef.ef_params tl_ef map true p;
-	with Unify_error l ->
-		display_error ctx (error_msg (Unify l)) p
-	end;
+let enum_field_type ctx en ef p =
+	let tl_en = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
+	let map = apply_params en.e_params tl_en in
+	let tl_ef = Monomorph.spawn_constrained_monos map ef.ef_params in
+	let map t = map (apply_params ef.ef_params tl_ef t) in
 	map ef.ef_type
-
-let add_constraint_checks ctx ctypes pl f tl p =
-	List.iter2 (fun m (name,t) ->
-		match follow t with
-		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			let constr = List.map (fun t ->
-				let t = apply_params f.cf_params tl t in
-				(* only apply params if not static : in that case no param is passed *)
-				let t = (if pl = [] then t else apply_params ctypes pl t) in
-				t
-			) constr in
-			delay ctx PCheckConstraint (fun() ->
-				List.iter (fun ct ->
-					try
-						(* if has_mono m then raise (Unify_error [Unify_custom "Could not resolve full type for constraint checks"; Unify_custom ("Type was " ^ (s_type (print_context()) m))]); *)
-						Type.unify m ct
-					with Unify_error l ->
-						display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
-				) constr
-			);
-		| _ -> ()
-	) tl f.cf_params
 
 let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
-		let monos = List.map (fun _ -> mk_mono()) l in
-		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
+		let monos = Monomorph.spawn_constrained_monos (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
-
-let fast_enum_field e ef p =
-	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
-	TField (et,FEnum (e,ef))
 
 let get_constructor ctx c params p =
 	match c.cl_kind with
@@ -134,7 +83,7 @@ let get_constructor ctx c params p =
 
 let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx fa mode p =
 	if mode <> MCall && not (DisplayPosition.display_position#enclosed_in p) then begin
@@ -166,7 +115,7 @@ let field_access ctx mode f fmode t e p =
 		| TAnon a ->
 			(match !(a.a_status) with
 			| EnumStatics en ->
-				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> assert false) in
+				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
 				let fmode = FEnum (en,c) in
 				AKExpr (mk (TField (e,fmode)) t p)
 			| _ -> fnormal())
@@ -192,7 +141,7 @@ let field_access ctx mode f fmode t e p =
 					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
-					| FDynamic _ | FClosure _ -> assert false
+					| FDynamic _ | FClosure _ -> die "" __LOC__
 				) in
 				AKExpr (mk (TField (e,cmode)) t p)
 			| _ -> normal())
@@ -201,12 +150,9 @@ let field_access ctx mode f fmode t e p =
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
+			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Opened when mode = MSet ->
-					f.cf_kind <- Var { v with v_write = AccNormal };
-					normal()
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
@@ -260,7 +206,7 @@ let field_access ctx mode f fmode t e p =
 			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if mode = MSet then begin
-					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
+					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 					let f = PMap.find m c.cl_statics in
 					(* we don't have access to the type parameters here, right? *)
 					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
@@ -282,7 +228,10 @@ let field_access ctx mode f fmode t e p =
 		| AccInline ->
 			AKInline (e,f,fmode,t)
 		| AccCtor ->
-			if ctx.curfun = FunConstructor then normal() else AKNo f.cf_name
+			(match ctx.curfun, fmode with
+				| FunConstructor, FInstance(c,_,_) when c == ctx.curclass -> normal()
+				| _ -> AKNo f.cf_name
+			)
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r p
@@ -295,7 +244,7 @@ let rec using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
 	let is_dynamic = match follow e.etype with
-		| TMono _ -> raise Not_found
+		| TMono {tm_constraints = []} -> raise Not_found
 		| t -> t == t_dynamic
 	in
 	let check_constant_struct = ref false in
@@ -306,21 +255,15 @@ let rec using_field ctx mode e i p =
 		try
 			let cf = PMap.find i c.cl_statics in
 			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
-			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
 			let t = map cf.cf_type in
 			begin match follow t with
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let e = unify_static_extension ctx e t0 p in
-					(* early constraints check is possible because e.etype has no monomorphs *)
-					List.iter2 (fun m (name,t) -> match follow t with
-						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
-							List.iter (fun tc -> Type.unify m (map tc)) constr
-						| _ -> ()
-					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					ImportHandling.maybe_mark_import_position ctx pc;
+					ImportHandling.mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
 				| _ ->
 					raise Not_found
@@ -343,11 +286,15 @@ let rec using_field ctx mode e i p =
 		let acc = loop ctx.g.global_using in
 		(match acc with
 		| AKUsing (_,c,_,_,_) -> add_dependency ctx.m.curmod c.cl_module
-		| _ -> assert false);
+		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->
 		if not !check_constant_struct then raise Not_found;
 		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+
+let check_field_access ctx c f stat p =
+	if not ctx.untyped && not (can_access ctx c f stat) then
+		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field cfg ctx e i p mode =
@@ -372,7 +319,11 @@ let rec type_field cfg ctx e i p mode =
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| _ ->
-				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
+				match follow t with
+				| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
+					display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
+				| _ ->
+					display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
@@ -396,21 +347,7 @@ let rec type_field cfg ctx e i p mode =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_params params t in
-				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
-					let f = PMap.find "resolve" c.cl_fields in
-					begin match f.cf_kind with
-						| Method MethMacro -> display_error ctx "The macro accessor is not allowed for field resolve" f.cf_pos
-						| _ -> ()
-					end;
-					let texpect = tfun [ctx.t.tstring] t in
-					let tfield = apply_params c.cl_params params (monomorphs f.cf_params f.cf_type) in
-					(try Type.unify tfield texpect
-					with Unify_error l ->
-						display_error ctx "Field resolve has an invalid type" f.cf_pos;
-						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Texpr.type_constant ctx.com.basic (String(i,SDoubleQuotes)) p] t p)
-				end else
-					AKExpr (mk (TField (e,FDynamic i)) t p)
+				AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
 				match c.cl_super with
 				| None -> raise Not_found
@@ -434,7 +371,7 @@ let rec type_field cfg ctx e i p mode =
 					display_error ctx "Cannot create closure on super method" p
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
-			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
+			check_field_access ctx c f false pfield;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			begin match e.eexpr with
@@ -483,16 +420,18 @@ let rec type_field cfg ctx e i p mode =
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), Type.field_type f
+				| EnumStatics e ->
+					let ef = try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__ in
+					let t = enum_field_type ctx e ef p in
+					FEnum (e,ef),t
 				| _ ->
 					match f.cf_params with
 					| [] ->
 						FAnon f, Type.field_type f
 					| l ->
 						(* handle possible constraints *)
-						let monos = List.map (fun _ -> mk_mono()) l in
+						let monos = Monomorph.spawn_constrained_monos (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
-						add_constraint_checks ctx [] [] f monos p;
 						FAnon f, t
 			) in
 			field_access ctx mode f fmode ft e p
@@ -505,34 +444,67 @@ let rec type_field cfg ctx e i p mode =
 				| _ ->
 					raise Not_found
 			with Not_found ->
-				if is_closed a then try
+				try
 					using_field ctx mode e i p
 				with Not_found ->
 					no_field()
-				else
-				let f = {
-					(mk_field i (mk_mono()) p null_pos) with
-					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-				} in
-				a.a_fields <- PMap.add i f a.a_fields;
-				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
-		let f = {
+		let mk_field () = {
 			(mk_field i (mk_mono()) p null_pos) with
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 		} in
-		let x = ref Opened in
-		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
-		ctx.opened <- x :: ctx.opened;
-		Monomorph.bind r t;
-		field_access ctx mode f (FAnon f) (Type.field_type f) e p
+		let access f =
+			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+		in
+		begin match Monomorph.classify_constraints r with
+		| CStructural(fields,is_open) ->
+			begin try
+				let f = PMap.find i fields in
+				if is_open && mode = MSet then begin match f.cf_kind with
+					(* We previously inferred to read-only, but now we want to write. This can happen in cases like #8079. *)
+					| Var ({v_write = AccNo} as acc) -> f.cf_kind <- Var {acc with v_write = AccNormal}
+					| _ -> ()
+				end;
+				access f
+			with Not_found ->
+				if not is_open then
+					try
+						using_field ctx mode e i p
+					with Not_found ->
+						no_field()
+				else begin
+					let f = mk_field() in
+					Monomorph.add_constraint r (MField f);
+					access f
+				end
+			end
+		| CTypes tl ->
+			let rec loop tl = match tl with
+				| [] ->
+					no_field()
+				| (t,_) :: tl ->
+					try
+						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode
+					with Not_found ->
+						loop tl
+			in
+			loop tl
+		| CUnknown ->
+			if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then begin
+				ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
+			end;
+			let f = mk_field() in
+			Monomorph.add_constraint r (MField f);
+			Monomorph.add_constraint r MOpenStructure;
+			access f
+		end
 	| TAbstract (a,pl) ->
 		let static_abstract_access_through_instance = ref false in
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
+			check_field_access ctx c f true pfield;
 			let field_type f =
 				if not (Meta.has Meta.Impl f.cf_meta) then begin
 					static_abstract_access_through_instance := true;
@@ -544,6 +516,9 @@ let rec type_field cfg ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
+			| (MGet | MCall), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+				let ef = field_expr f (field_type f) in
+				AKExpr(ef)
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
@@ -604,7 +579,7 @@ let rec type_field cfg ctx e i p mode =
 				let ef = mk (TField (et,FStatic (c,cf))) t p in
 				let r = match follow t with
 					| TFun(_,r) -> r
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				if is_write then
 					AKFieldSet(e,ef,i,r)
@@ -620,3 +595,54 @@ let rec type_field cfg ctx e i p mode =
 		try using_field ctx mode e i p with Not_found -> no_field()
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
+
+(**
+	Generates a list of fields for `@:structInit` class `c` with type params `tl`
+	as it's needed for anonymous object syntax.
+*)
+let get_struct_init_anon_fields c tl =
+	let args =
+		match c.cl_constructor with
+		| Some cf ->
+			(match follow cf.cf_type with
+			| TFun (args,_) ->
+				Some (match cf.cf_expr with
+					| Some { eexpr = TFunction fn } ->
+						List.map (fun (name,_,t) ->
+							let t = apply_params c.cl_params tl t in
+							try
+								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
+								name,t,v.v_pos
+							with Not_found ->
+								name,t,cf.cf_name_pos
+						) args
+					| _ ->
+						List.map
+							(fun (name,_,t) ->
+								let t = apply_params c.cl_params tl t in
+								try
+									let cf = PMap.find name c.cl_fields in
+									name,t,cf.cf_name_pos
+								with Not_found ->
+									name,t,cf.cf_name_pos
+							) args
+				)
+			| _ -> None
+			)
+		| _ -> None
+	in
+	match args with
+	| Some args ->
+		List.fold_left (fun fields (name,t,p) ->
+			let cf = mk_field name t p p in
+			PMap.add cf.cf_name cf fields
+		) PMap.empty args
+	| _ ->
+		PMap.fold (fun cf fields ->
+		match cf.cf_kind with
+		| Var _ ->
+			let cf = {cf with cf_type = apply_params c.cl_params tl cf.cf_type} in
+			PMap.add cf.cf_name cf fields
+		| _ ->
+			fields
+	) c.cl_fields PMap.empty

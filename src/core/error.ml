@@ -13,13 +13,17 @@ type call_error =
 
 and error_msg =
 	| Module_not_found of path
-	| Type_not_found of path * string
+	| Type_not_found of path * string * type_not_found_reason
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
+
+and type_not_found_reason =
+	| Private_type
+	| Not_defined
 
 exception Fatal_error of string * Globals.pos
 exception Error of error_msg * Globals.pos
@@ -33,6 +37,11 @@ let string_source t = match follow t with
 let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
+
+(**
+	Should be called for each complementary error message.
+*)
+let compl_msg s = "... " ^ s
 
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
@@ -156,7 +165,7 @@ module BetterErrors = struct
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
-			"Void -> ..."
+			"() -> ..."
 		| TFun (l,t) ->
 			let args = match l with
 				| [] -> "()"
@@ -176,7 +185,7 @@ module BetterErrors = struct
 				| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 				| _ ->
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
-					"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+					"{" ^ String.concat "," fl ^ " }"
 			end
 		| TDynamic t2 ->
 			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
@@ -238,7 +247,7 @@ module BetterErrors = struct
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->
-						assert false
+						die "" __LOC__
 				in
 				let s1,s2 = loop() in
 				let path1,params1 = get_params access_prev.acc_actual in
@@ -255,12 +264,13 @@ module BetterErrors = struct
 			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
-			Printf.sprintf "error: %s\n have: %s\n want: %s" (Buffer.contents message_buffer) slhs srhs
+			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
 let rec error_msg = function
 	| Module_not_found m -> "Type not found : " ^ s_type_path m
-	| Type_not_found (m,t) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
+	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
+	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
 	| Unify l -> BetterErrors.better_error_message l
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s

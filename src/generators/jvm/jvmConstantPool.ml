@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open IO
 open IO.BigEndian
 open JvmGlobals
@@ -87,7 +87,7 @@ class constant_pool = object(self)
 	method add_path path =
 		let s = self#s_type_path path in
 		let offset = self#add_type s in
-		if String.contains (snd path) '$' then begin
+		if String.contains (snd path) '$' && not (ExtString.String.starts_with s "[") then begin
 			let name1,name2 = ExtString.String.split (snd path) "$" in
 			Hashtbl.replace inner_classes ((fst path,name1),name2) offset;
 		end;

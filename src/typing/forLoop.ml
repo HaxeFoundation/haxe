@@ -267,7 +267,7 @@ module IterationKind = struct
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
 		let mk_field e n =
-			TField (e,try quick_field e.etype n with Not_found -> assert false)
+			TField (e,try quick_field e.etype n with Not_found -> die "" __LOC__)
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
@@ -330,13 +330,13 @@ module IterationKind = struct
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then error "Cannot iterate backwards" p;
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			let v_index = gen_local ctx t_int a.epos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let op1,op2 = if ascending then (OpLt,Increment) else (OpGt,Decrement) in
-			let econd = binop op1 ev_index b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop op1 ev_index b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(op2,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
@@ -345,15 +345,15 @@ module IterationKind = struct
 			]) t_void p
 		| IteratorInt(a,b) ->
 			check_loop_var_modification [v] e2;
-			let v_index = gen_local ctx t_int p in
-			let evar_index = mk (TVar(v_index,Some a)) t_void p in
-			let ev_index = make_local v_index p in
+			let v_index = gen_local ctx t_int a.epos in
+			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
+			let ev_index = make_local v_index v_index.v_pos in
 			let v_b = gen_local ctx b.etype b.epos in
-			let evar_b = mk (TVar (v_b,Some b)) t_void p in
+			let evar_b = mk (TVar (v_b,Some b)) t_void b.epos in
 			let ev_b = make_local v_b b.epos in
-			let econd = binop OpLt ev_index ev_b ctx.t.tbool p in
-			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int p in
-			let evar = mk (TVar(v,Some ev_incr)) t_void p in
+			let econd = binop OpLt ev_index ev_b ctx.t.tbool (punion v.v_pos b.epos) in
+			let ev_incr = mk (TUnop(Increment,Postfix,ev_index)) t_int (punion a.epos b.epos) in
+			let evar = mk (TVar(v,Some ev_incr)) t_void (punion v.v_pos a.epos) in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(econd,e2,NormalWhile)) t_void p in
 			mk (TBlock [
@@ -376,7 +376,7 @@ module IterationKind = struct
 			begin try optimize_for_loop_iterator ctx v e1 e2 p
 			with Exit -> mk (TFor(v,e1,e2)) t_void p end
 		| IteratorGenericStack c ->
-			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
+			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
 			let cexpr = mk (TLocal cell) tcell p in
 			let evar = mk (TVar (v,Some (mk (mk_field cexpr "elt") pt p))) t_void v.v_pos in
@@ -500,11 +500,12 @@ let type_for_loop ctx handle_display it e2 p =
 			mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
 		end
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
-		begin match follow e1.etype with
-		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+		(match follow e1.etype with
+		| TDynamic _ | TMono _ ->
+			display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
-		end;
+		);
+		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
 		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in

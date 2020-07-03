@@ -66,34 +66,54 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 					| result -> result
 			in
 			loop a1 a2
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
-(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
-let rec get_overloads c i =
-	let ret = try
-			let f = PMap.find i c.cl_fields in
-			match f.cf_kind with
+let collect_overloads c i =
+	let acc = ref [] in
+	let rec loop map c =
+		let maybe_add cf =
+			let t = map cf.cf_type in
+			if not (List.exists (fun (t2,cf2) -> same_overload_args t t2 cf cf2) !acc) then acc := (t,cf) :: !acc
+		in
+		begin try
+			let cf = PMap.find i c.cl_fields in
+			begin match cf.cf_kind with
 				| Var _ ->
-					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)
-					[]
+					()
 				| Method _ ->
-					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-		with | Not_found -> []
+					maybe_add cf;
+					List.iter maybe_add cf.cf_overloads
+			end;
+		with Not_found ->
+			()
+		end;
+		match c.cl_super with
+			| None when c.cl_interface ->
+				List.iter (fun (c,tl) ->
+					let tl = List.map map tl in
+					loop (fun t -> apply_params c.cl_params tl (map t)) c
+				) c.cl_implements
+			| None ->
+				()
+			| Some (c,tl) ->
+				let tl = List.map map tl in
+				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
-	let rsup = match c.cl_super with
-	| None when c.cl_interface ->
-			let ifaces = List.concat (List.map (fun (c,tl) ->
-				List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i)
-			) c.cl_implements) in
-			ret @ ifaces
-	| None -> ret
-	| Some (c,tl) ->
-			ret @ ( List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i) )
-	in
-	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
+	loop (fun t -> t) c;
+	List.rev !acc
+
+let get_overloads (com : Common.context) c i =
+	collect_overloads c i
+	(* TODO: check why this kills Java *)
+	(* try
+		Hashtbl.find com.overload_cache (c.cl_path,i)
+	with Not_found ->
+		let l = collect_overloads c i in
+		Hashtbl.add com.overload_cache (c.cl_path,i) l;
+		l *)
 
 (** Overload resolution **)
 module Resolution =
@@ -211,7 +231,7 @@ struct
 			raise Not_found
 
 	let is_best arg1 arg2 =
-		(List.for_all2 (fun v1 v2 ->
+		(Ast.safe_for_all2 (fun v1 v2 ->
 			v1 <= v2)
 		arg1 arg2) && (List.exists2 (fun v1 v2 ->
 			v1 < v2)
@@ -263,7 +283,7 @@ struct
 							mk_rate ((max_int - 1, 0) :: acc) elist args
 						| _ ->
 							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 
 			let rated = ref [] in
@@ -271,7 +291,7 @@ struct
 				| (elist,TFun(args,ret),d) -> (try
 					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
 					with | Not_found -> ())
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) compatible;
 
 			let rec loop best rem = match best, rem with

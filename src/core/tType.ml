@@ -45,7 +45,20 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
+	mutable tm_constraints : tmono_constraint list;
 }
+
+and tmono_constraint =
+	| MMono of tmono * string option
+	| MField of tclass_field
+	| MType of t * string option
+	| MOpenStructure
+	| MEmptyStructure
+
+and tmono_constraint_kind =
+	| CUnknown
+	| CStructural of (string,tclass_field) PMap.t * bool
+	| CTypes of (t * string option) list
 
 and tlazy =
 	| LAvailable of t
@@ -67,7 +80,10 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = {
+	v_params : type_params;
+	v_expr : texpr option;
+}
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -89,10 +105,9 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_capture : bool;
-	mutable v_final : bool;
-	mutable v_extra : tvar_extra;
+	mutable v_extra : tvar_extra option;
 	mutable v_meta : metadata;
+	mutable v_flags : int;
 	v_pos : pos;
 }
 
@@ -104,7 +119,6 @@ and tfunc = {
 
 and anon_status =
 	| Closed
-	| Opened
 	| Const
 	| Extend of t list
 	| Statics of tclass
@@ -185,11 +199,12 @@ and tclass_kind =
 	| KMacroType
 	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
+	| KModuleFields of module_def
 
 and metadata = Ast.metadata
 
 and tinfos = {
-	mt_path : path;
+	mutable mt_path : path;
 	mt_module : module_def;
 	mt_pos : pos;
 	mt_name_pos : pos;
@@ -225,7 +240,6 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
@@ -265,7 +279,7 @@ and tenum = {
 }
 
 and tdef = {
-	t_path : path;
+	mutable t_path : path;
 	t_module : module_def;
 	t_pos : pos;
 	t_name_pos : pos;
@@ -312,6 +326,7 @@ and module_def = {
 	m_id : int;
 	m_path : path;
 	mutable m_types : module_type list;
+	mutable m_statics : tclass option;
 	m_extra : module_def_extra;
 }
 
@@ -322,7 +337,7 @@ and module_def_display = {
 }
 
 and module_def_extra = {
-	m_file : string;
+	m_file : Path.UniqueKey.lazy_t;
 	m_sign : string;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
@@ -367,6 +382,13 @@ type class_field_scope =
 
 type flag_tclass_field =
 	| CfPublic
+	| CfStatic
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
+	| CfOverride
+
+type flag_tvar =
+	| VCaptured
+	| VFinal
+	| VUsed (* used by the analyzer *)

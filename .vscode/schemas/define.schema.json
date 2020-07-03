@@ -57,6 +57,10 @@
 					"type": "string",
 					"format": "uri"
 				}
+			},
+			"reserved": {
+				"type": "boolean",
+				"markdownDescription": "Reserved defines may not be defined from the command line."
 			}
 		},
 		"required": [

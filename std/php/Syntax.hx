@@ -281,6 +281,17 @@ extern class Syntax {
 
 	/**
 		```haxe
+		Syntax.customArrayDecl([v1 => v2, v3 => v4]);
+		```
+		Generates native array declaration:
+		```haxe
+		[$v1 => $v2, $v3 => $v4]
+		```
+	**/
+	macro static function customArrayDecl<T>(decl:haxe.macro.Expr):haxe.macro.Expr.ExprOf<php.NativeArray>;
+
+	/**
+		```haxe
 		Syntax.assocDecl({field1:'first', field2:2}});
 		```
 		Generates native associative array declaration:

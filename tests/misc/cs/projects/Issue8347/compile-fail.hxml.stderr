@@ -1,0 +1,4 @@
+src/fail/NotFirstType.hx:8: characters 1-22 : @:cs.assemblyStrict can only be used on the first class of a module
+Main.hx:4: characters 1-14 : @:cs.assemblyMeta cannot be used on top level modules
+Main.hx:7: characters 1-15 : @:cs.assemblyStrict can only be used on the first class of a module
+Main.hx:7: characters 1-15 : @:cs.assemblyStrict cannot be used on top level modules

@@ -107,7 +107,7 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
 				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
-			assert false
+			die "" __LOC__
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
@@ -151,7 +151,7 @@ let get_native_name meta =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ctx ("Base field is defined here") base_pos
+		display_error ctx (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -166,7 +166,7 @@ let check_native_name_override ctx child base =
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		if List.memq f c.cl_overrides then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
+		if has_class_field_flag f CfOverride then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
@@ -182,7 +182,7 @@ let check_overriding ctx c f =
 			| _ -> ());
 			if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
 				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
-			else if not (List.memq f c.cl_overrides) then
+			else if not (has_class_field_flag f CfOverride) then
 				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
@@ -201,11 +201,11 @@ let check_overriding ctx c f =
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx ("Base field is defined here") f2.cf_name_pos;
-					display_error ctx (error_msg (Unify l)) p;
+					display_error ctx (compl_msg "Base field is defined here") f2.cf_name_pos;
+					display_error ctx (compl_msg (error_msg (Unify l))) p;
 		with
 			Not_found ->
-				if List.memq f c.cl_overrides then
+				if has_class_field_flag f CfOverride then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
 					else begin
@@ -219,7 +219,7 @@ let check_overriding ctx c f =
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
-			let overloads = Overloads.get_overloads csup i in
+			let overloads = Overloads.get_overloads ctx.com csup i in
 			List.iter (fun (t,f2) ->
 				(* check if any super class fields are vars *)
 				match f2.cf_kind with
@@ -326,7 +326,7 @@ module Inheritance = struct
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
 			if is_basic_class_path csup.cl_path && not (c.cl_extern && csup.cl_extern) then error "Cannot extend basic class" p;
-			if is_parent c csup then error "Recursive class" p;
+			if extends csup c then error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
 					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
@@ -348,7 +348,7 @@ module Inheritance = struct
 				let t2, f2 = class_field_no_interf c i in
 				let t2, f2 =
 					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
-						let overloads = Overloads.get_overloads c i in
+						let overloads = Overloads.get_overloads ctx.com c i in
 						is_overload := true;
 						let t = (apply_params intf.cl_params params f.cf_type) in
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
@@ -372,14 +372,14 @@ module Inheritance = struct
 					Unify_error l ->
 						if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
 							display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-							display_error ctx ("Interface field is defined here") f.cf_pos;
-							display_error ctx (error_msg (Unify l)) p;
+							display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
+							display_error ctx (compl_msg (error_msg (Unify l))) p;
 						end
 			with
 				| Not_found when not c.cl_interface ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
-						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
+						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
 						"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 					else
 						("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
@@ -475,7 +475,7 @@ module Inheritance = struct
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if is_parent c intf then error "Recursive class" p;
+					if extends intf c then error "Recursive class" p;
 					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 					if not intf.cl_interface then error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
@@ -515,7 +515,7 @@ module Inheritance = struct
 				in
 				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
-				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				if Diagnostics.is_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
 		fl

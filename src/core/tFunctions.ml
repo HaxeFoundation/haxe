@@ -2,8 +2,12 @@ open Globals
 open Ast
 open TType
 
-let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> assert false)
-let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> assert false)
+let monomorph_create_ref : (unit -> tmono) ref = ref (fun _ -> die "" __LOC__)
+let monomorph_bind_ref : (tmono -> t -> unit) ref = ref (fun _ _ -> die "" __LOC__)
+let monomorph_classify_constraints_ref : (tmono -> tmono_constraint_kind) ref = ref (fun _ -> die "" __LOC__)
+
+let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
 (* Flags *)
 
@@ -28,6 +32,18 @@ let remove_class_field_flag cf (flag : flag_tclass_field) =
 let has_class_field_flag cf (flag : flag_tclass_field) =
 	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
+let int_of_var_flag (flag : flag_tvar) =
+	Obj.magic flag
+
+let add_var_flag v (flag : flag_tvar) =
+	v.v_flags <- set_flag v.v_flags (int_of_var_flag flag)
+
+let remove_var_flag v (flag : flag_tvar) =
+	v.v_flags <- unset_flag v.v_flags (int_of_var_flag flag)
+
+let has_var_flag v (flag : flag_tvar) =
+	has_flag v.v_flags (int_of_var_flag flag)
+
 (* ======= General utility ======= *)
 
 let alloc_var =
@@ -39,11 +55,10 @@ let alloc_var =
 			v_name = n;
 			v_type = t;
 			v_id = !uid;
-			v_capture = false;
-			v_final = (match kind with VUser TVOLocalFunction -> true | _ -> false);
 			v_extra = None;
 			v_meta = [];
-			v_pos = p
+			v_pos = p;
+			v_flags = (match kind with VUser TVOLocalFunction -> int_of_var_flag VFinal | _ -> 0);
 		}
 	)
 
@@ -66,7 +81,9 @@ let mk_mono() = TMono (!monomorph_create_ref ())
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_anon fl = TAnon { a_fields = fl; a_status = ref Closed; }
+let mk_anon ?fields status =
+	let fields = match fields with Some fields -> fields | None -> PMap.empty in
+	TAnon { a_fields = fields; a_status = status; }
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
@@ -103,7 +120,6 @@ let mk_class m path pos name_pos =
 		cl_array_access = None;
 		cl_constructor = None;
 		cl_init = None;
-		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
@@ -111,7 +127,7 @@ let mk_class m path pos name_pos =
 
 let module_extra file sign time kind policy =
 	{
-		m_file = file;
+		m_file = Path.UniqueKey.create_lazy file;
 		m_sign = sign;
 		m_display = {
 			m_inline_calls = [];
@@ -132,7 +148,7 @@ let module_extra file sign time kind policy =
 	}
 
 
-let mk_field name ?(public = true) t p name_pos = {
+let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
@@ -144,13 +160,17 @@ let mk_field name ?(public = true) t p name_pos = {
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
-	cf_flags = if public then set_flag 0 (int_of_class_field_flag CfPublic) else 0;
+	cf_flags = (
+		let flags = if static then set_flag 0 (int_of_class_field_flag CfStatic) else 0 in
+		if public then set_flag flags (int_of_class_field_flag CfPublic) else flags
+	);
 }
 
 let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
+		m_statics = None;
 		m_extra = module_extra "" "" 0. MFake [];
 	}
 
@@ -198,12 +218,12 @@ let t_infos t : tinfos =
 
 let t_path t = (t_infos t).mt_path
 
-let rec is_parent csup c =
-	if c == csup || List.exists (fun (i,_) -> is_parent csup i) c.cl_implements then
+let rec extends c csup =
+	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
 		true
 	else match c.cl_super with
 		| None -> false
-		| Some (c,_) -> is_parent csup c
+		| Some (c,_) -> extends c csup
 
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
@@ -237,22 +257,40 @@ let map loop t =
 		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 	| TAnon a ->
 		let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-		begin match !(a.a_status) with
-			| Opened ->
-				a.a_fields <- fields;
-				t
-			| _ ->
-				TAnon {
-					a_fields = fields;
-					a_status = a.a_status;
-				}
-		end
+		mk_anon ~fields a.a_status
 	| TLazy f ->
 		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
+
+let iter loop t =
+	match t with
+	| TMono r ->
+		(match r.tm_type with
+		| None -> ()
+		| Some t -> loop t)
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+		()
+	| TEnum (e,tl) ->
+		List.iter loop tl
+	| TInst (c,tl) ->
+		List.iter loop tl
+	| TType (t2,tl) ->
+		List.iter loop tl
+	| TAbstract (a,tl) ->
+		List.iter loop tl
+	| TFun (tl,r) ->
+		List.iter (fun (_,_,t) -> loop t) tl;
+		loop r
+	| TAnon a ->
+		PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
+	| TLazy f ->
+		let ft = lazy_type f in
+		loop ft
+	| TDynamic t2 ->
+		if t != t2 then	loop t2
 
 let duplicate t =
 	let monos = ref [] in
@@ -282,7 +320,7 @@ let apply_params ?stack cparams params t =
 		| [] , [] -> []
 		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
 	let rec loop t =
@@ -361,7 +399,7 @@ let apply_params ?stack cparams params t =
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
-					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> assert false);
+					(match pt with TMono r -> !monomorph_bind_ref r t | _ -> die "" __LOC__);
 					t
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
@@ -370,16 +408,7 @@ let apply_params ?stack cparams params t =
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon a ->
 			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-			begin match !(a.a_status) with
-				| Opened ->
-					a.a_fields <- fields;
-					t
-				| _ ->
-					TAnon {
-						a_fields = fields;
-						a_status = a.a_status;
-					}
-			end
+			mk_anon ~fields a.a_status
 		| TLazy f ->
 			let ft = lazy_type f in
 			let ft2 = loop ft in
@@ -458,7 +487,7 @@ let rec ambiguate_funs t =
 	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
 		(match r.tm_type with
-		| Some _ -> assert false
+		| Some _ -> die "" __LOC__
 		| _ -> t)
 	| TInst (a, pl) ->
 	    TInst (a, List.map ambiguate_funs pl)
@@ -473,17 +502,21 @@ let rec ambiguate_funs t =
 	    TAnon { a with a_fields =
 		    PMap.map (fun af -> { af with cf_type =
 				ambiguate_funs af.cf_type }) a.a_fields }
-	| TLazy _ -> assert false
+	| TLazy _ -> die "" __LOC__
 
-let rec is_nullable = function
+let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_nullable t)
+		(match r.tm_type with None -> false | Some t -> is_nullable ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		is_nullable (lazy_type f)
+		(match !f with
+		| LAvailable t -> is_nullable ~no_lazy t
+		| _ when no_lazy -> raise Exit
+		| _ -> is_nullable (lazy_type f)
+		)
 	| TType (t,tl) ->
-		is_nullable (apply_params t.t_params tl t.t_type)
+		is_nullable ~no_lazy (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
 		false
 (*
@@ -504,13 +537,17 @@ let rec is_nullable = function
 
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
-		(match r.tm_type with None -> false | Some t -> is_null t)
+		(match r.tm_type with None -> false | Some t -> is_null ~no_lazy t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
-		not (is_nullable (follow t))
+		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
-		if no_lazy then raise Exit else is_null (lazy_type f)
+		(match !f with
+		| LAvailable t -> is_null ~no_lazy t
+		| _ when no_lazy -> raise Exit
+		| _ -> is_null (lazy_type f)
+		)
 	| TType (t,tl) ->
-		is_null (apply_params t.t_params tl t.t_type)
+		is_null ~no_lazy (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
 
@@ -549,8 +586,6 @@ let concat e1 e2 =
 		| _ , _ -> TBlock [e1;e2]
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
-
-let is_closed a = !(a.a_status) <> Opened
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
@@ -703,7 +738,7 @@ let quick_field t n =
 	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
 		raise Not_found
 	| TLazy _ | TType _ ->
-		assert false
+		die "" __LOC__
 
 let quick_field_dynamic t s =
 	try quick_field t s
@@ -723,6 +758,12 @@ let has_constructor c =
 		true
 	with Not_found -> false
 
+let is_module_fields_class c =
+	match c.cl_kind with KModuleFields _ -> true | _ -> false
+
+let is_pos_outside_class c p =
+	p.pfile <> c.cl_pos.pfile || p.pmax < c.cl_pos.pmin || p.pmin > c.cl_pos.pmax
+
 let resolve_typedef t =
 	match t with
 	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
@@ -732,3 +773,22 @@ let resolve_typedef t =
 		| TInst (c,_) -> TClassDecl c
 		| TAbstract (a,_) -> TAbstractDecl a
 		| _ -> t
+
+(**
+	Check if type `t` has meta `m`.
+	Does not follow typedefs, monomorphs etc.
+*)
+let type_has_meta t m =
+	match t with
+		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
+		| TEnum ({ e_meta = metadata }, _)
+		| TInst ({ cl_meta = metadata }, _)
+		| TType ({ t_meta = metadata }, _)
+		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
+
+(* tvar *)
+
+let var_extra params e = {
+	v_params = params;
+	v_expr = e;
+}

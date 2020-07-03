@@ -33,15 +33,15 @@ class Abstract extends DisplayTestCase {
 	**/
 	function test2() {
 		var top1 = toplevel(pos(1));
-		eq(true, hasToplevel(top1, "member", "instanceField", "Void -> Void"));
-		eq(true, hasToplevel(top1, "static", "staticField", "Void -> Void"));
+		eq(true, hasToplevel(top1, "member", "instanceField", "() -> Void"));
+		eq(true, hasToplevel(top1, "static", "staticField", "() -> Void"));
 
 		var top2 = toplevel(pos(2));
-		eq(false, hasToplevel(top2, "member", "instanceField", "Void -> Void"));
-		eq(true, hasToplevel(top2, "static", "staticField", "Void -> Void"));
+		eq(false, hasToplevel(top2, "member", "instanceField", "() -> Void"));
+		eq(true, hasToplevel(top2, "static", "staticField", "() -> Void"));
 
 		var fields = fields(pos(3));
-		eq(false, hasField(fields, "instanceField", "Void -> Void"));
-		eq(true, hasField(fields, "staticField", "Void -> Void"));
+		eq(false, hasField(fields, "instanceField", "() -> Void"));
+		eq(true, hasField(fields, "staticField", "() -> Void"));
 	}
 }

@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open Type
 open EvalValue
@@ -99,7 +99,7 @@ and s_enum_value depth ve =
 and s_proto_kind proto = match proto.pkind with
 	| PClass _ -> join empty_string [create_ascii "Class<"; s_hash proto.ppath; rgt]
 	| PEnum _ -> join empty_string [create_ascii "Enum<"; s_hash proto.ppath; rgt]
-	| PInstance | PObject -> assert false
+	| PInstance | PObject -> die "" __LOC__
 
 and s_value depth v =
 	let call_to_string () =

@@ -169,7 +169,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 			node.right); else balance(node.left, node.key, node.value, removeLoop(k, node.right));
 	}
 
-	function iteratorLoop(node:TreeNode<K, V>, acc:Array<V>) {
+	static function iteratorLoop<K,V>(node:TreeNode<K, V>, acc:Array<V>) {
 		if (node != null) {
 			iteratorLoop(node.left, acc);
 			acc.push(node.value);

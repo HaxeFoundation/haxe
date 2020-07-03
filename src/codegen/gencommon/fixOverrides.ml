@@ -71,7 +71,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 					let ftype = apply_params iface.cl_params itl f.cf_type in
 					let real_ftype = get_real_fun gen (apply_params iface.cl_params real_itl f.cf_type) in
 					replace_mono real_ftype;
-					let overloads = Overloads.get_overloads c f.cf_name in
+					let overloads = Overloads.get_overloads gen.gcon c f.cf_name in
 					try
 						let t2, f2 =
 							match overloads with
@@ -109,7 +109,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									(* override return type and cast implemented function *)
 									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map snd f2.cf_params) real_ftype) with
 										| TFun(a,_), TFun(_,r) -> a,r
-										| _ -> assert false
+										| _ -> Globals.die "" __LOC__
 									in
 									f2.cf_type <- TFun(args,newr);
 									(match f2.cf_expr with
@@ -153,7 +153,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								with | Not_found ->
 									c.cl_fields <- PMap.add name newf c.cl_fields;
 									c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
-							| _ -> assert false
+							| _ -> Globals.die "" __LOC__
 						end
 					with | Not_found -> ()
 				in
@@ -201,7 +201,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 											with Unify_error _ ->
 												true
 										with Unify_error _ -> false) current_args original_args
-								| _ -> assert false
+								| _ -> Globals.die "" __LOC__
 							in
 							if (not (Meta.has Meta.Overload f.cf_meta) && has_contravariant_args) then
 								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;
@@ -255,7 +255,13 @@ let run ~explicit_fn_name ~get_vmtype gen =
 				| _ -> f
 			in
 			if not c.cl_extern then
-				c.cl_overrides <- List.map (fun f -> check_f f) c.cl_overrides;
+				List.iter (fun f ->
+					if has_class_field_flag f CfOverride then begin
+						remove_class_field_flag f CfOverride;
+						let f2 = check_f f in
+						add_class_field_flag f2 CfOverride
+					end
+				) c.cl_ordered_fields;
 			md
 		| _ -> md
 	in

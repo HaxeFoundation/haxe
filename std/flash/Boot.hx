@@ -297,6 +297,9 @@ class Boot extends flash.display.MovieClip {
 			aproto.insert = function(i, x) {
 				__this__.splice(i, 0, x);
 			};
+			aproto.contains = function(obj) {
+				return __this__.indexOf(obj) != -1;
+			}
 			aproto.remove = function(obj) {
 				var idx = __this__.indexOf(obj);
 				if (idx == -1)
@@ -313,13 +316,18 @@ class Boot extends flash.display.MovieClip {
 			aproto.iterator = function() {
 				return new haxe.iterators.ArrayIterator(cast __this__);
 			};
+			aproto.keyValueIterator = function() {
+				return new haxe.iterators.ArrayKeyValueIterator(untyped __this__);
+			};
 			aproto.resize = function(len) {
 				__this__.length = len;
 			};
 			aproto.setPropertyIsEnumerable("copy", false);
 			aproto.setPropertyIsEnumerable("insert", false);
+			aproto.setPropertyIsEnumerable("contains", false);
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
+			aproto.setPropertyIsEnumerable("keyValueIterator", false);
 			aproto.setPropertyIsEnumerable("resize", false);
 			#if no_flash_override
 			aproto.filterHX = function(f) {

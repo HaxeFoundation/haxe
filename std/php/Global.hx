@@ -766,6 +766,31 @@ extern class Global {
 	static function is_dir(filename:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.is-executable.php
+	**/
+	static function is_executable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-file.php
+	**/
+	static function is_file(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-link.php
+	**/
+	static function is_link(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-readable.php
+	**/
+	static function is_readable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-writable.php
+	**/
+	static function is_writable(filename:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.rename.php
 	**/
 	static function rename(oldname:String, newname:String, ?context:Resource):Bool;
@@ -1385,6 +1410,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.session-set-cookie-params.php
 	**/
+	@:overload(function(options:NativeStructArray<{?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
 	static function session_set_cookie_params(lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
@@ -1458,4 +1484,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.gc-collect-cycles.php
 	**/
 	static function gc_collect_cycles():Int;
+
+	/**
+		@see http://php.net/manual/en/function.cli-set-process-title.php
+	**/
+	static function cli_set_process_title(title:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.http-response-code.php
+	**/
+	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
 }

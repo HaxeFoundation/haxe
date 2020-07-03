@@ -22,7 +22,7 @@ type signature_kind =
 	| SKArrayAccess
 
 type kind =
-	| Diagnostics of string
+	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
@@ -34,7 +34,7 @@ type kind =
 
 exception DisplayException of kind
 
-let raise_diagnostics s = raise (DisplayException(Diagnostics s))
+let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
@@ -50,12 +50,11 @@ let last_completion_pos = ref None
 let max_completion_items = ref 0
 
 let filter_somehow ctx items kind subj =
-	let ret = DynArray.create () in
-	let acc_types = DynArray.create () in
 	let subject = match subj.s_name with
 		| None -> ""
 		| Some name-> String.lowercase name
 	in
+	let subject_length = String.length subject in
 	let determine_cost s =
 		let get_initial_cost o =
 			if o = 0 then
@@ -69,48 +68,54 @@ let filter_somehow ctx items kind subj =
 					o * 2
 			end
 		in
-		let rec loop i o cost =
-			if i < String.length subject then begin
-				let o' = String.index_from s o subject.[i] in
-				let new_cost = if i = 0 then
-					get_initial_cost o'
+		let index_from o c =
+			let rec loop o cost =
+				let c' = s.[o] in
+				if c' = c then
+					o,cost
 				else
-					(o' - o - 1) * 3 (* Holes are bad, penalize by factor 3. *)
-				in
+					loop (o + 1) (cost + 3) (* Holes are bad, penalize by 3. *)
+			in
+			loop o 0
+		in
+		let rec loop i o cost =
+			if i < subject_length then begin
+				let o',new_cost = index_from o subject.[i] in
 				loop (i + 1) o' (cost + new_cost)
 			end else
 				cost + (if o = String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
 		in
-		try
-			loop 0 0 0;
-		with Not_found ->
+		if subject_length = 0 then
+			0
+		else try
+			let o = String.index s subject.[0] in
+			loop 1 o (get_initial_cost o);
+		with Not_found | Invalid_argument _ ->
 			-1
 	in
-	let rec loop items index =
+	let rec loop acc items index =
 		match items with
-		| _ when DynArray.length ret >= !max_completion_items ->
-			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
 			let cost = determine_cost name in
-			if cost >= 0 then begin
-				(* Treat types with lowest priority. The assumption is that they are the only kind
-				   which actually causes the limit to be hit, so we show everything else and then
-				   fill in types. *)
-				match item.ci_kind with
-				| ITType _ ->
-					DynArray.add acc_types (item,index,cost);
-				| _ ->
-					DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
-			end;
-			loop items (index + 1)
+			let acc = if cost >= 0 then
+				(item,index,cost) :: acc
+			else
+				acc
+			in
+			loop acc items (index + 1)
 		| [] ->
-			()
+			acc
 	in
-	loop items 0;
-	let acc_types = List.sort (fun (_,_,cost1) (_,_,cost2) ->
-		compare cost1 cost2
-	) (DynArray.to_list acc_types) in
+	let acc = loop [] items 0 in
+	let acc = if subject_length = 0 then
+		List.rev acc
+	else
+		List.sort (fun (_,_,cost1) (_,_,cost2) ->
+			compare cost1 cost2
+		) acc
+	in
+	let ret = DynArray.create () in
 	let rec loop acc_types = match acc_types with
 		| (item,index,_) :: acc_types when DynArray.length ret < !max_completion_items ->
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
@@ -118,7 +123,7 @@ let filter_somehow ctx items kind subj =
 		| _ ->
 			()
 	in
-	loop acc_types;
+	loop acc;
 	DynArray.to_list ret,DynArray.length ret
 
 let patch_completion_subject subj =
@@ -167,12 +172,13 @@ let fields_to_json ctx fields kind subj =
 
 let to_json ctx de =
 	match de with
-	| Diagnostics _
 	| Statistics _
 	| ModuleSymbols _
-	| Metadata _ -> assert false
+	| Metadata _ -> die "" __LOC__
 	| DisplaySignatures None ->
 		jnull
+	| DisplayDiagnostics dctx ->
+		DiagnosticsPrinter.json_of_diagnostics dctx
 	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
@@ -197,7 +203,7 @@ let to_json ctx de =
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
 			| WithType.StructureField name -> (1, name)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =

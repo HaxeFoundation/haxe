@@ -29,7 +29,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			if f.cf_kind <> Method MethInline then raise Exit;
+			let is_extern_class = match cl with Some c -> c.cl_extern | _ -> false in
+			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
 		end else begin
 			match cl with
 			| None ->
@@ -38,7 +39,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				(* Delay this to filters because that's when cl_descendants is set. *)
 				ctx.com.callbacks#add_before_save (fun () ->
 					let rec has_override c =
-						List.exists (fun cf -> cf.cf_name = f.cf_name) c.cl_overrides
+						PMap.mem f.cf_name c.cl_fields
 						|| List.exists has_override c.cl_descendants
 					in
 					if List.exists has_override c.cl_descendants then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
@@ -90,7 +91,7 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 		make_call ctx ef [ebase;e1] r p
 
 let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
-	let evalue = match e2o with None -> assert false | Some e -> e in
+	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
 	match cf.cf_expr with
 		| None ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
@@ -185,7 +186,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
 					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
-					assert false
+					die "" __LOC__
 			end
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
@@ -201,9 +202,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.in_display then begin
-						let e = type_expr ctx (e,p) WithType.value in
-						(e,false) :: loop el []
+					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
+						ignore(type_expr ctx (e,p) WithType.value);
+						loop el []
 					end	else call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
@@ -232,19 +233,8 @@ let unify_call_args ctx el args r p inline force_inline =
 
 let unify_field_call ctx fa el args ret p inline =
 	let map_cf cf0 map cf =
-		let t = map (monomorphs cf.cf_params cf.cf_type) in
-		begin match cf.cf_expr,cf.cf_kind with
-		| None,Method MethInline when not ctx.com.config.pf_overload ->
-			(* This is really awkward and shouldn't be here. We'll keep it for
-			   3.2 in order to not break code that relied on the quirky behavior
-			   in 3.1.3, but it should really be reviewed afterwards.
-			   Related issue: https://github.com/HaxeFoundation/haxe/issues/3846
-			*)
-			cf.cf_expr <- cf0.cf_expr;
-			cf.cf_kind <- cf0.cf_kind;
-		| _ ->
-			()
-		end;
+		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		t,cf
 	in
 	let expand_overloads map cf =
@@ -258,11 +248,14 @@ let unify_field_call ctx fa el args ret p inline =
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
-				List.map (map_cf cf map) cf.cf_overloads
+				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
 			else
-				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Overloads.get_overloads c cf.cf_name)
+				List.map (fun (t,cf) ->
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					map (apply_params cf.cf_params monos t),cf
+				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
+			cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
 			let c = match co with None -> None | Some (c,_) -> Some c in
 			expand_overloads (fun t -> t) cf,c,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
@@ -280,7 +273,7 @@ let unify_field_call ctx fa el args ret p inline =
 			in
 			el,tf,mk_call
 		| _ ->
-			assert false
+			die "" __LOC__
 	in
 	let maybe_raise_unknown_ident cerr p =
 		let rec loop err =
@@ -351,17 +344,18 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	let c,tl,cf,stat = match fa with
 		| FInstance(c,tl,cf) -> c,tl,cf,false
 		| FStatic(c,cf) -> c,[],cf,true
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
+	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
 			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
-			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> assert false
+			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> die "" __LOC__
 			in
 			(* manually unify first argument *)
 			unify ctx e.etype ta p;
@@ -374,11 +368,10 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| _ -> ()
 	end;
 	let el,_ = unify_call_args ctx el args ret p false false in
-	begin try
-		check_constraints ctx cf.cf_name cf.cf_params monos map false p
-	with Unify_error l ->
-		display_error ctx (error_msg (Unify l)) p
-	end;
+	List.iter (fun t -> match follow t with
+		| TMono m -> safe_mono_close ctx m p
+		| _ -> ()
+	) monos;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in
@@ -387,7 +380,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 			unify_raise ctx tcf t p
 		with Error(Unify _,_) as err ->
 			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx "Conflicting field was defined here" pcf;
+			display_error ctx (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
 		let c, cf2 = try
@@ -436,7 +429,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata
 			in
 			let mk_cf2 name =
-				mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
+				mk_field ~static:stat name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
 			in
 			if stat then begin
 				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
@@ -460,7 +453,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				end
 			end else begin
 				let cf2 = mk_cf2 name in
-				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
+				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
 				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
 				finalize_field c cf2;
@@ -484,7 +477,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
+	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
 	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
@@ -518,7 +511,7 @@ let rec acc_get ctx g p =
 				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
-		| _ -> assert false)
+		| _ -> die "" __LOC__)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
 		let cmode,apply_params = match fmode with
@@ -526,7 +519,7 @@ let rec acc_get ctx g p =
 				let f = match c.cl_kind with
 					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
 						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
-						let monos = List.map (fun _ -> mk_mono()) a.a_params in
+						let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
 						apply_params a.a_params monos;
 					| _ -> (fun t -> t)
 				in
@@ -534,7 +527,7 @@ let rec acc_get ctx g p =
 			| FInstance (c,tl,f) ->
 				(FClosure (Some (c,tl),f),(fun t -> t))
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		ignore(follow f.cf_type); (* force computing *)
 		begin match f.cf_kind,f.cf_expr with
@@ -626,7 +619,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
-		| _ -> assert false)
+		| _ -> die "" __LOC__)
 	| AKUsing (et,cl,ef,eparam,force_inline) ->
 		begin match ef.cf_kind with
 		| Method MethMacro ->
@@ -649,9 +642,9 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					let ef = prepare_using_field ef in
 					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
 					| el,TFun(args,r) -> el,args,r,eparam
-					| _ -> assert false
+					| _ -> die "" __LOC__
 					end
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			make_call ctx ~force_inline et (eparam :: params) r p
 		end
@@ -662,6 +655,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		let ethis_f = ref (fun () -> ()) in
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
+			DeprecationCheck.check_cf ctx.com cf p;
 			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
 			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
@@ -681,11 +675,11 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						e
 					else
 						match c.cl_super with
-						| None -> assert false
+						| None -> die "" __LOC__
 						| Some (csup,_) -> loop csup
 				in
 				loop c
-			| _ -> assert false))
+			| _ -> die "" __LOC__))
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
@@ -696,7 +690,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 				TypeloadFields.locate_macro_error := false;
 				old ctx msg ep;
 				TypeloadFields.locate_macro_error := true;
-				ctx.com.error "Called from macro here" p;
+				ctx.com.error (compl_msg "Called from macro here") p;
 			end else
 				old ctx msg ep;
 		);
@@ -713,7 +707,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		e
 	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
-		assert false
+		die "" __LOC__
 	| AKExpr e ->
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
@@ -728,7 +722,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
-					let r = match tfunc with TFun(_,r) -> r | _ -> assert false in
+					let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
 					mk (TCall (e,el)) r p
 			end
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
@@ -782,40 +776,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
+			let e = AbstractCast.cast_or_unify ctx t e (pos param) in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let rec gen_loc_name n =
-		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
-		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
-	in
-	let loc = alloc_var VGenerated (gen_loc_name 0) e.etype e.epos in
-	let given_args = (loc,false,Some e) :: given_args in
-	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(inner_fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) ordered_args ret p in
-	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) ->
-			call
-		| TMono _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+	let var_decls = List.map (fun (v,_,e_opt) -> mk (TVar(v,e_opt)) ctx.t.tvoid v.v_pos) given_args in
+	let e,var_decls =
+		let is_immutable_method cf =
+			match cf.cf_kind with Method k -> k <> MethDynamic | _ -> false
+		in
+		match e.eexpr with
+		| TFunction _ | TLocal { v_kind = VUser TVOLocalFunction } ->
+			e,var_decls
+		| TField(_,(FStatic(_,cf) | FInstance(_,_,cf))) when is_immutable_method cf ->
+			e,var_decls
 		| _ ->
-			mk (TReturn (Some call)) t_dynamic p;
+			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some (Texpr.Builder.make_null v.v_type null_pos) else None) missing_args;
+	let call = make_call ctx e ordered_args ret p in
+	let body =
+		if ExtType.is_void (follow ret) then call
+		else mk (TReturn(Some call)) ret p
+	in
+	let arg_default optional t =
+		if optional then Some (Texpr.Builder.make_null t null_pos)
+		else None
+	in
+	let fn = {
+		tf_args = List.map (fun (v,o) -> v,arg_default o v.v_type) missing_args;
 		tf_type = ret;
-		tf_expr = e_ret;
-	}) t_inner p in
-	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
-		tf_type = t_inner;
-		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(outer_fun_args given_args, t_inner)) p in
-	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+		tf_expr = body;
+	} in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret) in
+	{
+		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
+		etype = t;
+		epos = p;
+	}
 
 let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
@@ -833,7 +832,7 @@ let array_access ctx e1 e2 mode p =
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
+		let base_ok = ref true in
 		let rec loop ?(skip_abstract=false) et =
 			match skip_abstract,follow et with
 			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
@@ -851,12 +850,31 @@ let array_access ctx e1 e2 mode p =
 			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
+				begin try
+					unify_raise ctx et t p
+				with Error(Unify _,_) ->
+					if not ctx.untyped then begin
+						let msg = if !has_abstract_array_access then
+							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
+						else
+							"Array access is not allowed on " ^ (s_type (print_context()) e1.etype)
+						in
+						base_ok := false;
+						raise_or_display_message ctx msg e1.epos;
+					end
+				end;
 				pt
 		in
 		let pt = loop e1.etype in
+		if !base_ok then unify ctx e2.etype ctx.t.tint e2.epos;
 		AKExpr (mk (TArray (e1,e2)) pt p)
+
+(*
+	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+	return a new `access_mode->access_kind` getter for the whole field access chain.
+*)
+let field_chain ctx path e =
+	List.fold_left (fun e (f,_,p) ->
+		let e = acc_get ctx (e MGet) p in
+		type_field_default_cfg ctx e f p
+	) e path

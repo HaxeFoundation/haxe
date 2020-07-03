@@ -33,7 +33,7 @@ class FileInput extends Input {
 	var f:java.io.RandomAccessFile;
 	var _eof:Bool;
 
-	public function new(f) {
+	function new(f) {
 		this.f = f;
 		this._eof = false;
 	}

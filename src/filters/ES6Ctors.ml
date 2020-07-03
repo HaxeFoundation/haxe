@@ -36,6 +36,9 @@ let rec replace_super_call e =
 	| _ ->
 		map_expr replace_super_call e
 
+let remove_default_arg_values args =
+	List.map (fun (v,_) -> v,None) args
+
 exception Accessed_this of texpr
 
 (* return whether given expression has `this` access before calling `super` *)
@@ -59,7 +62,7 @@ let has_this_before_super e =
 let get_num_args cf =
 	match follow cf.cf_type with
 	| TFun (args, _) -> List.length args
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 (*
 	the filter works in two passes:
@@ -202,11 +205,14 @@ let rewrite_ctors com =
 							]
 						} in
 
-						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with tf_expr = e_ctor_replaced } };
+						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with
+							tf_args = remove_default_arg_values tf_ctor.tf_args;
+							tf_expr = e_ctor_replaced
+						} };
 					end;
 
 					if cl == root then begin
-						let cf_skip_ctor = mk_field skip_ctor_flag_name com.basic.tbool null_pos null_pos in
+						let cf_skip_ctor = mk_field ~static:true skip_ctor_flag_name com.basic.tbool null_pos null_pos in
 						cf_skip_ctor.cf_expr <- Some e_false;
 						cl.cl_ordered_statics <- cf_skip_ctor :: cl.cl_ordered_statics;
 						cl.cl_statics <- PMap.add cf_skip_ctor.cf_name cf_skip_ctor cl.cl_statics;
@@ -224,7 +230,10 @@ let rewrite_ctors com =
 								make_hx_ctor_call e_skip_flag
 							]
 						} in
-						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with tf_expr = e_ctor_replaced } };
+						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with
+							tf_args = remove_default_arg_values tf_ctor.tf_args;
+							tf_expr = e_ctor_replaced
+						} };
 
 					| None -> ())
 				)
@@ -239,5 +248,5 @@ let rewrite_ctors com =
 		| { cl_constructor = Some ({ cf_expr = Some ({ eexpr = TFunction tf } as e_ctor) } as cf_ctor); cl_super = Some (cl_super,_) } ->
 			cl.cl_constructor <- Some { cf_ctor with cf_expr = Some { e_ctor with eexpr = TFunction { tf with tf_expr = { tf.tf_expr with eexpr = TBlock [e_empty_super_call; tf.tf_expr] } } } };
 		| _ ->
-			assert false
+			die "" __LOC__
 	) inject_super;
