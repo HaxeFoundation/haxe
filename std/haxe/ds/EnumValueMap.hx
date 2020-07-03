@@ -142,7 +142,7 @@ class EnumValueMap<K:EnumValue, V> implements IMap<K, V> {
 
 	static function equalArrays(a1:Array<Dynamic>, a2:Array<Dynamic>):Bool {
 		if(a1 == a2)
-			return false;
+			return true;
 
 		if(a1.length != a2.length)
 			return false;
