@@ -37,4 +37,7 @@ abstract ReadOnlyMap<K, V>(Map<K, V>) from Map<K, V> {
 	
 	inline function copy():ReadOnlyMap<K, V>
 		return this.copy();
+	
+	@:to inline function toIterable():Iterable<V>
+		return cast this;
 }
