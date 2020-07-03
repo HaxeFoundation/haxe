@@ -98,7 +98,7 @@ class DateTools {
 			case "Y":
 				Std.string(d.getFullYear());
 			default:
-				throw "Date.format %" + e + "- not implemented yet.";
+				throw new haxe.exceptions.NotImplementedException("Date.format %" + e + "- not implemented yet.");
 		}
 	}
 

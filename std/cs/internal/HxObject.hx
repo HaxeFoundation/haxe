@@ -276,7 +276,7 @@ class HxEnum {
 	}
 
 	public function getTag():String {
-		return throw 'Not Implemented';
+		return throw new haxe.exceptions.NotImplementedException('Not Implemented');
 	}
 
 	public function getParams():Array<{}> {

@@ -81,7 +81,7 @@ class Socket extends sys.net.Socket {
 	}
 
 	override public function listen(connections:Int):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException("Not implemented");
 		/* TODO: ??????
 			var r = socket_listen(__s, connections);
 			checkError(r);
@@ -155,7 +155,7 @@ class Socket extends sys.net.Socket {
 
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException("Not implemented");
 		return null;
 	}
 

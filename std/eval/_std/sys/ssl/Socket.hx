@@ -181,7 +181,7 @@ class Socket extends sys.net.Socket {
 	}
 
 	public function addSNICertificate(cbServernameMatch:String->Bool, cert:Certificate, key:Key):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException("Not implemented");
 	}
 
 	public function peerCertificate():Certificate {
@@ -189,7 +189,7 @@ class Socket extends sys.net.Socket {
 	}
 
 	public function setCertificate(cert:Certificate, key:Key):Void {
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException("Not implemented");
 	}
 
 	private function buildConfig(server:Bool):Config {

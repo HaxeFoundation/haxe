@@ -48,9 +48,9 @@ class Input {
 	**/
 	public function readByte():Int {
 		#if cpp
-		throw "Not implemented";
+		throw new haxe.exceptions.NotImplementedException("Not implemented");
 		#else
-		return throw "Not implemented";
+		return throw new haxe.exceptions.NotImplementedException("Not implemented");
 		#end
 	}
 
