@@ -2,7 +2,7 @@ package unit.issues;
 
 private class A<T:String> {
 	public function new() f();
-	function f():haxe.ds.Map<T,Int> throw throw new haxe.exceptions.NotImplementedException();
+	function f():haxe.ds.Map<T,Int> throw new haxe.exceptions.NotImplementedException();
 }
 
 private class B extends A<String> {

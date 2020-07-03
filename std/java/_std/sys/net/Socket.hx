@@ -142,11 +142,11 @@ class Socket {
 	}
 
 	public function waitForRead():Void {
-		throw throw new haxe.exceptions.NotImplementedException();
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function setBlocking(b:Bool):Void {
-		throw throw new haxe.exceptions.NotImplementedException();
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public function setFastSend(b:Bool):Void {
@@ -158,7 +158,7 @@ class Socket {
 
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
-		throw throw new haxe.exceptions.NotImplementedException();
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 }

@@ -81,7 +81,7 @@ using haxe.Int64;
 
 	public static function setCwd(s:String):Void {
 		// java offers no support for it (!)
-		throw throw new haxe.exceptions.NotImplementedException();
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public static function systemName():String {
@@ -146,7 +146,7 @@ using haxe.Int64;
 
 	public static function getChar(echo:Bool):Int {
 		// TODO
-		return throw throw new haxe.exceptions.NotImplementedException();
+		return throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public static function stdin():haxe.io.Input {

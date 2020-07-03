@@ -58,7 +58,7 @@ class Compress {
 				this.finish = true;
 				Deflater.FULL_FLUSH;
 			case BLOCK:
-				throw throw new haxe.exceptions.NotImplementedException();
+				throw new haxe.exceptions.NotImplementedException();
 		}
 	}
 

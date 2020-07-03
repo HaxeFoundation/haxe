@@ -69,7 +69,7 @@ class Log {
 		#elseif sys
 		Sys.println(str);
 		#else
-		throw throw new haxe.exceptions.NotImplementedException()
+		throw new haxe.exceptions.NotImplementedException()
 		#end
 	}
 }
