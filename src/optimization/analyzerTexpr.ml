@@ -1070,7 +1070,7 @@ module Purity = struct
 	let rec taint node = match node.pn_purity with
 		| Impure -> ()
 		| ExpectPure p -> raise (Purity_conflict(node,p));
-		| MaybePure | Pure ->
+		| MaybePure | Pure | InferredPure ->
 			node.pn_purity <- Impure;
 			List.iter taint node.pn_dependents;
 			let rec loop c = match c.cl_super with
@@ -1095,7 +1095,7 @@ module Purity = struct
 		let check_field c cf =
 			let node' = get_node c cf in
 			match node'.pn_purity with
-				| Pure | ExpectPure _ -> ()
+				| Pure | InferredPure | ExpectPure _ -> ()
 				| Impure -> taint_raise node;
 				| MaybePure -> node'.pn_dependents <- node :: node'.pn_dependents
 		in
@@ -1186,7 +1186,7 @@ module Purity = struct
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "inferredPure"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
 			| _ -> ()
 		) node_lut;
 end

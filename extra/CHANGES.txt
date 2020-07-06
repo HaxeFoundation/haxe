@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	all : fixed compilation server bug caused by removing `inline` from a method (#9690)
 	macro : fixed compiler crash if `@:genericBuild` meta is removed by a macro during building (#9391)
 	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
 	flash : fixed `VerifyError` exception when `Void` end up as an argument type after inlining (#9678)
