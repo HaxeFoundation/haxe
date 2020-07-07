@@ -1048,6 +1048,11 @@ extern class Global {
 	static function mb_check_encoding(str:String = null, ?encoding:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-scrub.php
+	**/
+	static function mb_scrub(str:String, ?encoding:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.mb-split.php
 	**/
 	static function mb_split(pattern:String, str:String, ?limit:Int):NativeIndexedArray<String>;
