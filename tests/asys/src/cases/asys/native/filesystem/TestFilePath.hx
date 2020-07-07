@@ -21,14 +21,14 @@ class TestFilePath extends Test {
 	}
 
 	function testToReadableString() {
-		var b = Bytes.ofString('xyz');
+		var b = Bytes.ofString('xyz😂/éé');
 		var p:FilePath = b;
-		Assert.equals('xyz', p.toReadableString());
+		Assert.equals('xyz😂/éé', p.toReadableString());
 
 		b.set(1, 0xE9); //Replace "y" with an invalid code point
 		var p:FilePath = b;
-		Assert.equals('x?z', p.toReadableString());
-		Assert.equals('x*z', p.toReadableString('*'.code));
+		Assert.equals('x?z😂/éé', p.toReadableString());
+		Assert.equals('x*z😂/éé', p.toReadableString('*'.code));
 	}
 
 	function testFromBytes_toBytes() {
