@@ -284,21 +284,37 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		match cerr with Could_not_unify err -> loop err | _ -> ()
 	in
-	let rec loop candidates = match candidates with
-		| [] -> [],[]
-		| (t,cf) :: candidates ->
-			begin try
-				let candidate = attempt_call t cf in
-				if ctx.com.config.pf_overload && is_overload then begin
+	let attempt_calls candidates =
+		let rec loop candidates = match candidates with
+			| [] -> [],[]
+			| (t,cf) :: candidates ->
+				let bindings = ref [] in
+				(* The call-typing can trigger arbitrary typing and thus arbitrary monomorph bindings. We only care about
+				   monomorphs that we know about before making the call, so let's remember these. *)
+				let known_monos = ctx.monomorphs.perfunction in
+				let restore = Monomorph.on_bind (fun m _ ->
+					if List.exists (fun (m',_) -> m == m') known_monos then
+						bindings := (m,m.tm_type,m.tm_constraints) :: !bindings
+				) in
+				begin try
+					let candidate = attempt_call t cf in
+					if ctx.com.config.pf_overload && is_overload then begin
+						let candidates,failures = loop candidates in
+						candidate :: candidates,failures
+					end else
+						[candidate],[]
+				with Error ((Call_error cerr as err),p) ->
+					restore();
+					List.iter (fun (m,t,constr) ->
+						m.tm_type <- t;
+						m.tm_constraints <- constr;
+					) !bindings;
+					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
-					candidate :: candidates,failures
-				end else
-					[candidate],[]
-			with Error ((Call_error cerr as err),p) ->
-				maybe_raise_unknown_ident cerr p;
-				let candidates,failures = loop candidates in
-				candidates,(cf,err,p) :: failures
-			end
+					candidates,(cf,err,p) :: failures
+				end
+		in
+		loop candidates
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
@@ -315,7 +331,7 @@ let unify_field_call ctx fa el args ret p inline =
 			fail_fun();
 		end
 	| _ ->
-		let candidates,failures = loop candidates in
+		let candidates,failures = attempt_calls candidates in
 		let fail () =
 			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
 			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in

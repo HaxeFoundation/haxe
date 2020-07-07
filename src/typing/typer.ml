@@ -165,7 +165,8 @@ let check_error ctx err p = match err with
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let rec unify_min_raise basic (el:texpr list) : t =
+let rec unify_min_raise ctx (el:texpr list) : t =
+	let basic = ctx.com.basic in
 	let rec base_types t =
 		let tl = ref [] in
 		let rec loop t = (match t with
@@ -193,7 +194,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 		!tl
 	in
 	match el with
-	| [] -> mk_mono()
+	| [] -> spawn_monomorph ctx null_pos
 	| [e] -> e.etype
 	| _ ->
 		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
@@ -222,7 +223,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				with Unify_error _ ->
 					true, t
 		in
-		let has_error, t = loop (mk_mono()) el in
+		let has_error, t = loop (spawn_monomorph ctx null_pos) el in
 		if not has_error then
 			t
 		else try
@@ -246,7 +247,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 					raise Not_found
 			) PMap.empty el in
 			let fields = PMap.foldi (fun n el acc ->
-				let t = try unify_min_raise basic el with Unify_error _ -> raise Not_found in
+				let t = try unify_min_raise ctx el with Unify_error _ -> raise Not_found in
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
 			mk_anon ~fields (ref Closed)
@@ -282,7 +283,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				List.hd !common_types
 
 let unify_min ctx el =
-	try unify_min_raise ctx.com.basic el
+	try unify_min_raise ctx el
 	with Error (Unify l,p) ->
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
@@ -1992,7 +1993,7 @@ and type_map_declaration ctx e1 el with_type p =
 			(e1 :: el_k,e2 :: el_v)
 		) ([],[]) el_kv in
 		let unify_min_resume el = try
-			unify_min_raise ctx.com.basic el
+			unify_min_raise ctx el
 		with Error (Unify l,p) when ctx.in_call_args ->
 			 raise (WithTypeError(Unify l,p))
 		in
@@ -2166,7 +2167,7 @@ and type_array_decl ctx el with_type p =
 	| None ->
 		let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 		let t = try
-			unify_min_raise ctx.com.basic el
+			unify_min_raise ctx el
 		with Error (Unify l,p) ->
 			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
 				t_dynamic

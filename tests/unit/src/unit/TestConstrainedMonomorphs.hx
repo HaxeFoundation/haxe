@@ -64,11 +64,33 @@ class TestConstrainedMonomorphs extends Test {
 		eq("fooFOO", infer(new MyNotString("foo")));
 	}
 
-	#if todo
+	#if java
 	function testDetectiveHaxe() {
 		var a = null;
 		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
 	}
+
+	function testDetectiveHaxe2() {
+		var a = [];
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a[0], "foo"));
+	}
+
+	#if maybe_todo
+	function testDetectiveHaxe3() {
+		/* This doesn't work because the monomorphs of the inner function are not in-context while
+		   the call is being made. */
+		var a = () -> null;
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a(), "foo"));
+	}
+
+	static var a = null;
+	function testDetectiveHaxe4() {
+		/* Similar problem: The monomorph of `static var a` is not in-context,  so it's not reset after the
+		   call failed. */
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
+	}
+	#end
+
 	#end
 
 	static function merge<A:{}, B:{}, C:A & B>(a:A, b:B):C {
