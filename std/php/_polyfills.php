@@ -50,4 +50,14 @@ namespace { //Namespace declaration is required because this file is included un
 		}
 	}
 
+	/**
+	 * @see http://php.net/manual/en/function.mb-scrub.php
+	 */
+	if(!function_exists('mb_scrub')) {
+		function mb_scrub($s, $encoding = null) {
+			$encoding = null === $encoding ? mb_internal_encoding() : $encoding;
+			return mb_convert_encoding($s, $encoding, $encoding);
+		}
+	}
+
 }

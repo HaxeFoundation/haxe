@@ -115,7 +115,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
-			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 			let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 			let check_constraints () =
 				List.iter2 (fun m (name,t) -> match follow t with

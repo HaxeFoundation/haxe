@@ -325,7 +325,7 @@ let rec type_field cfg ctx e i p mode =
 				| _ ->
 					display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
 		end;
-		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
+		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 	in
 	let does_forward a stat =
 		try

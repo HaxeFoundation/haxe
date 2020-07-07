@@ -165,7 +165,8 @@ let check_error ctx err p = match err with
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let rec unify_min_raise basic (el:texpr list) : t =
+let rec unify_min_raise ctx (el:texpr list) : t =
+	let basic = ctx.com.basic in
 	let rec base_types t =
 		let tl = ref [] in
 		let rec loop t = (match t with
@@ -193,7 +194,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 		!tl
 	in
 	match el with
-	| [] -> mk_mono()
+	| [] -> spawn_monomorph ctx null_pos
 	| [e] -> e.etype
 	| _ ->
 		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
@@ -222,7 +223,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				with Unify_error _ ->
 					true, t
 		in
-		let has_error, t = loop (mk_mono()) el in
+		let has_error, t = loop (spawn_monomorph ctx null_pos) el in
 		if not has_error then
 			t
 		else try
@@ -246,7 +247,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 					raise Not_found
 			) PMap.empty el in
 			let fields = PMap.foldi (fun n el acc ->
-				let t = try unify_min_raise basic el with Unify_error _ -> raise Not_found in
+				let t = try unify_min_raise ctx el with Unify_error _ -> raise Not_found in
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
 			mk_anon ~fields (ref Closed)
@@ -282,7 +283,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				List.hd !common_types
 
 let unify_min ctx el =
-	try unify_min_raise ctx.com.basic el
+	try unify_min_raise ctx el
 	with Error (Unify l,p) ->
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
@@ -328,7 +329,7 @@ let rec type_ident_raise ctx i p mode =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then
-			AKExpr (null (mk_mono()) p)
+			AKExpr (null (spawn_monomorph ctx p) p)
 		else
 			AKNo i
 	| _ ->
@@ -1133,7 +1134,7 @@ and type_unop ctx op flag e p =
 				let rec loop opl = match opl with
 					| [] -> raise Not_found
 					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
-						let m = mk_mono() in
+						let m = spawn_monomorph ctx p in
 						let tcf = apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type) in
 						if Meta.has Meta.Impl cf.cf_meta then begin
 							if type_iseq (tfun [apply_params a.a_params pl a.a_this] m) tcf then cf,tcf,m else loop opl
@@ -1948,11 +1949,11 @@ and type_map_declaration ctx e1 el with_type p =
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
-			| _ -> mk_mono(),mk_mono(),false
+			| _ -> spawn_monomorph ctx p,spawn_monomorph ctx p,false
 		in
 		match with_type with
 		| WithType.WithType(t,_) -> get_map_params t
-		| _ -> (mk_mono(),mk_mono(),false)
+		| _ -> (spawn_monomorph ctx p,spawn_monomorph ctx p,false)
 	in
 	let keys = Hashtbl.create 0 in
 	let check_key e_key =
@@ -1992,7 +1993,7 @@ and type_map_declaration ctx e1 el with_type p =
 			(e1 :: el_k,e2 :: el_v)
 		) ([],[]) el_kv in
 		let unify_min_resume el = try
-			unify_min_raise ctx.com.basic el
+			unify_min_raise ctx el
 		with Error (Unify l,p) when ctx.in_call_args ->
 			 raise (WithTypeError(Unify l,p))
 		in
@@ -2166,7 +2167,7 @@ and type_array_decl ctx el with_type p =
 	| None ->
 		let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 		let t = try
-			unify_min_raise ctx.com.basic el
+			unify_min_raise ctx el
 		with Error (Unify l,p) ->
 			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
 				t_dynamic
@@ -2184,7 +2185,7 @@ and type_array_decl ctx el with_type p =
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
 and type_array_comprehension ctx e with_type p =
-	let v = gen_local ctx (mk_mono()) p in
+	let v = gen_local ctx (spawn_monomorph ctx p) p in
 	let et = ref (EConst(Ident "null"),p) in
 	let comprehension_pos = p in
 	let rec map_compr (e,p) =
@@ -2615,7 +2616,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
-		mk (TThrow e) (mk_mono()) p
+		mk (TThrow e) (spawn_monomorph ctx p) p
 	| ECall (e,el) ->
 		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
@@ -2637,7 +2638,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		}
 	| ECast (e,None) ->
 		let e = type_expr ctx e WithType.value in
-		mk (TCast (e,None)) (mk_mono()) p
+		mk (TCast (e,None)) (spawn_monomorph ctx p) p
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->

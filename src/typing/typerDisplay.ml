@@ -150,7 +150,7 @@ let raise_toplevel ctx dk with_type (subject,psubject) =
 	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) psubject
 
 let display_dollar_type ctx p make_type =
-	let mono = mk_mono() in
+	let mono = spawn_monomorph ctx p in
 	let doc = doc_from_string "Outputs type of argument as a warning and uses argument as value" in
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with

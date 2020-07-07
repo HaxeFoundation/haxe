@@ -121,6 +121,6 @@ class Sys {
 
 	public static function time():Float {
 		var stamp = lua.lib.luv.Misc.gettimeofday();
-		return stamp.seconds + (stamp.microseconds / 100000);
+		return stamp.seconds + (stamp.microseconds / 1000000);
 	}
 }
