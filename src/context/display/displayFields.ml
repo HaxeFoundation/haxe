@@ -54,7 +54,7 @@ let collect_static_extensions ctx items e p =
 					acc
 				else begin
 					let f = { f with cf_type = opt_type f.cf_type } in
-					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+					let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
 					let map = apply_params f.cf_params monos in
 					match follow (map f.cf_type) with
 					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)

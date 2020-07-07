@@ -128,7 +128,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			| Error (Unknown_ident n,_) ->
 				restore();
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
-				AKExpr (mk (TConst TNull) (mk_mono()) p)
+				AKExpr (mk (TConst TNull) (spawn_monomorph ctx p) p)
 			| exc ->
 				restore();
 				raise exc;
@@ -328,7 +328,7 @@ let rec type_ident_raise ctx i p mode =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then
-			AKExpr (null (mk_mono()) p)
+			AKExpr (null (spawn_monomorph ctx p) p)
 		else
 			AKNo i
 	| _ ->
@@ -1133,7 +1133,7 @@ and type_unop ctx op flag e p =
 				let rec loop opl = match opl with
 					| [] -> raise Not_found
 					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
-						let m = mk_mono() in
+						let m = spawn_monomorph ctx p in
 						let tcf = apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type) in
 						if Meta.has Meta.Impl cf.cf_meta then begin
 							if type_iseq (tfun [apply_params a.a_params pl a.a_this] m) tcf then cf,tcf,m else loop opl
@@ -1286,7 +1286,7 @@ and type_ident ctx i p mode =
 				if i = "__this__" then
 					AKExpr (mk (TConst TThis) ctx.tthis p)
 				else
-					let t = mk_mono() in
+					let t = spawn_monomorph ctx p in
 					AKExpr ((mk (TIdent i)) t p)
 			end else begin
 				if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
@@ -1303,11 +1303,11 @@ and type_ident ctx i p mode =
 							raise (Error(err,p))
 						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
-							let t = mk_mono() in
+							let t = spawn_monomorph ctx p in
 							AKExpr (mk (TIdent i) t p)
 						| _ ->
 							display_error ctx (error_msg err) p;
-							let t = mk_mono() in
+							let t = spawn_monomorph ctx p in
 							(* Add a fake local for #8751. *)
 							if !ServerConfig.legacy_completion then
 								ignore(add_local ctx VGenerated i t p);
@@ -1948,11 +1948,11 @@ and type_map_declaration ctx e1 el with_type p =
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
-			| _ -> mk_mono(),mk_mono(),false
+			| _ -> spawn_monomorph ctx p,spawn_monomorph ctx p,false
 		in
 		match with_type with
 		| WithType.WithType(t,_) -> get_map_params t
-		| _ -> (mk_mono(),mk_mono(),false)
+		| _ -> (spawn_monomorph ctx p,spawn_monomorph ctx p,false)
 	in
 	let keys = Hashtbl.create 0 in
 	let check_key e_key =
@@ -2184,7 +2184,7 @@ and type_array_decl ctx el with_type p =
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
 and type_array_comprehension ctx e with_type p =
-	let v = gen_local ctx (mk_mono()) p in
+	let v = gen_local ctx (spawn_monomorph ctx p) p in
 	let et = ref (EConst(Ident "null"),p) in
 	let comprehension_pos = p in
 	let rec map_compr (e,p) =
@@ -2265,7 +2265,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
-			let e_null = mk (TConst TNull) (mk_mono()) p in
+			let e_null = mk (TConst TNull) (spawn_monomorph ctx p) p in
 			mk (TReturn (Some e_null)) t_dynamic p
 
 and type_cast ctx e t p =
@@ -2615,7 +2615,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
-		mk (TThrow e) (mk_mono()) p
+		mk (TThrow e) (spawn_monomorph ctx p) p
 	| ECall (e,el) ->
 		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
@@ -2632,12 +2632,12 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		ctx.untyped <- old;
 		{
 			eexpr = e.eexpr;
-			etype = mk_mono();
+			etype = spawn_monomorph ctx p;
 			epos = e.epos;
 		}
 	| ECast (e,None) ->
 		let e = type_expr ctx e WithType.value in
-		mk (TCast (e,None)) (mk_mono()) p
+		mk (TCast (e,None)) (spawn_monomorph ctx p) p
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->

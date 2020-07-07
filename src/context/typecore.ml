@@ -176,6 +176,14 @@ let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_t
 let unify_min ctx el = (!unify_min_ref) ctx el
 let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx el src
 
+let spawn_monomorph' ctx p =
+	let mono = Monomorph.create () in
+	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
+	mono
+
+let spawn_monomorph ctx p =
+	TMono (spawn_monomorph' ctx p)
+
 let make_static_this c p =
 	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 	mk (TTypeExpr (TClassDecl c)) ta p
@@ -185,7 +193,7 @@ let make_static_field_access c cf t p =
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 	let map t = map (apply_params cf.cf_params monos t) in
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p

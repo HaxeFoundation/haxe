@@ -283,7 +283,7 @@ let rec build_generic ctx c p tl =
 				t
 			in
 			let r = exc_protect ctx (fun r ->
-				let t = mk_mono() in
+				let t = spawn_monomorph ctx p in
 				r := lazy_processing (fun() -> t);
 				let t0 = f() in
 				unify_raise ctx t0 t p;

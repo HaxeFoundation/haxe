@@ -728,7 +728,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
 			loop (Abstract.get_underlying_type a tl)
 		| TMono _ ->
-			let t = mk_mono() in
+			let t = spawn_monomorph ctx p in
 			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
 			mk (TCall (e,el)) t p
@@ -737,7 +737,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			let t = if t == t_dynamic then
 				t_dynamic
 			else if ctx.untyped then
-				mk_mono()
+				spawn_monomorph ctx p
 			else
 				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			in
@@ -848,7 +848,7 @@ let array_access ctx e1 e2 mode p =
 				let skip_abstract = fast_eq et at in
 				loop ~skip_abstract at
 			| _, _ ->
-				let pt = mk_mono() in
+				let pt = spawn_monomorph ctx p in
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise ctx et t p
