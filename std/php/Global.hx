@@ -1068,6 +1068,11 @@ extern class Global {
 	static function mb_substr(str:String, start:Int, length:Int = null, ?encoding:String):String;
 
 	/**
+		@see http://php.net/manual/en/function.mb-substitute-character.php
+	**/
+	static function mb_substitute_character(?substchar:EitherType<Int,String>):EitherType<Bool,EitherType<String,Int>>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-chr.php
 		(Polyfilled for php 7.0)
 	**/

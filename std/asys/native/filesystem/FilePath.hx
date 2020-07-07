@@ -13,7 +13,7 @@ import haxe.exceptions.NotImplementedException;
 	TODO: add API from `haxe.io.Path`
 	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
-@:coreType abstract FilePath {
+@:coreType @:coreApi abstract FilePath {
 
 	/**
 		Create file path from plain string.
@@ -42,18 +42,17 @@ import haxe.exceptions.NotImplementedException;
 		Throws an exception if the path could not be converted to a valid
 		unicode string.
 
-		TODO: define the exception
+		@throws haxe.EncodingException - if current `FilePath` cannot be converted to a unicode string.
 	**/
 	@:to public function toString():String {
 		throw new NotImplementedException();
 	}
 
 	/**
-		Encode file path to a valid unicode string skipping (replacing?) any invalid bytes
-
-		TODO: decide on skipping/replacing
+		Encode file path to a valid unicode string replacing any invalid bytes with `patch`
+		unicode character code (the code of `?` is used by default).
 	**/
-	public function toReadableString():String {
+	public function toReadableString(patch:Int = '?'.code):String {
 		throw new NotImplementedException();
 	}
 
@@ -61,7 +60,7 @@ import haxe.exceptions.NotImplementedException;
 		Get an absolute path of this path.
 		For example translates `./path` to `/current/dir/path`.
 	**/
-	public function absolute(callback:Callback<Null<FilePath>>) {
+	public function absolute(callback:Callback<Null<FilePath>>):Void {
 		callback.fail(new NotImplementedException());
 	}
 
@@ -70,7 +69,7 @@ import haxe.exceptions.NotImplementedException;
 		Resolves intermediate `.`, `..` and symbolic links.
 		The result may still be a relative path.
 	**/
-	public function real(callback:Callback<Null<FilePath>>) {
+	public function real(callback:Callback<Null<FilePath>>):Void {
 		callback.fail(new NotImplementedException());
 	}
 }

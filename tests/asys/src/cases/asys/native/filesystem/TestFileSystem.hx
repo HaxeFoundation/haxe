@@ -1,10 +1,9 @@
 package cases.asys.native.filesystem;
 
-import utest.Assert;
 import asys.native.filesystem.FileSystem;
 
 class TestFileSystem extends Test {
-	function test() {
+	function testCheck_Exists() {
 		Assert.pass();
 	}
 }

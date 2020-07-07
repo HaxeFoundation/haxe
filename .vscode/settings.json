@@ -30,6 +30,6 @@
 		}
 	],
 	"haxe.configurations": [
-		["--cwd", "tests/asys", "compile-dummy.hxml"]
+		["--cwd", "tests/asys", "compile-each.hxml"]
 	]
 }
