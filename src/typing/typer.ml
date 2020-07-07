@@ -128,7 +128,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			| Error (Unknown_ident n,_) ->
 				restore();
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
-				AKExpr (mk (TConst TNull) (spawn_monomorph ctx p) p)
+				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			| exc ->
 				restore();
 				raise exc;
@@ -1286,7 +1286,7 @@ and type_ident ctx i p mode =
 				if i = "__this__" then
 					AKExpr (mk (TConst TThis) ctx.tthis p)
 				else
-					let t = spawn_monomorph ctx p in
+					let t = mk_mono() in
 					AKExpr ((mk (TIdent i)) t p)
 			end else begin
 				if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
@@ -1303,11 +1303,11 @@ and type_ident ctx i p mode =
 							raise (Error(err,p))
 						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
-							let t = spawn_monomorph ctx p in
+							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)
 						| _ ->
 							display_error ctx (error_msg err) p;
-							let t = spawn_monomorph ctx p in
+							let t = mk_mono() in
 							(* Add a fake local for #8751. *)
 							if !ServerConfig.legacy_completion then
 								ignore(add_local ctx VGenerated i t p);
@@ -2265,7 +2265,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
-			let e_null = mk (TConst TNull) (spawn_monomorph ctx p) p in
+			let e_null = mk (TConst TNull) (mk_mono()) p in
 			mk (TReturn (Some e_null)) t_dynamic p
 
 and type_cast ctx e t p =
@@ -2632,7 +2632,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		ctx.untyped <- old;
 		{
 			eexpr = e.eexpr;
-			etype = spawn_monomorph ctx p;
+			etype = mk_mono();
 			epos = e.epos;
 		}
 	| ECast (e,None) ->
