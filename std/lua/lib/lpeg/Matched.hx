@@ -1,4 +1,4 @@
-
+package lua.lib.lpeg;
 abstract Matched(Int) {
     inline public function new(d:Dynamic) {
         this = d;
