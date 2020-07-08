@@ -547,14 +547,12 @@ and type_eq_params uctx a b tl1 tl2 =
 			error (err :: (Invariant_parameter !i) :: l)
 		) tl1 tl2
 
-let type_iseq_custom uctx a b =
+let type_iseq uctx a b =
 	try
 		type_eq uctx a b;
 		true
 	with
 		Unify_error _ -> false
-
-let type_iseq = type_iseq_custom default_unification_context
 
 let type_iseq_strict a b =
 	try
@@ -720,7 +718,7 @@ let rec unify (uctx : unification_context) a b =
 							error (invalid_field n :: l));
 
 				List.iter (fun f2o ->
-					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
+					if not (List.exists (fun f1o -> type_iseq uctx f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
@@ -771,7 +769,7 @@ let rec unify (uctx : unification_context) a b =
 			begin match c.cl_kind with
 				| KTypeParameter tl ->
 					(* type parameters require an equal Constructible constraint *)
-					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) tl) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
@@ -930,7 +928,7 @@ and unify_to_field uctx ab tl b (t,cf) =
 			| _ -> die "" __LOC__)
 
 and unify_with_variance uctx f t1 t2 =
-	let allows_variance_to t tf = type_iseq tf t in
+	let allows_variance_to t tf = type_iseq uctx tf t in
 	match follow t1,follow t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
 		List.iter2 f tl1 tl2
@@ -1002,6 +1000,9 @@ let unify = unify default_unification_context
 
 let type_eq_custom = type_eq
 let type_eq param = type_eq {default_unification_context with equality_kind = param}
+
+let type_iseq_custom = type_iseq
+let type_iseq = type_iseq default_unification_context
 
 ;;
 unify_ref := unify_custom;;
