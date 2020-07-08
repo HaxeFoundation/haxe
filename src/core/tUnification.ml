@@ -138,19 +138,8 @@ module Monomorph = struct
 
 	(* binding *)
 
-	let on_bind_f = ref None
-
-	let on_bind f =
-		let old = !on_bind_f in
-		on_bind_f := Some f;
-		(fun () -> on_bind_f := old)
-
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
-		begin match !on_bind_f with
-		| None -> ()
-		| Some f -> f m t
-		end;
 		m.tm_type <- Some t;
 		m.tm_constraints <- []
 

@@ -288,14 +288,9 @@ let unify_field_call ctx fa el args ret p inline =
 		let rec loop candidates = match candidates with
 			| [] -> [],[]
 			| (t,cf) :: candidates ->
-				let bindings = ref [] in
-				(* The call-typing can trigger arbitrary typing and thus arbitrary monomorph bindings. We only care about
-				   monomorphs that we know about before making the call, so let's remember these. *)
-				let known_monos = ctx.monomorphs.perfunction in
-				let restore = Monomorph.on_bind (fun m _ ->
-					if List.exists (fun (m',_) -> m == m') known_monos then
-						bindings := (m,m.tm_type,m.tm_constraints) :: !bindings
-				) in
+				let known_monos = List.map (fun (m,_) ->
+					m,m.tm_type,m.tm_constraints
+				) ctx.monomorphs.perfunction in
 				begin try
 					let candidate = attempt_call t cf in
 					if ctx.com.config.pf_overload && is_overload then begin
@@ -304,11 +299,10 @@ let unify_field_call ctx fa el args ret p inline =
 					end else
 						[candidate],[]
 				with Error ((Call_error cerr as err),p) ->
-					restore();
 					List.iter (fun (m,t,constr) ->
 						m.tm_type <- t;
 						m.tm_constraints <- constr;
-					) !bindings;
+					) known_monos;
 					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,p) :: failures
