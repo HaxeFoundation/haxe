@@ -4,7 +4,6 @@ import haxe.ds.ReadOnlyArray;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
-import haxe.Callback;
 
 /**
 	Additional API for child processes spawned by the current process.
@@ -36,7 +35,7 @@ class ChildProcess extends Process {
 		may be invoked with the exit code immediately.
 	**/
 	public function exitCode(callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -45,6 +44,6 @@ class ChildProcess extends Process {
 		TODO: should this method wait for the process to finish?
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }

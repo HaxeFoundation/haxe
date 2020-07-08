@@ -2,7 +2,6 @@ package asys.native.net;
 
 import asys.native.net.SocketOptions.SocketOptionKind;
 import haxe.NoData;
-import haxe.Callback;
 import haxe.exceptions.NotImplementedException;
 
 typedef ServerOptions = SocketOptions & {
@@ -34,35 +33,35 @@ class Server {
 		Maximum size of incoming connections queue is specified by `options.backlog`.
 		If the queue is full, any new incoming connection will be rejected.
 	**/
-	static public function open(address:SocketAddress, ?options:ServerOptions, callback:Callback<Null<Server>>) {
-		callback.fail(new NotImplementedException());
+	static public function open(address:SocketAddress, ?options:ServerOptions, callback:Callback<Server>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Accept an incoming connection.
 	**/
-	public function accept(callback:Callback<Null<Socket>>) {
-		callback.fail(new NotImplementedException());
+	public function accept(callback:Callback<Socket>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Get the value of a specified socket option.
 	**/
-	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {
-		callback.fail(new NotImplementedException());
+	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<T>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set socket option.
 	**/
 	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Stop the server.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }

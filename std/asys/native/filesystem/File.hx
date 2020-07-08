@@ -5,7 +5,6 @@ import asys.native.system.SystemUser;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
-import haxe.Callback;
 import haxe.exceptions.NotImplementedException;
 import asys.native.IWritable;
 import asys.native.IReadable;
@@ -48,7 +47,7 @@ class File implements IDuplex {
 		then invoke `callback` with the amount of bytes written.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -56,49 +55,49 @@ class File implements IDuplex {
 		position in `buffer`, then invoke `callback` with the amount of bytes read.
 	**/
 	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Force all buffered data to be written to disk.
 	**/
 	public function flush(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Synchronize file in-memory state with the storage device.
 	**/
 	public function sync(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Get file status information.
 	**/
-	public function info(callback:Callback<Null<FileInfo>>) {
-		callback.fail(new NotImplementedException());
+	public function info(callback:Callback<FileInfo>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set file permissions.
 	**/
 	public function setPermissions(mode:FileAccessMode, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set file owner and group.
 	**/
 	public function setOwner(user:SystemUser, ?group:SystemGroup, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set file owning group.
 	**/
 	public function setGroup(group:SystemGroup, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -108,7 +107,7 @@ class File implements IDuplex {
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
 	public function resize(newSize:Int, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -117,7 +116,7 @@ class File implements IDuplex {
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
 	**/
 	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -139,14 +138,14 @@ class File implements IDuplex {
 		release a lock manually.
 	**/
 	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Close the file.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }
 

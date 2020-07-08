@@ -2,7 +2,6 @@ package asys.native;
 
 import haxe.NoData;
 import haxe.io.Bytes;
-import haxe.Callback;
 
 /**
 	An interface to read and write bytes.

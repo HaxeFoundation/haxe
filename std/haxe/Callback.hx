@@ -1,6 +1,6 @@
 package haxe;
 
-typedef CallbackHandler<T> = (error:Null<Exception>, result:T) -> Void;
+typedef CallbackHandler<E,R> = (error:Null<E>, result:Null<R>) -> Void;
 
 /**
 	A callback.
@@ -17,12 +17,12 @@ typedef CallbackHandler<T> = (error:Null<Exception>, result:T) -> Void;
 
 	The underlying function type is declared in `haxe.CallbackHandler`.
 **/
-abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
+abstract Callback<E,R>(CallbackHandler<E,R>) from CallbackHandler<E,R> {
 	/**
 		This method may be used instead of allocating an anonymous function to ignore
 		the outcome of an operation.
 	**/
-	static public function ignore<T>(?e:Exception, result:T):Void {}
+	static public function ignore<E,R>(?e:Null<E>, result:Null<R>):Void {}
 
 	/**
 		Create a callback, which ignores the result of an operation.
@@ -30,21 +30,21 @@ abstract Callback<T>(CallbackHandler<T>) from CallbackHandler<T> {
 		TODO: type inference does not work for arguments of `fn` if `fromNoResult` is
 		used through an implicit cast. Submit compiler issue.
 	**/
-	@:from static public inline function ignoreResult<T>(fn:(error:Null<Exception>) -> Void):Callback<T> {
-		return (e:Null<Exception>, r:T) -> fn(e);
+	@:from static public inline function ignoreResult<E,R>(fn:(error:Null<E>) -> Void):Callback<E,R> {
+		return (e:Null<E>, r:Null<R>) -> fn(e);
 	}
 
 	/**
 		Report a failure.
 	**/
-	public inline function fail(error:Exception):Void {
-		this(error, cast null);
+	public inline function fail(error:E):Void {
+		this(error, null);
 	}
 
 	/**
 		Emit the result of a successful operation.
 	**/
-	public inline function success(result:T):Void {
+	public inline function success(result:R):Void {
 		this(null, result);
 	}
 }

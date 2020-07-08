@@ -2,7 +2,6 @@ package asys.native.filesystem;
 
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
-import haxe.Callback;
 
 /**
 	Represents a directory.
@@ -26,14 +25,14 @@ class Directory {
 	/**
 		Read next directory entry.
 	**/
-	public function next(callback:Callback<Null<FilePath>>):Void {
-		callback.fail(new NotImplementedException());
+	public function next(callback:Callback<FilePath>):Void {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Close the directory.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }

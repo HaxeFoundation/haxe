@@ -4,7 +4,6 @@ import haxe.ds.ReadOnlyArray;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
-import haxe.Callback;
 
 /**
 	Process execution API
@@ -53,8 +52,8 @@ class Process {
 
 		@see asys.native.system.ProcessOptions for various process configuration options.
 	 */
-	static public function execute(command:String, ?options:ProcessOptions, callback:Callback<Null<{?stdout:Bytes, ?stderr:Bytes, exitCode:Int}>>) {
-		callback.fail(new NotImplementedException());
+	static public function execute(command:String, ?options:ProcessOptions, callback:Callback<{?stdout:Bytes, ?stderr:Bytes, exitCode:Int}>) {
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -65,8 +64,8 @@ class Process {
 
 		@see asys.native.system.ProcessOptions for various process configuration options.
 	 */
-	static public function open(command:String, ?options:ProcessOptions, callback:Callback<Null<ChildProcess>>) {
-		callback.fail(new NotImplementedException());
+	static public function open(command:String, ?options:ProcessOptions, callback:Callback<ChildProcess>) {
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -78,6 +77,6 @@ class Process {
 		@see asys.native.system.Signal
 	**/
 	public function sendSignal(signal:Signal, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }

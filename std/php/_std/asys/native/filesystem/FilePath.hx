@@ -1,6 +1,5 @@
 package asys.native.filesystem;
 
-import haxe.Callback;
 import haxe.io.Bytes;
 import haxe.EntryPoint;
 import haxe.exceptions.NotImplementedException;
@@ -93,7 +92,7 @@ import php.NativeArray;
 		return implode(SEPARATOR, result);
 	}
 
-	public function real(callback:Callback<Null<FilePath>>):Void {
+	public function real(callback:Callback<FilePath>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var resolved = realpath(cast this);
 			if(resolved == false) {
@@ -102,6 +101,6 @@ import php.NativeArray;
 				callback.success((resolved:String));
 			}
 		});
-		// callback.fail(new NotImplementedException());
+		// throw new NotImplementedException();
 	}
 }

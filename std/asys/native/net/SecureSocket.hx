@@ -1,6 +1,5 @@
 package asys.native.net;
 
-import haxe.Callback;
 import haxe.exceptions.NotImplementedException;
 
 typedef SecureSocketOptions = SocketOptions & {
@@ -14,8 +13,8 @@ class SecureSocket extends Socket {
 	/**
 		Establish a secure connection to specified address.
 	**/
-	static public function connect(address:SocketAddress, options:SecureSocketOptions, callback:Callback<Null<SecureSocket>>) {
-		callback.fail(new NotImplementedException());
+	static public function connect(address:SocketAddress, options:SecureSocketOptions, callback:Callback<SecureSocket>) {
+		throw new NotImplementedException();
 	}
 
 	//TODO

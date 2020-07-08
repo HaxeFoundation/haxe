@@ -1,6 +1,5 @@
 package asys.native.filesystem;
 
-import haxe.Callback;
 import haxe.io.Bytes;
 import haxe.exceptions.NotImplementedException;
 
@@ -74,7 +73,7 @@ import haxe.exceptions.NotImplementedException;
 		Resolves intermediate `.`, `..`, excessive slashes and symbolic links.
 		The result may still be a relative path.
 	**/
-	public function real(callback:Callback<Null<FilePath>>):Void {
-		callback.fail(new NotImplementedException());
+	public function real(callback:Callback<FilePath>):Void {
+		throw new NotImplementedException();
 	}
 }

@@ -1,7 +1,6 @@
 package asys.native.system;
 
 import haxe.NoData;
-import haxe.Callback;
 import haxe.exceptions.NotImplementedException;
 
 /**
@@ -25,7 +24,7 @@ import haxe.exceptions.NotImplementedException;
 		TODO: not sure if we need this in std.
 	**/
 	function create(name:String, callback:Callback<NoData>):Void {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -33,7 +32,7 @@ import haxe.exceptions.NotImplementedException;
 
 		TODO: not sure if we need this in std.
 	**/
-	function addUser(user:SystemUser, callback:Callback<Null<SystemGroup>>):Void {
-		callback.fail(new NotImplementedException());
+	function addUser(user:SystemUser, callback:Callback<SystemGroup>):Void {
+		throw new NotImplementedException();
 	}
 }

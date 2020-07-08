@@ -4,7 +4,6 @@ import asys.native.net.SocketOptions.SocketOptionKind;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
-import haxe.Callback;
 
 class UdpSocket {
 	/**
@@ -28,8 +27,8 @@ class UdpSocket {
 	/**
 		Open a UDP socket.
 	**/
-	static public function open(?address:{host:String, port:Int}, ?options:SocketOptions, callback:Callback<Null<UdpSocket>>) {
-		callback.fail(new NotImplementedException());
+	static public function open(?address:{host:String, port:Int}, ?options:SocketOptions, callback:Callback<UdpSocket>) {
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -37,15 +36,15 @@ class UdpSocket {
 		The callback is supplied with the new write function, which allows to send
 		data without the need to specify remote address on each call.
 	**/
-	public function bind(host:String, port:Int, callback:Callback<Null< (buffer:Bytes, offset:Int, length:Int)->Void >>) {
-		callback.fail(new NotImplementedException());
+	public function bind(host:String, port:Int, callback:Callback<(buffer:Bytes, offset:Int, length:Int)->Void>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Unbind previously bound socket.
 	**/
 	public function unbind(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -54,7 +53,7 @@ class UdpSocket {
 		The `callback` is supplied with the amount of bytes sent.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, host:String, port:Int, callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -65,28 +64,28 @@ class UdpSocket {
 		If `recycle` is `true` then the structure passed to `callback` will be reused
 		instead of allocating a new one on the next read call with recycling enabled.
 	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, recycle:Bool = false, callback:Callback<Null<{bytesReceived:Int, remoteHost:Ip, remotePort:Int}>>) {
-		callback.fail(new NotImplementedException());
+	public function read(buffer:Bytes, offset:Int, length:Int, recycle:Bool = false, callback:Callback<{bytesReceived:Int, remoteHost:Ip, remotePort:Int}>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Get the value of a specified socket option.
 	**/
-	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {
-		callback.fail(new NotImplementedException());
+	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<T>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set socket option.
 	**/
 	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Close the socket.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }

@@ -3,7 +3,6 @@ package asys.native.net;
 import asys.native.net.SocketOptions.SocketOptionKind;
 import haxe.NoData;
 import haxe.io.Bytes;
-import haxe.Callback;
 import haxe.exceptions.NotImplementedException;
 
 class Socket implements IDuplex {
@@ -22,8 +21,8 @@ class Socket implements IDuplex {
 	/**
 		Establish a connection to `address`.
 	**/
-	static public function connect(address:SocketAddress, ?options:SocketOptions, callback:Callback<Null<Socket>>) {
-		callback.fail(new NotImplementedException());
+	static public function connect(address:SocketAddress, ?options:SocketOptions, callback:Callback<Socket>) {
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -31,7 +30,7 @@ class Socket implements IDuplex {
 		position in `buffer`, then invoke `callback` with the amount of bytes read.
 	**/
 	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -39,34 +38,34 @@ class Socket implements IDuplex {
 		then invoke `callback` with the amount of bytes written.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Force all buffered data to be committed.
 	**/
 	public function flush(callback:Callback<NoData>):Void {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Get the value of a specified socket option.
 	**/
-	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<Null<T>>) {
-		callback.fail(new NotImplementedException());
+	public function getOption<T>(option:SocketOptionKind<T>, callback:Callback<T>) {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Set socket option.
 	**/
 	public function setOption<T>(option:SocketOptionKind<T>, value:T, callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 
 	/**
 		Close the connection.
 	**/
 	public function close(callback:Callback<NoData>) {
-		callback.fail(new NotImplementedException());
+		throw new NotImplementedException();
 	}
 }
