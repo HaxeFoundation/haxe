@@ -3,7 +3,7 @@ package asys.native;
 import asys.native.IoErrorType;
 import haxe.Exception;
 
-class IoError extends Exception {
+class IoException extends Exception {
 	/**
 		Error type
 	**/

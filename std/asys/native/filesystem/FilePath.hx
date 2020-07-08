@@ -14,6 +14,10 @@ import haxe.exceptions.NotImplementedException;
 	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
 @:coreType @:coreApi abstract FilePath {
+	public static var SEPARATOR(get,never):String;
+	static function get_SEPARATOR():String {
+		return Sys.systemName() == 'Windows' ? '\\' : '/';
+	}
 
 	/**
 		Create file path from plain string.
@@ -59,14 +63,15 @@ import haxe.exceptions.NotImplementedException;
 	/**
 		Get an absolute path of this path.
 		For example translates `./path` to `/current/dir/path`.
+		Does not resolve symbolic links.
 	**/
-	public function absolute(callback:Callback<Null<FilePath>>):Void {
-		callback.fail(new NotImplementedException());
+	public function absolute():FilePath {
+		throw new NotImplementedException();
 	}
 
 	/**
 		Get a canonical path.
-		Resolves intermediate `.`, `..` and symbolic links.
+		Resolves intermediate `.`, `..`, excessive slashes and symbolic links.
 		The result may still be a relative path.
 	**/
 	public function real(callback:Callback<Null<FilePath>>):Void {

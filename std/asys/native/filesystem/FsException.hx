@@ -4,8 +4,10 @@ import haxe.Exception;
 
 /**
 	File system errors.
+
+	TODO: `FileSystemException` is probably a better name
 **/
-class FsError extends IoError {
+class FsException extends IoException {
 	/**
 		A target path of a failed operation.
 	**/
