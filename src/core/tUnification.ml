@@ -547,12 +547,14 @@ and type_eq_params uctx a b tl1 tl2 =
 			error (err :: (Invariant_parameter !i) :: l)
 		) tl1 tl2
 
-let type_iseq a b =
+let type_iseq_custom uctx a b =
 	try
-		type_eq default_unification_context a b;
+		type_eq uctx a b;
 		true
 	with
 		Unify_error _ -> false
+
+let type_iseq = type_iseq_custom default_unification_context
 
 let type_iseq_strict a b =
 	try

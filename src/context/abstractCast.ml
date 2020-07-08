@@ -25,8 +25,7 @@ let rec make_static_call ctx c cf a pl args t p =
 	end else
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-and do_check_cast ctx tleft eright p =
-	let uctx = default_unification_context in
+and do_check_cast ctx uctx tleft eright p =
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -52,7 +51,7 @@ and do_check_cast ctx tleft eright p =
 			)
 			| None -> die "" __LOC__
 	in
-	if type_iseq tleft eright.etype then
+	if type_iseq_custom uctx tleft eright.etype then
 		eright
 	else begin
 		let rec loop stack tleft tright =
@@ -68,7 +67,7 @@ and do_check_cast ctx tleft eright p =
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
-								if not (type_iseq tc tleft) then loop stack (apply_params a.a_params tl tc) tright
+								if not (type_iseq_custom uctx tc tleft) then loop stack (apply_params a.a_params tl tc) tright
 								else loop2 tcl
 							| [] -> raise Not_found
 						in
@@ -79,7 +78,7 @@ and do_check_cast ctx tleft eright p =
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
-								if not (type_iseq tc tright) then loop stack tleft (apply_params a.a_params tl tc)
+								if not (type_iseq_custom uctx tc tright) then loop stack tleft (apply_params a.a_params tl tc)
 								else loop2 tcl
 							| [] -> raise Not_found
 						in
@@ -92,13 +91,15 @@ and do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-and cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+	let uctx = match uctx with
+		| None -> default_unification_context
+		| Some uctx -> uctx
+	in
 	try
-		(* can't do that anymore because this might miss macro calls (#4315) *)
-		(* if ctx.com.display <> DMNone then raise Not_found; *)
-		do_check_cast ctx tleft eright p
+		do_check_cast ctx uctx tleft eright p
 	with Not_found ->
-		unify_raise ctx eright.etype tleft p;
+		unify_raise_custom uctx ctx eright.etype tleft p;
 		eright
 
 and cast_or_unify ctx tleft eright p =

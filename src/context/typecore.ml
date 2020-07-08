@@ -214,13 +214,15 @@ let unify ctx t1 t2 p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let unify_raise ctx t1 t2 p =
+let unify_raise_custom uctx (ctx : typer) t1 t2 p =
 	try
-		Type.unify t1 t2
+		Type.unify_custom uctx t1 t2
 	with
 		Unify_error l ->
 			(* no untyped check *)
 			raise (Error (Unify l,p))
+
+let unify_raise = unify_raise_custom default_unification_context
 
 let save_locals ctx =
 	let locals = ctx.locals in
