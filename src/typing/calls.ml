@@ -284,21 +284,31 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		match cerr with Could_not_unify err -> loop err | _ -> ()
 	in
-	let rec loop candidates = match candidates with
-		| [] -> [],[]
-		| (t,cf) :: candidates ->
-			begin try
-				let candidate = attempt_call t cf in
-				if ctx.com.config.pf_overload && is_overload then begin
+	let attempt_calls candidates =
+		let rec loop candidates = match candidates with
+			| [] -> [],[]
+			| (t,cf) :: candidates ->
+				let known_monos = List.map (fun (m,_) ->
+					m,m.tm_type,m.tm_constraints
+				) ctx.monomorphs.perfunction in
+				begin try
+					let candidate = attempt_call t cf in
+					if ctx.com.config.pf_overload && is_overload then begin
+						let candidates,failures = loop candidates in
+						candidate :: candidates,failures
+					end else
+						[candidate],[]
+				with Error ((Call_error cerr as err),p) ->
+					List.iter (fun (m,t,constr) ->
+						m.tm_type <- t;
+						m.tm_constraints <- constr;
+					) known_monos;
+					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
-					candidate :: candidates,failures
-				end else
-					[candidate],[]
-			with Error ((Call_error cerr as err),p) ->
-				maybe_raise_unknown_ident cerr p;
-				let candidates,failures = loop candidates in
-				candidates,(cf,err,p) :: failures
-			end
+					candidates,(cf,err,p) :: failures
+				end
+		in
+		loop candidates
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
@@ -315,7 +325,7 @@ let unify_field_call ctx fa el args ret p inline =
 			fail_fun();
 		end
 	| _ ->
-		let candidates,failures = loop candidates in
+		let candidates,failures = attempt_calls candidates in
 		let fail () =
 			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
 			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in

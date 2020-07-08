@@ -178,7 +178,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	(* ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction; *)
+	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
 	mono
 
 let spawn_monomorph ctx p =

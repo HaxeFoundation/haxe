@@ -733,10 +733,7 @@ let t_iterator ctx =
 *)
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
-		| None ->
-			let mono = Monomorph.create () in
-			ctx.monomorphs.perfunction <- (mono,pcur) :: ctx.monomorphs.perfunction;
-			TMono mono
+		| None -> spawn_monomorph ctx pcur
 		| Some (t,p) ->	load_complex_type ctx true (t,p)
 	in
 	if opt then ctx.t.tnull t else t
