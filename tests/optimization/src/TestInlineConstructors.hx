@@ -19,6 +19,13 @@ class InlineClass {
 	}
 }
 
+class InlineIterator {
+	public var i = 0;
+	public inline function new() {};
+	public inline function hasNext() return i < 10;
+	public inline function next() return i++;
+}
+
 class NestedInlineClass {
 	public var a : InlineClass;
 	public var b : Array<Int>;
@@ -112,5 +119,15 @@ class TestInlineConstructors extends TestBase {
 		var a : {function cancelThis() : Array<Int>;} = new InlineClass();
 		var arr = a.cancelThis();
 		return [arr[0], arr[1]];
+	}
+
+	@:js('var v_i = 0;var acc = 0;while(v_i < 10) acc += v_i++;return acc;')
+	static function testIteratorMethodInliningInForLoop() {
+		var iter : Iterator<Int> = new InlineIterator();
+		var acc = 0;
+		for ( v in iter ) {
+			acc += v;
+		}
+		return acc;
 	}
 }

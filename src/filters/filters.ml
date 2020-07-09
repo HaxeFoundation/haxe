@@ -672,7 +672,10 @@ module ForRemap = struct
 			let restore = save_locals ctx in
 			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
 			restore();
-			e
+			begin match e.eexpr with
+			| TFor _ -> for_remap ctx.com.basic v e1 e2 e.epos
+			| _ -> e
+			end
 		| _ ->
 			Type.map_expr loop e
 		in
