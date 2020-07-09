@@ -564,10 +564,11 @@ let rec type_field cfg ctx e i p mode =
 				raise Not_found
 		with Not_found -> try
 			using_field ctx mode e i p
-		with Not_found -> try
+		(* TODO: not sure what this is/was doing (see #9680) *)
+		(* with Not_found -> try
 			(match ctx.curfun, e.eexpr with
 			| FunMemberAbstract, TConst (TThis) -> type_field cfg ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-			| _ -> raise Not_found)
+			| _ -> raise Not_found) *)
 		with Not_found -> try
 			let get_resolve is_write =
 				let c,cf = match a.a_impl,(if is_write then a.a_write else a.a_read) with
