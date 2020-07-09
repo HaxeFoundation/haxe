@@ -109,7 +109,7 @@ class Http extends haxe.http.HttpBase {
 				#elseif (neko || cpp)
 				throw "Https is only supported with -lib hxssl";
 				#else
-				throw "Https support in haxe.Http is not implemented for this target";
+				throw new haxe.exceptions.NotImplementedException("Https support in haxe.Http is not implemented for this target");
 				#end
 			} else {
 				sock = new Socket();

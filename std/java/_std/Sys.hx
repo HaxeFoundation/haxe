@@ -50,7 +50,7 @@ using haxe.Int64;
 
 	public static function putEnv(s:String, v:String):Void {
 		// java offers no support for it (!)
-		throw "Not implemented in this platform";
+		throw new haxe.exceptions.NotImplementedException("Not implemented in this platform");
 	}
 
 	public static function environment():Map<String, String> {
@@ -81,7 +81,7 @@ using haxe.Int64;
 
 	public static function setCwd(s:String):Void {
 		// java offers no support for it (!)
-		throw "not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public static function systemName():String {
@@ -146,7 +146,7 @@ using haxe.Int64;
 
 	public static function getChar(echo:Bool):Int {
 		// TODO
-		return throw "Not implemented";
+		return throw new haxe.exceptions.NotImplementedException();
 	}
 
 	public static function stdin():haxe.io.Input {
