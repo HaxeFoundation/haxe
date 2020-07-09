@@ -891,6 +891,8 @@ let init_module_type ctx context_init (decl,p) =
 				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
 			| AbPrivate -> ()
 		) d.d_flags;
+		a.a_from <- List.rev a.a_from;
+		a.a_to <- List.rev a.a_to;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
 				a.a_this <- TAbstract(a,List.map snd a.a_params)
