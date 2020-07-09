@@ -432,7 +432,7 @@ let is_assignment_binop op =
 *)
 let is_php_global expr =
 	match expr.eexpr with
-		| TField (_, FStatic ({ cl_extern = true; cl_meta = meta }, _)) -> Meta.has Meta.PhpGlobal meta
+		| TField (_, FStatic (c, _)) when c.cl_extern -> c.cl_path = ([],"") || Meta.has Meta.PhpGlobal c.cl_meta
 		| _ -> false
 
 (**
@@ -1264,6 +1264,10 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method use ?prefix (type_path:path) =
 			if type_path = hx_type_path then
 				php_name
+			else if get_type_name type_path = "" then
+				match get_module_path type_path with
+				| [] -> "\\"
+				| _ -> "\\" ^ (String.concat "\\" (get_real_path (fst type_path))) ^ "\\"
 			else begin
 				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
@@ -2235,6 +2239,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					| _ -> self#write_expr expr
 			and operator =
 				match (reveal_expr expr).eexpr with
+					| TTypeExpr (TClassDecl { cl_extern = true; cl_path = (_,"") }) -> ""
 					| TTypeExpr _ -> "::"
 					| _ -> "->"
 			in
@@ -2649,7 +2654,10 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_php_global target_expr =
 			match target_expr.eexpr with
-				| TField (_, FStatic (_, field)) -> self#write (field_name field)
+				| TField (_, FStatic (_, field)) ->
+					let name = field_name field in
+					if namespace <> [] && not (is_keyword name) then self#write "\\";
+					self#write name
 				| _ -> fail self#pos __LOC__
 		(**
 			Writes access to PHP class constant
