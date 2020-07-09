@@ -272,10 +272,8 @@ let inline_config cls_opt cf call_args return_type =
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
-		| Meta.Deprecated,_,_ ->
-			mk (TMeta(meta,e)) e.etype e.epos
-		| Meta.Pure,[EConst(Ident ("true"|"false")),_],_ ->
-			mk (TMeta(meta,e)) e.etype e.epos
+		| Meta.Pure,[EConst(Ident "inferredPure"),_],_ -> e
+		| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
 		| _ -> e
 	in
 	List.fold_left inline_meta e meta
