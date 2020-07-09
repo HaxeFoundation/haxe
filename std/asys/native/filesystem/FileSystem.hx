@@ -117,6 +117,8 @@ class FileSystem {
 		The created directory path is passed to the `callback`.
 
 		Created directory will _not_ be deleted automatically.
+
+		TODO: is it really "temporary"? Probably "unique" would be a better name.
 	**/
 	static public function createTempDirectory(prefix:FilePath, callback:Callback<FilePath>) {
 		throw new NotImplementedException();
