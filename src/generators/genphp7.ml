@@ -346,8 +346,7 @@ let needs_dereferencing for_assignment expr =
 			(* some of `php.Syntax` methods *)
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
 				(match name with
-					| "codeDeref" -> for_assignment
-					| "coalesce" -> for_assignment
+					| "codeDeref" | "coalesce" | "assocDecl" | "arrayDecl" -> for_assignment
 					| _ -> false
 				)
 			| _ -> false
@@ -1415,11 +1414,16 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Check if currently generated expression is located in a left part of assignment.
 		*)
 		method is_in_write_context =
+			let is_in_ref_arg current types args =
+				try List.exists2 (fun (_,_,t) arg -> arg == current && is_ref t) types args
+				with Invalid_argument _ -> false
+			in
 			let rec traverse current parents =
 				match parents with
 					| { eexpr = TBinop(OpAssign, left_expr, _) } :: _
 					| { eexpr = TBinop(OpAssignOp _, left_expr, _) } :: _ -> left_expr == current
 					| { eexpr = TUnop(op, _, _) } :: _ -> is_modifying_unop op
+					| { eexpr = TCall({ etype = TFun(types,_) }, args) } :: _ when is_in_ref_arg current types args -> true
 					| [] -> false
 					| parent :: rest -> traverse parent rest
 			in
@@ -1434,45 +1438,23 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			```
 		*)
 		method dereference expr =
-			let deref_field = PMap.find "deref" ctx.pgc_boot.cl_statics in
+			let deref expr =
+				{ expr with eexpr = TCall (
+					{ expr with eexpr = TField (
+						{ expr with eexpr = TTypeExpr (TClassDecl ctx.pgc_boot) },
+						FStatic (ctx.pgc_boot, PMap.find "deref" ctx.pgc_boot.cl_statics)
+					) },
+					[ expr ]
+				) }
+			in
 			match expr.eexpr with
 				| TField (target_expr, access) ->
 					{
-						expr with eexpr = TField (
-							{
-								target_expr with eexpr = TCall (
-									{
-										target_expr with eexpr = TField (
-											{
-												target_expr with eexpr = TTypeExpr (TClassDecl ctx.pgc_boot)
-											},
-											FStatic (ctx.pgc_boot, deref_field)
-										)
-									},
-									[ target_expr ]
-								)
-							},
-							access
-						)
+						expr with eexpr = TField (deref target_expr, access)
 					}
 				| TArray (target_expr, access_expr) ->
 					{
-						expr with eexpr = TArray (
-							{
-								target_expr with eexpr = TCall (
-									{
-										target_expr with eexpr = TField (
-											{
-												target_expr with eexpr = TTypeExpr (TClassDecl ctx.pgc_boot)
-											},
-											FStatic (ctx.pgc_boot, deref_field)
-										)
-									},
-									[ target_expr ]
-								)
-							},
-							access_expr
-						)
+						expr with eexpr = TArray (deref target_expr, access_expr)
 					}
 				| _ -> fail self#pos __LOC__
 		(**

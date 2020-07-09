@@ -7,6 +7,7 @@
 	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
 	flash : fixed `VerifyError` exception when `Void` end up as an argument type after inlining (#9678)
 	php : support @:native("") for extern classes (#6448)
+	php : fixed runtime error "cannot use temporary expression in write context" for call arguments passed by reference
 	nullsafety: fixed `@:nullSafety(Off)` in closures inside of constructors (#9643)
 	nullsafety: fixed "Type not found NullSafetyMode_Impl_" (#9483)
 
