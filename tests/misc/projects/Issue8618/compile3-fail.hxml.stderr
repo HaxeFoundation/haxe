@@ -1,2 +1,1 @@
 Main3.hx:3: characters 9-42 : Method noClosureStaticMethod cannot be used as a value
-Main3.hx:3: characters 9-42 : ... For function argument 'v'

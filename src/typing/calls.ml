@@ -144,9 +144,8 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	let call_error err p =
 		raise (Error (Call_error err,p))
 	in
-	let arg_error ul name opt p =
-		let err = Stack (ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
-		call_error (Could_not_unify err) p
+	let arg_error ul p =
+		call_error (Could_not_unify ul) p
 	in
 	let mk_pos_infos t =
 		let infos = mk_infos ctx callp [] in
@@ -184,7 +183,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
-					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
+					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul p)
 				| _ ->
 					die "" __LOC__
 			end
@@ -206,7 +205,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 						ignore(type_expr ctx (e,p) WithType.value);
 						loop el []
 					end	else call_error Too_many_arguments p
-				| (s,ul,p) :: _ -> arg_error ul s true p
+				| (s,ul,p) :: _ -> arg_error ul p
 			end
 		| e :: el,(name,opt,t) :: args ->
 			begin try
@@ -219,8 +218,8 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 						(e_def,true) :: loop (e :: el) args
 					else
 						match List.rev !skipped with
-						| [] -> arg_error ul name opt p
-						| (s,ul,p) :: _ -> arg_error ul s true p
+						| [] -> arg_error ul p
+						| (s,ul,p) :: _ -> arg_error ul p
 			end
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in

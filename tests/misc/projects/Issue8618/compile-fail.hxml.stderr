@@ -1,2 +1,1 @@
 Main.hx:4: characters 9-36 : Method staticMethod cannot be used as a value
-Main.hx:4: characters 9-36 : ... For function argument 'v'
