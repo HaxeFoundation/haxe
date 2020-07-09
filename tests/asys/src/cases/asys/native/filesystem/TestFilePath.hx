@@ -64,7 +64,7 @@ class TestFilePath extends Test {
 			});
 		});
 
-		if(!isWindows) async.branch(async -> {
+		async.branch(async -> {
 			var p:FilePath = 'test-data/symlink';
 			p.real((e, p) -> {
 				Assert.equals(expected, p.toString());
