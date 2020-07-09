@@ -2841,7 +2841,7 @@ let generate jvm_flag com =
 	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
-		if java_lib#has_flag NativeLibraries.FlagIsStd then None
+		if java_lib#has_flag NativeLibraries.FlagIsStd || java_lib#has_flag FlagIsExtern then None
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;

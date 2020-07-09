@@ -4,6 +4,7 @@
 
 	all : fixed compilation server bug caused by removing `inline` from a method (#9690)
 	macro : fixed compiler crash if `@:genericBuild` meta is removed by a macro during building (#9391)
+	jvm : fixed "--java-lib-extern" (#9515)
 	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
 	flash : fixed `VerifyError` exception when `Void` end up as an argument type after inlining (#9678)
 	php : fixed runtime error "cannot use temporary expression in write context" for call arguments passed by reference
