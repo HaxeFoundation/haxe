@@ -30,9 +30,9 @@ abstract Callback<E,R>(CallbackHandler<E,R>) from CallbackHandler<E,R> {
 		TODO: type inference does not work for arguments of `fn` if `fromNoResult` is
 		used through an implicit cast. Submit compiler issue.
 	**/
-	@:from static public inline function ignoreResult<E,R>(fn:(error:Null<E>) -> Void):Callback<E,R> {
-		return (e:Null<E>, r:Null<R>) -> fn(e);
-	}
+	// @:from static public inline function ignoreResult<E,R>(fn:(error:Null<E>) -> Void):Callback<E,R> {
+	// 	return (e:Null<E>, r:Null<R>) -> fn(e);
+	// }
 
 	/**
 		Report a failure.
