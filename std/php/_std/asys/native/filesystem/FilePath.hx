@@ -101,6 +101,5 @@ import php.NativeArray;
 				callback.success((resolved:String));
 			}
 		});
-		// throw new NotImplementedException();
 	}
 }
