@@ -1,14 +1,17 @@
 package asys.native.filesystem;
 
 import haxe.io.Bytes;
+import haxe.EntryPoint;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
+import php.Global.*;
 
 /**
 	File system operations.
 **/
+@:coreApi
 class FileSystem {
 	/**
 		Open file for reading and/or writing.
@@ -27,7 +30,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<T>) {
+	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<T>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -38,21 +41,21 @@ class FileSystem {
 
 		TODO: Can Haxe guarantee automatic file deletion for all targets?
 	**/
-	static public function tempFile(path:FilePath, callback:Callback<File>) {
+	static public function tempFile(path:FilePath, callback:Callback<File>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Read the contents of a file specified by `path`.
 	**/
-	static public function readBytes(path:FilePath, callback:Callback<Bytes>) {
+	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Read the contents of a file specified by `path` as a `String`.
 	**/
-	static public function readString(path:FilePath, callback:Callback<String>) {
+	static public function readString(path:FilePath, callback:Callback<String>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -69,7 +72,7 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
+	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -86,14 +89,14 @@ class FileSystem {
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>) {
+	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Open directory for listing.
 	**/
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>) {
+	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -106,7 +109,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>) {
+	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -117,8 +120,10 @@ class FileSystem {
 		The created directory path is passed to the `callback`.
 
 		Created directory will _not_ be deleted automatically.
+
+		TODO: is it really "temporary"? Probably "unique" would be a better name.
 	**/
-	static public function createTempDirectory(prefix:FilePath, callback:Callback<FilePath>) {
+	static public function createTempDirectory(prefix:FilePath, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -128,21 +133,21 @@ class FileSystem {
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
 		the destination is overwritten.
 	**/
-	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Remove a file or symbolic link.
 	**/
-	static public function deleteFile(path:FilePath, callback:Callback<NoData>) {
+	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Remove an empty directory.
 	**/
-	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>) {
+	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -151,14 +156,14 @@ class FileSystem {
 
 		Removes files, symbolic links and recursively removes directories and their contents.
 	**/
-	static public function delete(path:FilePath, callback:Callback<NoData>) {
+	static public function delete(path:FilePath, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Get file or directory information at the given path.
 	**/
-	static public function info(path:FilePath, callback:Callback<FileInfo>) {
+	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -176,7 +181,7 @@ class FileSystem {
 		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
 		```
 	**/
-	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>) {
+	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -186,7 +191,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply `mode`
 		recursively to the directory contents as well.
 	**/
-	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>) {
+	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -196,7 +201,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply recursively
 		to the directory contents as well.
 	**/
-	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
+	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -206,7 +211,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply recursively
 		to the directory contents as well.
 	**/
-	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>) {
+	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -218,21 +223,33 @@ class FileSystem {
 		For example `FileSystem.link('/path/to/file.ext', callback)` will create
 		a link named `file.ext` in the current directory.
 	**/
-	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>) {
+	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
+	}
+
+	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				is_link(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
 	/**
 		Get the value of a symbolic link.
 	**/
-	static public function readLink(path:FilePath, callback:Callback<FilePath>) {
+	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Copy a file from `source` path to `destination` path.
 	**/
-	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -240,7 +257,7 @@ class FileSystem {
 		Copy all the contents of `source` path to `destination` path.
 		If `source` is a directory, it will be copied recursively.
 	**/
-	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>) {
+	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -252,7 +269,7 @@ class FileSystem {
 		If the file is larger than `newSize`, the extra data is lost.
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
-	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>) {
+	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -261,7 +278,7 @@ class FileSystem {
 
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
 	**/
-	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
+	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 }
