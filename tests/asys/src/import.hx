@@ -1,2 +1,2 @@
-import utest.Assert;
+import utest.Assert.*;
 import utest.Async;

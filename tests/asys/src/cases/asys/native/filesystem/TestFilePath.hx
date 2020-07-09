@@ -18,19 +18,19 @@ class TestFilePath extends Test {
 
 	function testToString_nonUnicodePath_throwsEncodingException() {
 		var p:FilePath = arbitraryBytes();
-		Assert.raises(() -> (p:String), EncodingException);
+		raises(() -> (p:String), EncodingException);
 	}
 
 	function testFromBytes_toBytes() {
 		var b = arbitraryBytes();
 		var p:FilePath = b;
-		Assert.equals(0, b.compare(p));
+		equals(0, b.compare(p));
 	}
 
 	function testAbsolute() {
 		inline function check(cases:Map<String,String>) {
 			for(path => expected in cases)
-				Assert.equals(expected, (path:FilePath).absolute().toString());
+				equals(expected, (path:FilePath).absolute().toString());
 		}
 		var cwd = Sys.getCwd();
 
@@ -56,29 +56,26 @@ class TestFilePath extends Test {
 	function testReal(async:Async) {
 		var expected = Sys.getCwd() + 'test-data' + FilePath.SEPARATOR + 'sub' + FilePath.SEPARATOR + 'empty.file';
 
-		async.branch(async -> {
+		allAsync(async, {
 			var p:FilePath = 'test-data/sub/.././../test-data////sub/empty.file';
 			p.real((e, p) -> {
-				Assert.equals(expected, p.toString());
-				async.done();
+				if(isNull(e)) {
+					equals(expected, p.toString());
+				}
 			});
-		});
-
-		async.branch(async -> {
+		},{
 			var p:FilePath = 'test-data/symlink';
 			p.real((e, p) -> {
-				Assert.equals(expected, p.toString());
-				async.done();
+				if(isNull(e)) {
+					equals(expected, p.toString());
+				}
 			});
-		});
-
-		async.branch(async -> {
+		},{
 			var p:FilePath = 'non-existent';
 			p.real((e, p2) -> {
-				Assert.isNull(p2);
-				Assert.isOfType(e, FsException);
-				Assert.isTrue(p == cast(e, FsException).path);
-				async.done();
+				if(isOfType(e, FsException)) {
+					isTrue(p == cast(e, FsException).path);
+				}
 			});
 		});
 	}
