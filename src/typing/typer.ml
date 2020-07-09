@@ -224,7 +224,44 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
 			mk_anon ~fields (ref Closed)
-		with Not_found ->
+		with Not_found -> try
+			(* specific case for TFun, see #9579 *)
+			let e0,el = match el with
+				| e0 :: el -> e0,el
+				| _ -> raise Exit
+			in
+			let args,tr0 = match follow e0.etype with
+				| TFun(tl,tr) ->
+					Array.of_list tl,tr
+				| _ ->
+					raise Exit
+			in
+			let arity = Array.length args in
+			let rets = List.map (fun e -> match follow e.etype with
+				| TFun(tl,tr) ->
+					let ta = Array.of_list tl in
+					if Array.length ta <> arity then raise Exit;
+					for i = 0 to arity - 1 do
+						let (_,_,tcur) = args.(i) in
+						let (_,_,tnew) as argnew = ta.(i) in
+						if Type.does_unify tnew tcur then
+							args.(i) <- argnew
+						else if not (Type.does_unify tcur tnew) then
+							raise Exit
+					done;
+					tr
+				| _ ->
+					raise Exit
+			) el in
+			let common_types = UnifyMinT.collect_base_types tr0 in
+			let tr = match UnifyMinT.unify_min' default_unification_context common_types rets with
+			| UnifyMinOk t ->
+				t
+			| UnifyMinError(l,index) ->
+				raise Exit
+			in
+			TFun(Array.to_list args,tr)
+		with Exit ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
 			let common_types = UnifyMinT.collect_base_types t in
