@@ -1459,6 +1459,8 @@ module Printer = struct
 				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
 			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
 				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
+			| FStatic (c,cf) when c.cl_extern && c.cl_path = ([],"") ->
+				Printf.sprintf "%s" name
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
