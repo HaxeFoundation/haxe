@@ -3,6 +3,7 @@ import haxe.extern.EitherType;
 import haxe.extern.Rest;
 import lua.Table;
 import haxe.Constraints.Function;
+import haxe.ds.StringMap;
 
 
 
@@ -53,7 +54,7 @@ extern class Pattern {
     public inline function next(p:Pattern) : Pattern {
         return untyped __lua__("{} - {}", this, p);
     }
-    public inline function times(times:Int) : Pattern {
+    public inline function repeat(times:Int) : Pattern {
         return untyped __lua__("{}^{}", this, time);
     }
 
@@ -61,25 +62,66 @@ extern class Pattern {
 
 extern class BeforePattern extends Pattern {
     @:native("B")
-    public function new(value : PatternArgument) : Void;
+    public function new(value : PatternArgument);
 }
 
 extern class RangePattern extends Pattern {
     @:native("R")
-    public function new(args:Rest<String>) : Void;
+    public function new(args:Rest<String>);
 }
 
 extern class StringPattern extends Pattern {
     @:native("S")
-    public function new(arg:String) : Void;
+    public function new(arg:String);
 }
 
 extern class VariablePattern extends Pattern {
     @:native("V")
-    public function new(arg:String) : Void;
+    public function new(arg:String);
 }
 
 extern class CapturePattern extends Pattern {
+    @:native("C")
+    public function new(pattern:CapturePattern);
 }
 
+extern class CaptureArgPattern extends Pattern {
+    @:native("Carg")
+    public function new(n:Int);
+}
+
+extern class CaptureBeforePattern extends Pattern {
+    @:native("Cb")
+    public function new(name:String);
+}
+
+extern class CaptureValuesPattern extends Pattern {
+    @:native("Cc")
+    public function new(values : String);
+}
+
+extern class CaptureFoldingPattern extends Pattern {
+    @:native("Cf")
+    public function new(pattern:Pattern, func: String->Dynamic);
+}
+
+extern class CaptureTaggedPattern extends Pattern {
+    @:native("Cg")
+    public function new(pattern:Pattern, ?name:String);
+}
+
+extern class CapturePosition extends Pattern {
+    @:native("Cp")
+    public function new();
+}
+
+
+
 typedef PatternArgument = EitherType<Pattern, EitherType<String, EitherType<Int, EitherType<Bool, EitherType<AnyTable, Function>>>>>;
+
+abstract Grammar(Table<String,String>) to Table<String,String>{
+    public function new(name:String, rules : StringMap<String>) {
+       this = Table.fromMap(rules);
+       this[0] = name;
+    }
+}
