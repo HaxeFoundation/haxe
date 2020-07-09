@@ -35,6 +35,10 @@ type unification_context = {
 	equality_kind         : eq_kind;
 }
 
+type unify_min_result =
+	| UnifyMinOk of t
+	| UnifyMinError of unify_error list * int
+
 let error l = raise (Unify_error l)
 
 let check_constraint name f =
@@ -44,6 +48,7 @@ let check_constraint name f =
 		raise (Unify_error ((Constraint_failure name) :: l))
 
 let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
+let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref = ref (fun _ _ _ -> assert false)
 
 let default_unification_context = {
 	allow_transitive_cast = true;
@@ -1003,7 +1008,68 @@ let type_eq param = type_eq {default_unification_context with equality_kind = pa
 
 let type_iseq_custom = type_iseq
 let type_iseq = type_iseq default_unification_context
+module UnifyMinT = struct
+	let collect_base_types t =
+		let tl = ref [] in
+		let rec loop t = (match t with
+			| TInst(cl, params) ->
+				(match cl.cl_kind with
+				| KTypeParameter tl -> List.iter loop tl
+				| _ -> ());
+				List.iter (fun (ic, ip) ->
+					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
+					loop t
+				) cl.cl_implements;
+				(match cl.cl_super with None -> () | Some (csup, pl) ->
+					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
+					loop t);
+				tl := t :: !tl;
+			| TType (td,pl) ->
+				loop (apply_params td.t_params pl td.t_type);
+				(* prioritize the most generic definition *)
+				tl := t :: !tl;
+			| TLazy f -> loop (lazy_type f)
+			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
+			| _ -> tl := t :: !tl)
+		in
+		loop t;
+		!tl
 
+	let unify_min' uctx common_types tl =
+		let first_error = ref None in
+		let rec loop index common_types tl = match tl with
+			| [] ->
+				begin match common_types with
+				| [] ->
+					begin match !first_error with
+					| None -> die "" __LOC__
+					| Some(l,p) -> UnifyMinError(l,p)
+					end
+				| hd :: _ ->
+					UnifyMinOk hd
+				end
+			| t :: tl ->
+				let common_types = List.filter (fun t' ->
+					try
+						unify_custom uctx t t';
+						true
+					with Unify_error l ->
+						if !first_error = None then first_error := Some(l,index);
+						false
+				) common_types in
+				loop (index + 1) common_types tl
+		in
+		loop 0 common_types tl
+
+	let unify_min uctx t0 tl =
+		match tl with
+		| [] ->
+			UnifyMinOk t0
+		| _ ->
+			let common_types = collect_base_types t0 in
+			unify_min' uctx common_types tl
+end
 ;;
 unify_ref := unify_custom;;
+unify_min_ref := UnifyMinT.unify_min;;
 monomorph_classify_constraints_ref := Monomorph.classify_constraints

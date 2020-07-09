@@ -167,32 +167,6 @@ let check_error ctx err p = match err with
 
 let rec unify_min_raise ctx (el:texpr list) : t =
 	let basic = ctx.com.basic in
-	let rec base_types t =
-		let tl = ref [] in
-		let rec loop t = (match t with
-			| TInst(cl, params) ->
-				(match cl.cl_kind with
-				| KTypeParameter tl -> List.iter loop tl
-				| _ -> ());
-				List.iter (fun (ic, ip) ->
-					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
-					loop t
-				) cl.cl_implements;
-				(match cl.cl_super with None -> () | Some (csup, pl) ->
-					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
-					loop t);
-				tl := t :: !tl;
-			| TType (td,pl) ->
-				loop (apply_params td.t_params pl td.t_type);
-				(* prioritize the most generic definition *)
-				tl := t :: !tl;
-			| TLazy f -> loop (lazy_type f)
-			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
-			| _ -> tl := t :: !tl)
-		in
-		loop t;
-		!tl
-	in
 	match el with
 	| [] -> spawn_monomorph ctx null_pos
 	| [e] -> e.etype
@@ -207,7 +181,6 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			| TParenthesis e | TMeta(_,e) -> chk_null e
 			| _ -> false
 		in
-
 		(* First pass: Try normal unification and find out if null is involved. *)
 		let rec loop t = function
 			| [] ->
@@ -254,7 +227,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
-			let common_types = base_types t in
+			let common_types = UnifyMinT.collect_base_types t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
 					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
@@ -264,23 +237,15 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					TInst (c,List.map (fun _ -> t_dynamic) params) :: acc
 				| _ -> acc
 			) [] common_types in
-			let common_types = ref (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
-			let loop e =
-				let first_error = ref None in
-				let filter t = (try Type.unify e.etype t; true
-					with Unify_error l -> if !first_error = None then first_error := Some(Unify l,e.epos); false)
-				in
-				common_types := List.filter filter !common_types;
-				match !common_types, !first_error with
-				| [], Some(err,p) -> raise_error err p
-				| _ -> ()
-			in
-			match !common_types with
-			| [] ->
-				error "No common base type found" (punion (List.hd el).epos (List.hd (List.rev el)).epos)
-			| _ ->
-				List.iter loop (List.tl el);
-				List.hd !common_types
+			let common_types = (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
+			let el = List.tl el in
+			let tl = List.map (fun e -> e.etype) el in
+			begin match UnifyMinT.unify_min' default_unification_context common_types tl with
+			| UnifyMinOk t ->
+				t
+			| UnifyMinError(l,index) ->
+				raise_error (Unify l) (List.nth el index).epos
+			end
 
 let unify_min ctx el =
 	try unify_min_raise ctx el
