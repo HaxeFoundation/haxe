@@ -23,6 +23,7 @@
 package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:transitive
 @:forwardStatics
 @:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass {
 	@:to extern inline public function toFloat():Float

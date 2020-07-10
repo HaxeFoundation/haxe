@@ -1197,6 +1197,12 @@
 		"targets": ["TClassField"]
 	},
 	{
+		"name": "Transitive",
+		"metadata": ":transitive",
+		"doc": "Allows transitive casts with an abstract.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ValueUsed",
 		"metadata": ":valueUsed",
 		"doc": "Internally used by DCE to mark an abstract value as used.",

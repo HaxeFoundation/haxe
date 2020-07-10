@@ -23,6 +23,7 @@
 package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:transitive
 @:forwardStatics
 @:forward abstract Byte(ByteClass) from ByteClass to ByteClass {
 	@:to extern inline public function toByte():java.types.Int8
