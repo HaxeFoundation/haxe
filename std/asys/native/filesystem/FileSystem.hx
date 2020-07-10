@@ -52,6 +52,9 @@ class FileSystem {
 
 	/**
 		Read the contents of a file specified by `path` as a `String`.
+
+		TODO:
+		Should this return an error if the file does not contain a valid unicode string?
 	**/
 	static public function readString(path:FilePath, callback:Callback<String>):Void {
 		throw new NotImplementedException();

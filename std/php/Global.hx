@@ -756,6 +756,11 @@ extern class Global {
 	static function readdir(?dir_handle:Resource):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.readlink.php
+	**/
+	static function readlink(filename:String):EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.rewinddir.php
 	**/
 	static function rewinddir(?dir_handle:Resource):Void;

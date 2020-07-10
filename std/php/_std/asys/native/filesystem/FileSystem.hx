@@ -45,18 +45,34 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Read the contents of a file specified by `path`.
-	**/
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				file_get_contents(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false: callback.fail(new FsException(CustomError('Failed to read a file'), path));
+				case r: callback.success(Bytes.ofString(r));
+			}
+		});
 	}
 
-	/**
-		Read the contents of a file specified by `path` as a `String`.
-	**/
 	static public function readString(path:FilePath, callback:Callback<String>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				file_get_contents(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false: callback.fail(new FsException(CustomError('Failed to read a file'), path));
+				case r: callback.success(r);
+			}
+		});
 	}
 
 	/**
@@ -239,11 +255,19 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Get the value of a symbolic link.
-	**/
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				readlink(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false: callback.fail(new FsException(CustomError('Failed to read a link'), path));
+				case r: callback.success(r);
+			}
+		});
 	}
 
 	/**
