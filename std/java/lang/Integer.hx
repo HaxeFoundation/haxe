@@ -23,6 +23,7 @@
 package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:transitive
 @:forwardStatics
 @:forward abstract Integer(IntegerClass) from IntegerClass to IntegerClass {
 	@:to extern inline public function toInt():Int

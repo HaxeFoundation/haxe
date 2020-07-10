@@ -32,6 +32,7 @@ type eq_kind =
 
 type unification_context = {
 	allow_transitive_cast : bool;
+	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
 	equality_kind         : eq_kind;
 }
 
@@ -52,6 +53,7 @@ let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref
 
 let default_unification_context = {
 	allow_transitive_cast = true;
+	allow_abstract_cast   = true;
 	equality_kind         = EqStrict;
 }
 
@@ -630,6 +632,8 @@ let rec unify (uctx : unification_context) a b =
 	| TAbstract ({ a_path = ["haxe"],"NotVoid" },[]), _
 	| _, TAbstract ({ a_path = ["haxe"],"NotVoid" },[]) ->
 		()
+	| TAbstract _, TAbstract ({ a_path = ["haxe"],("FlatEnum" | "Function" | "Constructible") },_) ->
+		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -655,6 +659,7 @@ let rec unify (uctx : unification_context) a b =
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		let uctx = get_nested_context uctx in
 		let i = ref 0 in
 		(try
 			(match follow r2 with
@@ -873,6 +878,20 @@ and unify_anons uctx a b a1 a2 =
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
+and get_abstract_context uctx a b ab =
+	if (Meta.has Meta.CoreType ab.a_meta) || (Meta.has Meta.Transitive ab.a_meta) then
+		uctx
+	else if uctx.allow_abstract_cast then
+		{uctx with allow_abstract_cast = false}
+	else
+		error [cannot_unify a b]
+
+and get_nested_context uctx =
+	{uctx with allow_abstract_cast = true}
+
+and unifies_with_abstract uctx f =
+	(uctx.allow_transitive_cast && f {uctx with allow_transitive_cast = false}) || f uctx
+
 and get_abstract_unify_func uctx equality_kind =
 	if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = equality_kind}
 
@@ -889,26 +908,31 @@ and unify_to uctx a b ab tl =
 	if not (unifies_to uctx a b ab tl) then error [cannot_unify a b]
 
 and unifies_abstracts uctx a b a1 tl1 a2 tl2 =
-	let uctx_no_transitive_casts = {uctx with allow_transitive_cast = false} in
-	(unifies_to uctx_no_transitive_casts a b a1 tl1) || (unifies_from uctx_no_transitive_casts a b a2 tl2)
-	|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
-		&& ((unifies_to uctx a b a1 tl1) || (unifies_from uctx a b a2 tl2)))
+	unifies_with_abstract uctx (fun uctx ->
+		unifies_to uctx a b a1 tl1 || unifies_from uctx a b a2 tl2
+	)
 
 and unifies_from uctx a b ab tl =
-	List.exists (unifies_from_direct uctx a b ab tl) ab.a_from
+	unifies_with_abstract uctx (fun uctx ->
+		List.exists (unifies_from_direct uctx a b ab tl) ab.a_from
+	)
 
 and unifies_to uctx a b ab tl =
-	List.exists (unifies_to_direct uctx a b ab tl) ab.a_to
+	unifies_with_abstract uctx (fun uctx ->
+		List.exists (unifies_to_direct uctx a b ab tl) ab.a_to
+	)
 
 and unifies_from_direct uctx a b ab tl t =
 	rec_stack_abstract_unifies a b (fun() ->
 		let t = apply_params ab.a_params tl t in
+		let uctx = get_abstract_context uctx a b ab in
 		let unify_func = get_abstract_unify_func uctx EqRightDynamic in
 		unify_func a t)
 
 and unifies_to_direct uctx a b ab tl t =
 	rec_stack_abstract_unifies a b (fun() ->
 		let t = apply_params ab.a_params tl t in
+		let uctx = get_abstract_context uctx a b ab in
 		let unify_func = get_abstract_unify_func uctx EqStrict in
 		unify_func t b)
 
@@ -919,6 +943,7 @@ and unifies_from_field uctx a b ab tl (t,cf) =
 			let map = apply_params ab.a_params tl in
 			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			unify_func a (map t);
 			unify_func (map r) b;
@@ -931,6 +956,7 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 			let map = apply_params ab.a_params tl in
 			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in
 			(* we cannot allow implicit casts when the this type is not completely known yet *)
@@ -989,6 +1015,7 @@ and with_variance uctx f t1 t2 =
 		raise (Unify_error l)
 
 and unify_with_access uctx f1 t1 f2 =
+	let uctx = get_nested_context uctx in
 	match f2.cf_kind with
 	(* write only *)
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify uctx f2.cf_type t1

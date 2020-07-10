@@ -23,6 +23,7 @@
 package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:transitive
 @:forwardStatics
 @:forward abstract Float(FloatClass) from FloatClass to FloatClass {
 	@:to extern inline public function toFloat():std.StdTypes.Float

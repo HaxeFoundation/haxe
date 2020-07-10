@@ -109,6 +109,7 @@ abstract PromiseHandler<T, TOut>(T->Dynamic) // T->Dynamic, so the compiler alwa
 	A value with a `then` method.
 **/
 @:forward
+@:transitive
 abstract Thenable<T>(ThenableStruct<T>)
 	from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
 
