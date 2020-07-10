@@ -9,11 +9,15 @@ let build_abstract a = match a.a_impl with
 	| Some c -> ignore(c.cl_build())
 	| None -> ()
 
-let has_direct_from uctx a b ab tl =
-	unifies_from {uctx with allow_transitive_cast = false} a b ab tl
-
-let has_direct_to uctx a b ab tl =
-	unifies_to {uctx with allow_transitive_cast = false} a b ab tl
+let find_cast_field uctx find =
+	let found = try
+		find {uctx with allow_transitive_cast = false}
+	with Not_found ->
+		find uctx
+	in
+	match found with
+		| Some value -> value
+		| None -> raise Not_found
 
 let find_field_from uctx a b ab tl =
 	List.find (unifies_from_field uctx a b ab tl) ab.a_from_field
@@ -24,32 +28,40 @@ let find_field_to uctx a b ab tl =
 let find_to_from uctx a b a1 tl1 a2 tl2 =
 	build_abstract a1;
 	build_abstract a2;
-	if has_direct_to uctx a b a1 tl1 || has_direct_from uctx a b a2 tl2 then
-		raise Not_found
-	else try
-		(a1,tl1,find_field_to uctx a b a1 tl1)
-	with Not_found ->
-		(a2,tl2,find_field_from uctx a b a2 tl2)
+	find_cast_field uctx (fun uctx ->
+		if unifies_abstracts uctx a b a1 tl1 a2 tl2 then
+			None
+		else try
+			Some((a1,tl1,(find_field_to uctx a b a1 tl1)))
+		with Not_found ->
+			Some((a2,tl2,(find_field_from uctx a b a2 tl2)))
+	)
 
 let find_from uctx a ab tl =
-	let b = TAbstract(ab,tl) in
 	build_abstract ab;
 	if follow a == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-	else if has_direct_from uctx a b ab tl then
-		raise Not_found (* legacy compatibility *)
 	else
-		find_field_from uctx a b ab tl
+		let b = TAbstract(ab,tl) in
+		find_cast_field uctx (fun uctx ->
+			if unifies_from uctx a b ab tl then
+				None
+			else
+				Some(find_field_from uctx a b ab tl)
+		)
 
 let find_to uctx b ab tl =
-	let a = TAbstract(ab,tl) in
 	build_abstract ab;
 	if follow b == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-	else if has_direct_to uctx a b ab tl then
-		raise Not_found (* legacy compatibility *)
 	else
-		find_field_to uctx a b ab tl
+		let a = TAbstract(ab,tl) in
+		find_cast_field uctx (fun uctx ->
+			if unifies_to uctx a b ab tl then
+				None
+			else
+				Some(find_field_to uctx a b ab tl)
+		)
 
 let underlying_type_stack = new_rec_stack()
 
