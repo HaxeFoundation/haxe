@@ -648,7 +648,7 @@ let rec unify (uctx : unification_context) a b =
 			| KTypeParameter pl -> List.exists (fun t ->
 				match follow t with
 				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
-				| TAbstract(aa,tl) -> List.exists (unify_to uctx aa tl b) aa.a_to
+				| TAbstract(aa,tl) -> unifies_to uctx a b aa tl
 				| _ -> false
 			) pl
 			| _ -> false)
@@ -794,8 +794,8 @@ let rec unify (uctx : unification_context) a b =
 					type_eq {uctx with equality_kind = EqRightDynamic} t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
-		| TAbstract(bb,tl) when (List.exists (unify_from uctx bb tl a b) bb.a_from) ->
-			()
+		| TAbstract(bb,tl) ->
+			unify_from uctx a b bb tl
 		| _ ->
 			error [cannot_unify a b])
 	| _ , TDynamic t ->
@@ -821,31 +821,21 @@ let rec unify (uctx : unification_context) a b =
 				) an.a_fields
 			with Unify_error l ->
 				error (cannot_unify a b :: l))
-		| TAbstract(aa,tl) when (List.exists (unify_to uctx aa tl b) aa.a_to) ->
-			()
+		| TAbstract(aa,tl) ->
+			unify_to uctx a b aa tl
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		if not (List.exists (unify_to uctx aa tl b) aa.a_to) then error [cannot_unify a b];
+		unify_to uctx a b aa tl
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify uctx t b; true with Unify_error _ -> false
-		) ctl) && not (List.exists (unify_from uctx bb tl a b) bb.a_from) then error [cannot_unify a b];
+		) ctl) then unify_from uctx a b bb tl
 	| _, TAbstract (bb,tl) ->
-		if not (List.exists (unify_from uctx bb tl a b) bb.a_from) then error [cannot_unify a b]
+		unify_from uctx a b bb tl
 	| _ , _ ->
-		error [cannot_unify a b]
-
-and unify_abstracts uctx a b a1 tl1 a2 tl2 =
-	let uctx_no_transitive_casts = {uctx with allow_transitive_cast = false} in
-	if (List.exists (unify_to uctx_no_transitive_casts a1 tl1 b) a1.a_to)
-	|| (List.exists (unify_from uctx_no_transitive_casts a2 tl2 a b) a2.a_from)
-	|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
-		&& ((List.exists (unify_to uctx a1 tl1 b) a1.a_to) || (List.exists (unify_from uctx a2 tl2 a b) a2.a_from))) then
-		()
-	else
 		error [cannot_unify a b]
 
 and unify_anons uctx a b a1 a2 =
@@ -883,54 +873,70 @@ and unify_anons uctx a b a1 a2 =
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
-and unify_from uctx ab tl a b t =
-	rec_stack_bool abstract_cast_stack (a,b)
-		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let t = apply_params ab.a_params tl t in
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqRightDynamic} in
-			unify_func a t)
+and get_abstract_unify_func uctx equality_kind =
+	if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = equality_kind}
 
-and unify_to uctx ab tl b t =
-	let t = apply_params ab.a_params tl t in
-	let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-	try
-		unify_func t b;
-		true
-	with Unify_error _ ->
-		false
+and rec_stack_abstract_unifies a b frun =
+	rec_stack_bool abstract_cast_stack (a,b) (fun (a',b') -> fast_eq a a' && fast_eq b b') frun
 
-and unify_from_field uctx ab tl a b (t,cf) =
-	rec_stack_bool abstract_cast_stack (a,b)
-		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-			match follow cf.cf_type with
-			| TFun(_,r) ->
-				let map = apply_params ab.a_params tl in
-				let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-				let map t = map (apply_params cf.cf_params monos t) in
-				unify_func a (map t);
-				unify_func (map r) b;
-				true
-			| _ -> die "" __LOC__)
+and unify_abstracts uctx a b a1 tl1 a2 tl2 =
+	if not (unifies_abstracts uctx a b a1 tl1 a2 tl2) then error [cannot_unify a b]
 
-and unify_to_field uctx ab tl b (t,cf) =
-	let a = TAbstract(ab,tl) in
-	rec_stack_bool abstract_cast_stack (b,a)
-		(fun (b2,a2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-			match follow cf.cf_type with
-			| TFun((_,_,ta) :: _,_) ->
-				let map = apply_params ab.a_params tl in
-				let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-				let map t = map (apply_params cf.cf_params monos t) in
-				let athis = map ab.a_this in
-				(* we cannot allow implicit casts when the this type is not completely known yet *)
-				with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
-				unify_func (map t) b;
-			| _ -> die "" __LOC__)
+and unify_from uctx a b ab tl =
+	if not (unifies_from uctx a b ab tl) then error [cannot_unify a b]
+
+and unify_to uctx a b ab tl =
+	if not (unifies_to uctx a b ab tl) then error [cannot_unify a b]
+
+and unifies_abstracts uctx a b a1 tl1 a2 tl2 =
+	let uctx_no_transitive_casts = {uctx with allow_transitive_cast = false} in
+	(unifies_to uctx_no_transitive_casts a b a1 tl1) || (unifies_from uctx_no_transitive_casts a b a2 tl2)
+	|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
+		&& ((unifies_to uctx a b a1 tl1) || (unifies_from uctx a b a2 tl2)))
+
+and unifies_from uctx a b ab tl =
+	List.exists (unifies_from_direct uctx a b ab tl) ab.a_from
+
+and unifies_to uctx a b ab tl =
+	List.exists (unifies_to_direct uctx a b ab tl) ab.a_to
+
+and unifies_from_direct uctx a b ab tl t =
+	rec_stack_abstract_unifies a b (fun() ->
+		let t = apply_params ab.a_params tl t in
+		let unify_func = get_abstract_unify_func uctx EqRightDynamic in
+		unify_func a t)
+
+and unifies_to_direct uctx a b ab tl t =
+	rec_stack_abstract_unifies a b (fun() ->
+		let t = apply_params ab.a_params tl t in
+		let unify_func = get_abstract_unify_func uctx EqStrict in
+		unify_func t b)
+
+and unifies_from_field uctx a b ab tl (t,cf) =
+	rec_stack_abstract_unifies a b (fun() ->
+		match follow cf.cf_type with
+		| TFun(_,r) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			unify_func a (map t);
+			unify_func (map r) b;
+		| _ -> die "" __LOC__)
+
+and unifies_to_field uctx a b ab tl (t,cf) =
+	rec_stack_abstract_unifies a b (fun() ->
+		match follow cf.cf_type with
+		| TFun((_,_,ta) :: _,_) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			let athis = map ab.a_this in
+			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
+			unify_func (map t) b;
+		| _ -> die "" __LOC__)
 
 and unify_with_variance uctx f t1 t2 =
 	let allows_variance_to t tf = type_iseq uctx tf t in
