@@ -40,8 +40,7 @@ and do_check_cast ctx uctx tleft eright p =
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
-	let find a tl f =
-		let tcf,cf = f() in
+	let make (a,tl,(tcf,cf)) =
 		if (Meta.has Meta.MultiType a.a_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
@@ -61,9 +60,9 @@ and do_check_cast ctx uctx tleft eright p =
 				let stack = (tleft,tright) :: stack in
 				match follow tleft,follow tright with
 				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-					Abstract.find_to_from uctx find a1 tl1 a2 tl2 tleft eright.etype
+					make (Abstract.find_to_from uctx eright.etype tleft a2 tl2 a1 tl1)
 				| TAbstract(a,tl),_ ->
-					begin try find a tl (fun () -> Abstract.find_from uctx a tl eright.etype tleft)
+					begin try make (a,tl,Abstract.find_from uctx eright.etype a tl)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -74,7 +73,7 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_from
 					end
 				| _,TAbstract(a,tl) ->
-					begin try find a tl (fun () -> Abstract.find_to uctx a tl tleft)
+					begin try make (a,tl,Abstract.find_to uctx tleft a tl)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
@@ -213,7 +212,7 @@ let find_multitype_specialization com a pl p =
 	in
 	let _,cf =
 		try
-			Abstract.find_to uctx a tl m
+			Abstract.find_to uctx m a tl
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
