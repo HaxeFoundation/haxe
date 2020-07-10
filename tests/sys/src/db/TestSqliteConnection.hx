@@ -8,10 +8,6 @@ class TestSqliteConnection extends SqliteSetup {
 		equals('SQLite', cnx.dbName());
 	}
 
-	function testCorrectDbFileCreated() {
-		isTrue(FileSystem.exists(SqliteSetup.DB_FILE));
-	}
-
 	function testLastInsertId() {
 		cnx.request('INSERT INTO test (num, value) VALUES (10, "one")');
 		equals(1, cnx.lastInsertId());
@@ -37,12 +33,17 @@ class TestSqliteConnection extends SqliteSetup {
 	}
 
 	function testIssue9700() {
+		var dbFile = 'temp/db.sqlite';
+		try sys.FileSystem.deleteFile(dbFile) catch(_) {}
+		var cnx = sys.db.Sqlite.open(dbFile);
+		cnx.request("CREATE TABLE test (id INTEGER)");
+
 		function checkDataSaved(id:Int) {
-			cnx.request('INSERT INTO test (id, num, value) VALUES ($id, $id, "dummy")');
-			closeConnection();
-			openConnection();
+			cnx.request('INSERT INTO test (id) VALUES ($id)');
+			cnx.close();
+			cnx = sys.db.Sqlite.open(dbFile);
 			var result = cnx.request('SELECT * FROM test WHERE id = $id');
-			same({id:id, num:id, value:'dummy'}, result.next());
+			same({id:id}, result.next());
 		}
 
 		cnx.startTransaction();
@@ -52,5 +53,8 @@ class TestSqliteConnection extends SqliteSetup {
 		cnx.startTransaction();
 		cnx.rollback();
 		checkDataSaved(2);
+
+		cnx.request('DROP TABLE test');
+		cnx.close();
 	}
 }
