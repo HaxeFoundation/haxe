@@ -36,10 +36,13 @@ class TestSqliteResultSet extends SqliteSetup {
 		same(data, Lambda.array(result.results()));
 	}
 
+#if !cpp //ResultSet.getFieldsNames() is not implemented in cpp.
+
 	function testGetFieldsNames() {
 		var result = cnx.request('SELECT * FROM test ORDER BY id');
 		same(['id', 'num', 'value'], result.getFieldsNames());
 	}
+#end
 
 	function testAsIterator() {
 		var result = cnx.request('SELECT * FROM test ORDER BY id');
