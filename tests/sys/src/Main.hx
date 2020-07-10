@@ -11,7 +11,8 @@ class Main {
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
-		runner.addCase(new db.TestSqlite());
+		runner.addCase(new db.TestSqliteConnection());
+		runner.addCase(new db.TestSqliteResultSet());
 		#if php
 		switch (Sys.systemName()) {
 			case "Windows":
