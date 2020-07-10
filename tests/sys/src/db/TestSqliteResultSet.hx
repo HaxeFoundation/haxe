@@ -31,12 +31,12 @@ class TestSqliteResultSet extends SqliteSetup {
 		equals(3, result.nfields);
 	}
 
-	function testGetFieldsNames() {
+	function testResults() {
 		var result = cnx.request('SELECT * FROM test');
 		same(data, Lambda.array(result.results()));
 	}
 
-	function testResults() {
+	function testGetFieldsNames() {
 		var result = cnx.request('SELECT * FROM test ORDER BY id');
 		same(['id', 'num', 'value'], result.getFieldsNames());
 	}
