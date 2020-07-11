@@ -878,6 +878,9 @@ and unify_anons uctx a b a1 a2 =
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
+and does_func_unify f =
+	try f(); true with Unify_error _ -> false
+
 and get_abstract_context uctx a b ab =
 	if (Meta.has Meta.CoreType ab.a_meta) || (Meta.has Meta.Transitive ab.a_meta) then
 		uctx
@@ -889,14 +892,13 @@ and get_abstract_context uctx a b ab =
 and get_nested_context uctx =
 	{uctx with allow_abstract_cast = true}
 
-and unifies_with_abstract uctx f =
-	(uctx.allow_transitive_cast && f {uctx with allow_transitive_cast = false}) || f uctx
+and unifies_with_abstract uctx a b f =
+	rec_stack_default abstract_cast_stack (a,b) (fun (a',b') -> fast_eq a a' && fast_eq b b') (fun() ->
+		(uctx.allow_transitive_cast && f {uctx with allow_transitive_cast = false}) || f uctx
+	) false
 
 and get_abstract_unify_func uctx equality_kind =
 	if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = equality_kind}
-
-and rec_stack_abstract_unifies a b frun =
-	rec_stack_bool abstract_cast_stack (a,b) (fun (a',b') -> fast_eq a a' && fast_eq b b') frun
 
 and unify_abstracts uctx a b a1 tl1 a2 tl2 =
 	if not (unifies_abstracts uctx a b a1 tl1 a2 tl2) then error [cannot_unify a b]
@@ -908,36 +910,37 @@ and unify_to uctx a b ab tl =
 	if not (unifies_to uctx a b ab tl) then error [cannot_unify a b]
 
 and unifies_abstracts uctx a b a1 tl1 a2 tl2 =
-	unifies_with_abstract uctx (fun uctx ->
-		unifies_to uctx a b a1 tl1 || unifies_from uctx a b a2 tl2
+	unifies_with_abstract uctx a b (fun uctx ->
+		List.exists (unifies_to_direct uctx a b a1 tl1) a1.a_to ||
+		List.exists (unifies_from_direct uctx a b a2 tl2) a2.a_from
 	)
 
 and unifies_from uctx a b ab tl =
-	unifies_with_abstract uctx (fun uctx ->
+	unifies_with_abstract uctx a b (fun uctx ->
 		List.exists (unifies_from_direct uctx a b ab tl) ab.a_from
 	)
 
 and unifies_to uctx a b ab tl =
-	unifies_with_abstract uctx (fun uctx ->
+	unifies_with_abstract uctx a b (fun uctx ->
 		List.exists (unifies_to_direct uctx a b ab tl) ab.a_to
 	)
 
 and unifies_from_direct uctx a b ab tl t =
-	rec_stack_abstract_unifies a b (fun() ->
+	does_func_unify (fun() ->
 		let t = apply_params ab.a_params tl t in
 		let uctx = get_abstract_context uctx a b ab in
 		let unify_func = get_abstract_unify_func uctx EqRightDynamic in
 		unify_func a t)
 
 and unifies_to_direct uctx a b ab tl t =
-	rec_stack_abstract_unifies a b (fun() ->
+	does_func_unify (fun() ->
 		let t = apply_params ab.a_params tl t in
 		let uctx = get_abstract_context uctx a b ab in
 		let unify_func = get_abstract_unify_func uctx EqStrict in
 		unify_func t b)
 
 and unifies_from_field uctx a b ab tl (t,cf) =
-	rec_stack_abstract_unifies a b (fun() ->
+	does_func_unify (fun() ->
 		match follow cf.cf_type with
 		| TFun(_,r) ->
 			let map = apply_params ab.a_params tl in
@@ -950,7 +953,7 @@ and unifies_from_field uctx a b ab tl (t,cf) =
 		| _ -> die "" __LOC__)
 
 and unifies_to_field uctx a b ab tl (t,cf) =
-	rec_stack_abstract_unifies a b (fun() ->
+	does_func_unify (fun() ->
 		match follow cf.cf_type with
 		| TFun((_,_,ta) :: _,_) ->
 			let map = apply_params ab.a_params tl in
