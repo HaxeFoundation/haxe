@@ -2108,8 +2108,8 @@ let generate con =
 		gen_annotations w cl.cl_meta;
 
 		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-		let modifiers = if cl.cl_final then "final" :: modifiers else modifiers in
-		let is_final = cl.cl_final in
+		let is_final = has_class_flag cl CFinal in
+		let modifiers = if is_final then "final" :: modifiers else modifiers in
 
 		write_parts w (access :: modifiers @ [clt; (change_clname (snd cl.cl_path))]);
 

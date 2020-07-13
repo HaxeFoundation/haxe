@@ -409,7 +409,7 @@ module Inheritance = struct
 				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
 			) csup.cl_meta;
-			if csup.cl_final && not ((csup.cl_extern && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
+			if has_class_flag csup CFinal && not ((csup.cl_extern && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
 				error ("Cannot extend a final " ^ if c.cl_interface then "interface" else "class") p;
 		in
 		let check_cancel_build csup =

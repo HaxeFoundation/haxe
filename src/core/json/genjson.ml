@@ -622,7 +622,7 @@ let generate_class ctx c =
 		"init",jopt (generate_texpr ctx) c.cl_init;
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool c.cl_extern;
-		"isFinal",jbool c.cl_final;
+		"isFinal",jbool (has_class_flag c CFinal);
 	]
 
 let generate_enum ctx e =

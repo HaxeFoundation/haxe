@@ -146,7 +146,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		) cur_tf_args in
 
 		let static_ctor = mk_class_field ~static:true static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
-		let static_ctor_meta = if cl.cl_final then Meta.Private else Meta.Protected in
+		let static_ctor_meta = if has_class_flag cl CFinal then Meta.Private else Meta.Protected in
 		static_ctor.cf_meta <- (static_ctor_meta,[],ctor.cf_pos) :: static_ctor.cf_meta;
 
 		(* change ctor contents to reference the 'me' var instead of 'this' *)

@@ -242,7 +242,7 @@ let module_pass_1 ctx m tdecls loadp =
 			List.iter (function
 				| HExtern -> c.cl_extern <- true
 				| HInterface -> c.cl_interface <- true
-				| HFinal -> c.cl_final <- true
+				| HFinal -> add_class_flag c CFinal
 				| _ -> ()
 			) d.d_flags;
 			if not c.cl_extern then check_type_name name d.d_meta;
@@ -356,7 +356,7 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_final <- true;
+					add_class_flag c CFinal;
 				| _ -> die "" __LOC__);
 				acc
 		) in
@@ -395,7 +395,7 @@ let module_pass_1 ctx m tdecls loadp =
 				assert (m.m_statics = None);
 				m.m_statics <- Some c;
 				c.cl_kind <- KModuleFields m;
-				c.cl_final <- true;
+				add_class_flag c CFinal;
 			| _ -> assert false);
 			tdecls
 
@@ -650,7 +650,7 @@ let init_module_type ctx context_init (decl,p) =
 		let herits = d.d_flags in
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
-				c.cl_final <- true;
+				add_class_flag c CFinal;
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p; *)
 			end

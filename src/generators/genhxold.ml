@@ -207,7 +207,7 @@ let generate_type com t =
 	(match t with
 	| TClassDecl c ->
 		print_meta c.cl_meta;
-		let finalmod = if c.cl_final then "final " else "" in
+		let finalmod = if (has_class_flag c CFinal) then "final " else "" in
 		p "extern %s%s %s" finalmod (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
 		let ext = (match c.cl_super with
 		| None -> []

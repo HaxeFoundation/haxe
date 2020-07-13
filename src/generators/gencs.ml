@@ -1989,7 +1989,7 @@ let generate con =
 													acc
 
 												(* non-sealed class *)
-												| TInst ({ cl_interface = false; cl_final = false},_) ->
+												| TInst ({ cl_interface = false; } as c,_) when not (has_class_flag c CFinal) ->
 													base_class_constraints := (CsConstraint (t_s t)) :: !base_class_constraints;
 													acc;
 
@@ -2277,7 +2277,7 @@ let generate con =
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
-					let is_virtual = is_virtual && not cl.cl_final && not (is_interface) in
+					let is_virtual = is_virtual && not (has_class_flag cl CFinal) && not (is_interface) in
 					let visibility = if is_interface then "" else "public" in
 
 					let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
@@ -2622,8 +2622,8 @@ let generate con =
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-			let modifiers = if is_module_fields_class cl then "static" :: modifiers else if cl.cl_final then "sealed" :: modifiers else modifiers in
-			let is_final = clt = "struct" || cl.cl_final in
+			let modifiers = if is_module_fields_class cl then "static" :: modifiers else if (has_class_flag cl CFinal) then "sealed" :: modifiers else modifiers in
+			let is_final = clt = "struct" || (has_class_flag cl CFinal) in
 
 			let modifiers = [access] @ modifiers in
 			print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));

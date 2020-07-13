@@ -2157,7 +2157,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method private set_access_flags =
 		jc#add_access_flag 1; (* public *)
-		if c.cl_final then jc#add_access_flag 0x10;
+		if has_class_flag c CFinal then jc#add_access_flag 0x10;
 		if c.cl_interface then begin
 			jc#add_access_flag 0x200;
 			jc#add_access_flag 0x400;

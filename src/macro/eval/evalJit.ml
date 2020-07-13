@@ -410,7 +410,7 @@ and jit_expr jit return e =
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
 			let is_final c cf =
-				c.cl_final || (has_class_field_flag cf CfFinal) ||
+				has_class_flag c CFinal || (has_class_field_flag cf CfFinal) ||
 				(* In interp mode we can assume that a field is final if it is not overridden.
 				   We cannot do that in macro mode because overriding fields might be added
 				   after jitting this call. *)

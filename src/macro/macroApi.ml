@@ -999,7 +999,7 @@ and encode_tclass c =
 		"isExtern", vbool c.cl_extern;
 		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
 		"isInterface", vbool c.cl_interface;
-		"isFinal", vbool c.cl_final;
+		"isFinal", vbool (has_class_flag c CFinal);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
