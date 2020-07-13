@@ -92,14 +92,14 @@ let find_type_in_module_raise ctx m tname p =
 			let infos = t_infos mt in
 			if snd infos.mt_path = tname then
 				if ctx.m.curmod != infos.mt_module && infos.mt_private then
-					raise_type_not_found m.m_path tname Private_type p
+					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
 				else
 					true
 			else
 				false
 		) m.m_types
 	with Not_found ->
-		raise_type_not_found m.m_path tname Not_defined p
+		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
