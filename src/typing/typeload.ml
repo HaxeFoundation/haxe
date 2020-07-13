@@ -312,7 +312,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let is_generic,is_generic_build,is_extern = match mt with
 			| TClassDecl {cl_kind = KGeneric} -> true,false,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
-			| TClassDecl {cl_extern = true} -> false,false,true
+			| TClassDecl c when (has_class_flag c CExtern) -> false,false,true
 			| TTypeDecl td ->
 				DeprecationCheck.if_enabled ctx.com (fun() ->
 					try

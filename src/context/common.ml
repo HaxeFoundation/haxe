@@ -823,7 +823,7 @@ let rec has_feature com f =
 				| t when field = "*" ->
 					not (has_dce com) ||
 					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
-				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
+				| TClassDecl c when (has_class_flag c CExtern) && (com.platform <> Js || cl <> "Array" && cl <> "Math") ->
 					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
 				| TClassDecl c ->
 					PMap.exists field c.cl_statics || PMap.exists field c.cl_fields

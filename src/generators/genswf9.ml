@@ -1927,12 +1927,12 @@ let generate_class_statics ctx c const =
 	) c.cl_ordered_statics
 
 let need_init ctx c =
-	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
+	not ctx.swc && not (has_class_flag c CExtern) && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
 
 let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
-		| TClassDecl c when c.cl_extern ->
+		| TClassDecl c when (has_class_flag c CExtern) ->
 			(match c.cl_init with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
@@ -2147,7 +2147,8 @@ let mark_has_protected c = c.cl_meta <- (has_protected_meta,[],null_pos) :: c.cl
 let find_first_nonextern_accessor_implementor cl name =
 	let rec loop cl cl_found =
 		match cl.cl_super with
-		| Some ({ cl_extern = true }, _) | None -> cl_found
+		| None -> cl_found
+		| Some (c, _) when (has_class_flag c CExtern) -> cl_found
 		| Some (cl_super, _) ->
 			let has_field = PMap.exists name cl_super.cl_fields in
 			let cl_found = if has_field then cl_super else cl_found in
@@ -2323,7 +2324,7 @@ let realize_required_accessors ctx cl =
 	let rec has_nonextern_field cl name =
 		if PMap.exists name cl.cl_fields then true
 		else match cl.cl_super with
-		| Some ({ cl_extern = false } as csup, _) -> has_nonextern_field csup name
+		| Some (csup, _) when not (has_class_flag csup CExtern) -> has_nonextern_field csup name
 		| _ -> false
 	in
 
@@ -2336,7 +2337,7 @@ let realize_required_accessors ctx cl =
 				if not (is_flash_property cf) then
 					abort (Printf.sprintf "Interface %s requires property %s to be marked with @:flash.property" (s_type_path iface.cl_path) cf.cf_name) cf.cf_pos
 			) native;
-			if actual_cl.cl_extern then begin
+			if (has_class_flag actual_cl CExtern) then begin
 				let mk_field_access () =
 					let ethis = mk (TConst TThis) (TInst (cl,tl)) null_pos in
 					mk (TField (ethis, FInstance (actual_cl, actual_tl, cf))) cf.cf_type null_pos
@@ -2591,7 +2592,7 @@ let generate_class ctx c =
 		if Meta.has has_protected_meta csup.cl_meta then begin
 			has_protected := Some (make_class_ns c);
 			mark_has_protected c (* also mark this class with the meta for further child classes *)
-		end else if csup.cl_extern then begin
+		end else if (has_class_flag csup CExtern) then begin
 			let rec loop csup =
 				if List.exists is_cf_protected csup.cl_ordered_fields then begin
 					has_protected := Some (make_class_ns c);
@@ -2734,7 +2735,7 @@ let rec generate_type ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
-		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || Meta.has Meta.RealPath c.cl_meta) then
+		if (has_class_flag c CExtern) && (c.cl_path <> ([],"Dynamic") || Meta.has Meta.RealPath c.cl_meta) then
 			None
 		else
 			let debug = do_debug ctx c.cl_meta in

@@ -269,7 +269,7 @@ let rec build_generic ctx c p tl =
 				begin try (match cf_old.cf_expr with
 					| None ->
 						begin match cf_old.cf_kind with
-							| Method _ when not (has_class_flag c CInterface) && not c.cl_extern ->
+							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->

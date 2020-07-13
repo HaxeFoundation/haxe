@@ -902,7 +902,7 @@ let dump_descriptor gen name path_s module_s =
 		SourceWriter.newline w;
 		List.iter (fun m ->
 			match m with
-				| TClassDecl cl when not cl.cl_extern ->
+				| TClassDecl cl when not (has_class_flag cl CExtern) ->
 					SourceWriter.write w "C ";
 					let s = module_s m in
 					Hashtbl.add main_paths cl.cl_path s;

@@ -118,7 +118,6 @@ let mk_class m path pos name_pos =
 		cl_private = false;
 		cl_kind = KNormal;
 		cl_flags = 0;
-		cl_extern = false;
 		cl_params = [];
 		cl_using = [];
 		cl_super = None;

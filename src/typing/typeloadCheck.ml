@@ -167,7 +167,7 @@ let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
 		if has_class_field_flag f CfOverride then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
-	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
+	| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
 		let i = f.cf_name in
@@ -325,7 +325,7 @@ module Inheritance = struct
 
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
-			if is_basic_class_path csup.cl_path && not (c.cl_extern && csup.cl_extern) then error "Cannot extend basic class" p;
+			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then error "Cannot extend basic class" p;
 			if extends csup c then error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
@@ -370,7 +370,7 @@ module Inheritance = struct
 					valid_redefinition ctx f2 t2 f (apply_params intf.cl_params params f.cf_type)
 				with
 					Unify_error l ->
-						if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
+						if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
 							display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 							display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
 							display_error ctx (compl_msg (error_msg (Unify l))) p;
@@ -395,7 +395,7 @@ module Inheritance = struct
 	let check_interfaces ctx c =
 		match c.cl_path with
 		| "Proxy" :: _ , _ -> ()
-		| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> ()
+		| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> ()
 		| _ ->
 		List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
 
@@ -409,7 +409,7 @@ module Inheritance = struct
 				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
 			) csup.cl_meta;
-			if has_class_flag csup CFinal && not ((csup.cl_extern && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
+			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
 				error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
@@ -470,7 +470,7 @@ module Inheritance = struct
 					process_meta csup;
 				)
 			end else begin match follow t with
-				| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
+				| TInst ({ cl_path = [],"ArrayAccess" } as ca,[t]) when (has_class_flag ca CExtern) ->
 					if c.cl_array_access <> None then error "Duplicate array access" p;
 					c.cl_array_access <- Some t;
 					(fun () -> ())
@@ -489,7 +489,7 @@ module Inheritance = struct
 					)
 				| TDynamic t ->
 					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
-					if not c.cl_extern then display_error ctx "In haxe 4, implements Dynamic is only supported on externs" p;
+					if not (has_class_flag c CExtern) then display_error ctx "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some t;
 					(fun () -> ())
 				| _ ->
@@ -508,7 +508,7 @@ module Inheritance = struct
 						| ITType({kind = Class} as cm,_) ->
 							is_extends && not (has_class_flag c CInterface) && CompletionModuleType.get_path cm <> c.cl_path &&
 							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
-							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
+							(not (is_basic_class_path (cm.pack,cm.name)) || ((has_class_flag c CExtern) && cm.is_extern))
 						| _ -> false
 					) r.fitems in
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject

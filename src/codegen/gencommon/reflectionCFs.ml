@@ -1513,7 +1513,7 @@ let has_field_override cl name =
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not (has_class_flag cl CInterface) || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
+		| TClassDecl cl when not (has_class_flag cl CExtern) && is_hxgen md && ( not (has_class_flag cl CInterface) || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
 			if is_some cl.cl_super then begin
 				ignore (has_field_override cl (mk_internal_name "hx" "setField"));
 				ignore (has_field_override cl (mk_internal_name "hx" "setField_f"));

@@ -2222,12 +2222,12 @@ let generate con =
 		Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
 		match md_tp with
 			| TClassDecl cl ->
-				if not cl.cl_extern then begin
+				if not (has_class_flag cl CExtern) then begin
 					gen_class w cl;
 					newline w;
 					newline w
 				end;
-				(not cl.cl_extern)
+				(not (has_class_flag cl CExtern))
 			| TEnumDecl e ->
 				if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 					gen_enum w e;

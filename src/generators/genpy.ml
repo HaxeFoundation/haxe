@@ -1427,8 +1427,8 @@ module Printer = struct
 		in
 		let name = field_name fa in
 		let is_extern = (match fa with
-		| FInstance(c,_,_) -> c.cl_extern
-		| FStatic(c,_) -> c.cl_extern
+		| FInstance(c,_,_) -> (has_class_flag c CExtern)
+		| FStatic(c,_) -> (has_class_flag c CExtern)
 		| _ -> false)
 		in
 		let do_default () =
@@ -1459,7 +1459,7 @@ module Printer = struct
 				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
 			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
 				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
-			| FStatic (c,cf) when c.cl_extern && c.cl_path = ([],"") ->
+			| FStatic (c,cf) when (has_class_flag c CExtern) && c.cl_path = ([],"") ->
 				Printf.sprintf "%s" name
 			| FInstance _ | FStatic _ ->
 				do_default ()
@@ -2028,7 +2028,7 @@ module Generator = struct
 				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_class ctx c =
-		if not c.cl_extern then begin
+		if not (has_class_flag c CExtern) then begin
 			let is_nativegen = Meta.has Meta.NativeGen c.cl_meta in
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
@@ -2349,7 +2349,7 @@ module Generator = struct
 		in
 		List.iter (fun mt ->
 			match mt with
-			| TClassDecl c when c.cl_extern -> import c.cl_path c.cl_meta
+			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
 			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types

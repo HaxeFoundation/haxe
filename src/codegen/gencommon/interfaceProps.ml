@@ -24,7 +24,7 @@ open Type
 	If they are, it will add Meta.Property to it.
 *)
 let run = function
-	| TClassDecl ({ cl_extern = false } as cl) when (has_class_flag cl CInterface) ->
+	| TClassDecl cl when (has_class_flag cl CInterface) && not (has_class_flag cl CExtern) ->
 		let vars = List.fold_left (fun acc (iface,_) ->
 			if Meta.has Meta.CsNative iface.cl_meta then
 				let props = List.filter (fun cf -> match cf.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) iface.cl_ordered_fields in

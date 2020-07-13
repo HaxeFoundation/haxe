@@ -54,7 +54,7 @@ module EnumToClass2Modf = struct
 		(* create the class *)
 		let cl_enum = mk_class en.e_module en.e_path pos in
 		cl_enum.cl_super <- Some (base_class,[]);
-		cl_enum.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl_enum CExtern;
 		cl_enum.cl_meta <- [(Meta.Enum,[],pos); (Meta.NativeGen,[],pos)] @ cl_enum.cl_meta;
 
 		(* mark the enum that it's generated as a class *)

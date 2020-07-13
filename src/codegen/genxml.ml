@@ -234,7 +234,7 @@ let rec gen_type_decl com pos t =
 		) in
 		let doc = gen_doc_opt c.cl_doc in
 		let meta = gen_meta c.cl_meta in
-		let ext = (if c.cl_extern then [("extern","1")] else []) in
+		let ext = (if (has_class_flag c CExtern) then [("extern","1")] else []) in
 		let interf = (if (has_class_flag c CInterface) then [("interface","1")] else []) in
 		let final = (if has_class_flag c CFinal then [("final","1")] else []) in
 		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf @ final) (tree @ stats @ fields @ constr @ doc @ meta)

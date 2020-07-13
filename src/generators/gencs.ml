@@ -1223,15 +1223,15 @@ let generate con =
 		in
 
 		let is_extern_prop t name = match follow (run_follow gen t), field_access gen t name with
-			| TInst({ cl_extern = true } as cl, _), FNotFound when (has_class_flag cl CInterface) ->
+			| TInst(cl, _), FNotFound when (has_class_flag cl CExtern) && (has_class_flag cl CInterface) ->
 				not (is_hxgen (TClassDecl cl))
 			| _, FClassField(_,_,decl,v,_,t,_) ->
-				not (Type.is_physical_field v) && (Meta.has Meta.Property v.cf_meta || (decl.cl_extern && not (is_hxgen (TClassDecl decl))))
+				not (Type.is_physical_field v) && (Meta.has Meta.Property v.cf_meta || ((has_class_flag decl CExtern) && not (is_hxgen (TClassDecl decl))))
 			| _ -> false
 		in
 
 		let is_event t name = match follow (run_follow gen t), field_access gen t name with
-			| TInst({ cl_extern = true } as cl, _), FNotFound when (has_class_flag cl CInterface) ->
+			| TInst(cl, _), FNotFound when (has_class_flag cl CExtern) && (has_class_flag cl CInterface) ->
 				not (is_hxgen (TClassDecl cl))
 			| _, FClassField(_,_,decl,v,_,_,_) ->
 				Meta.has Meta.Event v.cf_meta
@@ -2834,7 +2834,7 @@ let generate con =
 			reset_temps();
 			match md_tp with
 				| TClassDecl cl ->
-					if not cl.cl_extern then begin
+					if not (has_class_flag cl CExtern) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 
 						(if (Meta.has Meta.CsUsing cl.cl_meta) then
@@ -2857,7 +2857,7 @@ let generate con =
 						newline w;
 						newline w
 					end;
-					(not cl.cl_extern)
+					(not (has_class_flag cl CExtern))
 				| TEnumDecl e ->
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
@@ -3424,11 +3424,11 @@ let generate con =
 			if not (List.exists (function net_lib -> net_lib#get_name = name) haxe_libs) then
 				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
 			(* it has; in this case, we need to add the used fields on each __init__ *)
-			flookup_cl.cl_extern <- true;
+			add_class_flag flookup_cl CExtern;
 			let hashs_by_path = Hashtbl.create !nhash in
 			Hashtbl.iter (fun (path,i) s -> Hashtbl.add hashs_by_path path (i,s)) rcf_ctx.rcf_hash_paths;
 			Hashtbl.iter (fun _ md -> match md with
-				| TClassDecl ({ cl_extern = false } as c) when not (has_class_flag c CInterface) -> (try
+				| TClassDecl c when not (has_class_flag c CExtern) && not (has_class_flag c CInterface) -> (try
 					let all = Hashtbl.find_all hashs_by_path c.cl_path in
 					let all = List.map (fun (i,s) -> normalize_i i, s) all in
 					let all = List.sort (fun (i,s) (i2,s2) -> compare i i2) all in
@@ -3462,7 +3462,7 @@ let generate con =
 
 		if Common.defined gen.gcon Define.DllImport then begin
 			Hashtbl.iter (fun _ md -> match md with
-				| TClassDecl ({ cl_extern = false } as c) -> (try
+				| TClassDecl c when not (has_class_flag c CExtern) -> (try
 					let extra = match c.cl_params with
 						| _ :: _ when not erase_generics -> "_" ^ string_of_int (List.length c.cl_params)
 						| _ -> ""
@@ -3475,7 +3475,7 @@ let generate con =
 					let path = (pack, snd c.cl_path ^ extra) in
 					ignore (List.find (function net_lib ->
 						is_some (net_lib#lookup path)) haxe_libs);
-					c.cl_extern <- true;
+					add_class_flag c CExtern;
 				with | Not_found -> ())
 				| _ -> ()) gen.gtypes
 		end;

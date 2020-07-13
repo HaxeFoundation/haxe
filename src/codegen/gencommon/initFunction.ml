@@ -226,7 +226,7 @@ let handle_class com cl =
 
 let mod_filter com md =
 	match md with
-	| TClassDecl cl when not cl.cl_extern ->
+	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		handle_class com cl
 	| _ -> ()
 

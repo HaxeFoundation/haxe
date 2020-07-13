@@ -240,12 +240,12 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
 			List.iter (function
-				| HExtern -> c.cl_extern <- true
+				| HExtern -> add_class_flag c CExtern
 				| HInterface -> add_class_flag c CInterface
 				| HFinal -> add_class_flag c CFinal
 				| _ -> ()
 			) d.d_flags;
-			if not c.cl_extern then check_type_name name d.d_meta;
+			if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -694,7 +694,7 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
-		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not c.cl_extern then
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -888,7 +888,7 @@ let init_module_type ctx context_init (decl,p) =
 				a.a_this <- at;
 				is_type := true;
 			| AbExtern ->
-				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
+				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
 			| AbPrivate -> ()
 		) d.d_flags;
 		a.a_from <- List.rev a.a_from;

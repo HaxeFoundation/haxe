@@ -228,7 +228,6 @@ and tclass = {
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
-	mutable cl_extern : bool;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string, tclass_field) PMap.t;

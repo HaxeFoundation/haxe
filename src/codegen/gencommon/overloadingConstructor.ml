@@ -284,7 +284,7 @@ let ensure_super_is_first com cf =
 
 let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t -> t) =
 	let basic = com.basic in
-	let should_change cl = not (has_class_flag cl CInterface) && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) in
+	let should_change cl = not (has_class_flag cl CInterface) && (not (has_class_flag cl CExtern) || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) in
 	let msize = List.length com.types in
 	let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 

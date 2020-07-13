@@ -625,12 +625,12 @@ let is_cpp_function_instance haxe_type =
 
 
 let is_objc_class klass =
-   klass.cl_extern && Meta.has Meta.Objc klass.cl_meta
+   (has_class_flag klass CExtern) && Meta.has Meta.Objc klass.cl_meta
 ;;
 
 let rec is_objc_type t =
    match t with
-   | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+   | TInst(cl,_) -> (has_class_flag cl CExtern) && Meta.has Meta.Objc cl.cl_meta
    | TType(td,_) -> (Meta.has Meta.Objc td.t_meta)
    | TAbstract (a,_) -> (Meta.has Meta.Objc a.a_meta)
    | TMono r -> (match r.tm_type with | Some t -> is_objc_type t | _ -> false)
@@ -743,7 +743,7 @@ let rec class_string klass suffix params remap =
    | _ when (has_class_flag klass CInterface) && is_native_gen_class klass ->
             (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
-   | path when klass.cl_extern && (not (is_internal_class path) )->
+   | path when (has_class_flag klass CExtern) && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix
    | _ ->
       let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
@@ -952,7 +952,7 @@ let is_interface obj = is_interface_type obj.etype;;
 let should_implement_field x = is_physical_field x;;
 
 let is_extern_class class_def =
-   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern) ||
+   (has_class_flag class_def CExtern) || (has_meta_key class_def.cl_meta Meta.Extern) ||
       (match class_def.cl_kind with
        | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
        | _ -> false );
@@ -974,7 +974,7 @@ List.filter (function (t,pl) ->
 
 let is_extern_class_instance obj =
    match follow obj.etype with
-   | TInst (klass,params) -> klass.cl_extern
+   | TInst (klass,params) -> (has_class_flag klass CExtern)
    | _ -> false
 ;;
 
@@ -1917,7 +1917,7 @@ let rec cpp_type_of stack ctx haxe_type =
             TCppNativePointer(klass)
          else if (has_class_flag klass CInterface) then
             TCppInterface(klass)
-         else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
+         else if (has_class_flag klass CExtern) && (not (is_internal_class klass.cl_path) ) then
             TCppInst(klass)
          else
             TCppInst(klass)
@@ -6872,13 +6872,13 @@ let create_super_dependencies common_ctx =
    let result = Hashtbl.create 0 in
    List.iter (fun object_def ->
       (match object_def with
-      | TClassDecl class_def when not class_def.cl_extern ->
+      | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
          let deps = ref [] in
          (match class_def.cl_super with Some super ->
-            if not (fst super).cl_extern then
+            if not (has_class_flag (fst super) CExtern) then
                deps := ((fst super).cl_path) :: !deps
          | _ ->() );
-         List.iter (fun imp -> if not (fst imp).cl_extern then deps := (fst imp).cl_path :: !deps) (real_non_native_interfaces class_def.cl_implements);
+         List.iter (fun imp -> if not (has_class_flag (fst imp) CExtern) then deps := (fst imp).cl_path :: !deps) (real_non_native_interfaces class_def.cl_implements);
          Hashtbl.add result class_def.cl_path !deps;
       | TEnumDecl enum_def when not enum_def.e_extern ->
          Hashtbl.add result enum_def.e_path [];
@@ -6890,7 +6890,7 @@ let create_constructor_dependencies common_ctx =
    let result = Hashtbl.create 0 in
    List.iter (fun object_def ->
       (match object_def with
-      | TClassDecl class_def when not class_def.cl_extern ->
+      | TClassDecl class_def when not (has_class_flag class_def CExtern) ->
          (match class_def.cl_constructor with
          | Some func_def -> Hashtbl.add result class_def.cl_path func_def
          | _ -> () )
@@ -8257,7 +8257,7 @@ let generate_cppia ctx =
 
    List.iter (fun object_def ->
       (match object_def with
-      | TClassDecl class_def when class_def.cl_extern  ->
+      | TClassDecl class_def when (has_class_flag class_def CExtern)  ->
          () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
       | TClassDecl class_def ->
          let is_internal = is_internal_class class_def.cl_path in

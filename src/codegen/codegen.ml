@@ -308,7 +308,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (has_class_field_flag f CfPublic && not (c.cl_extern || (has_class_flag c CInterface))) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not ((has_class_flag c CExtern) || (has_class_flag c CInterface))) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -331,7 +331,7 @@ module Dump = struct
 							(match f.cf_expr with
 							| None -> ""
 							| Some e -> " = " ^ (s_cf_expr f));
-						| Method m -> if (c.cl_extern || (has_class_flag c CInterface)) then (
+						| Method m -> if ((has_class_flag c CExtern) || (has_class_flag c CInterface)) then (
 							match f.cf_type with
 							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
 								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
@@ -341,7 +341,7 @@ module Dump = struct
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
-				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if (has_class_flag c CInterface) then "interface" else "class") (s_type_path path) (params c.cl_params);
+				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if (has_class_flag c CExtern) then "extern " else "") (if (has_class_flag c CInterface) then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));

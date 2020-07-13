@@ -2708,7 +2708,7 @@ let debug_path path = match path with
 let generate_module_type ctx mt =
 	failsafe (t_infos mt).mt_pos (fun () ->
 		match mt with
-		| TClassDecl c when not c.cl_extern && debug_path c.cl_path -> generate_class ctx c
+		| TClassDecl c when not (has_class_flag c CExtern) && debug_path c.cl_path -> generate_class ctx c
 		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
 		| _ -> ()
 	)
@@ -2842,7 +2842,7 @@ module Preprocessor = struct
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
 		List.iter (fun mt -> match mt with
-			| TClassDecl c when debug_path c.cl_path && not (has_class_flag c CInterface) && not c.cl_extern ->
+			| TClassDecl c when debug_path c.cl_path && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 				gctx.typedef_interfaces#process_class c;
 			| _ ->
 				()

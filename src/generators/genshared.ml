@@ -10,7 +10,7 @@ type method_type =
 	| MConstructor
 
 let is_extern_abstract a = match a.a_impl with
-	| Some {cl_extern = true} -> true
+	| Some c -> has_class_flag c CExtern
 	| _ -> match a.a_path with
 		| ([],("Void" | "Float" | "Int" | "Single" | "Bool" | "Null")) -> true
 		| _ -> false
@@ -346,7 +346,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: cf.cf_meta;
 					if not (Meta.has Meta.HxGen cf.cf_meta) then begin
 						let rec loop next c =
-							if c.cl_extern then make_native cf
+							if (has_class_flag c CExtern) then make_native cf
 							else match c.cl_constructor with
 								| Some cf' when Meta.has Meta.HxGen cf'.cf_meta -> make_haxe cf
 								| Some cf' when Meta.has Meta.NativeGen cf'.cf_meta -> make_native cf
@@ -413,7 +413,7 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			add_class_flag c CInterface;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
-			if is_extern then c.cl_extern <- true;
+			if is_extern then add_class_flag c CExtern;
 			Hashtbl.replace interfaces pfm.pfm_path c;
 			c
 
