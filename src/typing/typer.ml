@@ -1362,9 +1362,9 @@ and handle_efield ctx e p0 mode =
 							let mpath = (pack,name) in
 							if Hashtbl.mem ctx.g.modules mpath then
 								let tname = Option.default name sub in
-								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
+								raise_type_not_found mpath tname Not_defined p
 							else
-								raise (Error (Module_not_found mpath,p))
+								raise_module_not_found mpath p
 						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)

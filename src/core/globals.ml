@@ -73,6 +73,13 @@ let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let mk_zero_range_pos p = { p with pmax = p.pmin }
 
+(**
+	Returns position with `pmax` equal or less than `pmin + limit_length`
+*)
+let narrow_pos p limit_length =
+	if p.pmin + limit_length > p.pmax then p
+	else { p with pmax = p.pmin + limit_length }
+
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
 let starts_with s c =

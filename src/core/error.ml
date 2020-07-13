@@ -290,6 +290,14 @@ let error msg p = raise (Error (Custom msg,p))
 
 let raise_error err p = raise (Error(err,p))
 
+let raise_module_not_found mpath p =
+	let length = String.length (s_type_path mpath) in
+	raise (Error (Module_not_found mpath,narrow_pos p length))
+
+let raise_type_not_found mpath tname reason p =
+	let length = String.length ((s_type_path mpath) ^ "." ^ tname) in
+	raise (Error (Type_not_found (mpath,tname,reason),narrow_pos p length))
+
 let error_require r p =
 	if r = "" then
 		error "This field is not available with the current compilation flags" p
