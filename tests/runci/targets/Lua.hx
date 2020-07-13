@@ -29,10 +29,14 @@ class Lua {
 		}
 	}
 
-	static function installLib(lib : String, version : String, server = "https://luarocks.org/dev"){
-		var server_arg = '--server=$server';
+	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-			runCommand("luarocks", ["install",lib, version, server_arg]);
+            var args = ["install", lib, version];
+            if (server != null){
+                var server_arg = '--server=$server';
+                args.push(server_arg);
+            }
+			runCommand("luarocks", args);
 		} else {
 			infoMsg('Lua dependency $lib is already installed at version $version');
 		}
