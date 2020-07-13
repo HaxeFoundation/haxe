@@ -20,6 +20,18 @@ let set_flag flags flag =
 let unset_flag flags flag =
 	flags land (lnot (1 lsl flag))
 
+let int_of_class_flag (flag : flag_tclass) =
+	Obj.magic flag
+
+let add_class_flag c (flag : flag_tclass) =
+	c.cl_flags <- set_flag c.cl_flags (int_of_class_flag flag)
+
+let remove_class_flag c (flag : flag_tclass) =
+	c.cl_flags <- unset_flag c.cl_flags (int_of_class_flag flag)
+
+let has_class_flag c (flag : flag_tclass) =
+	has_flag c.cl_flags (int_of_class_flag flag)
+
 let int_of_class_field_flag (flag : flag_tclass_field) =
 	Obj.magic flag
 
@@ -105,6 +117,7 @@ let mk_class m path pos name_pos =
 		cl_meta = [];
 		cl_private = false;
 		cl_kind = KNormal;
+		cl_flags = 0;
 		cl_extern = false;
 		cl_final = false;
 		cl_interface = false;
