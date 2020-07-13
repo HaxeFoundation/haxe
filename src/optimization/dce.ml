@@ -273,7 +273,7 @@ let rec mark_dependent_fields dce csup n stat =
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
-			if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
+			if Meta.has Meta.Used c.cl_meta || ((has_class_flag csup CInterface) && csup.cl_extern) then mark_field dce c cf stat
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 			else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
 				cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
@@ -332,7 +332,7 @@ and field dce c n stat =
 		let cf = find_field n in
 		mark_field dce c cf stat;
 	with Not_found -> try
-		if c.cl_interface then begin
+		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
@@ -704,7 +704,7 @@ let collect_entry_points dce com =
 		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
 		match t with
 		| TClassDecl c ->
-			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
+			let keep_class = keep_whole_class dce c && (not c.cl_extern || (has_class_flag c CInterface)) in
 			let loop stat cf =
 				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in

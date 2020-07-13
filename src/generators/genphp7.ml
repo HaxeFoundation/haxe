@@ -864,7 +864,7 @@ class class_wrapper (cls) =
 		method needs_initialization =
 			(* Interfaces may need initialization only for RTTI meta data.
 				But that meta is written in `class_wrapper#write_rtti_meta` *)
-			if cls.cl_interface then
+			if (has_class_flag cls CInterface) then
 				false
 			else
 				match cls.cl_init with
@@ -3415,7 +3415,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_declaration =
 			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc));
 			if self#is_final then writer#write "final ";
-			writer#write (if cls.cl_interface then "interface " else "class ");
+			writer#write (if (has_class_flag cls CInterface) then "interface " else "class ");
 			writer#write self#get_name;
 			(
 				match cls.cl_super with
@@ -3425,7 +3425,7 @@ class class_builder ctx (cls:tclass) =
 						writer#write (" extends " ^ super_name)
 			);
 			if List.length cls.cl_implements > 0 then begin
-				writer#write (if cls.cl_interface then " extends " else " implements ");
+				writer#write (if (has_class_flag cls CInterface) then " extends " else " implements ");
 				let use_interface iface =
 					match iface with
 						| (i, params) -> writer#use_t (TInst (i, params))
@@ -3507,7 +3507,7 @@ class class_builder ctx (cls:tclass) =
 				self#write_php_prefix ();
 				at_least_one_field_written := true
 			end;
-		 	if not cls.cl_interface then begin
+		 	if not (has_class_flag cls CInterface) then begin
 		 		(* Inlined statc vars (constants) *)
 				PMap.iter (write_if_constant) cls.cl_statics;
 				if !at_least_one_field_written then writer#write_empty_lines;
@@ -3532,7 +3532,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_toString_if_required
 		method private write_toString_if_required =
 			if PMap.exists "toString" cls.cl_fields then
-				if (not cls.cl_interface) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
+				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
 						writer#write_empty_lines;
 						writer#indent 1;
@@ -3546,7 +3546,7 @@ class class_builder ctx (cls:tclass) =
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
 		method private constructor_is_required =
-			if cls.cl_interface || List.length self#get_namespace > 0 then
+			if (has_class_flag cls CInterface) || List.length self#get_namespace > 0 then
 				false
 			else begin
 				let required = ref false in

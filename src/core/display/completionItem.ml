@@ -194,7 +194,7 @@ module CompletionModuleType = struct
 		in
 		let is_extern,is_final,kind,ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,has_class_flag c CFinal,(if c.cl_interface then Interface else Class),ctor c
+				c.cl_extern,has_class_flag c CFinal,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
 				en.e_extern,false,Enum,No
 			| TTypeDecl td ->

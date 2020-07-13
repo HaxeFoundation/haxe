@@ -588,7 +588,7 @@ let create_field_context (ctx,cctx) c cff =
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not (c.cl_extern || !is_extern) || is_inline) && not c.cl_interface) || field_kind = FKInit);
+		do_bind = (((not (c.cl_extern || !is_extern) || is_inline) && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -603,7 +603,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
+		| _ -> c.cl_extern || (has_class_flag c CInterface) || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
@@ -627,7 +627,7 @@ let add_field c cf =
 let type_opt (ctx,cctx) p t =
 	let c = cctx.tclass in
 	match t with
-	| None when c.cl_extern || c.cl_interface ->
+	| None when c.cl_extern || (has_class_flag c CInterface) ->
 		display_error ctx "Type required for extern classes and interfaces" p;
 		t_dynamic
 	| None when cctx.is_core_api ->
@@ -763,7 +763,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 			| None -> ()
 			| Some (csup,_) ->
 				(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-				if not (csup.cl_interface && Meta.has Meta.CsNative c.cl_meta) then
+				if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
 					error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
 	end;
 	let t = cf.cf_type in
@@ -772,7 +772,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 	| None ->
 		check_field_display ctx fctx c cf;
 	| Some e ->
-		if c.cl_interface then display_error ctx "Default values on interfaces are not allowed" (pos e);
+		if (has_class_flag c CInterface) then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
@@ -867,7 +867,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-	if fctx.is_final && not (fctx.is_extern || c.cl_extern || c.cl_interface)  && eo = None then begin
+	if fctx.is_final && not (fctx.is_extern || c.cl_extern || (has_class_flag c CInterface))  && eo = None then begin
 		if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
 		else cctx.uninitialized_final <- Some f.cff_pos;
 	end;
@@ -1086,12 +1086,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = None;
 			}
 	end in
-	begin match c.cl_interface,fctx.field_kind with
+	begin match (has_class_flag c CInterface),fctx.field_kind with
 		| true,FKConstructor ->
 			error "An interface cannot have a constructor" p;
 		| true,_ ->
 			if not fctx.is_static && fd.f_expr <> None then error (fst f.cff_name ^ ": An interface method cannot have a body") p;
-			if fctx.is_inline && c.cl_interface then error (fst f.cff_name ^ ": You can't declare inline methods in interfaces") p;
+			if fctx.is_inline && (has_class_flag c CInterface) then error (fst f.cff_name ^ ": You can't declare inline methods in interfaces") p;
 		| false,FKConstructor ->
 			if fctx.is_static then error "A constructor must not be static" p;
 			begin match fd.f_type with
@@ -1271,7 +1271,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					else
 						get_overload overl
 				| [] ->
-					if c.cl_interface then
+					if (has_class_flag c CInterface) then
 						raise Not_found
 					else
 						raise (Error (Custom
@@ -1294,7 +1294,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with
 			| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			| Not_found ->
-				if c.cl_interface then begin
+				if (has_class_flag c CInterface) then begin
 					let cf = mk_field m t p null_pos in
 					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
@@ -1507,7 +1507,7 @@ let init_class ctx c p context_init herits fields =
 					has_init := true
 			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
-			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
+			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
 				error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
 				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
@@ -1607,7 +1607,7 @@ let init_class ctx c p context_init herits fields =
 			false, null_pos
 	in
 	if has_struct_init then
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;

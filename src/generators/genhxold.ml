@@ -208,12 +208,12 @@ let generate_type com t =
 	| TClassDecl c ->
 		print_meta c.cl_meta;
 		let finalmod = if (has_class_flag c CFinal) then "final " else "" in
-		p "extern %s%s %s" finalmod (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
+		p "extern %s%s %s" finalmod (if (has_class_flag c CInterface) then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
 		let ext = (match c.cl_super with
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
-		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = List.fold_left (fun acc (i,pl) -> ((if (has_class_flag c CInterface) then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
 		let ext = (match c.cl_dynamic with
 			| None -> ext
 			| Some t ->

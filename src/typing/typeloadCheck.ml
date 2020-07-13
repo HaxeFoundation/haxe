@@ -376,7 +376,7 @@ module Inheritance = struct
 							display_error ctx (compl_msg (error_msg (Unify l))) p;
 						end
 			with
-				| Not_found when not c.cl_interface ->
+				| Not_found when not (has_class_flag c CInterface) ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
 						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
@@ -410,7 +410,7 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta;
 			if has_class_flag csup CFinal && not ((csup.cl_extern && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
-				error ("Cannot extend a final " ^ if c.cl_interface then "interface" else "class") p;
+				error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -454,15 +454,15 @@ module Inheritance = struct
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
-				if c.cl_interface then begin
-					if not csup.cl_interface then error "Cannot extend by using a class" p;
+				if (has_class_flag c CInterface) then begin
+					if not (has_class_flag csup CInterface) then error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
 						has_interf := true;
 					end
 				end else begin
-					if csup.cl_interface then error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then error "Cannot extend by using an interface" p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -476,8 +476,8 @@ module Inheritance = struct
 					(fun () -> ())
 				| TInst (intf,params) ->
 					if extends intf c then error "Recursive class" p;
-					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not intf.cl_interface then error "You can only implement an interface" p;
+					if (has_class_flag c CInterface) then error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not (has_class_flag intf CInterface) then error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PForce (fun() -> check_interfaces ctx c);
@@ -502,11 +502,11 @@ module Inheritance = struct
 					Typeload.load_instance ~allow_display:true ctx (ct,p) false
 				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
-					if not is_extends && c.cl_interface then raise_fields [] CRImplements r.fsubject;
+					if not is_extends && (has_class_flag c CInterface) then raise_fields [] CRImplements r.fsubject;
 					let l = List.filter (fun item -> match item.ci_kind with
-						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
+						| ITType({kind = Interface} as cm,_) -> (not is_extends || (has_class_flag c CInterface)) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
-							is_extends && not c.cl_interface && CompletionModuleType.get_path cm <> c.cl_path &&
+							is_extends && not (has_class_flag c CInterface) && CompletionModuleType.get_path cm <> c.cl_path &&
 							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false

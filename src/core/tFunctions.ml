@@ -119,7 +119,6 @@ let mk_class m path pos name_pos =
 		cl_kind = KNormal;
 		cl_flags = 0;
 		cl_extern = false;
-		cl_interface = false;
 		cl_params = [];
 		cl_using = [];
 		cl_super = None;
@@ -704,7 +703,7 @@ let rec raw_class_field build_type c tl i =
 			in
 			loop tl
 		| _ ->
-			if not c.cl_interface then raise Not_found;
+			if not (has_class_flag c CInterface) then raise Not_found;
 			(*
 				an interface can implements other interfaces without
 				having to redeclare its fields

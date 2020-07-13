@@ -1144,7 +1144,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 			let tlch = List.map (apply_params c.cl_params tlch) stl in
 			loop_cl (depth+1) sup tl tlch
 		| None -> ());
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			List.iter (fun (sup,stl) ->
 				let tl = List.map (apply_params c.cl_params tl) stl in
 				let stl = gen.greal_type_param (TClassDecl sup) stl in

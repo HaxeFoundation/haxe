@@ -364,7 +364,7 @@ let property ctx fa t =
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
-	| TInst ({ cl_interface = true } as c,_) ->
+	| TInst (c,_) when (has_class_flag c CInterface) ->
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
 			try
@@ -935,7 +935,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
 			let requires_cast = match fa with
-				| FInstance({cl_interface=true},_,{cf_kind = Var _}) ->
+				| FInstance(c,_,{cf_kind = Var _}) when (has_class_flag c CInterface) ->
 					(* we have to cast var access on interfaces *)
 					true
 				| FInstance(_,_,cf) ->
@@ -1966,7 +1966,7 @@ let generate_inits ctx =
 
 let generate_class_init ctx c hc =
 	write ctx HGetGlobalScope;
-	if c.cl_interface then
+	if (has_class_flag c CInterface) then
 		write ctx HNull
 	else begin
 		let path = (match c.cl_super with None -> ([],"Object") | Some (sup,_) -> sup.cl_path) in
@@ -1983,7 +1983,7 @@ let generate_class_init ctx c hc =
 			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
 	) c.cl_ordered_statics;
-	if not c.cl_interface then write ctx HPopScope;
+	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
 	(match c.cl_init with
@@ -2090,7 +2090,7 @@ let generate_field_kind ctx f c stat =
 				hlm_kind = kind;
 			})
 		);
-	| _ when c.cl_interface && not stat ->
+	| _ when (has_class_flag c CInterface) && not stat ->
 		(match follow f.cf_type, f.cf_kind with
 		| TFun (args,tret), Method (MethNormal | MethInline) ->
 			let dparams = ref None in
@@ -2163,7 +2163,7 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 			let was_override = has_class_field_flag accessor_cf CfOverride in
 			if was_override then remove_class_field_flag accessor_cf CfOverride;
 			let name, mtype =
-				if cl.cl_interface then begin
+				if (has_class_flag cl CInterface) then begin
 					let (args,tret) = f_iface prop_cf in
 					let mtype = end_fun ctx args None tret in
 					HMName (reserved prop_cf.cf_name, HNNamespace (make_class_ns cl)), mtype
@@ -2401,7 +2401,7 @@ let generate_class ctx c =
 	ctx.cur_class <- c;
 	let cid , cnargs = (match c.cl_constructor with
 		| None ->
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				{ (empty_method ctx null_pos) with hlmt_function = None }, 0
 			else
 				generate_construct ctx {
@@ -2454,7 +2454,7 @@ let generate_class ctx c =
 				| (Meta.Protected,[],_) -> protect()
 				| _ -> loop_meta l
 		in
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			HMName (reserved f.cf_name, HNNamespace (make_class_ns c))
 		else
 			loop_meta (find_meta c)
@@ -2471,7 +2471,7 @@ let generate_class ctx c =
 				maybe_gen_instance_setter ctx c f acc alloc_slot
 			else
 				maybe_gen_static_setter ctx c f acc alloc_slot
-		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not c.cl_interface && not (Meta.has Meta.IsVar f.cf_meta) ->
+		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
 			(* if the accessor methods were defined in super classes, we still need to generate native getter/setter *)
 			let acc =
 				if read = AccCall then begin
@@ -2554,7 +2554,7 @@ let generate_class ctx c =
 			hlf_metas = None;
 		} :: fields
 	end in
-	let fields = if not c.cl_interface then fields @ realize_required_accessors ctx c else fields in
+	let fields = if not (has_class_flag c CInterface) then fields @ realize_required_accessors ctx c else fields in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
@@ -2606,13 +2606,13 @@ let generate_class ctx c =
 	{
 		hlc_index = 0;
 		hlc_name = name;
-		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
+		hlc_super = (if (has_class_flag c CInterface) then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
 		hlc_final = has_class_flag c CFinal;
-		hlc_interface = c.cl_interface;
+		hlc_interface = (has_class_flag c CInterface);
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
-			if not c.cl_interface then abort "Can't implement class in Flash9" c.cl_pos;
+			if not (has_class_flag c CInterface) then abort "Can't implement class in Flash9" c.cl_pos;
 			let pack, name = real_path c.cl_path in
 			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);

@@ -74,7 +74,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				emit_proto_field_write proto (get_proto_field_index proto name) exec2
-			| FInstance(c,_,_) when not c.cl_interface ->
+			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
 				emit_instance_field_write exec1 ef.epos i exec2
@@ -121,7 +121,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 			| FStatic({cl_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				emit_proto_field_read_write proto (get_proto_field_index proto name) exec2 op prefix
-			| FInstance(c,_,_) when not c.cl_interface ->
+			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
 				emit_instance_field_read_write exec1 ef.epos i exec2 op prefix
@@ -457,11 +457,11 @@ and jit_expr jit return e =
 				| FInstance(c,_,cf) when is_proper_method cf ->
 					if not (is_final c cf) then
 						default()
-					else if not c.cl_interface then
+					else if not (has_class_flag c CInterface) then
 						instance_call c
 					(* If we have exactly one implementer, use it instead of the super class/interface. *)
 					else if not ctx.is_macro && c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
-						| [c'] when not c'.cl_interface && is_final c' cf ->
+						| [c'] when not (has_class_flag c' CInterface) && is_final c' cf ->
 							instance_call c'
 						| _ ->
 							default()
@@ -534,7 +534,7 @@ and jit_expr jit return e =
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
 				emit_proto_field_read proto (get_proto_field_index proto name)
-			| FInstance(c,_,_) when not c.cl_interface ->
+			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
 				let i = get_instance_field_index proto name e1.epos in
 				begin match e1.eexpr with

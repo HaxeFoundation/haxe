@@ -292,7 +292,7 @@ let is_const_string_pattern (el,_) =
 	) el
 
 let is_interface_var_access c cf =
-	c.cl_interface && match cf.cf_kind with
+	(has_class_flag c CInterface) && match cf.cf_kind with
 		| Var _ | Method MethDynamic -> true
 		| _ -> false
 
@@ -605,6 +605,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			in
 			self#read_static_closure path cf.cf_name args ret
 		in
+		let dynamic_read s =
+			self#texpr rvalue_any e1;
+			jm#string s;
+			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
+			cast();
+		in
 		match fa with
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "NaN" | "POSITIVE_INFINITY" | "NEGATIVE_INFINITY"} as cf)) ->
 			jm#getstatic double_path cf.cf_name TDouble
@@ -636,15 +642,15 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| FAnon cf ->
 			self#texpr rvalue_any e1;
 			self#read_anon_field cast e1.etype cf;
-		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(Some({cl_interface = true},_),{cf_name = s}) | FClosure(None,{cf_name = s}) ->
-			self#texpr rvalue_any e1;
-			jm#string s;
-			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
-			cast();
+		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
+			dynamic_read s
 		| FClosure((Some(c,_)),cf) ->
-			create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
-				self#texpr rvalue_any e1;
-			)
+			if has_class_flag c CInterface then
+				dynamic_read cf.cf_name
+			else
+				create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
+					self#texpr rvalue_any e1;
+				)
 
 	method read_write ret ak e (f : unit -> unit) =
 		let apply dup =
@@ -1519,7 +1525,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| None -> Error.error "Could not find overload" e1.epos
 			| Some(c,cf,_) ->
 				let tl,tr = self#call_arguments cf.cf_type el in
-				(if is_super then jm#invokespecial else if c.cl_interface then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (self#vtype cf.cf_type);
+				(if is_super then jm#invokespecial else if (has_class_flag c CInterface) then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (self#vtype cf.cf_type);
 				tr
 			end
 		| TField(_,FEnum(en,ef)) ->
@@ -2152,13 +2158,13 @@ class tclass_to_jvm gctx c = object(self)
 	val jc = new JvmClass.builder c.cl_path (match c.cl_super with
 		| Some(c,_) -> c.cl_path
 		| None ->
-			if c.cl_interface || Meta.has Meta.NativeGen c.cl_meta then object_path else haxe_object_path
+			if (has_class_flag c CInterface) || Meta.has Meta.NativeGen c.cl_meta then object_path else haxe_object_path
 		)
 
 	method private set_access_flags =
 		jc#add_access_flag 1; (* public *)
 		if has_class_flag c CFinal then jc#add_access_flag 0x10;
-		if c.cl_interface then begin
+		if (has_class_flag c CInterface) then begin
 			jc#add_access_flag 0x200;
 			jc#add_access_flag 0x400;
 		end;
@@ -2364,7 +2370,7 @@ class tclass_to_jvm gctx c = object(self)
 		gctx.current_field_info <- gctx.preprocessor#get_field_info cf.cf_meta;
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = if Meta.has Meta.Private cf.cf_meta then [MPrivate] else if Meta.has Meta.Protected cf.cf_meta then [MProtected] else [MPublic] in
-		let flags = if c.cl_interface then MAbstract :: flags else flags in
+		let flags = if (has_class_flag c CInterface) then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
@@ -2469,7 +2475,7 @@ class tclass_to_jvm gctx c = object(self)
 					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
 				) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
 			| _ ->
-				if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
+				if not (has_class_flag c CInterface) && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
 		in
 		Option.may (fun (c2,e) -> if c2 == c then self#generate_main e) gctx.entry_point;
 		List.iter (field MStatic) c.cl_ordered_statics;
@@ -2503,13 +2509,13 @@ class tclass_to_jvm gctx c = object(self)
 		jc#set_source_file c.cl_pos.pfile;
 		self#generate_fields;
 		self#set_interfaces;
-		if not c.cl_interface then begin
+		if not (has_class_flag c CInterface) then begin
 			self#generate_empty_ctor;
 			self#generate_implicit_ctors;
 			self#handle_relation_type_params;
 		end;
 		self#generate_signature;
-		if not (Meta.has Meta.NativeGen c.cl_meta) && not c.cl_interface then
+		if not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
@@ -2816,7 +2822,7 @@ module Preprocessor = struct
 		List.iter (fun m ->
 			List.iter (fun mt ->
 				match mt with
-				| TClassDecl ({cl_interface=true} as c) when has_runtime_meta c.cl_meta ->
+				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
 				| TClassDecl _ | TEnumDecl _ ->
 					check_path (t_infos mt);
@@ -2831,12 +2837,12 @@ module Preprocessor = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
-				if debug_path c.cl_path && not c.cl_interface then gctx.preprocessor#preprocess_class c
+				if debug_path c.cl_path && not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
 		List.iter (fun mt -> match mt with
-			| TClassDecl c when debug_path c.cl_path && not c.cl_interface && not c.cl_extern ->
+			| TClassDecl c when debug_path c.cl_path && not (has_class_flag c CInterface) && not c.cl_extern ->
 				gctx.typedef_interfaces#process_class c;
 			| _ ->
 				()

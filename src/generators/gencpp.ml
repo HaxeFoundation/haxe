@@ -609,7 +609,7 @@ let rec remove_parens_cast expression =
 
 let is_interface_type t =
    match follow t with
-   | TInst (klass,params) -> klass.cl_interface
+   | TInst (klass,params) -> (has_class_flag klass CInterface)
    | _ -> false
 ;;
 
@@ -735,12 +735,12 @@ let rec class_string klass suffix params remap =
       let str = join_class_path_remap klass.cl_path "::" in
       if suffix = "_obj" then
          str
-      else if klass.cl_interface then
+      else if (has_class_flag klass CInterface) then
          "id < " ^ str ^ ">"
       else
          str ^ " *"
    (* Native interface - use pointer *)
-   | _ when klass.cl_interface && is_native_gen_class klass ->
+   | _ when (has_class_flag klass CInterface) && is_native_gen_class klass ->
             (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
@@ -1608,7 +1608,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppScalarArray(value) -> "::Array" ^ suffix ^ "< " ^ (tcpp_to_string value) ^ " >"
    | TCppObjC klass ->
       let path = join_class_path_remap klass.cl_path "::" in
-      if klass.cl_interface then
+      if (has_class_flag klass CInterface) then
          "id < " ^ path ^ ">"
       else
          path ^ " *"
@@ -1821,7 +1821,7 @@ let rec cpp_type_of stack ctx haxe_type =
             TCppRest(cpp_type_of stack ctx rest)
       | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
             (match follow interface_type with
-            | TInst (klass,[]) when klass.cl_interface ->
+            | TInst (klass,[]) when (has_class_flag klass CInterface) ->
                 TCppProtocol(klass)
             (* TODO - get the line number here *)
             | _ -> print_endline "cpp.objc.Protocol must refer to an interface";
@@ -1913,9 +1913,9 @@ let rec cpp_type_of stack ctx haxe_type =
       cpp_type_from_path stack ctx klass.cl_path params (fun () ->
          if is_objc_class klass then
             TCppObjC(klass)
-         else if klass.cl_interface && is_native_gen_class klass then
+         else if (has_class_flag klass CInterface) && is_native_gen_class klass then
             TCppNativePointer(klass)
-         else if klass.cl_interface then
+         else if (has_class_flag klass CInterface) then
             TCppInterface(klass)
          else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
             TCppInst(klass)
@@ -2507,7 +2507,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                if retypedObj.cpptype=TCppNull then
                   CppNullAccess, TCppDynamic
-               else if retypedObj.cpptype=TCppDynamic && not clazz.cl_interface then begin
+               else if retypedObj.cpptype=TCppDynamic && not (has_class_flag clazz CInterface) then begin
                   if is_internal_member member.cf_name then
                     CppFunction( FuncInstance(retypedObj,InstPtr,member), funcReturn ), exprType
                   else
@@ -2550,7 +2550,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                         let operator = if cpp_is_struct_access retypedObj.cpptype || retypedObj.cpptype=TCppString then "." else "->" in
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, operator) ), exprType
                      )
-               end else if (clazz.cl_interface && not is_objc (* Use instance call for objc interfaces *)) then
+               end else if ((has_class_flag clazz CInterface) && not is_objc (* Use instance call for objc interfaces *)) then
                   CppFunction( FuncInterface(retypedObj,clazz,member), funcReturn ), exprType
                else begin
                   let isArrayObj = match retypedObj.cpptype with
@@ -4079,7 +4079,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppCastObjC(expr,klass) ->
          let path = join_class_path_remap klass.cl_path "::"  in
-         let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in
+         let toType = if (has_class_flag klass CInterface) then "id < " ^ path ^ ">" else path ^ " *" in
          out ("( (" ^ toType ^ ") (id) ("); gen expr; out ") )"
 
       | CppCastObjCBlock(expr,args,ret) ->
@@ -4741,7 +4741,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          add_type klass.cl_path
       else begin
          let path = klass.cl_path in
-         if not klass.cl_interface then
+         if not (has_class_flag klass CInterface) then
             (* Always include native struct headers directly ... *)
             add_type ( path_of_string ( (join_class_path path "/") ^ ".h") )
          else begin
@@ -5041,7 +5041,7 @@ let generate_files common_ctx file_info =
    List.iter ( fun object_def ->
    (match object_def with
       | TClassDecl class_def when is_extern_class class_def -> ( )
-      | TClassDecl class_def when class_def.cl_interface -> ( )
+      | TClassDecl class_def when (has_class_flag class_def CInterface) -> ( )
       | TClassDecl class_def ->
          output_files ((const_char_star (join_class_path class_def.cl_path "." )) ^ ",\n")
       | _ -> ( )
@@ -5695,7 +5695,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end
    in
 
-   let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
+   let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || (has_class_flag class_def CInterface) in
    let functions = List.filter not_toString (all_virtual_functions class_def) in
 
    (* Constructor definition *)
@@ -5798,7 +5798,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
-   if (not class_def.cl_interface) && not nativeGen then begin
+   if (not (has_class_flag class_def CInterface)) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
       (match class_def.cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
@@ -5937,10 +5937,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (strq field.cf_name) ^ ",\n")) in
 
    List.iter
-      (gen_field ctx class_def class_name smart_class_name dot_name false class_def.cl_interface)
+      (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
       class_def.cl_ordered_fields;
    List.iter
-      (gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
+      (gen_field ctx class_def class_name smart_class_name dot_name true (has_class_flag class_def CInterface)) statics_except_meta;
    output_cpp "\n";
 
    if (List.length dynamic_functions > 0) then begin
@@ -5965,12 +5965,12 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("}\n");
    end;
 
-   if (not class_def.cl_interface) && not nativeGen && not inlineContructor then
+   if (not (has_class_flag class_def CInterface)) && not nativeGen && not inlineContructor then
       outputConstructor ctx output_cpp false;
 
 
    (* Initialise non-static variables *)
-   if ( (not class_def.cl_interface) && (not nativeGen) ) then begin
+   if ( (not (has_class_flag class_def CInterface)) && (not nativeGen) ) then begin
       output_cpp (class_name ^ "::" ^ class_name ^  "()\n{\n");
       List.iter (fun name ->
              output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n")
@@ -6238,7 +6238,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
       | TFun (args,return_type) when not (is_data_member field) ->
-         let isTemplated = not isStatic && not class_def.cl_interface in
+         let isTemplated = not isStatic && not (has_class_flag class_def CInterface) in
          if isTemplated then output_cpp ("\ntemplate<bool _HX_SUPER=false>");
          output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
          let ret = match cpp_type_of ctx return_type with TCppScalar("bool") -> "b" | _ -> script_signature return_type false in
@@ -6246,7 +6246,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
          let dump_call cast =
-            if class_def.cl_interface then begin
+            if (has_class_flag class_def CInterface) then begin
                output_cpp (class_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ (if (List.length args) > 0 then "," else ""));
             end else if isStatic then
                output_cpp (class_name ^ "::" ^ callName ^ "(")
@@ -6277,7 +6277,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    in
 
 
-   let newInteface = class_def.cl_interface in
+   let newInteface = (has_class_flag class_def CInterface) in
 
    if (scriptable && not nativeGen) then begin
       let delegate = "this->" in
@@ -6305,7 +6305,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             output_cpp ("\tif (" ^ vtable ^ ") {\n" );
             output_cpp ("\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n" );
             output_cpp ("\t\t::hx::AutoStack __as(__ctx);\n" );
-            output_cpp ("\t\t__ctx->pushObject(" ^ (if class_def.cl_interface then "mDelegate.mPtr" else "this" ) ^");\n" );
+            output_cpp ("\t\t__ctx->pushObject(" ^ (if (has_class_flag class_def CInterface) then "mDelegate.mPtr" else "this" ) ^");\n" );
             List.iter (fun (name,opt, t ) ->
                output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
             ) f_args;
@@ -6313,7 +6313,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             output_cpp ("\t}  else " ^ ret );
 
 
-            if (class_def.cl_interface) then begin
+            if ((has_class_flag class_def CInterface)) then begin
                output_cpp (" " ^ delegate ^ "__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), ::hx::paccNever)");
                if (List.length names <= 5) then
                   output_cpp ("->__run(" ^ (String.concat "," names) ^ ");")
@@ -6324,7 +6324,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             if (return_type<>"void") then
                output_cpp "return null();";
             output_cpp "}\n";
-            if (class_def.cl_interface) && not dynamic_interface_closures then begin
+            if ((has_class_flag class_def CInterface)) && not dynamic_interface_closures then begin
                output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), ::hx::paccNever); }\n\n");
 
             end
@@ -6349,7 +6349,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                                  List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
          let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
          output_cpp ("   typedef "^ super_string ^" __superString;\n");
-         if (class_def.cl_interface) then
+         if ((has_class_flag class_def CInterface)) then
             output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
          else begin
             output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
@@ -6384,7 +6384,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let dump_func f isStaticFlag =
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
             output_cpp ("  ::hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " " );
-            let superCall = if (isStaticFlag="true") || class_def.cl_interface then "0" else ("__s_" ^ f.cf_name ^ "<true>") in
+            let superCall = if (isStaticFlag="true") || (has_class_flag class_def CInterface) then "0" else ("__s_" ^ f.cf_name ^ "<true>") in
             output_cpp ("HXCPP_CPPIA_SUPER_ARG(" ^ superCall ^")" );
             output_cpp (" ),\n" )
          in
@@ -6409,7 +6409,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not class_def.cl_interface && not nativeGen) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -6491,7 +6491,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    gen_close_namespace output_cpp class_path;
 
-   if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
+   if (has_class_flag class_def CInterface) && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
       let full_class_name =  ("::" ^ (join_class_path_remap class_path "::") ) ^ "_obj"  in
       let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
       generate_protocol_delegate ctx class_def output_cpp;
@@ -6525,9 +6525,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let parent,super = match class_def.cl_super with
       | Some (klass,params) ->
             let name = (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) ) in
-            (if class_def.cl_interface && nativeGen then "virtual " else "" ) ^ name, name
-      | None when nativeGen && class_def.cl_interface  -> "virtual ::hx::NativeInterface", "::hx::NativeInterface"
-      | None when class_def.cl_interface -> "", "::hx::Object"
+            (if (has_class_flag class_def CInterface) && nativeGen then "virtual " else "" ) ^ name, name
+      | None when nativeGen && (has_class_flag class_def CInterface)  -> "virtual ::hx::NativeInterface", "::hx::NativeInterface"
+      | None when (has_class_flag class_def CInterface) -> "", "::hx::Object"
       | None when nativeGen -> "", ""
       | None -> "::hx::Object", "::hx::Object"
       in
@@ -6575,7 +6575,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       ) (List.filter  (fun (t,_) -> is_native_gen_class t) class_def.cl_implements);
    in
 
-   if (class_def.cl_interface && not nativeGen) then begin
+   if ((has_class_flag class_def CInterface) && not nativeGen) then begin
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " {\n");
       output_h "\tpublic:\n";
       output_h ("\t\ttypedef " ^ super ^ " super;\n");
@@ -6595,7 +6595,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
 
-   if (not class_def.cl_interface && not nativeGen) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
       output_h "\n\tpublic:\n";
       output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
@@ -6685,15 +6685,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    | _ -> ());
 
 
-   List.iter (gen_member_def ctx class_def true class_def.cl_interface) (List.filter should_implement_field class_def.cl_ordered_statics);
+   List.iter (gen_member_def ctx class_def true (has_class_flag class_def CInterface)) (List.filter should_implement_field class_def.cl_ordered_statics);
 
-   if class_def.cl_interface then begin
+   if (has_class_flag class_def CInterface) then begin
       List.iter (fun (field,_,_) -> gen_member_def ctx class_def false true field) functions;
    end else begin
       List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
    end;
 
-   if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
+   if (has_class_flag class_def CInterface) && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
       let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
       output_h ("\t\tstatic id<" ^ protocol ^ "> _hx_toProtocol(Dynamic inImplementation);\n");
    end;
@@ -6710,7 +6710,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
   in
 
   (* create header and cpp files *)
-  if not (nativeGen && class_def.cl_interface) then
+  if not (nativeGen && (has_class_flag class_def CInterface)) then
      generate_class_cpp ();
   generate_class_header ()
 ;;
@@ -6854,7 +6854,7 @@ let create_member_types common_ctx =
    let result = Hashtbl.create 0 in
       List.iter (fun object_def ->
          (match object_def with
-         | TClassDecl class_def when not class_def.cl_interface ->
+         | TClassDecl class_def when not (has_class_flag class_def CInterface) ->
             let rec add_override to_super =
                let class_name = (join_class_path to_super.cl_path ".") in
                List.iter (fun member -> Hashtbl.add result (class_name ^ "." ^ member.cf_name) "virtual " ) class_def.cl_ordered_fields;
@@ -8160,7 +8160,7 @@ let generate_script_class common_ctx script class_def =
    script#incClasses;
    let classText = (join_class_path class_def.cl_path ".") in
    script#comment ("Class " ^ classText);
-   script#writeOp (if class_def.cl_interface then IaInterface else IaClass );
+   script#writeOp (if (has_class_flag class_def CInterface) then IaInterface else IaClass );
    script#instName class_def;
    (match class_def.cl_super with
       | None -> script#ident ""
@@ -8170,7 +8170,7 @@ let generate_script_class common_ctx script class_def =
    script#write "\n";
    (* Looks like some map impl classes have their bodies discarded - not sure best way to filter *)
    let non_dodgy_function field =
-      class_def.cl_interface ||
+      (has_class_flag class_def CInterface) ||
       match field.cf_kind, field.cf_expr with
       | Var _, _ -> true
       | Method MethDynamic, _ -> true
@@ -8205,11 +8205,11 @@ let generate_script_class common_ctx script class_def =
          let isExtern = not (is_physical_field field) in
          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
       | Method MethDynamic, TFun(args,ret) ->
-         script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
+         script#func isStatic true field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
          script#func true false "new" (TInst(class_def,[])) args false field.cf_expr
       | Method _, TFun (args,ret) ->
-         script#func isStatic false field.cf_name ret args class_def.cl_interface field.cf_expr
+         script#func isStatic false field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr
       | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                      ^ "." ^field.cf_name )
    in
@@ -8357,7 +8357,7 @@ let generate_source ctx =
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             jobs := (fun () -> generate_class_files ctx super_deps constructor_deps class_def scriptable ) :: !jobs;
             let deps = generate_class_deps ctx class_def super_deps constructor_deps scriptable in
-            if not (class_def.cl_interface && (is_native_gen_class class_def)) then
+            if not ((has_class_flag class_def CInterface) && (is_native_gen_class class_def)) then
                exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
       | TEnumDecl enum_def when enum_def.e_extern -> ()
@@ -8429,7 +8429,7 @@ let generate_source ctx =
          List.iter (fun (name,_,def) ->
             match def with
             | TClassDecl class_def ->
-                outline ((if class_def.cl_interface then "interface " else "class ") ^ (spath name) );
+                outline ((if (has_class_flag class_def CInterface) then "interface " else "class ") ^ (spath name) );
             | TEnumDecl enum_def ->
                 out ("enum " ^ (spath name) ^ "\n");
             | _ -> ()

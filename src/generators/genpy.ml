@@ -2061,7 +2061,7 @@ module Generator = struct
 					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
 				if has_feature ctx "python._hx_is_interface" then begin
-					let value = if c.cl_interface then "True" else "False" in
+					let value = if (has_class_flag c CInterface) then "True" else "False" in
 					print ctx "\n    _hx_is_interface = \"%s\"" value
 				end;
 
@@ -2121,7 +2121,7 @@ module Generator = struct
 
 			let has_inner_static = gen_class_statics ctx c p in
 
-			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), c.cl_ordered_fields with
+			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || (has_class_flag c CInterface)), c.cl_ordered_fields with
 				| true,_
 				| _, [] ->
 					false
@@ -2132,7 +2132,7 @@ module Generator = struct
 
 			let use_pass = !use_pass && (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
-				| _ -> c.cl_interface
+				| _ -> (has_class_flag c CInterface)
 			in
 			if use_pass then spr ctx "\n    pass";
 

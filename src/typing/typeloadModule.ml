@@ -241,7 +241,7 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_meta <- d.d_meta;
 			List.iter (function
 				| HExtern -> c.cl_extern <- true
-				| HInterface -> c.cl_interface <- true
+				| HInterface -> add_class_flag c CInterface
 				| HFinal -> add_class_flag c CFinal
 				| _ -> ()
 			) d.d_flags;

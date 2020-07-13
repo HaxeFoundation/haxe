@@ -47,7 +47,7 @@ let priority = solve_deps name []
 let run ~explicit_fn_name ~get_vmtype gen =
 	let implement_explicitly = is_some explicit_fn_name in
 	let run md = match md with
-		| TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
+		| TClassDecl ( { cl_extern = false } as c ) when (has_class_flag c CInterface)->
 			(* overrides can be removed from interfaces *)
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try

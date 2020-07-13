@@ -272,7 +272,7 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
 			else
 				match c.cl_super with

@@ -613,7 +613,7 @@ let generate_class ctx c =
 	in
 	[
 		"kind",generate_class_kind c.cl_kind;
-		"isInterface",jbool c.cl_interface;
+		"isInterface",jbool (has_class_flag c CInterface);
 		"superClass",jopt generate_class_relation c.cl_super;
 		"interfaces",jlist generate_class_relation c.cl_implements;
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;

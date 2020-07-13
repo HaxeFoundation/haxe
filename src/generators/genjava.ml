@@ -1918,7 +1918,7 @@ let generate con =
 	in
 
 	let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
-		let is_interface = cl.cl_interface in
+		let is_interface = (has_class_flag cl CInterface) in
 		let name, is_new, is_explicit_iface = match cf.cf_name with
 			| "new" -> snd cl.cl_path, true, false
 			| name when String.contains name '.' ->
@@ -1943,13 +1943,13 @@ let generate con =
 					)
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
-				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
+				List.iter (fun cf -> if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 					gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
-					if cl.cl_interface || cf.cf_expr <> None then
+					if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
@@ -2107,7 +2107,7 @@ let generate con =
 		newline w;
 		gen_annotations w cl.cl_meta;
 
-		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
+		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if (has_class_flag cl CInterface) then "interface" else "class") "public" [] in
 		let is_final = has_class_flag cl CFinal in
 		let modifiers = if is_final then "final" :: modifiers else modifiers in
 
@@ -2126,7 +2126,7 @@ let generate con =
 		(if is_some cl.cl_super then print w " extends %s" (cl_p_to_string (get cl.cl_super)));
 		(match cl.cl_implements with
 			| [] -> ()
-			| _ -> print w " %s %s" (if cl.cl_interface then "extends" else "implements") (String.concat ", " (List.map cl_p_to_string cl.cl_implements))
+			| _ -> print w " %s %s" (if (has_class_flag cl CInterface) then "extends" else "implements") (String.concat ", " (List.map cl_p_to_string cl.cl_implements))
 		);
 		(* class head ok: *)
 		(* public class Test<A> : X, Y, Z where A : Y *)
@@ -2181,7 +2181,7 @@ let generate con =
 		);
 
 		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-		(if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
+		(if not (has_class_flag cl CInterface) then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
 		List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
 
 		end_block w;

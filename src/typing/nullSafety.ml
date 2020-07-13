@@ -1486,7 +1486,7 @@ class class_checker cls immediate_execution report =
 		*)
 		method check =
 			validate_safety_meta report cls_meta;
-			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
+			if is_safe_class && (not cls.cl_extern) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
 			let check_field is_static f =
 				validate_safety_meta report f.cf_meta;

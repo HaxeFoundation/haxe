@@ -410,7 +410,7 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			if PMap.is_empty fields then raise (Unify_error [Unify_custom "no fields"]);
 			let path,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 			let c = mk_class null_module path null_pos null_pos in
-			c.cl_interface <- true;
+			add_class_flag c CInterface;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
 			if is_extern then c.cl_extern <- true;

@@ -1180,7 +1180,7 @@ let generate_class___name__ ctx cl_path =
 	end
 
 let generate_class___isInterface__ ctx c =
-	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+	if (has_class_flag c CInterface) && has_feature ctx "js.Boot.isInterface" then begin
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__isInterface__ = true" p;
 		newline ctx;
@@ -1435,7 +1435,7 @@ let generate_class_es6 ctx c =
 	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
 	let fields_to_generate =
 		if has_feature ctx "Type.getInstanceFields" then
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.filter is_physical_field c.cl_ordered_fields
 			else
 				List.filter is_physical_var_field nonmethod_fields
@@ -1635,7 +1635,7 @@ let generate_type ctx = function
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
 		else if not c.cl_extern then begin
-			if (not c.cl_interface) || (need_to_generate_interface ctx c) then
+			if (not (has_class_flag c CInterface)) || (need_to_generate_interface ctx c) then
 				generate_class ctx c
 		end else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
 			generate_require ctx (get_generated_class_path c) c.cl_meta

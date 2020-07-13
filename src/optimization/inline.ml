@@ -167,14 +167,14 @@ let api_inline ctx c field params p =
 				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 			end
 		| TTypeExpr (TClassDecl cls) ->
-			if cls.cl_interface then
+			if (has_class_flag cls CInterface) then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
 			else
 				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
-		if cls.cl_interface then
+		if (has_class_flag cls CInterface) then
 			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)

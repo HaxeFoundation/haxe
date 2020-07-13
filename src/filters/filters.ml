@@ -518,7 +518,7 @@ let add_meta_field ctx t = match t with
 				| Cs | Java -> false
 				| _ -> true
 			in
-			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
+			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
@@ -604,7 +604,7 @@ let check_void_field ctx t = match t with
    This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
    and leaves the remaining ones as 'implemented' *)
 let promote_first_interface_to_super ctx t = match t with
-	| TClassDecl c when c.cl_interface ->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
 		| first_interface  :: remaining ->
