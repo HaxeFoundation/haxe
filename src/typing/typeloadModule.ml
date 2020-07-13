@@ -1072,7 +1072,7 @@ let load_module ctx m p =
 			with Not_found ->
 				let rec loop = function
 					| [] ->
-						raise_module_not_found m p
+						raise (Error (Module_not_found m,p))
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
