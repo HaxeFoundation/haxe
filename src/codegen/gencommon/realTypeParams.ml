@@ -666,7 +666,7 @@ struct
 				| TClassDecl ({ cl_params = hd :: tl } as cl) when set_hxgeneric gen md ->
 					let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 					iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
-					if (has_class_flag iface CExtern) then (add_class_flag cl CExtern);
+					if (has_class_flag cl CExtern) then add_class_flag iface CExtern;
 					iface.cl_module <- cl.cl_module;
 					iface.cl_private <- cl.cl_private;
 					iface.cl_meta <-

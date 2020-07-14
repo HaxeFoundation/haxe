@@ -314,7 +314,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
-		if (has_class_flag cg CInterface) then add_class_flag c CInterface;
+		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
