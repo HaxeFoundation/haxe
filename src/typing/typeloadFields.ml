@@ -556,11 +556,6 @@ let create_field_context (ctx,cctx) c cff =
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
 	let is_abstract = List.mem_assoc AAbstract cff.cff_access in
-	if is_abstract && not (has_class_flag c CAbstract) then begin
-		display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
-		display_error ctx "First abstract field was here" (pos cff.cff_name);
-		add_class_flag c CAbstract;
-	end;
 	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
 	List.iter (fun (m,_,p) ->
 		match m with
@@ -575,6 +570,17 @@ let create_field_context (ctx,cctx) c cff =
 		| _ ->
 			()
 	) cff.cff_meta;
+	if is_abstract then begin
+		if is_static then
+			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
+		else if !is_final then
+			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
+		else if not (has_class_flag c CAbstract) then begin
+			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+			display_error ctx "First abstract field was here" (pos cff.cff_name);
+			add_class_flag c CAbstract;
+		end;
+	end;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
@@ -1114,6 +1120,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
+	if fctx.is_abstract && dynamic then display_error ctx "Abstract methods may not be dynamic" p;
 	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
 	let is_override = Option.is_some fctx.override in
 	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
@@ -1233,7 +1240,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			) args fd.f_args;
 		);
 		check_field_display ctx fctx c cf;
-		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		if fd.f_expr <> None then begin
+			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
+			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		end;
 	end;
 	cf
 
