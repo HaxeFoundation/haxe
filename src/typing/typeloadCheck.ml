@@ -487,7 +487,7 @@ module Inheritance = struct
 						check_cancel_build intf;
 						process_meta intf;
 					)
-				| TDynamic as t ->
+				| TDynamic as t | TAbstract({a_path=([],"Dynamic")},[t]) ->
 					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
 					if not c.cl_extern then display_error ctx "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some t;
