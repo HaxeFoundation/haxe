@@ -430,7 +430,7 @@ and display_expr ctx e_ast e dk with_type p =
 		let iterator = try
 			let it = (ForLoop.IterationKind.of_texpr ~resume:true ctx e (fun _ -> false) e.epos) in
 			match follow it.it_type with
-				| TDynamic _ ->  None
+				| TDynamic ->  None
 				| t -> Some t
 			with Error _ | Not_found ->
 				None

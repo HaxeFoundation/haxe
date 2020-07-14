@@ -50,7 +50,7 @@ let make_generic ctx ps pt p =
 				| _ when not top ->
 					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono { tm_type = None } -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
-				| TDynamic _ -> "Dynamic"
+				| TDynamic -> "Dynamic"
 				| t ->
 					follow_or t top (fun() -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p)))
 			and loop_tl top tl = match tl with
@@ -231,8 +231,8 @@ let rec build_generic ctx c p tl =
 				| Some t -> loop t)
 			| TLazy f ->
 				loop (lazy_type f);
-			| TDynamic t2 ->
-				if t == t2 then () else loop t2
+			| TDynamic ->
+				()
 			| TAnon a ->
 				PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
 			| TFun (args,ret) ->

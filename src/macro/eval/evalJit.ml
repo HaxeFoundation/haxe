@@ -30,7 +30,7 @@ open EvalMisc
 
 let rope_path t = match follow t with
 	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> s_type_path path
-	| TDynamic _ -> "Dynamic"
+	| TDynamic -> "Dynamic"
 	| TFun _ | TAnon _ | TMono _ | TType _ | TLazy _ -> die "" __LOC__
 
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos

@@ -394,7 +394,7 @@ module Pattern = struct
 						in
 						let patterns = loop el tl in
 						PatTuple patterns
-					| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
+					| TInst({cl_path=[],"Array"},[t2]) | (TDynamic as t2) ->
 						let patterns = ExtList.List.mapi (fun i e ->
 							make pctx false t2 e
 						) el in
@@ -1367,7 +1367,7 @@ module TexprConverter = struct
 				e,t,true
 		in
 		let e,t,inferred = match follow e.etype with
-			| TDynamic _ | TMono _ ->
+			| TDynamic | TMono _ ->
 				infer_type()
 			| _ ->
 				e,e.etype,false

@@ -104,8 +104,8 @@ let generate_type com t =
 			"{" ^ String.concat ", " fields ^ "}"
 		| TLazy f ->
 			stype (lazy_type f)
-		| TDynamic t2 ->
-			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
+		| TDynamic ->
+			"Dynamic"
 		| TFun ([],ret) ->
 			"() -> " ^ ftype ret
 		| TFun (args,ret) ->

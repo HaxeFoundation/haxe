@@ -272,7 +272,7 @@ let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
 
 let is_dynamic t = match follow t with
-    | TMono _ | TDynamic _
+    | TMono _ | TDynamic
     | TInst({ cl_kind = KTypeParameter _ }, _) -> true
     | TAnon anon ->
         (match !(anon.a_status) with
@@ -285,7 +285,7 @@ let is_dynamic_expr e = is_dynamic e.etype
 
 let is_structural_type t =
     match follow t with
-    | TDynamic _ -> true
+    | TDynamic -> true
     | TAnon a -> true
     | TType ({t_type = TAnon _},_) -> true
     | _ -> false

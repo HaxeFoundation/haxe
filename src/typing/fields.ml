@@ -403,7 +403,7 @@ let rec type_field cfg ctx e i p mode =
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			no_field())
-	| TDynamic t ->
+	| TDynamic as t | TAbstract({a_path=([],"Dynamic")},[t]) ->
 		(try
 			using_field ctx mode e i p
 		with Not_found ->

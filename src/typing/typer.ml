@@ -67,7 +67,7 @@ let rec classify t =
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
 	| TMono r when r.tm_type = None -> KUnk
-	| TDynamic _ -> KDyn
+	| TDynamic -> KDyn
 	| _ -> KOther
 
 let get_iterator_param t =
@@ -443,7 +443,7 @@ let rec type_ident_raise ctx i p mode =
 let unify_int ctx e k =
 	let is_dynamic t =
 		match follow t with
-		| TDynamic _ -> true
+		| TDynamic -> true
 		| _ -> false
 	in
 	let is_dynamic_array t =
@@ -486,7 +486,7 @@ let unify_int ctx e k =
 		| _ -> false
 	and maybe_dynamic_rec e t =
 		match follow t with
-		| TMono _ | TDynamic _ -> maybe_dynamic_mono e
+		| TMono _ | TDynamic -> maybe_dynamic_mono e
 		(* we might have inferenced a tmono into a single field *)
 		(* TODO: check what this did exactly *)
 		(* | TAnon a when !(a.a_status) = Opened -> maybe_dynamic_mono e *)
@@ -1622,7 +1622,7 @@ and type_object_decl ctx fl with_type p =
 				(match List.fold_left fold [] froms with
 				| [t] -> t
 				| _ -> ODKPlain)
-			| TDynamic t when (follow t != t_dynamic) ->
+			| TAbstract({a_path=([],"Dynamic")},[t]) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
 					a_status = ref Closed;
@@ -1877,12 +1877,12 @@ and type_try ctx e1 catches with_type p =
 			in
 			begin try
 				begin match follow t,follow v.v_type with
-					| _, TDynamic _
+					| _, TDynamic
 					| _, TInst({ cl_path = ["haxe"],"Error"},_) ->
 						unreachable()
 					| _, TInst({ cl_path = path },_) when path = ctx.com.config.pf_exceptions.ec_wildcard_catch ->
 						unreachable()
-					| TDynamic _,_ ->
+					| TDynamic,_ ->
 						()
 					| _ ->
 						Type.unify t v.v_type;
@@ -1913,7 +1913,7 @@ and type_try ctx e1 catches with_type p =
 				t
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				loop (Abstract.get_underlying_type a tl)
-			| TDynamic _ -> t
+			| TDynamic -> t
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let t2 = loop t in

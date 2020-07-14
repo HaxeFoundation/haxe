@@ -52,8 +52,8 @@ module TExprToExpr = struct
 					} :: acc
 				) a.a_fields [])
 			end
-		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
+		| TDynamic ->
+			tpath ([],"Dynamic") ([],"Dynamic") []
 		| TLazy f ->
 			convert_type (lazy_type f)
 

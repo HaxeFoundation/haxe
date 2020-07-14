@@ -19,7 +19,7 @@ let rec s_type_kind t =
 	| TAbstract(a,tl) -> Printf.sprintf "TAbstract(%s, [%s])" (s_type_path a.a_path) (map tl)
 	| TFun(tl,r) -> Printf.sprintf "TFun([%s], %s)" (String.concat ", " (List.map (fun (n,b,t) -> Printf.sprintf "%s%s:%s" (if b then "?" else "") n (s_type_kind t)) tl)) (s_type_kind r)
 	| TAnon an -> "TAnon"
-	| TDynamic t2 -> "TDynamic"
+	| TDynamic -> "TDynamic"
 	| TLazy _ -> "TLazy"
 
 let s_module_type_kind = function
@@ -82,8 +82,8 @@ let rec s_type ctx t =
 				let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 				"{" ^ String.concat "," fl ^ " }"
 		end
-	| TDynamic t2 ->
-		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+	| TDynamic ->
+		"Dynamic"
 	| TLazy f ->
 		s_type ctx (lazy_type f)
 

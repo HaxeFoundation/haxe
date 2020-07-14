@@ -1047,7 +1047,7 @@ module Printer = struct
 	let rec is_anon_or_dynamic t = match follow t with
 		| TAbstract(a,tl) ->
 			is_anon_or_dynamic (Abstract.get_underlying_type a tl)
-		| TAnon _ | TDynamic _ -> true
+		| TAnon _ | TDynamic -> true
 		| _ -> false
 
 	let handle_keywords s =
@@ -1292,11 +1292,11 @@ module Printer = struct
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _, TInst({ cl_kind = KTypeParameter(_) }, _) ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
-				| TDynamic _, TDynamic _ ->
+				| TDynamic, TDynamic ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
-				| TDynamic _, x when is_list_or_anon x ->
+				| TDynamic, x when is_list_or_anon x ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
-				| x, TDynamic _ when is_list_or_anon x ->
+				| x, TDynamic when is_list_or_anon x ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
@@ -1332,7 +1332,7 @@ module Printer = struct
 				let e1_str = safe_string e1 in
 				let e2_str = safe_string e2 in
 				Printf.sprintf "(%s + %s)" e1_str e2_str
-			| TBinop(OpAdd,e1,e2) when (match follow e.etype with TDynamic _ -> true | _ -> false) ->
+			| TBinop(OpAdd,e1,e2) when (match follow e.etype with TDynamic -> true | _ -> false) ->
 				Printf.sprintf "python_Boot._add_dynamic(%s,%s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(op,e1,e2) ->
 				Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (print_binop op) (print_expr pctx e2)

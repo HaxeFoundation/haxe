@@ -1075,11 +1075,8 @@ and encode_type t =
 			4 , [encode_array pl; encode_type ret]
 		| TAnon a ->
 			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
-		| TDynamic tsub as t ->
-			if t == t_dynamic then
-				6, [vnull]
-			else
-				6, [encode_type tsub]
+		| TDynamic ->
+			6, [vnull]
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAbstract (a, pl) ->
@@ -1123,7 +1120,7 @@ and decode_type t =
 	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (decode_array pl))
 	| 4, [pl; r] -> TFun (List.map (fun p -> decode_string (field p "name"), decode_bool (field p "opt"), decode_type (field p "t")) (decode_array pl), decode_type r)
 	| 5, [a] -> TAnon (decode_ref a)
-	| 6, [t] -> if t = vnull then t_dynamic else TDynamic (decode_type t)
+	| 6, [t] -> t_dynamic (* DYNAMICTODO *)
 	| 7, [f] -> TLazy (decode_lazytype f)
 	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (decode_array pl))
 	| _ -> raise Invalid_expr
@@ -1812,7 +1809,7 @@ let macro_api ccom get_api =
 					| Some t -> t)
 				| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Abstract.get_underlying_type a tl
-				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic ->
 					t
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type

@@ -372,7 +372,7 @@ module CompletionType = struct
 		| CTAbstract of ct_path_with_params
 		| CTFunction of ct_function
 		| CTAnonymous of ct_anonymous
-		| CTDynamic of t option
+		| CTDynamic
 
 	let rec generate_path_with_params ctx pwp = jobject [
 		"path",jobject [
@@ -424,7 +424,7 @@ module CompletionType = struct
 			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
 			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
 			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)
-			| CTDynamic cto -> "TDynamic",Option.map (generate_type ctx) cto;
+			| CTDynamic -> "TDynamic",None
 		in
 		generate_adt ctx None name args
 
@@ -489,8 +489,8 @@ module CompletionType = struct
 					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
 					ct_status = !(an.a_status);
 				}
-			| TDynamic t ->
-				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+			| TDynamic ->
+				CTDynamic
 		in
 		from_type values t
 end

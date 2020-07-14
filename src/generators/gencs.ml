@@ -97,7 +97,7 @@ let is_exactly_bool gen t =
 
 let is_dynamic gen t =
 	match follow (gen.greal_type t) with
-		| TDynamic _ -> true
+		| TDynamic -> true
 		| _ -> false
 
 let is_pointer gen t =
@@ -913,7 +913,7 @@ let generate con =
 
 		let has_tdyn tl =
 			List.exists (fun t -> match follow t with
-			| TDynamic _ | TMono _ -> true
+			| TDynamic | TMono _ -> true
 			| _ -> false
 		) tl
 		in
@@ -1009,11 +1009,11 @@ let generate con =
 				| true, TInst _
 				| true, TEnum _
 				| true, TAbstract _ when is_cs_basic_type t_changed -> t
-				| true, TDynamic _ -> t
+				| true, TDynamic -> t
 				| true, x ->
 					dynamic_anon
 			in
-			if is_hxgeneric && (erase_generics || List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) tl) then
+			if is_hxgeneric && (erase_generics || List.exists (fun t -> match follow t with | TDynamic -> true | _ -> false) tl) then
 				List.map (fun _ -> t_dynamic) tl
 			else
 				List.map ret tl
@@ -1023,7 +1023,7 @@ let generate con =
 		and change_param_type = change_param_type [] in
 
 		let is_dynamic t = match real_type t with
-			| TMono _ | TDynamic _
+			| TMono _ | TDynamic
 			| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 			| TAnon anon ->
 				(match !(anon.a_status) with
@@ -1092,7 +1092,7 @@ let generate con =
 					(match !(anon.a_status) with
 						| Statics _ | EnumStatics _ -> "System.Type"
 						| _ -> "object")
-				| TDynamic _ -> "object"
+				| TDynamic -> "object"
 				| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					t_s (Abstract.get_underlying_type a pl)
 				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
@@ -2270,7 +2270,7 @@ let generate con =
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
 						| "Equals", TFun([_,_,targ], tret) ->
 							(match follow targ, follow tret with
-								| TDynamic _, TAbstract({ a_path = ([], "Bool") }, []) -> true
+								| TDynamic, TAbstract({ a_path = ([], "Bool") }, []) -> true
 								| _ -> false)
 						| "GetHashCode", TFun([],_) -> true
 						| _ -> false
@@ -2955,7 +2955,7 @@ let generate con =
 			)
 			(fun v t has_value ->
 				match has_value, real_type v.etype with
-					| true, TDynamic _ | true, TAnon _ | true, TMono _ ->
+					| true, TDynamic | true, TAnon _ | true, TMono _ ->
 						{
 							eexpr = TCall(mk_static_field_access_infer null_t "ofDynamic" v.epos [t], [mk_tp t v.epos; v]);
 							etype = TInst(null_t, [t]);
@@ -3024,7 +3024,7 @@ let generate con =
 		let rcf_static_insert, rcf_static_remove =
 			let get_specialized_postfix t = match t with
 				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
-				| TAnon _ | TDynamic _ -> "Dynamic"
+				| TAnon _ | TDynamic -> "Dynamic"
 				| _ -> print_endline (debug_type t); die "" __LOC__
 			in
 			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
@@ -3161,7 +3161,7 @@ let generate con =
 			match e.eexpr with
 				| TArray(e1, e2) ->
 					(match follow e1.etype with
-						| TDynamic _ | TAnon _ | TMono _ -> true
+						| TDynamic | TAnon _ | TMono _ -> true
 						| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 						| TInst(c,p) when erase_generics && is_hxgeneric (TClassDecl c) && is_hxgen (TClassDecl c) -> (match c.cl_path with
 							| [],"String"
@@ -3169,7 +3169,7 @@ let generate con =
 							| _ ->
 								true)
 						| _ -> match binop, change_param_type (t_to_md e1.etype) [e.etype] with
-							| Some(Ast.OpAssignOp _), ([TDynamic _] | [TAnon _]) ->
+							| Some(Ast.OpAssignOp _), ([TDynamic] | [TAnon _]) ->
 								true
 							| _ -> false)
 				| _ -> die "" __LOC__
@@ -3224,7 +3224,7 @@ let generate con =
 
 		let should_handle_opeq t =
 			match real_type t with
-				| TDynamic _ | TAnon _ | TMono _
+				| TDynamic | TAnon _ | TMono _
 				| TInst( { cl_kind = KTypeParameter _ }, _ )
 				| TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
 				| _ -> false
@@ -3278,8 +3278,8 @@ let generate con =
 			(fun e1 e2 ->
 				let is_basic = is_cs_basic_type (follow e1.etype) || is_cs_basic_type (follow e2.etype) in
 				let is_ref = if is_basic then false else match follow e1.etype, follow e2.etype with
-					| TDynamic _, _
-					| _, TDynamic _
+					| TDynamic, _
+					| _, TDynamic
 					| TInst( { cl_path = ([], "String") }, [] ), _
 					| _, TInst( { cl_path = ([], "String") }, [] )
 					| TInst( { cl_kind = KTypeParameter _ }, [] ), _

@@ -98,7 +98,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								(* different return types are the trickiest cases to deal with *)
 								(* check for covariant return type *)
 								let is_covariant = match follow r1, follow r2 with
-									| _, TDynamic _ -> false
+									| _, TDynamic -> false
 									| r1, r2 -> try
 										unify r1 r2;
 										if like_int r1 then like_int r2 else true

@@ -83,9 +83,9 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 	let handle_unwrap to_t e =
 		let e_null_t = get (is_null_t e.etype) in
 		match gen.greal_type to_t with
-			| TDynamic _ | TMono _ | TAnon _ ->
+			| TDynamic | TMono _ | TAnon _ ->
 				(match e_null_t with
-					| TDynamic _ | TMono _ | TAnon _ ->
+					| TDynamic | TMono _ | TAnon _ ->
 						gen.ghandle_cast to_t e_null_t (unwrap_null e)
 					| _ -> null_to_dynamic e
 				)

@@ -332,11 +332,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
 			f (monos)
-		end else if path = ([],"Dynamic") then
-			match t.tparams with
-			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_complex_type ctx true t)
-			| _ -> error "Too many parameters for Dynamic" p
+		end else if path = ([],"Dynamic") && t.tparams = [] then
+			t_dynamic
 		else begin
 			let is_java_rest = ctx.com.platform = Java && is_extern in
 			let is_rest = is_rest || is_java_rest in

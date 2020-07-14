@@ -505,7 +505,7 @@ struct
 				| TInst (cl,_) -> cl.cl_path
 				| TEnum (e,_) -> e.e_path
 				| TAbstract (a,_) -> a.a_path
-				| TMono _ | TDynamic _ -> ([], "Dynamic")
+				| TMono _ | TDynamic -> ([], "Dynamic")
 				| _ -> Globals.die "" __LOC__
 			in
 			List.map (fun (cf, t_cl, t_cf) ->

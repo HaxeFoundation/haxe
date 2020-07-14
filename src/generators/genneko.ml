@@ -333,7 +333,7 @@ and gen_expr ctx e =
 					| TInst (c,_) -> Some c.cl_path
 					| TEnum (e,_) -> Some e.e_path
 					| TAbstract (a,_) -> Some a.a_path
-					| TDynamic _ -> None
+					| TDynamic -> None
 					| _ -> die "" __LOC__
 				) in
 				let cond = (match path with

@@ -79,7 +79,7 @@ let null t p = mk (TConst TNull) t p
 
 let mk_mono() = TMono (!monomorph_create_ref ())
 
-let rec t_dynamic = TDynamic t_dynamic
+let rec t_dynamic = TDynamic
 
 let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
@@ -262,8 +262,8 @@ let map loop t =
 		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
-	| TDynamic t2 ->
-		if t == t2 then	t else TDynamic (loop t2)
+	| TDynamic ->
+		t
 
 let iter loop t =
 	match t with
@@ -289,8 +289,8 @@ let iter loop t =
 	| TLazy f ->
 		let ft = lazy_type f in
 		loop ft
-	| TDynamic t2 ->
-		if t != t2 then	loop t2
+	| TDynamic ->
+		()
 
 let duplicate t =
 	let monos = ref [] in
@@ -416,11 +416,8 @@ let apply_params ?stack cparams params t =
 				t
 			else
 				ft2
-		| TDynamic t2 ->
-			if t == t2 then
-				t
-			else
-				TDynamic (loop t2)
+		| TDynamic ->
+			t
 	in
 	loop t
 
@@ -462,7 +459,7 @@ let follow_once t =
 		(match r.tm_type with
 		| None -> t
 		| Some t -> t)
-	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic ->
 		t
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
@@ -497,7 +494,7 @@ let rec ambiguate_funs t =
 	    TAbstract (a, List.map ambiguate_funs pl)
 	| TType (a, pl) ->
 	    TType (a, List.map ambiguate_funs pl)
-	| TDynamic _ -> t
+	| TDynamic -> t
 	| TAnon a ->
 	    TAnon { a with a_fields =
 		    PMap.map (fun af -> { af with cf_type =
@@ -569,7 +566,7 @@ let rec has_mono t = match t with
 		(match r.tm_type with None -> true | Some t -> has_mono t)
 	| TInst(_,pl) | TEnum(_,pl) | TAbstract(_,pl) | TType(_,pl) ->
 		List.exists has_mono pl
-	| TDynamic _ ->
+	| TDynamic ->
 		false
 	| TFun(args,r) ->
 		has_mono r || List.exists (fun (_,_,t) -> has_mono t) args
@@ -733,7 +730,7 @@ let quick_field t n =
 			end
 		| _ ->
 			FAnon (PMap.find n a.a_fields))
-	| TDynamic _ ->
+	| TDynamic ->
 		FDynamic n
 	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
 		raise Not_found
@@ -780,7 +777,7 @@ let resolve_typedef t =
 *)
 let type_has_meta t m =
 	match t with
-		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
+		| TMono _ | TFun _ | TAnon _ | TDynamic | TLazy _ -> false
 		| TEnum ({ e_meta = metadata }, _)
 		| TInst ({ cl_meta = metadata }, _)
 		| TType ({ t_meta = metadata }, _)

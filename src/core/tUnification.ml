@@ -245,11 +245,8 @@ let rec link e a b =
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
-		| TDynamic t2 ->
-			if t == t2 then
-				false
-			else
-				loop t2
+		| TDynamic ->
+			false
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAnon a ->
@@ -270,8 +267,8 @@ let rec link e a b =
 	end
 
 let link_dynamic a b = match follow a,follow b with
-	| TMono r,TDynamic _ -> Monomorph.bind r b
-	| TDynamic _,TMono r -> Monomorph.bind r a
+	| TMono r,TDynamic -> Monomorph.bind r b
+	| TDynamic,TMono r -> Monomorph.bind r a
 	| _ -> ()
 
 let fast_eq_check type_param_check a b =
@@ -502,8 +499,8 @@ let rec type_eq uctx a b =
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
 				error (cannot_unify a b :: msg :: l)
 		)
-	| TDynamic a , TDynamic b ->
-		type_eq uctx a b
+	| TDynamic, TDynamic ->
+		()
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
@@ -784,11 +781,15 @@ let rec unify (uctx : unification_context) a b =
 		with Not_found ->
 			error [has_no_field a "new"]
 		end
-	| TDynamic t , _ ->
+	| TDynamic, _ ->
+		()
+	| _ , TDynamic ->
+		()
+	| TAbstract({a_path=([],"Dynamic")},[t]),_ ->
 		if t == a then
 			()
 		else (match b with
-		| TDynamic t2 ->
+		| TAbstract({a_path=([],"Dynamic")},[t2]) ->
 			if t2 != b then
 				(try
 					type_eq {uctx with equality_kind = EqRightDynamic} t t2
@@ -798,11 +799,11 @@ let rec unify (uctx : unification_context) a b =
 			unify_from uctx a b bb tl
 		| _ ->
 			error [cannot_unify a b])
-	| _ , TDynamic t ->
+	| _ , TAbstract({a_path=([],"Dynamic")},[t]) ->
 		if t == b then
 			()
 		else (match a with
-		| TDynamic t2 ->
+		| TAbstract({a_path=([],"Dynamic")},[t2]) ->
 			if t2 != a then
 				(try
 					type_eq {uctx with equality_kind = EqRightDynamic} t t2

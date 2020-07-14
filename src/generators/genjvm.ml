@@ -132,7 +132,7 @@ let rec jsignature_of_type gctx stack t =
 				else
 					jsignature_of_type (Abstract.get_underlying_type a tl)
 		end
-	| TDynamic _ -> object_sig
+	| TDynamic -> object_sig
 	| TMono r ->
 		begin match r.tm_type with
 		| Some t -> jsignature_of_type t

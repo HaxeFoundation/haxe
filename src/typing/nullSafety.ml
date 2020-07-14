@@ -370,7 +370,7 @@ let rec can_pass_type src dst =
 			| TType (t, tl) -> can_pass_type src (apply_params t.t_params tl t.t_type)
 			| TFun _ -> true
 			| TAnon _ -> true
-			| TDynamic _ -> true
+			| TDynamic -> true
 			| TLazy _ -> true
 			| TAbstract ({ a_path = ([],"Null") }, [t]) -> true
 			| TAbstract _ -> true

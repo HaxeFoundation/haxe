@@ -39,7 +39,7 @@ type t =
 	| TType of tdef * tparams
 	| TFun of tsignature
 	| TAnon of tanon
-	| TDynamic of t
+	| TDynamic
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 

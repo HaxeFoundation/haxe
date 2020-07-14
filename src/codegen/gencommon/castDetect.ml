@@ -185,8 +185,8 @@ let rec type_eq gen param a b =
 			) l1 l2
 		with
 			Unify_error l -> Type.error (cannot_unify a b :: l))
-	| TDynamic a , TDynamic b ->
-		type_eq gen param a b
+	| TDynamic, TDynamic ->
+		()
 	| TAnon a1, TAnon a2 ->
 		(try
 			PMap.iter (fun n f1 ->
@@ -251,8 +251,8 @@ let rec is_unsafe_cast gen to_t from_t =
 			false
 		| TMono _, _
 		| _, TMono _
-		| TDynamic _, _
-		| _, TDynamic _ ->
+		| TDynamic, _
+		| _, TDynamic ->
 			false
 		| TAnon _, _
 		| _, TAnon _ ->
@@ -285,7 +285,7 @@ let do_unsafe_cast gen from_t to_t e	=
 			| TEnum(e, _) -> e.e_path
 			| TType(t, _) -> t.t_path
 			| TAbstract(a, _) -> a.a_path
-			| TDynamic _ -> ([], "Dynamic")
+			| TDynamic -> ([], "Dynamic")
 			| _ -> raise Not_found
 	in
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
@@ -396,18 +396,18 @@ let rec handle_cast gen e real_to_t real_from_t =
 				(* potential unsafe cast *)
 				(do_unsafe_cast ())
 		| TMono _, TMono _
-		| TMono _, TDynamic _
-		| TDynamic _, TDynamic _
-		| TDynamic _, TMono _ ->
+		| TMono _, TDynamic
+		| TDynamic, TDynamic
+		| TDynamic, TMono _ ->
 			e
 		| TMono _, _
-		| TDynamic _, _
+		| TDynamic, _
 		| TAnon _, _ when gen.gneeds_box real_from_t ->
 			mk_cast false to_t e
 		| TMono _, _
-		| TDynamic _, _ -> e
+		| TDynamic, _ -> e
 		| _, TMono _
-		| _, TDynamic _ -> mk_cast false to_t e
+		| _, TDynamic -> mk_cast false to_t e
 		| TAnon (a_to), TAnon (a_from) ->
 			if a_to == a_from then
 				e
@@ -596,7 +596,7 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		| Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_params tl) stl)
 	in
 	let ret_tparams = List.map (fun t -> match follow t with
-		| TDynamic _ | TMono _ -> t_empty
+		| TDynamic | TMono _ -> t_empty
 		| _ -> t) tparams
 	in
 	let ret_stl = get_changed_stl cl ret_tparams in
@@ -903,7 +903,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 					because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to
 					correctly use class field type parameters with RealTypeParams
 				*)
-				let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
+				let cf_params = List.map (fun t -> match follow t with | TDynamic -> t_empty | _ -> t) _params in
 				let t = apply_params en.e_params (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
 				let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
 

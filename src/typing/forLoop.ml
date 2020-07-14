@@ -88,7 +88,7 @@ module IterationKind = struct
 		let e1 = try
 			let e = AbstractCast.cast_or_unify_raise ctx t e p in
 			match Abstract.follow_with_abstracts e.etype with
-			| TDynamic _ | TMono _ ->
+			| TDynamic | TMono _ ->
 				(* try to find something better than a dynamic value to iterate on *)
 				dynamic_iterator := Some e;
 				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p))
@@ -185,7 +185,7 @@ module IterationKind = struct
 			| Some result -> result
 			| None ->
 				match Abstract.follow_with_abstracts e1.etype with
-					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
+					| (TMono _ | TDynamic) -> dynamic_iterator e1;
 					| _ -> (IteratorIterator,e1,pt)
 		in
 		let try_forward_array_iterator () =
@@ -251,7 +251,7 @@ module IterationKind = struct
 			with Not_found -> check_iterator ())
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
-		| _,(TMono _ | TDynamic _) ->
+		| _,(TMono _ | TDynamic) ->
 			dynamic_iterator e
 		| _ ->
 			check_iterator ()
@@ -501,7 +501,7 @@ let type_for_loop ctx handle_display it e2 p =
 		end
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		(match follow e1.etype with
-		| TDynamic _ | TMono _ ->
+		| TDynamic | TMono _ ->
 			display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
 		);

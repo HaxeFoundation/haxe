@@ -136,7 +136,7 @@ struct
 			| Some t -> simplify_t t
 			| None -> t_dynamic)
 		| TAnon _ -> t_dynamic
-		| TDynamic _ -> t
+		| TDynamic -> t
 		| TLazy f -> simplify_t (lazy_type f)
 		| TFun _ -> t
 
@@ -189,13 +189,13 @@ struct
 		| TEnum(ef,tlf), TEnum(ea, tla) ->
 			if ef != ea then raise Not_found;
 			(cacc, rate_tp tlf tla)
-		| TDynamic _, TDynamic _ ->
+		| TDynamic, TDynamic ->
 			(cacc, 0)
-		| TDynamic _, _ ->
+		| TDynamic, _ ->
 			(max_int, 0) (* a function with dynamic will always be worst of all *)
-		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta && a.a_path <> ([],"Null") ->
+		| TAbstract(a, _), TDynamic when Meta.has Meta.CoreType a.a_meta && a.a_path <> ([],"Null") ->
 			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
-		| _, TDynamic _ ->
+		| _, TDynamic ->
 			(cacc + 1, 0)
 		| TAbstract({ a_path = [], "Null" }, [tf]), TAbstract({ a_path = [], "Null" }, [ta]) ->
 			rate_conv (cacc+0) tf ta

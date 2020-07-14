@@ -676,7 +676,7 @@ let bind_type (ctx,cctx,fctx) cf r p =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
 		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
-		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic | TAnon _ | TType _ -> true
 	in
 	let force_macro () =
 		(* force macro system loading of this class in order to get completion *)

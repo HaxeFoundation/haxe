@@ -972,7 +972,7 @@ let implement_get_set ctx cl =
 			if is_float then
 				List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
 					match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
-						| TDynamic _ | TMono _
+						| TDynamic | TMono _
 						| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
 						| t when like_float t && not (like_i64 t) -> true
 						| _ -> false

@@ -247,7 +247,7 @@ let rec type_id ctx t =
 
 let type_opt ctx t =
 	match follow_basic t with
-	| TDynamic _ | TMono _ | TAbstract ({a_path = [],"Void"},_) -> None
+	| TDynamic | TMono _ | TAbstract ({a_path = [],"Void"},_) -> None
 	| _ -> Some (type_id ctx t)
 
 let type_void ctx t =
@@ -285,7 +285,7 @@ let classify ctx t =
 		KType (type_id ctx t)
 	| TMono _
 	| TType _
-	| TDynamic _ ->
+	| TDynamic ->
 		KDynamic
 	| TLazy _ ->
 		die "" __LOC__

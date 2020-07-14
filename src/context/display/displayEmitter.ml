@@ -45,8 +45,8 @@ let rec display_type ctx t p =
 		display_module_type ctx (module_type_of_type t) p
 	with Exit ->
 		match follow t,follow !t_dynamic_def with
-		| _,TDynamic _ -> () (* sanity check in case it's still t_dynamic *)
-		| TDynamic _,_ -> display_type ctx !t_dynamic_def p
+		| _,TDynamic -> () (* sanity check in case it's still t_dynamic *)
+		| TDynamic,_ -> display_type ctx !t_dynamic_def p
 		| _ ->
 			match dm.dms_kind with
 			| DMHover ->
@@ -81,7 +81,7 @@ let raise_position_of_type t =
 				| TMono r -> (match r.tm_type with None -> raise_positions [null_pos] | Some t -> follow_null t)
 				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
-				| TDynamic _ -> !t_dynamic_def
+				| TDynamic -> !t_dynamic_def
 				| _ -> t
 		in
 		try

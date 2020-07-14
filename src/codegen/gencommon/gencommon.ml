@@ -1080,7 +1080,7 @@ let rec replace_mono t =
 		List.iter (fun (_,_,t) -> replace_mono t) args;
 		replace_mono ret
 	| TAnon _
-	| TDynamic _ -> ()
+	| TDynamic -> ()
 	| TLazy f ->
 		replace_mono (lazy_type f)
 
@@ -1248,7 +1248,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ when PMap.mem field gen.gbase_class_fields ->
 			let cf = PMap.find field gen.gbase_class_fields in
 			FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
-		| TDynamic t -> FDynamicField t
+		| TDynamic -> FDynamicField t_dynamic
 		| TMono _ -> FDynamicField t_dynamic
 		| _ -> FNotFound
 

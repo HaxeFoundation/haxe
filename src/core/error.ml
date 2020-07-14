@@ -187,8 +187,8 @@ module BetterErrors = struct
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
 					"{" ^ String.concat "," fl ^ " }"
 			end
-		| TDynamic t2 ->
-			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+		| TDynamic ->
+			"Dynamic"
 		| TLazy f ->
 			s_type ctx (lazy_type f)
 

@@ -552,7 +552,7 @@ let handle_decoding_error f v t =
 			end
 		| TLazy r ->
 			loop tabs (lazy_type r) v
-		| TDynamic _ ->
+		| TDynamic ->
 			()
 	in
 	loop "" t v;

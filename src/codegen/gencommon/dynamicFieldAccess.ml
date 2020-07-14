@@ -99,7 +99,7 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 
 		| TCall ({ eexpr = TField (_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "field" })) }, [obj; { eexpr = TConst (TString field) }]) ->
 			let t = match gen.greal_type obj.etype with
-			| TDynamic _ | TAnon _ | TMono _ -> t_dynamic
+			| TDynamic | TAnon _ | TMono _ -> t_dynamic
 			| t -> t
 			in
 			change_expr (mk_field_access gen { obj with etype = t } field obj.epos) (run obj) field None false

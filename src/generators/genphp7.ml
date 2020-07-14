@@ -239,7 +239,7 @@ let fail ?msg p = Globals.die (Option.default "" msg) ~p
 (**
 	Check if `target` is a `Dynamic` type
 *)
-let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic -> true | _ -> false
 
 (**
 	Check if `target` is `php.Ref`
@@ -1335,7 +1335,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					)
 				| TFun _ -> self#use ~prefix:false ([], "Closure")
 				| TAnon _ -> "object"
-				| TDynamic _ -> "mixed"
+				| TDynamic -> "mixed"
 				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __LOC__
 				| TMono mono ->
 					(match mono.tm_type with

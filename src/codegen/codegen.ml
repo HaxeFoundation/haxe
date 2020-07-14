@@ -103,11 +103,8 @@ let update_cache_dependencies t =
 			| _ -> ())
 		| TLazy f ->
 			check_t m (lazy_type f)
-		| TDynamic t ->
-			if t == t_dynamic then
-				()
-			else
-				check_t m t
+		| TDynamic ->
+			()
 	and check_field m cf =
 		check_t m cf.cf_type
 	in

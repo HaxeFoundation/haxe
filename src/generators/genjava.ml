@@ -114,7 +114,7 @@ let rec t_has_type_param t = match follow t with
 
 let is_dynamic gen t =
 	match follow (gen.greal_type t) with
-		| TDynamic _ -> true
+		| TDynamic -> true
 		| _ -> false
 
 let is_type_param t = ExtType.is_type_param (follow t)
@@ -807,7 +807,7 @@ struct
 						let is_assign = match op with Ast.OpAssignOp _ -> true | _ -> false in
 						let mk_to_string e = { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" e.epos [], [run e] ); etype = gen.gcon.basic.tstring	} in
 						let check_cast e = match gen.greal_type e.etype with
-							| TDynamic _
+							| TDynamic
 							| TAbstract({ a_path = ([], "Float") }, [])
 							| TAbstract({ a_path = ([], "Single") }, []) ->
 									mk_to_string e
@@ -880,7 +880,7 @@ let rec handle_throws gen cf =
 					Type.iter iter e;
 					match follow (run_follow gen v.v_type) with
 						| TInst({ cl_path = ["java";"lang"],"Throwable" },_)
-						| TDynamic _ ->
+						| TDynamic ->
 							needs_check_block := false
 						| TInst(c,_) when is_checked_exc c ->
 							throws := PMap.add c.cl_path c !throws
@@ -1005,7 +1005,7 @@ let generate con =
 	let ti64 = match ( get_type gen (["java"], "Int64") ) with | TAbstractDecl a -> TAbstract(a,[]) | _ -> die "" __LOC__ in
 
 	let has_tdynamic params =
-		List.exists (fun e -> match run_follow gen e with | TDynamic _ -> true | _ -> false) params
+		List.exists (fun e -> match run_follow gen e with | TDynamic -> true | _ -> false) params
 	in
 
 	(*
@@ -1206,7 +1206,7 @@ let generate con =
 	in
 
 	let is_dynamic t = match real_type t with
-		| TMono _ | TDynamic _
+		| TMono _ | TDynamic
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| TAnon anon ->
 			(match !(anon.a_status) with
@@ -1276,7 +1276,7 @@ let generate con =
 								path_s_import pos (["java";"lang"], "Class") []
 						| _ ->
 								path_s_import pos (["java";"lang"], "Object") [])
-					| TDynamic _ ->
+					| TDynamic ->
 							path_s_import pos (["java";"lang"], "Object") []
 				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
 				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); die "" __LOC__ end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
@@ -1310,7 +1310,7 @@ let generate con =
 			| TType ({ t_path = [],"Single" },[])
 			| TAbstract ({ a_path = [],"Single" },[]) ->
 					path_s_import pos (["java";"lang"], "Float") []
-			| TDynamic _ -> "?"
+			| TDynamic -> "?"
 			| TInst (cl, params) -> t_s stack pos (TInst(cl, change_param_type (TClassDecl cl) params))
 			| TType (cl, params) -> t_s stack pos (TType(cl, change_param_type (TTypeDecl cl) params))
 			| TEnum (e, params) -> t_s stack pos (TEnum(e, change_param_type (TEnumDecl e) params))
@@ -1958,7 +1958,7 @@ let generate con =
 						(match cf.cf_type with
 							| TFun([_,_,t], ret) ->
 								(match (real_type t, real_type ret) with
-									| TDynamic _, TAbstract ({ a_path = ([], "Bool") },[])
+									| TDynamic, TAbstract ({ a_path = ([], "Bool") },[])
 									| TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
 									| _ -> has_class_field_flag cf CfOverride
 								)
@@ -2117,7 +2117,7 @@ let generate con =
 		let params, _ = get_string_params cl.cl_params in
 		let cl_p_to_string (c,p) =
 			let p = List.map (fun t -> match follow t with
-				| TMono _ | TDynamic _ -> t_empty
+				| TMono _ | TDynamic -> t_empty
 				| _ -> t) p
 			in
 			path_param_s cl.cl_pos (TClassDecl c) c.cl_path p c.cl_meta
@@ -2330,7 +2330,7 @@ let generate con =
 	let get_specialized_postfix t = match t with
 		| TAbstract({a_path = [],"Float"}, _) -> "Float"
 		| TInst({cl_path = [],"String"},_) -> "String"
-		| TAnon _ | TDynamic _ -> "Dynamic"
+		| TAnon _ | TDynamic -> "Dynamic"
 		| _ -> print_endline (debug_type t); die "" __LOC__
 	in
 	let rcf_static_insert t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos [] in
@@ -2522,8 +2522,8 @@ let generate con =
 					{ e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
 				| _ ->
 				let is_ref = match follow e1.etype, follow e2.etype with
-					| TDynamic _, _
-					| _, TDynamic _
+					| TDynamic, _
+					| _, TDynamic
 					| TAbstract ({ a_path = ([], "Float") },[]) , _
 					| TInst( { cl_path = (["haxe"], "Int32") }, [] ), _
 					| TInst( { cl_path = (["haxe"], "Int64") }, [] ), _

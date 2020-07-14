@@ -359,7 +359,7 @@ let is_dynamic_iterator ctx e =
 			| TInst ({ cl_path = [],"Array" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
-			| TDynamic _
+			| TDynamic
 			| TMono _ ->
 				true
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
