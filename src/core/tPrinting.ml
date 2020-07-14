@@ -650,6 +650,7 @@ module Printer = struct
 		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
 		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
 		| HFinal -> "HFinal"
+		| HAbstract -> "HAbstract"
 
 	let s_placed f (x,p) =
 		s_pair (f x) (s_pos p)

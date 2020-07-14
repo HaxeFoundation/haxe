@@ -239,7 +239,7 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
-			if Meta.has Meta.Abstract c.cl_meta then add_class_flag c CAbstract;
+			if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
 			List.iter (function
 				| HExtern -> add_class_flag c CExtern
 				| HInterface -> add_class_flag c CInterface

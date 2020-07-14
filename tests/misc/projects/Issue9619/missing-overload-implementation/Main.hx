@@ -1,4 +1,4 @@
-@:abstract
+abstract
 class Abstract {
 	@:abstract
 	@:overload

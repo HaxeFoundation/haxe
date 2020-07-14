@@ -1,4 +1,4 @@
-@:abstract
+abstract
 class Abstract {
 	@:abstract
 	@:overload
@@ -9,7 +9,7 @@ class Abstract {
 	function abstractFunction(i:Int):Void;
 }
 
-@:abstract
+abstract
 class IntermissionAbstract extends Abstract {}
 
 class Main extends IntermissionAbstract {

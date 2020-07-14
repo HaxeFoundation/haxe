@@ -372,7 +372,7 @@ let reify in_macro =
 	and to_type_def (t,p) =
 		match t with
 		| EClass d ->
-			let ext = ref None and impl = ref [] and interf = ref false and final = ref false in
+			let ext = ref None and impl = ref [] and interf = ref false and final = ref false and abstract = ref false in
 			List.iter (function
 				| HExtern | HPrivate -> ()
 				| HInterface -> interf := true;
@@ -383,7 +383,8 @@ let reify in_macro =
 						!ext
 						end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
-				| HFinal -> final := true
+				| HFinal -> final := true (* ABSTRACTTODO *)
+				| HAbstract -> abstract := true
 			) d.d_flags;
 			to_obj [
 				"pack", (EArrayDecl [],p);

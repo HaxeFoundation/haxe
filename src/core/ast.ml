@@ -290,6 +290,7 @@ type class_flag =
 	| HExtends of placed_type_path
 	| HImplements of placed_type_path
 	| HFinal
+	| HAbstract
 
 type abstract_flag =
 	| AbPrivate

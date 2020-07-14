@@ -2,8 +2,7 @@ package unit.issues;
 
 #if (java || cs)
 
-@:abstract
-private class AbstractOverloadParent {
+private abstract class AbstractOverloadParent {
 	public function new():Void {}
 
 	@:overload
@@ -29,8 +28,7 @@ private class ConcreteOverloadChild extends AbstractOverloadParent {
 
 #end
 
-@:abstract
-private class AbstractParent {
+abstract private class AbstractParent {
 	public function new():Void {}
 
 	@:abstract

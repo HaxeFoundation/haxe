@@ -1,4 +1,4 @@
-@:abstract
+abstract
 class Abstract {
 	@:abstract function abstractFunction():Void;
 }
