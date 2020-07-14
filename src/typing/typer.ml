@@ -1409,6 +1409,7 @@ and type_access ctx e p mode =
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
+				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
 				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
@@ -1708,6 +1709,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
+		no_abstract_constructor c p;
 		let args = match follow t with
 			| TFun(args,_) -> args
 			| _ -> die "" __LOC__
@@ -1808,6 +1810,7 @@ and type_new ctx path el with_type force_inline p =
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
+			no_abstract_constructor c p;
 			ignore (unify_constructor_call c monos f ct);
 			begin try
 				Generic.build_generic ctx c p monos
@@ -1834,6 +1837,7 @@ and type_new ctx path el with_type force_inline p =
 	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
+		no_abstract_constructor c p;
 		check_constructor_access ctx c f p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)

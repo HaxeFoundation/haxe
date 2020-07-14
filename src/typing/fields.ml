@@ -71,6 +71,9 @@ let field_type ctx c pl f p =
 		let monos = Monomorph.spawn_constrained_monos (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
 
+let no_abstract_constructor c p =
+	if has_class_flag c CAbstract then raise_error (Abstract_class (TClassDecl c)) p
+
 let get_constructor ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->

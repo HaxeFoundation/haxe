@@ -382,6 +382,7 @@ type flag_tclass =
 	| CExtern
 	| CFinal
 	| CInterface
+	| CAbstract
 
 type flag_tclass_field =
 	| CfPublic
