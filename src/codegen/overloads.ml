@@ -91,7 +91,7 @@ let collect_overloads c i =
 			()
 		end;
 		match c.cl_super with
-			| None when c.cl_interface ->
+			| None when (has_class_flag c CInterface) ->
 				List.iter (fun (c,tl) ->
 					let tl = List.map map tl in
 					loop (fun t -> apply_params c.cl_params tl (map t)) c
@@ -155,7 +155,7 @@ struct
 	**)
 	let rec rate_conv cacc tfun targ =
 		match simplify_t tfun, simplify_t targ with
-		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
+		| TInst(cf, tlf), TInst(ca, tla) when (has_class_flag cf CInterface) ->
 			(* breadth-first *)
 			let stack = ref [0,ca,tla] in
 			let cur = ref (0, ca,tla) in

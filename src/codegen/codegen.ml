@@ -197,7 +197,7 @@ let fix_override com c f fd =
 			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
 			f.cf_type <- TFun(targs,tret);
-		| Some(f2), None when c.cl_interface ->
+		| Some(f2), None when (has_class_flag c CInterface) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
 			f.cf_type <- TFun(targs,tret)
 		| _ ->
@@ -207,7 +207,7 @@ let fix_overrides com t =
 	match t with
 	| TClassDecl c ->
 		(* overrides can be removed from interfaces *)
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try
 					if find_field com c f == f then raise Not_found;
@@ -220,7 +220,7 @@ let fix_overrides com t =
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 				fix_override com c f (Some fd)
-			| None, Method (MethNormal | MethInline) when c.cl_interface ->
+			| None, Method (MethNormal | MethInline) when (has_class_flag c CInterface) ->
 				fix_override com c f None
 			| _ ->
 				()
@@ -234,7 +234,7 @@ let fix_overrides com t =
 *)
 let fix_abstract_inheritance com t =
 	match t with
-	| TClassDecl c when c.cl_interface ->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		c.cl_ordered_fields <- List.filter (fun f ->
 			let b = try (find_field com c f) == f
 			with Not_found -> false in
@@ -308,7 +308,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not ((has_class_flag c CExtern) || (has_class_flag c CInterface))) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -331,7 +331,7 @@ module Dump = struct
 							(match f.cf_expr with
 							| None -> ""
 							| Some e -> " = " ^ (s_cf_expr f));
-						| Method m -> if (c.cl_extern || c.cl_interface) then (
+						| Method m -> if ((has_class_flag c CExtern) || (has_class_flag c CInterface)) then (
 							match f.cf_type with
 							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
 								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
@@ -341,7 +341,7 @@ module Dump = struct
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
-				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
+				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if (has_class_flag c CExtern) then "extern " else "") (if (has_class_flag c CInterface) then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));

@@ -92,7 +92,7 @@ struct
 		let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
 
 		cl.cl_super <- Some(super,[]);
-		cl.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl CExtern;
 		en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 		cl.cl_module <- en.e_module;
 		cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;

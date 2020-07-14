@@ -227,9 +227,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
-	mutable cl_extern : bool;
-	mutable cl_final : bool;
-	mutable cl_interface : bool;
+	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string, tclass_field) PMap.t;
@@ -379,6 +377,11 @@ type class_field_scope =
 	| CFSStatic
 	| CFSMember
 	| CFSConstructor
+
+type flag_tclass =
+	| CExtern
+	| CFinal
+	| CInterface
 
 type flag_tclass_field =
 	| CfPublic

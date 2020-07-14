@@ -1223,15 +1223,15 @@ let generate con =
 		in
 
 		let is_extern_prop t name = match follow (run_follow gen t), field_access gen t name with
-			| TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+			| TInst(cl, _), FNotFound when (has_class_flag cl CExtern) && (has_class_flag cl CInterface) ->
 				not (is_hxgen (TClassDecl cl))
 			| _, FClassField(_,_,decl,v,_,t,_) ->
-				not (Type.is_physical_field v) && (Meta.has Meta.Property v.cf_meta || (decl.cl_extern && not (is_hxgen (TClassDecl decl))))
+				not (Type.is_physical_field v) && (Meta.has Meta.Property v.cf_meta || ((has_class_flag decl CExtern) && not (is_hxgen (TClassDecl decl))))
 			| _ -> false
 		in
 
 		let is_event t name = match follow (run_follow gen t), field_access gen t name with
-			| TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+			| TInst(cl, _), FNotFound when (has_class_flag cl CExtern) && (has_class_flag cl CInterface) ->
 				not (is_hxgen (TClassDecl cl))
 			| _, FClassField(_,_,decl,v,_,_,_) ->
 				Meta.has Meta.Event v.cf_meta
@@ -1434,7 +1434,7 @@ let generate con =
 						(match mt with
 							| TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
 							| TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ module_s mt)
-							| TClassDecl { cl_interface = true } ->
+							| TClassDecl c when (has_class_flag c CInterface) ->
 									write w ("global::" ^ module_s mt);
 									write w "__Statics_";
 							| TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params)))
@@ -1989,12 +1989,12 @@ let generate con =
 													acc
 
 												(* non-sealed class *)
-												| TInst ({ cl_interface = false; cl_final = false},_) ->
+												| TInst (c,_) when not (has_class_flag c CFinal) && not (has_class_flag c CInterface) ->
 													base_class_constraints := (CsConstraint (t_s t)) :: !base_class_constraints;
 													acc;
 
 												(* interface *)
-												| TInst ({ cl_interface = true}, _) ->
+												| TInst (c, _) when (has_class_flag c CInterface) ->
 													(CsConstraint (t_s t)) :: acc
 
 												(* cs constraints *)
@@ -2064,7 +2064,7 @@ let generate con =
 		in
 
 		let rec gen_event w is_static cl (event,t,custom,add,remove) =
-			let is_interface = cl.cl_interface in
+			let is_interface = (has_class_flag cl CInterface) in
 			let visibility = if is_interface then "" else "public" in
 			let visibility, modifiers = get_fun_modifiers event.cf_meta visibility ["event"] in
 			let v_n = if is_static then "static" else "" in
@@ -2085,7 +2085,7 @@ let generate con =
 
 		let rec gen_prop w is_static cl is_final (prop,t,get,set) =
 			gen_attributes w prop.cf_meta;
-			let is_interface = cl.cl_interface in
+			let is_interface = (has_class_flag cl CInterface) in
 			let fn_is_final = function
 				| None -> true
 				| Some ({ cf_kind = Method mkind } as m) ->
@@ -2173,7 +2173,7 @@ let generate con =
 
 		let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
 			gen_attributes w cf.cf_meta;
-			let is_interface = cl.cl_interface in
+			let is_interface = (has_class_flag cl CInterface) in
 			let name, is_new, is_explicit_iface = match cf.cf_name with
 				| "new" -> cf.cf_name, true, false
 				| name when String.contains name '.' ->
@@ -2229,7 +2229,7 @@ let generate con =
 						);
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
-					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
+					List.iter (fun cf -> if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 					) cf.cf_overloads
 				| Var _ | Method MethDynamic -> ()
@@ -2249,7 +2249,7 @@ let generate con =
 									gen.gcon.error "The body of a zero argument constructor of a struct should be empty" e.epos
 							| _ -> ());
 						List.iter (fun cf ->
-							if cl.cl_interface || cf.cf_expr <> None then
+							if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 								gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 						) cf.cf_overloads;
 				| Method mkind ->
@@ -2261,7 +2261,7 @@ let generate con =
 						| overloads -> overloads
 					in
 					List.iter (fun cf ->
-						if cl.cl_interface || cf.cf_expr <> None then
+						if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 							gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 					) overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
@@ -2277,7 +2277,7 @@ let generate con =
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
-					let is_virtual = is_virtual && not cl.cl_final && not (is_interface) in
+					let is_virtual = is_virtual && not (has_class_flag cl CFinal) && not (is_interface) in
 					let visibility = if is_interface then "" else "public" in
 
 					let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
@@ -2457,7 +2457,7 @@ let generate con =
 							newline w
 				) cl.cl_implements
 			with | Not_found -> ());
-			if cl.cl_interface && is_hxgen (TClassDecl cl) && is_some cl.cl_array_access then begin
+			if (has_class_flag cl CInterface) && is_hxgen (TClassDecl cl) && is_some cl.cl_array_access then begin
 				let changed_t = apply_params cl.cl_params (List.map (fun _ -> t_dynamic) cl.cl_params) (get cl.cl_array_access) in
 				print w "%s this[int key]" (t_s (run_follow gen changed_t));
 				begin_block w;
@@ -2470,7 +2470,7 @@ let generate con =
 				newline w
 			end;
 			(try
-				if cl.cl_interface then raise Not_found;
+				if (has_class_flag cl CInterface) then raise Not_found;
 				let cf = PMap.find "toString" cl.cl_fields in
 				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
@@ -2490,7 +2490,7 @@ let generate con =
 				)
 			with | Not_found -> ());
 			(try
-				if cl.cl_interface then raise Not_found;
+				if (has_class_flag cl CInterface) then raise Not_found;
 				let cf = PMap.find "finalize" cl.cl_fields in
 				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
@@ -2601,7 +2601,7 @@ let generate con =
 
 			let main_expr =
 				match gen.gentry_point with
-				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not cl.cl_interface ->
+				| Some (_,({ cl_path = (_,"Main") } as cl_main),expr) when cl == cl_main && not (has_class_flag cl CInterface) ->
 					(*
 						for cases where the main class is called Main, there will be a problem with creating the entry point there.
 						In this special case, a special entry point class will be created
@@ -2617,13 +2617,13 @@ let generate con =
 					end_block w;
 					newline w;
 					None
-				| Some (_, cl_main,expr) when cl == cl_main && not cl.cl_interface -> Some expr
+				| Some (_, cl_main,expr) when cl == cl_main && not (has_class_flag cl CInterface) -> Some expr
 				| _ -> None
 			in
 
-			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-			let modifiers = if is_module_fields_class cl then "static" :: modifiers else if cl.cl_final then "sealed" :: modifiers else modifiers in
-			let is_final = clt = "struct" || cl.cl_final in
+			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if (has_class_flag cl CInterface) then "interface" else "class") "public" [] in
+			let modifiers = if is_module_fields_class cl then "static" :: modifiers else if (has_class_flag cl CFinal) then "sealed" :: modifiers else modifiers in
+			let is_final = clt = "struct" || (has_class_flag cl CFinal) in
 
 			let modifiers = [access] @ modifiers in
 			print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
@@ -2728,7 +2728,7 @@ let generate con =
 					| _ -> false
 				in
 
-				let interf = cl.cl_interface in
+				let interf = (has_class_flag cl CInterface) in
 				(* get all functions that are getters/setters *)
 				let nonprops = List.filter (function
 					| cf when String.starts_with cf.cf_name "get_" -> (try
@@ -2771,7 +2771,7 @@ let generate con =
 					let ev, t, custom, add, remove = !r in
 					match add, remove with
 					| Some add, Some remove ->
-						if custom && not cl.cl_interface then
+						if custom && not (has_class_flag cl CInterface) then
 							nonprops := add :: remove :: !nonprops
 					| _ -> die "" __LOC__ (* shouldn't happen because Filters.check_cs_events makes sure methods are present *)
 				) events;
@@ -2785,7 +2785,7 @@ let generate con =
 			let fevents, fprops, fnonprops = partition cl cl.cl_ordered_fields in
 			let sevents, sprops, snonprops = partition cl cl.cl_ordered_statics in
 			(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-			if not cl.cl_interface then begin
+			if not (has_class_flag cl CInterface) then begin
 				(* we don't want to generate properties for abstract implementation classes, because they don't have object to work with *)
 				List.iter (gen_event w true cl) sevents;
 				if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops;
@@ -2796,10 +2796,12 @@ let generate con =
 			List.iter (gen_class_field w false cl is_final) fnonprops;
 			check_special_behaviors w cl;
 			end_block w;
-			if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
+			if (has_class_flag cl CInterface) && cl.cl_ordered_statics <> [] then begin
 				print w "public class %s__Statics_" (snd cl.cl_path);
 				begin_block w;
-				List.iter (gen_class_field w true { cl with cl_interface = false } is_final) cl.cl_ordered_statics;
+				remove_class_flag cl CInterface;
+				List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics;
+				add_class_flag cl CInterface;
 				end_block w
 			end;
 			if should_close then end_block w
@@ -2832,7 +2834,7 @@ let generate con =
 			reset_temps();
 			match md_tp with
 				| TClassDecl cl ->
-					if not cl.cl_extern then begin
+					if not (has_class_flag cl CExtern) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 
 						(if (Meta.has Meta.CsUsing cl.cl_meta) then
@@ -2855,7 +2857,7 @@ let generate con =
 						newline w;
 						newline w
 					end;
-					(not cl.cl_extern)
+					(not (has_class_flag cl CExtern))
 				| TEnumDecl e ->
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
@@ -3422,11 +3424,11 @@ let generate con =
 			if not (List.exists (function net_lib -> net_lib#get_name = name) haxe_libs) then
 				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
 			(* it has; in this case, we need to add the used fields on each __init__ *)
-			flookup_cl.cl_extern <- true;
+			add_class_flag flookup_cl CExtern;
 			let hashs_by_path = Hashtbl.create !nhash in
 			Hashtbl.iter (fun (path,i) s -> Hashtbl.add hashs_by_path path (i,s)) rcf_ctx.rcf_hash_paths;
 			Hashtbl.iter (fun _ md -> match md with
-				| TClassDecl ({ cl_extern = false; cl_interface = false } as c) -> (try
+				| TClassDecl c when not (has_class_flag c CExtern) && not (has_class_flag c CInterface) -> (try
 					let all = Hashtbl.find_all hashs_by_path c.cl_path in
 					let all = List.map (fun (i,s) -> normalize_i i, s) all in
 					let all = List.sort (fun (i,s) (i2,s2) -> compare i i2) all in
@@ -3460,7 +3462,7 @@ let generate con =
 
 		if Common.defined gen.gcon Define.DllImport then begin
 			Hashtbl.iter (fun _ md -> match md with
-				| TClassDecl ({ cl_extern = false } as c) -> (try
+				| TClassDecl c when not (has_class_flag c CExtern) -> (try
 					let extra = match c.cl_params with
 						| _ :: _ when not erase_generics -> "_" ^ string_of_int (List.length c.cl_params)
 						| _ -> ""
@@ -3473,7 +3475,7 @@ let generate con =
 					let path = (pack, snd c.cl_path ^ extra) in
 					ignore (List.find (function net_lib ->
 						is_some (net_lib#lookup path)) haxe_libs);
-					c.cl_extern <- true;
+					add_class_flag c CExtern;
 				with | Not_found -> ())
 				| _ -> ()) gen.gtypes
 		end;

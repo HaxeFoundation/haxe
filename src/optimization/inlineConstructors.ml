@@ -189,7 +189,7 @@ let inline_constructors ctx original_e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
+	let is_extern_ctor c cf = (has_class_flag c CExtern) || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
 		| [] -> mk (TBlock[]) ctx.t.tvoid p
 		| [e] -> e
@@ -212,7 +212,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				true, false
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				Inline.needs_inline ctx c.cl_extern cf, false
+				Inline.needs_inline ctx (has_class_flag c CExtern) cf, false
 			| _ -> false, false
 		in
 		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
@@ -237,7 +237,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				mark()
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if Inline.needs_inline ctx c.cl_extern cf then mark()
+				if Inline.needs_inline ctx (has_class_flag c CExtern) cf then mark()
 				else e
 			| _ -> e
 	in
@@ -285,7 +285,7 @@ let inline_constructors ctx original_e =
 					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
 					| [], Method MethInline, Some({eexpr = TFunction tf}) ->
-						if Inline.needs_inline ctx ctor.ioc_class.cl_extern f then
+						if Inline.needs_inline ctx (has_class_flag ctor.ioc_class CExtern) f then
 							Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
 						else
 							None
@@ -509,7 +509,7 @@ let inline_constructors ctx original_e =
 							*)
 							if io.io_cancelled then begin
 								cancel_iv iv e.epos;
-								None 
+								None
 							end else begin
 								io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
 								Some(iv)

@@ -350,7 +350,7 @@ let rec type_ident_raise ctx i p mode =
 						(* create a fake class with a fake field to emulate inlining *)
 						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-						c.cl_extern <- true;
+						add_class_flag c CExtern;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
 						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
 				end

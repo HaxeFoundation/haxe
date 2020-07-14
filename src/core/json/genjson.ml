@@ -613,7 +613,7 @@ let generate_class ctx c =
 	in
 	[
 		"kind",generate_class_kind c.cl_kind;
-		"isInterface",jbool c.cl_interface;
+		"isInterface",jbool (has_class_flag c CInterface);
 		"superClass",jopt generate_class_relation c.cl_super;
 		"interfaces",jlist generate_class_relation c.cl_implements;
 		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
@@ -621,8 +621,8 @@ let generate_class ctx c =
 		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
 		"init",jopt (generate_texpr ctx) c.cl_init;
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
-		"isExtern",jbool c.cl_extern;
-		"isFinal",jbool c.cl_final;
+		"isExtern",jbool (has_class_flag c CExtern);
+		"isFinal",jbool (has_class_flag c CFinal);
 	]
 
 let generate_enum ctx e =

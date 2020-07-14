@@ -1427,8 +1427,8 @@ module Printer = struct
 		in
 		let name = field_name fa in
 		let is_extern = (match fa with
-		| FInstance(c,_,_) -> c.cl_extern
-		| FStatic(c,_) -> c.cl_extern
+		| FInstance(c,_,_) -> (has_class_flag c CExtern)
+		| FStatic(c,_) -> (has_class_flag c CExtern)
 		| _ -> false)
 		in
 		let do_default () =
@@ -1459,7 +1459,7 @@ module Printer = struct
 				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
 			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
 				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
-			| FStatic (c,cf) when c.cl_extern && c.cl_path = ([],"") ->
+			| FStatic (c,cf) when (has_class_flag c CExtern) && c.cl_path = ([],"") ->
 				Printf.sprintf "%s" name
 			| FInstance _ | FStatic _ ->
 				do_default ()
@@ -2028,7 +2028,7 @@ module Generator = struct
 				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_class ctx c =
-		if not c.cl_extern then begin
+		if not (has_class_flag c CExtern) then begin
 			let is_nativegen = Meta.has Meta.NativeGen c.cl_meta in
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
@@ -2061,7 +2061,7 @@ module Generator = struct
 					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
 				if has_feature ctx "python._hx_is_interface" then begin
-					let value = if c.cl_interface then "True" else "False" in
+					let value = if (has_class_flag c CInterface) then "True" else "False" in
 					print ctx "\n    _hx_is_interface = \"%s\"" value
 				end;
 
@@ -2121,7 +2121,7 @@ module Generator = struct
 
 			let has_inner_static = gen_class_statics ctx c p in
 
-			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), c.cl_ordered_fields with
+			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || (has_class_flag c CInterface)), c.cl_ordered_fields with
 				| true,_
 				| _, [] ->
 					false
@@ -2132,7 +2132,7 @@ module Generator = struct
 
 			let use_pass = !use_pass && (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
-				| _ -> c.cl_interface
+				| _ -> (has_class_flag c CInterface)
 			in
 			if use_pass then spr ctx "\n    pass";
 
@@ -2349,7 +2349,7 @@ module Generator = struct
 		in
 		List.iter (fun mt ->
 			match mt with
-			| TClassDecl c when c.cl_extern -> import c.cl_path c.cl_meta
+			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
 			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types

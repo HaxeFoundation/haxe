@@ -498,7 +498,7 @@ let patch_constructors tctx =
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->
 			match mt with
-			| TClassDecl cls when not cls.cl_extern && cls.cl_path <> haxe_exception_type_path && is_haxe_exception_class cls ->
+			| TClassDecl cls when not (has_class_flag cls CExtern) && cls.cl_path <> haxe_exception_type_path && is_haxe_exception_class cls ->
 				let shift_stack p =
 					let t = type_of_module_type mt in
 					let this = { eexpr = TConst(TThis); etype = t; epos = p } in

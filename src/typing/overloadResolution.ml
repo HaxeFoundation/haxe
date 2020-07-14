@@ -82,7 +82,7 @@ let resolve_instance_overload is_ctor map_type c name el =
 			end;
 			if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then raise Not_found
 		with Not_found ->
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.iter (fun (c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c) c.cl_implements
 			else match c.cl_super with
 			| None -> ()

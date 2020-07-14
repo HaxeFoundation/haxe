@@ -227,16 +227,16 @@ let rec gen_type_decl com pos t =
 		) in
 		let fields = List.map (fun (f,att) -> gen_field att f) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
-		let impl = List.map (gen_class_path (if c.cl_interface then "extends" else "implements")) c.cl_implements in
+		let impl = List.map (gen_class_path (if (has_class_flag c CInterface) then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
 			| None -> impl
 			| Some x -> gen_class_path "extends" x :: impl
 		) in
 		let doc = gen_doc_opt c.cl_doc in
 		let meta = gen_meta c.cl_meta in
-		let ext = (if c.cl_extern then [("extern","1")] else []) in
-		let interf = (if c.cl_interface then [("interface","1")] else []) in
-		let final = (if c.cl_final then [("final","1")] else []) in
+		let ext = (if (has_class_flag c CExtern) then [("extern","1")] else []) in
+		let interf = (if (has_class_flag c CInterface) then [("interface","1")] else []) in
+		let final = (if has_class_flag c CFinal then [("final","1")] else []) in
 		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf @ final) (tree @ stats @ fields @ constr @ doc @ meta)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in

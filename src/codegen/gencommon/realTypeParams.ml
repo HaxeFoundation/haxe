@@ -400,7 +400,7 @@ struct
 		let this = { eexpr = TConst TThis; etype = (TInst(cl, List.map snd cl.cl_params)); epos = p } in
 
 		let rec loop curcls params level reverse_params =
-			if (level <> 0 || curcls.cl_interface) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
+			if (level <> 0 || (has_class_flag curcls CInterface)) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
 				let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) curcls.cl_params in
 				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
@@ -666,7 +666,7 @@ struct
 				| TClassDecl ({ cl_params = hd :: tl } as cl) when set_hxgeneric gen md ->
 					let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 					iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
-					iface.cl_extern <- cl.cl_extern;
+					if (has_class_flag cl CExtern) then add_class_flag iface CExtern;
 					iface.cl_module <- cl.cl_module;
 					iface.cl_private <- cl.cl_private;
 					iface.cl_meta <-
@@ -678,12 +678,12 @@ struct
 					Hashtbl.add ifaces cl.cl_path iface;
 
 					iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
-					iface.cl_interface <- true;
+					add_class_flag iface CInterface;
 					cl.cl_implements <- (iface, []) :: cl.cl_implements;
 
 					let name = get_cast_name cl in
 					let cast_cf = create_cast_cfield gen cl name in
-					if not cl.cl_interface then create_stub_casts gen cl cast_cf;
+					if not (has_class_flag cl CInterface) then create_stub_casts gen cl cast_cf;
 
 					let rec loop c = match c.cl_super with
 						| None -> ()
@@ -695,7 +695,7 @@ struct
 					in
 					loop cl;
 
-					(if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
+					(if not (has_class_flag cl CInterface) then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
 					let iface_cf = mk_class_field name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
 					let cast_static_cf, delay = create_static_cast_cf gen iface iface_cf in
 

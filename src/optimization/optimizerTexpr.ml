@@ -37,7 +37,7 @@ let is_read_only_field_access e fa = match fa with
 		begin match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever} when not c.cl_interface -> true
+			| Var {v_write = AccNever} when not (has_class_flag c CInterface) -> true
 			| _ -> false
 		end
 	| FAnon cf | FClosure(None,cf) ->
