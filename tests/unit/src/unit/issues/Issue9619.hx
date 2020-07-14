@@ -49,8 +49,11 @@ class Issue9619 extends unit.Test {
 	function test() {
 		#if (java || cs)
 		var cc = new ConcreteOverloadChild();
+		t(HelperMacros.typeError(new AbstractOverloadParent()));
 		#end
 		var cc = new ConcreteChild();
+
+		t(HelperMacros.typeError(new AbstractParent()));
 		utest.Assert.pass();
 	}
 }
