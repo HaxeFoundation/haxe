@@ -1,7 +1,7 @@
 abstract
 class Abstract {
 	public function new() {}
-	@:abstract
+	abstract
 	function abstractFunction():Void;
 }
 

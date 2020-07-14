@@ -1,11 +1,11 @@
 abstract
 class Abstract {
-	@:abstract
 	@:overload
+	abstract
 	function abstractFunction():Void;
 
-	@:abstract
 	@:overload
+	abstract
 	function abstractFunction(i:Int):Void;
 }
 

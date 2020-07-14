@@ -6,12 +6,10 @@ private abstract class AbstractOverloadParent {
 	public function new():Void {}
 
 	@:overload
-	@:abstract
-	function abstractFunction():Void;
+	abstract function abstractFunction():Void;
 
 	@:overload
-	@:abstract
-	function abstractFunction(i:Int):Void;
+	abstract function abstractFunction(i:Int):Void;
 }
 
 private class ConcreteOverloadChild extends AbstractOverloadParent {
@@ -31,8 +29,7 @@ private class ConcreteOverloadChild extends AbstractOverloadParent {
 abstract private class AbstractParent {
 	public function new():Void {}
 
-	@:abstract
-	function abstractFunction():Void;
+	abstract function abstractFunction():Void;
 }
 
 private class ConcreteChild extends AbstractParent {

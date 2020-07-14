@@ -979,6 +979,7 @@ and parse_cf_rights = parser
 	| [< '(Kwd Dynamic,p) >] -> ADynamic,p
 	| [< '(Kwd Inline,p) >] -> AInline,p
 	| [< '(Kwd Extern,p) >] -> AExtern,p
+	| [< '(Kwd Abstract,p) >] -> AAbstract,p
 
 and parse_fun_name = parser
 	| [< name,p = dollar_ident >] -> name,p

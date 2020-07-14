@@ -3,5 +3,5 @@ class Main {
 
 	}
 
-	@:abstract function abstractFunction():Void;
+	abstract function abstractFunction():Void;
 }

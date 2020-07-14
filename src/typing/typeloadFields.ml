@@ -555,7 +555,7 @@ let create_field_context (ctx,cctx) c cff =
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
-	let is_abstract = Meta.has Meta.Abstract cff.cff_meta in
+	let is_abstract = List.mem_assoc AAbstract cff.cff_access in
 	if is_abstract && not (has_class_flag c CAbstract) then begin
 		display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
 		display_error ctx "First abstract field was here" (pos cff.cff_name);
@@ -1394,7 +1394,7 @@ let init_field (ctx,cctx,fctx) f =
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
-		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
+		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _-> ()
 		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;

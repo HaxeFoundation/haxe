@@ -1,6 +1,6 @@
 abstract
 class Abstract {
-	@:abstract function abstractFunction():Void;
+	abstract function abstractFunction():Void;
 }
 
 class Main extends Abstract {
