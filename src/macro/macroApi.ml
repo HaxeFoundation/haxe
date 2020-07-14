@@ -148,6 +148,8 @@ module type InterpApi = sig
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 	val get_api_call_pos : unit -> pos
+
+	val make_dynamic : (Type.t -> Type.t) ref
 end
 
 let enum_name = function
@@ -1120,7 +1122,7 @@ and decode_type t =
 	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (decode_array pl))
 	| 4, [pl; r] -> TFun (List.map (fun p -> decode_string (field p "name"), decode_bool (field p "opt"), decode_type (field p "t")) (decode_array pl), decode_type r)
 	| 5, [a] -> TAnon (decode_ref a)
-	| 6, [t] -> t_dynamic (* DYNAMICTODO *)
+	| 6, [t] -> if t == vnull then t_dynamic else (!make_dynamic) (decode_type t)
 	| 7, [f] -> TLazy (decode_lazytype f)
 	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (decode_array pl))
 	| _ -> raise Invalid_expr

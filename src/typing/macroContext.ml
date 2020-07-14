@@ -31,6 +31,8 @@ module Eval = struct
 	include EvalValue
 	include EvalContext
 	include EvalMain
+
+	let make_dynamic = ref (fun _ -> die "" __LOC__)
 end
 
 module InterpImpl = Eval (* Hlmacro *)
@@ -139,6 +141,7 @@ let make_macro_api ctx p =
 		with _ ->
 			error "Malformed metadata string" p
 	in
+	Eval.make_dynamic := ctx.com.basic.tdynamic;
 	{
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);

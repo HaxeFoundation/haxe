@@ -2749,7 +2749,9 @@ let rec create com =
 			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
+			| "Dynamic" ->
+				t_dynamic_def := TAbstract(a,List.map snd a.a_params);
+				ctx.t.tdynamic <- (fun t -> TAbstract(a,[t]))
 			| "Null" ->
 				let mk_null t =
 					try
