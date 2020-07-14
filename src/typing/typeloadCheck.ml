@@ -399,6 +399,44 @@ module Inheritance = struct
 		| _ ->
 		List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
 
+	let check_abstract_class ctx c csup params =
+		let missing = ref [] in
+		let check_abstract_class_field cf1 t1 =
+			try
+				let cf2 = PMap.find cf1.cf_name c.cl_fields in
+				if not (List.exists (fun cf2 ->
+					Overloads.same_overload_args t1 cf2.cf_type cf1 cf2
+				) (cf2 :: cf2.cf_overloads)) then
+					missing := cf1 :: !missing
+			with Not_found ->
+				missing := cf1 :: !missing
+		in
+		let cfl = TClass.get_all_fields csup params in
+		PMap.iter (fun _ (_,cf) ->
+			let cfl = Overloads.collect_overloads csup cf.cf_name in
+			List.iter (fun (t,cf) ->
+				if (has_class_field_flag cf CfAbstract) then
+					check_abstract_class_field cf t
+			) cfl
+		) cfl;
+		match !missing with
+		| [] ->
+			()
+		| l ->
+			let singular = match l with [_] -> true | _ -> false in
+			display_error ctx (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
+			display_error ctx (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
+			let pctx = print_context() in
+			List.iter (fun cf ->
+				let s = match follow cf.cf_type with
+					| TFun(tl,tr) ->
+						String.concat ", " (List.map (fun (n,o,t) -> Printf.sprintf "%s:%s" n (s_type pctx t)) tl)
+					| t ->
+						s_type pctx t
+				in
+				display_error ctx (Printf.sprintf "... %s(%s)" cf.cf_name s) cf.cf_name_pos
+			) (List.rev !missing)
+
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
 		let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
@@ -463,6 +501,8 @@ module Inheritance = struct
 					end
 				end else begin
 					if (has_class_flag csup CInterface) then error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
+						delay ctx PForce (fun () -> check_abstract_class ctx c csup params);
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->

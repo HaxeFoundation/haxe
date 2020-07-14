@@ -67,6 +67,7 @@ type field_init_ctx = {
 	is_static : bool;
 	override : pos option;
 	is_extern : bool;
+	is_abstract : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
 	is_display_field : bool;
@@ -554,6 +555,12 @@ let create_field_context (ctx,cctx) c cff =
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
+	let is_abstract = Meta.has Meta.Abstract cff.cff_meta in
+	if is_abstract && not (has_class_flag c CAbstract) then begin
+		display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+		display_error ctx "First abstract field was here" (pos cff.cff_name);
+		add_class_flag c CAbstract;
+	end;
 	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
 	List.iter (fun (m,_,p) ->
 		match m with
@@ -582,13 +589,14 @@ let create_field_context (ctx,cctx) c cff =
 		override = override;
 		is_macro = is_macro;
 		is_extern = !is_extern;
+		is_abstract = is_abstract;
 		is_final = !is_final;
 		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not (has_class_flag c CInterface)) || field_kind = FKInit);
+		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -1141,6 +1149,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
+	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p

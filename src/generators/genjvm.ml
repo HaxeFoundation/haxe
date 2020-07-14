@@ -2174,6 +2174,7 @@ class tclass_to_jvm gctx c = object(self)
 			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
 			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
 		end;
+		if (has_class_flag c CAbstract) then jc#add_access_flag 0x0400; (* abstract *)
 		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
 
 	method private handle_relation_type_params =
@@ -2375,6 +2376,7 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
 		let flags = if Meta.has Meta.NativeJni cf.cf_meta then MNative :: flags else flags in
+		let flags = if (has_class_field_flag cf CfAbstract) then MAbstract :: flags else flags in
 		let name,scmode,flags = match mtype with
 			| MConstructor ->
 				let rec has_super_ctor c = match c.cl_super with
