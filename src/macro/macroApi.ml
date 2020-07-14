@@ -996,10 +996,10 @@ and encode_tclass c =
 	ignore(c.cl_build());
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
-		"isExtern", vbool c.cl_extern;
-		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
-		"isInterface", vbool c.cl_interface;
-		"isFinal", vbool c.cl_final;
+		"isExtern", vbool (has_class_flag c CExtern);
+		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"isInterface", vbool (has_class_flag c CInterface);
+		"isFinal", vbool (has_class_flag c CFinal);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]

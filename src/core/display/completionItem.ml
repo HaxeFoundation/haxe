@@ -181,20 +181,20 @@ module CompletionModuleType = struct
 			| Some c ->
 				try
 					let cf = PMap.find "_new" c.cl_statics in
-					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+					if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No
 		in
 		let ctor c =
 			try
 				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
 		in
 		let is_extern,is_final,kind,ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),ctor c
+				(has_class_flag c CExtern),has_class_flag c CFinal,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
 				en.e_extern,false,Enum,No
 			| TTypeDecl td ->

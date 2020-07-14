@@ -304,7 +304,7 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx cl.cl_extern cf && not (rec_stack_memq cf inline_stack) ->
+			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx (has_class_flag cl CExtern) cf && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in

@@ -431,7 +431,7 @@ let is_assignment_binop op =
 *)
 let is_php_global expr =
 	match expr.eexpr with
-		| TField (_, FStatic (c, _)) when c.cl_extern -> c.cl_path = ([],"") || Meta.has Meta.PhpGlobal c.cl_meta
+		| TField (_, FStatic (c, _)) when (has_class_flag c CExtern) -> c.cl_path = ([],"") || Meta.has Meta.PhpGlobal c.cl_meta
 		| _ -> false
 
 (**
@@ -439,7 +439,7 @@ let is_php_global expr =
 *)
 let is_php_class_const expr =
 	match expr.eexpr with
-		| TField (_, FStatic ({ cl_extern = true }, { cf_meta = meta; cf_kind = Var _ })) ->
+		| TField (_, FStatic (c, { cf_meta = meta; cf_kind = Var _ })) when (has_class_flag c CExtern) ->
 			Meta.has Meta.PhpClassConst meta
 		| _ -> false
 
@@ -458,7 +458,7 @@ let is_enum_constructor_with_args (constructor:tenum_field) =
 let rec sure_extends_extern (target:Type.t) =
 	match follow target with
 		| TInst ({ cl_path = ([], "String") }, _) -> false
-		| TInst ({ cl_extern = true }, _) -> true
+		| TInst (c, _) when (has_class_flag c CExtern) -> true
 		| TInst ({ cl_super = Some (tsuper, params) }, _) -> sure_extends_extern (TInst (tsuper,params))
 		| _ -> false
 
@@ -857,14 +857,14 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 *)
 class class_wrapper (cls) =
 	object (self)
-		inherit type_wrapper cls.cl_path cls.cl_meta (not cls.cl_extern)
+		inherit type_wrapper cls.cl_path cls.cl_meta (not (has_class_flag cls CExtern))
 		(**
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization =
 			(* Interfaces may need initialization only for RTTI meta data.
 				But that meta is written in `class_wrapper#write_rtti_meta` *)
-			if cls.cl_interface then
+			if (has_class_flag cls CInterface) then
 				false
 			else
 				match cls.cl_init with
@@ -899,7 +899,7 @@ class class_wrapper (cls) =
 			If current type requires some additional type to be generated
 		*)
 		method get_service_type : module_type option =
-			if not cls.cl_extern then
+			if not (has_class_flag cls CExtern) then
 				None
 			else
 				match cls.cl_init with
@@ -911,7 +911,6 @@ class class_wrapper (cls) =
 						in
 						let additional_cls = {
 							cls with
-								cl_extern =  false;
 								cl_path = path;
 								cl_fields  = PMap.create (fun a b -> 0);
 								cl_statics  = PMap.create (fun a b -> 0);
@@ -920,6 +919,7 @@ class class_wrapper (cls) =
 								cl_constructor = None;
 								cl_init = Some body
 						} in
+						remove_class_flag additional_cls CExtern;
 						Some (TClassDecl additional_cls)
 	end
 
@@ -1330,7 +1330,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							(match tcls.cl_path, params with
 								| ([], "String"), _ -> "string"
 								| ([], "Array"), [param] when for_doc -> (self#use_t param) ^ "[]|" ^ (self#use tcls.cl_path)
-								| _ -> self#use ~prefix:(not tcls.cl_extern) tcls.cl_path
+								| _ -> self#use ~prefix:(not (has_class_flag tcls CExtern)) tcls.cl_path
 							)
 					)
 				| TFun _ -> self#use ~prefix:false ([], "Closure")
@@ -2221,7 +2221,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					| _ -> self#write_expr expr
 			and operator =
 				match (reveal_expr expr).eexpr with
-					| TTypeExpr (TClassDecl { cl_extern = true; cl_path = (_,"") }) -> ""
+					| TTypeExpr (TClassDecl ({ cl_path = (_,"") } as c)) when (has_class_flag c CExtern) -> ""
 					| TTypeExpr _ -> "::"
 					| _ -> "->"
 			in
@@ -2653,7 +2653,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Writes TNew to output buffer
 		*)
 		method write_expr_new inst_class args =
-			let needs_php_prefix = not inst_class.cl_extern in
+			let needs_php_prefix = not (has_class_flag inst_class CExtern) in
 			self#write ("new " ^ (self#use ~prefix:needs_php_prefix inst_class.cl_path) ^ "(");
 			write_args self#write self#write_expr args;
 			self#write ")"
@@ -3328,7 +3328,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if type should be declared as `final`
 		*)
 		method is_final =
-			if not cls.cl_final then
+			if not (has_class_flag cls CFinal) then
 				false
 			else begin
 				let hacked = ref false in
@@ -3415,7 +3415,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_declaration =
 			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc));
 			if self#is_final then writer#write "final ";
-			writer#write (if cls.cl_interface then "interface " else "class ");
+			writer#write (if (has_class_flag cls CInterface) then "interface " else "class ");
 			writer#write self#get_name;
 			(
 				match cls.cl_super with
@@ -3425,7 +3425,7 @@ class class_builder ctx (cls:tclass) =
 						writer#write (" extends " ^ super_name)
 			);
 			if List.length cls.cl_implements > 0 then begin
-				writer#write (if cls.cl_interface then " extends " else " implements ");
+				writer#write (if (has_class_flag cls CInterface) then " extends " else " implements ");
 				let use_interface iface =
 					match iface with
 						| (i, params) -> writer#use_t (TInst (i, params))
@@ -3507,7 +3507,7 @@ class class_builder ctx (cls:tclass) =
 				self#write_php_prefix ();
 				at_least_one_field_written := true
 			end;
-		 	if not cls.cl_interface then begin
+		 	if not (has_class_flag cls CInterface) then begin
 		 		(* Inlined statc vars (constants) *)
 				PMap.iter (write_if_constant) cls.cl_statics;
 				if !at_least_one_field_written then writer#write_empty_lines;
@@ -3532,7 +3532,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_toString_if_required
 		method private write_toString_if_required =
 			if PMap.exists "toString" cls.cl_fields then
-				if (not cls.cl_interface) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
+				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
 						writer#write_empty_lines;
 						writer#indent 1;
@@ -3546,7 +3546,7 @@ class class_builder ctx (cls:tclass) =
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
 		method private constructor_is_required =
-			if cls.cl_interface || List.length self#get_namespace > 0 then
+			if (has_class_flag cls CInterface) || List.length self#get_namespace > 0 then
 				false
 			else begin
 				let required = ref false in

@@ -10,8 +10,8 @@ open Error
 
 let is_forced_inline c cf =
 	match c with
-	| Some { cl_extern = true } -> true
 	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some c when has_class_flag c CExtern -> true
 	| _ when has_class_field_flag cf CfExtern -> true
 	| _ -> false
 
@@ -29,7 +29,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			let is_extern_class = match cl with Some c -> c.cl_extern | _ -> false in
+			let is_extern_class = match cl with Some c -> (has_class_flag c CExtern) | _ -> false in
 			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
 		end else begin
 			match cl with
@@ -166,7 +166,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
-	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
+	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
 	let type_against name t e =
 		try
 			let e = type_expr ctx e (WithType.with_argument t name) in
@@ -544,7 +544,7 @@ let rec acc_get ctx g p =
 		| _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
 		| Method _,_->
-			let chk_class c = (c.cl_extern || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -579,7 +579,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics {cl_extern = false} when has_class_field_flag f CfExtern ->
+						| Statics c when has_class_field_flag f CfExtern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c

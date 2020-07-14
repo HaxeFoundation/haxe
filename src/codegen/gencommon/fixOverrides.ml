@@ -47,7 +47,7 @@ let priority = solve_deps name []
 let run ~explicit_fn_name ~get_vmtype gen =
 	let implement_explicitly = is_some explicit_fn_name in
 	let run md = match md with
-		| TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
+		| TClassDecl c when (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 			(* overrides can be removed from interfaces *)
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try
@@ -60,7 +60,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 					true
 			) c.cl_ordered_fields;
 			md
-		| TClassDecl({ cl_extern = false } as c) ->
+		| TClassDecl c when not (has_class_flag c CExtern) ->
 			let this = { eexpr = TConst TThis; etype = TInst(c,List.map snd c.cl_params); epos = c.cl_pos } in
 			(* look through all interfaces, and try to find a type that applies exactly *)
 			let rec loop_iface (iface:tclass) itl =
@@ -254,7 +254,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 						| _ -> f)
 				| _ -> f
 			in
-			if not c.cl_extern then
+			if not (has_class_flag c CExtern) then
 				List.iter (fun f ->
 					if has_class_field_flag f CfOverride then begin
 						remove_class_field_flag f CfOverride;

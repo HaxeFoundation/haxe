@@ -249,7 +249,7 @@ let add_constructor ctx c force_constructor p =
 				None
 	in
 	match c.cl_constructor, super() with
-	| None, Some(cfsup,csup,cparams) when not c.cl_extern ->
+	| None, Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
@@ -274,7 +274,7 @@ let add_constructor ctx c force_constructor p =
 				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
 				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) when not csup.cl_extern -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null()
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
 				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def

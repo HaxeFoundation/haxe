@@ -39,7 +39,7 @@ let priority = solve_deps name []
 let configure gen =
 	let run md =
 		match md with
-		| TClassDecl ({ cl_interface = true } as cl) ->
+		| TClassDecl cl when (has_class_flag cl CInterface) ->
 			let to_add = ref [] in
 			let fields = List.filter (fun cf ->
 				match cf.cf_kind with
