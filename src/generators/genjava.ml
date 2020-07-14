@@ -1276,8 +1276,8 @@ let generate con =
 								path_s_import pos (["java";"lang"], "Class") []
 						| _ ->
 								path_s_import pos (["java";"lang"], "Object") [])
-					| TDynamic ->
-							path_s_import pos (["java";"lang"], "Object") []
+				| TDynamic | TAbstract({a_path=([],"Dynamic")},_) ->
+					path_s_import pos (["java";"lang"], "Object") []
 				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
 				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); die "" __LOC__ end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 		end
