@@ -1949,7 +1949,7 @@ let generate con =
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
-					if (has_class_flag cl CInterface) || cf.cf_expr <> None then
+					if (has_class_flag cl CInterface) || (has_class_flag cl CAbstract) || cf.cf_expr <> None then
 						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
