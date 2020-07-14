@@ -1081,6 +1081,8 @@ and encode_type t =
 			6, [vnull]
 		| TLazy f ->
 			loop (lazy_type f)
+		| TAbstract ({a_path=([],"Dynamic")},[t]) ->
+			6, [encode_type t]
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
 	in
