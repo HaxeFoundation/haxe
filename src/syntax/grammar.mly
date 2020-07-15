@@ -300,8 +300,8 @@ and parse_type_decl mode s =
 			| [< >] ->
 				let c2 = parse_common_flags s in
 				begin match s with parser
-				| [< '(Kwd Class,_) >] ->
-					parse_class_content doc meta (c @ c2) [HAbstract] p1 s
+				| [< flags,_ = parse_class_flags >] ->
+					parse_class_content doc meta (c @ c2) (HAbstract :: flags) p1 s
 				| [< >] ->
 					serror()
 				end
