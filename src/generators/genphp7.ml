@@ -3076,10 +3076,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		(**
 			Writes method to output buffer
 		*)
-		method private write_method name func is_static =
+		method private write_method name func is_static is_abstract =
 			match name with
 				| "__construct" -> self#write_constructor_declaration func
-				| _ -> self#write_method_declaration name func is_static
+				| _ -> self#write_method_declaration name func is_static is_abstract
 		(**
 			Writes constructor declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3097,7 +3097,8 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		(**
 			Writes method declaration (except visibility keywords) to output buffer
 		*)
-		method private write_method_declaration name func is_static =
+		method private write_method_declaration name func is_static is_abstract =
+			if is_abstract then writer#write "abstract ";
 			if is_static then writer#write "static ";
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			writer#write ("function " ^ by_ref ^ name ^ " (");
@@ -3415,6 +3416,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_declaration =
 			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc));
 			if self#is_final then writer#write "final ";
+			if has_class_flag cls CAbstract then writer#write "abstract ";
 			writer#write (if (has_class_flag cls CInterface) then "interface " else "class ");
 			writer#write self#get_name;
 			(
@@ -3689,6 +3691,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
 			writer#write_indentation;
 			if self#is_final_field field then writer#write "final ";
+			if has_class_field_flag field CfAbstract then writer#write "abstract ";
 			writer#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
@@ -3699,7 +3702,7 @@ class class_builder ctx (cls:tclass) =
 					writer#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
-					self#write_method name fn is_static;
+					self#write_method name fn is_static (has_class_field_flag field CfAbstract);
 					writer#write "\n"
 				| _ -> fail field.cf_pos __LOC__
 		(**
