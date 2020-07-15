@@ -2396,15 +2396,21 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 
 and type_call_target ctx e with_type inline p =
 	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	let check_inline cf =
+		if (has_class_field_flag cf CfAbstract) then display_error ctx "Cannot force inline on abstract method" p
+	in
 	if not inline then
 		e
 	else match e with
 		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
 			begin match extract_field fa with
-			| Some cf -> AKInline(e1,cf,fa,t)
+			| Some cf ->
+				check_inline cf;
+				AKInline(e1,cf,fa,t)
 			| None -> e
 			end;
 		| AKUsing(e,c,cf,ef,_) ->
+			check_inline cf;
 			AKUsing(e,c,cf,ef,true)
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;
