@@ -2497,7 +2497,17 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map fst c.cl_params);
+		jc#set_type_parameters (List.map (fun (n,t) ->
+			let jsigs = match follow t with
+			| TInst({cl_kind = KTypeParameter tl},_) ->
+				List.map (fun t ->
+					get_boxed_type (jsignature_of_type gctx t)
+				 ) tl
+			| _ ->
+				[]
+			in
+			(n,jsigs)
+		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)
 			| _ -> ()
