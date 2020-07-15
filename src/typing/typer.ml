@@ -1709,7 +1709,6 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
-		no_abstract_constructor c p;
 		let args = match follow t with
 			| TFun(args,_) -> args
 			| _ -> die "" __LOC__
