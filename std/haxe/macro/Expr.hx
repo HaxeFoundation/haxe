@@ -857,6 +857,11 @@ enum Access {
 		Extern access modifier.
 	**/
 	AExtern;
+
+	/**
+		Abstract access modifier.
+	**/
+	AAbstract;
 }
 
 /**

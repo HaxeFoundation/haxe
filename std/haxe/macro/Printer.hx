@@ -159,6 +159,7 @@ class Printer {
 			case AMacro: "macro";
 			case AFinal: "final";
 			case AExtern: "extern";
+			case AAbstract: "abstract";
 		}
 
 	public function printField(field:Field) {
