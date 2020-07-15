@@ -384,7 +384,7 @@ let reify in_macro =
 						!ext
 						end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
-				| HFinal -> final := true (* ABSTRACTTODO *)
+				| HFinal -> final := true
 				| HAbstract -> abstract := true
 			) d.d_flags;
 			to_obj [
@@ -394,7 +394,7 @@ let reify in_macro =
 				"meta", to_meta d.d_meta p;
 				"params", (EArrayDecl (List.map (to_tparam_decl p) d.d_params),p);
 				"isExtern", to_bool (List.mem HExtern d.d_flags) p;
-				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p] p;
+				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p;to_bool !abstract p] p;
 				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
 			] p
 		| _ -> die "" __LOC__
