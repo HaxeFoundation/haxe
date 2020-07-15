@@ -570,18 +570,20 @@ let create_field_context (ctx,cctx) c cff =
 		| _ ->
 			()
 	) cff.cff_meta;
+	let is_inline = List.mem_assoc AInline cff.cff_access in
 	if is_abstract then begin
 		if is_static then
 			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
 		else if !is_final then
 			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
+		else if is_inline then
+			display_error ctx "Abstract methods may not be inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
 			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
 			display_error ctx "First abstract field was here" (pos cff.cff_name);
 			add_class_flag c CAbstract;
 		end;
 	end;
-	let is_inline = List.mem_assoc AInline cff.cff_access in
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
