@@ -5358,6 +5358,7 @@ let is_abstract_impl class_def = match class_def.cl_kind with
 let variable_field field =
    (match field.cf_expr with
    | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   | None when has_class_field_flag field CfAbstract -> false
    | _ -> true)
 ;;
 
@@ -5366,7 +5367,6 @@ let is_readable class_def field =
    | Var { v_read = AccNever } when not (is_physical_field field) -> false
    | Var { v_read = AccInline } -> false
    | Var _ when is_abstract_impl class_def -> false
-   | Method _ when has_class_field_flag field CfAbstract -> false
    | _ -> true)
 ;;
 
@@ -5375,7 +5375,6 @@ let is_writable class_def field =
    | Var { v_write = AccNever } when not (is_physical_field field) -> false
    | Var { v_read = AccInline } -> false
    | Var _ when is_abstract_impl class_def -> false
-   | Method _ when has_class_field_flag field CfAbstract -> false
    | _ -> true)
 ;;
 
