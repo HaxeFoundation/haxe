@@ -4630,13 +4630,13 @@ let gen_member_def ctx class_def is_static is_interface field =
    end else begin
       let decl = get_meta_string field.cf_meta Meta.Decl in
       let has_decl = decl <> "" in
+      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+      let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
       if (has_decl) then
          output ( "      typedef " ^ decl ^ ";\n" );
       output (if is_static then "\t\tstatic " else "\t\t");
       (match  field.cf_expr with
       | Some { eexpr = TFunction function_def } ->
-         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-         let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
          if ( is_dynamic_haxe_method field ) then begin
             if ( doDynamic ) then begin
                output ("::Dynamic " ^ remap_name ^ ";\n");
@@ -4667,7 +4667,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             end;
          end;
          output "\n";
-	   | _ when has_class_field_flag field CfAbstract ->
+      | _ when has_class_field_flag field CfAbstract ->
          let ctx_arg_list ctx arg_list prefix =
             String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n None t prefix) ) arg_list)
          in
@@ -4682,7 +4682,8 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (" " ^ remap_name ^ "(" );
          output (ctx_arg_list ctx tl "" );
          output ") = 0;\n";
-         output ("		virtual ::Dynamic " ^ remap_name ^ "_dyn();\n" );
+         if doDynamic then
+            output ("		::Dynamic " ^ remap_name ^ "_dyn();\n" );
       | _ when has_decl ->
          output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
          (* Variable access *)
