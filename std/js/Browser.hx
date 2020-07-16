@@ -72,7 +72,7 @@ class Browser {
 	public static var supported(get, never):Bool;
 
 	static function get_supported()
-		return 
+		return
 			js.Syntax.typeof(window) != "undefined" &&
 			js.Syntax.typeof(window.location) != "undefined" &&
 			js.Syntax.typeof(window.location.protocol) == "string";
@@ -80,7 +80,7 @@ class Browser {
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
 	 * disabled.
 	 */
-	public static function getLocalStorage():Storage {
+	public static function getLocalStorage():Null<Storage> {
 		try {
 			var s = window.localStorage;
 			s.getItem("");
