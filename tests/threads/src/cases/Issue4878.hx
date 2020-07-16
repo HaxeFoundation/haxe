@@ -7,7 +7,7 @@ import utest.ITest;
 class Issue4878 implements ITest {
 	public function new() { }
 
-	#if java
+	#if (java || python)
 
 	@:timeout(5000)
 	function test(async:Async) {
