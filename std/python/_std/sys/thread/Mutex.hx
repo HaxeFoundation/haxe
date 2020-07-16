@@ -34,12 +34,7 @@ class Mutex {
 	}
 
 	public function tryAcquire():Bool {
-		if (rLock._is_owned()) {
-			return false;
-		} else {
-			rLock.acquire(true);
-			return true;
-		}
+		return rLock.acquire(false);
 	}
 
 	public function release():Void {
@@ -52,5 +47,4 @@ extern class RLock {
 	function new();
 	function acquire(blocking:Bool):Bool;
 	function release():Void;
-	function _is_owned():Bool;
 }
