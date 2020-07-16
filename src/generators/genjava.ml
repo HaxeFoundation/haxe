@@ -1949,7 +1949,7 @@ let generate con =
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
-					if (has_class_flag cl CInterface) || cf.cf_expr <> None then
+					if (has_class_flag cl CInterface) || (has_class_flag cl CAbstract) || cf.cf_expr <> None then
 						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
@@ -1987,6 +1987,8 @@ let generate con =
 				let visibility = if is_interface then "" else "public" in
 
 				let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
+				let is_abstract = has_class_field_flag cf CfAbstract in
+				let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static" else if is_override && not is_interface then "" else if not is_virtual then "final" else "" in
 				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
@@ -2012,7 +2014,7 @@ let generate con =
 					| _ ->
 							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
 				);
-				if is_interface || List.mem "native" modifiers then
+				if is_interface || List.mem "native" modifiers || is_abstract then
 					write w ";"
 				else begin
 					let rec loop meta =
@@ -2109,7 +2111,9 @@ let generate con =
 
 		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if (has_class_flag cl CInterface) then "interface" else "class") "public" [] in
 		let is_final = has_class_flag cl CFinal in
+		let is_abstract = has_class_flag cl CAbstract in
 		let modifiers = if is_final then "final" :: modifiers else modifiers in
+		let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 
 		write_parts w (access :: modifiers @ [clt; (change_clname (snd cl.cl_path))]);
 

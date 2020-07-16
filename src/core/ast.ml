@@ -254,6 +254,7 @@ and access =
 	| AMacro
 	| AFinal
 	| AExtern
+	| AAbstract
 
 and placed_access = access * pos
 
@@ -290,6 +291,7 @@ type class_flag =
 	| HExtends of placed_type_path
 	| HImplements of placed_type_path
 	| HFinal
+	| HAbstract
 
 type abstract_flag =
 	| AbPrivate
@@ -431,6 +433,7 @@ let s_access = function
 	| AMacro -> "macro"
 	| AFinal -> "final"
 	| AExtern -> "extern"
+	| AAbstract -> "abstract"
 
 let s_placed_access (a,_) = s_access a
 

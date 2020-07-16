@@ -1409,6 +1409,7 @@ and type_access ctx e p mode =
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
+				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
 				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
@@ -1808,6 +1809,7 @@ and type_new ctx path el with_type force_inline p =
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
+			no_abstract_constructor c p;
 			ignore (unify_constructor_call c monos f ct);
 			begin try
 				Generic.build_generic ctx c p monos
@@ -1834,6 +1836,7 @@ and type_new ctx path el with_type force_inline p =
 	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
+		no_abstract_constructor c p;
 		check_constructor_access ctx c f p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
@@ -2393,15 +2396,21 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 
 and type_call_target ctx e with_type inline p =
 	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	let check_inline cf =
+		if (has_class_field_flag cf CfAbstract) then display_error ctx "Cannot force inline on abstract method" p
+	in
 	if not inline then
 		e
 	else match e with
 		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
 			begin match extract_field fa with
-			| Some cf -> AKInline(e1,cf,fa,t)
+			| Some cf ->
+				check_inline cf;
+				AKInline(e1,cf,fa,t)
 			| None -> e
 			end;
 		| AKUsing(e,c,cf,ef,_) ->
+			check_inline cf;
 			AKUsing(e,c,cf,ef,true)
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;

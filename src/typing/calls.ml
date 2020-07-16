@@ -729,6 +729,10 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
 							let fcc = unify_field_call ctx fa el args r p false in
+							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
+								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+								| _ -> ()
+							end;
 							fcc.fc_data e1 e.epos false
 					end
 				| _ ->

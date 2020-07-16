@@ -67,6 +67,7 @@ type field_init_ctx = {
 	is_static : bool;
 	override : pos option;
 	is_extern : bool;
+	is_abstract : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
 	is_display_field : bool;
@@ -554,6 +555,7 @@ let create_field_context (ctx,cctx) c cff =
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
+	let is_abstract = List.mem_assoc AAbstract cff.cff_access in
 	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
 	List.iter (fun (m,_,p) ->
 		match m with
@@ -569,6 +571,19 @@ let create_field_context (ctx,cctx) c cff =
 			()
 	) cff.cff_meta;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
+	if is_abstract then begin
+		if is_static then
+			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
+		else if !is_final then
+			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
+		else if is_inline then
+			display_error ctx "Abstract methods may not be inline" (pos cff.cff_name)
+		else if not (has_class_flag c CAbstract) then begin
+			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+			display_error ctx "First abstract field was here" (pos cff.cff_name);
+			add_class_flag c CAbstract;
+		end;
+	end;
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
@@ -582,13 +597,14 @@ let create_field_context (ctx,cctx) c cff =
 		override = override;
 		is_macro = is_macro;
 		is_extern = !is_extern;
+		is_abstract = is_abstract;
 		is_final = !is_final;
 		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not (has_class_flag c CInterface)) || field_kind = FKInit);
+		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -1106,6 +1122,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
+	if fctx.is_abstract && dynamic then display_error ctx "Abstract methods may not be dynamic" p;
 	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
 	let is_override = Option.is_some fctx.override in
 	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
@@ -1141,6 +1158,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
+	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
@@ -1224,7 +1242,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			) args fd.f_args;
 		);
 		check_field_display ctx fctx c cf;
-		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		if fd.f_expr <> None then begin
+			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
+			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		end;
 	end;
 	cf
 
@@ -1385,7 +1406,7 @@ let init_field (ctx,cctx,fctx) f =
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
-		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
+		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _-> ()
 		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;
@@ -1609,6 +1630,8 @@ let init_class ctx c p context_init herits fields =
 	if has_struct_init then
 		if (has_class_flag c CInterface) then
 			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
+		else if (has_class_flag c CAbstract) then
+			display_error ctx "@:structInit is not allowed on abstract classes" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with

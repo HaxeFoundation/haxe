@@ -2261,7 +2261,7 @@ let generate con =
 						| overloads -> overloads
 					in
 					List.iter (fun cf ->
-						if (has_class_flag cl CInterface) || cf.cf_expr <> None then
+						if (has_class_flag cl CInterface) || (has_class_flag cl CAbstract) || cf.cf_expr <> None then
 							gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 					) overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
@@ -2277,11 +2277,13 @@ let generate con =
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
-					let is_virtual = is_virtual && not (has_class_flag cl CFinal) && not (is_interface) in
+					let is_abstract = has_class_field_flag cf CfAbstract in
+					let is_virtual = is_virtual && not (has_class_flag cl CFinal) && not (is_interface) && not is_abstract in
 					let visibility = if is_interface then "" else "public" in
 
 					let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
 					let modifiers = modifiers @ modf in
+					let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
 					let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
@@ -2299,7 +2301,7 @@ let generate con =
 					| _ ->
 							print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s t) (change_id name)) args)) (params_ext)
 					);
-					if is_interface then
+					if is_interface || is_abstract then
 						write w ";"
 					else begin
 						write w " ";
@@ -2626,6 +2628,8 @@ let generate con =
 			let is_final = clt = "struct" || (has_class_flag cl CFinal) in
 
 			let modifiers = [access] @ modifiers in
+			let is_abstract = has_class_flag cl CAbstract in
+			let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 			print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
 			(* type parameters *)
 			let params, params_ext = get_string_params cl cl.cl_params in

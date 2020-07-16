@@ -382,6 +382,7 @@ type flag_tclass =
 	| CExtern
 	| CFinal
 	| CInterface
+	| CAbstract
 
 type flag_tclass_field =
 	| CfPublic
@@ -390,6 +391,7 @@ type flag_tclass_field =
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 	| CfOverride
+	| CfAbstract
 
 type flag_tvar =
 	| VCaptured

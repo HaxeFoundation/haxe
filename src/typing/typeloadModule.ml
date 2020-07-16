@@ -239,6 +239,7 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
 			List.iter (function
 				| HExtern -> add_class_flag c CExtern
 				| HInterface -> add_class_flag c CInterface
@@ -246,6 +247,10 @@ let module_pass_1 ctx m tdecls loadp =
 				| _ -> ()
 			) d.d_flags;
 			if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
+			if has_class_flag c CAbstract then begin
+				if has_class_flag c CInterface then display_error ctx "An interface may not be abstract" c.cl_name_pos;
+				if has_class_flag c CFinal then display_error ctx "An abstract class may not be final" c.cl_name_pos;
+			end;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->

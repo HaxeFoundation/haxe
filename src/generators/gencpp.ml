@@ -4536,6 +4536,16 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       if is_static && is_physical_field field then begin
          gen_type ctx field.cf_type;
          output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
+      end else if has_class_field_flag field CfAbstract then begin
+         let tl,tr = match follow field.cf_type with
+            | TFun(tl,tr) -> tl,tr
+            | _ -> die "" __LOC__
+         in
+         let nargs = string_of_int (List.length tl) in
+         let return_type = (cpp_type_of ctx tr ) in
+         let is_void = return_type = TCppVoid in
+         let ret = if is_void  then "(void)" else "return " in
+         output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
       end
    )
    ;;
@@ -4620,13 +4630,13 @@ let gen_member_def ctx class_def is_static is_interface field =
    end else begin
       let decl = get_meta_string field.cf_meta Meta.Decl in
       let has_decl = decl <> "" in
+      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+      let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
       if (has_decl) then
          output ( "      typedef " ^ decl ^ ";\n" );
       output (if is_static then "\t\tstatic " else "\t\t");
       (match  field.cf_expr with
       | Some { eexpr = TFunction function_def } ->
-         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-         let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
          if ( is_dynamic_haxe_method field ) then begin
             if ( doDynamic ) then begin
                output ("::Dynamic " ^ remap_name ^ ";\n");
@@ -4657,6 +4667,23 @@ let gen_member_def ctx class_def is_static is_interface field =
             end;
          end;
          output "\n";
+      | _ when has_class_field_flag field CfAbstract ->
+         let ctx_arg_list ctx arg_list prefix =
+            String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n None t prefix) ) arg_list)
+         in
+         let tl,tr = match follow field.cf_type with
+            | TFun(tl,tr) -> tl,tr
+            | _ -> die "" __LOC__
+         in
+         let return_type = (ctx_type_string ctx tr) in
+         let remap_name = native_field_name_remap is_static field in
+         output "virtual ";
+         output (if return_type="Void" then "void" else return_type );
+         output (" " ^ remap_name ^ "(" );
+         output (ctx_arg_list ctx tl "" );
+         output ") = 0;\n";
+         if doDynamic then
+            output ("		::Dynamic " ^ remap_name ^ "_dyn();\n" );
       | _ when has_decl ->
          output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
          (* Variable access *)
@@ -5332,6 +5359,7 @@ let is_abstract_impl class_def = match class_def.cl_kind with
 let variable_field field =
    (match field.cf_expr with
    | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   | None when has_class_field_flag field CfAbstract -> false
    | _ -> true)
 ;;
 
@@ -5814,14 +5842,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       );
 
       (* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
-      output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return new " ^ class_name ^ "; }\n\n");
-      output_cpp ("void *" ^ class_name ^ "::_hx_vtable = 0;\n\n");
+      if not (has_class_flag class_def CAbstract) then begin
+         output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return new " ^ class_name ^ "; }\n\n");
+         output_cpp ("void *" ^ class_name ^ "::_hx_vtable = 0;\n\n");
 
-      output_cpp ("Dynamic " ^ class_name ^ "::__Create(::hx::DynamicArray inArgs)\n");
-      output_cpp ("{\n\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
-      output_cpp ("\t_hx_result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
-      output_cpp ("\treturn _hx_result;\n}\n\n");
-
+         output_cpp ("Dynamic " ^ class_name ^ "::__Create(::hx::DynamicArray inArgs)\n");
+         output_cpp ("{\n\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
+         output_cpp ("\t_hx_result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
+         output_cpp ("\treturn _hx_result;\n}\n\n");
+      end;
       let rec addParent cls others = match cls.cl_super with
       | Some (super,_) -> ( try (
          let parentId = Hashtbl.find ctx.ctx_type_ids (class_text super.cl_path)  in
@@ -5965,7 +5994,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("}\n");
    end;
 
-   if (not (has_class_flag class_def CInterface)) && not nativeGen && not inlineContructor then
+   if (not (has_class_flag class_def CInterface)) && not nativeGen && not inlineContructor && not (has_class_flag class_def CAbstract) then
       outputConstructor ctx output_cpp false;
 
 
@@ -6409,7 +6438,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) && not (has_class_flag class_def CAbstract) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -6604,7 +6633,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("\t\t\t{ return ::hx::Object::operator new(inSize,inContainer,inName); }\n" );
       output_h ("\t\tinline void *operator new(size_t inSize, int extra)\n" );
       output_h ("\t\t\t{ return ::hx::Object::operator new(inSize+extra," ^ isContainer ^ "," ^ gcName ^ "); }\n" );
-      if inlineContructor then begin
+      if has_class_flag class_def CAbstract then
+         output_h "\n"
+      else if inlineContructor then begin
          output_h "\n";
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin

@@ -2090,7 +2090,7 @@ let generate_field_kind ctx f c stat =
 				hlm_kind = kind;
 			})
 		);
-	| _ when (has_class_flag c CInterface) && not stat ->
+	| _ when (has_class_flag c CInterface || has_class_field_flag f CfAbstract) && not stat ->
 		(match follow f.cf_type, f.cf_kind with
 		| TFun (args,tret), Method (MethNormal | MethInline) ->
 			let dparams = ref None in
