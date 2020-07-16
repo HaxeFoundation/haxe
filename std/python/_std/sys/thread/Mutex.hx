@@ -23,33 +23,34 @@
 package sys.thread;
 
 class Mutex {
+	var rLock: RLock;
+
 	public function new() {
-		
+		rLock = new RLock();
 	}
 
-	/**
-		The current thread acquire the mutex or wait if not available.
-		The same thread can acquire several times the same mutex but
-		must release it as many times it has been acquired.
-	**/
 	public function acquire():Void {
-
+		rLock.acquire(true);
 	}
 
-	/**
-		Try to acquire the mutex, returns true if acquire or false
-		if it's already locked by another thread.
-	**/
 	public function tryAcquire():Bool {
-		return true;
+		if (rLock._is_owned()) {
+			return false;
+		} else {
+			rLock.acquire(true);
+			return true;
+		}
 	}
 
-	/**
-		Release a mutex that has been acquired by the current thread.
-		The behavior is undefined if the current thread does not own
-		the mutex.
-	**/
 	public function release():Void {
-
+		rLock.release();
 	}
+}
+
+@:pythonImport("threading", "RLock")
+extern class RLock {
+	function new();
+	function acquire(blocking:Bool):Bool;
+	function release():Void;
+	function _is_owned():Bool;
 }
