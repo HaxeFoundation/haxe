@@ -65,4 +65,9 @@ package java.lang;
 	@:native("toString") @:overload static function _toString(param1:Single):String;
 	@:overload static function valueOf(param1:Single):Float;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String):Float;
+
+	function doubleValue():Float;
+	function floatValue():Single;
+	function intValue():Int;
+	function longValue():haxe.Int64;
 }

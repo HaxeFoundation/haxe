@@ -70,6 +70,11 @@ package java.lang;
 	@:overload static function valueOf(param1:Int):Integer;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String, param2:Int):Integer;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String):Integer;
+
+	function doubleValue():Float;
+	function floatValue():Single;
+	function intValue():Int;
+	function longValue():haxe.Int64;
 }
 
 @:realPath("java.lang.Integer_IntegerCache") @:javaNative @:native("java.lang.Integer$IntegerCache") @:javaCanonical("java.lang",

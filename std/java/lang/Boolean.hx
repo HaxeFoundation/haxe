@@ -51,4 +51,9 @@ package java.lang;
 	@:native("toString") @:overload static function _toString(param1:Bool):String;
 	@:overload static function valueOf(param1:Bool):Boolean;
 	@:overload static function valueOf(param1:String):Boolean;
+
+	function doubleValue():Float;
+	function floatValue():Single;
+	function intValue():Int;
+	function longValue():haxe.Int64;
 }

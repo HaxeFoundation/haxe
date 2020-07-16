@@ -70,6 +70,11 @@ package java.lang;
 	@:overload static function valueOf(param1:haxe.Int64):Long;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String, param2:Int):Long;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String):Long;
+
+	function doubleValue():Float;
+	function floatValue():Single;
+	function intValue():Int;
+	function longValue():haxe.Int64;
 }
 
 @:realPath("java.lang.Long_LongCache") @:javaNative @:native("java.lang.Long$LongCache") @:javaCanonical("java.lang",

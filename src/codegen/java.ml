@@ -237,7 +237,7 @@ let convert_java_enum ctx p pe =
 		d_data = List.rev !data;
 	}
 
-	let convert_java_field ctx p jc field =
+	let convert_java_field ctx p jc is_interface field =
 		let p = { p with pfile =	p.pfile ^" (" ^field.jf_name ^")" } in
 		let cff_doc = None in
 		let cff_pos = p in
@@ -275,6 +275,8 @@ let convert_java_enum ctx p pe =
 			| JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
 			| JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
 			(* | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta *)
+			| JAbstract when not is_interface ->
+				cff_access := (AAbstract, p) :: !cff_access
 			| _ -> ()
 		) field.jf_flags;
 
@@ -442,16 +444,20 @@ let convert_java_enum ctx p pe =
 				meta := (Meta.LibType,[],p) :: !meta;
 
 			let is_interface = ref false in
+			let is_abstract =  ref false in
 			List.iter (fun f -> match f with
 				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags
-				| JAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+				| JAbstract ->
+					meta := (Meta.Abstract, [], p) :: !meta;
+					is_abstract := true;
 				| JAnnotation -> meta := (Meta.Annotation, [], p) :: !meta
 				| _ -> ()
 			) jc.cflags;
 
+			if !is_abstract && not !is_interface then flags := HAbstract :: !flags;
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
@@ -477,7 +483,7 @@ let convert_java_enum ctx p pe =
 						if !is_interface && List.mem JStatic f.jf_flags then
 							()
 						else begin
-							fields := convert_java_field ctx p jc f :: !fields;
+							fields := convert_java_field ctx p jc !is_interface f :: !fields;
 							jfields := f :: !jfields
 						end
 					with

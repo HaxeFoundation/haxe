@@ -53,6 +53,11 @@ package java.lang;
 	@:overload static function valueOf(param1:java.types.Int8):Byte;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String):Byte;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1:String, param2:Int):Byte;
+
+	function doubleValue():Float;
+	function floatValue():Single;
+	function intValue():Int;
+	function longValue():haxe.Int64;
 }
 
 @:realPath("java.lang.Byte_ByteCache") @:javaNative @:native("java.lang.Byte$ByteCache") @:javaCanonical("java.lang",
