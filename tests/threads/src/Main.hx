@@ -4,7 +4,8 @@ import utest.ui.Report;
 class Main {
 	static function main() {
 		utest.UTest.run([
-			new cases.Issue4878()
+			new cases.Issue4878(),
+			new cases.DequeBrackets()
 		]);
 		/*
 		var runner = new Runner();
