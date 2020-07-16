@@ -71,7 +71,7 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
-let collect_overloads c i =
+let collect_overloads map c i =
 	let acc = ref [] in
 	let rec loop map c =
 		let maybe_add cf =
@@ -102,11 +102,11 @@ let collect_overloads c i =
 				let tl = List.map map tl in
 				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
-	loop (fun t -> t) c;
+	loop map c;
 	List.rev !acc
 
 let get_overloads (com : Common.context) c i =
-	collect_overloads c i
+	collect_overloads (fun t -> t) c i
 	(* TODO: check why this kills Java *)
 	(* try
 		Hashtbl.find com.overload_cache (c.cl_path,i)

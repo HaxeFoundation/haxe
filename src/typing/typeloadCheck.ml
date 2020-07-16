@@ -410,6 +410,7 @@ module Inheritance = struct
 
 	let check_abstract_class ctx c csup params =
 		let missing = ref [] in
+		let map = apply_params csup.cl_params params in
 		let check_abstract_class_field cf1 t1 =
 			try
 				let cf2 = PMap.find cf1.cf_name c.cl_fields in
@@ -422,7 +423,7 @@ module Inheritance = struct
 		in
 		let cfl = TClass.get_all_fields csup params in
 		PMap.iter (fun _ (_,cf) ->
-			let cfl = Overloads.collect_overloads csup cf.cf_name in
+			let cfl = Overloads.collect_overloads map csup cf.cf_name in
 			List.iter (fun (t,cf) ->
 				if (has_class_field_flag cf CfAbstract) then
 					check_abstract_class_field cf t
