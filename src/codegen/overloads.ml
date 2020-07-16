@@ -239,7 +239,7 @@ struct
 
 	let rec rm_duplicates acc ret = match ret with
 		| [] -> acc
-		| ( el, t, _ ) :: ret when List.exists (fun (_,t2,_) -> type_iseq t t2) acc ->
+		| fcc :: ret when List.exists (fun fcc2 -> type_iseq fcc.fc_type fcc2.fc_type) acc ->
 			rm_duplicates acc ret
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
@@ -256,15 +256,15 @@ struct
 	let rec fewer_optionals acc compatible = match acc, compatible with
 		| _, [] -> acc
 		| [], c :: comp -> fewer_optionals [c] comp
-		| (elist_acc, _, _) :: _, ((elist, _, _) as cur) :: comp ->
-			let acc_opt = count_optionals elist_acc in
-			let comp_opt = count_optionals elist in
+		| fcc_acc :: _, fcc :: comp ->
+			let acc_opt = count_optionals fcc_acc.fc_args in
+			let comp_opt = count_optionals fcc.fc_args in
 			if acc_opt = comp_opt then
-				fewer_optionals (cur :: acc) comp
+				fewer_optionals (fcc :: acc) comp
 			else if acc_opt < comp_opt then
 				fewer_optionals acc comp
 			else
-				fewer_optionals [cur] comp
+				fewer_optionals [fcc] comp
 
 	let reduce_compatible compatible = match fewer_optionals [] (rm_duplicates [] compatible) with
 		| [] -> []
@@ -287,9 +287,9 @@ struct
 			in
 
 			let rated = ref [] in
-			List.iter (function
-				| (elist,TFun(args,ret),d) -> (try
-					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
+			List.iter (fun fcc -> match fcc.fc_type with
+				| TFun(args,ret) -> (try
+					rated := ( fcc, mk_rate [] fcc.fc_args args ) :: !rated
 					with | Not_found -> ())
 				| _ -> die "" __LOC__
 			) compatible;

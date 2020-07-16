@@ -271,7 +271,7 @@ let unify_field_call ctx fa el args ret p inline =
 				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
 				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
 			in
-			el,tf,mk_call
+			make_field_call_candidate el tf cf mk_call
 		| _ ->
 			die "" __LOC__
 	in
@@ -312,15 +312,16 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
-		[],tf,(fun ethis p_field _ ->
+		let call = (fun ethis p_field _ ->
 			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
 			mk (TCall(e1,[])) ret p)
+		in
+		make_field_call_candidate [] tf cf call
 	in
 	match candidates with
 	| [t,cf] ->
 		begin try
-			let el,tf,mk_call = attempt_call t cf in
-			List.map fst el,tf,mk_call
+			attempt_call t cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
@@ -343,11 +344,11 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		if is_overload && ctx.com.config.pf_overload then begin match Overloads.Resolution.reduce_compatible candidates with
 			| [] -> fail()
-			| [el,tf,mk_call] -> List.map fst el,tf,mk_call
+			| [fcc] -> fcc
 			| _ -> error "Ambiguous overload" p
 		end else begin match List.rev candidates with
 			| [] -> fail()
-			| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
+			| fcc :: _ -> fcc
 		end
 
 let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
@@ -619,8 +620,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		check_assign();
 		(match follow t with
 			| TFun (args,r) ->
-				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
-				mk_call ethis p true
+				let fcc = unify_field_call ctx fmode el args r p true in
+				fcc.fc_data ethis p true
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
@@ -727,8 +728,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
-							let _,_,mk_call = unify_field_call ctx fa el args r p false in
-							mk_call e1 e.epos false
+							let fcc = unify_field_call ctx fa el args r p false in
+							fcc.fc_data e1 e.epos false
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
