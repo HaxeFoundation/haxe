@@ -27,7 +27,7 @@ class Thread {
 
 	private function new(callb:Void->Void) {
 		nativeThread = new NativeThread(null, callb);
-		nativeThread.run();
+		nativeThread.start();
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
@@ -50,6 +50,6 @@ class Thread {
 @:pythonImport("threading", "Thread")
 @:native("Thread")
 extern class NativeThread {
-	function new(group: Dynamic, target:Void->Void);
-	function run(): Void;
+	function new(group:Dynamic, target:Void->Void);
+	function start():Void;
 }
