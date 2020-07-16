@@ -1777,8 +1777,8 @@ and type_new ctx path el with_type force_inline p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
-				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				el
+				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
+				List.map fst fcc.fc_args
 			with Error (e,p) ->
 				display_error ctx (error_msg e) p;
 				[])
@@ -2494,8 +2494,8 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 			let el = (match follow ct with
 			| TFun (args,r) ->
-				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				el
+				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
+				List.map fst fcc.fc_args
 			| _ ->
 				error "Constructor is not a function" p
 			) in

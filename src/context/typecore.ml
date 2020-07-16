@@ -143,6 +143,13 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+type 'a field_call_candidate = {
+	fc_args : (texpr * bool) list;
+	fc_type : Type.t;
+	fc_field : tclass_field;
+	fc_data : 'a;
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
@@ -536,6 +543,13 @@ let safe_mono_close ctx m p =
 	with
 		Unify_error l ->
 			raise_or_display ctx l p
+
+let make_field_call_candidate args t cf data = {
+	fc_args = args;
+	fc_type = t;
+	fc_field = cf;
+	fc_data = data;
+}
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

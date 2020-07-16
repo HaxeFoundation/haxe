@@ -72,8 +72,30 @@ type php_generator_context = {
 	(** php.Boot *)
 	pgc_boot : tclass;
 	(** see type_name_used_in_namespace *)
-	pgc_namespaces_types_cache : (string list, string) Hashtbl.t
+	pgc_namespaces_types_cache : (string list, string) Hashtbl.t;
+	(**
+		List of anon structures declarations found during generating current php file.
+		The key is a list of fields names.
+		The value is an auto-generated name for the class representing that anon.
+	*)
+	pgc_anons : (string list, string) Hashtbl.t;
+	(** a buffer to write to the bottom of the current php file (but before "Boot::registerClass()" and "::_hx_init()" calls) *)
+	pgc_bottom_buffer : Buffer.t;
 }
+
+(**
+	Generate a (zero-based) number to be used for an anon structure declaration.
+*)
+(* let get_anon_num ctx fields_names =
+
+	string_of_int (Hashtbl.length ctx.pgc_anons) *)
+
+(**
+	Reset the state of the context between before a generating a php file.
+*)
+let reset_context ctx =
+	Buffer.clear ctx.pgc_bottom_buffer;
+	Hashtbl.clear ctx.pgc_anons
 
 (**
 	Get list of keys in Hashtbl
@@ -1252,6 +1274,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method get_indentation = String.length indentation
 		(**
+			Set indentation level (starting from zero for no indentation)
+		*)
+		method set_indentation level =
+			indentation <- String.make level '\t'
+		(**
 			Specify local var name declared in current scope
 		*)
 		method declared_local_var name = vars#declared name
@@ -2286,44 +2313,55 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| _ ->
 					let inits,args_exprs,args_names =
 						List.fold_left (fun (inits,args_exprs,args_names) ((name,p,quotes), e) ->
-							match (reveal_expr e).eexpr with
-							| TConst _ ->
-								let field =
-									if quotes = NoQuotes then name
-									else "{" ^ (quote_string name) ^ "}"
-								in
-								(field,e) :: inits, args_exprs, args_names
-							| _ ->
-								let field,arg_name =
-									if quotes = NoQuotes then name,name
-									else "{" ^ (quote_string name) ^ "}", "_hx_" ^ (string_of_int (List.length args_exprs))
-								in
-								(field,mk (TIdent ("$"^arg_name)) e.etype p) :: inits, e :: args_exprs, arg_name :: args_names
+							let field,arg_name =
+								if quotes = NoQuotes then name,name
+								else "{" ^ (quote_string name) ^ "}", "_hx_" ^ (string_of_int (List.length args_exprs))
+							in
+							(field,mk (TIdent ("$"^arg_name)) e.etype p) :: inits, e :: args_exprs, arg_name :: args_names
 						) ([],[],[]) fields
 					in
-					self#write "new class (";
+					let anon_name, declare_class =
+						let key = List.map (fun ((name,_,_),_) -> name) fields in
+						try
+							Hashtbl.find ctx.pgc_anons key, false
+						with Not_found ->
+							let name = "_HxAnon_" ^ self#get_name ^ (string_of_int (Hashtbl.length ctx.pgc_anons)) in
+							Hashtbl.add ctx.pgc_anons key name;
+							name, true
+					in
+					self#write ("new " ^ anon_name ^ "(");
 					write_args self#write self#write_expr (List.rev args_exprs);
-					self#write (") extends " ^ (self#use hxanon_type_path) ^ " {\n");
-					self#indent_more;
-					self#write_indentation;
-					self#write "function __construct(";
-					write_args self#write (fun name -> self#write ("$" ^ name)) (List.rev args_names);
-					self#write ") {\n";
-					self#indent_more;
-					List.iter (fun (field,e) ->
-						self#write_indentation;
-						self#write "$this->";
-						self#write field;
-						self#write " = ";
-						self#write_expr e;
-						self#write ";\n";
-					) (List.rev inits);
-					self#indent_less;
-					self#write_line "}";
-					self#indent_less;
-					self#write_indentation;
-					self#write "}";
-					(* self#write_assoc_array_decl fields; *)
+					self#write ")";
+					if declare_class then begin
+						(* save writer's state *)
+						let original_buffer = buffer
+						and original_indentation = self#get_indentation in
+						let sm_pointer_before_body = get_sourcemap_pointer sourcemap in
+						(* generate a class for this anon *)
+						buffer <- ctx.pgc_bottom_buffer;
+						self#set_indentation 0;
+						self#write ("\nclass " ^ anon_name ^ " extends " ^ (self#use hxanon_type_path) ^ " {\n");
+						self#indent_more;
+						self#write_with_indentation "function __construct(";
+						write_args self#write (fun name -> self#write ("$" ^ name)) (List.rev args_names);
+						self#write ") {\n";
+						self#indent_more;
+						List.iter (fun (field,e) ->
+							self#write_with_indentation "$this->";
+							self#write field;
+							self#write " = ";
+							self#write_expr e;
+							self#write ";\n";
+						) (List.rev inits);
+						self#indent_less;
+						self#write_line "}";
+						self#indent_less;
+						self#write_with_indentation "}\n";
+						(* restore writer's state *)
+						buffer <- original_buffer;
+						self#set_indentation original_indentation;
+						set_sourcemap_pointer sourcemap sm_pointer_before_body
+					end
 		(**
 			Writes specified type to output buffer depending on type of expression.
 		*)
@@ -2952,7 +2990,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				self#write_header;
 				writer#write "\n";
 				let header = writer#get_contents in
-				contents <- header ^ body;
+				contents <- header ^ body ^ (Buffer.contents ctx.pgc_bottom_buffer)
 			end;
 			contents
 		(**
@@ -3823,6 +3861,7 @@ class generator (ctx:php_generator_context) =
 			Generates php file for specified type
 		*)
 		method generate (builder:type_builder) =
+			reset_context ctx;
 			let namespace = builder#get_namespace
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
@@ -3952,7 +3991,9 @@ let generate (com:context) =
 			pgc_skip_line_directives = Common.defined com Define.RealPosition;
 			pgc_prefix = Str.split (Str.regexp "\\.") (Common.defined_value_safe com Define.PhpPrefix);
 			pgc_boot = get_boot com;
-			pgc_namespaces_types_cache = Hashtbl.create 512
+			pgc_namespaces_types_cache = Hashtbl.create 512;
+			pgc_anons = Hashtbl.create 0;
+			pgc_bottom_buffer = Buffer.create 0
 		}
 	in
 	let gen = new generator ctx in
