@@ -630,16 +630,6 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf =
-	let is_static = has_class_field_flag cf CfStatic in
-	if is_static then begin
-		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
-	end else begin
-		c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-		c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-	end
-
 let type_opt (ctx,cctx) p t =
 	let c = cctx.tclass in
 	match t with
@@ -1579,7 +1569,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf
+				if fctx.do_add then TClass.add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p

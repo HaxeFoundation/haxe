@@ -300,6 +300,16 @@ module TClass = struct
 				end
 		in
 		loop [] c
+
+	let add_field c cf =
+		let is_static = has_class_field_flag cf CfStatic in
+		if is_static then begin
+			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+		end else begin
+			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
+			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+		end
 end
 
 let s_class_path c =

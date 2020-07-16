@@ -376,6 +376,15 @@ module Inheritance = struct
 							display_error ctx (compl_msg (error_msg (Unify l))) p;
 						end
 			with
+				| Not_found when (has_class_flag c CAbstract) ->
+					let cf = {f with cf_overloads = []} in
+					add_class_field_flag cf CfAbstract;
+					begin try
+						let cf' = PMap.find cf.cf_name c.cl_fields in
+						cf'.cf_overloads <- cf :: cf'.cf_overloads
+					with Not_found ->
+						TClass.add_field c cf
+					end
 				| Not_found when not (has_class_flag c CInterface) ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
@@ -496,7 +505,7 @@ module Inheritance = struct
 					if not (has_class_flag csup CInterface) then error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
-						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
+						if not is_lib then delay ctx PConnectField (fun() -> check_interfaces ctx c);
 						has_interf := true;
 					end
 				end else begin
@@ -520,7 +529,7 @@ module Inheritance = struct
 					if not (has_class_flag intf CInterface) then error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx PForce (fun() -> check_interfaces ctx c);
+						delay ctx PConnectField (fun() -> check_interfaces ctx c);
 						has_interf := true;
 					end;
 					(fun () ->
