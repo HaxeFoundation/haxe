@@ -7,6 +7,7 @@ import asys.native.system.SystemGroup;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import php.Global.*;
+import php.Resource;
 
 /**
 	File system operations.
@@ -16,7 +17,7 @@ class FileSystem {
 	/**
 		Open file for reading and/or writing.
 
-		Depending on `flags` value `callback` will be invoked with the appropriate
+		Depending on `flag` value `callback` will be invoked with the appropriate
 		object type to read and/or write the file:
 		- `asys.native.filesystem.File` for reading and writing;
 		- `asys.native.filesystem.FileRead` for reading only;
@@ -26,11 +27,11 @@ class FileSystem {
 		@see asys.native.filesystem.FileOpenFlag for more details.
 
 		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
+		`flag` are chosen.
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<T>):Void {
+	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -78,35 +79,42 @@ class FileSystem {
 	/**
 		Write `data` into a file specified by `path`
 
-		`flags` controls the behavior.
+		`flag` controls the behavior.
 		By default the file truncated if it exists and created if it does not exist.
 
 		@see asys.native.filesystem.FileOpenFlag for more details.
 
 		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
+		`flag` are chosen.
 		Default `mode` equals to octal `0666`, which means read+write permissions
 		for everyone.
 	**/
-	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var f = fopenHx(cast path, flag);
+				fwrite(f, data.getData().toString());
+				fclose(f);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
-	/**
-		Write `text` into a file specified by `path`
-
-		`flags` controls the behavior.
-		By default the file is truncated if it exists and is created if it does not exist.
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
-	**/
-	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var f = fopenHx(cast path, flag);
+				fwrite(f, text);
+				fclose(f);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
 	/**
@@ -231,16 +239,26 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Create a link to `target` at `path`.
-
-		If `path` is omitted a link to `target` will be created in the current
-		directory with the same name as the last component of `target` path.
-		For example `FileSystem.link('/path/to/file.ext', callback)` will create
-		a link named `file.ext` in the current directory.
-	**/
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		if(path == null) {
+			path = basename(cast target);
+		}
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				switch type {
+					case SymLink: symlink(cast target, cast path);
+					case HardLink: php.Global.link(cast target, cast path);
+				}
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to create a link'), path));
+			}
+		});
 	}
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
@@ -304,5 +322,23 @@ class FileSystem {
 	**/
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
+	}
+
+	static function fopenHx(file:String, flag:FileOpenFlag<Dynamic>):Resource {
+		var f = switch flag {
+			case Append: fopen(file, 'a');
+			case AppendRead: fopen(file, 'a+');
+			case Read: fopen(file, 'r');
+			case ReadWrite: fopen(file, 'r+');
+			case Write: fopen(file, 'w');
+			case WriteX: fopen(file, 'x');
+			case WriteRead: fopen(file, 'w+');
+			case WriteReadX: fopen(file, 'x+');
+			case Overwrite: fopen(file, 'c');
+			case OverwriteRead: fopen(file, 'c+');
+		}
+		if(f == false)
+			throw new FsException(CustomError('Cannot open file'), file);
+		return f;
 	}
 }

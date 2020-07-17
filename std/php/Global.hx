@@ -721,6 +721,16 @@ extern class Global {
 	static function mkdir(pathname:String, mode:Int = 511, recursive:Bool = false, ?context:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.link.php
+	**/
+	static function link(target:String, link:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.symlink.php
+	**/
+	static function symlink(target:String, link:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.unlink.php
 	**/
 	static function unlink(filename:String, ?context:Resource):Bool;
@@ -734,6 +744,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.dirname.php
 	**/
 	static function dirname(path:String, levels:Int = 1):String;
+
+	/**
+		@see http://php.net/manual/en/function.basename.php
+	**/
+	static function basename(path:String, ?suffix:String):String;
 
 	/**
 		@see http://php.net/manual/en/function.glob.php
