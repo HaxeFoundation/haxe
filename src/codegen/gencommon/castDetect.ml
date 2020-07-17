@@ -775,7 +775,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 						(* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
 						(* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Overloads.get_overloads cl (field_name f)) in *)
 						(* cf, t, false *)
-						select_overload gen e1.etype (Overloads.get_overloads gen.gcon cl (field_name f)) cl.cl_params params, false
+						select_overload gen e1.etype (Overloads.collect_overloads (fun t -> t) cl (field_name f)) cl.cl_params params, false
 					| FStatic(c,f) ->
 						(* workaround for issue #1743 *)
 						(* f,f.cf_type, false *)

@@ -379,6 +379,7 @@ module Inheritance = struct
 					add_class_field_flag cf CfAbstract;
 					begin try
 						let cf' = PMap.find cf.cf_name c.cl_fields in
+						Hashtbl.remove ctx.com.overload_cache (c.cl_path,i);
 						cf'.cf_overloads <- cf :: cf'.cf_overloads
 					with Not_found ->
 						TClass.add_field c cf

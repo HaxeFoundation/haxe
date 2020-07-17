@@ -71,7 +71,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 					let ftype = apply_params iface.cl_params itl f.cf_type in
 					let real_ftype = get_real_fun gen (apply_params iface.cl_params real_itl f.cf_type) in
 					replace_mono real_ftype;
-					let overloads = Overloads.get_overloads gen.gcon c f.cf_name in
+					let overloads = Overloads.collect_overloads (fun t -> t) c f.cf_name in
 					try
 						let t2, f2 =
 							match overloads with
