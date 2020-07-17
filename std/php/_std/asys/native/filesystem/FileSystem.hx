@@ -35,14 +35,7 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Create and open a unique temporary file for writing and reading.
-
-		The file will be automatically deleted when it is closed or the program terminates.
-
-		TODO: Can Haxe guarantee automatic file deletion for all targets?
-	**/
-	static public function tempFile(path:FilePath, callback:Callback<File>):Void {
+	static public function tempFile(callback:Callback<File>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -76,19 +69,6 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Write `data` into a file specified by `path`
-
-		`flag` controls the behavior.
-		By default the file truncated if it exists and created if it does not exist.
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flag` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
-	**/
 	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
@@ -161,11 +141,20 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Remove a file or symbolic link.
-	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				unlink(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to delete a file'), path));
+			}
+		});
 	}
 
 	/**
@@ -240,9 +229,7 @@ class FileSystem {
 	}
 
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		if(path == null) {
-			path = basename(cast target);
-		}
+		var path:FilePath = path == null ? basename(cast target) : path;
 		EntryPoint.runInMainThread(() -> {
 			var success = try {
 				switch type {
