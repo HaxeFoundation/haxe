@@ -22,6 +22,8 @@
 
 package sys.thread;
 
+using python.internal.UBuiltins;
+
 class Deque<T> {
 	
 	var nativeDeque: NativeDeque<T>;
@@ -39,15 +41,12 @@ class Deque<T> {
 	}
 
 	public function pop(block:Bool):Null<T> {
-		try {
-			return nativeDeque.popleft();
-		} catch (s: Dynamic) {
-			if (block) {
-				return nativeDeque.popleft();
-			} else {
-				return null;
-			}
-		}
+		while (block && nativeDeque.len() == 0) { }
+		return try {
+			nativeDeque.popleft();
+		} catch (indexError:Dynamic) {
+			null;
+		};
 	}
 }
 
