@@ -33,6 +33,7 @@ type eq_kind =
 type unification_context = {
 	allow_transitive_cast : bool;
 	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
+	allow_dynamic_to_cast : bool; (* allows a cast from dynamic to non-dynamic *)
 	equality_kind         : eq_kind;
 }
 
@@ -54,6 +55,7 @@ let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref
 let default_unification_context = {
 	allow_transitive_cast = true;
 	allow_abstract_cast   = true;
+	allow_dynamic_to_cast = true;
 	equality_kind         = EqStrict;
 }
 
@@ -791,7 +793,7 @@ let rec unify (uctx : unification_context) a b =
 			error [has_no_field a "new"]
 		end
 	| TDynamic t , _ ->
-		if t == a then
+		if t == a && uctx.allow_dynamic_to_cast then
 			()
 		else (match b with
 		| TDynamic t2 ->
