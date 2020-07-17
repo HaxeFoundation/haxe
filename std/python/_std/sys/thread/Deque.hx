@@ -23,6 +23,7 @@
 package sys.thread;
 
 using python.internal.UBuiltins;
+import python.Exceptions.IndexError;
 
 class Deque<T> {
 	
@@ -44,7 +45,7 @@ class Deque<T> {
 		while (block && nativeDeque.len() == 0) { }
 		return try {
 			nativeDeque.popleft();
-		} catch (indexError:Dynamic) {
+		} catch (e:IndexError) {
 			null;
 		};
 	}
