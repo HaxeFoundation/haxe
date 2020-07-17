@@ -86,6 +86,7 @@ module DiagnosticsKind = struct
 		| DKParserError
 		| DKDeprecationWarning
 		| DKInactiveBlock
+		| DKMissingFields
 
 	let to_int = function
 		| DKUnusedImport -> 0
@@ -95,6 +96,7 @@ module DiagnosticsKind = struct
 		| DKParserError -> 4
 		| DKDeprecationWarning -> 5
 		| DKInactiveBlock -> 6
+		| DKMissingFields -> 7
 end
 
 module CompletionResultKind = struct

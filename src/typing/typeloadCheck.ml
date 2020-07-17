@@ -335,14 +335,13 @@ module Inheritance = struct
 			end
 		| _ -> error "Should extend by using a class" p
 
-	let rec check_interface ctx c intf params =
+	let rec check_interface ctx missing c intf params =
+		List.iter (fun (i2,p2) ->
+			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2)
+		) intf.cl_implements;
 		let p = c.cl_name_pos in
 		let rec check_field i f =
-			(if ctx.com.config.pf_overload then
-				List.iter (function
-					| f2 when f != f2 ->
-							check_field i f2
-					| _ -> ()) f.cf_overloads);
+			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
 			try
 				let t2, f2 = class_field_no_interf c i in
@@ -350,7 +349,6 @@ module Inheritance = struct
 					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
 						let overloads = Overloads.get_overloads ctx.com c i in
 						is_overload := true;
-						let t = (apply_params intf.cl_params params f.cf_type) in
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else
 						t2, f2
@@ -386,27 +384,46 @@ module Inheritance = struct
 						TClass.add_field c cf
 					end
 				| Not_found when not (has_class_flag c CInterface) ->
-					let msg = if !is_overload then
-						let ctx = print_context() in
-						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
-						"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
-					else
-						("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
-					in
-					display_error ctx msg p
+					if Diagnostics.is_diagnostics_run ctx.com c.cl_pos then
+						DynArray.add missing (f,t)
+					else begin
+						let msg = if !is_overload then
+							let ctx = print_context() in
+							let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
+							"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
+						else
+							("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
+						in
+						display_error ctx msg p
+					end
 				| Not_found -> ()
 		in
-		PMap.iter check_field intf.cl_fields;
-		List.iter (fun (i2,p2) ->
-			check_interface ctx c i2 (List.map (apply_params intf.cl_params params) p2)
-		) intf.cl_implements
+		let check_field i cf =
+			check_field i cf;
+			if ctx.com.config.pf_overload then
+				List.iter (check_field i) (List.rev cf.cf_overloads)
+		in
+		PMap.iter check_field intf.cl_fields
 
 	let check_interfaces ctx c =
 		match c.cl_path with
 		| "Proxy" :: _ , _ -> ()
 		| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> ()
 		| _ ->
-		List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
+		List.iter (fun (intf,params) ->
+			let missing = DynArray.create () in
+			check_interface ctx missing c intf params;
+			if DynArray.length missing > 0 then begin
+				let l = DynArray.to_list missing in
+				let diag = {
+					mf_on = c;
+					mf_fields = List.map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
+					mf_cause = ImplementedInterface(intf,params);
+				} in
+				let display = ctx.com.display_information in
+				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+			end
+		) c.cl_implements
 
 	let check_abstract_class ctx c csup params =
 		let missing = ref [] in
@@ -417,9 +434,9 @@ module Inheritance = struct
 				if not (List.exists (fun cf2 ->
 					Overloads.same_overload_args t1 cf2.cf_type cf1 cf2
 				) (cf2 :: cf2.cf_overloads)) then
-					missing := cf1 :: !missing
+					missing := (cf1,t1) :: !missing
 			with Not_found ->
-				missing := cf1 :: !missing
+				missing := (cf1,t1) :: !missing
 		in
 		let cfl = TClass.get_all_fields csup params in
 		PMap.iter (fun _ (_,cf) ->
@@ -432,12 +449,20 @@ module Inheritance = struct
 		match !missing with
 		| [] ->
 			()
+		| l when Diagnostics.is_diagnostics_run ctx.com c.cl_pos ->
+			let diag = {
+				mf_on = c;
+				mf_fields = List.rev_map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
+				mf_cause = AbstractParent(csup,params);
+			} in
+			let display = ctx.com.display_information in
+			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
 			display_error ctx (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
 			display_error ctx (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
-			List.iter (fun cf ->
+			List.iter (fun (cf,_) ->
 				let s = match follow cf.cf_type with
 					| TFun(tl,tr) ->
 						String.concat ", " (List.map (fun (n,o,t) -> Printf.sprintf "%s:%s" n (s_type pctx t)) tl)
