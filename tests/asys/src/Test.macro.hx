@@ -31,27 +31,73 @@ class Test extends utest.Test {
 					e.map(injectAsyncDoneBeforeReturns);
 			}
 		}
-		function injectAsyncDoneIntoContinuation(e:Expr) {
+		function injectAsyncDone(e:Expr, requireContinuation:Bool):Expr {
 			switch e.expr {
-				case EBlock(exprs) if(exprs.length > 0):
-					injectAsyncDoneIntoContinuation(exprs[exprs.length - 1]);
 				case ECall(_,args) if(args.length > 0):
 					switch args[args.length - 1].expr {
 						case EFunction(_, fn) if(fn.expr != null):
-							fn.expr = macro @:pos(e.pos) {
-								${injectAsyncDoneBeforeReturns(fn.expr)};
-								// ${fn.expr};
+							fn.expr = switch fn.expr.expr {
+								case EMeta(m, macro return $e1) if(m.name == ':implicitReturn'):
+									e1 = injectAsyncDone(injectAsyncDoneBeforeReturns(e1), false);
+									macro @:pos(fn.expr.pos) @:implicitReturn return $e1;
+								case _:
+									injectAsyncDone(injectAsyncDoneBeforeReturns(fn.expr), false);
+							}
+							return e;
+						case _:
+							if(requireContinuation) {
+								error(e.pos);
+							}
+							return macro @:pos(e.pos) {
+								$e;
 								__async__.done();
 							}
-						case _:
-							error(e.pos);
 					}
+				case EBlock(exprs) if(exprs.length > 0):
+					exprs[exprs.length - 1] = injectAsyncDone(exprs[exprs.length - 1], requireContinuation);
+					return e;
+				case EIf(econd, eif, eelse):
+					eif = injectAsyncDone(eif, requireContinuation);
+					if(eelse == null) {
+						eelse = macro @:pos(e.pos) __async__.done();
+					} else {
+						eelse = injectAsyncDone(eelse, requireContinuation);
+					}
+					e.expr = EIf(econd, eif, eelse);
+					return e;
+				case ETry(etry, catches):
+					etry = injectAsyncDone(etry, requireContinuation);
+					for (c in catches) {
+						c.expr = injectAsyncDone(c.expr, requireContinuation);
+					}
+					e.expr = ETry(etry, catches);
+					return e;
+				case ESwitch(etarget, cases, edef):
+					for(c in cases) {
+						if(c.expr == null) {
+							c.expr = macro @:pos(c.values[0].pos) __async__.done();
+						} else {
+							c.expr = injectAsyncDone(c.expr, requireContinuation);
+						}
+					}
+					if(edef == null) {
+						edef = macro @:pos(e.pos) __async__.done();
+					} else {
+						edef = injectAsyncDone(edef, requireContinuation);
+					}
+					e.expr = ESwitch(etarget, cases, edef);
+					return e;
 				case _:
-					error(e.pos);
+					if(requireContinuation) {
+						error(e.pos);
+					}
+					return macro @:pos(e.pos) {
+						$e;
+						__async__.done();
+					}
 			}
-			return e;
 		}
-		var exprs = cpsCalls.map(e -> macro @:pos(e.pos) $asyncVar.branch(__async__ -> ${injectAsyncDoneIntoContinuation(e)}));
+		var exprs = cpsCalls.map(e -> macro @:pos(e.pos) $asyncVar.branch(__async__ -> ${injectAsyncDone(e, true)}));
 		var pos = Context.currentPos();
 		return macro @:pos(pos) $b{exprs};
 	}

@@ -59,14 +59,14 @@ class TestFilePath extends Test {
 		allAsync(async, {
 			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
 			p.real((e, p) -> {
-				if(isNull(e)) {
+				if(noException(e)) {
 					equals(expected, p.toString());
 				}
 			});
 		},{
 			var p:FilePath = 'test-data/symlink';
 			p.real((e, p) -> {
-				if(isNull(e)) {
+				if(noException(e)) {
 					equals(expected, p.toString());
 				}
 			});
