@@ -240,11 +240,11 @@ let unify_field_call ctx fa el args ret p inline =
 	let expand_overloads map cf =
 		(TFun(args,ret),cf) :: (List.map (map_cf cf map) cf.cf_overloads)
 	in
-	let candidates,co,cf,mk_fa = match fa with
+	let candidates,co,static,cf,mk_fa = match fa with
 		| FStatic(c,cf) ->
-			expand_overloads (fun t -> t) cf,Some c,cf,(fun cf -> FStatic(c,cf))
+			expand_overloads (fun t -> t) cf,Some c,true,cf,(fun cf -> FStatic(c,cf))
 		| FAnon cf ->
-			expand_overloads (fun t -> t) cf,None,cf,(fun cf -> FAnon cf)
+			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
@@ -255,10 +255,10 @@ let unify_field_call ctx fa el args ret p inline =
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
+			cfl,Some c,false,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
 			let c = match co with None -> None | Some (c,_) -> Some c in
-			expand_overloads (fun t -> t) cf,c,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
+			expand_overloads (fun t -> t) cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
@@ -318,8 +318,18 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		make_field_call_candidate [] tf cf call
 	in
+	let maybe_check_access cf =
+		(* type_field doesn't check access for overloads, so let's check it here *)
+		begin match co with
+		| Some c ->
+			check_field_access ctx c cf static p;
+		| None ->
+			()
+		end;
+	in
 	match candidates with
 	| [t,cf] ->
+		if is_overload then maybe_check_access cf;
 		begin try
 			attempt_call t cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
@@ -344,7 +354,9 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		if is_overload && ctx.com.config.pf_overload then begin match Overloads.Resolution.reduce_compatible candidates with
 			| [] -> fail()
-			| [fcc] -> fcc
+			| [fcc] ->
+				maybe_check_access fcc.fc_field;
+				fcc
 			| _ -> error "Ambiguous overload" p
 		end else begin match List.rev candidates with
 			| [] -> fail()
