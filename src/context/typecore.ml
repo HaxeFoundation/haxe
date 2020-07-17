@@ -410,10 +410,8 @@ let is_removable_field ctx f =
 	)
 
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx ?(in_overload=false) c cf stat =
+let rec can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
-		true
-	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
 	else if c == ctx.curclass then
 		true

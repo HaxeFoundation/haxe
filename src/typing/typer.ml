@@ -1778,6 +1778,7 @@ and type_new ctx path el with_type force_inline p =
 		| TFun (args,r) ->
 			(try
 				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
+				check_constructor_access ctx c fcc.fc_field p;
 				List.map fst fcc.fc_args
 			with Error (e,p) ->
 				display_error ctx (error_msg e) p;
@@ -1837,7 +1838,6 @@ and type_new ctx path el with_type force_inline p =
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		no_abstract_constructor c p;
-		check_constructor_access ctx c f p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());
