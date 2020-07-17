@@ -56,7 +56,7 @@ class TestFilePath extends Test {
 	function testReal(async:Async) {
 		var expected = Sys.getCwd() + 'test-data' + FilePath.SEPARATOR + 'sub' + FilePath.SEPARATOR + 'hello.world';
 
-		allAsync(async, {
+		asyncAll(async, {
 			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
 			p.real((e, p) -> {
 				if(noException(e)) {

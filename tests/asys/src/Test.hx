@@ -29,7 +29,7 @@ class Test extends utest.Test {
 	/**
 		Takes a list of expressions with Continuation-Passing-Style calls like these:
 		```haxe
-		allAsync(asyncVar,
+		asyncAll(asyncVar,
 			cpsCall1(arg1, arg2, (error, result) -> {
 				doSomething();
 			}),
@@ -59,5 +59,5 @@ class Test extends utest.Test {
 		```
 		INFO: does not inject `async.done()` calls into loops.
 	**/
-	macro function allAsync(eThis:Expr, asyncVar:ExprOf<utest.Async>, cpsCalls:Array<Expr>):ExprOf<Void>;
+	macro function asyncAll(eThis:Expr, asyncVar:ExprOf<utest.Async>, cpsCalls:Array<Expr>):ExprOf<Void>;
 }

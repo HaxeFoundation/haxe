@@ -26,7 +26,7 @@ class TestFileSystem extends Test {
 	}
 
 	function testReadBytes(async:Async) {
-		allAsync(async,
+		asyncAll(async,
 			FileSystem.readBytes('test-data/bytes.bin', (e, r) -> {
 				if(noException(e)) {
 					var expected = Bytes.alloc(256);
@@ -46,7 +46,7 @@ class TestFileSystem extends Test {
 	}
 
 	function testReadString(async:Async) {
-		allAsync(async,
+		asyncAll(async,
 			FileSystem.readString('test-data/sub/hello.world', (e, r) -> {
 				if(noException(e))
 					equals('Hello, world!', r);
@@ -62,6 +62,7 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	@:depends(testReadString)
 	function testWriteString(async:Async) {
 		function writeAndCheck(textToWrite:String, expectedContent:String, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void) {
 			FileSystem.writeString('test-data/temp/test.txt', textToWrite, flag, (e, _) -> {
@@ -77,7 +78,7 @@ class TestFileSystem extends Test {
 			});
 		}
 
-		allAsync(async,
+		asyncAll(async,
 			writeAndCheck('Hello, ', 'Hello, ', Write, ok -> {
 				if(ok) writeAndCheck('world!', 'Hello, world!', Append, ok -> {
 					if(ok) writeAndCheck('Goodbye', 'Goodbye', Write, ok -> {
@@ -95,6 +96,7 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	@:depends(testReadBytes)
 	function testWriteBytes(async:Async) {
 		function writeAndCheck(bytesToWrite:Bytes, expectedContent:Bytes, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void) {
 			FileSystem.writeBytes('test-data/temp/test.bin', bytesToWrite, flag, (e, _) -> {
@@ -117,7 +119,7 @@ class TestFileSystem extends Test {
 			return b;
 		}
 
-		allAsync(async,
+		asyncAll(async,
 			writeAndCheck(bytes([0, 1, 2]), bytes([0, 1, 2]), Write, ok -> {
 				if(ok) writeAndCheck(bytes([3, 4, 5]), bytes([0, 1, 2, 3, 4, 5]), Append, ok -> {
 					if(ok) writeAndCheck(bytes([6, 7, 8, 9]), bytes([6, 7, 8, 9]), Write, ok -> {
@@ -135,8 +137,24 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	@:depends(testWriteString)
+	function testDeleteFile(async:Async) {
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/test.txt', '', (e, r) -> {
+				if(noException(e))
+					FileSystem.deleteFile('test-data/temp/test.txt', (e, r) -> {
+						noException(e);
+					});
+			}),
+			FileSystem.deleteFile('test-data/temp', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('test-data/temp', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
 	function testIsLink(async:Async) {
-		allAsync(async,
+		asyncAll(async,
 			FileSystem.isLink('test-data/symlink', (e, r) -> {
 				if(noException(e))
 					isTrue(r);
@@ -157,7 +175,7 @@ class TestFileSystem extends Test {
 	}
 
 	function testReadLink(async:Async) {
-		allAsync(async,
+		asyncAll(async,
 			FileSystem.readLink('test-data/symlink', (e, r) -> {
 				if(noException(e))
 					equals('sub' + FilePath.SEPARATOR + 'hello.world', r);
@@ -173,8 +191,9 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	@:depends(testReadLink, testIsLink, testReadString)
 	function testLink(async:Async) {
-		allAsync(async,
+		asyncAll(async,
 			FileSystem.link('../sub/hello.world', 'test-data/temp/symlink', SymLink, (e, r) -> {
 				if(noException(e))
 					FileSystem.readLink('test-data/temp/symlink', (e, r) -> {

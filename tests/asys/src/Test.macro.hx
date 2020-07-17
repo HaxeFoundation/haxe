@@ -5,7 +5,7 @@ using haxe.macro.ExprTools;
 
 class Test extends utest.Test {
 
-	macro function allAsync(eThis:Expr, asyncVar:ExprOf<utest.Async>, cpsCalls:Array<Expr>):ExprOf<Void> {
+	macro function asyncAll(eThis:Expr, asyncVar:ExprOf<utest.Async>, cpsCalls:Array<Expr>):ExprOf<Void> {
 		if(#if display true || #end Context.defined('display')) {
 			return macro $b{cpsCalls};
 		}
