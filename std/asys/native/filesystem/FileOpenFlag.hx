@@ -6,14 +6,17 @@ enum abstract FileOpenFlag<T>(Int) {
 	/**
 		Open file for appending.
 		The file is created if it does not exist.
-		The file pointer is placed the end of the file.
+		The file pointer is placed at the end of the file.
 	**/
 	var Append:FileOpenFlag<FileAppend>;
 
 	/**
-		Like `Append`, but fails if the path exists.
+		Open file for appending and reading.
+		The file is created if it does not exist.
+		The file pointer for reading is placed at the beginning of the file, but
+		writing always appends to the end of the file.
 	**/
-	var AppendX:FileOpenFlag<FileWrite>;
+	var AppendRead:FileOpenFlag<File>;
 
 	/**
 		Open file for reading.
@@ -60,4 +63,12 @@ enum abstract FileOpenFlag<T>(Int) {
 		The file pointer is placed at the beginning of the file.
 	**/
 	var Overwrite:FileOpenFlag<FileWrite>;
+
+	/**
+		Open file for writing and reading.
+		The file is _not_ truncated if it exists (as opposed to `WriteRead`).
+		The file is created if it doesn't exist.
+		The file pointer is placed at the beginning of the file.
+	**/
+	var OverwriteRead:FileOpenFlag<File>;
 }

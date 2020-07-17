@@ -14,7 +14,7 @@ class FileSystem {
 	/**
 		Open file for reading and/or writing.
 
-		Depending on `flags` value `callback` will be invoked with the appropriate
+		Depending on `flag` value `callback` will be invoked with the appropriate
 		object type to read and/or write the file:
 		- `asys.native.filesystem.File` for reading and writing;
 		- `asys.native.filesystem.FileRead` for reading only;
@@ -22,13 +22,8 @@ class FileSystem {
 		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
 
 		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
 	**/
-	static public function openFile<T>(path:FilePath, flags:FileOpenFlag<T>, mode:FileAccessMode = 438, callback:Callback<T>):Void {
+	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -63,34 +58,24 @@ class FileSystem {
 	/**
 		Write `data` into a file specified by `path`
 
-		`flags` controls the behavior.
+		`flag` controls the behavior.
 		By default the file truncated if it exists and created if it does not exist.
 
 		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
 	**/
-	static public function writeBytes(path:FilePath, data:Bytes, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Write `text` into a file specified by `path`
 
-		`flags` controls the behavior.
+		`flag` controls the behavior.
 		By default the file is truncated if it exists and is created if it does not exist.
 
 		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flags` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
 	**/
-	static public function writeString(path:FilePath, text:String, flags:FileOpenFlag<Dynamic> = Write, mode:FileAccessMode = 438, callback:Callback<NoData>):Void {
+	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -223,6 +208,13 @@ class FileSystem {
 		directory with the same name as the last component of `target` path.
 		For example `FileSystem.link('/path/to/file.ext', callback)` will create
 		a link named `file.ext` in the current directory.
+
+		If `type` is `SymLink` the `target` is expected to be an absolute path or
+		a path relative to `path`, however the existance of `target` is not checked
+		and the link is created even if `target` does not exist.
+
+		If `type` is `HardLink` the `target` is expected to be an existing path either
+		absolute or relative to the current working directory.
 	**/
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
