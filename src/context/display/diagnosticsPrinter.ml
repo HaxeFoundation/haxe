@@ -1,9 +1,12 @@
 open Globals
+open Common
 open Json
 open DisplayTypes
 open DiagnosticsKind
 open DisplayTypes
 open DiagnosticsTypes
+open TType
+open Genjson
 
 type t = DiagnosticsKind.t * pos
 
@@ -74,6 +77,54 @@ let json_of_diagnostics dctx =
 	List.iter (fun (s,p,prange) ->
 		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 	) dctx.removable_code;
+	PMap.iter (fun p (c,mfl) ->
+		let jctx = create_context GMMinimum in
+		let all_fields = ref [] in
+		let create mf =
+			let kind,args = match mf.mf_cause with
+				| AbstractParent(csup,tl) ->
+					"AbstractParent",jobject [
+						"parent",generate_type_path_with_params jctx csup.cl_module.m_path csup.cl_path tl csup.cl_meta;
+					]
+				| ImplementedInterface(ci,tl) ->
+					"ImplementedInterface",jobject [
+						"parent",generate_type_path_with_params jctx ci.cl_module.m_path ci.cl_path tl ci.cl_meta;
+					]
+			in
+			let current_fields = ref [] in
+			let map_field (cf,t,ct) =
+				let cf = {cf with cf_overloads = []} in
+				if List.exists (fun (t2,cf2) -> cf.cf_name = cf2.cf_name && Overloads.same_overload_args t t2 cf cf2) !current_fields then
+					None
+				else begin
+					(* With multiple interfaces there can be duplicates, which would be bad for the "Implement all" code action. *)
+					let unique = not (List.exists (fun (t2,cf2) -> cf.cf_name = cf2.cf_name && Overloads.same_overload_args t t2 cf cf2) !all_fields) in
+					current_fields := (t,cf) :: !current_fields;
+					all_fields := (t,cf) :: !all_fields;
+					Some (jobject [
+						"field",generate_class_field jctx CFSMember cf;
+						"type",CompletionType.generate_type jctx ct;
+						"unique",jbool unique;
+					])
+				end
+			in
+			let fields = ExtList.List.filter_map map_field mf.mf_fields in
+			jobject [
+				"fields",jarray fields;
+				"cause",jobject [
+					"kind",jstring kind;
+					"args",args
+				]
+			]
+		in
+		(* cl_interfaces is reversed, let's reverse the order again here *)
+		let l = List.map create (List.rev !mfl) in
+		let j = jobject [
+			"classPath",class_ref jctx c;
+			"entries",jarray l
+		] in
+		add DKMissingFields p DiagnosticsSeverity.Error j
+	) dctx.missing_fields;
 	Hashtbl.iter (fun _ (s,p) ->
 		add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
 	) DeprecationCheck.warned_positions;

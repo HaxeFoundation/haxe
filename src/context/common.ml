@@ -239,9 +239,25 @@ type shared_display_information = {
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
+(* diagnostics *)
+
+type missing_field_cause =
+	| AbstractParent of tclass * tparams
+	| ImplementedInterface of tclass * tparams
+
+and missing_fields_diagnostics = {
+	mf_on : tclass;
+	mf_fields : (tclass_field * Type.t * CompletionItem.CompletionType.t) list;
+	mf_cause : missing_field_cause;
+}
+
+and module_diagnostics =
+	| MissingFields of missing_fields_diagnostics
+
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable display_module_has_macro_defines : bool;
+	mutable module_diagnostics : module_diagnostics list;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -640,6 +656,7 @@ let create version s_version args =
 		display_information = {
 			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
+			module_diagnostics = [];
 		};
 		sys_args = args;
 		debug = false;
@@ -720,6 +737,7 @@ let clone com =
 		display_information = {
 			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
+			module_diagnostics = [];
 		};
 		defines = {
 			values = com.defines.values;
