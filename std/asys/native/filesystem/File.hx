@@ -10,10 +10,6 @@ import asys.native.IWritable;
 import asys.native.IReadable;
 
 class File implements IDuplex {
-	/**
-		Path to this file.
-	**/
-	public final path:FilePath;
 
 	//TODO: this is a dummy constructor to make the compiler shut up about uninitialized finals.
 	function new() {

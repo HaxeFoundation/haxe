@@ -30,11 +30,15 @@ class FileSystem {
 	/**
 		Create and open a unique temporary file for writing and reading.
 
-		The file will be automatically deleted when it is closed or the program terminates.
+		The file will be automatically deleted when it is closed or the program
+		terminates.
+
+		Depending on a target platform the file deletion may not be guaranteed if
+		application crashes.
 
 		TODO: Can Haxe guarantee automatic file deletion for all targets?
 	**/
-	static public function tempFile(path:FilePath, callback:Callback<File>):Void {
+	static public function tempFile(callback:Callback<File>):Void {
 		throw new NotImplementedException();
 	}
 
