@@ -24,32 +24,51 @@ package sys.thread;
 
 class Thread {
 	var nativeThread: NativeThread;
+	var messages: Deque<Dynamic>;
 
-	private function new(callb:Void->Void) {
-		nativeThread = new NativeThread(null, callb);
-		nativeThread.start();
+	static var threads = new haxe.ds.ObjectMap<NativeThread, Thread>();
+
+	private function new(t:NativeThread) {
+		nativeThread = t;
+		messages = new Deque<Dynamic>();
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
-
+		trace('sending message $msg');
+		messages.add(msg);
 	}
 
 	public static function current():Thread {
-		return null;
+		var ct = PyThreadingAPI.current_thread();
+		if (!threads.exists(ct)) threads.set(ct, new Thread(ct));
+		return threads.get(ct);
 	}
 
 	public static function create(callb:Void->Void):Thread {
-		return new Thread(callb);
+		var nt = new NativeThread(null, callb);
+		nt.start();
+		var t = new Thread(nt);
+		threads.set(nt, t);
+		return t;
 	}
 
 	public static function readMessage(block:Bool):Dynamic {
-		return null;
+		trace("readMessage called");
+		var msg = current().messages.pop(block);
+		trace('readMessage finished with $msg');
+		return msg;
 	}
 }
 
 @:pythonImport("threading", "Thread")
 @:native("Thread")
-extern class NativeThread {
+private extern class NativeThread {
 	function new(group:Dynamic, target:Void->Void);
 	function start():Void;
+}
+
+@:pythonImport("threading")
+@:native("threading")
+private extern class PyThreadingAPI {
+	static function current_thread():NativeThread;
 }
