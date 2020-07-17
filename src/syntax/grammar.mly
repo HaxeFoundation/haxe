@@ -157,8 +157,8 @@ and parse_type_decls mode pmax pack acc s =
 		ignore(resume false false s);
 		parse_type_decls mode (last_pos s).pmax pack acc s
 
-and parse_abstract doc meta flags = parser
-	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
+and parse_abstract doc meta flags p1 = parser
+	| [< name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
 		let fl,p2 = match s with parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
 			| [< >] -> syntax_error (Expected ["{";"to";"from"]) s ([],last_pos s)
@@ -173,6 +173,50 @@ and parse_abstract doc meta flags = parser
 			d_flags = flags @ sl;
 			d_data = fl;
 		},punion p1 p2)
+
+and parse_class_content doc meta flags n p1 s =
+	let name = type_name s in
+	let tl = parse_constraint_params s in
+	let rec loop had_display p0 acc =
+		let check_display p1 =
+			if not had_display && !in_display_file && display_position#enclosed_in p1 then
+				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
+		in
+		match s with parser
+		| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
+			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			let p0 = pos t in
+			(* If we don't have type parameters, we have to offset by one so to not complete `extends`
+				and `implements` after the identifier. *)
+			let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
+			loop (had_display || b) p0 ((HExtends t) :: acc)
+		| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
+			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			let p0 = pos t in
+			let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
+			loop (had_display || b) p0 ((HImplements t) :: acc)
+		| [< '(BrOpen,p1) >] ->
+			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			List.rev acc
+		| [< >] ->
+			begin match Stream.peek s with
+			| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
+				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) (Some name) p
+			| _ ->
+				check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+				syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
+			end
+	in
+	let hl = loop false (last_pos s) [] in
+	let fl, p2 = parse_class_fields false p1 s in
+	(EClass {
+		d_name = name;
+		d_doc = doc_from_string_opt doc;
+		d_meta = meta;
+		d_params = tl;
+		d_flags = ExtList.List.filter_map decl_flag_to_class_flag flags @ n @ hl;
+		d_data = fl;
+	}, punion p1 p2)
 
 and parse_type_decl mode s =
 	match s with parser
@@ -223,7 +267,7 @@ and parse_type_decl mode s =
 			}, punion p1 p2)
 		| [< '(Kwd Enum,p1) >] ->
 			begin match s with parser
-			| [< a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c >] ->
+			| [< '(Kwd Abstract,p1); a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c p1 >] ->
 				(EAbstract a,p)
 			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 				(EEnum {
@@ -235,47 +279,8 @@ and parse_type_decl mode s =
 					d_data = l
 				}, punion p1 p2)
 			end
-		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
-			let rec loop had_display p0 acc =
-				let check_display p1 =
-					if not had_display && !in_display_file && display_position#enclosed_in p1 then
-						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
-				in
-				match s with parser
-				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
-					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
-					let p0 = pos t in
-					(* If we don't have type parameters, we have to offset by one so to not complete `extends`
-					   and `implements` after the identifier. *)
-					let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
-					loop (had_display || b) p0 ((HExtends t) :: acc)
-				| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
-					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
-					let p0 = pos t in
-					let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
-					loop (had_display || b) p0 ((HImplements t) :: acc)
-				| [< '(BrOpen,p1) >] ->
-					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
-					List.rev acc
-				| [< >] ->
-					begin match Stream.peek s with
-					| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
-						syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) (Some name) p
-					| _ ->
-						check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
-						syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
-					end
-			in
-			let hl = loop false (last_pos s) [] in
-			let fl, p2 = parse_class_fields false p1 s in
-			(EClass {
-				d_name = name;
-				d_doc = doc_from_string_opt doc;
-				d_meta = meta;
-				d_params = tl;
-				d_flags = ExtList.List.filter_map decl_flag_to_class_flag c @ n @ hl;
-				d_data = fl;
-			}, punion p1 p2)
+		| [< n , p1 = parse_class_flags >] ->
+			parse_class_content doc meta c n p1 s
 		| [< '(Kwd Typedef,p1); name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type_at p2; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()
@@ -288,8 +293,19 @@ and parse_type_decl mode s =
 				d_flags = ExtList.List.filter_map decl_flag_to_enum_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
-		| [< a,p = parse_abstract doc meta c >] ->
-			EAbstract a,p
+		| [< '(Kwd Abstract,p1) >] ->
+			begin match s with parser
+			| [< a,p = parse_abstract doc meta c p1 >] ->
+				EAbstract a,p
+			| [< >] ->
+				let c2 = parse_common_flags s in
+				begin match s with parser
+				| [< flags,_ = parse_class_flags >] ->
+					parse_class_content doc meta (c @ c2) (HAbstract :: flags) p1 s
+				| [< >] ->
+					serror()
+				end
+			end
 		| [< >] ->
 			match List.rev c with
 			| (DFinal,p1) :: crest ->
@@ -963,6 +979,7 @@ and parse_cf_rights = parser
 	| [< '(Kwd Dynamic,p) >] -> ADynamic,p
 	| [< '(Kwd Inline,p) >] -> AInline,p
 	| [< '(Kwd Extern,p) >] -> AExtern,p
+	| [< '(Kwd Abstract,p) >] -> AAbstract,p
 
 and parse_fun_name = parser
 	| [< name,p = dollar_ident >] -> name,p

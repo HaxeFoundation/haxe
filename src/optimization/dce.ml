@@ -59,7 +59,7 @@ let rec super_forces_keep c =
 	| _ -> false
 
 let overrides_extern_field cf c =
-	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let is_extern c cf = (has_class_flag c CExtern) && cf.cf_expr = None in
 	let rec loop c cf =
 		match c.cl_super with
 		| None -> false
@@ -87,8 +87,8 @@ let keep_whole_class dce c =
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
-		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
+		| _ when (has_class_flag c CExtern) -> true
 		| { cl_path = [],"String" }
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
@@ -273,7 +273,7 @@ let rec mark_dependent_fields dce csup n stat =
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
-			if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
+			if Meta.has Meta.Used c.cl_meta || ((has_class_flag csup CInterface) && (has_class_flag csup CExtern)) then mark_field dce c cf stat
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 			else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
 				cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
@@ -332,7 +332,7 @@ and field dce c n stat =
 		let cf = find_field n in
 		mark_field dce c cf stat;
 	with Not_found -> try
-		if c.cl_interface then begin
+		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
@@ -668,14 +668,14 @@ let fix_accessors com =
 	List.iter (fun mt -> match mt with
 		(* filter empty abstract implementation classes (issue #1885). *)
 		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
-			c.cl_extern <- true
+			add_class_flag c CExtern;
 		| TClassDecl({cl_kind = KAbstractImpl a} as c) when Meta.has Meta.Enum a.a_meta ->
 			let is_runtime_field cf =
 				not (Meta.has Meta.Enum cf.cf_meta)
 			in
 			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
 			if not (List.exists is_runtime_field c.cl_ordered_statics) then
-				c.cl_extern <- true
+				add_class_flag c CExtern
 		| (TClassDecl c) ->
 			let rec has_accessor c n stat =
 				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
@@ -704,7 +704,7 @@ let collect_entry_points dce com =
 		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
 		match t with
 		| TClassDecl c ->
-			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
+			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
 			let loop stat cf =
 				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in
@@ -755,7 +755,7 @@ let mark dce =
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				if not c.cl_extern then begin
+				if not (has_class_flag c CExtern) then begin
 					let pop = push_class dce c in
 					opt (expr dce) cf.cf_expr;
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
@@ -825,7 +825,7 @@ let sweep dce com =
 				(match c.cl_init with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
-					c.cl_extern <- true;
+					add_class_flag c CExtern;
 					loop (mt :: acc) l
 				| _ ->
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
@@ -907,10 +907,10 @@ let run com main mode =
 		Mark extern classes as really used if they are extended by non-extern ones.
 	*)
 	List.iter (function
-		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
+		| TClassDecl ({cl_super = Some (csup, _)} as c) when not (has_class_flag c CExtern) && (has_class_flag csup CExtern) ->
 			mark_directly_used_class dce csup
-		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
-			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class dce iface) c.cl_implements;
+		| TClassDecl c when not (has_class_flag c CExtern) && c.cl_implements <> [] ->
+			List.iter (fun (iface,_) -> if ((has_class_flag iface CExtern)) then mark_directly_used_class dce iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 

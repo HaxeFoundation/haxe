@@ -71,7 +71,7 @@ let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
-let collect_overloads c i =
+let collect_overloads map c i =
 	let acc = ref [] in
 	let rec loop map c =
 		let maybe_add cf =
@@ -91,7 +91,7 @@ let collect_overloads c i =
 			()
 		end;
 		match c.cl_super with
-			| None when c.cl_interface ->
+			| None when (has_class_flag c CInterface) ->
 				List.iter (fun (c,tl) ->
 					let tl = List.map map tl in
 					loop (fun t -> apply_params c.cl_params tl (map t)) c
@@ -102,11 +102,11 @@ let collect_overloads c i =
 				let tl = List.map map tl in
 				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
-	loop (fun t -> t) c;
+	loop map c;
 	List.rev !acc
 
 let get_overloads (com : Common.context) c i =
-	collect_overloads c i
+	collect_overloads (fun t -> t) c i
 	(* TODO: check why this kills Java *)
 	(* try
 		Hashtbl.find com.overload_cache (c.cl_path,i)
@@ -155,7 +155,7 @@ struct
 	**)
 	let rec rate_conv cacc tfun targ =
 		match simplify_t tfun, simplify_t targ with
-		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
+		| TInst(cf, tlf), TInst(ca, tla) when (has_class_flag cf CInterface) ->
 			(* breadth-first *)
 			let stack = ref [0,ca,tla] in
 			let cur = ref (0, ca,tla) in
@@ -239,7 +239,7 @@ struct
 
 	let rec rm_duplicates acc ret = match ret with
 		| [] -> acc
-		| ( el, t, _ ) :: ret when List.exists (fun (_,t2,_) -> type_iseq t t2) acc ->
+		| fcc :: ret when List.exists (fun fcc2 -> type_iseq fcc.fc_type fcc2.fc_type) acc ->
 			rm_duplicates acc ret
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
@@ -256,15 +256,15 @@ struct
 	let rec fewer_optionals acc compatible = match acc, compatible with
 		| _, [] -> acc
 		| [], c :: comp -> fewer_optionals [c] comp
-		| (elist_acc, _, _) :: _, ((elist, _, _) as cur) :: comp ->
-			let acc_opt = count_optionals elist_acc in
-			let comp_opt = count_optionals elist in
+		| fcc_acc :: _, fcc :: comp ->
+			let acc_opt = count_optionals fcc_acc.fc_args in
+			let comp_opt = count_optionals fcc.fc_args in
 			if acc_opt = comp_opt then
-				fewer_optionals (cur :: acc) comp
+				fewer_optionals (fcc :: acc) comp
 			else if acc_opt < comp_opt then
 				fewer_optionals acc comp
 			else
-				fewer_optionals [cur] comp
+				fewer_optionals [fcc] comp
 
 	let reduce_compatible compatible = match fewer_optionals [] (rm_duplicates [] compatible) with
 		| [] -> []
@@ -287,9 +287,9 @@ struct
 			in
 
 			let rated = ref [] in
-			List.iter (function
-				| (elist,TFun(args,ret),d) -> (try
-					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
+			List.iter (fun fcc -> match fcc.fc_type with
+				| TFun(args,ret) -> (try
+					rated := ( fcc, mk_rate [] fcc.fc_args args ) :: !rated
 					with | Not_found -> ())
 				| _ -> die "" __LOC__
 			) compatible;

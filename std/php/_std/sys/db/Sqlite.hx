@@ -23,6 +23,7 @@
 package sys.db;
 
 import php.*;
+import php.Global.*;
 import php.db.*;
 import sys.db.*;
 
@@ -94,14 +95,9 @@ private class SQLiteResultSet implements ResultSet {
 	public var length(get, null):Int;
 	public var nfields(get, null):Int;
 
-	var _length:Int = 0;
-	var _nfields:Int = 0;
-
-	var loaded:Bool = false;
-	var currentIndex:Int = 0;
-	var rows:NativeIndexedArray<NativeAssocArray<Scalar>>;
+	var cache = new NativeIndexedArray<{}>();
 	var result:SQLite3Result;
-	var fetchedRow:NativeArray;
+	var resultIsDepleted = false;
 	var fieldsInfo:NativeAssocArray<Int>;
 
 	public function new(result:SQLite3Result) {
@@ -109,45 +105,81 @@ private class SQLiteResultSet implements ResultSet {
 	}
 
 	public function hasNext():Bool {
-		if (!loaded)
-			load();
-		return currentIndex < _length;
+		return switch next() {
+			case null: false;
+			case row:
+				array_unshift(cache, row);
+				row;
+		}
 	}
 
 	public function next():Dynamic {
-		if (!loaded)
-			load();
-		var next:Dynamic = rows[currentIndex++];
-		return Boot.createAnon(correctArrayTypes(next));
+		return switch array_shift(cache) {
+			case null: fetchNext();
+			case row: row;
+		}
+	}
+
+	function fetchNext():Null<{}> {
+		return resultIsDepleted ? null : switch result.fetchArray(Const.SQLITE3_ASSOC) {
+			case false:
+				resultIsDepleted = true;
+				result.finalize();
+				null;
+			case row:
+				Boot.createAnon(correctArrayTypes(row));
+		}
+	}
+
+	public function cacheAll():NativeIndexedArray<{}> {
+		var row = fetchNext();
+		while(row != null) {
+			cache.push(row);
+			row = fetchNext();
+		}
+		return cache;
 	}
 
 	public function results():List<Dynamic> {
-		if (!loaded)
-			load();
 		var list = new List();
-		Syntax.foreach(rows, function(_, row) list.add(Boot.createAnon(correctArrayTypes(row))));
+		for(row in cacheAll()) {
+			list.add(row);
+		}
 		return list;
 	}
 
+	function getColumn(n:Int):Any {
+		return array_values(Syntax.array(current()))[n];
+	}
+
 	public function getResult(n:Int):String {
-		if (!loaded)
-			load();
-		if (!hasNext())
-			return null;
-		return Global.array_values(rows[currentIndex])[n];
+		return Syntax.string(getColumn(n));
 	}
 
 	public function getIntResult(n:Int):Int {
-		return Syntax.int(getResult(n));
+		return Syntax.int(getColumn(n));
 	}
 
 	public function getFloatResult(n:Int):Float {
-		return Syntax.float(getResult(n));
+		return Syntax.float(getColumn(n));
 	}
 
 	public function getFieldsNames():Null<Array<String>> {
 		var fieldsInfo = getFieldsInfo();
 		return Global.array_keys(fieldsInfo);
+	}
+
+	function current():Null<{}> {
+		return switch reset(cache) {
+			case false:
+				switch next() {
+					case null: null;
+					case row:
+						cache.push(row);
+						row;
+				}
+			case row: row;
+		}
 	}
 
 	function correctArrayTypes(row:NativeAssocArray<String>):NativeAssocArray<Scalar> {
@@ -168,13 +200,6 @@ private class SQLiteResultSet implements ResultSet {
 		return fieldsInfo;
 	}
 
-	function load() {
-		loaded = true;
-		_nfields = result.numColumns();
-		getFieldsInfo();
-		fetchAll();
-	}
-
 	function correctType(value:String, type:Int):Scalar {
 		if (value == null)
 			return null;
@@ -185,21 +210,9 @@ private class SQLiteResultSet implements ResultSet {
 		return value;
 	}
 
-	function fetchAll() {
-		rows = Syntax.arrayDecl();
-		var index = 0;
-		var row = result.fetchArray(Const.SQLITE3_ASSOC);
-		while (row != false) {
-			rows[index] = correctArrayTypes(row);
-			row = result.fetchArray(Const.SQLITE3_ASSOC);
-			index++;
-		}
-		_length = index;
-	}
+	function get_length():Int
+		return count(cacheAll());
 
-	function get_length()
-		return _length;
-
-	function get_nfields()
-		return _nfields;
+	function get_nfields():Int
+		return result.numColumns();
 }

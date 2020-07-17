@@ -143,6 +143,13 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+type 'a field_call_candidate = {
+	fc_args : (texpr * bool) list;
+	fc_type : Type.t;
+	fc_field : tclass_field;
+	fc_data : 'a;
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
@@ -178,7 +185,7 @@ let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx 
 
 let spawn_monomorph' ctx p =
 	let mono = Monomorph.create () in
-	(* ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction; *)
+	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
 	mono
 
 let spawn_monomorph ctx p =
@@ -214,13 +221,15 @@ let unify ctx t1 t2 p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let unify_raise ctx t1 t2 p =
+let unify_raise_custom uctx (ctx : typer) t1 t2 p =
 	try
-		Type.unify t1 t2
+		Type.unify_custom uctx t1 t2
 	with
 		Unify_error l ->
 			(* no untyped check *)
 			raise (Error (Unify l,p))
+
+let unify_raise = unify_raise_custom default_unification_context
 
 let save_locals ctx =
 	let locals = ctx.locals in
@@ -534,6 +543,13 @@ let safe_mono_close ctx m p =
 	with
 		Unify_error l ->
 			raise_or_display ctx l p
+
+let make_field_call_candidate args t cf data = {
+	fc_args = args;
+	fc_type = t;
+	fc_field = cf;
+	fc_data = data;
+}
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

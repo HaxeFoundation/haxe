@@ -269,7 +269,7 @@ let rec build_generic ctx c p tl =
 				begin try (match cf_old.cf_expr with
 					| None ->
 						begin match cf_old.cf_kind with
-							| Method _ when not c.cl_interface && not c.cl_extern ->
+							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
@@ -314,7 +314,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
-		cg.cl_interface <- c.cl_interface;
+		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor

@@ -10,8 +10,8 @@ open Error
 
 let is_forced_inline c cf =
 	match c with
-	| Some { cl_extern = true } -> true
 	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some c when has_class_flag c CExtern -> true
 	| _ when has_class_field_flag cf CfExtern -> true
 	| _ -> false
 
@@ -29,7 +29,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			let is_extern_class = match cl with Some c -> c.cl_extern | _ -> false in
+			let is_extern_class = match cl with Some c -> (has_class_flag c CExtern) | _ -> false in
 			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
 		end else begin
 			match cl with
@@ -166,7 +166,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
-	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
+	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
 	let type_against name t e =
 		try
 			let e = type_expr ctx e (WithType.with_argument t name) in
@@ -271,7 +271,7 @@ let unify_field_call ctx fa el args ret p inline =
 				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
 				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
 			in
-			el,tf,mk_call
+			make_field_call_candidate el tf cf mk_call
 		| _ ->
 			die "" __LOC__
 	in
@@ -284,38 +284,49 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		match cerr with Could_not_unify err -> loop err | _ -> ()
 	in
-	let rec loop candidates = match candidates with
-		| [] -> [],[]
-		| (t,cf) :: candidates ->
-			begin try
-				let candidate = attempt_call t cf in
-				if ctx.com.config.pf_overload && is_overload then begin
+	let attempt_calls candidates =
+		let rec loop candidates = match candidates with
+			| [] -> [],[]
+			| (t,cf) :: candidates ->
+				let known_monos = List.map (fun (m,_) ->
+					m,m.tm_type,m.tm_constraints
+				) ctx.monomorphs.perfunction in
+				begin try
+					let candidate = attempt_call t cf in
+					if ctx.com.config.pf_overload && is_overload then begin
+						let candidates,failures = loop candidates in
+						candidate :: candidates,failures
+					end else
+						[candidate],[]
+				with Error ((Call_error cerr as err),p) ->
+					List.iter (fun (m,t,constr) ->
+						m.tm_type <- t;
+						m.tm_constraints <- constr;
+					) known_monos;
+					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
-					candidate :: candidates,failures
-				end else
-					[candidate],[]
-			with Error ((Call_error cerr as err),p) ->
-				maybe_raise_unknown_ident cerr p;
-				let candidates,failures = loop candidates in
-				candidates,(cf,err,p) :: failures
-			end
+					candidates,(cf,err,p) :: failures
+				end
+		in
+		loop candidates
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
-		[],tf,(fun ethis p_field _ ->
+		let call = (fun ethis p_field _ ->
 			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
 			mk (TCall(e1,[])) ret p)
+		in
+		make_field_call_candidate [] tf cf call
 	in
 	match candidates with
 	| [t,cf] ->
 		begin try
-			let el,tf,mk_call = attempt_call t cf in
-			List.map fst el,tf,mk_call
+			attempt_call t cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
 	| _ ->
-		let candidates,failures = loop candidates in
+		let candidates,failures = attempt_calls candidates in
 		let fail () =
 			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
 			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
@@ -333,11 +344,11 @@ let unify_field_call ctx fa el args ret p inline =
 		in
 		if is_overload && ctx.com.config.pf_overload then begin match Overloads.Resolution.reduce_compatible candidates with
 			| [] -> fail()
-			| [el,tf,mk_call] -> List.map fst el,tf,mk_call
+			| [fcc] -> fcc
 			| _ -> error "Ambiguous overload" p
 		end else begin match List.rev candidates with
 			| [] -> fail()
-			| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
+			| fcc :: _ -> fcc
 		end
 
 let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
@@ -534,7 +545,7 @@ let rec acc_get ctx g p =
 		| _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
 		| Method _,_->
-			let chk_class c = (c.cl_extern || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -569,7 +580,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics {cl_extern = false} when has_class_field_flag f CfExtern ->
+						| Statics c when has_class_field_flag f CfExtern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
@@ -609,8 +620,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		check_assign();
 		(match follow t with
 			| TFun (args,r) ->
-				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
-				mk_call ethis p true
+				let fcc = unify_field_call ctx fmode el args r p true in
+				fcc.fc_data ethis p true
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
@@ -717,8 +728,12 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
-							let _,_,mk_call = unify_field_call ctx fa el args r p false in
-							mk_call e1 e.epos false
+							let fcc = unify_field_call ctx fa el args r p false in
+							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
+								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+								| _ -> ()
+							end;
+							fcc.fc_data e1 e.epos false
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in

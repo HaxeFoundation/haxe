@@ -1480,7 +1480,7 @@ struct
 		let rec run md =
 			if is_hxgen md then
 				match md with
-				| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+				| TClassDecl cl when (has_class_flag cl CInterface) && cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
 				| TClassDecl ({ cl_kind = KAbstractImpl _ | KModuleFields _ }) ->
 					(* don't add any base classes to abstract implementations and module field containers *)
@@ -1513,7 +1513,7 @@ let has_field_override cl name =
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
+		| TClassDecl cl when not (has_class_flag cl CExtern) && is_hxgen md && ( not (has_class_flag cl CInterface) || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
 			if is_some cl.cl_super then begin
 				ignore (has_field_override cl (mk_internal_name "hx" "setField"));
 				ignore (has_field_override cl (mk_internal_name "hx" "setField_f"));

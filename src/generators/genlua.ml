@@ -130,7 +130,7 @@ let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (s_escape_lua s) ^ "']" else s
 let static_field c s =
     match s with
-    | "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
+    | "length" | "name" when not (has_class_flag c CExtern) || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
     | s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
@@ -1452,7 +1452,7 @@ and can_gen_class_field ctx = function
 let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
-        if not c.cl_extern then
+        if not (has_class_flag c CExtern) then
             error "MultiReturns must be externs" c.cl_pos
         else if List.length c.cl_ordered_statics > 0 then
             error "MultiReturns must not contain static fields" c.cl_pos
@@ -1766,9 +1766,9 @@ let generate_type ctx = function
         (* A special case for Std because we do not want to generate it if it's empty. *)
         if p = "Std" && c.cl_ordered_statics = [] then
             ()
-        else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
+        else if (not (has_class_flag c CExtern)) && Meta.has Meta.LuaDotMethod c.cl_meta then
             error "LuaDotMethod is valid for externs only" c.cl_pos
-        else if not c.cl_extern then
+        else if not (has_class_flag c CExtern) then
             generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
@@ -1778,7 +1778,7 @@ let generate_type ctx = function
 
 let generate_type_forward ctx = function
     | TClassDecl c ->
-        if not c.cl_extern then
+        if not (has_class_flag c CExtern) then
             begin
                 let p = s_path ctx c.cl_path in
                 let l,c = c.cl_path in
@@ -1825,7 +1825,7 @@ let alloc_ctx com =
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
         match t with
-        | TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.LuaRequire c.cl_meta)
+        | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
         | TEnumDecl { e_extern = true }
             -> s_path ctx p

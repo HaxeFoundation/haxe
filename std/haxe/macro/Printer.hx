@@ -159,6 +159,7 @@ class Printer {
 			case AMacro: "macro";
 			case AFinal: "final";
 			case AExtern: "extern";
+			case AAbstract: "abstract";
 		}
 
 	public function printField(field:Field) {
@@ -344,8 +345,9 @@ class Printer {
 						}
 					].join("\n")
 					+ "\n}";
-				case TDClass(superClass, interfaces, isInterface, isFinal):
+				case TDClass(superClass, interfaces, isInterface, isFinal, isAbstract):
 					(isFinal ? "final " : "")
+						+ (isAbstract ? "abstract " : "")
 						+ (isInterface ? "interface " : "class ")
 						+ t.name
 						+ (t.params != null && t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")

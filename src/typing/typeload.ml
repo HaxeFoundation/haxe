@@ -312,7 +312,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let is_generic,is_generic_build,is_extern = match mt with
 			| TClassDecl {cl_kind = KGeneric} -> true,false,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
-			| TClassDecl {cl_extern = true} -> false,false,true
+			| TClassDecl c when (has_class_flag c CExtern) -> false,false,true
 			| TTypeDecl td ->
 				DeprecationCheck.if_enabled ctx.com (fun() ->
 					try
@@ -544,7 +544,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern as a -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern | AAbstract as a -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar(t,e) when !final ->
@@ -733,10 +733,7 @@ let t_iterator ctx =
 *)
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
-		| None ->
-			let mono = Monomorph.create () in
-			ctx.monomorphs.perfunction <- (mono,pcur) :: ctx.monomorphs.perfunction;
-			TMono mono
+		| None -> spawn_monomorph ctx pcur
 		| Some (t,p) ->	load_complex_type ctx true (t,p)
 	in
 	if opt then ctx.t.tnull t else t

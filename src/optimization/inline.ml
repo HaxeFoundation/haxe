@@ -167,14 +167,14 @@ let api_inline ctx c field params p =
 				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 			end
 		| TTypeExpr (TClassDecl cls) ->
-			if cls.cl_interface then
+			if (has_class_flag cls CInterface) then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
 			else
 				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
-		if cls.cl_interface then
+		if (has_class_flag cls CInterface) then
 			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
@@ -272,10 +272,8 @@ let inline_config cls_opt cf call_args return_type =
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
-		| Meta.Deprecated,_,_ ->
-			mk (TMeta(meta,e)) e.etype e.epos
-		| Meta.Pure,[EConst(Ident ("true"|"false")),_],_ ->
-			mk (TMeta(meta,e)) e.etype e.epos
+		| Meta.Pure,[EConst(Ident "inferredPure"),_],_ -> e
+		| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
 		| _ -> e
 	in
 	List.fold_left inline_meta e meta

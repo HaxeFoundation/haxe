@@ -39,7 +39,7 @@ let run_filter com types =
 			is_hxgen (TAbstractDecl a)
 		| TClassDecl cl ->
 			let rec is_hxgen_class (c,_) =
-				if c.cl_extern then begin
+				if (has_class_flag c CExtern) then begin
 					if Meta.has Meta.HxGen c.cl_meta then
 						true
 					else

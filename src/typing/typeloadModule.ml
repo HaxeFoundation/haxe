@@ -239,13 +239,18 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
 			List.iter (function
-				| HExtern -> c.cl_extern <- true
-				| HInterface -> c.cl_interface <- true
-				| HFinal -> c.cl_final <- true
+				| HExtern -> add_class_flag c CExtern
+				| HInterface -> add_class_flag c CInterface
+				| HFinal -> add_class_flag c CFinal
 				| _ -> ()
 			) d.d_flags;
-			if not c.cl_extern then check_type_name name d.d_meta;
+			if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
+			if has_class_flag c CAbstract then begin
+				if has_class_flag c CInterface then display_error ctx "An interface may not be abstract" c.cl_name_pos;
+				if has_class_flag c CFinal then display_error ctx "An abstract class may not be final" c.cl_name_pos;
+			end;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -356,7 +361,7 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_final <- true;
+					add_class_flag c CFinal;
 				| _ -> die "" __LOC__);
 				acc
 		) in
@@ -395,7 +400,7 @@ let module_pass_1 ctx m tdecls loadp =
 				assert (m.m_statics = None);
 				m.m_statics <- Some c;
 				c.cl_kind <- KModuleFields m;
-				c.cl_final <- true;
+				add_class_flag c CFinal;
 			| _ -> assert false);
 			tdecls
 
@@ -650,7 +655,7 @@ let init_module_type ctx context_init (decl,p) =
 		let herits = d.d_flags in
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
-				c.cl_final <- true;
+				add_class_flag c CFinal;
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p; *)
 			end
@@ -694,7 +699,7 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
-		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not c.cl_extern then
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -888,9 +893,11 @@ let init_module_type ctx context_init (decl,p) =
 				a.a_this <- at;
 				is_type := true;
 			| AbExtern ->
-				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
+				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
 			| AbPrivate -> ()
 		) d.d_flags;
+		a.a_from <- List.rev a.a_from;
+		a.a_to <- List.rev a.a_to;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
 				a.a_this <- TAbstract(a,List.map snd a.a_params)

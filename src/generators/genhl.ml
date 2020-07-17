@@ -434,7 +434,7 @@ let rec to_type ?tref ctx t =
 				| [] -> HDyn
 				| t :: tl ->
 					match follow (apply_params c.cl_params pl t) with
-					| TInst ({cl_interface=false},_) as t -> to_type ?tref ctx t
+					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
 			loop tl
@@ -479,7 +479,7 @@ and resolve_class ctx c pl statics =
 		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		die "" __LOC__
-	| _, _ when c.cl_extern ->
+	| _, _ when (has_class_flag c CExtern) ->
 		not_supported()
 	| _ ->
 		c
@@ -549,11 +549,11 @@ and real_type ctx e =
 	to_type ctx (loop e)
 
 and class_type ?(tref=None) ctx c pl statics =
-	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
+	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
 		PMap.find key_path ctx.cached_types
-	with Not_found when c.cl_interface && not statics ->
+	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let vp = {
 			vfields = [||];
 			vindex = PMap.empty;
@@ -1312,7 +1312,7 @@ and object_access ctx eobj t f =
 and direct_method_call ctx c f ethis =
 	if (match f.cf_kind with Method m -> m = MethDynamic | Var _ -> true) then
 		false
-	else if c.cl_interface then
+	else if (has_class_flag c CInterface) then
 		false
 	else if (match c.cl_kind with KTypeParameter _ ->  true | _ -> false) then
 		false
@@ -1345,7 +1345,7 @@ and get_access ctx e =
 				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
 				| _ -> abort (s_type (print_context()) ethis.etype ^ " hl type should be interface") ethis.epos
 			in
-			let cdef, pl = if cdef.cl_interface then loop ethis.etype else cdef,pl in
+			let cdef, pl = if (has_class_flag cdef CInterface) then loop ethis.etype else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
 		| (FAnon f | FClosure(None,f)), _ ->
 			object_access ctx ethis (to_type ctx ethis.etype) f
@@ -2908,7 +2908,7 @@ and eval_expr ctx e =
 		if safe_cast (rtype ctx re) t then
 			op ctx (OMov (rt,re))
 		else (match Abstract.follow_with_abstracts e.etype with
-		| TInst({ cl_interface = true } as c,_) ->
+		| TInst(c,_) when (has_class_flag c CInterface) ->
 			hold ctx re;
 			let c = eval_to ctx { eexpr = TTypeExpr(TClassDecl c); epos = e.epos; etype = t_dynamic } (class_type ctx ctx.base_type [] false) in
 			hold ctx c;
@@ -3359,7 +3359,25 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
+		let ff = match f.cf_expr with
+			| Some { eexpr = TFunction f } -> f
+			| None when has_class_field_flag f CfAbstract ->
+				let tl,tr = match follow f.cf_type with
+					| TFun(tl,tr) -> tl,tr
+					| _ -> die "" __LOC__
+				in
+				let args = List.map (fun (n,_,t) ->
+					let v = Type.alloc_var VGenerated n t null_pos in
+					(v,None)
+				) tl in
+				{
+					tf_args = args;
+					tf_type = tr;
+					tf_expr = mk (TThrow (mk (TConst TNull) t_dynamic null_pos)) t_dynamic null_pos;
+				}
+			| _ -> abort "Missing function body" f.cf_pos
+		in
+		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -3372,9 +3390,9 @@ let rec generate_member ctx c f =
 
 let generate_type ctx t =
 	match t with
-	| TClassDecl { cl_interface = true }->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		()
-	| TClassDecl c when c.cl_extern ->
+	| TClassDecl c when (has_class_flag c CExtern) ->
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
 				match name with
@@ -3417,7 +3435,7 @@ let generate_static_init ctx types main =
 		(* init class values *)
 		List.iter (fun t ->
 			match t with
-			| TClassDecl c when not c.cl_extern && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
+			| TClassDecl c when not (has_class_flag c CExtern) && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
 
 				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
@@ -3477,13 +3495,13 @@ let generate_static_init ctx types main =
 						List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
 					in
 					let check = function
-						| TClassDecl c when c.cl_interface = false && not c.cl_extern -> if lookup c then classes := c :: !classes
+						| TClassDecl c when (has_class_flag c CInterface) = false && not (has_class_flag c CExtern) -> if lookup c then classes := c :: !classes
 						| _ -> ()
 					in
 					List.iter check ctx.com.types;
 					!classes
 				in
-				if c.cl_interface then begin
+				if (has_class_flag c CInterface) then begin
 					let l = gather_implements() in
 					let ra = alloc_tmp ctx HArray in
 					let rt = alloc_tmp ctx HType in
@@ -3590,7 +3608,7 @@ let generate_static_init ctx types main =
 	List.iter (fun t ->
 		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
-		| TClassDecl c when not c.cl_extern ->
+		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->
 				match f.cf_kind, f.cf_expr with
 				| Var _, Some e ->
@@ -3994,7 +4012,7 @@ let add_types ctx types =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
-			c.cl_extern <- true
+			add_class_flag c CExtern
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with

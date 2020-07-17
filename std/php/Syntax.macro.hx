@@ -62,7 +62,7 @@ class Syntax {
 				}
 				var code = '[${placeholders.join(', ')}]';
 				args.unshift(macro @:pos(decl.pos) $v{code});
-				return macro @:pos(decl.pos) (php.Syntax.code($a{args}):php.NativeArray);
+				return macro @:pos(decl.pos) (php.Syntax.codeDeref($a{args}):php.NativeArray);
 			case _:
 				return invalidExpr(decl.pos);
 		}

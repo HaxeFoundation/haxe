@@ -857,6 +857,11 @@ enum Access {
 		Extern access modifier.
 	**/
 	AExtern;
+
+	/**
+		Abstract access modifier.
+	**/
+	AAbstract;
 }
 
 /**
@@ -947,7 +952,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool);
+	TDClass(?superClass:TypePath, ?interfaces:Array<TypePath>, ?isInterface:Bool, ?isFinal:Bool, ?isAbstract:Bool);
 
 	/**
 		Represents an alias/typedef kind.

@@ -1,3 +1,4 @@
+open Typecore
 open TType
 open TUnification
 open TFunctions
@@ -16,7 +17,8 @@ let unify_cf map_type c cf el =
 						| TAbstract({a_path=["haxe";"extern"],"Rest"},[t]),[] ->
 							begin try
 								let el = List.map (fun e -> unify t e.etype; e,o) el in
-								Some ((List.rev acc) @ el,tf,(c,cf,monos))
+								let fcc = make_field_call_candidate ((List.rev acc) @ el) tf cf (c,cf,monos) in
+								Some fcc
 							with _ ->
 								None
 							end
@@ -24,7 +26,8 @@ let unify_cf map_type c cf el =
 							None
 					end
 				| [],[] ->
-					Some ((List.rev acc),tf,(c,cf,monos))
+					let fcc = make_field_call_candidate (List.rev acc) tf cf (c,cf,monos) in
+					Some fcc
 				| _ ->
 					None
 			in
@@ -48,20 +51,20 @@ let find_overload map_type c cf el =
 
 let filter_overloads candidates =
 	match Overloads.Resolution.reduce_compatible candidates with
-	| [_,_,(c,cf,tl)] -> Some(c,cf,tl)
+	| [fcc] -> Some(fcc.fc_data)
 	| [] -> None
-	| ((_,_,(c,cf,tl)) :: _) (* as resolved *) ->
+	| ((fcc) :: _) (* as resolved *) ->
 		(* let st = s_type (print_context()) in
 		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
 		List.iter (fun (_,t,(c,cf)) ->
 			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
 		) resolved; *)
-		Some(c,cf,tl)
+		Some(fcc.fc_data)
 
 let resolve_instance_overload is_ctor map_type c name el =
 	let candidates = ref [] in
-	let has_function t1 (_,t2,_) =
-		begin match follow t1,t2 with
+	let has_function t1 fcc2 =
+		begin match follow t1,fcc2.fc_type with
 		| TFun(tl1,_),TFun(tl2,_) -> type_iseq (TFun(tl1,t_dynamic)) (TFun(tl2,t_dynamic))
 		| _ -> false
 		end
@@ -76,13 +79,13 @@ let resolve_instance_overload is_ctor map_type c name el =
 			begin match find_overload map_type c cf el with
 			| [] -> raise Not_found
 			| l ->
-				List.iter (fun ((_,t,_) as ca) ->
-					if not (List.exists (has_function t) !candidates) then candidates := ca :: !candidates
+				List.iter (fun fcc ->
+					if not (List.exists (has_function fcc.fc_type) !candidates) then candidates := fcc :: !candidates
 				) l
 			end;
 			if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then raise Not_found
 		with Not_found ->
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.iter (fun (c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c) c.cl_implements
 			else match c.cl_super with
 			| None -> ()
@@ -96,5 +99,5 @@ let maybe_resolve_instance_overload is_ctor map_type c cf el =
 	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
 		resolve_instance_overload is_ctor map_type c cf.cf_name el
 	else match unify_cf map_type c cf el with
-		| Some (_,_,(c,cf,tl)) -> Some (c,cf,tl)
+		| Some fcc -> Some (fcc.fc_data)
 		| None -> Some(c,cf,List.map snd cf.cf_params)

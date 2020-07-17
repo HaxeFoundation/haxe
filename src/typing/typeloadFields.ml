@@ -67,6 +67,7 @@ type field_init_ctx = {
 	is_static : bool;
 	override : pos option;
 	is_extern : bool;
+	is_abstract : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
 	is_display_field : bool;
@@ -394,7 +395,7 @@ let build_enum_abstract ctx c a fields p =
 			in
 			begin match eo with
 				| None ->
-					if not c.cl_extern then begin match mode with
+					if not (has_class_flag c CExtern) then begin match mode with
 						| EAString ->
 							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
@@ -519,7 +520,7 @@ let create_class_context ctx c context_init p =
 	} in
 	(* a lib type will skip most checks *)
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	if is_lib && not c.cl_extern then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
+	if is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	(* a native type will skip one check: the static vs non-static field *)
 	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
 	if Meta.has Meta.Macro c.cl_meta then display_error ctx "Macro classes are no longer allowed in haxe 3" c.cl_pos;
@@ -554,6 +555,7 @@ let create_field_context (ctx,cctx) c cff =
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
+	let is_abstract = List.mem_assoc AAbstract cff.cff_access in
 	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
 	List.iter (fun (m,_,p) ->
 		match m with
@@ -569,6 +571,19 @@ let create_field_context (ctx,cctx) c cff =
 			()
 	) cff.cff_meta;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
+	if is_abstract then begin
+		if is_static then
+			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
+		else if !is_final then
+			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
+		else if is_inline then
+			display_error ctx "Abstract methods may not be inline" (pos cff.cff_name)
+		else if not (has_class_flag c CAbstract) then begin
+			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+			display_error ctx "First abstract field was here" (pos cff.cff_name);
+			add_class_flag c CAbstract;
+		end;
+	end;
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
@@ -582,13 +597,14 @@ let create_field_context (ctx,cctx) c cff =
 		override = override;
 		is_macro = is_macro;
 		is_extern = !is_extern;
+		is_abstract = is_abstract;
 		is_final = !is_final;
 		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not (c.cl_extern || !is_extern) || is_inline) && not c.cl_interface) || field_kind = FKInit);
+		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -603,7 +619,7 @@ let is_public (ctx,cctx) access parent =
 		true
 	else match parent with
 		| Some cf -> (has_class_field_flag cf CfPublic)
-		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
+		| _ -> (has_class_flag c CExtern) || (has_class_flag c CInterface) || cctx.extends_public || (match c.cl_kind with KModuleFields _ -> true | _ -> false)
 
 let rec get_parent c name =
 	match c.cl_super with
@@ -614,20 +630,10 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let add_field c cf =
-	let is_static = has_class_field_flag cf CfStatic in
-	if is_static then begin
-		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-		c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
-	end else begin
-		c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-		c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-	end
-
 let type_opt (ctx,cctx) p t =
 	let c = cctx.tclass in
 	match t with
-	| None when c.cl_extern || c.cl_interface ->
+	| None when (has_class_flag c CExtern) || (has_class_flag c CInterface) ->
 		display_error ctx "Type required for extern classes and interfaces" p;
 		t_dynamic
 	| None when cctx.is_core_api ->
@@ -763,7 +769,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 			| None -> ()
 			| Some (csup,_) ->
 				(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-				if not (csup.cl_interface && Meta.has Meta.CsNative c.cl_meta) then
+				if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
 					error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
 	end;
 	let t = cf.cf_type in
@@ -772,7 +778,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 	| None ->
 		check_field_display ctx fctx c cf;
 	| Some e ->
-		if c.cl_interface then display_error ctx "Default values on interfaces are not allowed" (pos e);
+		if (has_class_flag c CInterface) then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
@@ -805,7 +811,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 					| None -> display_error ctx msg p; e
 				in
 				let e = (match cf.cf_kind with
-				| Var v when c.cl_extern || fctx.is_extern ->
+				| Var v when (has_class_flag c CExtern) || fctx.is_extern ->
 					if not fctx.is_static then begin
 						display_error ctx "Extern non-static variables may not be initialized" p;
 						e
@@ -867,7 +873,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-	if fctx.is_final && not (fctx.is_extern || c.cl_extern || c.cl_interface)  && eo = None then begin
+	if fctx.is_final && not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))  && eo = None then begin
 		if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
 		else cctx.uninitialized_final <- Some f.cff_pos;
 	end;
@@ -1057,7 +1063,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	else begin
 		if ctx.in_macro then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
-			c.cl_extern <- false;
+			remove_class_flag c CExtern;
 			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
 			(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 			let no_expr_of (t,p) = match t with
@@ -1086,12 +1092,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				f_expr = None;
 			}
 	end in
-	begin match c.cl_interface,fctx.field_kind with
+	begin match (has_class_flag c CInterface),fctx.field_kind with
 		| true,FKConstructor ->
 			error "An interface cannot have a constructor" p;
 		| true,_ ->
 			if not fctx.is_static && fd.f_expr <> None then error (fst f.cff_name ^ ": An interface method cannot have a body") p;
-			if fctx.is_inline && c.cl_interface then error (fst f.cff_name ^ ": You can't declare inline methods in interfaces") p;
+			if fctx.is_inline && (has_class_flag c CInterface) then error (fst f.cff_name ^ ": You can't declare inline methods in interfaces") p;
 		| false,FKConstructor ->
 			if fctx.is_static then error "A constructor must not be static" p;
 			begin match fd.f_type with
@@ -1106,6 +1112,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
+	if fctx.is_abstract && dynamic then display_error ctx "Abstract methods may not be dynamic" p;
 	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
 	let is_override = Option.is_some fctx.override in
 	if (is_override && fctx.is_static) then error (fst f.cff_name ^ ": 'override' is not allowed on 'static' functions") p;
@@ -1119,7 +1126,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
 			delay ctx PTypeField (fun() -> match follow t with
 				| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-					if not fctx.is_extern && not c.cl_extern then error "Rest argument are only supported for extern methods" p;
+					if not fctx.is_extern && not (has_class_flag c CExtern) then error "Rest argument are only supported for extern methods" p;
 					if opt then error "Rest argument cannot be optional" p;
 					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
 					if args <> [] then error "Rest should only be used for the last function argument" p;
@@ -1141,6 +1148,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
+	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
@@ -1212,10 +1220,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
 			List.iter2 (fun (n,ct,t) ((_,pn),_,m,_,_) ->
 				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
-				begin if ctx.com.platform = Flash && c.cl_extern then
+				begin if ctx.com.platform = Flash && (has_class_flag c CExtern) then
 					()
 				else
-					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not c.cl_extern && not fctx.is_extern) pn)
+					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not (has_class_flag c CExtern) && not fctx.is_extern) pn)
 				end;
 				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
@@ -1224,7 +1232,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			) args fd.f_args;
 		);
 		check_field_display ctx fctx c cf;
-		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		if fd.f_expr <> None then begin
+			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
+			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+		end;
 	end;
 	cf
 
@@ -1271,7 +1282,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					else
 						get_overload overl
 				| [] ->
-					if c.cl_interface then
+					if (has_class_flag c CInterface) then
 						raise Not_found
 					else
 						raise (Error (Custom
@@ -1294,13 +1305,13 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with
 			| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			| Not_found ->
-				if c.cl_interface then begin
+				if (has_class_flag c CInterface) then begin
 					let cf = mk_field m t p null_pos in
 					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-				end else if not c.cl_extern then begin
+				end else if not (has_class_flag c CExtern) then begin
 					try
 						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
 						display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
@@ -1333,7 +1344,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let set = (match set with
 		| "null",_ ->
 			(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
-			if c.cl_extern && (match c.cl_path with "flash" :: _	, _ -> true | _ -> false) && ctx.com.platform = Flash then
+			if (has_class_flag c CExtern) && (match c.cl_path with "flash" :: _	, _ -> true | _ -> false) && ctx.com.platform = Flash then
 				AccNever
 			else
 				AccNo
@@ -1365,7 +1376,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	Emit compilation error on `final static function`
 *)
 let reject_final_static_method ctx cctx fctx f =
-	if fctx.is_static && fctx.is_final && not cctx.tclass.cl_extern then
+	if fctx.is_static && fctx.is_final && not (has_class_flag cctx.tclass CExtern) then
 		let p =
 			try snd (List.find (fun (a,p) -> a = AFinal) f.cff_access)
 			with Not_found ->
@@ -1381,11 +1392,11 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if not c.cl_extern && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
+	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
-		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
+		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _-> ()
 		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;
@@ -1507,7 +1518,7 @@ let init_class ctx c p context_init herits fields =
 					has_init := true
 			end;
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
-			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
+			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
 				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
@@ -1522,7 +1533,7 @@ let init_class ctx c p context_init herits fields =
 			begin match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_super with
-				| Some ({ cl_extern = false; cl_constructor = Some ctor_sup }, _) when has_class_field_flag ctor_sup CfFinal ->
+				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
 					ctx.com.error "Cannot override final constructor" cf.cf_pos
 				| _ -> ()
 				end;
@@ -1541,7 +1552,7 @@ let init_class ctx c p context_init herits fields =
 				()
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
-				if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
+				if not cctx.is_native && not (has_class_flag c CExtern) && dup then error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
 					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
@@ -1558,7 +1569,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then add_field c cf
+				if fctx.do_add then TClass.add_field c cf
 			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p
@@ -1607,8 +1618,10 @@ let init_class ctx c p context_init herits fields =
 			false, null_pos
 	in
 	if has_struct_init then
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
+		else if (has_class_flag c CAbstract) then
+			display_error ctx "@:structInit is not allowed on abstract classes" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with

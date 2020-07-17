@@ -318,7 +318,7 @@ let save_class_state ctx t = match t with
 			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
 		in
 
-		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
+		let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
 		let sup = c.cl_super and impl = c.cl_implements in
 		let csr = Option.map (mk_field_restore) c.cl_constructor in
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
@@ -329,7 +329,7 @@ let save_class_state ctx t = match t with
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
 			c.cl_meta <- meta;
-			c.cl_extern <- ext;
+			if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
 			c.cl_path <- path;
 			c.cl_init <- init;
 			c.cl_ordered_fields <- List.map restore_field ofr;
@@ -347,7 +347,7 @@ let save_class_state ctx t = match t with
 
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when is_removable_class c ->
-		c.cl_extern <- true
+		add_class_flag c CExtern;
 	| _ ->
 		()
 
@@ -518,7 +518,7 @@ let add_meta_field ctx t = match t with
 				| Cs | Java -> false
 				| _ -> true
 			in
-			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
+			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
@@ -539,7 +539,7 @@ let add_meta_field ctx t = match t with
 	this filter checks for their existence and also adds some metadata for analyzer and C# generator
 *)
 let check_cs_events com t = match t with
-	| TClassDecl cl when not cl.cl_extern ->
+	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
@@ -604,7 +604,7 @@ let check_void_field ctx t = match t with
    This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
    and leaves the remaining ones as 'implemented' *)
 let promote_first_interface_to_super ctx t = match t with
-	| TClassDecl c when c.cl_interface ->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
 		| first_interface  :: remaining ->
@@ -627,7 +627,7 @@ let check_reserved_type_paths ctx t =
 			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
 	in
 	match t with
-	| TClassDecl c when not c.cl_extern -> check c.cl_path c.cl_pos
+	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
 	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
 	| _ -> ()
 
@@ -672,7 +672,10 @@ module ForRemap = struct
 			let restore = save_locals ctx in
 			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
 			restore();
-			e
+			begin match e.eexpr with
+			| TFor _ -> for_remap ctx.com.basic v e1 e2 e.epos
+			| _ -> e
+			end
 		| _ ->
 			Type.map_expr loop e
 		in

@@ -25,8 +25,7 @@ let rec make_static_call ctx c cf a pl args t p =
 	end else
 		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-and do_check_cast ctx tleft eright p =
-	let uctx = default_unification_context in
+and do_check_cast ctx uctx tleft eright p =
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -41,8 +40,7 @@ and do_check_cast ctx tleft eright p =
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
-	let find a tl f =
-		let tcf,cf = f() in
+	let make (a,tl,(tcf,cf)) =
 		if (Meta.has Meta.MultiType a.a_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
@@ -52,7 +50,7 @@ and do_check_cast ctx tleft eright p =
 			)
 			| None -> die "" __LOC__
 	in
-	if type_iseq tleft eright.etype then
+	if type_iseq_custom uctx tleft eright.etype then
 		eright
 	else begin
 		let rec loop stack tleft tright =
@@ -62,24 +60,24 @@ and do_check_cast ctx tleft eright p =
 				let stack = (tleft,tright) :: stack in
 				match follow tleft,follow tright with
 				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-					Abstract.find_to_from uctx find a1 tl1 a2 tl2 tleft eright.etype
+					make (Abstract.find_to_from uctx eright.etype tleft a2 tl2 a1 tl1)
 				| TAbstract(a,tl),_ ->
-					begin try find a tl (fun () -> Abstract.find_from uctx a tl eright.etype tleft)
+					begin try make (a,tl,Abstract.find_from uctx eright.etype a tl)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
-								if not (type_iseq tc tleft) then loop stack (apply_params a.a_params tl tc) tright
+								if not (type_iseq_custom uctx tc tleft) then loop stack (apply_params a.a_params tl tc) tright
 								else loop2 tcl
 							| [] -> raise Not_found
 						in
 						loop2 a.a_from
 					end
 				| _,TAbstract(a,tl) ->
-					begin try find a tl (fun () -> Abstract.find_to uctx a tl tleft)
+					begin try make (a,tl,Abstract.find_to uctx tleft a tl)
 					with Not_found ->
 						let rec loop2 tcl = match tcl with
 							| tc :: tcl ->
-								if not (type_iseq tc tright) then loop stack tleft (apply_params a.a_params tl tc)
+								if not (type_iseq_custom uctx tc tright) then loop stack tleft (apply_params a.a_params tl tc)
 								else loop2 tcl
 							| [] -> raise Not_found
 						in
@@ -92,13 +90,15 @@ and do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-and cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+	let uctx = match uctx with
+		| None -> default_unification_context
+		| Some uctx -> uctx
+	in
 	try
-		(* can't do that anymore because this might miss macro calls (#4315) *)
-		(* if ctx.com.display <> DMNone then raise Not_found; *)
-		do_check_cast ctx tleft eright p
+		do_check_cast ctx uctx tleft eright p
 	with Not_found ->
-		unify_raise ctx eright.etype tleft p;
+		unify_raise_custom uctx ctx eright.etype tleft p;
 		eright
 
 and cast_or_unify ctx tleft eright p =
@@ -212,7 +212,7 @@ let find_multitype_specialization com a pl p =
 	in
 	let _,cf =
 		try
-			Abstract.find_to uctx a tl m
+			Abstract.find_to uctx m a tl
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in

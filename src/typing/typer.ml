@@ -167,32 +167,6 @@ let check_error ctx err p = match err with
 
 let rec unify_min_raise ctx (el:texpr list) : t =
 	let basic = ctx.com.basic in
-	let rec base_types t =
-		let tl = ref [] in
-		let rec loop t = (match t with
-			| TInst(cl, params) ->
-				(match cl.cl_kind with
-				| KTypeParameter tl -> List.iter loop tl
-				| _ -> ());
-				List.iter (fun (ic, ip) ->
-					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
-					loop t
-				) cl.cl_implements;
-				(match cl.cl_super with None -> () | Some (csup, pl) ->
-					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
-					loop t);
-				tl := t :: !tl;
-			| TType (td,pl) ->
-				loop (apply_params td.t_params pl td.t_type);
-				(* prioritize the most generic definition *)
-				tl := t :: !tl;
-			| TLazy f -> loop (lazy_type f)
-			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
-			| _ -> tl := t :: !tl)
-		in
-		loop t;
-		!tl
-	in
 	match el with
 	| [] -> spawn_monomorph ctx null_pos
 	| [e] -> e.etype
@@ -207,7 +181,6 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			| TParenthesis e | TMeta(_,e) -> chk_null e
 			| _ -> false
 		in
-
 		(* First pass: Try normal unification and find out if null is involved. *)
 		let rec loop t = function
 			| [] ->
@@ -251,10 +224,47 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
 			mk_anon ~fields (ref Closed)
-		with Not_found ->
+		with Not_found -> try
+			(* specific case for TFun, see #9579 *)
+			let e0,el = match el with
+				| e0 :: el -> e0,el
+				| _ -> raise Exit
+			in
+			let args,tr0 = match follow e0.etype with
+				| TFun(tl,tr) ->
+					Array.of_list tl,tr
+				| _ ->
+					raise Exit
+			in
+			let arity = Array.length args in
+			let rets = List.map (fun e -> match follow e.etype with
+				| TFun(tl,tr) ->
+					let ta = Array.of_list tl in
+					if Array.length ta <> arity then raise Exit;
+					for i = 0 to arity - 1 do
+						let (_,_,tcur) = args.(i) in
+						let (_,_,tnew) as argnew = ta.(i) in
+						if Type.does_unify tnew tcur then
+							args.(i) <- argnew
+						else if not (Type.does_unify tcur tnew) then
+							raise Exit
+					done;
+					tr
+				| _ ->
+					raise Exit
+			) el in
+			let common_types = UnifyMinT.collect_base_types tr0 in
+			let tr = match UnifyMinT.unify_min' default_unification_context common_types rets with
+			| UnifyMinOk t ->
+				t
+			| UnifyMinError(l,index) ->
+				raise Exit
+			in
+			TFun(Array.to_list args,tr)
+		with Exit ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
-			let common_types = base_types t in
+			let common_types = UnifyMinT.collect_base_types t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
 					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
@@ -264,23 +274,15 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					TInst (c,List.map (fun _ -> t_dynamic) params) :: acc
 				| _ -> acc
 			) [] common_types in
-			let common_types = ref (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
-			let loop e =
-				let first_error = ref None in
-				let filter t = (try Type.unify e.etype t; true
-					with Unify_error l -> if !first_error = None then first_error := Some(Unify l,e.epos); false)
-				in
-				common_types := List.filter filter !common_types;
-				match !common_types, !first_error with
-				| [], Some(err,p) -> raise_error err p
-				| _ -> ()
-			in
-			match !common_types with
-			| [] ->
-				error "No common base type found" (punion (List.hd el).epos (List.hd (List.rev el)).epos)
-			| _ ->
-				List.iter loop (List.tl el);
-				List.hd !common_types
+			let common_types = (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
+			let el = List.tl el in
+			let tl = List.map (fun e -> e.etype) el in
+			begin match UnifyMinT.unify_min' default_unification_context common_types tl with
+			| UnifyMinOk t ->
+				t
+			| UnifyMinError(l,index) ->
+				raise_error (Unify l) (List.nth el index).epos
+			end
 
 let unify_min ctx el =
 	try unify_min_raise ctx el
@@ -348,7 +350,7 @@ let rec type_ident_raise ctx i p mode =
 						(* create a fake class with a fake field to emulate inlining *)
 						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-						c.cl_extern <- true;
+						add_class_flag c CExtern;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
 						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
 				end
@@ -1407,6 +1409,7 @@ and type_access ctx e p mode =
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
+				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
 				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
@@ -1774,8 +1777,8 @@ and type_new ctx path el with_type force_inline p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
-				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				el
+				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
+				List.map fst fcc.fc_args
 			with Error (e,p) ->
 				display_error ctx (error_msg e) p;
 				[])
@@ -1806,6 +1809,7 @@ and type_new ctx path el with_type force_inline p =
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
+			no_abstract_constructor c p;
 			ignore (unify_constructor_call c monos f ct);
 			begin try
 				Generic.build_generic ctx c p monos
@@ -1832,6 +1836,7 @@ and type_new ctx path el with_type force_inline p =
 	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
+		no_abstract_constructor c p;
 		check_constructor_access ctx c f p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
@@ -2391,15 +2396,21 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 
 and type_call_target ctx e with_type inline p =
 	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	let check_inline cf =
+		if (has_class_field_flag cf CfAbstract) then display_error ctx "Cannot force inline on abstract method" p
+	in
 	if not inline then
 		e
 	else match e with
 		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
 			begin match extract_field fa with
-			| Some cf -> AKInline(e1,cf,fa,t)
+			| Some cf ->
+				check_inline cf;
+				AKInline(e1,cf,fa,t)
 			| None -> e
 			end;
 		| AKUsing(e,c,cf,ef,_) ->
+			check_inline cf;
 			AKUsing(e,c,cf,ef,true)
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;
@@ -2483,8 +2494,8 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 			let el = (match follow ct with
 			| TFun (args,r) ->
-				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				el
+				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
+				List.map fst fcc.fc_args
 			| _ ->
 				error "Constructor is not a function" p
 			) in

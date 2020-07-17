@@ -314,6 +314,7 @@ and encode_access a =
 		| AMacro -> 6
 		| AFinal -> 7
 		| AExtern -> 8
+		| AAbstract -> 9
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -664,6 +665,7 @@ and decode_access v =
 	| 6 -> AMacro
 	| 7 -> AFinal
 	| 8 -> AExtern
+	| 9 -> AAbstract
 	| _ -> raise Invalid_expr
 	in
 	a,p
@@ -996,10 +998,10 @@ and encode_tclass c =
 	ignore(c.cl_build());
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
-		"isExtern", vbool c.cl_extern;
-		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
-		"isInterface", vbool c.cl_interface;
-		"isFinal", vbool c.cl_final;
+		"isExtern", vbool (has_class_flag c CExtern);
+		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"isInterface", vbool (has_class_flag c CInterface);
+		"isFinal", vbool (has_class_flag c CFinal);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
@@ -1458,10 +1460,11 @@ let decode_type_def v =
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
-	| 2, [ext;impl;interf;final] ->
+	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
 		let is_final = decode_opt_bool final in
+		let is_abstract = decode_opt_bool abstract in
 		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
@@ -1472,6 +1475,7 @@ let decode_type_def v =
 			end
 		in
 		let flags = if is_final then HFinal :: flags else flags in
+		let flags = if is_abstract then HAbstract :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))

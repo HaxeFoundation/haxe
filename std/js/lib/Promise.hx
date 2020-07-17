@@ -93,22 +93,23 @@ extern class Promise<T> {
 		the specified callback function is executed. This provides a way for code to be run
 		whether the promise was fulfilled successfully or rejected once the Promise has been dealt with.
 	**/
-	function finally(onFinally:()->Void):Promise<T>;
+	function finally(onFinally:() -> Void):Promise<T>;
 }
 
 /**
 	Handler type for the Promise object.
 **/
 abstract PromiseHandler<T, TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
-	from T->TOut // order is important, because Promise<TOut> return must have priority
-	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
 	from T->Promise<TOut> // support Promise explicitly as it doesn't work transitively through Thenable at the moment
+	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
+	from T->TOut // order is important, because Promise<TOut> return must have priority
 {}
 
 /**
 	A value with a `then` method.
 **/
 @:forward
+@:transitive
 abstract Thenable<T>(ThenableStruct<T>)
 	from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
 

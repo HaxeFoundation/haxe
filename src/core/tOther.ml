@@ -272,7 +272,7 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
 			else
 				match c.cl_super with
@@ -300,6 +300,16 @@ module TClass = struct
 				end
 		in
 		loop [] c
+
+	let add_field c cf =
+		let is_static = has_class_field_flag cf CfStatic in
+		if is_static then begin
+			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+		end else begin
+			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
+			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+		end
 end
 
 let s_class_path c =

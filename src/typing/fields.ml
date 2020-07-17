@@ -71,6 +71,9 @@ let field_type ctx c pl f p =
 		let monos = Monomorph.spawn_constrained_monos (if pl = [] then (fun t -> t) else apply_params c.cl_params pl) f.cf_params in
 		apply_params l monos f.cf_type
 
+let no_abstract_constructor c p =
+	if has_class_flag c CAbstract then raise_error (Abstract_class (TClassDecl c)) p
+
 let get_constructor ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->
@@ -365,7 +368,7 @@ let rec type_field cfg ctx e i p mode =
 				| MCall, _ ->
 					()
 				| MGet,Var _
-				| MSet,Var _ when ctx.com.platform = Flash && (match c2 with Some ({ cl_extern = true }, _) -> true | _ -> false) ->
+				| MSet,Var _ when ctx.com.platform = Flash && (match c2 with Some (c2, _) -> has_class_flag c2 CExtern | _ -> false) ->
 					()
 				| _, Method _ ->
 					display_error ctx "Cannot create closure on super method" p
@@ -564,10 +567,11 @@ let rec type_field cfg ctx e i p mode =
 				raise Not_found
 		with Not_found -> try
 			using_field ctx mode e i p
-		with Not_found -> try
+		(* TODO: not sure what this is/was doing (see #9680) *)
+		(* with Not_found -> try
 			(match ctx.curfun, e.eexpr with
 			| FunMemberAbstract, TConst (TThis) -> type_field cfg ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-			| _ -> raise Not_found)
+			| _ -> raise Not_found) *)
 		with Not_found -> try
 			let get_resolve is_write =
 				let c,cf = match a.a_impl,(if is_write then a.a_write else a.a_read) with
