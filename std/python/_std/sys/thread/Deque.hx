@@ -27,12 +27,12 @@ import python.Exceptions.IndexError;
 
 class Deque<T> {
 	
-	var popLock: Lock;
+	var popMutex: Mutex;
 	var nativeDeque: NativeDeque<T>;
 
 	public function new() {
 		nativeDeque = new NativeDeque<T>();
-		popLock = new Lock();
+		popMutex = new Mutex();
 	}
 
 	public function add(i:T) {
@@ -44,14 +44,14 @@ class Deque<T> {
 	}
 
 	public function pop(block:Bool):Null<T> {
-		popLock.wait();
+		popMutex.acquire();
 		while (block && nativeDeque.len() == 0) { }
 		var value = try {
 			nativeDeque.popleft();
 		} catch (e:IndexError) {
 			null;
 		};
-		popLock.release();
+		popMutex.release();
 		return value;
 	}
 }
