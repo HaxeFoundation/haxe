@@ -721,6 +721,16 @@ extern class Global {
 	static function mkdir(pathname:String, mode:Int = 511, recursive:Bool = false, ?context:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.link.php
+	**/
+	static function link(target:String, link:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.symlink.php
+	**/
+	static function symlink(target:String, link:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.unlink.php
 	**/
 	static function unlink(filename:String, ?context:Resource):Bool;
@@ -734,6 +744,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.dirname.php
 	**/
 	static function dirname(path:String, levels:Int = 1):String;
+
+	/**
+		@see http://php.net/manual/en/function.basename.php
+	**/
+	static function basename(path:String, ?suffix:String):String;
 
 	/**
 		@see http://php.net/manual/en/function.glob.php
@@ -754,6 +769,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.readdir.php
 	**/
 	static function readdir(?dir_handle:Resource):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.readlink.php
+	**/
+	static function readlink(filename:String):EitherType<Bool,String>;
 
 	/**
 		@see http://php.net/manual/en/function.rewinddir.php
@@ -889,8 +909,9 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.setcookie.php
 	**/
-	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "", secure:Bool = false,
-		httponly:Bool = false):Bool;
+	@:overload(function(name:String, value:String = "", ?options:NativeStructArray<{?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
+	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "",
+		secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
@@ -1066,6 +1087,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr(str:String, start:Int, length:Int = null, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-substitute-character.php
+	**/
+	static function mb_substitute_character(?substchar:EitherType<Int,String>):EitherType<Bool,EitherType<String,Int>>;
 
 	/**
 		@see http://php.net/manual/en/function.mb-chr.php

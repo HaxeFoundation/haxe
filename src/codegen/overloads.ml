@@ -106,14 +106,12 @@ let collect_overloads map c i =
 	List.rev !acc
 
 let get_overloads (com : Common.context) c i =
-	collect_overloads (fun t -> t) c i
-	(* TODO: check why this kills Java *)
-	(* try
+	try
 		Hashtbl.find com.overload_cache (c.cl_path,i)
 	with Not_found ->
-		let l = collect_overloads c i in
+		let l = collect_overloads (fun t -> t) c i in
 		Hashtbl.add com.overload_cache (c.cl_path,i) l;
-		l *)
+		l
 
 (** Overload resolution **)
 module Resolution =
