@@ -1326,7 +1326,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					if fctx.is_static then add_class_field_flag cf_accessor CfStatic;
 					let diag = {
 						mf_pos = (pos f.cff_name);
-						mf_on = c;
+						mf_on = TClassDecl c;
 						mf_fields = [(cf_accessor,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
 						mf_cause = PropertyAccessor(cf,is_getter);
 					} in

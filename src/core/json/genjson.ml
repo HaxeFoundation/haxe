@@ -72,7 +72,11 @@ let class_ref ctx c = generate_type_path c.cl_module.m_path c.cl_path c.cl_meta
 let enum_ref ctx en = generate_type_path en.e_module.m_path  en.e_path en.e_meta
 let typedef_ref ctx td = generate_type_path td.t_module.m_path td.t_path td.t_meta
 let abstract_ref ctx a = generate_type_path a.a_module.m_path a.a_path a.a_meta
-let moduletype_ref ctx mt = generate_module_path (t_path mt)
+
+let moduletype_ref ctx mt =
+	let infos = t_infos mt in
+	generate_type_path infos.mt_module.m_path infos.mt_path infos.mt_meta
+
 let classfield_ref ctx cf = jstring (field_name cf.cf_name cf.cf_meta)
 let enumfield_ref ctx ef = jstring (field_name ef.ef_name ef.ef_meta)
 let local_ref ctx v = jint v.v_id

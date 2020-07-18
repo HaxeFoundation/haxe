@@ -77,7 +77,7 @@ let json_of_diagnostics dctx =
 	List.iter (fun (s,p,prange) ->
 		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 	) dctx.removable_code;
-	PMap.iter (fun p (c,mfl) ->
+	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
 		let all_fields = ref [] in
 		let scope cf =
@@ -128,7 +128,8 @@ let json_of_diagnostics dctx =
 		(* cl_interfaces is reversed, let's reverse the order again here *)
 		let l = List.map create (List.rev !mfl) in
 		let j = jobject [
-			"classPath",class_ref jctx c;
+			"moduleType",generate_module_type jctx mt;
+			"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mt).mt_module.m_extra.m_file);
 			"entries",jarray l
 		] in
 		add DKMissingFields p DiagnosticsSeverity.Error j
