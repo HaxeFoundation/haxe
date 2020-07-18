@@ -1269,7 +1269,12 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			else match class_field c (List.map snd c.cl_params) m with
 				| _, t,f -> t,f ]
 	in
-	let check_method m t =
+	let cf = {
+		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
+		cf_doc = f.cff_doc;
+		cf_meta = f.cff_meta;
+	} in
+	let check_method m t is_getter =
 		if ctx.com.display.dms_error_policy = EPIgnore then () else
 		try
 			let overloads = find_accessor m in
@@ -1282,7 +1287,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					else
 						get_overload overl
 				| [] ->
-					if (has_class_flag c CInterface) then
+					if (has_class_flag c CInterface) || Diagnostics.is_diagnostics_run ctx.com f.cff_pos then
 						raise Not_found
 					else
 						raise (Error (Custom
@@ -1305,12 +1310,28 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with
 			| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			| Not_found ->
-				if (has_class_flag c CInterface) then begin
+				let generate_field () =
 					let cf = mk_field m t p null_pos in
 					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
 					cf.cf_kind <- Method MethNormal;
+					cf
+				in
+				if (has_class_flag c CInterface) then begin
+					let cf = generate_field () in
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+				end else if Diagnostics.is_diagnostics_run ctx.com f.cff_pos then begin
+					let cf_accessor = generate_field() in
+					remove_class_field_flag cf_accessor CfPublic;
+					if fctx.is_static then add_class_field_flag cf_accessor CfStatic;
+					let diag = {
+						mf_pos = (pos f.cff_name);
+						mf_on = c;
+						mf_fields = [(cf_accessor,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
+						mf_cause = PropertyAccessor(cf,is_getter);
+					} in
+					let display = ctx.com.display_information in
+					display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 				end else if not (has_class_flag c CExtern) then begin
 					try
 						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
@@ -1335,7 +1356,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "get",pget ->
 			let get = "get_" ^ name in
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx PConnectField (fun () -> display_accessor get pget);
-			if not cctx.is_lib then delay_check (fun() -> check_method get t_get);
+			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
 		| _,pget ->
 			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
@@ -1354,19 +1375,14 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "set",pset ->
 			let set = "set_" ^ name in
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx PConnectField (fun () -> display_accessor set pset);
-			if not cctx.is_lib then delay_check (fun() -> check_method set t_set);
+			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
 		| _,pset ->
 			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
 	if (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
-	let cf = {
-		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
-		cf_doc = f.cff_doc;
-		cf_meta = f.cff_meta;
-		cf_kind = Var { v_read = get; v_write = set };
-	} in
+	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;

@@ -5,7 +5,7 @@ open DisplayTypes
 open DiagnosticsKind
 open DisplayTypes
 open DiagnosticsTypes
-open TType
+open Type
 open Genjson
 
 type t = DiagnosticsKind.t * pos
@@ -80,6 +80,9 @@ let json_of_diagnostics dctx =
 	PMap.iter (fun p (c,mfl) ->
 		let jctx = create_context GMMinimum in
 		let all_fields = ref [] in
+		let scope cf =
+			if has_class_field_flag cf CfStatic then CFSStatic else CFSMember
+		in
 		let create mf =
 			let kind,args = match mf.mf_cause with
 				| AbstractParent(csup,tl) ->
@@ -89,6 +92,11 @@ let json_of_diagnostics dctx =
 				| ImplementedInterface(ci,tl) ->
 					"ImplementedInterface",jobject [
 						"parent",generate_type_path_with_params jctx ci.cl_module.m_path ci.cl_path tl ci.cl_meta;
+					]
+				| PropertyAccessor(cf,is_getter) ->
+					"PropertyAccessor",jobject [
+						"property",generate_class_field jctx (scope cf) cf;
+						"isGetter",jbool is_getter;
 					]
 			in
 			let current_fields = ref [] in
@@ -102,7 +110,7 @@ let json_of_diagnostics dctx =
 					current_fields := (t,cf) :: !current_fields;
 					all_fields := (t,cf) :: !all_fields;
 					Some (jobject [
-						"field",generate_class_field jctx CFSMember cf;
+						"field",generate_class_field jctx (scope cf) cf;
 						"type",CompletionType.generate_type jctx ct;
 						"unique",jbool unique;
 					])
