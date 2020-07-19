@@ -103,7 +103,7 @@ let resolve_unqualified ctx name next_path p =
 					let old_on_error = ctx.on_error in
 					ctx.on_error <- (fun _ _ _ -> ());
 					(* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
-					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) f (MCall []) WithType.value)
+					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) (f (MCall [])) WithType.value)
 				end; (* huge hack *)
 				f, next_path
 			| _ ->
