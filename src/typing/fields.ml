@@ -392,8 +392,12 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
-			if mode <> MCall || not (Meta.has Meta.Overload f.cf_meta) then
+			begin match mode with
+			| MCall _ when Meta.has Meta.Overload f.cf_meta ->
+				()
+			| _ ->
 				check_field_access ctx c f false pfield;
+			end;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			begin match e.eexpr with
@@ -434,7 +438,10 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 		(try
 			let f = PMap.find i a.a_fields in
 			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
-			if mode <> MCall || not (Meta.has Meta.Overload f.cf_meta) then  begin
+			begin match mode with
+			| MCall _ when Meta.has Meta.Overload f.cf_meta ->
+				()
+			| _ ->
 				if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
 					match !(a.a_status) with
 					| Closed | Extend _ -> () (* always allow anon private fields access *)
