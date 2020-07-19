@@ -297,7 +297,8 @@ let unify_min_for_type_source ctx el src =
 	| _ ->
 		unify_min ctx el
 
-let rec type_ident_raise ctx i p mode =
+let rec type_ident_raise ctx i p mode with_type =
+	let is_set = match mode with MSet _ -> true | _ -> false in
 	match i with
 	| "true" ->
 		if mode = MGet then
@@ -310,13 +311,13 @@ let rec type_ident_raise ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
-		if mode = MSet then add_class_field_flag ctx.curfield CfModifiesThis;
+		if is_set then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
-		| MSet, KAbstractImpl _ ->
+		| MSet _, KAbstractImpl _ ->
 			if not (assign_to_this_is_allowed ctx) then
 				error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
-		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
+		| (MCall _, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
@@ -344,9 +345,9 @@ let rec type_ident_raise ctx i p mode =
 			(match e with
 			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
 				begin match mode with
-					| MSet -> error "Cannot set inline closure" p
+					| MSet _ -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
-					| MCall ->
+					| MCall _ ->
 						(* create a fake class with a fake field to emulate inlining *)
 						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
@@ -381,7 +382,7 @@ let rec type_ident_raise ctx i p mode =
 			field_access ctx mode f (FStatic (c,f)) (field_type ctx c [] f p) e p
 		)
 	with Not_found -> try
-		let wrap e = if mode = MSet then
+		let wrap e = if is_set then
 				AKNo i
 			else
 				AKExpr e
@@ -432,7 +433,7 @@ let rec type_ident_raise ctx i p mode =
 		let t, name, pi = PMap.find i ctx.m.module_globals in
 		ImportHandling.mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
-		type_field_default_cfg ctx e name p mode
+		type_field_default_cfg ctx e name p mode with_type
 
 (*
 	We want to try unifying as an integer and apply side effects.
@@ -523,7 +524,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	in
 	match op with
 	| OpAssign ->
-		let e1 = type_access ctx (fst e1) (snd e1) MSet in
+		let e1 = type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
 		let e2 with_type = type_expr ctx e2 with_type in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -567,7 +568,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
-		(match type_access ctx (fst e1) (snd e1) MSet with
+		(match type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
 		| AKNo s ->
 			(* try abstract operator overloading *)
 			(try type_non_assign_op true
@@ -777,7 +778,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos MCall) e.epos in
+				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) with_type) e.epos in
 				ignore(follow acc.etype);
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
@@ -1106,7 +1107,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
-	let acc = type_access ctx (fst e) (snd e) (if set then MSet else MGet) in
+	let acc = type_access ctx (fst e) (snd e) (if set then (MSet None) else MGet) WithType.value (* WITHTYPETODO *) in
 	let access e =
 		let make e =
 			let t = (match op with
@@ -1265,9 +1266,9 @@ and type_unop ctx op flag e p =
 	in
 	loop acc
 
-and type_ident ctx i p mode =
+and type_ident ctx i p mode with_type =
 	try
-		type_ident_raise ctx i p mode
+		type_ident_raise ctx i p mode with_type
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i p then raise Not_found;
@@ -1306,6 +1307,7 @@ and type_ident ctx i p mode =
 							raise (Error(err,p))
 						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
+							DisplayFields.handle_missing_ident ctx i mode with_type p;
 							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)
 						| _ ->
@@ -1318,7 +1320,7 @@ and type_ident ctx i p mode =
 				end
 			end
 
-and handle_efield ctx e p0 mode =
+and handle_efield ctx e p0 mode with_type =
 	let open TyperDotPath in
 
 	let dot_path first pnext =
@@ -1395,18 +1397,21 @@ and handle_efield ctx e p0 mode =
 			let e = type_access ctx e p in
 			field_chain ctx dot_path_acc e
 	in
-	loop [] (e,p0) mode
+	loop [] (e,p0) mode with_type
 
-and type_access ctx e p mode =
+and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
-		type_ident ctx s p mode
+		type_ident ctx s p mode with_type
 	| EField (e1,"new") ->
 		let e1 = type_expr ctx e1 WithType.value in
 		begin match e1.eexpr with
 			| TTypeExpr (TClassDecl c) ->
-				if mode = MSet then error "Cannot set constructor" p;
-				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
+				begin match mode with
+				| MSet _ -> error "Cannot set constructor" p;
+				| MCall _ -> error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
+				| MGet -> ()
+				end;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				no_abstract_constructor c p;
@@ -1433,7 +1438,7 @@ and type_access ctx e p mode =
 			| _ -> error "Binding new is only allowed on class types" p
 		end;
 	| EField _ ->
-		handle_efield ctx e p mode
+		handle_efield ctx e p mode with_type
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
 	| EDisplay (e,dk) ->
@@ -2394,8 +2399,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	ctx.meta <- old;
 	e
 
-and type_call_target ctx e with_type inline p =
-	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+and type_call_target ctx e el with_type inline p =
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) with_type) with_type true p in
 	let check_inline cf =
 		if (has_class_field_flag cf CfAbstract) then display_error ctx "Cannot force inline on abstract method" p
 	in
@@ -2420,7 +2425,7 @@ and type_call_target ctx e with_type inline p =
 
 and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
-		let e = type_call_target ctx e with_type inline p in
+		let e = type_call_target ctx e el with_type inline p in
 		build_call ~mode ctx e el with_type p;
 	in
 	match e, el with
@@ -2514,11 +2519,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then error "Cannot use super as value" p;
-		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode) with_type false p in
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode with_type) with_type false p in
 		acc_get ctx e p
 	| EField _
 	| EArray _ ->
-		acc_get ctx (type_access ctx e p mode) p
+		acc_get ctx (type_access ctx e p mode with_type) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in

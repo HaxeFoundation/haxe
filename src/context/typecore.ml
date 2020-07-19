@@ -46,8 +46,8 @@ type macro_mode =
 
 type access_mode =
 	| MGet
-	| MSet
-	| MCall
+	| MSet of Ast.expr option (* rhs, if exists *)
+	| MCall of Ast.expr list (* call arguments *)
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)

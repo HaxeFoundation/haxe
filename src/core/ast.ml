@@ -1134,6 +1134,20 @@ module Expr = struct
 		in
 		loop' "" e;
 		Buffer.contents buf
+
+	let find_ident e =
+		let rec loop e = match fst e with
+			| EConst ct ->
+				begin match ct with
+				| Ident s ->
+					Some s
+				| _ ->
+					None
+				end
+			| _ ->
+				None
+		in
+		loop e
 end
 
 let has_meta_option metas meta s =

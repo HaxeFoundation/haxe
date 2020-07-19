@@ -19,6 +19,12 @@ class Issue7943 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Warning,
+				range: diagnosticsRange(pos(3), pos(4)),
+				args: "This code has no effect"
+			},
+			{
+				kind: DKCompilerError,
+				severity: Warning,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "This code has no effect"
 			}

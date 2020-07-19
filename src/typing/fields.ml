@@ -89,7 +89,8 @@ let check_constructor_access ctx c f p =
 	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx fa mode p =
-	if mode <> MCall && not (DisplayPosition.display_position#enclosed_in p) then begin
+	match mode with
+	| MGet | MSet _ when not (DisplayPosition.display_position#enclosed_in p) ->
 		let check_field f cl_meta =
 			match f.cf_kind with
 			| Method _ ->
@@ -100,16 +101,19 @@ let check_no_closure_meta ctx fa mode p =
 					error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
 			| _ -> ()
 		in
-		match fa with
+		begin match fa with
 		| FStatic (c, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
 		| FInstance (c, _, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
 		| FClosure (Some (c, _), ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
 		| FClosure (None, ({ cf_kind = Method _} as f)) -> check_field f []
 		| FAnon ({ cf_kind = Method _} as f) -> check_field f []
 		| _ -> ()
-	end
+		end
+	| _ ->
+		()
 
 let field_access ctx mode f fmode t e p =
+	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx fmode mode p;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
@@ -126,7 +130,7 @@ let field_access ctx mode f fmode t e p =
 	in
 	match f.cf_kind with
 	| Method m ->
-		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
+		if is_set && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		begin match ctx.curfun,e.eexpr with
 		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
@@ -137,7 +141,7 @@ let field_access ctx mode f fmode t e p =
 			(match m, mode with
 			| MethInline, _ -> AKInline (e,f,fmode,t)
 			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
-			| MethMacro, MCall -> AKMacro (e,f)
+			| MethMacro, MCall _ -> AKMacro (e,f)
 			| _ , MGet ->
 				let cmode = (match fmode with
 					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
@@ -150,7 +154,7 @@ let field_access ctx mode f fmode t e p =
 			| _ -> normal())
 		end
 	| Var v ->
-		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
+		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
 			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
@@ -179,7 +183,7 @@ let field_access ctx mode f fmode t e p =
 		| AccCall | AccInline when ctx.in_display ->
 			normal()
 		| AccCall ->
-			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
+			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
 				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) when Meta.has Meta.Impl f.cf_meta  ->
 					c == ctx.curclass
@@ -208,7 +212,7 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,fmode)) t p)
 			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
-				if mode = MSet then begin
+				if is_set then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 					let f = PMap.find m c.cl_statics in
 					(* we don't have access to the type parameters here, right? *)
@@ -218,7 +222,7 @@ let field_access ctx mode f fmode t e p =
 					AKUsing (ef,c,f,this,false)
 				end else
 					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
-			end else if mode = MSet then
+			end else if is_set then
 				AKSet (e,t,f)
 			else
 				AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [] t) p) [] t p)
@@ -244,7 +248,8 @@ let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
 
 let rec using_field ctx mode e i p =
-	if mode = MSet then raise Not_found;
+	let is_set = match mode with MSet _ -> true | _ -> false in
+	if is_set then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
 	let is_dynamic = match follow e.etype with
 		| TMono {tm_constraints = []} -> raise Not_found
@@ -299,9 +304,21 @@ let check_field_access ctx c f stat p =
 	if not ctx.untyped && not (can_access ctx c f stat) then
 		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
+let emit_missing_field_error ctx i t pfield =
+	display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield
+
+let handle_missing_field ctx tthis i mode with_type pfield =
+	try
+		if not (Diagnostics.is_diagnostics_run ctx.com pfield) then raise Exit;
+		DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
+	with Exit ->
+		emit_missing_field_error ctx i tthis pfield
+
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
-let rec type_field cfg ctx e i p mode =
+(* Note: if mode = MCall, with_type (if known) refers to the return type *)
+let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
+	let is_set = match mode with MSet _ -> true | _ -> false in
 	let no_field() =
 		if TypeFieldConfig.do_resume cfg then raise Not_found;
 		let t = match follow e.etype with
@@ -326,7 +343,7 @@ let rec type_field cfg ctx e i p mode =
 				| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
 					display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 				| _ ->
-					display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
+					handle_missing_field ctx e.etype i mode with_type pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 	in
@@ -360,15 +377,15 @@ let rec type_field cfg ctx e i p mode =
 			let c2, t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
 				| MGet,Var {v_read = AccCall }
-				| MSet,Var {v_write = AccCall }
-				| MCall,Var {v_read = AccCall } ->
+				| MSet _,Var {v_write = AccCall }
+				| MCall _,Var {v_read = AccCall } ->
 					()
-				| MCall, Var _ ->
+				| MCall _, Var _ ->
 					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" pfield
-				| MCall, _ ->
+				| MCall _, _ ->
 					()
 				| MGet,Var _
-				| MSet,Var _ when ctx.com.platform = Flash && (match c2 with Some (c2, _) -> has_class_flag c2 CExtern | _ -> false) ->
+				| MSet _,Var _ when ctx.com.platform = Flash && (match c2 with Some (c2, _) -> has_class_flag c2 CExtern | _ -> false) ->
 					()
 				| _, Method _ ->
 					display_error ctx "Cannot create closure on super method" p
@@ -394,7 +411,7 @@ let rec type_field cfg ctx e i p mode =
 							begin match follow t with
 								| TAbstract({a_impl = Some c},tl) when PMap.mem i c.cl_statics ->
 									let e = mk_cast e t p in
-									type_field cfg ctx e i p mode;
+									type_field cfg ctx e i p mode with_type;
 								| _ ->
 									loop tl
 							end
@@ -447,7 +464,7 @@ let rec type_field cfg ctx e i p mode =
 				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
 					let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
 					let et = type_module_type ctx mt None p in
-					type_field cfg ctx et i p mode;
+					type_field cfg ctx et i p mode with_type;
 				| _ ->
 					raise Not_found
 			with Not_found ->
@@ -459,7 +476,7 @@ let rec type_field cfg ctx e i p mode =
 	| TMono r ->
 		let mk_field () = {
 			(mk_field i (mk_mono()) p null_pos) with
-			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
+			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
 		} in
 		let access f =
 			field_access ctx mode f (FAnon f) (Type.field_type f) e p
@@ -468,7 +485,7 @@ let rec type_field cfg ctx e i p mode =
 		| CStructural(fields,is_open) ->
 			begin try
 				let f = PMap.find i fields in
-				if is_open && mode = MSet then begin match f.cf_kind with
+				if is_open && is_set then begin match f.cf_kind with
 					(* We previously inferred to read-only, but now we want to write. This can happen in cases like #8079. *)
 					| Var ({v_write = AccNo} as acc) -> f.cf_kind <- Var {acc with v_write = AccNormal}
 					| _ -> ()
@@ -492,7 +509,7 @@ let rec type_field cfg ctx e i p mode =
 					no_field()
 				| (t,_) :: tl ->
 					try
-						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode
+						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode with_type
 					with Not_found ->
 						loop tl
 			in
@@ -523,24 +540,24 @@ let rec type_field cfg ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
-			| (MGet | MCall), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+			| (MGet | MCall _), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
 				let ef = field_expr f (field_type f) in
 				AKExpr(ef)
-			| (MGet | MCall), Var {v_read = AccCall } ->
+			| (MGet | MCall _), Var {v_read = AccCall } ->
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type getter in
 				let r = match follow t with TFun(_,_) -> field_type f | _ -> raise Not_found in
 				let ef = field_expr getter t in
 				AKExpr(make_call ctx ef [e] r p)
-			| MSet, Var {v_write = AccCall } ->
+			| MSet _, Var {v_write = AccCall } ->
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e,false)
-			| (MGet | MCall), Var {v_read = AccNever} ->
+			| (MGet | MCall _), Var {v_read = AccNever} ->
 				AKNo f.cf_name
-			| (MGet | MCall), _ ->
+			| (MGet | MCall _), _ ->
 				let rec loop cfl = match cfl with
 					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) pfield
 					| cf :: cfl ->
@@ -561,12 +578,12 @@ let rec type_field cfg ctx e i p mode =
 				end;
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e,false)
-			| MSet, _ ->
+			| MSet _, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
 			if does_forward a false then
 				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
-				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode
+				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode with_type
 			else
 				raise Not_found
 		with Not_found -> try
@@ -595,7 +612,7 @@ let rec type_field cfg ctx e i p mode =
 					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
 			in
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
-			get_resolve (mode = MSet)
+			get_resolve (is_set)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 			else no_field())

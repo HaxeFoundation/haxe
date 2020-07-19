@@ -20,7 +20,7 @@ type object_decl_kind =
 	| ODKPlain
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
-let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -143,9 +143,9 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
-let mk_module_type_access ctx t p : access_mode -> access_kind =
+let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
 	let e = type_module_type ctx t None p in
-	(fun _ -> AKExpr e)
+	(fun _ _ -> AKExpr e)
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in

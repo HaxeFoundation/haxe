@@ -417,7 +417,8 @@ module Inheritance = struct
 			if DynArray.length missing > 0 then begin
 				let l = DynArray.to_list missing in
 				let diag = {
-					mf_on = c;
+					mf_pos = c.cl_name_pos;
+					mf_on = TClassDecl c;
 					mf_fields = List.map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
 					mf_cause = ImplementedInterface(intf,params);
 				} in
@@ -452,7 +453,8 @@ module Inheritance = struct
 			()
 		| l when Diagnostics.is_diagnostics_run ctx.com c.cl_pos ->
 			let diag = {
-				mf_on = c;
+				mf_pos = c.cl_name_pos;
+				mf_on = TClassDecl c;
 				mf_fields = List.rev_map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
 				mf_cause = AbstractParent(csup,params);
 			} in
