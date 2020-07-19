@@ -245,6 +245,7 @@ type missing_field_cause =
 	| AbstractParent of tclass * tparams
 	| ImplementedInterface of tclass * tparams
 	| PropertyAccessor of tclass_field * bool (* true = getter *)
+	| FieldAccess
 
 and missing_fields_diagnostics = {
 	mf_pos : pos;

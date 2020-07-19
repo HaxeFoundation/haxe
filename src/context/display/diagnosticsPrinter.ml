@@ -32,7 +32,7 @@ open CompletionModuleType
 
 let json_of_diagnostics dctx =
 	let diag = Hashtbl.create 0 in
-	let add dk p sev args =
+	let add append dk p sev args =
 		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
 		let diag = try
 			Hashtbl.find diag file
@@ -41,12 +41,24 @@ let json_of_diagnostics dctx =
 			Hashtbl.add diag file d;
 			d
 		in
-		if not (Hashtbl.mem diag p) then
+		if append || not (Hashtbl.mem diag p) then
 			Hashtbl.add diag p (dk,p,sev,args)
 	in
 	let file_keys = new Common.file_keys in
 	let add dk p sev args =
-		if p = null_pos || is_diagnostics_file (file_keys#get p.pfile) then add dk p sev args
+		let append = match dk with
+			| DKUnusedImport
+			| DKRemovableCode
+			| DKDeprecationWarning
+			| DKInactiveBlock ->
+				false
+			| DKUnresolvedIdentifier
+			| DKCompilerError
+			| DKParserError
+			| DKMissingFields ->
+				true
+		in
+		if p = null_pos || is_diagnostics_file (file_keys#get p.pfile) then add append dk p sev args
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -68,15 +80,9 @@ let json_of_diagnostics dctx =
 		) suggestions in
 		add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	PMap.iter (fun p r ->
-		if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
-	) dctx.import_positions;
 	List.iter (fun (s,p,kind,sev) ->
 		add kind p sev (JString s)
 	) (List.rev dctx.diagnostics_messages);
-	List.iter (fun (s,p,prange) ->
-		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
-	) dctx.removable_code;
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
 		let all_fields = ref [] in
@@ -98,6 +104,8 @@ let json_of_diagnostics dctx =
 						"property",generate_class_field jctx (scope cf) cf;
 						"isGetter",jbool is_getter;
 					]
+				| FieldAccess ->
+					"FieldAccess",jobject []
 			in
 			let current_fields = ref [] in
 			let map_field (cf,t,ct) =
@@ -134,9 +142,16 @@ let json_of_diagnostics dctx =
 		] in
 		add DKMissingFields p DiagnosticsSeverity.Error j
 	) dctx.missing_fields;
+	(* non-append from here *)
 	Hashtbl.iter (fun _ (s,p) ->
 		add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
 	) DeprecationCheck.warned_positions;
+	PMap.iter (fun p r ->
+		if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
+	) dctx.import_positions;
+	List.iter (fun (s,p,prange) ->
+		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
+	) dctx.removable_code;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
 			let jo = JObject [

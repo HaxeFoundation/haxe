@@ -1307,6 +1307,7 @@ and type_ident ctx i p mode with_type =
 							raise (Error(err,p))
 						| DMDiagnostics _ ->
 							DisplayToplevel.handle_unresolved_identifier ctx i p false;
+							DisplayFields.handle_missing_ident ctx i mode with_type p;
 							let t = mk_mono() in
 							AKExpr (mk (TIdent i) t p)
 						| _ ->

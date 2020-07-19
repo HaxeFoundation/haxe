@@ -19,6 +19,7 @@
 open Ast
 open Globals
 open Error
+open Common
 open Typecore
 open Type
 open CompletionItem
@@ -301,3 +302,86 @@ let collect ctx e_ast e dk with_type p =
 		items @ get_submodule_fields ctx (List.tl sl,List.hd sl)
 	with Exit | Not_found ->
 		items
+
+let handle_missing_field_raise ctx tthis i mode with_type pfield =
+	let tret = match with_type with
+		| WithType.WithType(t,_) -> t
+		| WithType.Value _ -> mk_mono()
+		| WithType.NoValue ->
+			match mode with
+			| MCall _ -> ctx.t.tvoid
+			| MSet (Some e) ->
+				begin try
+					let e = type_expr ctx e WithType.value in
+					e.etype
+				with _ ->
+					raise Exit
+				end
+			| _ -> raise Exit
+	in
+	let t,kind = match mode with
+		| MCall el ->
+			begin try
+				let tl = List.mapi (fun i e ->
+					let name = match Expr.find_ident e with
+						| Some name -> name
+						| None -> Printf.sprintf "arg%i" i
+					in
+					let e = type_expr ctx e WithType.value in
+					(name,false,e.etype)
+				) el in
+				(TFun(tl,tret),Method MethNormal)
+			with _ ->
+				raise Exit
+			end
+		| MGet ->
+			tret,Var {v_read = AccNormal;v_write = AccNo}
+		| MSet _ ->
+			tret,Var {v_read = AccNormal;v_write = AccNormal}
+	in
+	let cf = mk_field ~public:false i t pfield null_pos in
+	cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
+	cf.cf_kind <- kind;
+	let mt,scope,public = match follow tthis with
+		| TInst(c,_) -> TClassDecl c,CFSMember,not (can_access ctx c cf false)
+		| TEnum(en,_) -> TEnumDecl en,CFSMember,true
+		| TAbstract(a,_) -> TAbstractDecl a,CFSMember,true
+		| TAnon an ->
+			begin match !(an.a_status) with
+			| Statics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
+			| EnumStatics en -> TEnumDecl en,CFSStatic,true
+			| AbstractStatics a -> TAbstractDecl a,CFSStatic,true
+			| _ -> raise Exit
+			end
+		| _ ->
+			raise Exit
+	in
+	if public then add_class_field_flag cf CfPublic;
+	begin match scope with
+		| CFSStatic -> add_class_field_flag cf CfStatic
+		| _ -> ()
+	end;
+	let diag = {
+		mf_pos = pfield;
+		mf_on = mt;
+		mf_fields = [(cf,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
+		mf_cause = FieldAccess;
+	} in
+	let display = ctx.com.display_information in
+	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+
+let handle_missing_ident ctx i mode with_type p =
+	match ctx.curfun with
+	| FunStatic ->
+		let e_self = Texpr.Builder.make_static_this ctx.curclass p in
+		begin try
+			handle_missing_field_raise ctx e_self.etype i mode with_type p
+		with Exit ->
+			()
+		end
+	| _ ->
+		begin try
+			handle_missing_field_raise ctx ctx.tthis i mode with_type p
+		with Exit ->
+			()
+		end

@@ -304,6 +304,16 @@ let check_field_access ctx c f stat p =
 	if not ctx.untyped && not (can_access ctx c f stat) then
 		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
+let emit_missing_field_error ctx i t pfield =
+	display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield
+
+let handle_missing_field ctx tthis i mode with_type pfield =
+	try
+		if not (Diagnostics.is_diagnostics_run ctx.com pfield) then raise Exit;
+		DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
+	with Exit ->
+		emit_missing_field_error ctx i tthis pfield
+
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 (* Note: if mode = MCall, with_type (if known) refers to the return type *)
 let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
@@ -333,7 +343,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
 					display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 				| _ ->
-					display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
+					handle_missing_field ctx e.etype i mode with_type pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 	in
