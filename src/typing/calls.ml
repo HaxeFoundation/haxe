@@ -112,7 +112,7 @@ let call_to_string ctx ?(resume=false) e =
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
 		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall (WithType.with_type ctx.t.tstring) in
+		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos (MCall []) (WithType.with_type ctx.t.tstring) in
 		ctx.meta <- List.tl ctx.meta;
 		!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
@@ -611,7 +611,8 @@ let rec acc_get ctx g p =
 			error "Invalid macro access" p
 
 let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
-	let check_assign () = if mode = MSet then invalid_assign p in
+	let is_set = match mode with MSet _ -> true | _ -> false in
+	let check_assign () = if is_set then invalid_assign p in
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
 		check_assign();
@@ -837,7 +838,7 @@ let array_access ctx e1 e2 mode p =
 		(match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
 			begin match mode with
-			| MSet ->
+			| MSet _ ->
 				(* resolve later *)
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
