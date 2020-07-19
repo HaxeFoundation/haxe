@@ -300,7 +300,8 @@ let check_field_access ctx c f stat p =
 		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
-let rec type_field cfg ctx e i p mode =
+(* Note: if mode = MCall, with_type (if known) refers to the return type *)
+let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
 	let no_field() =
 		if TypeFieldConfig.do_resume cfg then raise Not_found;
@@ -392,7 +393,7 @@ let rec type_field cfg ctx e i p mode =
 							begin match follow t with
 								| TAbstract({a_impl = Some c},tl) when PMap.mem i c.cl_statics ->
 									let e = mk_cast e t p in
-									type_field cfg ctx e i p mode;
+									type_field cfg ctx e i p mode with_type;
 								| _ ->
 									loop tl
 							end
@@ -443,7 +444,7 @@ let rec type_field cfg ctx e i p mode =
 				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
 					let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
 					let et = type_module_type ctx mt None p in
-					type_field cfg ctx et i p mode;
+					type_field cfg ctx et i p mode with_type;
 				| _ ->
 					raise Not_found
 			with Not_found ->
@@ -488,7 +489,7 @@ let rec type_field cfg ctx e i p mode =
 					no_field()
 				| (t,_) :: tl ->
 					try
-						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode
+						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode with_type
 					with Not_found ->
 						loop tl
 			in
@@ -562,7 +563,7 @@ let rec type_field cfg ctx e i p mode =
 		with Not_found -> try
 			if does_forward a false then
 				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
-				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode
+				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode with_type
 			else
 				raise Not_found
 		with Not_found -> try

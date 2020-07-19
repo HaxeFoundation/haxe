@@ -49,7 +49,7 @@ let resolve_module_field ctx m path p =
 		check_field_access ctx c f true p;
 		let ft = Fields.field_type ctx c [] f p in
 		let e = type_module_type ctx (TClassDecl c) None p in
-		(fun mode -> field_access ctx mode f (FStatic (c,f)) ft e p), path_rest
+		(fun mode _ (* WITHTYPETODO *) -> field_access ctx mode f (FStatic (c,f)) ft e p), path_rest
 
 let resolve_module_type ctx m name p =
 	let t = Typeload.find_type_in_module m name in (* raises Not_found *)
@@ -102,8 +102,8 @@ let resolve_unqualified ctx name next_path p =
 				begin (* huge hack around #9430: we need Not_found, but we don't want any errors *)
 					let old_on_error = ctx.on_error in
 					ctx.on_error <- (fun _ _ _ -> ());
-					(* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *) 
-					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) f MCall)
+					(* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
+					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) f MCall WithType.value)
 				end; (* huge hack *)
 				f, next_path
 			| _ ->
