@@ -119,14 +119,14 @@ module IterationKind = struct
 					)
 			in
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos MCall (WithType.with_type t) in
+				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall (WithType.with_type t) in
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 						try_acc acc
 				)
 		in
@@ -232,8 +232,8 @@ module IterationKind = struct
 			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
-				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall WithType.value (* WITHTYPETODO *) in
-				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p MCall (WithType.with_type ctx.t.tbool) in
+				let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value (* WITHTYPETODO *) in
+				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
 				(match acc_next, acc_hasNext with
 					| AKExpr({ eexpr = TField(_, FDynamic _)}), _
 					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
@@ -508,8 +508,8 @@ let type_for_loop ctx handle_display it e2 p =
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos MCall (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
-		let enext = !build_call_ref ctx (type_field_default_cfg ctx etmp "next" etmp.epos MCall WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
+		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
+		let enext = !build_call_ref ctx (type_field_default_cfg ctx etmp "next" etmp.epos (MCall []) WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
 		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet WithType.value) ev.epos in
