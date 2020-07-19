@@ -112,7 +112,7 @@ let call_to_string ctx ?(resume=false) e =
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
 		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
+		let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall (WithType.with_type ctx.t.tstring) in
 		ctx.meta <- List.tl ctx.meta;
 		!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
@@ -890,6 +890,6 @@ let array_access ctx e1 e2 mode p =
 *)
 let field_chain ctx path e =
 	List.fold_left (fun e (f,_,p) ->
-		let e = acc_get ctx (e MGet) p in
+		let e = acc_get ctx (e MGet WithType.value (* WITHTYPETODO *)) p in
 		type_field_default_cfg ctx e f p
 	) e path
