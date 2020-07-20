@@ -346,7 +346,7 @@ let convert_java_enum ctx p pe =
 						(local_names !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
-					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
+					cff_access := (AOverload,p) :: !cff_access;
 					let types = List.map (function
 						| (name, Some ext, impl) ->
 							{

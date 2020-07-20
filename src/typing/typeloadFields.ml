@@ -66,6 +66,7 @@ type field_init_ctx = {
 	is_final : bool;
 	is_static : bool;
 	override : pos option;
+	overload : pos option;
 	is_extern : bool;
 	is_abstract : bool;
 	is_macro : bool;
@@ -590,6 +591,7 @@ let create_field_context (ctx,cctx) c cff =
 		end;
 	end;
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
+	let overload = try Some (List.assoc AOverload cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
 		| "new" -> FKConstructor
@@ -600,6 +602,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_inline = is_inline;
 		is_static = is_static;
 		override = override;
+		overload = overload;
 		is_macro = is_macro;
 		is_extern = !is_extern;
 		is_abstract = is_abstract;
@@ -1154,6 +1157,15 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
+	begin match fctx.overload with
+	| Some p ->
+		if ctx.com.config.pf_overload then
+			add_class_field_flag cf CfOverload
+		else
+			display_error ctx "This platform does not support this kind of overload declaration. Try @:overload(function()... {}) instead" p
+	| None ->
+		()
+	end;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
@@ -1417,7 +1429,7 @@ let init_field (ctx,cctx,fctx) f =
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
-		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _-> ()
+		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
 		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;

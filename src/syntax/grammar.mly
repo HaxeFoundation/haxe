@@ -476,7 +476,7 @@ and resume tdecl fdecl s =
 		| Kwd New :: Kwd Function :: _ when fdecl ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
 			junk_tokens (k - 1);
 			true
 		| BrClose :: _ when tdecl ->
@@ -980,6 +980,7 @@ and parse_cf_rights = parser
 	| [< '(Kwd Inline,p) >] -> AInline,p
 	| [< '(Kwd Extern,p) >] -> AExtern,p
 	| [< '(Kwd Abstract,p) >] -> AAbstract,p
+	| [< '(Kwd Overload,p) >] -> AOverload,p
 
 and parse_fun_name = parser
 	| [< name,p = dollar_ident >] -> name,p
