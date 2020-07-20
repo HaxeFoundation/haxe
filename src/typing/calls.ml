@@ -265,8 +265,15 @@ let unify_field_call ctx fa el p inline =
 			in
 			cfl,Some c,false,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
-			let c = match co with None -> None | Some (c,_) -> Some c in
-			expand_overloads (fun t -> t) cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
+			let map,c = match co with
+				| None ->
+					(fun t -> t),
+					None
+				| Some (c,tl) ->
+					TClass.get_map_function c tl,
+					Some c
+			in
+			expand_overloads map cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
