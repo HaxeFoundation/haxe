@@ -393,7 +393,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
 			begin match mode with
-			| MCall _ when Meta.has Meta.Overload f.cf_meta ->
+			| MCall _ when has_class_field_flag f CfOverload ->
 				()
 			| _ ->
 				check_field_access ctx c f false pfield;
@@ -439,7 +439,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			let f = PMap.find i a.a_fields in
 			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
 			begin match mode with
-			| MCall _ when Meta.has Meta.Overload f.cf_meta ->
+			| MCall _ when has_class_field_flag f CfOverload ->
 				()
 			| _ ->
 				if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin

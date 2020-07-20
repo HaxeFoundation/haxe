@@ -758,7 +758,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 
 			let ecall = get e in
 			let ef = ref ef in
-			let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
+			let is_overload = cf.cf_overloads <> [] || has_class_field_flag cf CfOverload || (is_static && is_static_overload cl (field_name f)) in
 			let cf, actual_t, error = match is_overload with
 				| false ->
 						(* since actual_t from FClassField already applies greal_type, we're using the get_overloads helper to get this info *)

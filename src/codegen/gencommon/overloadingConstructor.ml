@@ -260,7 +260,7 @@ let clone_ctors com ctor sup stl cl =
 		Globals.die "" __LOC__ (* should never happen *)
 	| cf :: [] -> cf
 	| cf :: overl ->
-		cf.cf_meta <- (Meta.Overload,[],cf.cf_pos) :: cf.cf_meta;
+		add_class_field_flag cf CfOverload;
 		cf.cf_overloads <- overl; cf
 
 let rec descends_from_native_or_skipctor cl =

@@ -202,7 +202,7 @@ let generate_type com t =
 			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n";
-		if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> print_field stat f) f.cf_overloads
+		if has_class_field_flag f CfOverload then List.iter (fun f -> print_field stat f) f.cf_overloads
 	in
 	(match t with
 	| TClassDecl c ->

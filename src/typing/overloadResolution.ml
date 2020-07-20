@@ -83,7 +83,7 @@ let resolve_instance_overload is_ctor map_type c name el =
 					if not (List.exists (has_function fcc.fc_type) !candidates) then candidates := fcc :: !candidates
 				) l
 			end;
-			if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then raise Not_found
+			if has_class_field_flag cf CfOverload || cf.cf_overloads <> [] then raise Not_found
 		with Not_found ->
 			if (has_class_flag c CInterface) then
 				List.iter (fun (c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c) c.cl_implements
@@ -96,7 +96,7 @@ let resolve_instance_overload is_ctor map_type c name el =
 	filter_overloads (List.rev !candidates)
 
 let maybe_resolve_instance_overload is_ctor map_type c cf el =
-	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
+	if has_class_field_flag cf CfOverload || cf.cf_overloads <> [] then
 		resolve_instance_overload is_ctor map_type c cf.cf_name el
 	else match unify_cf map_type c cf el with
 		| Some fcc -> Some (fcc.fc_data)

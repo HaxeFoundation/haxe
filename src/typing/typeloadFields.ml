@@ -1475,7 +1475,7 @@ let check_overload ctx f fs =
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
 	List.iter (fun f ->
-		if Meta.has Meta.Overload f.cf_meta then
+		if has_class_field_flag f CfOverload then
 			check_overload ctx f (f :: f.cf_overloads)
 	) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
@@ -1557,10 +1557,10 @@ let init_class ctx c p context_init herits fields =
 				| None ->
 						c.cl_constructor <- Some cf
 				| Some ctor when ctx.com.config.pf_overload ->
-						if Meta.has Meta.Overload cf.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
+						if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
 							ctor.cf_overloads <- cf :: ctor.cf_overloads
 						else
-							display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if Meta.has Meta.Overload cf.cf_meta then ctor.cf_pos else cf.cf_pos)
+							display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
 							display_error ctx "Duplicate constructor" p
 				end
@@ -1573,10 +1573,10 @@ let init_class ctx c p context_init herits fields =
 					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
-					if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then
+					if ctx.com.config.pf_overload && has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
-						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
+						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: mainf.cf_overloads
 					else
 						let type_kind,path = match c.cl_kind with

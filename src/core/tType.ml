@@ -392,6 +392,7 @@ type flag_tclass_field =
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 	| CfOverride
 	| CfAbstract
+	| CfOverload
 
 type flag_tvar =
 	| VCaptured

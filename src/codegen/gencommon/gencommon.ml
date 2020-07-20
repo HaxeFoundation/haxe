@@ -1101,7 +1101,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	let rec loop_cl depth c tl tlch =
 		(try
 			let ret = PMap.find field c.cl_fields in
-			if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
+			if has_class_field_flag ret CfOverload then is_overload := true;
 			match !chosen, exact_field with
 			| Some(d,f,_,_,_), _ when depth <= d || (is_var ret && not (is_var f)) -> ()
 			| _, None ->
@@ -1133,8 +1133,8 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	| None ->
 		None
 	| Some(_,f,c,tl,tlch) ->
-		if !is_overload && not (Meta.has Meta.Overload f.cf_meta) then
-			f.cf_meta <- (Meta.Overload,[],f.cf_pos) :: f.cf_meta;
+		if !is_overload && not (has_class_field_flag f CfOverload) then
+			add_class_field_flag f CfOverload;
 		let declared_t = apply_params c.cl_params tl f.cf_type in
 		let params_t = apply_params c.cl_params tlch f.cf_type in
 		let actual_t = match follow params_t with

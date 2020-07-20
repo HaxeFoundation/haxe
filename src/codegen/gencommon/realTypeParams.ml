@@ -710,7 +710,7 @@ struct
 						| Method _ when has_class_field_flag cf CfAbstract -> false
 						| _ ->
 							let is_override = has_class_field_flag cf CfOverride in
-							let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
+							let cf_type = if is_override && not (has_class_field_flag cf CfOverload) then
 								match find_first_declared_field gen cl cf.cf_name with
 									| Some(_,_,declared_t,_,_,_,_) -> declared_t
 									| _ -> Globals.die "" __LOC__

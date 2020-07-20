@@ -247,7 +247,7 @@ let unify_field_call ctx fa el args ret p inline =
 			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
-			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
+			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload && ctx.com.config.pf_overload) then
 				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
@@ -263,7 +263,7 @@ let unify_field_call ctx fa el args ret p inline =
 			error "Invalid field call" p
 	in
 	let is_forced_inline = is_forced_inline co cf in
-	let is_overload = Meta.has Meta.Overload cf.cf_meta in
+	let is_overload = has_class_field_flag cf CfOverload in
 	let attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
