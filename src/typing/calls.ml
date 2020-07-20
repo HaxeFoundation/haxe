@@ -522,16 +522,19 @@ let rec acc_get ctx g p =
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
-	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
+	| AKUsing sea when ctx.in_display ->
+		let et = sea.se_field_expr in
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
-		let ec = type_module_type ctx (TClassDecl c) None p in
+		let ec = type_module_type ctx (TClassDecl sea.se_class) None p in
 		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
 		let t = match follow et.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| _ -> et.etype
 		in
-		mk (TField(ec,FStatic(c,cf))) t et.epos
-	| AKUsing (et,_,cf,e,_) ->
+		mk (TField(ec,FStatic(sea.se_class,sea.se_field))) t et.epos
+	| AKUsing sea ->
+		let et = sea.se_field_expr in
+		let e = sea.se_this in
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
@@ -654,13 +657,16 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		check_assign();
 		let fcc = unify_field_call ctx fmode el p true in
 		fcc.fc_data ethis p true
-	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
+	| AKUsing sea when Meta.has Meta.Generic sea.se_field.cf_meta ->
 		check_assign();
-		(match et.eexpr with
+		(match sea.se_field_expr.eexpr with
 		| TField(ec,fa) ->
-			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
+			type_generic_function ctx (ec,fa) el ~using_param:(Some sea.se_this) with_type p
 		| _ -> die "" __LOC__)
-	| AKUsing (et,cl,ef,eparam,force_inline) ->
+	| AKUsing sea ->
+		let cl = sea.se_class in
+		let ef = sea.se_field in
+		let eparam = sea.se_this in
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
@@ -686,7 +692,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 					end
 				| _ -> die "" __LOC__
 			in
-			make_call ctx ~force_inline et (eparam :: params) r p
+			let force_inline = sea.se_force_inline in
+			make_call ctx ~force_inline sea.se_field_expr (eparam :: params) r p
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;

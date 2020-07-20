@@ -554,15 +554,15 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ -> die "" __LOC__
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
-		| AKUsing(ef,_,_,et,_) ->
+		| AKUsing sea ->
 			(* this must be an abstract setter *)
-			let e2,ret = match follow ef.etype with
+			let e2,ret = match follow sea.se_field_expr.etype with
 				| TFun([_;(_,_,t)],ret) ->
 					let e2 = e2 (WithType.with_type t) in
 					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
-			make_call ctx ef [et;e2] ret p
+			make_call ctx sea.se_field_expr [sea.se_this;e2] ret p
 		| AKInline _ | AKMacro _ ->
 			die "" __LOC__)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
@@ -642,9 +642,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsing(ef,c,cf,et,_) ->
+		| AKUsing sea ->
+			let ef = sea.se_field_expr in
+			let et = sea.se_this in
 			(* abstract setter + getter *)
-			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) | _ -> die "" __LOC__ in
+			let ta = match sea.se_class.cl_kind with KAbstractImpl a -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) | _ -> die "" __LOC__ in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ -> error "Invalid field type for abstract setter" p
@@ -669,7 +671,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							needs_temp_var e1
 						| _ -> true
 					in
-					if has_class_field_flag cf CfModifiesThis then
+					if has_class_field_flag sea.se_field CfModifiesThis then
 						match et.eexpr with
 						| TField (target,fa) when needs_temp_var target->
 							let tmp = gen_local ctx target.etype target.epos in
@@ -691,7 +693,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
-			let getter_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
+			let getter_name = String.sub sea.se_field.cf_name 4 (String.length sea.se_field.cf_name - 4) in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
 			unify ctx get.etype ret p;
 			l();
@@ -1188,7 +1190,7 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsing (emethod,cl,cf,etarget,force_inline) when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+		| AKUsing {se_field_expr = emethod;se_class = cl;se_field = cf;se_this = etarget;se_force_inline = force_inline} when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
 			let l = save_locals ctx in
 			let init_tmp,etarget,eget =
 				match needs_temp_var etarget, fst e with
@@ -2411,9 +2413,9 @@ and type_call_target ctx e el with_type inline p =
 				AKInline(e1,cf,fa,t)
 			| None -> e
 			end;
-		| AKUsing(e,c,cf,ef,_) ->
-			check_inline cf;
-			AKUsing(e,c,cf,ef,true)
+		| AKUsing sea ->
+			check_inline sea.se_field;
+			AKUsing {sea with se_force_inline = true}
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;
 			e
