@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el p inline =
+let unify_field_call ctx fa el p inline static_extension_arg =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
@@ -251,9 +251,9 @@ let unify_field_call ctx fa el p inline =
 		| FAnon cf ->
 			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
-			let map = match c.cl_kind with
-				| KAbstractImpl a -> apply_params a.a_params tl
-				| _ -> TClass.get_map_function c tl
+			let map,mk_fa = match c.cl_kind with
+				| KAbstractImpl a -> apply_params a.a_params tl,(fun cf -> FStatic(c,cf))
+				| _ -> TClass.get_map_function c tl,(fun cf -> FInstance(c,tl,cf))
 			in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				List.map (map_cf cf map) (cf :: cf.cf_overloads)
@@ -263,7 +263,7 @@ let unify_field_call ctx fa el p inline =
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,cf,(fun cf -> FInstance(c,tl,cf))
+			cfl,Some c,false,cf,mk_fa
 		| FClosure(co,cf) ->
 			let map,c = match co with
 				| None ->
@@ -284,10 +284,24 @@ let unify_field_call ctx fa el p inline =
 	in
 	let rec attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
+			let get_call_args,args = match static_extension_arg,args with
+				| Some(e1,t1),(_,_,ta1) :: args ->
+					begin try
+						unify ctx t1 ta1 e1.epos;
+					with Error(Unify _ as msg,p) ->
+						let call_error = Call_error(Could_not_unify msg) in
+						raise(Error(call_error,p))
+					end;
+					(fun el -> e1 :: el),args
+				| _ ->
+					(fun el -> el),args
+			in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call ethis p_field inline =
 				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
-				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
+				let el = List.map fst el in
+				let el = get_call_args el in
+				make_call ctx ef el ret ~force_inline:inline p
 			in
 			make_field_call_candidate el tf cf mk_call
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
@@ -654,7 +668,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		type_generic_function ctx (ethis,fmode) el with_type p
 	| AKInline (ethis,f,fmode,t) ->
 		check_assign();
-		let fcc = unify_field_call ctx fmode el p true in
+		let fcc = unify_field_call ctx fmode el p true None in
 		fcc.fc_data ethis p true
 	| AKUsing sea when Meta.has Meta.Generic sea.se_field.cf_meta ->
 		check_assign();
@@ -674,25 +688,13 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			e
 		| _ ->
 			check_assign();
-			let t = follow (field_type ctx cl [] ef p) in
-			(* for abstracts we have to apply their parameters to the static function *)
-			let t,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl t,apply_params a.a_params tl a.a_this
-				| te -> t,te
+			let e_this = Texpr.Builder.make_static_this cl p in
+			let fa,tthis = match follow eparam.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> FInstance(cl,tl,ef),apply_params a.a_params tl a.a_this
+				| _ -> FStatic(cl,ef),eparam.etype
 			in
-			let params,args,r,eparam = match t with
-				| TFun ((_,_,t1) :: args,r) ->
-					unify ctx tthis t1 eparam.epos;
-					let ef = prepare_using_field ef in
-					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
-					| el,TFun(args,r) -> el,args,r,eparam
-					| _ -> die "" __LOC__
-					end
-				| _ -> die "" __LOC__
-			in
-			let force_inline = sea.se_force_inline in
-			let e = Builder.make_static_field sea.se_class sea.se_field p in
-			make_call ctx ~force_inline e (eparam :: params) r p
+			let fcc = unify_field_call ctx fa el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
+			fcc.fc_data e_this p sea.se_force_inline
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
@@ -763,7 +765,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
-							let fcc = unify_field_call ctx fa el p false in
+							let fcc = unify_field_call ctx fa el p false None in
 							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
 								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 								| _ -> ()

@@ -1785,7 +1785,7 @@ and type_new ctx path el with_type force_inline p =
 	in
 	let unify_constructor_call c params f =
 		(try
-			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false in
+			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false None in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -2498,7 +2498,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false in
+			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false None in
 			let el = List.map fst fcc.fc_args in
 			el , TInst (c,params)
 		) in
