@@ -88,7 +88,7 @@ let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
-let check_no_closure_meta ctx fa mode p =
+let check_no_closure_meta ctx cf fa mode p =
 	match mode with
 	| MGet | MSet _ when not (DisplayPosition.display_position#enclosed_in p) ->
 		let check_field f cl_meta =
@@ -101,22 +101,25 @@ let check_no_closure_meta ctx fa mode p =
 					error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
 			| _ -> ()
 		in
-		begin match fa with
-		| FStatic (c, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FInstance (c, _, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FClosure (Some (c, _), ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FClosure (None, ({ cf_kind = Method _} as f)) -> check_field f []
-		| FAnon ({ cf_kind = Method _} as f) -> check_field f []
-		| _ -> ()
+		begin match cf.cf_kind with
+		| Method _ ->
+			let meta = match fa with
+				| FAStatic c | FAInstance(c,_) -> c.cl_meta
+				| _ -> []
+			in
+			check_field cf meta
+		| _ ->
+			()
 		end
 	| _ ->
 		()
 
-let field_access ctx mode f fmode t e p =
+let field_access ctx mode f famode t e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	check_no_closure_meta ctx fmode mode p;
+	check_no_closure_meta ctx f famode mode p;
+	let fmode () = apply_fa f famode in
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
-	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
+	let fnormal() = AKExpr (mk (TField (e,fmode())) t p) in
 	let normal() =
 		match follow e.etype with
 		| TAnon a ->
@@ -138,16 +141,15 @@ let field_access ctx mode f fmode t e p =
 			AKUsing (make_static_extension_access ctx.curclass f ethis t false p)
 		| _ ->
 			(match m, mode with
-			| MethInline, _ -> AKInline (e,f,fmode,t)
+			| MethInline, _ -> AKInline (e,f,famode,t)
 			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
 			| MethMacro, MCall _ -> AKMacro (e,f)
 			| _ , MGet ->
-				let cmode = (match fmode with
-					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
-					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
-					| FStatic _ | FEnum _ -> fmode
-					| FAnon f -> FClosure (None, f)
-					| FDynamic _ | FClosure _ -> die "" __LOC__
+				if Meta.has Meta.Generic f.cf_meta then display_error ctx "Cannot create closure on generic function" p;
+				let cmode = (match famode with
+					| FAInstance(c,tl) -> FClosure (Some (c,tl),f)
+					| FAStatic c -> FStatic(c,f)
+					| FAAnon -> FClosure (None, f)
 				) in
 				AKExpr (mk (TField (e,cmode)) t p)
 			| _ -> normal())
@@ -208,7 +210,7 @@ let field_access ctx mode f fmode t e p =
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
-				AKExpr (mk (TField (e,fmode)) t p)
+				AKExpr (mk (TField (e,fmode())) t p)
 			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if is_set then begin
@@ -231,10 +233,10 @@ let field_access ctx mode f fmode t e p =
 		| AccNever ->
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
-			AKInline (e,f,fmode,t)
+			AKInline (e,f,famode,t)
 		| AccCtor ->
-			(match ctx.curfun, fmode with
-				| FunConstructor, FInstance(c,_,_) when c == ctx.curclass -> normal()
+			(match ctx.curfun, famode with
+				| FunConstructor, FAInstance(c,_) when c == ctx.curclass -> normal()
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->
@@ -395,7 +397,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| _ ->
 				check_field_access ctx c f false pfield;
 			end;
-			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
+			field_access ctx mode f (match c2 with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			begin match e.eexpr with
 				| TConst TSuper -> raise Not_found
@@ -446,23 +448,27 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield
 				end;
 			end;
-			let fmode, ft = (match !(a.a_status) with
-				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e ->
-					let ef = try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__ in
-					let t = enum_field_type ctx e ef p in
-					FEnum (e,ef),t
+			let access fmode ft =
+				field_access ctx mode f fmode ft e p
+			in
+			begin match !(a.a_status) with
+				| Statics c ->
+					access (FAStatic c) (field_type ctx c [] f p)
+				| EnumStatics en ->
+					let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
+					let fmode = FEnum (en,c) in
+					let t = enum_field_type ctx en c p in
+					AKExpr (mk (TField (e,fmode)) t p)
 				| _ ->
 					match f.cf_params with
 					| [] ->
-						FAnon f, Type.field_type f
+						access FAAnon (Type.field_type f)
 					| l ->
 						(* handle possible constraints *)
 						let monos = Monomorph.spawn_constrained_monos (fun t -> t) f.cf_params in
 						let t = apply_params f.cf_params monos f.cf_type in
-						FAnon f, t
-			) in
-			field_access ctx mode f fmode ft e p
+						access FAAnon t
+			end
 		with Not_found -> try
 				match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
@@ -483,7 +489,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
 		} in
 		let access f =
-			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+			field_access ctx mode f FAAnon (Type.field_type f) e p
 		in
 		begin match Monomorph.classify_constraints r with
 		| CStructural(fields,is_open) ->

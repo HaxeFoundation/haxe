@@ -13,11 +13,16 @@ type static_extension_access = {
 	se_pos : pos;
 }
 
+type field_access_mode =
+	| FAStatic of tclass
+	| FAInstance of tclass * tparams
+	| FAAnon
+
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
 	| AKSet of texpr * t * tclass_field
-	| AKInline of texpr * tclass_field * tfield_access * t
+	| AKInline of texpr * tclass_field * field_access_mode * t
 	| AKMacro of texpr * tclass_field
 	| AKUsing of static_extension_access
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
@@ -168,7 +173,11 @@ let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
 let s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
-	let sfa = s_field_access st in
+	let sfa = function
+		| FAStatic c -> Printf.sprintf "FAStatic(%s)" (s_type_path c.cl_path)
+		| FAInstance(c,tl) -> Printf.sprintf "FAInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FAAnon -> Printf.sprintf "FAAnon"
+	in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
@@ -235,3 +244,17 @@ let get_abstract_froms a pl =
 		| _ ->
 			acc
 	) l a.a_from_field
+
+let apply_fa cf = function
+	| FAStatic c -> FStatic(c,cf)
+	| FAInstance(c,tl) -> FInstance(c,tl,cf)
+	| FAAnon -> FAnon cf
+
+let unapply_fa = function
+	| FStatic(c,cf) -> cf,FAStatic c
+	| FInstance(c,tl,cf) | FClosure(Some(c,tl),cf) -> cf,FAInstance(c,tl)
+	| FAnon cf -> cf,FAAnon
+	| _ -> raise Exit
+
+let maybe_unapply_fa fa =
+	try Some (unapply_fa fa) with Exit -> None

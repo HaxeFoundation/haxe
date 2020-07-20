@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el p inline static_extension_arg =
+let unify_field_call ctx cf fa el p inline static_extension_arg =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
@@ -245,12 +245,12 @@ let unify_field_call ctx fa el p inline static_extension_arg =
 	let expand_overloads map cf =
 		(List.map (map_cf cf map) (cf :: cf.cf_overloads))
 	in
-	let candidates,co,static,cf,mk_fa = match fa with
-		| FStatic(c,cf) ->
-			expand_overloads (fun t -> t) cf,Some c,true,cf,(fun cf -> FStatic(c,cf))
-		| FAnon cf ->
-			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
-		| FInstance(c,tl,cf) ->
+	let candidates,co,static,mk_fa = match fa with
+		| FAStatic c ->
+			expand_overloads (fun t -> t) cf,Some c,true,(fun cf -> FStatic(c,cf))
+		| FAAnon ->
+			expand_overloads (fun t -> t) cf,None,false,(fun cf -> FAnon cf)
+		| FAInstance(c,tl) ->
 			let map,mk_fa = match c.cl_kind with
 				| KAbstractImpl a -> apply_params a.a_params tl,(fun cf -> FStatic(c,cf))
 				| _ -> TClass.get_map_function c tl,(fun cf -> FInstance(c,tl,cf))
@@ -263,8 +263,8 @@ let unify_field_call ctx fa el p inline static_extension_arg =
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,cf,mk_fa
-		| FClosure(co,cf) ->
+			cfl,Some c,false,mk_fa
+		(* | FClosure(co,cf) ->
 			let map,c = match co with
 				| None ->
 					(fun t -> t),
@@ -273,9 +273,7 @@ let unify_field_call ctx fa el p inline static_extension_arg =
 					TClass.get_map_function c tl,
 					Some c
 			in
-			expand_overloads map cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
-		| _ ->
-			error "Invalid field call" p
+			expand_overloads map cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf)) *)
 	in
 	let is_forced_inline = is_forced_inline co cf in
 	let overload_kind = if has_class_field_flag cf CfOverload then OverloadProper
@@ -398,10 +396,10 @@ let unify_field_call ctx fa el p inline static_extension_arg =
 			| fcc :: _ -> fcc
 		end
 
-let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
-	let c,tl,cf,stat = match fa with
-		| FInstance(c,tl,cf) -> c,tl,cf,false
-		| FStatic(c,cf) -> c,[],cf,true
+let type_generic_function ctx cf fa e el ?(using_param=None) with_type p =
+	let c,tl,stat = match fa with
+		| FAInstance(c,tl) -> c,tl,false
+		| FAStatic c -> c,[],true
 		| _ -> die "" __LOC__
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
@@ -572,10 +570,10 @@ let rec acc_get ctx g p =
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
 		| _ -> die "" __LOC__)
-	| AKInline (e,f,fmode,t) ->
+	| AKInline (e,cf,fmode,t) ->
 		(* do not create a closure for static calls *)
 		let cmode,apply_params = match fmode with
-			| FStatic(c,_) ->
+			| FAStatic c ->
 				let f = match c.cl_kind with
 					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
 						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
@@ -583,18 +581,18 @@ let rec acc_get ctx g p =
 						apply_params a.a_params monos;
 					| _ -> (fun t -> t)
 				in
-				fmode,f
-			| FInstance (c,tl,f) ->
-				(FClosure (Some (c,tl),f),(fun t -> t))
+				FStatic(c,cf),f
+			| FAInstance(c,tl) ->
+				(FClosure (Some (c,tl),cf),(fun t -> t))
 			| _ ->
 				die "" __LOC__
 		in
-		ignore(follow f.cf_type); (* force computing *)
-		begin match f.cf_kind,f.cf_expr with
+		ignore(follow cf.cf_type); (* force computing *)
+		begin match cf.cf_kind,cf.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
 		| Method _,_->
-			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag cf CfExtern) && not (Meta.has Meta.Runtime cf.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -612,9 +610,9 @@ let rec acc_get ctx g p =
 						c2
 				in
 				let cf = try
-					PMap.find f.cf_name c2.cl_statics
+					PMap.find cf.cf_name c2.cl_statics
 				with Not_found ->
-					let cf = {f with cf_kind = Method MethNormal} in
+					let cf = {cf with cf_kind = Method MethNormal} in
 					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
 					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
 					cf
@@ -629,7 +627,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics c when has_class_field_flag f CfExtern ->
+						| Statics c when has_class_field_flag cf CfExtern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
@@ -640,8 +638,8 @@ let rec acc_get ctx g p =
 		| Var _,Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p; etype = apply_params e.etype } in
 			let e = loop e in
-			let e = Inline.inline_metadata e f.cf_meta in
-			let tf = apply_params f.cf_type in
+			let e = Inline.inline_metadata e cf.cf_meta in
+			let tf = apply_params cf.cf_type in
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None when ctx.com.display.dms_display ->
@@ -665,16 +663,15 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
 		check_assign();
-		type_generic_function ctx (ethis,fmode) el with_type p
+		type_generic_function ctx f fmode ethis el with_type p
 	| AKInline (ethis,f,fmode,t) ->
 		check_assign();
-		let fcc = unify_field_call ctx fmode el p true None in
+		let fcc = unify_field_call ctx f fmode el p true None in
 		fcc.fc_data ethis p true
 	| AKUsing sea when Meta.has Meta.Generic sea.se_field.cf_meta ->
 		check_assign();
 		let ec = Texpr.Builder.make_static_this sea.se_class p in
-		let fa = FStatic(sea.se_class,sea.se_field) in
-		type_generic_function ctx (ec,fa) el ~using_param:(Some sea.se_this) with_type p
+		type_generic_function ctx sea.se_field (FAStatic sea.se_class) ec el ~using_param:(Some sea.se_this) with_type p
 	| AKUsing sea ->
 		let cl = sea.se_class in
 		let ef = sea.se_field in
@@ -690,10 +687,10 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			check_assign();
 			let e_this = Texpr.Builder.make_static_this cl p in
 			let fa,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> FInstance(cl,tl,ef),apply_params a.a_params tl a.a_this
-				| _ -> FStatic(cl,ef),eparam.etype
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> FAInstance(cl,tl),apply_params a.a_params tl a.a_this
+				| _ -> FAStatic cl,eparam.etype
 			in
-			let fcc = unify_field_call ctx fa el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
+			let fcc = unify_field_call ctx ef fa el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
 			fcc.fc_data e_this p sea.se_force_inline
 		end
 	| AKMacro (ethis,cf) ->
@@ -763,9 +760,11 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 				| TField(e1,fa) when not (match fa with FEnum _ | FDynamic _ -> true | _ -> false) ->
 					begin match fa with
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
-							type_generic_function ctx (e1,fa) el with_type p
+							let cf,fa = unapply_fa fa in
+							type_generic_function ctx cf fa e1 el with_type p
 						| _ ->
-							let fcc = unify_field_call ctx fa el p false None in
+							let cf,fa = unapply_fa fa in
+							let fcc = unify_field_call ctx cf fa el p false None in
 							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
 								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 								| _ -> ()

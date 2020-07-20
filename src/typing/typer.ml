@@ -353,7 +353,7 @@ let rec type_ident_raise ctx i p mode with_type =
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 						add_class_flag c CExtern;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FAInstance(c,[]), t)
 				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
@@ -363,7 +363,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
-		field_access ctx mode f (match c with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) t (get_this ctx p) p
+		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) t (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -371,7 +371,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e = type_type ctx ctx.curclass.cl_path p in
 		(* check_locals_masking already done in type_type *)
-		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
+		field_access ctx mode f (FAStatic ctx.curclass) (field_type ctx ctx.curclass [] f p) e p
 	with Not_found -> try
 		(* module-level statics *)
 		(match ctx.m.curmod.m_statics with
@@ -379,7 +379,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
 			let e = type_module_type ctx (TClassDecl c) None p in
-			field_access ctx mode f (FStatic (c,f)) (field_type ctx c [] f p) e p
+			field_access ctx mode f (FAStatic c) (field_type ctx c [] f p) e p
 		)
 	with Not_found -> try
 		let wrap e = if is_set then
@@ -400,12 +400,11 @@ let rec type_ident_raise ctx i p mode with_type =
 							loop l
 						else begin
 							let et = type_module_type ctx (TClassDecl c) None p in
-							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
 							ImportHandling.mark_import_position ctx pt;
 							begin match cf.cf_kind with
-								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
-								| _ -> AKExpr (mk (TField(et,fa)) t p)
+								| Var {v_read = AccInline} -> AKInline(et,cf,FAStatic c,t)
+								| _ -> AKExpr (mk (TField(et,FStatic(c,cf))) t p)
 							end
 						end
 					with Not_found ->
@@ -1785,7 +1784,7 @@ and type_new ctx path el with_type force_inline p =
 	in
 	let unify_constructor_call c params f =
 		(try
-			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false None in
+			let fcc = unify_field_call ctx f (FAInstance(c,params)) el p false None in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -2409,8 +2408,8 @@ and type_call_target ctx e el with_type inline p =
 		e
 	else match e with
 		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
-			begin match extract_field fa with
-			| Some cf ->
+			begin match maybe_unapply_fa fa with
+			| Some(cf,fa) ->
 				check_inline cf;
 				AKInline(e1,cf,fa,t)
 			| None -> e
@@ -2498,7 +2497,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false None in
+			let fcc = unify_field_call ctx f (FAInstance(c,params)) el p false None in
 			let el = List.map fst fcc.fc_args in
 			el , TInst (c,params)
 		) in
