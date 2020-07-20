@@ -231,6 +231,11 @@ let unify_call_args ctx el args r p inline force_inline =
 	let el,tf = unify_call_args' ctx el args r p inline force_inline in
 	List.map fst el,tf
 
+type overload_kind =
+	| OverloadProper (* @:overload or overload *)
+	| OverloadMeta (* @:overload(function() {}) *)
+	| OverloadNone
+
 let unify_field_call ctx fa el args ret p inline =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
@@ -247,7 +252,7 @@ let unify_field_call ctx fa el args ret p inline =
 			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
-			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload && ctx.com.config.pf_overload) then
+			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
@@ -263,7 +268,10 @@ let unify_field_call ctx fa el args ret p inline =
 			error "Invalid field call" p
 	in
 	let is_forced_inline = is_forced_inline co cf in
-	let is_overload = has_class_field_flag cf CfOverload in
+	let overload_kind = if has_class_field_flag cf CfOverload then OverloadProper
+		else if cf.cf_overloads <> [] then OverloadMeta
+		else OverloadNone
+	in
 	let attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
@@ -293,7 +301,7 @@ let unify_field_call ctx fa el args ret p inline =
 				) ctx.monomorphs.perfunction in
 				begin try
 					let candidate = attempt_call t cf in
-					if ctx.com.config.pf_overload && is_overload then begin
+					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
 					end else
@@ -329,7 +337,7 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	match candidates with
 	| [t,cf] ->
-		if is_overload then maybe_check_access cf;
+		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			attempt_call t cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
@@ -352,7 +360,7 @@ let unify_field_call ctx fa el args ret p inline =
 				error "End of overload failure reasons" p
 			end
 		in
-		if is_overload && ctx.com.config.pf_overload then begin match Overloads.Resolution.reduce_compatible candidates with
+		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
 			| [] -> fail()
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;

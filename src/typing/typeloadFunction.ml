@@ -265,7 +265,7 @@ let add_constructor ctx c force_constructor p =
 				pass = PTypeField;
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
-			(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
+			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
 			let map_arg (v,def) =
 				(*
 					let's optimize a bit the output by not always copying the default value

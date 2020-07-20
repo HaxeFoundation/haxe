@@ -1513,7 +1513,7 @@ let init_class ctx c p context_init herits fields =
 	let fields = build_fields (ctx,cctx) c fields in
 	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 	if not cctx.is_lib then begin
-		if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
+		delay ctx PForce (fun() -> check_overloads ctx c)
 	end;
 	let rec has_field f = function
 		| None -> false
@@ -1584,10 +1584,10 @@ let init_class ctx c p context_init herits fields =
 				| None ->
 						c.cl_constructor <- Some cf
 				| Some ctor when ctx.com.config.pf_overload ->
-						if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
-							ctor.cf_overloads <- cf :: ctor.cf_overloads
-						else
-							display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
+						ctor.cf_overloads <- cf :: ctor.cf_overloads
+					else
+						display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
 							display_error ctx "Duplicate constructor" p
 				end
@@ -1600,7 +1600,7 @@ let init_class ctx c p context_init herits fields =
 					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
-					if ctx.com.config.pf_overload && has_class_field_flag cf CfOverload && not (is_var cf) then
+					if has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
 						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
