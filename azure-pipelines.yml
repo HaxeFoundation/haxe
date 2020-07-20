@@ -57,7 +57,7 @@ stages:
               TEST: cs
             js:
               TEST: js
-              SAUCE: 1
+              SAUCE: 0
               SAUCE_TUNNEL_ID: $(Agent.JobName)
               SAUCE_BUILD: $(Build.BuildNumber)
             php:
