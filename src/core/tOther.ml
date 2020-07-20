@@ -310,6 +310,17 @@ module TClass = struct
 			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
 		end
+
+	let get_map_function c tl =
+		let rec loop map c = match c.cl_super with
+			| Some(csup,tl) ->
+				let map t = map (apply_params csup.cl_params tl t) in
+				loop map csup
+			| None ->
+				map
+		in
+		let apply = apply_params c.cl_params tl in
+		loop apply c
 end
 
 let s_class_path c =

@@ -1779,17 +1779,14 @@ and type_new ctx path el with_type force_inline p =
 			| _ -> fst path, p
 		end
 	in
-	let unify_constructor_call c params f ct = match follow ct with
-		| TFun (args,r) ->
-			(try
-				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				check_constructor_access ctx c fcc.fc_field p;
-				List.map fst fcc.fc_args
-			with Error (e,p) ->
-				display_error ctx (error_msg e) p;
-				[])
-		| _ ->
-			error "Constructor is not a function" p
+	let unify_constructor_call c params f =
+		(try
+			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false in
+			check_constructor_access ctx c fcc.fc_field p;
+			List.map fst fcc.fc_args
+		with Error (e,p) ->
+			display_error ctx (error_msg e) p;
+			[])
 	in
 	let t = if (fst path).tparams <> [] then begin
 		try
@@ -1816,7 +1813,7 @@ and type_new ctx path el with_type force_inline p =
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			no_abstract_constructor c p;
-			ignore (unify_constructor_call c monos f ct);
+			ignore (unify_constructor_call c monos f);
 			begin try
 				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
@@ -1846,7 +1843,7 @@ and type_new ctx path el with_type force_inline p =
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());
-		let el = unify_constructor_call c tl f ct in
+		let el = unify_constructor_call c tl f in
 		el,f,ct
 	in
 	try begin match t with
@@ -2497,13 +2494,8 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let el = (match follow ct with
-			| TFun (args,r) ->
-				let fcc = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
-				List.map fst fcc.fc_args
-			| _ ->
-				error "Constructor is not a function" p
-			) in
+			let fcc = unify_field_call ctx (FInstance(c,params,f)) el p false in
+			let el = List.map fst fcc.fc_args in
 			el , TInst (c,params)
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p

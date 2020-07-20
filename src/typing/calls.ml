@@ -236,14 +236,14 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el args ret p inline =
+let unify_field_call ctx fa el p inline =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		t,cf
 	in
 	let expand_overloads map cf =
-		(TFun(args,ret),cf) :: (List.map (map_cf cf map) cf.cf_overloads)
+		(List.map (map_cf cf map) (cf :: cf.cf_overloads))
 	in
 	let candidates,co,static,cf,mk_fa = match fa with
 		| FStatic(c,cf) ->
@@ -251,9 +251,12 @@ let unify_field_call ctx fa el args ret p inline =
 		| FAnon cf ->
 			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
-			let map = apply_params c.cl_params tl in
+			let map = match c.cl_kind with
+				| KAbstractImpl a -> apply_params a.a_params tl
+				| _ -> TClass.get_map_function c tl
+			in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
-				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
+				List.map (map_cf cf map) (cf :: cf.cf_overloads)
 			else
 				List.map (fun (t,cf) ->
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
@@ -272,7 +275,7 @@ let unify_field_call ctx fa el args ret p inline =
 		else if cf.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	let attempt_call t cf = match follow t with
+	let rec attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call ethis p_field inline =
@@ -280,7 +283,10 @@ let unify_field_call ctx fa el args ret p inline =
 				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
 			in
 			make_field_call_candidate el tf cf mk_call
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
+			attempt_call (Abstract.get_underlying_type a tl) cf
 		| _ ->
+			print_endline (s_type_kind t);
 			die "" __LOC__
 	in
 	let maybe_raise_unknown_ident cerr p =
@@ -319,10 +325,10 @@ let unify_field_call ctx fa el args ret p inline =
 		loop candidates
 	in
 	let fail_fun () =
-		let tf = TFun(args,ret) in
+		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
 		let call = (fun ethis p_field _ ->
 			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
-			mk (TCall(e1,[])) ret p)
+			mk (TCall(e1,[])) t_dynamic p)
 		in
 		make_field_call_candidate [] tf cf call
 	in
@@ -639,13 +645,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		type_generic_function ctx (ethis,fmode) el with_type p
 	| AKInline (ethis,f,fmode,t) ->
 		check_assign();
-		(match follow t with
-			| TFun (args,r) ->
-				let fcc = unify_field_call ctx fmode el args r p true in
-				fcc.fc_data ethis p true
-			| _ ->
-				error (s_type (print_context()) t ^ " cannot be called") p
-		)
+		let fcc = unify_field_call ctx fmode el p true in
+		fcc.fc_data ethis p true
 	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
 		check_assign();
 		(match et.eexpr with
@@ -749,7 +750,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
-							let fcc = unify_field_call ctx fa el args r p false in
+							let fcc = unify_field_call ctx fa el p false in
 							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
 								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 								| _ -> ()
