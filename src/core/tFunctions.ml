@@ -253,7 +253,7 @@ let map loop t =
 		(match r.tm_type with
 		| None -> t
 		| Some t -> loop t) (* erase*)
-	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) | TAbstract (_,[]) ->
 		t
 	| TEnum (e,tl) ->
 		TEnum (e, List.map loop tl)

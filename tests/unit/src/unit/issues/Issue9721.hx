@@ -23,18 +23,29 @@ class Issue9721 extends Test {
     ((null: {x: Foo<String>}): {x: String});
     ((null: {x: Bar<String>}): {x: String});
 
+    ((null: {x: Array<Foo<Int>>}): {x: Foo<Array<Int>>});
+
     t(unit.HelperMacros.typeError(((null: Array<Int>): Array<Float>)));
     t(unit.HelperMacros.typeError(((null: Array<MyInt>): Array<Float>)));
 
     t(unit.HelperMacros.typeError(((null: Array<Child>): Array<Parent>)));
     t(unit.HelperMacros.typeError(((null: Array<MyChild>): Array<Parent>)));
+
+    ((null: {x: Baz<Baz<Int>>}): {x: Int});
+    t(unit.HelperMacros.typeError(((null: {x: Foo<Foo<Int>>}): {x: Int})));
+
+    ((null: {x: Int -> Void}): {x: Foo<Int> -> Void});
+    t(unit.HelperMacros.typeError(((null: {x: Int -> Void}): {x: Foo<Float> -> Void})));
   }
 }
 
 private abstract MyArray<T>(Array<T>) from Array<T> to Array<T> {}
 private abstract MyInt(Int) from Int to Int to Float {}
+
 private abstract Foo<T>(T) from T to T {}
 private abstract Bar<T>(Foo<T>) from T to T {}
+@:transitive private abstract Baz<T>(T) from T to T {}
+
 private class Parent {}
 private class Child extends Parent {}
 private abstract MyChild(Child) to Parent {}
