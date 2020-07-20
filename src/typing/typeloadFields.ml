@@ -1468,33 +1468,43 @@ let check_overload ctx f fs =
 		let f2 =
 			List.find (fun f2 ->
 				f != f2 &&
-				Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Same
+				Overloads.same_overload_args f.cf_type f2.cf_type f f2
 			) fs
 		in
 		display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ctx (compl_msg "The second field is declared here") f2.cf_pos
+		display_error ctx (compl_msg "The second field is declared here") f2.cf_pos;
+		false
+	with Not_found -> try
+		(* OVERLOADTODO: generalize this and respect whether or not we actually generate the functions *)
+		if ctx.com.platform <> Java then raise Not_found;
+		let get_vmtype = ambiguate_funs in
+		let f2 =
+			List.find (fun f2 ->
+				f != f2 &&
+				Overloads.same_overload_args ~get_vmtype f.cf_type f2.cf_type f f2
+			) fs
+		in
+		display_error ctx (
+			"Another overloaded field of similar signature was already declared : " ^
+			f.cf_name ^
+			"\nThe signatures are different in Haxe, but not in the target language"
+		) f.cf_pos;
+		display_error ctx (compl_msg "The second field is declared here") f2.cf_pos;
+		false
 	with Not_found ->
-		try
-			let f2 =
-				List.find (fun f2 ->
-					f != f2 &&
-					Overloads.compare_overload_args ~ctx f.cf_type f2.cf_type f f2 = Overloads.Impl_conflict
-				) fs
-			in
-			display_error ctx (
-				"Another overloaded field of similar signature was already declared : " ^
-				f.cf_name ^
-				"\nThe signatures are different in Haxe, but not in the target language"
-			) f.cf_pos;
-			display_error ctx (compl_msg "The second field is declared here") f2.cf_pos
-		with | Not_found -> ()
+		true
 
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
-	List.iter (fun f ->
-		if has_class_field_flag f CfOverload then
-			check_overload ctx f (f :: f.cf_overloads)
-	) (c.cl_ordered_fields @ c.cl_ordered_statics)
+	let check_field f =
+		if has_class_field_flag f CfOverload then begin
+			let all = f :: f.cf_overloads in
+			ignore(List.fold_left (fun b f -> b && check_overload ctx f all) true all)
+		end
+	in
+	List.iter check_field c.cl_ordered_fields;
+	List.iter check_field c.cl_ordered_statics;
+	Option.may check_field c.cl_constructor
 
 let init_class ctx c p context_init herits fields =
 	let ctx,cctx = create_class_context ctx c context_init p in
@@ -1667,16 +1677,6 @@ let init_class ctx c p context_init herits fields =
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
-	(* check overloaded constructors *)
-	(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
-	| Some ctor ->
-		delay ctx PTypeField (fun () ->
-			(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-			List.iter (fun f ->
-				check_overload ctx f (ctor :: ctor.cf_overloads)
-			) (ctor :: ctor.cf_overloads)
-		)
-	| _ -> ());
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		init_class_done ctx;
