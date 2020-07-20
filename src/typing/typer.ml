@@ -556,13 +556,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing sea ->
 			(* this must be an abstract setter *)
-			let e2,ret = match follow sea.se_field_expr.etype with
+			let e2,ret = match follow sea.se_field_type with
 				| TFun([_;(_,_,t)],ret) ->
 					let e2 = e2 (WithType.with_type t) in
 					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
-			make_call ctx sea.se_field_expr [sea.se_this;e2] ret p
+			let e = Builder.make_static_field sea.se_class sea.se_field p in
+			make_call ctx e [sea.se_this;e2] ret p
 		| AKInline _ | AKMacro _ ->
 			die "" __LOC__)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
@@ -643,7 +644,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				e'
 			]) t p
 		| AKUsing sea ->
-			let ef = sea.se_field_expr in
+			let ef = Builder.make_static_field sea.se_class sea.se_field p in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
 			let ta = match sea.se_class.cl_kind with KAbstractImpl a -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) | _ -> die "" __LOC__ in
@@ -1190,7 +1191,8 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsing {se_field_expr = emethod;se_class = cl;se_field = cf;se_this = etarget;se_force_inline = force_inline} when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+		| AKUsing {se_class = cl;se_field = cf;se_this = etarget;se_force_inline = force_inline} when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
+			let emethod = Builder.make_static_field cl cf p in
 			let l = save_locals ctx in
 			let init_tmp,etarget,eget =
 				match needs_temp_var etarget, fst e with

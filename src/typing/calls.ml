@@ -523,20 +523,18 @@ let rec acc_get ctx g p =
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
 	| AKUsing sea when ctx.in_display ->
-		let et = sea.se_field_expr in
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl sea.se_class) None p in
 		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
-		let t = match follow et.etype with
+		let t = match follow sea.se_field_type with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
-			| _ -> et.etype
+			| t -> t
 		in
-		mk (TField(ec,FStatic(sea.se_class,sea.se_field))) t et.epos
+		mk (TField(ec,FStatic(sea.se_class,sea.se_field))) t sea.se_pos
 	| AKUsing sea ->
-		let et = sea.se_field_expr in
 		let e = sea.se_this in
 		(* build a closure with first parameter applied *)
-		(match follow et.etype with
+		(match follow sea.se_field_type with
 		| TFun (_ :: args,ret) ->
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
@@ -546,6 +544,7 @@ let rec acc_get ctx g p =
 				o,if n = "" then gen_local ctx t e.epos else alloc_var VGenerated n t e.epos (* TODO: var pos *)
 			) args in
 			let ve = alloc_var VGenerated "_e" e.etype e.epos in
+			let et = Texpr.Builder.make_static_field sea.se_class sea.se_field p in
 			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (o,v) -> v,if o then Some (Texpr.Builder.make_null v.v_type v.v_pos) else None) args;
@@ -659,10 +658,9 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		fcc.fc_data ethis p true
 	| AKUsing sea when Meta.has Meta.Generic sea.se_field.cf_meta ->
 		check_assign();
-		(match sea.se_field_expr.eexpr with
-		| TField(ec,fa) ->
-			type_generic_function ctx (ec,fa) el ~using_param:(Some sea.se_this) with_type p
-		| _ -> die "" __LOC__)
+		let ec = Texpr.Builder.make_static_this sea.se_class p in
+		let fa = FStatic(sea.se_class,sea.se_field) in
+		type_generic_function ctx (ec,fa) el ~using_param:(Some sea.se_this) with_type p
 	| AKUsing sea ->
 		let cl = sea.se_class in
 		let ef = sea.se_field in
@@ -693,7 +691,8 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 				| _ -> die "" __LOC__
 			in
 			let force_inline = sea.se_force_inline in
-			make_call ctx ~force_inline sea.se_field_expr (eparam :: params) r p
+			let e = Builder.make_static_field sea.se_class sea.se_field p in
+			make_call ctx ~force_inline e (eparam :: params) r p
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;

@@ -8,8 +8,9 @@ type static_extension_access = {
 	se_class : tclass;
 	se_field : tclass_field;
 	se_this  : texpr;
-	se_field_expr : texpr;
+	se_field_type : t;
 	se_force_inline : bool;
+	se_pos : pos;
 }
 
 type access_kind =
@@ -27,12 +28,13 @@ type object_decl_kind =
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
 
-let make_static_extension_access c cf e_this e_field force_inline = {
+let make_static_extension_access c cf e_this t_field force_inline p = {
 	se_class = c;
 	se_field = cf;
 	se_this = e_this;
-	se_field_expr = e_field;
-	se_force_inline = force_inline
+	se_field_type = t_field;
+	se_force_inline = force_inline;
+	se_pos = p;
 }
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
@@ -173,7 +175,7 @@ let s_access_kind acc =
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
 	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing sea -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se sea.se_field_expr) (s_type_path sea.se_class.cl_path) sea.se_field.cf_name (se sea.se_this) sea.se_force_inline
+	| AKUsing sea -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (st sea.se_field_type) (s_type_path sea.se_class.cl_path) sea.se_field.cf_name (se sea.se_this) sea.se_force_inline
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKFieldSet(_) -> ""
 
