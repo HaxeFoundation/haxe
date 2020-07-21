@@ -1817,9 +1817,9 @@ and type_new ctx path el with_type force_inline p =
 			| _ -> fst path, p
 		end
 	in
-	let unify_constructor_call c fa f =
+	let unify_constructor_call c faa =
 		(try
-			let fcc = unify_field_call ctx f fa el p false None in
+			let fcc = unify_field_call ctx faa el p false None in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -1851,7 +1851,8 @@ and type_new ctx path el with_type force_inline p =
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			no_abstract_constructor c p;
-			ignore (unify_constructor_call c (FAInstance(c,monos)) f);
+			let faa = FieldAccess.create (Builder.make_static_this c p) f (FAInstance(c,monos)) false p in
+			ignore (unify_constructor_call c faa);
 			begin try
 				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
@@ -1885,7 +1886,8 @@ and type_new ctx path el with_type force_inline p =
 			| None -> FAInstance(c,tl)
 			| Some a -> FAAbstract(a,tl,c)
 		in
-		let el = unify_constructor_call c fa f in
+		let faa = FieldAccess.create (Builder.make_static_this c p) f fa false p in
+		let el = unify_constructor_call c faa in
 		el,f,ct
 	in
 	try begin match t with
@@ -2531,10 +2533,13 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
+			let t = TInst (c,params) in
+			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let fcc = unify_field_call ctx f (FAInstance(c,params)) el p false None in
+			let faa = FieldAccess.create e f (FAInstance(c,params)) false p in
+			let fcc = unify_field_call ctx faa el p false None in
 			let el = List.map fst fcc.fc_args in
-			el , TInst (c,params)
+			el,t
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->

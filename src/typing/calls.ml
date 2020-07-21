@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx cf fa el p inline static_extension_arg =
+let unify_field_call ctx faa el p inline static_extension_arg =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
@@ -245,12 +245,13 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 	let expand_overloads map cf =
 		(List.map (map_cf cf map) (cf :: cf.cf_overloads))
 	in
-	let candidates,co,static,mk_fa = match fa with
+	let candidates,co,static = match faa.fa_mode with
 		| FAStatic c ->
-			expand_overloads (fun t -> t) cf,Some c,true,(fun cf -> FStatic(c,cf))
+			expand_overloads (fun t -> t) faa.fa_field,Some c,true
 		| FAAnon ->
-			expand_overloads (fun t -> t) cf,None,false,(fun cf -> FAnon cf)
+			expand_overloads (fun t -> t) faa.fa_field,None,false
 		| FAInstance(c,tl) ->
+			let cf = faa.fa_field in
 			let map = TClass.get_map_function c tl in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				List.map (map_cf cf map) (cf :: cf.cf_overloads)
@@ -260,13 +261,13 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,(fun cf -> FInstance(c,tl,cf))
+			cfl,Some c,false
 		| FAAbstract(a,tl,c) ->
-			expand_overloads (apply_params a.a_params tl) cf,Some c,true,(fun cf -> FStatic(c,cf))
+			expand_overloads (apply_params a.a_params tl) faa.fa_field,Some c,true
 	in
-	let is_forced_inline = is_forced_inline co cf in
-	let overload_kind = if has_class_field_flag cf CfOverload then OverloadProper
-		else if cf.cf_overloads <> [] then OverloadMeta
+	let is_forced_inline = is_forced_inline co faa.fa_field in
+	let overload_kind = if has_class_field_flag faa.fa_field CfOverload then OverloadProper
+		else if faa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
 	let attempt_call t cf = match follow t with
@@ -284,13 +285,7 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 					(fun el -> el),args
 			in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			let mk_call ethis p_field inline =
-				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
-				let el = List.map fst el in
-				let el = get_call_args el in
-				make_call ctx ef el ret ~force_inline:inline p
-			in
-			make_field_call_candidate el tf cf mk_call
+			make_field_call_candidate el tf cf ({faa with fa_field = cf},ret,get_call_args (List.map fst el))
 		| t ->
 			error (s_type (print_context()) t ^ " cannot be called") p
 	in
@@ -331,11 +326,7 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 	in
 	let fail_fun () =
 		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
-		let call = (fun ethis p_field _ ->
-			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
-			mk (TCall(e1,[])) t_dynamic p)
-		in
-		make_field_call_candidate [] tf cf call
+		make_field_call_candidate [] tf faa.fa_field (faa,t_dynamic,[])
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
@@ -662,12 +653,14 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
 	let field_call faa static_extension_argument =
-		let fcc = unify_field_call ctx faa.fa_field faa.fa_mode el p faa.fa_inline static_extension_argument in
+		let fcc = unify_field_call ctx faa el p faa.fa_inline static_extension_argument in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
 		end;
-		fcc.fc_data faa.fa_on faa.fa_pos faa.fa_inline
+		let (faa,ret,el) = fcc.fc_data in
+		let e_field = FieldAccess.get_field_expr faa FCall in
+		make_call ctx e_field el ret ~force_inline:faa.fa_inline p
 	in
 	let expr_call e =
 		check_assign();
