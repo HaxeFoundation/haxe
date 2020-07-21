@@ -665,7 +665,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
-			let ta = match sea.se_access.fa_mode with
+			let ta = match sea.se_access.fa_kind with
 				| FAAbstract(a,tl,_) -> TAbstract(a,tl)
 				| _ -> die "" __LOC__
 			in

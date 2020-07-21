@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx faa el p inline static_extension_arg =
+let unify_field_call ctx faa el p inline using_param =
 	let map_cf cf0 map cf =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
@@ -245,7 +245,7 @@ let unify_field_call ctx faa el p inline static_extension_arg =
 	let expand_overloads map cf =
 		(List.map (map_cf cf map) (cf :: cf.cf_overloads))
 	in
-	let candidates,co,static = match faa.fa_mode with
+	let candidates,co,static = match faa.fa_kind with
 		| FAStatic c ->
 			expand_overloads (fun t -> t) faa.fa_field,Some c,true
 		| FAAnon ->
@@ -272,7 +272,7 @@ let unify_field_call ctx faa el p inline static_extension_arg =
 	in
 	let attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
-			let get_call_args,args = match static_extension_arg,args with
+			let get_call_args,args = match using_param,args with
 				| Some(e1,t1),(_,_,ta1) :: args ->
 					begin try
 						unify ctx t1 ta1 e1.epos;
@@ -374,7 +374,7 @@ let unify_field_call ctx faa el p inline static_extension_arg =
 		end
 
 let type_generic_function ctx faa el ?(using_param=None) with_type p =
-	let c,tl,stat = match faa.fa_mode with
+	let c,tl,stat = match faa.fa_kind with
 		| FAInstance(c,tl) -> c,tl,false
 		| FAStatic c -> c,[],true
 		| _ -> die "" __LOC__
@@ -512,7 +512,7 @@ let rec acc_get ctx g p =
 	let inline_read faa =
 		let cf = faa.fa_field in
 		(* do not create a closure for static calls *)
-		let apply_params = match faa.fa_mode with
+		let apply_params = match faa.fa_kind with
 			| FAStatic c ->
 				(fun t -> t)
 			| FAInstance(c,tl) ->
@@ -652,8 +652,8 @@ let rec acc_get ctx g p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
-	let field_call faa static_extension_argument =
-		let fcc = unify_field_call ctx faa el p faa.fa_inline static_extension_argument in
+	let field_call faa using_param =
+		let fcc = unify_field_call ctx faa el p faa.fa_inline using_param in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
@@ -747,20 +747,20 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		!ethis_f();
 		e
 	in
-	let field_call faa static_extension_argument =
+	let field_call faa using_param =
 		match faa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline) ->
 			check_assign();
 			 if Meta.has Meta.Generic faa.fa_field.cf_meta then begin
-			 	let using_param = match static_extension_argument with
+			 	let using_param = match using_param with
 				 	| None -> None
 					 | Some(e,_) -> Some e
 				in
 				type_generic_function ~using_param ctx faa el with_type p
 			end else
-				field_call faa static_extension_argument
+				field_call faa using_param
 		| Method MethMacro ->
-			begin match static_extension_argument with
+			begin match using_param with
 			| None ->
 				macro_call faa.fa_on faa.fa_field el
 			| Some (eparam,_) ->
