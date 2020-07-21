@@ -541,7 +541,7 @@ let rec acc_get ctx g p =
 		ignore(follow cf.cf_type); (* force computing *)
 		begin match cf.cf_kind,cf.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
-			FieldAccess.read_field_on faa
+			FieldAccess.get_field_expr faa FRead
 		| Method _,_->
 			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag cf CfExtern) && not (Meta.has Meta.Runtime cf.cf_meta) in
 			let wrap_extern c =
@@ -569,9 +569,9 @@ let rec acc_get ctx g p =
 					cf
 				in
 				let e_t = type_module_type ctx (TClassDecl c2) None p in
-				FieldAccess.read_field_on (FieldAccess.create e_t cf (FAStatic c2) true p)
+				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FAStatic c2) true p) FRead
 			in
-			let e_def = FieldAccess.read_field_on faa in
+			let e_def = FieldAccess.get_field_expr faa FRead in
 			begin match follow faa.fa_on.etype with
 				| TInst (c,_) when chk_class c ->
 					display_error ctx "Can't create closure on an extern inline member method" p;
@@ -594,7 +594,7 @@ let rec acc_get ctx g p =
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None when ctx.com.display.dms_display ->
-			 FieldAccess.read_field_on faa
+			 FieldAccess.get_field_expr faa FRead
 		| Var _,None ->
 			error "Recursive inline is not supported" p
 		end
@@ -605,7 +605,7 @@ let rec acc_get ctx g p =
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
 	| AKUsing sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
-		let e_field = FieldAccess.get_field_expr sea.se_access MGet in
+		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* TODO *)
 		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
 		let t = match follow e_field.etype with
@@ -617,10 +617,10 @@ let rec acc_get ctx g p =
 		if faa.fa_inline then
 			inline_read faa
 		else
-			FieldAccess.read_field_on faa
+			FieldAccess.get_field_expr faa FRead
 	| AKUsing sea ->
 		let e = sea.se_this in
-		let e_field = FieldAccess.get_field_expr sea.se_access MGet in
+		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
 		(match follow e_field.etype with
 		| TFun ((_,_,t0) :: args,ret) ->
@@ -710,7 +710,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			else
 				field_call faa
 		| _ ->
-			expr_call (FieldAccess.get_field_expr faa (MCall []))
+			expr_call (FieldAccess.get_field_expr faa FCall)
 		end
 	| AKUsing sea ->
 		let ef = sea.se_access.fa_field in

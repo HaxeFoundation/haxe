@@ -542,7 +542,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 			error ("Cannot access function " ^ name ^ " for writing") p
 		| AKField faa ->
-			let ef = FieldAccess.get_field_expr faa (MSet None) in
+			let ef = FieldAccess.get_field_expr faa FWrite in
 			assign_to ef
 		| AKExpr e1  ->
 			assign_to e1
@@ -561,7 +561,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing sea ->
-			let e_field = FieldAccess.get_field_expr sea.se_access (MSet None) in
+			let e_field = FieldAccess.get_field_expr sea.se_access FWrite in
 			(* this must be an abstract setter *)
 			let e2,ret = match follow e_field.etype with
 				| TFun([_;(_,_,t)],ret) ->
@@ -633,7 +633,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 			)
 		| AKField faa ->
-			let e1 = FieldAccess.get_field_expr faa (MSet None) in
+			let e1 = FieldAccess.get_field_expr faa FWrite in
 			handle e1
 		| AKExpr e ->
 			handle e
@@ -656,7 +656,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				e'
 			]) t p
 		| AKUsing sea ->
-			let ef = FieldAccess.get_field_expr sea.se_access (MSet None) in
+			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
 			let ta = match sea.se_access.fa_mode with
@@ -1186,7 +1186,7 @@ and type_unop ctx op flag e p =
 			if faa.fa_inline && not set then
 				access (acc_get ctx acc p)
 			else begin
-				let e = FieldAccess.get_field_expr faa mode in
+				let e = FieldAccess.get_field_expr faa (if set then FWrite else FRead) in
 				access e
 			end
 		| AKUsing _ when not set -> access (acc_get ctx acc p)
@@ -1216,7 +1216,7 @@ and type_unop ctx op flag e p =
 			end
 		| AKUsing sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
 			let etarget = sea.se_this in
-			let emethod = FieldAccess.get_field_expr sea.se_access mode in
+			let emethod = FieldAccess.get_field_expr sea.se_access (if set then FRead else FWrite) in
 			let force_inline = sea.se_access.fa_inline in
 			let l = save_locals ctx in
 			let init_tmp,etarget,eget =

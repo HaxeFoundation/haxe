@@ -257,6 +257,12 @@ let get_abstract_froms a pl =
 	) l a.a_from_field
 
 module FieldAccess = struct
+	type field_access_mode =
+		| FGet (* get the plain expression with applied field type parameters *)
+		| FCall (* does not apply field type parameters *)
+		| FRead (* actual reading, for FClosure and such *)
+		| FWrite (* used as lhs, no semantic difference to FGet *)
+
 	let create e cf fa inline p = {
 		fa_on = e;
 		fa_field = cf;
@@ -279,23 +285,27 @@ module FieldAccess = struct
 	let maybe_unapply_fa fa =
 		try Some (unapply_fa fa) with Exit -> None
 
-	let read_field_on faa =
+	let get_field_expr faa mode =
 		let cf = faa.fa_field in
-		let t = Type.field_type cf in
+		let t = match mode with
+			| FCall -> cf.cf_type
+			| FGet | FRead | FWrite -> Type.field_type cf
+		in
 		let fa,t = match faa.fa_mode with
-			| FAStatic c -> FStatic(c,cf),t
+			| FAStatic c ->
+				FStatic(c,cf),t
 			| FAInstance(c,tl) ->
 				let fa = match cf.cf_kind with
-				| Method _ ->
+				| Method _ when mode = FRead ->
 					FClosure(Some(c,tl),cf)
 				| _ ->
 					FInstance(c,tl,cf)
 				in
-				let f = TClass.get_map_function c tl t in
-				fa,f
+				let t = TClass.get_map_function c tl t in
+				fa,t
 			| FAAnon ->
 				let fa = match cf.cf_kind with
-				| Method _ ->
+				| Method _ when mode = FRead ->
 					FClosure(None,cf)
 				| _ ->
 					FAnon cf
@@ -303,19 +313,6 @@ module FieldAccess = struct
 				fa,t
 		in
 		mk (TField(faa.fa_on,fa)) t faa.fa_pos
-
-	(* Does not care about closures - use for call and set *)
-	let get_field_expr faa mode =
-		let cf = faa.fa_field in
-		let t = match mode with
-			| MCall _ -> cf.cf_type
-			| MGet | MSet _ -> Type.field_type cf
-		in
-		let t = match faa.fa_mode with
-			| FAInstance(c,tl) -> TClass.get_map_function c tl t
-			| _ -> t
-		in
-		mk (TField(faa.fa_on,apply_fa cf faa.fa_mode)) t faa.fa_pos
 end
 
 let make_static_extension_access c cf e_this inline p =
