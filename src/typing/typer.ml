@@ -542,7 +542,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 			error ("Cannot access function " ^ name ^ " for writing") p
 		| AKField faa ->
-			let ef = FieldAccess.get_field_on faa in
+			let ef = FieldAccess.get_field_expr faa (MSet None) in
 			assign_to ef
 		| AKExpr e1  ->
 			assign_to e1
@@ -561,15 +561,15 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing sea ->
+			let e_field = FieldAccess.get_field_expr sea.se_access (MSet None) in
 			(* this must be an abstract setter *)
-			let e2,ret = match follow sea.se_field_type with
+			let e2,ret = match follow e_field.etype with
 				| TFun([_;(_,_,t)],ret) ->
 					let e2 = e2 (WithType.with_type t) in
 					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
-			let e = Builder.make_static_field sea.se_class sea.se_field p in
-			make_call ctx e [sea.se_this;e2] ret p
+			make_call ctx e_field [sea.se_this;e2] ret p
 		| AKMacro _ ->
 			die "" __LOC__)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
@@ -633,7 +633,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 			)
 		| AKField faa ->
-			let e1 = FieldAccess.get_field_on faa in
+			let e1 = FieldAccess.get_field_expr faa (MSet None) in
 			handle e1
 		| AKExpr e ->
 			handle e
@@ -656,10 +656,13 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				e'
 			]) t p
 		| AKUsing sea ->
-			let ef = Builder.make_static_field sea.se_class sea.se_field p in
+			let ef = FieldAccess.get_field_expr sea.se_access (MSet None) in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
-			let ta = match sea.se_class.cl_kind with KAbstractImpl a -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params) | _ -> die "" __LOC__ in
+			let ta = match sea.se_access.fa_mode with
+				| FAStatic {cl_kind = KAbstractImpl a} -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params)
+				| _ -> die "" __LOC__
+			in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ -> error "Invalid field type for abstract setter" p
@@ -684,7 +687,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							needs_temp_var e1
 						| _ -> true
 					in
-					if has_class_field_flag sea.se_field CfModifiesThis then
+					if has_class_field_flag sea.se_access.fa_field CfModifiesThis then
 						match et.eexpr with
 						| TField (target,fa) when needs_temp_var target->
 							let tmp = gen_local ctx target.etype target.epos in
@@ -706,7 +709,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
-			let getter_name = String.sub sea.se_field.cf_name 4 (String.length sea.se_field.cf_name - 4) in
+			let getter_name = String.sub sea.se_access.fa_field.cf_name 4 (String.length sea.se_access.fa_field.cf_name - 4) in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
 			unify ctx get.etype ret p;
 			l();
@@ -1122,7 +1125,8 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
-	let acc = type_access ctx (fst e) (snd e) (if set then (MSet None) else MGet) WithType.value (* WITHTYPETODO *) in
+	let mode = if set then (MSet None) else MGet in
+	let acc = type_access ctx (fst e) (snd e) mode WithType.value (* WITHTYPETODO *) in
 	let access e =
 		let make e =
 			let t = (match op with
@@ -1182,7 +1186,7 @@ and type_unop ctx op flag e p =
 			if faa.fa_inline && not set then
 				access (acc_get ctx acc p)
 			else begin
-				let e = FieldAccess.get_field_on faa in
+				let e = FieldAccess.get_field_expr faa mode in
 				access e
 			end
 		| AKUsing _ when not set -> access (acc_get ctx acc p)
@@ -1210,8 +1214,10 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsing {se_class = cl;se_field = cf;se_this = etarget;se_force_inline = force_inline} when (op = Decrement || op = Increment) && has_meta Meta.Impl cf.cf_meta ->
-			let emethod = Builder.make_static_field cl cf p in
+		| AKUsing sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+			let etarget = sea.se_this in
+			let emethod = FieldAccess.get_field_expr sea.se_access mode in
+			let force_inline = sea.se_access.fa_inline in
 			let l = save_locals ctx in
 			let init_tmp,etarget,eget =
 				match needs_temp_var etarget, fst e with
@@ -1227,7 +1233,7 @@ and type_unop ctx op flag e p =
 			in
 			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
 			let one = (EConst (Int "1"),p) in
-			(match follow cf.cf_type with
+			(match follow emethod.etype with
 			| TFun (_, t) ->
 				(match flag with
 				| Prefix ->
@@ -2438,8 +2444,8 @@ and type_call_target ctx e el with_type inline p =
 			check_inline faa.fa_field;
 			AKField({faa with fa_inline = true})
 		| AKUsing sea ->
-			check_inline sea.se_field;
-			AKUsing {sea with se_force_inline = true}
+			check_inline sea.se_access.fa_field;
+			AKUsing {sea with se_access = {sea.se_access with fa_inline = true}}
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;
 			e

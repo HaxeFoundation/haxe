@@ -4,15 +4,6 @@ open Type
 open Typecore
 open Error
 
-type static_extension_access = {
-	se_class : tclass;
-	se_field : tclass_field;
-	se_this  : texpr;
-	se_field_type : t;
-	se_force_inline : bool;
-	se_pos : pos;
-}
-
 type field_access_mode =
 	| FAStatic of tclass
 	| FAInstance of tclass * tparams
@@ -24,6 +15,11 @@ type field_access_access = {
 	fa_mode : field_access_mode;
 	fa_inline : bool;
 	fa_pos : pos;
+}
+
+type static_extension_access = {
+	se_this : texpr;
+	se_access : field_access_access;
 }
 
 type access_kind =
@@ -40,15 +36,6 @@ type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
-
-let make_static_extension_access c cf e_this t_field force_inline p = {
-	se_class = c;
-	se_field = cf;
-	se_this = e_this;
-	se_field_type = t_field;
-	se_force_inline = force_inline;
-	se_pos = p;
-}
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
@@ -178,7 +165,7 @@ let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
 	let e = type_module_type ctx t None p in
 	(fun _ _ -> AKExpr e)
 
-let s_access_kind acc =
+let s_field_access_access tabs faa =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	let sfa = function
@@ -186,13 +173,29 @@ let s_access_kind acc =
 		| FAInstance(c,tl) -> Printf.sprintf "FAInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
 		| FAAnon -> Printf.sprintf "FAAnon"
 	in
+	Printer.s_record_fields tabs [
+		"fa_on",se faa.fa_on;
+		"fa_field",faa.fa_field.cf_name;
+		"fa_mode",sfa faa.fa_mode;
+		"fa_inline",string_of_bool faa.fa_inline
+	]
+
+let s_static_extension_access sea =
+	Printer.s_record_fields "" [
+		"se_this",s_expr_pretty true "" false (s_type (print_context())) sea.se_this;
+		"se_access",s_field_access_access "\t" sea.se_access
+	]
+
+let s_access_kind acc =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
-	| AKField faa -> Printf.sprintf "AKField(%s, %s, %s)" (se faa.fa_on) faa.fa_field.cf_name (sfa faa.fa_mode)
+	| AKField faa -> Printf.sprintf "AKField(%s)" (s_field_access_access "" faa)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing sea -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (st sea.se_field_type) (s_type_path sea.se_class.cl_path) sea.se_field.cf_name (se sea.se_this) sea.se_force_inline
+	| AKUsing sea -> Printf.sprintf "AKUsing(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKFieldSet(_) -> ""
 
@@ -288,7 +291,8 @@ module FieldAccess = struct
 				| _ ->
 					FInstance(c,tl,cf)
 				in
-				fa,TClass.get_map_function c tl t
+				let f = TClass.get_map_function c tl t in
+				fa,f
 			| FAAnon ->
 				let fa = match cf.cf_kind with
 				| Method _ ->
@@ -301,12 +305,22 @@ module FieldAccess = struct
 		mk (TField(faa.fa_on,fa)) t faa.fa_pos
 
 	(* Does not care about closures - use for call and set *)
-	let get_field_on faa =
+	let get_field_expr faa mode =
 		let cf = faa.fa_field in
-		let t = Type.field_type cf in
+		let t = match mode with
+			| MCall _ -> cf.cf_type
+			| MGet | MSet _ -> Type.field_type cf
+		in
 		let t = match faa.fa_mode with
 			| FAInstance(c,tl) -> TClass.get_map_function c tl t
 			| _ -> t
 		in
 		mk (TField(faa.fa_on,apply_fa cf faa.fa_mode)) t faa.fa_pos
 end
+
+let make_static_extension_access c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FAStatic c) inline p
+	}

@@ -605,13 +605,14 @@ let rec acc_get ctx g p =
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
 	| AKUsing sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
-		let ec = type_module_type ctx (TClassDecl sea.se_class) None p in
-		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
-		let t = match follow sea.se_field_type with
+		let e_field = FieldAccess.get_field_expr sea.se_access MGet in
+		(* TODO *)
+		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let t = match follow e_field.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| t -> t
 		in
-		mk (TField(ec,FStatic(sea.se_class,sea.se_field))) t sea.se_pos
+		{e_field with etype = t}
 	| AKField faa ->
 		if faa.fa_inline then
 			inline_read faa
@@ -619,9 +620,15 @@ let rec acc_get ctx g p =
 			FieldAccess.read_field_on faa
 	| AKUsing sea ->
 		let e = sea.se_this in
+		let e_field = FieldAccess.get_field_expr sea.se_access MGet in
 		(* build a closure with first parameter applied *)
-		(match follow sea.se_field_type with
-		| TFun (_ :: args,ret) ->
+		(match follow e_field.etype with
+		| TFun ((_,_,t0) :: args,ret) ->
+			let te = match follow e.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
+				| _ -> e.etype
+			in
+			unify ctx te t0 e.epos;
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
@@ -630,8 +637,7 @@ let rec acc_get ctx g p =
 				o,if n = "" then gen_local ctx t e.epos else alloc_var VGenerated n t e.epos (* TODO: var pos *)
 			) args in
 			let ve = alloc_var VGenerated "_e" e.etype e.epos in
-			let et = Texpr.Builder.make_static_field sea.se_class sea.se_field p in
-			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
+			let ecall = make_call ctx e_field (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (o,v) -> v,if o then Some (Texpr.Builder.make_null v.v_type v.v_pos) else None) args;
 				tf_type = ret;
@@ -692,11 +698,9 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		loop e.etype
 	in
 	match acc with
-	| AKUsing sea when Meta.has Meta.Generic sea.se_field.cf_meta ->
+	| AKUsing sea when Meta.has Meta.Generic sea.se_access.fa_field.cf_meta ->
 		check_assign();
-		let ec = Texpr.Builder.make_static_this sea.se_class p in
-		let faa = FieldAccess.create ec sea.se_field (FAStatic sea.se_class) sea.se_force_inline p in
-		type_generic_function ctx faa el ~using_param:(Some sea.se_this) with_type p
+		type_generic_function ctx sea.se_access el ~using_param:(Some sea.se_this) with_type p
 	| AKField faa ->
 		check_assign();
 		begin match faa.fa_field.cf_kind with
@@ -706,28 +710,30 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			else
 				field_call faa
 		| _ ->
-			expr_call (FieldAccess.get_field_on faa)
+			expr_call (FieldAccess.get_field_expr faa (MCall []))
 		end
 	| AKUsing sea ->
-		let cl = sea.se_class in
-		let ef = sea.se_field in
+		let ef = sea.se_access.fa_field in
 		let eparam = sea.se_this in
 		begin match ef.cf_kind with
 		| Method MethMacro ->
-			let ethis = type_module_type ctx (TClassDecl cl) None p in
+			let ethis = sea.se_access.fa_on in
 			let eparam,f = push_this ctx eparam in
 			let e = build_call ~mode ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
 			f();
 			e
 		| _ ->
 			check_assign();
-			let e_this = Texpr.Builder.make_static_this cl p in
+			let cl = match sea.se_access.fa_mode with
+				| FAStatic c -> c
+				| _ -> die "" __LOC__
+			in
 			let fa,tthis = match follow eparam.etype with
 				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> FAInstance(cl,tl),apply_params a.a_params tl a.a_this
 				| _ -> FAStatic cl,eparam.etype
 			in
 			let fcc = unify_field_call ctx ef fa el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
-			fcc.fc_data e_this p sea.se_force_inline
+			fcc.fc_data sea.se_access.fa_on p sea.se_access.fa_inline
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;

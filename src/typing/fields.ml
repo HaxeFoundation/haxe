@@ -127,7 +127,7 @@ let field_access ctx mode f famode t e p =
 		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
 			let ethis = get_this ctx p in
 			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_params)} in
-			AKUsing (make_static_extension_access ctx.curclass f ethis t false p)
+			AKUsing (make_static_extension_access ctx.curclass f ethis false p)
 		| _ ->
 			(match m, mode with
 			| MethInline, _ -> AKField (make_access true)
@@ -200,10 +200,7 @@ let field_access ctx mode f famode t e p =
 				if is_set then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 					let f = PMap.find m c.cl_statics in
-					(* we don't have access to the type parameters here, right? *)
-					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
-					let t = (field_type ctx c [] f p) in
-					AKUsing (make_static_extension_access c f this t false p)
+					AKUsing (make_static_extension_access c f this false p)
 				end else
 					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
 			end else if is_set then
@@ -255,7 +252,7 @@ let rec using_field ctx mode e i p =
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let e = unify_static_extension ctx e t0 p in
 					ImportHandling.mark_import_position ctx pc;
-					AKUsing (make_static_extension_access c cf e t false p)
+					AKUsing (make_static_extension_access c cf e false p)
 				| _ ->
 					raise Not_found
 			end
@@ -276,7 +273,7 @@ let rec using_field ctx mode e i p =
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsing sea -> add_dependency ctx.m.curmod sea.se_class.cl_module
+		| AKUsing {se_access = {fa_mode = FAStatic c}} -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->
@@ -523,11 +520,14 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
 			check_field_access ctx c f true pfield;
-			let field_type f =
+			let check_static f =
 				if not (Meta.has Meta.Impl f.cf_meta) then begin
 					static_abstract_access_through_instance := true;
 					raise Not_found;
 				end;
+			in
+			let field_type f =
+				check_static f;
 				let t = field_type ctx c [] f p in
 				apply_params a.a_params pl t
 			in
@@ -546,8 +546,8 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				AKExpr(make_call ctx ef [e] r p)
 			| MSet _, Var {v_write = AccCall } ->
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
-				let t = field_type f in
-				AKUsing (make_static_extension_access c f e t false p)
+				check_static f;
+				AKUsing (make_static_extension_access c f e false p)
 			| (MGet | MCall _), Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall _), _ ->
@@ -569,7 +569,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| TFun((_,_,t1) :: _,_) -> ()
 					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 				end;
-				AKUsing (make_static_extension_access c f e t false p)
+				AKUsing (make_static_extension_access c f e false p)
 			| MSet _, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
@@ -601,7 +601,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				if is_write then
 					AKFieldSet(e,ef,i,r)
 				else
-					AKExpr ((!build_call_ref) ctx (AKUsing(make_static_extension_access c cf e t false p)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
+					AKExpr ((!build_call_ref) ctx (AKUsing(make_static_extension_access c cf e false p)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
 			in
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
 			get_resolve (is_set)
