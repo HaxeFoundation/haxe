@@ -279,15 +279,6 @@ module FieldAccess = struct
 		| FAAbstract(a,tl,c) -> FStatic(c,cf)
 		| FAAnon -> FAnon cf
 
-	let unapply_fa = function
-		| FStatic(c,cf) -> cf,FAStatic c
-		| FInstance(c,tl,cf) | FClosure(Some(c,tl),cf) -> cf,FAInstance(c,tl)
-		| FAnon cf -> cf,FAAnon
-		| _ -> raise Exit
-
-	let maybe_unapply_fa fa =
-		try Some (unapply_fa fa) with Exit -> None
-
 	let get_field_expr faa mode =
 		let cf = faa.fa_field in
 		let t = match mode with

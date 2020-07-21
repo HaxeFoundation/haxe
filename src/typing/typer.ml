@@ -2437,13 +2437,6 @@ and type_call_target ctx e el with_type inline p =
 	if not inline then
 		e
 	else match e with
-		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
-			begin match FieldAccess.maybe_unapply_fa fa with
-			| Some(cf,fa) ->
-				check_inline cf;
-				AKField (FieldAccess.create e1 cf fa true p)
-			| None -> e
-			end;
 		| AKField faa ->
 			check_inline faa.fa_field;
 			AKField({faa with fa_inline = true})
