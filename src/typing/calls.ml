@@ -285,7 +285,13 @@ let unify_field_call ctx faa el p inline using_param =
 					(fun el -> el),args
 			in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			make_field_call_candidate el tf cf ({faa with fa_field = cf},ret,get_call_args (List.map fst el))
+			let mk_call () =
+				let ef = mk (TField(faa.fa_on,FieldAccess.apply_fa cf faa.fa_kind)) t faa.fa_pos in
+				let el = List.map fst el in
+				let el = get_call_args el in
+				make_call ctx ef el ret ~force_inline:inline p
+			in
+			make_field_call_candidate el tf cf mk_call
 		| t ->
 			error (s_type (print_context()) t ^ " cannot be called") p
 	in
@@ -326,7 +332,11 @@ let unify_field_call ctx faa el p inline using_param =
 	in
 	let fail_fun () =
 		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
-		make_field_call_candidate [] tf faa.fa_field (faa,t_dynamic,[])
+		let call () =
+			let ef = mk (TField(faa.fa_on,FieldAccess.apply_fa faa.fa_field faa.fa_kind)) tf faa.fa_pos in
+			mk (TCall(ef,[])) t_dynamic p
+		in
+		make_field_call_candidate [] tf faa.fa_field call
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
@@ -658,9 +668,7 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
 		end;
-		let (faa,ret,el) = fcc.fc_data in
-		let e_field = FieldAccess.get_field_expr faa FCall in
-		make_call ctx e_field el ret ~force_inline:faa.fa_inline p
+		fcc.fc_data()
 	in
 	let expr_call e =
 		check_assign();
