@@ -395,6 +395,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardNew",
+		"metadata": ":forward.new",
+		"doc": "Forwards constructor call to underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ForwardStatics",
 		"metadata": ":forwardStatics",
 		"doc": "Forwards static field access to underlying type.",

@@ -123,14 +123,26 @@ let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 	| _ ->
 		AccessorInvalid
 
-let get_constructor_access c params p =
-	match c.cl_kind with
-	| KAbstractImpl a ->
-		let cf = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
-		create (Builder.make_static_this c p) cf (FHAbstract(a,params,c)) false p
-	| _ ->
-		let cf = (try Type.get_constructor c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
-		create (Builder.make_static_this c p) cf (FHInstance(c,params)) false p
+let get_constructor_access c tl p =
+	try
+		let e_static = Builder.make_static_this c p in
+		let c, tl = match c.cl_kind with
+			| KAbstractImpl a -> (match Abstract.follow_with_forward_ctor (TAbstract(a,tl)) with
+				| TInst(c,tl) -> c, tl
+				| TAbstract({a_impl = Some c},tl) -> c, tl
+				| _ -> c, tl)
+			| _ -> c, tl
+		in
+		let cf, fh = match c.cl_kind with
+			| KAbstractImpl a -> PMap.find "_new" c.cl_statics, FHAbstract(a,tl,c)
+			| _ -> Type.get_constructor c, FHInstance(c,tl)
+		in
+		create e_static cf fh false p
+	with Not_found ->
+		raise_error (No_constructor (match c.cl_kind with
+			| KAbstractImpl a -> TAbstractDecl a
+			| _ -> TClassDecl c
+		)) p
 
 let make_static_extension_access c cf e_this inline p =
 	let e_static = Texpr.Builder.make_static_this c p in
