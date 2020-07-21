@@ -133,7 +133,6 @@ let field_access ctx mode f famode t e p =
 			(match m, mode with
 			| MethInline, _ -> AKField (make_access true)
 			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
-			| MethMacro, MCall _ -> AKMacro (e,f)
 			| _ , MGet ->
 				if Meta.has Meta.Generic f.cf_meta then display_error ctx "Cannot create closure on generic function" p;
 				normal()

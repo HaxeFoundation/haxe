@@ -574,8 +574,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
 			make_call ctx e_field [sea.se_this;e2] ret p
-		| AKMacro _ ->
-			die "" __LOC__)
+		)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
@@ -782,8 +781,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			e
 		| AKFieldSet _ ->
 			error "Invalid operation" p
-		| AKMacro _ ->
-			die "" __LOC__)
+		)
 	| _ ->
 		type_non_assign_op false
 
@@ -1266,7 +1264,7 @@ and type_unop ctx op flag e p =
 				l();
 				die "" __LOC__
 			)
-		| AKUsing _ | AKMacro _ ->
+		| AKUsing _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
 			error "Invalid operation" p

@@ -612,10 +612,19 @@ let rec acc_get ctx g p =
 		in
 		{e_field with etype = t}
 	| AKField faa ->
-		if faa.fa_inline then
-			inline_read faa
-		else
-			FieldAccess.get_field_expr faa FRead
+		begin match faa.fa_field.cf_kind with
+		| Method MethMacro ->
+			(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
+			if ctx.in_display then
+				FieldAccess.get_field_expr faa FRead
+			else
+				error "Invalid macro access" p
+		| _ ->
+			if faa.fa_inline then
+				inline_read faa
+			else
+				FieldAccess.get_field_expr faa FRead
+		end
 	| AKUsing sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -648,21 +657,12 @@ let rec acc_get ctx g p =
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
 		| _ -> die "" __LOC__)
-	| AKMacro(e,cf) ->
-		(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
-		if ctx.in_display then begin match e.eexpr with
-			| TTypeExpr (TClassDecl c) ->
-				mk (TField(e,FStatic(c,cf))) cf.cf_type e.epos
-			| _ ->
-				error "Invalid macro access" p
-		end else
-			error "Invalid macro access" p
 
-let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
-	let field_call faa =
-		let fcc = unify_field_call ctx faa.fa_field faa.fa_mode el p faa.fa_inline None in
+	let field_call faa static_extension_argument =
+		let fcc = unify_field_call ctx faa.fa_field faa.fa_mode el p faa.fa_inline static_extension_argument in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
@@ -670,6 +670,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		fcc.fc_data faa.fa_on faa.fa_pos faa.fa_inline
 	in
 	let expr_call e =
+		check_assign();
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			let el, tfunc = unify_call_args ctx el args r p false false in
@@ -695,41 +696,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		in
 		loop e.etype
 	in
-	match acc with
-	| AKUsing sea when Meta.has Meta.Generic sea.se_access.fa_field.cf_meta ->
-		check_assign();
-		type_generic_function ctx sea.se_access el ~using_param:(Some sea.se_this) with_type p
-	| AKField faa ->
-		check_assign();
-		begin match faa.fa_field.cf_kind with
-		| Method (MethNormal | MethInline) ->
-			 if Meta.has Meta.Generic faa.fa_field.cf_meta then
-				type_generic_function ctx faa el with_type p
-			else
-				field_call faa
-		| _ ->
-			expr_call (FieldAccess.get_field_expr faa FCall)
-		end
-	| AKUsing sea ->
-		let ef = sea.se_access.fa_field in
-		let eparam = sea.se_this in
-		begin match ef.cf_kind with
-		| Method MethMacro ->
-			let ethis = sea.se_access.fa_on in
-			let eparam,f = push_this ctx eparam in
-			let e = build_call ~mode ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
-			f();
-			e
-		| _ ->
-			check_assign();
-			let tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl a.a_this
-				| _ -> eparam.etype
-			in
-			let fcc = unify_field_call ctx ef sea.se_access.fa_mode el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
-			fcc.fc_data sea.se_access.fa_on p sea.se_access.fa_inline
-		end
-	| AKMacro (ethis,cf) ->
+	let macro_call ethis cf el =
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
@@ -786,6 +753,43 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		ctx.on_error <- old;
 		!ethis_f();
 		e
+	in
+	let field_call faa static_extension_argument =
+		match faa.fa_field.cf_kind with
+		| Method (MethNormal | MethInline) ->
+			check_assign();
+			 if Meta.has Meta.Generic faa.fa_field.cf_meta then begin
+			 	let using_param = match static_extension_argument with
+				 	| None -> None
+					 | Some(e,_) -> Some e
+				in
+				type_generic_function ~using_param ctx faa el with_type p
+			end else
+				field_call faa static_extension_argument
+		| Method MethMacro ->
+			begin match static_extension_argument with
+			| None ->
+				macro_call faa.fa_on faa.fa_field el
+			| Some (eparam,_) ->
+				let eparam,f = push_this ctx eparam in
+				let e = macro_call faa.fa_on faa.fa_field (eparam :: el) in
+				f();
+				e
+			end;
+		| _ ->
+			expr_call (FieldAccess.get_field_expr faa FCall)
+	in
+	match acc with
+	| AKField faa ->
+		field_call faa None
+	| AKUsing sea ->
+		let ef = sea.se_access.fa_field in
+		let eparam = sea.se_this in
+		let tthis = match follow eparam.etype with
+			| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl a.a_this
+			| _ -> eparam.etype
+		in
+		field_call sea.se_access (Some(eparam,tthis))
 	| AKNo _ | AKSetter _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
