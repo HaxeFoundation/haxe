@@ -401,12 +401,13 @@ let rec type_ident_raise ctx i p mode with_type =
 							loop l
 						else begin
 							let et = type_module_type ctx (TClassDecl c) None p in
-							let t = monomorphs cf.cf_params cf.cf_type in
+							let inline = match cf.cf_kind with
+								| Var {v_read = AccInline} -> true
+								|  _ -> false
+							in
+							let fa = FieldAccess.create et cf (FAAbstract(a,List.map snd a.a_params,c)) inline p in
 							ImportHandling.mark_import_position ctx pt;
-							begin match cf.cf_kind with
-								| Var {v_read = AccInline} -> AKField(FieldAccess.create et cf (FAStatic c) true p)
-								| _ -> AKExpr (mk (TField(et,FStatic(c,cf))) t p)
-							end
+							AKField fa
 						end
 					with Not_found ->
 						loop l

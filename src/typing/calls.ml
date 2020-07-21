@@ -523,17 +523,16 @@ let rec acc_get ctx g p =
 		(* do not create a closure for static calls *)
 		let apply_params = match faa.fa_mode with
 			| FAStatic c ->
-				let f = match c.cl_kind with
-					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
+				(fun t -> t)
+			| FAInstance(c,tl) ->
+				(fun t -> t)
+			| FAAbstract(a,tl,c) ->
+				if Meta.has Meta.Enum a.a_meta then begin
 						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
 						let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
 						apply_params a.a_params monos;
-					| _ ->
-						(fun t -> t)
-				in
-				f
-			| FAInstance(c,tl) ->
-				(fun t -> t)
+				end else
+					(fun t -> t)
 			| _ ->
 				die "" __LOC__
 		in
