@@ -547,7 +547,10 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			assign_to ef
 		| AKExpr e1  ->
 			assign_to e1
-		| AKSet (e,t,cf) ->
+		| AKSetter faa ->
+			let t = (FieldAccess.get_field_expr faa FCall).etype in
+			let cf = faa.fa_field in
+			let e = faa.fa_on in
 			let e2 = e2 (WithType.with_type t) in
 			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
@@ -638,7 +641,10 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			handle e1
 		| AKExpr e ->
 			handle e
-		| AKSet (e,t,cf) ->
+		| AKSetter faa ->
+			let e = faa.fa_on in
+			let cf = faa.fa_field in
+			let t = (FieldAccess.get_field_expr faa FCall).etype in
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
 			let ev = mk (TLocal v) e.etype p in
@@ -1264,7 +1270,11 @@ and type_unop ctx op flag e p =
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
 			error "Invalid operation" p
-		| AKSet (e,t,cf) ->
+		| AKSetter faa ->
+			let e = faa.fa_on in
+			let ef = FieldAccess.get_field_expr faa FCall in
+			let t = ef.etype in
+			let cf = faa.fa_field in
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in

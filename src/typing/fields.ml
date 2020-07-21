@@ -205,7 +205,7 @@ let field_access ctx mode f famode t e p =
 				end else
 					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
 			end else if is_set then
-				AKSet (e,t,f)
+				AKSetter (make_access false)
 			else
 				AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [] t) p) [] t p)
 		| AccResolve ->

@@ -26,7 +26,7 @@ type static_extension_access = {
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
-	| AKSet of texpr * t * tclass_field
+	| AKSetter of field_access_access (* fa_field is the property, not the accessor *)
 	| AKField of field_access_access
 	| AKMacro of texpr * tclass_field
 	| AKUsing of static_extension_access
@@ -194,7 +194,7 @@ let s_access_kind acc =
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
+	| AKSetter faa -> Printf.sprintf "AKField(%s)" (s_field_access_access "" faa)
 	| AKField faa -> Printf.sprintf "AKField(%s)" (s_field_access_access "" faa)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
 	| AKUsing sea -> Printf.sprintf "AKUsing(%s)" (s_static_extension_access sea)

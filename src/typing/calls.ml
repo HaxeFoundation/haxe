@@ -600,7 +600,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
+	| AKSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
 	| AKUsing sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -786,7 +786,7 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		ctx.on_error <- old;
 		!ethis_f();
 		e
-	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
+	| AKNo _ | AKSetter _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
 	| AKExpr e ->
