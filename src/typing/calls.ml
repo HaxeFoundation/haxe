@@ -271,7 +271,7 @@ let unify_field_call ctx faa el p inline using_param =
 			let get_call_args,args = match using_param,args with
 				| Some(e1,t1),(_,_,ta1) :: args ->
 					begin try
-						unify ctx t1 ta1 e1.epos;
+						unify_raise ctx t1 ta1 e1.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
