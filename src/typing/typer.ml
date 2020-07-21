@@ -660,7 +660,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let et = sea.se_this in
 			(* abstract setter + getter *)
 			let ta = match sea.se_access.fa_mode with
-				| FAStatic {cl_kind = KAbstractImpl a} -> TAbstract(a,Monomorph.spawn_constrained_monos (fun t -> t) a.a_params)
+				| FAAbstract(a,tl,_) -> TAbstract(a,tl)
 				| _ -> die "" __LOC__
 			in
 			let ret = match follow ef.etype with
@@ -1808,9 +1808,9 @@ and type_new ctx path el with_type force_inline p =
 			| _ -> fst path, p
 		end
 	in
-	let unify_constructor_call c params f =
+	let unify_constructor_call c fa f =
 		(try
-			let fcc = unify_field_call ctx f (FAInstance(c,params)) el p false None in
+			let fcc = unify_field_call ctx f fa el p false None in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -1842,7 +1842,7 @@ and type_new ctx path el with_type force_inline p =
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			no_abstract_constructor c p;
-			ignore (unify_constructor_call c monos f);
+			ignore (unify_constructor_call c (FAInstance(c,monos)) f);
 			begin try
 				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
@@ -1866,13 +1866,17 @@ and type_new ctx path el with_type force_inline p =
 	in
 	DisplayEmitter.check_display_type ctx t path;
 	let t = follow t in
-	let build_constructor_call c tl =
+	let build_constructor_call ao c tl =
 		let ct, f = get_constructor ctx c tl p in
 		no_abstract_constructor c p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());
-		let el = unify_constructor_call c tl f in
+		let fa = match ao with
+			| None -> FAInstance(c,tl)
+			| Some a -> FAAbstract(a,tl,c)
+		in
+		let el = unify_constructor_call c fa f in
 		el,f,ct
 	in
 	try begin match t with
@@ -1886,13 +1890,13 @@ and type_new ctx path el with_type force_inline p =
 			mk (TNew (c,params,el)) t p
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
-		let el,cf,ct = build_constructor_call c tl in
+		let el,cf,ct = build_constructor_call (Some a) c tl in
 		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
 		make_call ctx e el t ~force_inline p
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
-		let el,_,_ = build_constructor_call c params in
+		let el,_,_ = build_constructor_call None c params in
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		error (s_type (print_context()) t ^ " cannot be constructed") p

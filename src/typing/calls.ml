@@ -251,10 +251,7 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 		| FAAnon ->
 			expand_overloads (fun t -> t) cf,None,false,(fun cf -> FAnon cf)
 		| FAInstance(c,tl) ->
-			let map,mk_fa = match c.cl_kind with
-				| KAbstractImpl a -> apply_params a.a_params tl,(fun cf -> FStatic(c,cf))
-				| _ -> TClass.get_map_function c tl,(fun cf -> FInstance(c,tl,cf))
-			in
+			let map = TClass.get_map_function c tl in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				List.map (map_cf cf map) (cf :: cf.cf_overloads)
 			else
@@ -263,7 +260,9 @@ let unify_field_call ctx cf fa el p inline static_extension_arg =
 					map (apply_params cf.cf_params monos t),cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,mk_fa
+			cfl,Some c,false,(fun cf -> FInstance(c,tl,cf))
+		| FAAbstract(a,tl,c) ->
+			expand_overloads (apply_params a.a_params tl) cf,Some c,true,(fun cf -> FStatic(c,cf))
 	in
 	let is_forced_inline = is_forced_inline co cf in
 	let overload_kind = if has_class_field_flag cf CfOverload then OverloadProper
@@ -724,15 +723,11 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			e
 		| _ ->
 			check_assign();
-			let cl = match sea.se_access.fa_mode with
-				| FAStatic c -> c
-				| _ -> die "" __LOC__
+			let tthis = match follow eparam.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl a.a_this
+				| _ -> eparam.etype
 			in
-			let fa,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> FAInstance(cl,tl),apply_params a.a_params tl a.a_this
-				| _ -> FAStatic cl,eparam.etype
-			in
-			let fcc = unify_field_call ctx ef fa el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
+			let fcc = unify_field_call ctx ef sea.se_access.fa_mode el p (ef.cf_kind = Method MethInline) (Some(eparam,tthis)) in
 			fcc.fc_data sea.se_access.fa_on p sea.se_access.fa_inline
 		end
 	| AKMacro (ethis,cf) ->

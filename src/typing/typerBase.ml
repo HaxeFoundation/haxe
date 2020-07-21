@@ -7,6 +7,7 @@ open Error
 type field_access_mode =
 	| FAStatic of tclass
 	| FAInstance of tclass * tparams
+	| FAAbstract of tabstract * tparams * tclass
 	| FAAnon
 
 type field_access_access = {
@@ -171,6 +172,7 @@ let s_field_access_access tabs faa =
 	let sfa = function
 		| FAStatic c -> Printf.sprintf "FAStatic(%s)" (s_type_path c.cl_path)
 		| FAInstance(c,tl) -> Printf.sprintf "FAInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FAAbstract(a,tl,c) -> Printf.sprintf "FAAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
 		| FAAnon -> Printf.sprintf "FAAnon"
 	in
 	Printer.s_record_fields tabs [
@@ -274,6 +276,7 @@ module FieldAccess = struct
 	let apply_fa cf = function
 		| FAStatic c -> FStatic(c,cf)
 		| FAInstance(c,tl) -> FInstance(c,tl,cf)
+		| FAAbstract(a,tl,c) -> FStatic(c,cf)
 		| FAAnon -> FAnon cf
 
 	let unapply_fa = function
@@ -303,6 +306,8 @@ module FieldAccess = struct
 				in
 				let t = TClass.get_map_function c tl t in
 				fa,t
+			| FAAbstract(a,tl,c) ->
+				FStatic(c,cf),apply_params a.a_params tl t
 			| FAAnon ->
 				let fa = match cf.cf_kind with
 				| Method _ when mode = FRead ->
@@ -320,4 +325,11 @@ let make_static_extension_access c cf e_this inline p =
 	{
 		se_this = e_this;
 		se_access = FieldAccess.create e_static cf (FAStatic c) inline p
+	}
+
+let make_abstract_static_extension_access a tl c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FAAbstract(a,tl,c)) inline p
 	}
