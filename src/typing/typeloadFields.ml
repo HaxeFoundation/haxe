@@ -516,7 +516,7 @@ let create_class_context ctx c context_init p =
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
 			let open TFunctions in
-			if !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
+			if not (ExtString.String.starts_with msg "...") && !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
 		);
 	} in
 	(* a lib type will skip most checks *)
@@ -1513,7 +1513,14 @@ let init_class ctx c p context_init herits fields =
 	let fields = build_fields (ctx,cctx) c fields in
 	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 	if not cctx.is_lib then begin
-		delay ctx PForce (fun() -> check_overloads ctx c)
+		delay ctx PForce (fun() -> check_overloads ctx c);
+		begin match c.cl_super with
+		| Some(csup,tl) ->
+			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
+				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl);
+		| None ->
+			()
+		end
 	end;
 	let rec has_field f = function
 		| None -> false
