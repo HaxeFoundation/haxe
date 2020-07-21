@@ -117,20 +117,9 @@ let check_no_closure_meta ctx cf fa mode p =
 let field_access ctx mode f famode t e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f famode mode p;
-	let fmode () = apply_fa f famode in
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
-	let fnormal() = AKExpr (mk (TField (e,fmode())) t p) in
-	let normal() =
-		match follow e.etype with
-		| TAnon a ->
-			(match !(a.a_status) with
-			| EnumStatics en ->
-				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
-				let fmode = FEnum (en,c) in
-				AKExpr (mk (TField (e,fmode)) t p)
-			| _ -> fnormal())
-		| _ -> fnormal()
-	in
+	let make_access inline = FieldAccess.create e f famode inline p in
+	let normal () = AKField(make_access false) in
 	match f.cf_kind with
 	| Method m ->
 		if is_set && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
@@ -141,17 +130,12 @@ let field_access ctx mode f famode t e p =
 			AKUsing (make_static_extension_access ctx.curclass f ethis t false p)
 		| _ ->
 			(match m, mode with
-			| MethInline, _ -> AKInline (e,f,famode,t)
+			| MethInline, _ -> AKField (make_access true)
 			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
 			| MethMacro, MCall _ -> AKMacro (e,f)
 			| _ , MGet ->
 				if Meta.has Meta.Generic f.cf_meta then display_error ctx "Cannot create closure on generic function" p;
-				let cmode = (match famode with
-					| FAInstance(c,tl) -> FClosure (Some (c,tl),f)
-					| FAStatic c -> FStatic(c,f)
-					| FAAnon -> FClosure (None, f)
-				) in
-				AKExpr (mk (TField (e,cmode)) t p)
+				normal()
 			| _ -> normal())
 		end
 	| Var v ->
@@ -210,7 +194,7 @@ let field_access ctx mode f famode t e p =
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
-				AKExpr (mk (TField (e,fmode())) t p)
+				normal()
 			) else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if is_set then begin
@@ -233,7 +217,7 @@ let field_access ctx mode f famode t e p =
 		| AccNever ->
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
-			AKInline (e,f,famode,t)
+			AKField (make_access true)
 		| AccCtor ->
 			(match ctx.curfun, famode with
 				| FunConstructor, FAInstance(c,_) when c == ctx.curclass -> normal()

@@ -18,11 +18,19 @@ type field_access_mode =
 	| FAInstance of tclass * tparams
 	| FAAnon
 
+type field_access_access = {
+	fa_on : texpr;
+	fa_field : tclass_field;
+	fa_mode : field_access_mode;
+	fa_inline : bool;
+	fa_pos : pos;
+}
+
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
 	| AKSet of texpr * t * tclass_field
-	| AKInline of texpr * tclass_field * field_access_mode * t
+	| AKField of field_access_access
 	| AKMacro of texpr * tclass_field
 	| AKUsing of static_extension_access
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
@@ -182,7 +190,7 @@ let s_access_kind acc =
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
-	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
+	| AKField faa -> Printf.sprintf "AKField(%s, %s, %s)" (se faa.fa_on) faa.fa_field.cf_name (sfa faa.fa_mode)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
 	| AKUsing sea -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (st sea.se_field_type) (s_type_path sea.se_class.cl_path) sea.se_field.cf_name (se sea.se_this) sea.se_force_inline
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
@@ -245,16 +253,60 @@ let get_abstract_froms a pl =
 			acc
 	) l a.a_from_field
 
-let apply_fa cf = function
-	| FAStatic c -> FStatic(c,cf)
-	| FAInstance(c,tl) -> FInstance(c,tl,cf)
-	| FAAnon -> FAnon cf
+module FieldAccess = struct
+	let create e cf fa inline p = {
+		fa_on = e;
+		fa_field = cf;
+		fa_mode = fa;
+		fa_inline = inline;
+		fa_pos = p;
+	}
 
-let unapply_fa = function
-	| FStatic(c,cf) -> cf,FAStatic c
-	| FInstance(c,tl,cf) | FClosure(Some(c,tl),cf) -> cf,FAInstance(c,tl)
-	| FAnon cf -> cf,FAAnon
-	| _ -> raise Exit
+	let apply_fa cf = function
+		| FAStatic c -> FStatic(c,cf)
+		| FAInstance(c,tl) -> FInstance(c,tl,cf)
+		| FAAnon -> FAnon cf
 
-let maybe_unapply_fa fa =
-	try Some (unapply_fa fa) with Exit -> None
+	let unapply_fa = function
+		| FStatic(c,cf) -> cf,FAStatic c
+		| FInstance(c,tl,cf) | FClosure(Some(c,tl),cf) -> cf,FAInstance(c,tl)
+		| FAnon cf -> cf,FAAnon
+		| _ -> raise Exit
+
+	let maybe_unapply_fa fa =
+		try Some (unapply_fa fa) with Exit -> None
+
+	let read_field_on faa =
+		let cf = faa.fa_field in
+		let t = Type.field_type cf in
+		let fa,t = match faa.fa_mode with
+			| FAStatic c -> FStatic(c,cf),t
+			| FAInstance(c,tl) ->
+				let fa = match cf.cf_kind with
+				| Method _ ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					FInstance(c,tl,cf)
+				in
+				fa,TClass.get_map_function c tl t
+			| FAAnon ->
+				let fa = match cf.cf_kind with
+				| Method _ ->
+					FClosure(None,cf)
+				| _ ->
+					FAnon cf
+				in
+				fa,t
+		in
+		mk (TField(faa.fa_on,fa)) t faa.fa_pos
+
+	(* Does not care about closures - use for call and set *)
+	let get_field_on faa =
+		let cf = faa.fa_field in
+		let t = Type.field_type cf in
+		let t = match faa.fa_mode with
+			| FAInstance(c,tl) -> TClass.get_map_function c tl t
+			| _ -> t
+		in
+		mk (TField(faa.fa_on,apply_fa cf faa.fa_mode)) t faa.fa_pos
+end
