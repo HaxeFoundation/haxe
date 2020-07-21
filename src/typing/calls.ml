@@ -237,40 +237,36 @@ type overload_kind =
 	| OverloadNone
 
 let unify_field_call ctx faa el p inline using_param =
-	let map_cf cf0 map cf =
-		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		t,cf
+	let expand_overloads cf =
+		cf :: cf.cf_overloads
 	in
-	let expand_overloads map cf =
-		(List.map (map_cf cf map) (cf :: cf.cf_overloads))
-	in
-	let candidates,co,static = match faa.fa_kind with
+	let candidates,co,static,map = match faa.fa_kind with
 		| FAStatic c ->
-			expand_overloads (fun t -> t) faa.fa_field,Some c,true
+			expand_overloads faa.fa_field,Some c,true,(fun t -> t)
 		| FAAnon ->
-			expand_overloads (fun t -> t) faa.fa_field,None,false
+			expand_overloads faa.fa_field,None,false,(fun t -> t)
 		| FAInstance(c,tl) ->
 			let cf = faa.fa_field in
-			let map = TClass.get_map_function c tl in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
-				List.map (map_cf cf map) (cf :: cf.cf_overloads)
+				cf :: cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
-					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-					map (apply_params cf.cf_params monos t),cf
+					cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false
+			cfl,Some c,false,TClass.get_map_function c tl
 		| FAAbstract(a,tl,c) ->
-			expand_overloads (apply_params a.a_params tl) faa.fa_field,Some c,true
+			expand_overloads faa.fa_field,Some c,true,(apply_params a.a_params tl)
 	in
 	let is_forced_inline = is_forced_inline co faa.fa_field in
 	let overload_kind = if has_class_field_flag faa.fa_field CfOverload then OverloadProper
 		else if faa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	let attempt_call t cf = match follow t with
+	let attempt_call cf =
+		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+		let t = map (apply_params cf.cf_params monos cf.cf_type) in
+		match follow t with
 		| TFun(args,ret) ->
 			let get_call_args,args = match using_param,args with
 				| Some(e1,t1),(_,_,ta1) :: args ->
@@ -307,12 +303,14 @@ let unify_field_call ctx faa el p inline using_param =
 	let attempt_calls candidates =
 		let rec loop candidates = match candidates with
 			| [] -> [],[]
-			| (t,cf) :: candidates ->
+			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_constraints
 				) ctx.monomorphs.perfunction in
+				let current_monos = ctx.monomorphs.perfunction in
 				begin try
-					let candidate = attempt_call t cf in
+					let candidate = attempt_call cf in
+					ctx.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -320,9 +318,10 @@ let unify_field_call ctx faa el p inline using_param =
 						[candidate],[]
 				with Error ((Call_error cerr as err),p) ->
 					List.iter (fun (m,t,constr) ->
-						m.tm_type <- t;
-						m.tm_constraints <- constr;
+						if t != m.tm_type then m.tm_type <- t;
+						if constr != m.tm_constraints then m.tm_constraints <- constr;
 					) known_monos;
+					ctx.monomorphs.perfunction <- current_monos;
 					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,p) :: failures
@@ -348,10 +347,10 @@ let unify_field_call ctx faa el p inline using_param =
 		end;
 	in
 	match candidates with
-	| [t,cf] ->
+	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
-			attempt_call t cf
+			attempt_call cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
