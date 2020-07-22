@@ -255,7 +255,6 @@ let transform_abstract_field com this_t a_t a f =
 		{ f with cff_name = "_new",pos f.cff_name; cff_access = (AStatic,null_pos) :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-		let fu = { fu with f_args = (if List.mem_assoc AMacro f.cff_access then fu.f_args else (("this",null_pos),false,[],Some this_t,None) :: fu.f_args) } in
 		{ f with cff_kind = FFun fu; cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| _ ->
 		f
@@ -1146,6 +1145,13 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			[]
 	in
 	let args = loop fd.f_args in
+	let fargs = TypeloadFunction.convert_fargs fd in
+	let args,fargs = match cctx.abstract with
+		| Some a when Meta.has Meta.Impl f.cff_meta && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+			("this",None,a.a_this) :: args,(null_pos,[]) :: fargs
+		| _ ->
+			args,fargs
+	in
 	let t = TFun (fun_args args,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
@@ -1205,7 +1211,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
+					let e , fargs = TypeloadFunction.type_function ctx args fargs ret fmode fd.f_expr fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
 					| _ -> ()
@@ -1235,7 +1241,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	else begin
 		delay ctx PTypeField (fun () ->
 			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-			List.iter2 (fun (n,ct,t) ((_,pn),_,m,_,_) ->
+			List.iter2 (fun (n,ct,t) (pn,m) ->
 				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
 				begin if ctx.com.platform = Flash && (has_class_flag c CExtern) then
 					()
@@ -1246,7 +1252,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					let v = add_local_with_origin ctx TVOArgument n t pn in
 					DisplayEmitter.display_variable ctx v pn;
 				end
-			) args fd.f_args;
+			) args fargs;
 		);
 		check_field_display ctx fctx c cf;
 		if fd.f_expr <> None then begin

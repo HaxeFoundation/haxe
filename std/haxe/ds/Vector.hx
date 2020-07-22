@@ -345,7 +345,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public inline function sort<T>(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		#if (neko || cs || java || eval)
 		throw "not yet supported";
 		#elseif lua

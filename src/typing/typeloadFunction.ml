@@ -99,8 +99,11 @@ let process_function_arg ctx n t c do_display check_name p =
 	if check_name && starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
 	type_function_arg_value ctx t c do_display
 
-let type_function ctx args ret fmode f do_display p =
-	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
+let convert_fargs fd =
+	List.map (fun ((_,pn),_,m,_,_) -> (pn,m)) fd.f_args
+
+let type_function ctx args fargs ret fmode e do_display p =
+	let fargs = List.map2 (fun (n,c,t) (pn,m) ->
 		let c = process_function_arg ctx n t c do_display true pn in
 		let v = add_local_with_origin ctx TVOArgument n t pn in
 		v.v_meta <- v.v_meta @ m;
@@ -108,13 +111,13 @@ let type_function ctx args ret fmode f do_display p =
 			DisplayEmitter.display_variable ctx v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
-	) args f.f_args in
+	) args fargs in
 	ctx.in_function <- true;
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	ctx.monomorphs.perfunction <- [];
-	let e = match f.f_expr with
+	let e = match e with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then
 				(* when we don't care because we're in display mode, just act like
@@ -231,9 +234,9 @@ let type_function ctx args ret fmode f do_display p =
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 
-let type_function ctx args ret fmode f do_display p =
+let type_function ctx args fargs ret fmode e do_display p =
 	let save = save_field_state ctx in
-	Std.finally save (type_function ctx args ret fmode f do_display) p
+	Std.finally save (type_function ctx args fargs ret fmode e do_display) p
 
 let add_constructor ctx c force_constructor p =
 	let super() =
