@@ -16,6 +16,8 @@ using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
 class TestCase implements ITest {
+	static public var debugLastResult:{hasError:Bool, stdout:String, stderr:String, prints:Array<String>};
+
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
@@ -42,6 +44,12 @@ class TestCase implements ITest {
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			lastResult = result;
+			debugLastResult = {
+				hasError: lastResult.hasError,
+				prints: lastResult.prints,
+				stderr: lastResult.stderr,
+				stdout: lastResult.stdout
+			}
 			sendLogMessage(result.stdout);
 			for (print in result.prints) {
 				var line = print.trim();
