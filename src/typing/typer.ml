@@ -2562,7 +2562,18 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		type_return ctx e with_type p
+		if not ctx.in_function then begin
+			display_error ctx "Return outside function" p;
+			match e with
+			| None ->
+				Texpr.Builder.make_null t_dynamic p
+			| Some e ->
+				(* type the return expression to see if there are more errors
+				   as well as use its type as if there was no `return`, since
+				   that is most likely what was meant *)
+				type_expr ctx e WithType.value
+		end else
+			type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
 		mk TBreak t_dynamic p
@@ -2666,6 +2677,7 @@ let rec create com =
 		macro_depth = 0;
 		untyped = false;
 		curfun = FunStatic;
+		in_function = false;
 		in_loop = false;
 		in_display = false;
 		get_build_infos = (fun() -> None);

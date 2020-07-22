@@ -879,6 +879,7 @@ let type_types_into_module ctx m tdecls p =
 		untyped = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
+		in_function = false;
 		in_loop = false;
 		opened = [];
 		in_call_args = false;
