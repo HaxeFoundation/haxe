@@ -15,7 +15,6 @@ and var_access =
 	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
-	| AccResolve        (* call resolve("field") when accessed *)
 	| AccCall           (* perform a method call when accessed *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
