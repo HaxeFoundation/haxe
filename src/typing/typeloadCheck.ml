@@ -539,8 +539,6 @@ module Inheritance = struct
 					end
 				end else begin
 					if (has_class_flag csup CInterface) then error "Cannot extend by using an interface" p;
-					if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-						delay ctx PForce (fun () -> check_abstract_class ctx c csup params);
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->

@@ -375,7 +375,7 @@ let unify_access a1 a2 =
 
 let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
-	| AccResolve | AccCall -> false
+	| AccCall -> false
 
 let unify_kind k1 k2 =
 	k1 = k2 || match k1, k2 with
@@ -619,8 +619,8 @@ let rec unify (uctx : unification_context) a b =
 	| TAbstract ({ a_path = ["haxe"],"NotVoid" },[]), _
 	| _, TAbstract ({ a_path = ["haxe"],"NotVoid" },[]) ->
 		()
-	| TAbstract _, TAbstract ({ a_path = ["haxe"],("FlatEnum" | "Function" | "Constructible") },_) ->
-		error [cannot_unify a b]
+	| TAbstract (ab,tl), TAbstract ({ a_path = ["haxe"],("FlatEnum" | "Function" | "Constructible") },_) ->
+		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->

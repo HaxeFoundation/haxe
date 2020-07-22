@@ -2128,7 +2128,8 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e , fargs = TypeloadFunction.type_function ctx args rt curfun f ctx.in_display p in
+	let fargs = TypeloadFunction.convert_fargs f in
+	let e , fargs = TypeloadFunction.type_function ctx args fargs rt curfun f.f_expr ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let tf = {

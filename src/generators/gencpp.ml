@@ -5476,7 +5476,6 @@ let access_str a = match a with
    | AccNormal -> "AccNormal"
    | AccNo -> "AccNo"
    | AccNever -> "AccNever"
-   | AccResolve -> "AccResolve"
    | AccCall -> "AccCall"
    | AccInline -> "AccInline"
    | AccRequire(_,_) -> "AccRequire"
@@ -8225,7 +8224,6 @@ let generate_script_class common_ctx script class_def =
          | AccNormal | AccCtor -> IaAccessNormal
          | AccNo -> IaAccessNot
          | AccNever -> IaAccessNot
-         | AccResolve -> IaAccessResolve
          | AccCall -> if ( (has_meta_key class_def.cl_meta Meta.NativeProperty) ||
                            (has_meta_key field.cf_meta Meta.NativeProperty) ||
                            (Common.defined common_ctx Define.ForceNativeProperty) )

@@ -504,7 +504,6 @@ and generate_class_field' ctx cfs cf =
 				| AccNo -> "AccNo",None
 				| AccNever -> "AccNever",None
 				| AccCtor -> "AccCtor",None
-				| AccResolve -> "AccResolve",None
 				| AccCall -> "AccCall",None
 				| AccInline -> "AccInline",None
 				| AccRequire(s,so) -> "AccRequire",Some (jobject ["require",jstring s;"message",jopt jstring so])

@@ -1750,8 +1750,6 @@ module Generator = struct
 		let methods = DynArray.create () in
 		List.iter (fun cf ->
 			match cf.cf_kind with
-				| Var({v_read = AccResolve}) ->
-					()
 				| Var _ when not (is_physical_field cf) ->
 					()
 				| Var({v_read = AccCall}) ->
@@ -1958,7 +1956,7 @@ module Generator = struct
 			print ctx "    @staticmethod\n    def _hx_empty_init(_hx_o):";
 			let found_fields = ref false in
 			List.iter (fun cf -> match cf.cf_kind with
-					| Var ({v_read = AccResolve | AccCall}) ->
+					| Var ({v_read = AccCall}) ->
 						()
 					| Var _ ->
 						found_fields := true;
