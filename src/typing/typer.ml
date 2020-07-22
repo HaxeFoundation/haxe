@@ -368,11 +368,18 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
-		if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Impl ctx.curfield.cf_meta) && not (Meta.has Meta.Enum f.cf_meta) then
+		let is_impl = Meta.has Meta.Impl f.cf_meta in
+		let is_enum = Meta.has Meta.Enum f.cf_meta in
+		if is_impl && not (Meta.has Meta.Impl ctx.curfield.cf_meta) && not is_enum then
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
-		let e = type_type ctx ctx.curclass.cl_path p in
-		(* check_locals_masking already done in type_type *)
-		field_access ctx mode f (FAStatic ctx.curclass) e p
+		let e,fa = match ctx.curclass.cl_kind with
+			| KAbstractImpl a when is_impl && not is_enum ->
+				get_this ctx p,FAAbstract(a,List.map snd a.a_params,ctx.curclass)
+			| _ ->
+				let e = type_type ctx ctx.curclass.cl_path p in
+				e,FAStatic ctx.curclass
+		in
+		field_access ctx mode f fa e p
 	with Not_found -> try
 		(* module-level statics *)
 		(match ctx.m.curmod.m_statics with
