@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx faa el p inline using_param =
+let unify_field_call ctx faa el p inline typed_el =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
@@ -268,18 +268,19 @@ let unify_field_call ctx faa el p inline using_param =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
 		| TFun(args,ret) ->
-			let get_call_args,args = match using_param,args with
-				| Some(e1,t1),(_,_,ta1) :: args ->
+			let rec loop acc args typed_el = match args,typed_el with
+				| (_,_,t0) :: args,(e,t) :: typed_el ->
 					begin try
-						unify_raise ctx t1 ta1 e1.epos;
+						unify_raise ctx t t0 e.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					(fun el -> e1 :: el),args
+					loop (e :: acc) args typed_el
 				| _ ->
-					(fun el -> el),args
+					(fun el -> (List.rev acc) @ el),args
 			in
+			let get_call_args,args = loop [] args typed_el in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call () =
 				let ef = mk (TField(faa.fa_on,FieldAccess.apply_fa cf faa.fa_kind)) t faa.fa_pos in
@@ -535,7 +536,7 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 let static_extension_accessor_call ctx sea cf el p =
 	let faa = sea.se_access in
 	let te = abstract_using_param_type sea in
-	let fcc = unify_field_call ctx faa el p faa.fa_inline (Some(sea.se_this,te)) in
+	let fcc = unify_field_call ctx faa el p faa.fa_inline [sea.se_this,te] in
 	let e = fcc.fc_data() in
 	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
 	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
@@ -686,7 +687,11 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
 	let field_call faa using_param el =
-		let fcc = unify_field_call ctx faa el p faa.fa_inline using_param in
+		let typed_el = match using_param with
+			| Some x -> [x]
+			| None -> []
+		in
+		let fcc = unify_field_call ctx faa el p faa.fa_inline typed_el in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
