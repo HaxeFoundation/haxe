@@ -523,6 +523,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		let e1 = type_expr ctx e1 wt in
 		type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
 	in
+	let e2_syntax = e2 in
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
@@ -566,16 +567,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ -> die "" __LOC__
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
-		| AKUsingSetter sea ->
-			let e_field = FieldAccess.get_field_expr sea.se_access FWrite in
-			(* this must be an abstract setter *)
-			let e2,ret = match follow e_field.etype with
-				| TFun([_;(_,_,t)],ret) ->
-					let e2 = e2 (WithType.with_type t) in
-					AbstractCast.cast_or_unify ctx t e2 p,ret
-				| _ ->  error "Invalid field type for abstract setter" p
-			in
-			make_call ctx e_field [sea.se_this;e2] ret p
+		| AKUsingSetter(sea,cf) ->
+			static_extension_accessor_call ctx sea cf [e2_syntax] p
 		)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
@@ -665,7 +658,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsingSetter sea ->
+		| AKUsingSetter(sea,cf) ->
 			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
@@ -1226,7 +1219,7 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsingField sea | AKUsingSetter sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+		| AKUsingField sea | AKUsingSetter(sea,_) when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
 			let etarget = sea.se_this in
 			let emethod = FieldAccess.get_field_expr sea.se_access (if set then FRead else FWrite) in
 			let force_inline = sea.se_access.fa_inline in

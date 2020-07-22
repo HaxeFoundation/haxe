@@ -532,6 +532,14 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
+let static_extension_accessor_call ctx sea cf el p =
+	let faa = sea.se_access in
+	let te = abstract_using_param_type sea in
+	let fcc = unify_field_call ctx faa el p faa.fa_inline (Some(sea.se_this,te)) in
+	let e = fcc.fc_data() in
+	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
+	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+
 let rec acc_get ctx g p =
 	let inline_read faa =
 		let cf = faa.fa_field in
@@ -643,12 +651,7 @@ let rec acc_get ctx g p =
 	| AKGetter faa ->
 		call_getter ctx faa None
 	| AKUsingGetter(sea,cf) ->
-		let faa = sea.se_access in
-		let te = abstract_using_param_type sea in
-		let fcc = unify_field_call ctx faa [] p faa.fa_inline (Some(sea.se_this,te)) in
-		let e = fcc.fc_data() in
-		let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
-		if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+		static_extension_accessor_call ctx sea cf [] p
 	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in

@@ -186,7 +186,7 @@ let field_access ctx mode f famode e p =
 				let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 				let fa = PMap.find m c.cl_statics in
 				let sea = make_abstract_static_extension_access a (List.map snd a.a_params) c fa this false p in
-				if is_set then AKUsingSetter sea else AKUsingGetter(sea,f)
+				if is_set then AKUsingSetter(sea,f) else AKUsingGetter(sea,f)
 			end else if is_set then
 				AKSetter (make_access false)
 			else
@@ -522,9 +522,9 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				check_static fa;
 				AKUsingGetter (make_abstract_static_extension_access a pl c fa e false p,f)
 			| MSet _, Var {v_write = AccCall } ->
-				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
-				check_static f;
-				AKUsingSetter (make_abstract_static_extension_access a pl c f e false p)
+				let fa = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
+				check_static fa;
+				AKUsingSetter (make_abstract_static_extension_access a pl c fa e false p,f)
 			| (MGet | MCall _), Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall _), _ ->
