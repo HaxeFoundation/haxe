@@ -114,7 +114,7 @@ let check_no_closure_meta ctx cf fa mode p =
 	| _ ->
 		()
 
-let field_access ctx mode f famode t e p =
+let field_access ctx mode f famode e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f famode mode p;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
@@ -150,21 +150,7 @@ let field_access ctx mode f famode t e p =
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
 		| AccNormal | AccNo ->
-			(*
-				if we are reading from a read-only variable on an anonymous object, it might actually be a method, so make sure to create a closure
-			*)
-			let is_maybe_method() =
-				match v.v_write, follow t, follow e.etype with
-				| (AccNo | AccNever), TFun _, TAnon a ->
-					(match !(a.a_status) with
-					| Statics _ | EnumStatics _ -> false
-					| _ -> true)
-				| _ -> false
-			in
-			if mode = MGet && is_maybe_method() then
-				AKExpr (mk (TField (e,FClosure (None,f))) t p)
-			else
-				normal()
+			normal()
 		| AccCall | AccInline when ctx.in_display ->
 			normal()
 		| AccCall ->
@@ -372,7 +358,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| _ ->
 				check_field_access ctx c f false pfield;
 			end;
-			field_access ctx mode f (match c2 with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) (apply_params c.cl_params params t) e p
+			field_access ctx mode f (match c2 with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) e p
 		with Not_found -> try
 			begin match e.eexpr with
 				| TConst TSuper -> raise Not_found
@@ -424,7 +410,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				end;
 			end;
 			let access fmode ft =
-				field_access ctx mode f fmode ft e p
+				field_access ctx mode f fmode e p
 			in
 			begin match !(a.a_status) with
 				| Statics c ->
@@ -464,7 +450,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
 		} in
 		let access f =
-			field_access ctx mode f FAAnon (Type.field_type f) e p
+			field_access ctx mode f FAAnon e p
 		in
 		begin match Monomorph.classify_constraints r with
 		| CStructural(fields,is_open) ->

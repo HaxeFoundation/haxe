@@ -364,7 +364,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
-		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) t (get_this ctx p) p
+		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -372,7 +372,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e = type_type ctx ctx.curclass.cl_path p in
 		(* check_locals_masking already done in type_type *)
-		field_access ctx mode f (FAStatic ctx.curclass) (field_type ctx ctx.curclass [] f p) e p
+		field_access ctx mode f (FAStatic ctx.curclass) e p
 	with Not_found -> try
 		(* module-level statics *)
 		(match ctx.m.curmod.m_statics with
@@ -380,7 +380,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
 			let e = type_module_type ctx (TClassDecl c) None p in
-			field_access ctx mode f (FAStatic c) (field_type ctx c [] f p) e p
+			field_access ctx mode f (FAStatic c) e p
 		)
 	with Not_found -> try
 		let wrap e = if is_set then
