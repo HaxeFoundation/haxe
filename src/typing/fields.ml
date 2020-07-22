@@ -166,7 +166,13 @@ let field_access ctx mode f famode e p =
 					display_error ctx "Cannot create closure on super method" p
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
-			maybe_check_visibility c false;
+			(* We need the actual class type (i.e. a potential child class) for visibility checks. *)
+			begin match follow e.etype with
+			| TInst(c,_) ->
+				maybe_check_visibility c false;
+			| _ ->
+				()
+			end;
 			default();
 		| FAStatic c ->
 			maybe_check_visibility c true;
