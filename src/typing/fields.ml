@@ -194,6 +194,8 @@ let field_access ctx mode f famode e p =
 				if ctx.untyped then normal false else AKNo f.cf_name)
 		| AccNormal | AccNo ->
 			normal false
+		| AccCall when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+			normal false
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
 			let bypass_accessor =
