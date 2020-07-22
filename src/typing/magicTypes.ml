@@ -87,47 +87,6 @@ let extend_remoting ctx c t p async prot =
 	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
 	| _ -> error "Remoting proxy must be a class without parameters" p
 
-(* -------------------------------------------------------------------------- *)
-(* HAXE.XML.PROXY *)
-
-let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false (t,p) in
-	let file = (try Common.find_file ctx.com file with Not_found -> file) in
-	add_dependency c.cl_module (create_fake_module ctx file);
-	let used = ref PMap.empty in
-	let print_results() =
-		PMap.iter (fun id used ->
-			if not used then ctx.com.warning (id ^ " is not used") p;
-		) (!used)
-	in
-	let check_used = Common.defined ctx.com Define.CheckXmlProxy in
-	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
-	try
-		let rec loop = function
-			| Xml.Element (_,attrs,childs) ->
-				(try
-					let id = List.assoc "id" attrs in
-					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
-					let t = if not check_used then t else begin
-						used := PMap.add id false (!used);
-						let ft() = used := PMap.add id true (!used); t in
-						TLazy (ref (lazy_wait ft))
-					end in
-					let f = {
-						(mk_field id t p null_pos) with
-						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
-					} in
-					c.cl_fields <- PMap.add id f c.cl_fields;
-				with
-					Not_found -> ());
-				List.iter loop childs;
-			| Xml.PCData _ -> ()
-		in
-		loop (Xml.parse_file file)
-	with
-		| Xml.Error e -> error ("XML error " ^ Xml.error e) p
-		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
-
 let on_inherit ctx c p (is_extends,tp) =
 	if not is_extends then
 		true
@@ -138,8 +97,5 @@ let on_inherit ctx c p (is_extends,tp) =
 	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String(file,SDoubleQuotes)),p);TPType (t,_)] } ->
-		extend_xml_proxy ctx c t file p;
-		true
 	| _ ->
 		true

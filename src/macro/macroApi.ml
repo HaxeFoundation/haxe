@@ -965,7 +965,6 @@ and encode_var_access a =
 		| AccNormal -> 0, []
 		| AccNo -> 1, []
 		| AccNever -> 2, []
-		| AccResolve -> 3, []
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
@@ -1289,7 +1288,6 @@ let decode_var_access v =
 	| 0, [] -> AccNormal
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
-	| 3, [] -> AccResolve
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
