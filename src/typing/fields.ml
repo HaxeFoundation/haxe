@@ -293,7 +293,7 @@ let rec using_field ctx mode e i p =
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsingField {se_access = {fa_kind = FAStatic c}} -> add_dependency ctx.m.curmod c.cl_module
+		| AKUsingField {se_access = {fa_host = FAStatic c}} -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->

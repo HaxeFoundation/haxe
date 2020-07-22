@@ -236,17 +236,17 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx faa el p inline typed_el =
+let unify_field_call ctx fa el p inline typed_el =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
-	let candidates,co,static,map = match faa.fa_kind with
+	let candidates,co,static,map = match fa.fa_host with
 		| FAStatic c ->
-			expand_overloads faa.fa_field,Some c,true,(fun t -> t)
+			expand_overloads fa.fa_field,Some c,true,(fun t -> t)
 		| FAAnon ->
-			expand_overloads faa.fa_field,None,false,(fun t -> t)
+			expand_overloads fa.fa_field,None,false,(fun t -> t)
 		| FAInstance(c,tl) ->
-			let cf = faa.fa_field in
+			let cf = fa.fa_field in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				cf :: cf.cf_overloads
 			else
@@ -256,11 +256,11 @@ let unify_field_call ctx faa el p inline typed_el =
 			in
 			cfl,Some c,false,TClass.get_map_function c tl
 		| FAAbstract(a,tl,c) ->
-			expand_overloads faa.fa_field,Some c,true,(apply_params a.a_params tl)
+			expand_overloads fa.fa_field,Some c,true,(apply_params a.a_params tl)
 	in
-	let is_forced_inline = is_forced_inline co faa.fa_field in
-	let overload_kind = if has_class_field_flag faa.fa_field CfOverload then OverloadProper
-		else if faa.fa_field.cf_overloads <> [] then OverloadMeta
+	let is_forced_inline = is_forced_inline co fa.fa_field in
+	let overload_kind = if has_class_field_flag fa.fa_field CfOverload then OverloadProper
+		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
 	let attempt_call cf =
@@ -283,7 +283,7 @@ let unify_field_call ctx faa el p inline typed_el =
 			let get_call_args,args = loop [] args typed_el in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call () =
-				let ef = mk (TField(faa.fa_on,FieldAccess.apply_fa cf faa.fa_kind)) t faa.fa_pos in
+				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				let el = List.map fst el in
 				let el = get_call_args el in
 				make_call ctx ef el ret ~force_inline:inline p
@@ -333,10 +333,10 @@ let unify_field_call ctx faa el p inline typed_el =
 	let fail_fun () =
 		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
 		let call () =
-			let ef = mk (TField(faa.fa_on,FieldAccess.apply_fa faa.fa_field faa.fa_kind)) tf faa.fa_pos in
+			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
 			mk (TCall(ef,[])) t_dynamic p
 		in
-		make_field_call_candidate [] tf faa.fa_field call
+		make_field_call_candidate [] tf fa.fa_field call
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
@@ -383,13 +383,13 @@ let unify_field_call ctx faa el p inline typed_el =
 			| fcc :: _ -> fcc
 		end
 
-let type_generic_function ctx faa el ?(using_param=None) with_type p =
-	let c,tl,stat = match faa.fa_kind with
+let type_generic_function ctx fa el ?(using_param=None) with_type p =
+	let c,tl,stat = match fa.fa_host with
 		| FAInstance(c,tl) -> c,tl,false
 		| FAStatic c -> c,[],true
 		| _ -> die "" __LOC__
 	in
-	let cf = faa.fa_field in
+	let cf = fa.fa_field in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
 	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
@@ -510,7 +510,7 @@ let type_generic_function ctx faa el ?(using_param=None) with_type p =
 			| _ when stat ->
 				Builder.make_typeexpr (TClassDecl c) p
 			| _ ->
-				faa.fa_on
+				fa.fa_on
 		in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
@@ -518,11 +518,11 @@ let type_generic_function ctx faa el ?(using_param=None) with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_getter ctx faa using_param =
-	let cf = faa.fa_field in
-	let e = faa.fa_on in
-	let t = (FieldAccess.get_field_expr faa FCall).etype in
-	let p = faa.fa_pos in
+let call_getter ctx fa using_param =
+	let cf = fa.fa_field in
+	let e = fa.fa_on in
+	let t = (FieldAccess.get_field_expr fa FCall).etype in
+	let p = fa.fa_pos in
 	let tf,el = match using_param with
 		| None -> (tfun [] t),[]
 		| Some e -> (tfun [e.etype] t),[e]
@@ -534,18 +534,18 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| _ -> sea.se_this.etype
 
 let static_extension_accessor_call ctx sea cf el p =
-	let faa = sea.se_access in
+	let fa = sea.se_access in
 	let te = abstract_using_param_type sea in
-	let fcc = unify_field_call ctx faa el p faa.fa_inline [sea.se_this,te] in
+	let fcc = unify_field_call ctx fa el p fa.fa_inline [sea.se_this,te] in
 	let e = fcc.fc_data() in
 	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
 	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
 
 let rec acc_get ctx g p =
-	let inline_read faa =
-		let cf = faa.fa_field in
+	let inline_read fa =
+		let cf = fa.fa_field in
 		(* do not create a closure for static calls *)
-		let apply_params = match faa.fa_kind with
+		let apply_params = match fa.fa_host with
 			| FAStatic c ->
 				(fun t -> t)
 			| FAInstance(c,tl) ->
@@ -563,7 +563,7 @@ let rec acc_get ctx g p =
 		ignore(follow cf.cf_type); (* force computing *)
 		begin match cf.cf_kind,cf.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
-			FieldAccess.get_field_expr faa FRead
+			FieldAccess.get_field_expr fa FRead
 		| Method _,_->
 			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag cf CfExtern) && not (Meta.has Meta.Runtime cf.cf_meta) in
 			let wrap_extern c =
@@ -593,8 +593,8 @@ let rec acc_get ctx g p =
 				let e_t = type_module_type ctx (TClassDecl c2) None p in
 				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FAStatic c2) true p) FRead
 			in
-			let e_def = FieldAccess.get_field_expr faa FRead in
-			begin match follow faa.fa_on.etype with
+			let e_def = FieldAccess.get_field_expr fa FRead in
+			begin match follow fa.fa_on.etype with
 				| TInst (c,_) when chk_class c ->
 					display_error ctx "Can't create closure on an extern inline member method" p;
 					e_def
@@ -616,7 +616,7 @@ let rec acc_get ctx g p =
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
 		| Var _,None when ctx.com.display.dms_display ->
-			 FieldAccess.get_field_expr faa FRead
+			 FieldAccess.get_field_expr fa FRead
 		| Var _,None ->
 			error "Recursive inline is not supported" p
 		end
@@ -635,22 +635,22 @@ let rec acc_get ctx g p =
 			| t -> t
 		in
 		{e_field with etype = t}
-	| AKField faa ->
-		begin match faa.fa_field.cf_kind with
+	| AKField fa ->
+		begin match fa.fa_field.cf_kind with
 		| Method MethMacro ->
 			(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
 			if ctx.in_display then
-				FieldAccess.get_field_expr faa FRead
+				FieldAccess.get_field_expr fa FRead
 			else
 				error "Invalid macro access" p
 		| _ ->
-			if faa.fa_inline then
-				inline_read faa
+			if fa.fa_inline then
+				inline_read fa
 			else
-				FieldAccess.get_field_expr faa FRead
+				FieldAccess.get_field_expr fa FRead
 		end
-	| AKGetter faa ->
-		call_getter ctx faa None
+	| AKGetter fa ->
+		call_getter ctx fa None
 	| AKUsingGetter(sea,cf) ->
 		static_extension_accessor_call ctx sea cf [] p
 	| AKUsingField sea ->
@@ -686,13 +686,13 @@ let rec acc_get ctx g p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
-	let field_call faa using_param el =
+	let field_call fa using_param el =
 		let typed_el = match using_param with
 			| Some x -> [x]
 			| None -> []
 		in
-		let fcc = unify_field_call ctx faa el p faa.fa_inline typed_el in
-		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
+		let fcc = unify_field_call ctx fa el p fa.fa_inline typed_el in
+		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
 		end;
@@ -783,34 +783,34 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		!ethis_f();
 		e
 	in
-	let field_call faa using_param el =
-		match faa.fa_field.cf_kind with
+	let field_call fa using_param el =
+		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline) ->
 			check_assign();
-			 if Meta.has Meta.Generic faa.fa_field.cf_meta then begin
+			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
 			 	let using_param = match using_param with
 				 	| None -> None
 					 | Some(e,_) -> Some e
 				in
-				type_generic_function ~using_param ctx faa el with_type p
+				type_generic_function ~using_param ctx fa el with_type p
 			end else
-				field_call faa using_param el
+				field_call fa using_param el
 		| Method MethMacro ->
 			begin match using_param with
 			| None ->
-				macro_call faa.fa_on faa.fa_field el
+				macro_call fa.fa_on fa.fa_field el
 			| Some (eparam,_) ->
 				let eparam,f = push_this ctx eparam in
-				let e = macro_call faa.fa_on faa.fa_field (eparam :: el) in
+				let e = macro_call fa.fa_on fa.fa_field (eparam :: el) in
 				f();
 				e
 			end;
 		| _ ->
-			expr_call (FieldAccess.get_field_expr faa FCall)
+			expr_call (FieldAccess.get_field_expr fa FCall)
 	in
 	match acc with
-	| AKField faa ->
-		field_call faa None el
+	| AKField fa ->
+		field_call fa None el
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
 		let tthis = abstract_using_param_type sea in
@@ -818,8 +818,8 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	| AKNo _ | AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
-	| AKGetter faa ->
-		expr_call (call_getter ctx faa None)
+	| AKGetter fa ->
+		expr_call (call_getter ctx fa None)
 	| AKUsingGetter(sea,_) ->
 		let tthis = abstract_using_param_type sea in
 		let e = field_call sea.se_access (Some(sea.se_this,tthis)) [] in

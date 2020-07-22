@@ -4,7 +4,7 @@ open Type
 open Typecore
 open Error
 
-type field_access_kind =
+type field_host =
 	| FAStatic of tclass
 	| FAInstance of tclass * tparams
 	| FAAbstract of tabstract * tparams * tclass
@@ -13,7 +13,7 @@ type field_access_kind =
 type field_access = {
 	fa_on : texpr;
 	fa_field : tclass_field;
-	fa_kind : field_access_kind;
+	fa_host : field_host;
 	fa_inline : bool;
 	fa_pos : pos;
 }
@@ -168,7 +168,7 @@ let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
 	let e = type_module_type ctx t None p in
 	(fun _ _ -> AKExpr e)
 
-let s_field_access tabs faa =
+let s_field_access tabs fa =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	let sfa = function
@@ -178,10 +178,10 @@ let s_field_access tabs faa =
 		| FAAnon -> Printf.sprintf "FAAnon"
 	in
 	Printer.s_record_fields tabs [
-		"fa_on",se faa.fa_on;
-		"fa_field",faa.fa_field.cf_name;
-		"fa_kind",sfa faa.fa_kind;
-		"fa_inline",string_of_bool faa.fa_inline
+		"fa_on",se fa.fa_on;
+		"fa_field",fa.fa_field.cf_name;
+		"fa_host",sfa fa.fa_host;
+		"fa_inline",string_of_bool fa.fa_inline
 	]
 
 let s_static_extension_access sea =
@@ -196,9 +196,9 @@ let s_access_kind acc =
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKField faa -> Printf.sprintf "AKField(%s)" (s_field_access "" faa)
-	| AKGetter faa -> Printf.sprintf "AKGetter(%s)" (s_field_access "" faa)
-	| AKSetter faa -> Printf.sprintf "AKSetter(%s)" (s_field_access "" faa)
+	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
+	| AKGetter fa -> Printf.sprintf "AKGetter(%s)" (s_field_access "" fa)
+	| AKSetter fa -> Printf.sprintf "AKSetter(%s)" (s_field_access "" fa)
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
 	| AKUsingGetter(sea,_) -> Printf.sprintf "AKUsingGetter(%s)" (s_static_extension_access sea)
 	| AKUsingSetter(sea,_) -> Printf.sprintf "AKUsingSetter(%s)" (s_static_extension_access sea)
@@ -263,16 +263,16 @@ let get_abstract_froms a pl =
 	) l a.a_from_field
 
 module FieldAccess = struct
-	type field_access_kind =
+	type field_host =
 		| FGet (* get the plain expression with applied field type parameters *)
 		| FCall (* does not apply field type parameters *)
 		| FRead (* actual reading, for FClosure and such *)
 		| FWrite (* used as lhs, no semantic difference to FGet *)
 
-	let create e cf fa inline p = {
+	let create e cf fh inline p = {
 		fa_on = e;
 		fa_field = cf;
-		fa_kind = fa;
+		fa_host = fh;
 		fa_inline = inline;
 		fa_pos = p;
 	}
@@ -283,18 +283,18 @@ module FieldAccess = struct
 		| FAAbstract(a,tl,c) -> FStatic(c,cf)
 		| FAAnon -> FAnon cf
 
-	let get_map_function faa = match faa.fa_kind with
+	let get_map_function fa = match fa.fa_host with
 		| FAStatic _ | FAAnon -> (fun t -> t)
 		| FAInstance(c,tl) -> TClass.get_map_function c tl
 		| FAAbstract(a,tl,_) -> apply_params a.a_params tl
 
-	let get_field_expr faa mode =
-		let cf = faa.fa_field in
+	let get_field_expr fa mode =
+		let cf = fa.fa_field in
 		let t = match mode with
 			| FCall -> cf.cf_type
 			| FGet | FRead | FWrite -> Type.field_type cf
 		in
-		let fa,t = match faa.fa_kind with
+		let fa',t = match fa.fa_host with
 			| FAStatic c ->
 				FStatic(c,cf),t
 			| FAInstance(c,tl) ->
@@ -317,7 +317,7 @@ module FieldAccess = struct
 				in
 				fa,t
 		in
-		mk (TField(faa.fa_on,fa)) t faa.fa_pos
+		mk (TField(fa.fa_on,fa')) t fa.fa_pos
 end
 
 let make_static_extension_access c cf e_this inline p =

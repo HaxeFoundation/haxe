@@ -552,15 +552,15 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			error "Invalid operation" p
 		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 			error ("Cannot access function " ^ name ^ " for writing") p
-		| AKField faa ->
-			let ef = FieldAccess.get_field_expr faa FWrite in
+		| AKField fa ->
+			let ef = FieldAccess.get_field_expr fa FWrite in
 			assign_to ef
 		| AKExpr e1  ->
 			assign_to e1
-		| AKSetter faa ->
-			let t = (FieldAccess.get_field_expr faa FCall).etype in
-			let cf = faa.fa_field in
-			let e = faa.fa_on in
+		| AKSetter fa ->
+			let t = (FieldAccess.get_field_expr fa FCall).etype in
+			let cf = fa.fa_field in
+			let e = fa.fa_on in
 			let e2 = e2 (WithType.with_type t) in
 			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
@@ -639,15 +639,15 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			)
 		| AKGetter _ | AKUsingField _ | AKUsingGetter _ ->
 			error "Invalid operation" p
-		| AKField faa ->
-			let e1 = FieldAccess.get_field_expr faa FWrite in
+		| AKField fa ->
+			let e1 = FieldAccess.get_field_expr fa FWrite in
 			handle e1
 		| AKExpr e ->
 			handle e
-		| AKSetter faa ->
-			let e = faa.fa_on in
-			let cf = faa.fa_field in
-			let t = (FieldAccess.get_field_expr faa FCall).etype in
+		| AKSetter fa ->
+			let e = fa.fa_on in
+			let cf = fa.fa_field in
+			let t = (FieldAccess.get_field_expr fa FCall).etype in
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
 			let ev = mk (TLocal v) e.etype p in
@@ -669,7 +669,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
-			let ta = match sea.se_access.fa_kind with
+			let ta = match sea.se_access.fa_host with
 				| FAAbstract(a,tl,_) -> TAbstract(a,tl)
 				| _ -> die "" __LOC__
 			in
@@ -1192,13 +1192,13 @@ and type_unop ctx op flag e p =
 		match acc with
 		| AKExpr e ->
 			access e
-		| AKGetter faa ->
-			access (call_getter ctx faa None)
-		| AKField faa ->
-			if faa.fa_inline && not set then
+		| AKGetter fa ->
+			access (call_getter ctx fa None)
+		| AKField fa ->
+			if fa.fa_inline && not set then
 				access (acc_get ctx acc p)
 			else begin
-				let e = FieldAccess.get_field_expr faa (if set then FWrite else FRead) in
+				let e = FieldAccess.get_field_expr fa (if set then FWrite else FRead) in
 				access e
 			end
 		| AKUsingField _ | AKUsingGetter _ when not set -> access (acc_get ctx acc p)
@@ -1275,11 +1275,11 @@ and type_unop ctx op flag e p =
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
 			error "Invalid operation" p
-		| AKSetter faa ->
-			let e = faa.fa_on in
-			let ef = FieldAccess.get_field_expr faa FCall in
+		| AKSetter fa ->
+			let e = fa.fa_on in
+			let ef = FieldAccess.get_field_expr fa FCall in
 			let t = ef.etype in
-			let cf = faa.fa_field in
+			let cf = fa.fa_field in
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in
@@ -1824,9 +1824,9 @@ and type_new ctx path el with_type force_inline p =
 			| _ -> fst path, p
 		end
 	in
-	let unify_constructor_call c faa =
+	let unify_constructor_call c fa =
 		(try
-			let fcc = unify_field_call ctx faa el p false [] in
+			let fcc = unify_field_call ctx fa el p false [] in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -1858,8 +1858,8 @@ and type_new ctx path el with_type force_inline p =
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			no_abstract_constructor c p;
-			let faa = FieldAccess.create (Builder.make_static_this c p) f (FAInstance(c,monos)) false p in
-			ignore (unify_constructor_call c faa);
+			let fa = FieldAccess.create (Builder.make_static_this c p) f (FAInstance(c,monos)) false p in
+			ignore (unify_constructor_call c fa);
 			begin try
 				Generic.build_generic ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
@@ -1893,8 +1893,8 @@ and type_new ctx path el with_type force_inline p =
 			| None -> FAInstance(c,tl)
 			| Some a -> FAAbstract(a,tl,c)
 		in
-		let faa = FieldAccess.create (Builder.make_static_this c p) f fa false p in
-		let el = unify_constructor_call c faa in
+		let fa = FieldAccess.create (Builder.make_static_this c p) f fa false p in
+		let el = unify_constructor_call c fa in
 		el,f,ct
 	in
 	try begin match t with
@@ -2456,9 +2456,9 @@ and type_call_target ctx e el with_type inline p =
 	if not inline then
 		e
 	else match e with
-		| AKField faa ->
-			check_inline faa.fa_field;
-			AKField({faa with fa_inline = true})
+		| AKField fa ->
+			check_inline fa.fa_field;
+			AKField({fa with fa_inline = true})
 		| AKUsingField sea ->
 			check_inline sea.se_access.fa_field;
 			AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
@@ -2544,8 +2544,8 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let faa = FieldAccess.create e f (FAInstance(c,params)) false p in
-			let fcc = unify_field_call ctx faa el p false [] in
+			let fa = FieldAccess.create e f (FAInstance(c,params)) false p in
+			let fcc = unify_field_call ctx fa el p false [] in
 			let el = List.map fst fcc.fc_args in
 			el,t
 		) in
