@@ -517,6 +517,17 @@ let type_generic_function ctx faa el ?(using_param=None) with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
+let call_getter ctx faa using_param =
+	let cf = faa.fa_field in
+	let e = faa.fa_on in
+	let t = (FieldAccess.get_field_expr faa FCall).etype in
+	let p = faa.fa_pos in
+	let tf,el = match using_param with
+		| None -> (tfun [] t),[]
+		| Some e -> (tfun [e.etype] t),[e]
+	in
+	make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ cf.cf_name))) tf p) el t p
+
 let rec acc_get ctx g p =
 	let inline_read faa =
 		let cf = faa.fa_field in
@@ -600,8 +611,8 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
-	| AKUsing sea when ctx.in_display ->
+	| AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
+	| AKUsingGetter(sea,_) | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* TODO *)
@@ -625,7 +636,19 @@ let rec acc_get ctx g p =
 			else
 				FieldAccess.get_field_expr faa FRead
 		end
-	| AKUsing sea ->
+	| AKGetter faa ->
+		call_getter ctx faa None
+	| AKUsingGetter(sea,cf) ->
+		let faa = sea.se_access in
+		let te = match follow sea.se_this.etype with
+			| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
+			| _ -> sea.se_this.etype
+		in
+		let fcc = unify_field_call ctx faa [] p faa.fa_inline (Some(sea.se_this,te)) in
+		let e = fcc.fc_data() in
+		let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
+		if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
@@ -782,7 +805,9 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	match acc with
 	| AKField faa ->
 		field_call faa None
-	| AKUsing sea ->
+	| AKUsingGetter _ ->
+		die "" __LOC__
+	| AKUsingField sea ->
 		let ef = sea.se_access.fa_field in
 		let eparam = sea.se_this in
 		let tthis = match follow eparam.etype with
@@ -790,9 +815,11 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			| _ -> eparam.etype
 		in
 		field_call sea.se_access (Some(eparam,tthis))
-	| AKNo _ | AKSetter _ | AKAccess _ | AKFieldSet _ ->
+	| AKNo _ | AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
+	| AKGetter faa ->
+		expr_call (call_getter ctx faa None)
 	| AKExpr e ->
 		expr_call e
 
