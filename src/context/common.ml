@@ -92,6 +92,11 @@ type exceptions_config = {
 		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
 	*)
 	ec_base_throw : path;
+	(*
+		Checks if throwing this expression is a special case for current target
+		and should not be modified.
+	*)
+	ec_special_throw : texpr -> bool;
 }
 
 type var_scope =
@@ -389,6 +394,7 @@ let default_config =
 			ec_native_catches = [];
 			ec_wildcard_catch = (["StdTypes"],"Dynamic");
 			ec_base_throw = (["StdTypes"],"Dynamic");
+			ec_special_throw = fun _ -> false;
 		};
 		pf_scoping = {
 			vs_scope = BlockScope;
@@ -469,7 +475,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["php"],"Throwable";
 					["haxe"],"Exception";
@@ -516,6 +522,7 @@ let get_config com =
 				];
 				ec_wildcard_catch = (["cs";"system"],"Exception");
 				ec_base_throw = (["cs";"system"],"Exception");
+				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
 			};
 			pf_scoping = {
 				vs_scope = FunctionScope;
@@ -530,7 +537,7 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_this_before_super = false;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["java";"lang"],"RuntimeException";
 					["haxe"],"Exception";
@@ -557,7 +564,7 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["python";"Exceptions"],"BaseException";
 				];

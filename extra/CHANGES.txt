@@ -9,6 +9,7 @@
 	flash : fixed `VerifyError` exception when `Void` end up as an argument type after inlining (#9678)
 	php : fixed runtime error "cannot use temporary expression in write context" for call arguments passed by reference
 	php : support @:native("") for extern classes (#6448)
+	cs : fixed `cs.Lib.rethrow` (#9738)
 	python : support @:native("") for extern classes (#6448)
 	nullsafety: fixed `@:nullSafety(Off)` in closures inside of constructors (#9643)
 	nullsafety: fixed "Type not found NullSafetyMode_Impl_" (#9483)

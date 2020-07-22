@@ -150,20 +150,23 @@ let rec contains_throw_or_try e =
 	to be thrown.
 *)
 let requires_wrapped_throw cfg e =
-	(*
-		Check if `e` is of `haxe.Exception` type directly (not a descendant),
-		but not a `new haxe.Exception(...)` expression.
-		In this case we delegate the decision to `haxe.Exception.thrown(e)`.
-		Because it could happen to be a wrapper for a wildcard catch.
-	*)
-	let is_stored_haxe_exception() =
-		is_haxe_exception ~check_parent:false e.etype
-		&& match e.eexpr with
-			| TNew(_,_,_) -> false
-			| _ -> true
-	in
-	is_stored_haxe_exception()
-	|| (not (is_native_throw cfg e.etype) && not (is_haxe_exception e.etype))
+	if cfg.ec_special_throw e then
+		false
+	else
+		(*
+			Check if `e` is of `haxe.Exception` type directly (not a descendant),
+			but not a `new haxe.Exception(...)` expression.
+			In this case we delegate the decision to `haxe.Exception.thrown(e)`.
+			Because it could happen to be a wrapper for a wildcard catch.
+		*)
+		let is_stored_haxe_exception() =
+			is_haxe_exception ~check_parent:false e.etype
+			&& match e.eexpr with
+				| TNew(_,_,_) -> false
+				| _ -> true
+		in
+		is_stored_haxe_exception()
+		|| (not (is_native_throw cfg e.etype) && not (is_haxe_exception e.etype))
 
 (**
 	Generate a throw of a native exception.
