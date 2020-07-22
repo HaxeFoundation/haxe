@@ -26,9 +26,12 @@ type static_extension_access = {
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
-	| AKSetter of field_access (* fa_field is the property, not the accessor *)
 	| AKField of field_access
-	| AKUsing of static_extension_access
+	| AKGetter of field_access (* fa_field is the property, not the accessor *)
+	| AKSetter of field_access (* fa_field is the property, not the accessor *)
+	| AKUsingField of static_extension_access
+	| AKUsingGetter of static_extension_access * tclass_field
+	| AKUsingSetter of static_extension_access * tclass_field
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 	| AKFieldSet of texpr * texpr * string * t
 
@@ -193,9 +196,12 @@ let s_access_kind acc =
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKSetter faa -> Printf.sprintf "AKField(%s)" (s_field_access "" faa)
 	| AKField faa -> Printf.sprintf "AKField(%s)" (s_field_access "" faa)
-	| AKUsing sea -> Printf.sprintf "AKUsing(%s)" (s_static_extension_access sea)
+	| AKGetter faa -> Printf.sprintf "AKGetter(%s)" (s_field_access "" faa)
+	| AKSetter faa -> Printf.sprintf "AKSetter(%s)" (s_field_access "" faa)
+	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
+	| AKUsingGetter(sea,_) -> Printf.sprintf "AKUsingGetter(%s)" (s_static_extension_access sea)
+	| AKUsingSetter(sea,_) -> Printf.sprintf "AKUsingSetter(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKFieldSet(_) -> ""
 
@@ -276,6 +282,11 @@ module FieldAccess = struct
 		| FAInstance(c,tl) -> FInstance(c,tl,cf)
 		| FAAbstract(a,tl,c) -> FStatic(c,cf)
 		| FAAnon -> FAnon cf
+
+	let get_map_function faa = match faa.fa_kind with
+		| FAStatic _ | FAAnon -> (fun t -> t)
+		| FAInstance(c,tl) -> TClass.get_map_function c tl
+		| FAAbstract(a,tl,_) -> apply_params a.a_params tl
 
 	let get_field_expr faa mode =
 		let cf = faa.fa_field in

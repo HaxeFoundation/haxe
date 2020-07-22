@@ -364,7 +364,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
-		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) t (get_this ctx p) p
+		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -372,7 +372,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e = type_type ctx ctx.curclass.cl_path p in
 		(* check_locals_masking already done in type_type *)
-		field_access ctx mode f (FAStatic ctx.curclass) (field_type ctx ctx.curclass [] f p) e p
+		field_access ctx mode f (FAStatic ctx.curclass) e p
 	with Not_found -> try
 		(* module-level statics *)
 		(match ctx.m.curmod.m_statics with
@@ -380,7 +380,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
 			let e = type_module_type ctx (TClassDecl c) None p in
-			field_access ctx mode f (FAStatic c) (field_type ctx c [] f p) e p
+			field_access ctx mode f (FAStatic c) e p
 		)
 	with Not_found -> try
 		let wrap e = if is_set then
@@ -523,6 +523,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		let e1 = type_expr ctx e1 wt in
 		type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
 	in
+	let e2_syntax = e2 in
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
@@ -540,6 +541,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKGetter _ | AKUsingField _ | AKUsingGetter _ ->
+			error "Invalid operation" p
 		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 			error ("Cannot access function " ^ name ^ " for writing") p
 		| AKField faa ->
@@ -564,16 +567,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ -> die "" __LOC__
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
-		| AKUsing sea ->
-			let e_field = FieldAccess.get_field_expr sea.se_access FWrite in
-			(* this must be an abstract setter *)
-			let e2,ret = match follow e_field.etype with
-				| TFun([_;(_,_,t)],ret) ->
-					let e2 = e2 (WithType.with_type t) in
-					AbstractCast.cast_or_unify ctx t e2 p,ret
-				| _ ->  error "Invalid field type for abstract setter" p
-			in
-			make_call ctx e_field [sea.se_this;e2] ret p
+		| AKUsingSetter(sea,cf) ->
+			static_extension_accessor_call ctx sea cf [e2_syntax] p
 		)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
@@ -635,6 +630,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			(try type_non_assign_op true
 			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 			)
+		| AKGetter _ | AKUsingField _ | AKUsingGetter _ ->
+			error "Invalid operation" p
 		| AKField faa ->
 			let e1 = FieldAccess.get_field_expr faa FWrite in
 			handle e1
@@ -661,7 +658,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsing sea ->
+		| AKUsingSetter(sea,cf) ->
 			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
@@ -1186,7 +1183,10 @@ and type_unop ctx op flag e p =
 	in
 	let rec loop acc =
 		match acc with
-		| AKExpr e -> access e
+		| AKExpr e ->
+			access e
+		| AKGetter faa ->
+			access (call_getter ctx faa None)
 		| AKField faa ->
 			if faa.fa_inline && not set then
 				access (acc_get ctx acc p)
@@ -1194,7 +1194,7 @@ and type_unop ctx op flag e p =
 				let e = FieldAccess.get_field_expr faa (if set then FWrite else FRead) in
 				access e
 			end
-		| AKUsing _ when not set -> access (acc_get ctx acc p)
+		| AKUsingField _ | AKUsingGetter _ when not set -> access (acc_get ctx acc p)
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 		| AKAccess(a,tl,c,ebase,ekey) ->
@@ -1219,7 +1219,7 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsing sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+		| AKUsingField sea | AKUsingSetter(sea,_) when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
 			let etarget = sea.se_this in
 			let emethod = FieldAccess.get_field_expr sea.se_access (if set then FRead else FWrite) in
 			let force_inline = sea.se_access.fa_inline in
@@ -1264,7 +1264,7 @@ and type_unop ctx op flag e p =
 				l();
 				die "" __LOC__
 			)
-		| AKUsing _ ->
+		| AKUsingField _ | AKUsingGetter _ | AKUsingSetter _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
 			error "Invalid operation" p
@@ -2452,9 +2452,9 @@ and type_call_target ctx e el with_type inline p =
 		| AKField faa ->
 			check_inline faa.fa_field;
 			AKField({faa with fa_inline = true})
-		| AKUsing sea ->
+		| AKUsingField sea ->
 			check_inline sea.se_access.fa_field;
-			AKUsing {sea with se_access = {sea.se_access with fa_inline = true}}
+			AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
 		| AKExpr {eexpr = TLocal _} ->
 			display_error ctx "Cannot force inline on local functions" p;
 			e

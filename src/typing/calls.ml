@@ -517,6 +517,29 @@ let type_generic_function ctx faa el ?(using_param=None) with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
+let call_getter ctx faa using_param =
+	let cf = faa.fa_field in
+	let e = faa.fa_on in
+	let t = (FieldAccess.get_field_expr faa FCall).etype in
+	let p = faa.fa_pos in
+	let tf,el = match using_param with
+		| None -> (tfun [] t),[]
+		| Some e -> (tfun [e.etype] t),[e]
+	in
+	make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ cf.cf_name))) tf p) el t p
+
+let abstract_using_param_type sea = match follow sea.se_this.etype with
+	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
+	| _ -> sea.se_this.etype
+
+let static_extension_accessor_call ctx sea cf el p =
+	let faa = sea.se_access in
+	let te = abstract_using_param_type sea in
+	let fcc = unify_field_call ctx faa el p faa.fa_inline (Some(sea.se_this,te)) in
+	let e = fcc.fc_data() in
+	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
+	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+
 let rec acc_get ctx g p =
 	let inline_read faa =
 		let cf = faa.fa_field in
@@ -600,8 +623,8 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
-	| AKUsing sea when ctx.in_display ->
+	| AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
+	| AKUsingGetter(sea,_) | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* TODO *)
@@ -625,16 +648,17 @@ let rec acc_get ctx g p =
 			else
 				FieldAccess.get_field_expr faa FRead
 		end
-	| AKUsing sea ->
+	| AKGetter faa ->
+		call_getter ctx faa None
+	| AKUsingGetter(sea,cf) ->
+		static_extension_accessor_call ctx sea cf [] p
+	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
 		(match follow e_field.etype with
 		| TFun ((_,_,t0) :: args,ret) ->
-			let te = match follow e.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
-				| _ -> e.etype
-			in
+			let te = abstract_using_param_type sea in
 			unify ctx te t0 e.epos;
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
@@ -661,7 +685,7 @@ let rec acc_get ctx g p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
-	let field_call faa using_param =
+	let field_call faa using_param el =
 		let fcc = unify_field_call ctx faa el p faa.fa_inline using_param in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match faa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
@@ -754,7 +778,7 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		!ethis_f();
 		e
 	in
-	let field_call faa using_param =
+	let field_call faa using_param el =
 		match faa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline) ->
 			check_assign();
@@ -765,7 +789,7 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 				in
 				type_generic_function ~using_param ctx faa el with_type p
 			end else
-				field_call faa using_param
+				field_call faa using_param el
 		| Method MethMacro ->
 			begin match using_param with
 			| None ->
@@ -781,18 +805,20 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	in
 	match acc with
 	| AKField faa ->
-		field_call faa None
-	| AKUsing sea ->
-		let ef = sea.se_access.fa_field in
+		field_call faa None el
+	| AKUsingField sea ->
 		let eparam = sea.se_this in
-		let tthis = match follow eparam.etype with
-			| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl a.a_this
-			| _ -> eparam.etype
-		in
-		field_call sea.se_access (Some(eparam,tthis))
-	| AKNo _ | AKSetter _ | AKAccess _ | AKFieldSet _ ->
+		let tthis = abstract_using_param_type sea in
+		field_call sea.se_access (Some(eparam,tthis)) el
+	| AKNo _ | AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
+	| AKGetter faa ->
+		expr_call (call_getter ctx faa None)
+	| AKUsingGetter(sea,_) ->
+		let tthis = abstract_using_param_type sea in
+		let e = field_call sea.se_access (Some(sea.se_this,tthis)) [] in
+		expr_call e
 	| AKExpr e ->
 		expr_call e
 
