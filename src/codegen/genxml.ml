@@ -132,7 +132,7 @@ and gen_type_decl n t pl =
 and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| AccNormal | AccResolve | AccRequire _ | AccCtor -> att
+		| AccNormal | AccRequire _ | AccCtor -> att
 		| AccNo | AccNever -> (name, "null") :: att
 		| AccCall -> (name,"accessor") :: att
 		| AccInline -> (name,"inline") :: att

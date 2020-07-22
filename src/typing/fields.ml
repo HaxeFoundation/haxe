@@ -226,10 +226,6 @@ let field_access ctx mode f fmode t e p =
 				AKSet (e,t,f)
 			else
 				AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [] t) p) [] t p)
-		| AccResolve ->
-			let fstring = mk (TConst (TString f.cf_name)) ctx.t.tstring p in
-			let tresolve = tfun [ctx.t.tstring] t in
-			AKExpr (make_call ctx (mk (TField (e,FDynamic "resolve")) tresolve p) [fstring] t p)
 		| AccNever ->
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->

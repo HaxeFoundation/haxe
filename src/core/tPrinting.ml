@@ -117,7 +117,6 @@ let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
 	| AccNever -> "never"
-	| AccResolve -> "resolve"
 	| AccCall -> if is_read then "get" else "set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
