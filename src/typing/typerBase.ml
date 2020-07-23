@@ -338,6 +338,11 @@ module FieldAccess = struct
 						end
 					| FHInstance(c,tl) ->
 						begin try
+							(* Accessors can be overridden, so we have to check the actual type. *)
+							let c,tl = match follow fa.fa_on.etype with
+								| TInst(c,tl) -> c,tl
+								| _ -> c,tl
+							in
 							let (c2,_,cf_acc) = raw_class_field (fun f -> f.cf_type) c tl name in
 							let new_host = match c2 with
 								| None -> FHAnon
