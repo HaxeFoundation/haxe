@@ -185,7 +185,10 @@ let field_access ctx mode f famode e p =
 				let this = get_this ctx p in
 				let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
 				let fa = PMap.find m c.cl_statics in
-				let sea = make_abstract_static_extension_access a (List.map snd a.a_params) c fa this false p in
+				let tl = (List.map snd a.a_params) in
+				(* TODO: This is pretty bad, have to find a better representation for abstract self. *)
+				let this = {this with etype = TAbstract(a,tl)} in
+				let sea = make_abstract_static_extension_access a tl c fa this false p in
 				if is_set then AKUsingSetter(sea,f) else AKUsingGetter(sea,f)
 			end else if is_set then
 				AKSetter (make_access false)
