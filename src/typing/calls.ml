@@ -624,8 +624,8 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
-	| AKUsingGetter(sea,_) | AKUsingField sea when ctx.in_display ->
+	| AKAccess _ | AKFieldSet _ -> die "" __LOC__
+	| AKUsingAccessor(sea,_) | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* TODO *)
@@ -649,9 +649,9 @@ let rec acc_get ctx g p =
 			else
 				FieldAccess.get_field_expr fa FRead
 		end
-	| AKGetter fa ->
+	| AKAccessor fa ->
 		call_getter ctx fa None
-	| AKUsingGetter(sea,cf) ->
+	| AKUsingAccessor(sea,cf) ->
 		static_extension_accessor_call ctx sea cf [] p
 	| AKUsingField sea ->
 		let e = sea.se_this in
@@ -815,12 +815,12 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		let eparam = sea.se_this in
 		let tthis = abstract_using_param_type sea in
 		field_call sea.se_access (Some(eparam,tthis)) el
-	| AKNo _ | AKSetter _ | AKUsingSetter _ | AKAccess _ | AKFieldSet _ ->
+	| AKNo _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
-	| AKGetter fa ->
+	| AKAccessor fa ->
 		expr_call (call_getter ctx fa None)
-	| AKUsingGetter(sea,_) ->
+	| AKUsingAccessor(sea,_) ->
 		let tthis = abstract_using_param_type sea in
 		let e = field_call sea.se_access (Some(sea.se_this,tthis)) [] in
 		expr_call e

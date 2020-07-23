@@ -229,15 +229,9 @@ let field_access ctx mode f famode e p =
 			| FAAbstract(a,tl,c) ->
 				let fa = PMap.find m c.cl_statics in
 				let sea = make_abstract_static_extension_access a tl c fa e false p in
-				if is_set then
-					AKUsingSetter(sea,f)
-				else
-					AKUsingGetter(sea,f)
+				AKUsingAccessor(sea,f)
 			| _ ->
-				if is_set then
-					AKSetter (make_access false)
-				else
-					AKGetter (make_access false)
+				AKAccessor (make_access false)
 			end
 		| AccNever ->
 			if ctx.untyped then normal false else AKNo f.cf_name

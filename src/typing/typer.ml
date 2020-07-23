@@ -551,7 +551,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKGetter _ | AKUsingField _ | AKUsingGetter _ ->
+		| AKUsingField _ ->
 			error "Invalid operation" p
 		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 			error ("Cannot access function " ^ name ^ " for writing") p
@@ -560,7 +560,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			assign_to ef
 		| AKExpr e1  ->
 			assign_to e1
-		| AKSetter fa ->
+		| AKAccessor fa ->
 			let t = (FieldAccess.get_field_expr fa FCall).etype in
 			let cf = fa.fa_field in
 			let e = fa.fa_on in
@@ -576,7 +576,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 			let fcc = unify_field_call ctx fa [e2_syntax] p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
 			fcc.fc_data()
-		| AKUsingSetter(sea,cf) ->
+		| AKUsingAccessor(sea,cf) ->
 			static_extension_accessor_call ctx sea cf [e2_syntax] p
 		)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
@@ -639,14 +639,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			(try type_non_assign_op true
 			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 			)
-		| AKGetter _ | AKUsingField _ | AKUsingGetter _ ->
+		| AKUsingField _ ->
 			error "Invalid operation" p
 		| AKField fa ->
 			let e1 = FieldAccess.get_field_expr fa FWrite in
 			handle e1
 		| AKExpr e ->
 			handle e
-		| AKSetter fa ->
+		| AKAccessor fa ->
 			let e = fa.fa_on in
 			let cf = fa.fa_field in
 			let t = (FieldAccess.get_field_expr fa FCall).etype in
@@ -667,7 +667,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsingSetter(sea,cf) ->
+		| AKUsingAccessor(sea,cf) ->
 			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
@@ -1194,8 +1194,6 @@ and type_unop ctx op flag e p =
 		match acc with
 		| AKExpr e ->
 			access e
-		| AKGetter fa ->
-			access (call_getter ctx fa None)
 		| AKField fa ->
 			if fa.fa_inline && not set then
 				access (acc_get ctx acc p)
@@ -1203,7 +1201,7 @@ and type_unop ctx op flag e p =
 				let e = FieldAccess.get_field_expr fa (if set then FWrite else FRead) in
 				access e
 			end
-		| AKUsingField _ | AKUsingGetter _ when not set -> access (acc_get ctx acc p)
+		| AKUsingField _ | AKUsingAccessor _ when not set -> access (acc_get ctx acc p)
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 		| AKAccess(a,tl,c,ebase,ekey) ->
@@ -1228,7 +1226,7 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsingField sea | AKUsingSetter(sea,_) when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+		| AKUsingField sea | AKUsingAccessor(sea,_) when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
 			let etarget = sea.se_this in
 			let emethod = FieldAccess.get_field_expr sea.se_access (if set then FRead else FWrite) in
 			let force_inline = sea.se_access.fa_inline in
@@ -1273,11 +1271,13 @@ and type_unop ctx op flag e p =
 				l();
 				die "" __LOC__
 			)
-		| AKUsingField _ | AKUsingGetter _ | AKUsingSetter _ ->
+		| AKUsingField _ | AKUsingAccessor _ ->
 			error "This kind of operation is not supported" p
 		| AKFieldSet _ ->
 			error "Invalid operation" p
-		| AKSetter fa ->
+		| AKAccessor fa when not set ->
+			access (call_getter ctx fa None)
+		| AKAccessor fa ->
 			let e = fa.fa_on in
 			let ef = FieldAccess.get_field_expr fa FCall in
 			let t = ef.etype in
