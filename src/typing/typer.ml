@@ -1292,7 +1292,7 @@ and type_unop ctx op flag e p =
 			error "This kind of operation is not supported" p
 		| AKResolve(sea,name) ->
 			if not set then
-				(new call_dispatcher ctx (MCall []) WithType.value p)#resolve_call sea name
+				access ((new call_dispatcher ctx (MCall []) WithType.value p)#resolve_call sea name)
 			else
 				error "Invalid operation" p
 		| AKAccessor fa when not set ->
