@@ -25,14 +25,20 @@ class TestFileSystem extends Test {
 		}
 	}
 
+	/**
+	 * Expected content of `test-data/bytes.bin` file
+	 */
+	function bytesBinContent():Bytes {
+		var data = Bytes.alloc(256);
+		for(i in 0...data.length) data.set(i, i);
+		return data;
+	}
+
 	function testReadBytes(async:Async) {
 		asyncAll(async,
 			FileSystem.readBytes('test-data/bytes.bin', (e, r) -> {
-				if(noException(e)) {
-					var expected = Bytes.alloc(256);
-					for(i in 0...expected.length) expected.set(i, i);
-					equals(0, r.compare(expected));
-				}
+				if(noException(e))
+					equals(0, bytesBinContent().compare(r));
 			}),
 			FileSystem.readBytes('test-data/', (e, r) -> {
 				if(isOfType(e, FsException))
@@ -137,18 +143,197 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	function testCheck(async:Async) {
+		asyncAll(async,
+			FileSystem.check('test-data/sub', Exists, (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.check('test-data/sub/hello.world', Readable, (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.check('test-data/temp', Writable, (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.check('test-data/temp', Writable | Readable, (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.check('non-existent', Exists, (e, r) -> {
+				if(noException(e))
+					isFalse(r);
+			})
+		);
+		if(!isWindows) {
+			asyncAll(async,
+				FileSystem.check('/bin', Exists, (e, r) -> {
+					if(noException(e))
+						isTrue(r);
+				}),
+				FileSystem.check('/bin', Readable, (e, r) -> {
+					if(noException(e))
+						isTrue(r);
+				}),
+				FileSystem.check('/bin', Writable, (e, r) -> {
+					if(noException(e))
+						isFalse(r);
+				}),
+				FileSystem.check('/bin', Readable | Writable, (e, r) -> {
+					if(noException(e))
+						isFalse(r);
+				})
+			);
+		}
+	}
+
+	function testIsDirectory(async:Async) {
+		asyncAll(async,
+			FileSystem.isDirectory('test-data/sub', (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.isDirectory('test-data/sub/hello.world', (e, r) -> {
+				if(noException(e))
+					isFalse(r);
+			}),
+			FileSystem.isDirectory('test-data/symlink-dir', (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			})
+		);
+	}
+
+	function testIsFile(async:Async) {
+		asyncAll(async,
+			FileSystem.isFile('test-data/sub/hello.world', (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			}),
+			FileSystem.isFile('test-data/sub', (e, r) -> {
+				if(noException(e))
+					isFalse(r);
+			}),
+			FileSystem.isFile('test-data/symlink', (e, r) -> {
+				if(noException(e))
+					isTrue(r);
+			})
+		);
+	}
+
+	@:depends(testIsDirectory)
+	function testCreateDirectory(async:Async) {
+		asyncAll(async,
+			FileSystem.createDirectory('test-data/temp/dir', (e, r) -> {
+				if(noException(e))
+					FileSystem.isDirectory('test-data/temp/dir', (e, r) -> isTrue(r));
+			}),
+			FileSystem.createDirectory('test-data/temp/non/existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('test-data/temp/non/existent', cast(e, FsException).path.toString());
+			}),
+			FileSystem.createDirectory('test-data/temp/non-existent1/non-existent2', true, (e, r) -> {
+				if(noException(e))
+					FileSystem.isDirectory('test-data/temp/dir', (e, r) -> isTrue(r));
+			})
+		);
+	}
+
+	@:depends(testCreateDirectory, testWriteString, testReadString)
+	function testMove(async:Async) {
+		function createData(path:String, fileContent:String, callback:()->Void) {
+			FileSystem.createDirectory(path, (e, r) -> {
+				FileSystem.writeString('$path/file', fileContent, (e, r) -> {
+					callback();
+				});
+			});
+		}
+
+		asyncAll(async,
+			//move directory
+			createData('test-data/temp/dir1', 'hello', () -> {
+				FileSystem.move('test-data/temp/dir1', 'test-data/temp/moved', (e, r) -> {
+					if(noException(e))
+						FileSystem.readString('test-data/temp/moved/file', (e, r) -> {
+							equals('hello', r);
+							asyncAll(async,
+								//overwrite
+								createData('test-data/temp/dir2', 'world', () -> {
+									FileSystem.move('test-data/temp/dir2', 'test-data/temp/moved', (e, r) -> {
+										if(noException(e))
+											FileSystem.readString('test-data/temp/moved/file', (e, r) -> equals('world', r));
+									});
+								}),
+								//disable overwrite
+								createData('test-data/temp/dir3', 'unexpected', () -> {
+									FileSystem.move('test-data/temp/dir3', 'test-data/temp/moved', false, (e, r) -> {
+										isOfType(e, FsException);
+									});
+								})
+							);
+						});
+				});
+			}),
+			//move file
+			createData('test-data/temp/dir4', 'hello', () -> {
+				FileSystem.move('test-data/temp/dir4/file', 'test-data/temp/dir4/file2', (e, r) -> {
+					if(noException(e))
+						FileSystem.readString('test-data/temp/dir4/file2', (e, r) -> equals('hello', r));
+				});
+			}),
+			//check exceptions
+			FileSystem.move('test-data/temp/non/existent', 'test-data/temp/non-existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('test-data/temp/non/existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
 	@:depends(testWriteString)
 	function testDeleteFile(async:Async) {
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/test.txt', '', (e, r) -> {
-				if(noException(e))
-					FileSystem.deleteFile('test-data/temp/test.txt', (e, r) -> {
-						noException(e);
-					});
+				FileSystem.deleteFile('test-data/temp/test.txt', (e, r) -> {
+					noException(e);
+				});
+			}),
+			FileSystem.deleteFile('non-existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
 			}),
 			FileSystem.deleteFile('test-data/temp', (e, r) -> {
 				if(isOfType(e, FsException))
 					equals('test-data/temp', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
+	@:depends(testCreateDirectory, testWriteString)
+	function testDeleteDirectory(async:Async) {
+		asyncAll(async,
+			FileSystem.createDirectory('test-data/temp/del-dir', (e, r) -> {
+				FileSystem.deleteDirectory('test-data/temp/del-dir', (e, r) -> {
+					noException(e);
+				});
+			}),
+			FileSystem.deleteDirectory('non-existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
+			}),
+			FileSystem.writeString('test-data/temp/file', '', (e, r) -> {
+				FileSystem.deleteDirectory('test-data/temp/file', (e, r) -> {
+					if(isOfType(e, FsException))
+						equals('test-data/temp/file', cast(e, FsException).path.toString());
+				});
+			}),
+			FileSystem.createDirectory('test-data/temp/non-empty', (e, r) -> {
+				FileSystem.writeString('test-data/temp/non-empty/file', '', (e, r) -> {
+					FileSystem.deleteDirectory('test-data/temp/non-empty', (e, r) -> {
+						if(isOfType(e, FsException))
+							equals('test-data/temp/non-empty', cast(e, FsException).path.toString());
+					});
+				});
 			})
 		);
 	}
@@ -187,6 +372,47 @@ class TestFileSystem extends Test {
 			FileSystem.readLink('non-existent', (e, r) -> {
 				if(isOfType(e, FsException))
 					equals('non-existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
+	@:depends(testReadLink, testReadBytes, testReadString)
+	function testCopyFile(async:Async) {
+		asyncAll(async,
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/copy', (e, r) -> {
+				if(noException(e))
+					FileSystem.readBytes('test-data/temp/copy', (e, r) -> {
+						if(noException(e)) {
+							equals(0, bytesBinContent().compare(r));
+							asyncAll(async,
+								//overwrite
+								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', (e, r) -> {
+									if(noException(e))
+										FileSystem.readString('test-data/temp/copy', (e, r) -> {
+											if(noException(e))
+												equals('Hello, world!', r);
+										});
+								}),
+								//disable overwrite
+								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', false, (e, r) -> {
+									if(isOfType(e, FsException)) {
+										var path = cast(e, FsException).path.toString();
+										isTrue(path == 'test-data/sub/hello.world' || path == 'test-data/temp/copy');
+									}
+								})
+							);
+						}
+					});
+			}),
+			FileSystem.copyFile('non-existent', 'test-data/temp/copy', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
+			}),
+			FileSystem.copyFile('test-data/sub/hello.world', 'test-data/non-existent/copy', (e, r) -> {
+				if(isOfType(e, FsException)) {
+					var path = cast(e, FsException).path.toString();
+					isTrue(path == 'test-data/sub/hello.world' || path == 'test-data/non-existent/copy');
+				}
 			})
 		);
 	}
