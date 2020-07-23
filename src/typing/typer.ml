@@ -374,7 +374,10 @@ let rec type_ident_raise ctx i p mode with_type =
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
-				get_this ctx p,FAAbstract(a,List.map snd a.a_params,ctx.curclass)
+				let tl = List.map snd a.a_params in
+				let e = get_this ctx p in
+				let e = {e with etype = TAbstract(a,tl)} in
+				e,FAAbstract(a,tl,ctx.curclass)
 			| _ ->
 				let e = type_type ctx ctx.curclass.cl_path p in
 				e,FAStatic ctx.curclass
