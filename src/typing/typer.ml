@@ -571,7 +571,10 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKResolve(sea,name) ->
-			static_extension_resolve_call ctx sea name [e2_syntax] p
+			let eparam = sea.se_this in
+			let tthis = abstract_using_param_type sea in
+			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+			(new call_dispatcher ctx (MCall [e2_syntax]) with_type p)#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] [e2_syntax]
 		| AKUsingAccessor sea ->
 			let fa_set = match (new call_dispatcher ctx (MSet (Some e2_syntax)) with_type p)#resolve_accessor sea.se_access with
 				| AccessorFound fa -> fa
@@ -1290,7 +1293,7 @@ and type_unop ctx op flag e p =
 		| AKResolve _ ->
 			error "Invalid operation" p
 		| AKAccessor fa when not set ->
-			access (call_getter ctx fa [])
+			(new call_dispatcher ctx mode WithType.value p)#field_call fa [] []
 		| AKAccessor fa ->
 			let e = fa.fa_on in
 			let ef = FieldAccess.get_field_expr fa FCall in
@@ -1842,7 +1845,7 @@ and type_new ctx path el with_type force_inline p =
 	in
 	let unify_constructor_call c fa =
 		(try
-			let fcc = unify_field_call ctx fa el p false [] in
+			let fcc = unify_field_call ctx fa [] el p false in
 			check_constructor_access ctx c fcc.fc_field p;
 			List.map fst fcc.fc_args
 		with Error (e,p) ->
@@ -2561,7 +2564,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 			let fa = FieldAccess.create e f (FAInstance(c,params)) false p in
-			let fcc = unify_field_call ctx fa el p false [] in
+			let fcc = unify_field_call ctx fa [] el p false in
 			let el = List.map fst fcc.fc_args in
 			el,t
 		) in

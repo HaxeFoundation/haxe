@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el p inline el_typed =
+let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
@@ -514,24 +514,9 @@ let type_generic_function ctx fa el_typed el with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_getter ctx fa el_typed =
-	let cf = fa.fa_field in
-	let e = fa.fa_on in
-	let t = (FieldAccess.get_field_expr fa FCall).etype in
-	let p = fa.fa_pos in
-	let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
-	make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ cf.cf_name))) tf p) el_typed t p
-
 let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
-
-let static_extension_resolve_call ctx sea name el p =
-	let fa = sea.se_access in
-	let te = abstract_using_param_type sea in
-	let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-	let fcc = unify_field_call ctx fa el p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
-	fcc.fc_data()
 
 type accessor_resolution =
 	| AccessorFound of field_access
@@ -551,41 +536,14 @@ class call_dispatcher
 object(self)
 
 	method private make_field_call fa el_typed el =
-		let fcc = unify_field_call ctx fa el p fa.fa_inline el_typed in
+		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 			| _ -> ()
 		end;
 		fcc.fc_data()
 
-	method expr_call e el =
-		check_assign();
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
-			loop (Abstract.get_underlying_type a tl)
-		| TMono _ ->
-			let t = mk_mono() in
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-			mk (TCall (e,el)) t p
-		| t ->
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			let t = if t == t_dynamic then
-				t_dynamic
-			else if ctx.untyped then
-				mk_mono()
-			else
-				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
-			in
-			mk (TCall (e,el)) t p
-		in
-		loop e.etype
-
-	method macro_call ethis cf el =
+	method private macro_call ethis cf el =
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
@@ -642,6 +600,33 @@ object(self)
 		ctx.on_error <- old;
 		!ethis_f();
 		e
+
+	method expr_call e el =
+		check_assign();
+		let rec loop t = match follow t with
+		| TFun (args,r) ->
+			let el, tfunc = unify_call_args ctx el args r p false false in
+			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			mk (TCall (e,el)) r p
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
+			loop (Abstract.get_underlying_type a tl)
+		| TMono _ ->
+			let t = mk_mono() in
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
+			mk (TCall (e,el)) t p
+		| t ->
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+			let t = if t == t_dynamic then
+				t_dynamic
+			else if ctx.untyped then
+				mk_mono()
+			else
+				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+			in
+			mk (TCall (e,el)) t p
+		in
+		loop e.etype
 
 	method resolve_accessor fa = match fa.fa_field.cf_kind with
 		| Var v ->
@@ -739,9 +724,9 @@ let rec acc_get ctx g p =
 				(fun t -> t)
 			| FAAbstract(a,tl,c) ->
 				if Meta.has Meta.Enum a.a_meta then begin
-						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
-						let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
-						apply_params a.a_params monos;
+					(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
+					let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
+					apply_params a.a_params monos;
 				end else
 					(fun t -> t)
 			| _ ->
@@ -890,9 +875,9 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
 	| AKAccessor fa ->
-		dispatch#expr_call (call_getter ctx fa []) el
+		let e = dispatch#field_call fa [] [] in
+		dispatch#expr_call e el
 	| AKUsingAccessor sea ->
-		if p.pfile = "source/Main.hx" then ctx.com.warning "here" p;
 		let tthis = abstract_using_param_type sea in
 		let e = dispatch#field_call sea.se_access [(sea.se_this,tthis)] [] in
 		dispatch#expr_call e el
