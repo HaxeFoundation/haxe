@@ -93,13 +93,13 @@ class FileSystem {
 	/**
 		Create a directory.
 
-		Default `mode` equals to octal `0777`, which means read+write+execution
+		Default `permissions` equals to octal `0777`, which means read+write+execution
 		permissions for everyone.
 
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -113,17 +113,17 @@ class FileSystem {
 
 		TODO: is it really "temporary"? Probably "unique" would be a better name.
 	**/
-	static public function createTempDirectory(prefix:FilePath, callback:Callback<FilePath>):Void {
+	static public function tempDirectory(prefix:FilePath, callback:Callback<Directory>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
-		Renames the file or directory located at `oldPath` to `newPath`.
+		Move and/or rename the file or directory from `oldPath` to `newPath`.
 
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
 		the destination is overwritten.
 	**/
-	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -138,15 +138,6 @@ class FileSystem {
 		Remove an empty directory.
 	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Remove everything at the given `path`.
-
-		Removes files, symbolic links and recursively removes directories and their contents.
-	**/
-	static public function delete(path:FilePath, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -176,12 +167,28 @@ class FileSystem {
 	}
 
 	/**
+		Check if the path is a directory.
+		If `path` is a symbolic links then it will be resolved and checked.
+	**/
+	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Check if the path is a regular file.
+		If `path` is a symbolic links then it will be resolved and checked.
+	**/
+	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
 		Set path permissions.
 
-		If `recursive` is `true` and `path` points to a directory: apply `mode`
+		If `recursive` is `true` and `path` points to a directory: apply `permissions`
 		recursively to the directory contents as well.
 	**/
-	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setPermissions(path:FilePath, permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -242,14 +249,6 @@ class FileSystem {
 		Copy a file from `source` path to `destination` path.
 	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Copy all the contents of `source` path to `destination` path.
-		If `source` is a directory, it will be copied recursively.
-	**/
-	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 

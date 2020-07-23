@@ -11,11 +11,6 @@ import asys.native.IReadable;
 
 class File implements IDuplex {
 
-	//TODO: this is a dummy constructor to make the compiler shut up about uninitialized finals.
-	function new() {
-		path = cast null;
-	}
-
 	/**
 		Change file position pointer.
 		The pointer position is used in read and write operations as the starting byte
