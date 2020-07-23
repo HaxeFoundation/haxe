@@ -164,9 +164,8 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
-let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
-	let e = type_module_type ctx t None p in
-	(fun _ _ -> AKExpr e)
+let mk_module_type_access ctx t p =
+	AKExpr (type_module_type ctx t None p)
 
 let s_field_access tabs fa =
 	let st = s_type (print_context()) in

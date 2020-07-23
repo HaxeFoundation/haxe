@@ -955,8 +955,16 @@ let array_access ctx e1 e2 mode p =
 	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
 	return a new `access_mode->access_kind` getter for the whole field access chain.
 *)
-let field_chain ctx path e =
-	List.fold_left (fun e (f,_,p) ->
-		let e = acc_get ctx (e MGet WithType.value (* WITHTYPETODO *)) p in
-		type_field_default_cfg ctx e f p
-	) e path
+let field_chain ctx path access mode with_type =
+	let rec loop access path = match path with
+		| [] ->
+			access
+		| [(name,_,p)] ->
+			let e = acc_get ctx access p in
+			type_field_default_cfg ctx e name p mode with_type
+		| (name,_,p) :: path ->
+			let e = acc_get ctx access p in
+			let access = type_field_default_cfg ctx e name p MGet WithType.value in
+			loop access path
+	in
+	loop access path

@@ -40,7 +40,7 @@ let s_dot_path parts =
 	String.concat "." (List.map (fun (s,_,_) -> s) parts)
 
 (** resolve given path against module fields or raise Not_found *)
-let resolve_module_field ctx m path p =
+let resolve_module_field ctx m path p mode with_type =
 	match path, m.m_statics with
 	| [], _ | _, None ->
 		raise Not_found
@@ -48,16 +48,16 @@ let resolve_module_field ctx m path p =
 		let f = PMap.find name c.cl_statics in (* raises Not_found *)
 		check_field_access ctx c f true p;
 		let e = type_module_type ctx (TClassDecl c) None p in
-		(fun mode _ (* WITHTYPETODO *) -> field_access ctx mode f (FAStatic c) e p), path_rest
+		field_access ctx mode f (FAStatic c) e p, path_rest
 
 let resolve_module_type ctx m name p =
 	let t = Typeload.find_type_in_module m name in (* raises Not_found *)
 	mk_module_type_access ctx t p
 
-let resolve_in_module ctx m path p =
+let resolve_in_module ctx m path p mode with_type =
 	try
 		(* first, try to find module-level static access *)
-		resolve_module_field ctx m path p
+		resolve_module_field ctx m path p mode with_type
 	with Not_found ->
 		(* if there was no module fields, resolve  *)
 		let mname = snd m.m_path in
@@ -73,10 +73,10 @@ let resolve_in_module ctx m path p =
 			resolve_module_type ctx m mname p, path
 
 (** resolve given qualified module pack+name (and possibly next path part) or raise Not_found *)
-let resolve_qualified ctx pack name next_path p =
+let resolve_qualified ctx pack name next_path p mode with_type =
 	try
 		let m = Typeload.load_module ctx (pack,name) p in
-		resolve_in_module ctx m next_path p
+		resolve_in_module ctx m next_path p mode with_type
 	with Error (Module_not_found mpath,_) when mpath = (pack,name) ->
 		(* might be an instance of https://github.com/HaxeFoundation/haxe/issues/9150
 		   so let's also check (pack,name) of a TYPE in the current module context ¯\_(ツ)_/¯ *)
@@ -84,7 +84,7 @@ let resolve_qualified ctx pack name next_path p =
 		mk_module_type_access ctx t p, next_path
 
 (** resolve the given unqualified name (and possibly next path part) or raise Not_found *)
-let resolve_unqualified ctx name next_path p =
+let resolve_unqualified ctx name next_path p mode with_type =
 	try
 		(* if there's a type with this name in current module context - try resolving against it *)
 		let t = Typeload.find_type_in_current_module_context ctx [] name in (* raises Not_found *)
@@ -97,24 +97,18 @@ let resolve_unqualified ctx name next_path p =
 			match next_path with
 			| (field,_,pfield) :: next_path ->
 				let e = type_module_type ctx t None p in
-				let f = type_field (TypeFieldConfig.create true) ctx e field pfield in
-				begin (* huge hack around #9430: we need Not_found, but we don't want any errors *)
-					let old_on_error = ctx.on_error in
-					ctx.on_error <- (fun _ _ _ -> ());
-					(* raises Not_found *) (* not necessarily a call, but prevent #2602 among others *)
-					ignore (Std.finally (fun () -> ctx.on_error <- old_on_error) (f (MCall [])) WithType.value)
-				end; (* huge hack *)
-				f, next_path
+				let access = type_field (TypeFieldConfig.create true) ctx e field pfield mode with_type in
+				access, next_path
 			| _ ->
 				mk_module_type_access ctx t p, next_path
 		end
 	with Not_found ->
 		(* otherwise run the unqualified module resolution mechanism and look into the modules  *)
-		let f m ~resume = resolve_in_module ctx m next_path p in
+		let f m ~resume = resolve_in_module ctx m next_path p mode with_type in
 		Typeload.find_in_unqualified_modules ctx name p f ~resume:true (* raise Not_found *)
 
 (** given a list of dot path parts, resolve it into access getter or raise Not_found *)
-let resolve_dot_path ctx (path_parts : dot_path_part list) =
+let resolve_dot_path ctx (path_parts : dot_path_part list) mode with_type =
 	let rec loop pack_acc path =
 		match path with
 		| (_,PLowercase,_) as x :: path ->
@@ -122,13 +116,18 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) =
 			loop (x :: pack_acc) path
 
 		| (name,PUppercase,p) :: path ->
+			(* If this is the last part we want to use the actual mode. *)
+			let mode,with_type = match path with
+				| [] | [_] -> mode,with_type
+				| _ -> MGet,WithType.value
+			in
 			(* part starts with uppercase - it's a module name - try resolving *)
 			let accessor, path_rest =
 				if pack_acc <> [] then
 					let pack = List.rev_map (fun (x,_,_) -> x) pack_acc in
-					resolve_qualified ctx pack name path p
+					resolve_qualified ctx pack name path p mode with_type
 				else
-					resolve_unqualified ctx name path p
+					resolve_unqualified ctx name path p mode with_type
 			in
 			(* if we get here (that is, Not_found is not raised) - we have something to resolve against *)
 			field_chain ctx path_rest accessor

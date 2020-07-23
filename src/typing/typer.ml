@@ -1374,17 +1374,17 @@ and handle_efield ctx e p0 mode with_type =
 			(* first, try to resolve the first ident in the chain and access its fields.
 			   this doesn't support untyped identifiers yet, because we want to check fully-qualified
 			   paths first (even in an untyped block) *)
-			field_chain ctx pnext (type_ident_raise ctx name p)
+			field_chain ctx pnext (type_ident_raise ctx name p MGet WithType.value)
 		with Not_found ->
 			(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
 			let path = (first :: pnext) in
 			try
-				resolve_dot_path ctx path
+				resolve_dot_path ctx path mode with_type
 			with Not_found ->
 				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
 					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
-					field_chain ctx pnext (type_ident ctx name p)
+					field_chain ctx pnext (type_ident ctx name p MGet WithType.value)
 				with Error (Unknown_ident _,p2) as e when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
@@ -1439,7 +1439,7 @@ and handle_efield ctx e p0 mode with_type =
 		| _ ->
 			(* non-ident expr occured: definitely NOT a fully-qualified access,
 			   resolve the field chain against this expression *)
-			let e = type_access ctx e p in
+			let e = type_access ctx e p MGet WithType.value in
 			field_chain ctx dot_path_acc e
 	in
 	loop [] (e,p0) mode with_type
