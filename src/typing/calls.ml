@@ -241,11 +241,11 @@ let unify_field_call ctx fa el_typed el p inline =
 		cf :: cf.cf_overloads
 	in
 	let candidates,co,static,map = match fa.fa_host with
-		| FAStatic c ->
+		| FHStatic c ->
 			expand_overloads fa.fa_field,Some c,true,(fun t -> t)
-		| FAAnon ->
+		| FHAnon ->
 			expand_overloads fa.fa_field,None,false,(fun t -> t)
-		| FAInstance(c,tl) ->
+		| FHInstance(c,tl) ->
 			let cf = fa.fa_field in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
 				cf :: cf.cf_overloads
@@ -255,7 +255,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
 			cfl,Some c,false,TClass.get_map_function c tl
-		| FAAbstract(a,tl,c) ->
+		| FHAbstract(a,tl,c) ->
 			expand_overloads fa.fa_field,Some c,true,(apply_params a.a_params tl)
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in
@@ -385,8 +385,8 @@ let unify_field_call ctx fa el_typed el p inline =
 
 let type_generic_function ctx fa el_typed el with_type p =
 	let c,tl,stat = match fa.fa_host with
-		| FAInstance(c,tl) -> c,tl,false
-		| FAStatic c -> c,[],true
+		| FHInstance(c,tl) -> c,tl,false
+		| FHStatic c -> c,[],true
 		| _ -> die "" __LOC__
 	in
 	let cf = fa.fa_field in
@@ -671,11 +671,11 @@ let rec acc_get ctx g p =
 		let cf = fa.fa_field in
 		(* do not create a closure for static calls *)
 		let apply_params = match fa.fa_host with
-			| FAStatic c ->
+			| FHStatic c ->
 				(fun t -> t)
-			| FAInstance(c,tl) ->
+			| FHInstance(c,tl) ->
 				(fun t -> t)
-			| FAAbstract(a,tl,c) ->
+			| FHAbstract(a,tl,c) ->
 				if Meta.has Meta.Enum a.a_meta then begin
 					(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
 					let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
@@ -716,7 +716,7 @@ let rec acc_get ctx g p =
 					cf
 				in
 				let e_t = type_module_type ctx (TClassDecl c2) None p in
-				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FAStatic c2) true p) FRead
+				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FHStatic c2) true p) FRead
 			in
 			let e_def = FieldAccess.get_field_expr fa FRead in
 			begin match follow fa.fa_on.etype with

@@ -5,10 +5,10 @@ open Typecore
 open Error
 
 type field_host =
-	| FAStatic of tclass
-	| FAInstance of tclass * tparams
-	| FAAbstract of tabstract * tparams * tclass
-	| FAAnon
+	| FHStatic of tclass
+	| FHInstance of tclass * tparams
+	| FHAbstract of tabstract * tparams * tclass
+	| FHAnon
 
 type field_access = {
 	fa_on : texpr;
@@ -169,10 +169,10 @@ let s_field_access tabs fa =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	let sfa = function
-		| FAStatic c -> Printf.sprintf "FAStatic(%s)" (s_type_path c.cl_path)
-		| FAInstance(c,tl) -> Printf.sprintf "FAInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
-		| FAAbstract(a,tl,c) -> Printf.sprintf "FAAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
-		| FAAnon -> Printf.sprintf "FAAnon"
+		| FHStatic c -> Printf.sprintf "FHStatic(%s)" (s_type_path c.cl_path)
+		| FHInstance(c,tl) -> Printf.sprintf "FHInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FHAbstract(a,tl,c) -> Printf.sprintf "FHAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
+		| FHAnon -> Printf.sprintf "FHAnon"
 	in
 	Printer.s_record_fields tabs [
 		"fa_on",se fa.fa_on;
@@ -279,15 +279,15 @@ module FieldAccess = struct
 	}
 
 	let apply_fa cf = function
-		| FAStatic c -> FStatic(c,cf)
-		| FAInstance(c,tl) -> FInstance(c,tl,cf)
-		| FAAbstract(a,tl,c) -> FStatic(c,cf)
-		| FAAnon -> FAnon cf
+		| FHStatic c -> FStatic(c,cf)
+		| FHInstance(c,tl) -> FInstance(c,tl,cf)
+		| FHAbstract(a,tl,c) -> FStatic(c,cf)
+		| FHAnon -> FAnon cf
 
 	let get_map_function fa = match fa.fa_host with
-		| FAStatic _ | FAAnon -> (fun t -> t)
-		| FAInstance(c,tl) -> TClass.get_map_function c tl
-		| FAAbstract(a,tl,_) -> apply_params a.a_params tl
+		| FHStatic _ | FHAnon -> (fun t -> t)
+		| FHInstance(c,tl) -> TClass.get_map_function c tl
+		| FHAbstract(a,tl,_) -> apply_params a.a_params tl
 
 	let get_field_expr fa mode =
 		let cf = fa.fa_field in
@@ -296,9 +296,9 @@ module FieldAccess = struct
 			| FGet | FRead | FWrite -> Type.field_type cf
 		in
 		let fa',t = match fa.fa_host with
-			| FAStatic c ->
+			| FHStatic c ->
 				FStatic(c,cf),t
-			| FAInstance(c,tl) ->
+			| FHInstance(c,tl) ->
 				let fa = match cf.cf_kind with
 				| Method _ when mode = FRead ->
 					FClosure(Some(c,tl),cf)
@@ -307,9 +307,9 @@ module FieldAccess = struct
 				in
 				let t = TClass.get_map_function c tl t in
 				fa,t
-			| FAAbstract(a,tl,c) ->
+			| FHAbstract(a,tl,c) ->
 				FStatic(c,cf),apply_params a.a_params tl t
-			| FAAnon ->
+			| FHAnon ->
 				let fa = match cf.cf_kind with
 				| Method _ when mode = FRead ->
 					FClosure(None,cf)
@@ -329,7 +329,7 @@ module FieldAccess = struct
 						create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
 					in
 					begin match fa.fa_host with
-					| FAStatic c ->
+					| FHStatic c ->
 						begin try
 							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
 						with Not_found ->
@@ -337,26 +337,26 @@ module FieldAccess = struct
 							if has_class_flag c CExtern then AccessorAnon
 							else AccessorNotFound
 						end
-					| FAInstance(c,tl) ->
+					| FHInstance(c,tl) ->
 						begin try
 							let (c2,_,cf_acc) = raw_class_field (fun f -> f.cf_type) c tl name in
 							let new_host = match c2 with
-								| None -> FAAnon
-								| Some(c,tl) -> FAInstance(c,tl)
+								| None -> FHAnon
+								| Some(c,tl) -> FHInstance(c,tl)
 							in
 							AccessorFound (forward cf_acc new_host)
 						with Not_found ->
 							if has_class_flag c CExtern then AccessorAnon
 							else AccessorNotFound
 						end
-					| FAAbstract(a,tl,c) ->
+					| FHAbstract(a,tl,c) ->
 						begin try
 							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
 						with Not_found ->
 							if has_class_flag c CExtern then AccessorAnon
 							else AccessorNotFound
 						end
-					| FAAnon ->
+					| FHAnon ->
 						AccessorAnon
 					end
 				| _ ->
@@ -370,12 +370,12 @@ let make_static_extension_access c cf e_this inline p =
 	let e_static = Texpr.Builder.make_static_this c p in
 	{
 		se_this = e_this;
-		se_access = FieldAccess.create e_static cf (FAStatic c) inline p
+		se_access = FieldAccess.create e_static cf (FHStatic c) inline p
 	}
 
 let make_abstract_static_extension_access a tl c cf e_this inline p =
 	let e_static = Texpr.Builder.make_static_this c p in
 	{
 		se_this = e_this;
-		se_access = FieldAccess.create e_static cf (FAAbstract(a,tl,c)) inline p
+		se_access = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) inline p
 	}

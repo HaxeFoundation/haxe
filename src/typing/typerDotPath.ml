@@ -47,7 +47,7 @@ let resolve_module_field ctx m path p mode with_type =
 	| (name,_,p) :: path_rest, Some c ->
 		let f = PMap.find name c.cl_statics in (* raises Not_found *)
 		let e = type_module_type ctx (TClassDecl c) None p in
-		field_access ctx mode f (FAStatic c) e p, path_rest
+		field_access ctx mode f (FHStatic c) e p, path_rest
 
 let resolve_module_type ctx m name p =
 	let t = Typeload.find_type_in_module m name in (* raises Not_found *)

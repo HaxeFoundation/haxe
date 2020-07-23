@@ -354,7 +354,7 @@ let rec type_ident_raise ctx i p mode with_type =
 						add_class_flag c CExtern;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
 						let e = mk (TConst TNull) (TInst (c,[])) p in
-						AKField (FieldAccess.create e cf (FAInstance(c,[])) true p)
+						AKField (FieldAccess.create e cf (FHInstance(c,[])) true p)
 				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
@@ -364,7 +364,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
-		field_access ctx mode f (match c with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) (get_this ctx p) p
+		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -377,10 +377,10 @@ let rec type_ident_raise ctx i p mode with_type =
 				let tl = List.map snd a.a_params in
 				let e = get_this ctx p in
 				let e = {e with etype = TAbstract(a,tl)} in
-				e,FAAbstract(a,tl,ctx.curclass)
+				e,FHAbstract(a,tl,ctx.curclass)
 			| _ ->
 				let e = type_type ctx ctx.curclass.cl_path p in
-				e,FAStatic ctx.curclass
+				e,FHStatic ctx.curclass
 		in
 		field_access ctx mode f fa e p
 	with Not_found -> try
@@ -390,7 +390,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
 			let e = type_module_type ctx (TClassDecl c) None p in
-			field_access ctx mode f (FAStatic c) e p
+			field_access ctx mode f (FHStatic c) e p
 		)
 	with Not_found -> try
 		let wrap e = if is_set then
@@ -415,7 +415,7 @@ let rec type_ident_raise ctx i p mode with_type =
 								| Var {v_read = AccInline} -> true
 								|  _ -> false
 							in
-							let fa = FieldAccess.create et cf (FAAbstract(a,List.map snd a.a_params,c)) inline p in
+							let fa = FieldAccess.create et cf (FHAbstract(a,List.map snd a.a_params,c)) inline p in
 							ImportHandling.mark_import_position ctx pt;
 							AKField fa
 						end
@@ -681,7 +681,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let et = sea.se_this in
 			(* abstract setter + getter *)
 			let ta = match sea.se_access.fa_host with
-				| FAAbstract(a,tl,_) -> TAbstract(a,tl)
+				| FHAbstract(a,tl,_) -> TAbstract(a,tl)
 				| _ -> die "" __LOC__
 			in
 			let ret = match follow ef.etype with
@@ -1877,7 +1877,7 @@ and type_new ctx path el with_type force_inline p =
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
 			no_abstract_constructor c p;
-			let fa = FieldAccess.create (Builder.make_static_this c p) f (FAInstance(c,monos)) false p in
+			let fa = FieldAccess.create (Builder.make_static_this c p) f (FHInstance(c,monos)) false p in
 			ignore (unify_constructor_call c fa);
 			begin try
 				Generic.build_generic ctx c p monos
@@ -1909,8 +1909,8 @@ and type_new ctx path el with_type force_inline p =
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());
 		let fa = match ao with
-			| None -> FAInstance(c,tl)
-			| Some a -> FAAbstract(a,tl,c)
+			| None -> FHInstance(c,tl)
+			| Some a -> FHAbstract(a,tl,c)
 		in
 		let fa = FieldAccess.create (Builder.make_static_this c p) f fa false p in
 		let el = unify_constructor_call c fa in
@@ -2563,7 +2563,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let fa = FieldAccess.create e f (FAInstance(c,params)) false p in
+			let fa = FieldAccess.create e f (FHInstance(c,params)) false p in
 			let fcc = unify_field_call ctx fa [] el p false in
 			let el = List.map fst fcc.fc_args in
 			el,t

@@ -104,7 +104,7 @@ let check_no_closure_meta ctx cf fa mode p =
 		begin match cf.cf_kind with
 		| Method _ ->
 			let meta = match fa with
-				| FAStatic c | FAInstance(c,_) | FAAbstract(_,_,c) -> c.cl_meta
+				| FHStatic c | FHInstance(c,_) | FHAbstract(_,_,c) -> c.cl_meta
 				| _ -> []
 			in
 			check_field cf meta
@@ -149,7 +149,7 @@ let field_access ctx mode f famode e p =
 				normal()
 		in
 		begin match famode with
-		| FAInstance(c,tl) ->
+		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
 				| MGet,Var {v_read = AccCall }
 				| MSet _,Var {v_write = AccCall }
@@ -174,12 +174,12 @@ let field_access ctx mode f famode e p =
 				()
 			end;
 			default();
-		| FAStatic c ->
+		| FHStatic c ->
 			maybe_check_visibility c true;
 			default()
-		| FAAnon ->
+		| FHAnon ->
 			default()
-		| FAAbstract(a,tl,c) ->
+		| FHAbstract(a,tl,c) ->
 			maybe_check_visibility c true;
 			let sea = make_abstract_static_extension_access a tl c f e false p in
 			AKUsingField sea
@@ -226,7 +226,7 @@ let field_access ctx mode f famode e p =
 				normal false
 			)
 			else begin match famode with
-			| FAAbstract(a,tl,c) ->
+			| FHAbstract(a,tl,c) ->
 				let sea = make_abstract_static_extension_access a tl c f e false p in
 				AKUsingAccessor sea
 			| _ ->
@@ -238,7 +238,7 @@ let field_access ctx mode f famode e p =
 			normal true
 		| AccCtor ->
 			(match ctx.curfun, famode with
-				| FunConstructor, FAInstance(c,_) when c == ctx.curclass -> normal false
+				| FunConstructor, FHInstance(c,_) when c == ctx.curclass -> normal false
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->
@@ -294,7 +294,7 @@ let rec using_field ctx mode e i p =
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsingField {se_access = {fa_host = FAStatic c}} -> add_dependency ctx.m.curmod c.cl_module
+		| AKUsingField {se_access = {fa_host = FHStatic c}} -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->
@@ -372,7 +372,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 		in
 		(try
 			let c2, t , f = class_field ctx c params i p in
-			field_access ctx mode f (match c2 with None -> FAAnon | Some (c,tl) -> FAInstance (c,tl)) e p
+			field_access ctx mode f (match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) e p
 		with Not_found -> try
 			begin match e.eexpr with
 				| TConst TSuper -> raise Not_found
@@ -428,14 +428,14 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			in
 			begin match !(a.a_status) with
 				| Statics c ->
-					access (FAStatic c)
+					access (FHStatic c)
 				| EnumStatics en ->
 					let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
 				| _ ->
-					access FAAnon
+					access FHAnon
 			end
 		with Not_found -> try
 				match !(a.a_status) with
@@ -457,7 +457,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
 		} in
 		let access f =
-			field_access ctx mode f FAAnon e p
+			field_access ctx mode f FHAnon e p
 		in
 		begin match Monomorph.classify_constraints r with
 		| CStructural(fields,is_open) ->
@@ -510,7 +510,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 				static_abstract_access_through_instance := true;
 				raise Not_found;
 			end;
-			field_access ctx mode f (FAAbstract(a,pl,c)) e p
+			field_access ctx mode f (FHAbstract(a,pl,c)) e p
 		with Not_found -> try
 			if does_forward a false then
 				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
