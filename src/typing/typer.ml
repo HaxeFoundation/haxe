@@ -570,13 +570,12 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
-		| AKFieldSet(ethis,e1,fname,t) ->
-			let e2 = e2 (WithType.with_type t) in
-			begin match follow e1.etype with
-				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
-				| _ -> die "" __LOC__
-			end;
-			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
+		| AKFieldSet(sea,name) ->
+			let fa = sea.se_access in
+			let te = abstract_using_param_type sea in
+			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+			let fcc = unify_field_call ctx fa [e2_syntax] p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
+			fcc.fc_data()
 		| AKUsingSetter(sea,cf) ->
 			static_extension_accessor_call ctx sea cf [e2_syntax] p
 		)

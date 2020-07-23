@@ -33,7 +33,7 @@ type access_kind =
 	| AKUsingGetter of static_extension_access * tclass_field
 	| AKUsingSetter of static_extension_access * tclass_field
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
-	| AKFieldSet of texpr * texpr * string * t
+	| AKFieldSet of static_extension_access * string
 
 type object_decl_kind =
 	| ODKWithStructure of tanon

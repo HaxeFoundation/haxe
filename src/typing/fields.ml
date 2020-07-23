@@ -544,15 +544,9 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| Some c,Some cf -> c,cf
 					| _ -> raise Not_found
 				in
-				let et = type_module_type ctx (TClassDecl c) None p in
-				let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
-				let ef = mk (TField (et,FStatic (c,cf))) t p in
-				let r = match follow t with
-					| TFun(_,r) -> r
-					| _ -> die "" __LOC__
-				in
+				let sea = make_abstract_static_extension_access a pl c cf e false p in
 				if is_write then
-					AKFieldSet(e,ef,i,r)
+					AKFieldSet(sea,i)
 				else
 					AKExpr ((!build_call_ref) ctx (AKUsingField(make_abstract_static_extension_access a pl c cf e false p)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
 			in
