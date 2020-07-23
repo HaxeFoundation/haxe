@@ -961,8 +961,9 @@ and unify_with_variance uctx f t1 t2 =
 	let t1 = follow t1 in
 	let t2 = follow t2 in
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
-	let rec get_underlying_type t = match map get_underlying_type (follow t) with
-		| TAbstract(ab,tl) -> (match apply_params ab.a_params tl ab.a_this with
+	let get_this_type ab tl = follow (apply_params ab.a_params tl ab.a_this) in
+	let rec get_underlying_type t = match map get_underlying_type t with
+		| TAbstract(ab,tl) -> (match get_this_type ab tl with
 			| TAbstract(ab',_) as t when ab == ab' -> t
 			| t -> get_underlying_type t)
 		| t -> t
@@ -992,6 +993,10 @@ and unify_with_variance uctx f t1 t2 =
 		List.iter2 unify_nested tl1 tl2
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 ->
 		List.iter2 unify_nested tl1 tl2
+	| TAbstract(ab,tl),_ when Meta.has Meta.ForwardVariance ab.a_meta ->
+		unify_with_variance uctx f (get_this_type ab tl) t2
+	| _,TAbstract(ab,tl) when Meta.has Meta.ForwardVariance ab.a_meta ->
+		unify_with_variance uctx f t1 (get_this_type ab tl)
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
 		if not (unifies_abstract uctx t1 t2 a1 tl1 a1.a_to)
 		&& not (unifies_abstract uctx t1 t2 a2 tl2 a2.a_from) then fail();

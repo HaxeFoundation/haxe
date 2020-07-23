@@ -31,6 +31,7 @@
 	to work with the actual value, it needs to be explicitly promoted
 	to another type.
 **/
+@:forward.variance
 abstract Any(Dynamic) {
 	@:noCompletion @:to extern inline function __promote<T>():T
 		return this;

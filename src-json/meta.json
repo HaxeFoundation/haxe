@@ -403,6 +403,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardVariance",
+		"metadata": ":forward.variance",
+		"doc": "Forwards variance unification to underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "From",
 		"metadata": ":from",
 		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
