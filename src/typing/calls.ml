@@ -641,7 +641,9 @@ object(self)
 						begin try
 							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
 						with Not_found ->
-							AccessorNotFound
+							(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
 						end
 					| FAInstance(c,tl) ->
 						begin try
@@ -652,13 +654,15 @@ object(self)
 							in
 							AccessorFound (forward cf_acc new_host)
 						with Not_found ->
-							AccessorNotFound
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
 						end
 					| FAAbstract(a,tl,c) ->
 						begin try
 							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
 						with Not_found ->
-							AccessorNotFound
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
 						end
 					| FAAnon ->
 						AccessorAnon
