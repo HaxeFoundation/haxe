@@ -570,12 +570,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
-		| AKFieldSet(sea,name) ->
-			let fa = sea.se_access in
-			let te = abstract_using_param_type sea in
-			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-			let fcc = unify_field_call ctx fa [e2_syntax] p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
-			fcc.fc_data()
+		| AKResolve(sea,name) ->
+			static_extension_resolve_call ctx sea name [e2_syntax] p
 		| AKUsingAccessor(sea,cf) ->
 			static_extension_accessor_call ctx sea cf [e2_syntax] p
 		)
@@ -785,7 +781,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			save();
 			e
-		| AKFieldSet _ ->
+		| AKResolve _ ->
 			error "Invalid operation" p
 		)
 	| _ ->
@@ -1273,10 +1269,10 @@ and type_unop ctx op flag e p =
 			)
 		| AKUsingField _ | AKUsingAccessor _ ->
 			error "This kind of operation is not supported" p
-		| AKFieldSet _ ->
+		| AKResolve _ ->
 			error "Invalid operation" p
 		| AKAccessor fa when not set ->
-			access (call_getter ctx fa None)
+			access (call_getter ctx fa [])
 		| AKAccessor fa ->
 			let e = fa.fa_on in
 			let ef = FieldAccess.get_field_expr fa FCall in

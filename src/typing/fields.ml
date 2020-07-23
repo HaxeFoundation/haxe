@@ -539,10 +539,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| _ -> raise Not_found
 				in
 				let sea = make_abstract_static_extension_access a pl c cf e false p in
-				if is_write then
-					AKFieldSet(sea,i)
-				else
-					AKExpr ((!build_call_ref) ctx (AKUsingField(make_abstract_static_extension_access a pl c cf e false p)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
+				AKResolve(sea,i)
 			in
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
 			get_resolve (is_set)

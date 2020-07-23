@@ -31,7 +31,7 @@ type access_kind =
 	| AKUsingField of static_extension_access
 	| AKUsingAccessor of static_extension_access * tclass_field
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
-	| AKFieldSet of static_extension_access * string
+	| AKResolve of static_extension_access * string
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
@@ -198,7 +198,7 @@ let s_access_kind acc =
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
 	| AKUsingAccessor(sea,_) -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
-	| AKFieldSet(_) -> ""
+	| AKResolve(_) -> ""
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with

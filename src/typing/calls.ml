@@ -236,7 +236,7 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el p inline typed_el =
+let unify_field_call ctx fa el p inline el_typed =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
@@ -268,19 +268,19 @@ let unify_field_call ctx fa el p inline typed_el =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
 		| TFun(args,ret) ->
-			let rec loop acc args typed_el = match args,typed_el with
-				| (_,_,t0) :: args,(e,t) :: typed_el ->
+			let rec loop acc args el_typed = match args,el_typed with
+				| (_,_,t0) :: args,(e,t) :: el_typed ->
 					begin try
 						unify_raise ctx t t0 e.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					loop (e :: acc) args typed_el
+					loop (e :: acc) args el_typed
 				| _ ->
 					(fun el -> (List.rev acc) @ el),args
 			in
-			let get_call_args,args = loop [] args typed_el in
+			let get_call_args,args = loop [] args el_typed in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
@@ -383,7 +383,7 @@ let unify_field_call ctx fa el p inline typed_el =
 			| fcc :: _ -> fcc
 		end
 
-let type_generic_function ctx fa el ?(using_param=None) with_type p =
+let type_generic_function ctx fa el_typed el with_type p =
 	let c,tl,stat = match fa.fa_host with
 		| FAInstance(c,tl) -> c,tl,false
 		| FAStatic c -> c,[],true
@@ -396,15 +396,11 @@ let type_generic_function ctx fa el ?(using_param=None) with_type p =
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
-	let args,ret = match t,using_param with
-		| TFun((_,_,ta) :: args,ret),Some e ->
-			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
-			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> die "" __LOC__
-			in
-			(* manually unify first argument *)
-			unify ctx e.etype ta p;
+	let args,ret = match t,el_typed with
+		| TFun((_,_,ta) :: args,ret),((e,te) :: _) ->
+			unify ctx te ta p;
 			args,ret
-		| TFun(args,ret),None -> args,ret
+		| TFun(args,ret),_ -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
 	in
 	begin match with_type with
@@ -416,7 +412,7 @@ let type_generic_function ctx fa el ?(using_param=None) with_type p =
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = match using_param with None -> el | Some e -> e :: el in
+	let el = (List.map fst el_typed) @ el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
@@ -518,16 +514,13 @@ let type_generic_function ctx fa el ?(using_param=None) with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_getter ctx fa using_param =
+let call_getter ctx fa el_typed =
 	let cf = fa.fa_field in
 	let e = fa.fa_on in
 	let t = (FieldAccess.get_field_expr fa FCall).etype in
 	let p = fa.fa_pos in
-	let tf,el = match using_param with
-		| None -> (tfun [] t),[]
-		| Some e -> (tfun [e.etype] t),[e]
-	in
-	make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ cf.cf_name))) tf p) el t p
+	let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
+	make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ cf.cf_name))) tf p) el_typed t p
 
 let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
@@ -540,6 +533,140 @@ let static_extension_accessor_call ctx sea cf el p =
 	let e = fcc.fc_data() in
 	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
 	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+
+let static_extension_resolve_call ctx sea name el p =
+	let fa = sea.se_access in
+	let te = abstract_using_param_type sea in
+	let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+	let fcc = unify_field_call ctx fa el p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
+	fcc.fc_data()
+
+class call_dispatcher
+	(ctx : typer)
+	(mode : access_mode)
+	(with_type : WithType.t)
+	(p : pos)
+=
+	let is_set = match mode with MSet _ -> true | _ -> false in
+	let check_assign () = if is_set then invalid_assign p in
+
+object(self)
+
+	method private make_field_call fa el_typed el =
+		let fcc = unify_field_call ctx fa el p fa.fa_inline el_typed in
+		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
+			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+			| _ -> ()
+		end;
+		fcc.fc_data()
+
+	method expr_call e el =
+		check_assign();
+		let rec loop t = match follow t with
+		| TFun (args,r) ->
+			let el, tfunc = unify_call_args ctx el args r p false false in
+			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			mk (TCall (e,el)) r p
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
+			loop (Abstract.get_underlying_type a tl)
+		| TMono _ ->
+			let t = mk_mono() in
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
+			mk (TCall (e,el)) t p
+		| t ->
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+			let t = if t == t_dynamic then
+				t_dynamic
+			else if ctx.untyped then
+				mk_mono()
+			else
+				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+			in
+			mk (TCall (e,el)) t p
+		in
+		loop e.etype
+
+	method macro_call ethis cf el =
+		if ctx.macro_depth > 300 then error "Stack overflow" p;
+		ctx.macro_depth <- ctx.macro_depth + 1;
+		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		let ethis_f = ref (fun () -> ()) in
+		let f = (match ethis.eexpr with
+		| TTypeExpr (TClassDecl c) ->
+			DeprecationCheck.check_cf ctx.com cf p;
+			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
+			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
+			| Some e -> (fun() -> type_expr ~mode ctx e with_type))
+		| _ ->
+			(* member-macro call : since we will make a static call, let's find the actual class and not its subclass *)
+			(match follow ethis.etype with
+			| TInst (c,_) ->
+				let rec loop c =
+					if PMap.mem cf.cf_name c.cl_fields then
+						let eparam,f = push_this ctx ethis in
+						ethis_f := f;
+						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
+							| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+							| Some e -> (fun() -> type_expr ~mode ctx e WithType.value)
+						in
+						e
+					else
+						match c.cl_super with
+						| None -> die "" __LOC__
+						| Some (csup,_) -> loop csup
+				in
+				loop c
+			| _ -> die "" __LOC__))
+		in
+		ctx.macro_depth <- ctx.macro_depth - 1;
+		ctx.with_type_stack <- List.tl ctx.with_type_stack;
+		let old = ctx.on_error in
+		ctx.on_error <- (fun ctx msg ep ->
+			(* display additional info in the case the error is not part of our original call *)
+			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
+				TypeloadFields.locate_macro_error := false;
+				old ctx msg ep;
+				TypeloadFields.locate_macro_error := true;
+				ctx.com.error (compl_msg "Called from macro here") p;
+			end else
+				old ctx msg ep;
+		);
+		let e = try
+			f()
+		with exc ->
+			ctx.on_error <- old;
+			!ethis_f();
+			raise exc
+		in
+		let e = Diagnostics.secure_generated_code ctx e in
+		ctx.on_error <- old;
+		!ethis_f();
+		e
+
+	method field_call fa el_typed el =
+		match fa.fa_field.cf_kind with
+		| Method (MethNormal | MethInline) ->
+			check_assign();
+			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
+				type_generic_function ctx fa el_typed el with_type p
+			end else
+				self#make_field_call fa el_typed el
+		| Method MethMacro ->
+			begin match el_typed with
+			| [] ->
+				self#macro_call fa.fa_on fa.fa_field el
+			| el_typed ->
+				let cur = ctx.this_stack in
+				let el' = List.map (fun (e,_) -> fst (push_this ctx e)) el_typed in
+				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
+				ctx.this_stack <- cur;
+				e
+			end;
+		| _ ->
+			self#expr_call (FieldAccess.get_field_expr fa FCall) el
+end
 
 let rec acc_get ctx g p =
 	let inline_read fa =
@@ -624,7 +751,13 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKAccess _ | AKFieldSet _ -> die "" __LOC__
+	| AKAccess _ -> die "" __LOC__
+	| AKResolve(sea,name) ->
+		let dispatch = new call_dispatcher ctx MGet WithType.value p in
+		let eparam = sea.se_this in
+		let tthis = abstract_using_param_type sea in
+		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+		dispatch#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
 	| AKUsingAccessor(sea,_) | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -650,7 +783,7 @@ let rec acc_get ctx g p =
 				FieldAccess.get_field_expr fa FRead
 		end
 	| AKAccessor fa ->
-		call_getter ctx fa None
+		call_getter ctx fa []
 	| AKUsingAccessor(sea,cf) ->
 		static_extension_accessor_call ctx sea cf [] p
 	| AKUsingField sea ->
@@ -684,148 +817,25 @@ let rec acc_get ctx g p =
 		| _ -> die "" __LOC__)
 
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
-	let is_set = match mode with MSet _ -> true | _ -> false in
-	let check_assign () = if is_set then invalid_assign p in
-	let field_call fa using_param el =
-		let typed_el = match using_param with
-			| Some x -> [x]
-			| None -> []
-		in
-		let fcc = unify_field_call ctx fa el p fa.fa_inline typed_el in
-		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
-			| _ -> ()
-		end;
-		fcc.fc_data()
-	in
-	let expr_call e =
-		check_assign();
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
-			loop (Abstract.get_underlying_type a tl)
-		| TMono _ ->
-			let t = mk_mono() in
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-			mk (TCall (e,el)) t p
-		| t ->
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			let t = if t == t_dynamic then
-				t_dynamic
-			else if ctx.untyped then
-				mk_mono()
-			else
-				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
-			in
-			mk (TCall (e,el)) t p
-		in
-		loop e.etype
-	in
-	let macro_call ethis cf el =
-		if ctx.macro_depth > 300 then error "Stack overflow" p;
-		ctx.macro_depth <- ctx.macro_depth + 1;
-		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
-		let ethis_f = ref (fun () -> ()) in
-		let f = (match ethis.eexpr with
-		| TTypeExpr (TClassDecl c) ->
-			DeprecationCheck.check_cf ctx.com cf p;
-			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
-			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some e -> (fun() -> type_expr ~mode ctx e with_type))
-		| _ ->
-			(* member-macro call : since we will make a static call, let's find the actual class and not its subclass *)
-			(match follow ethis.etype with
-			| TInst (c,_) ->
-				let rec loop c =
-					if PMap.mem cf.cf_name c.cl_fields then
-						let eparam,f = push_this ctx ethis in
-						ethis_f := f;
-						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
-							| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
-							| Some e -> (fun() -> type_expr ~mode ctx e WithType.value)
-						in
-						e
-					else
-						match c.cl_super with
-						| None -> die "" __LOC__
-						| Some (csup,_) -> loop csup
-				in
-				loop c
-			| _ -> die "" __LOC__))
-		in
-		ctx.macro_depth <- ctx.macro_depth - 1;
-		ctx.with_type_stack <- List.tl ctx.with_type_stack;
-		let old = ctx.on_error in
-		ctx.on_error <- (fun ctx msg ep ->
-			(* display additional info in the case the error is not part of our original call *)
-			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				TypeloadFields.locate_macro_error := false;
-				old ctx msg ep;
-				TypeloadFields.locate_macro_error := true;
-				ctx.com.error (compl_msg "Called from macro here") p;
-			end else
-				old ctx msg ep;
-		);
-		let e = try
-			f()
-		with exc ->
-			ctx.on_error <- old;
-			!ethis_f();
-			raise exc
-		in
-		let e = Diagnostics.secure_generated_code ctx e in
-		ctx.on_error <- old;
-		!ethis_f();
-		e
-	in
-	let field_call fa using_param el =
-		match fa.fa_field.cf_kind with
-		| Method (MethNormal | MethInline) ->
-			check_assign();
-			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
-			 	let using_param = match using_param with
-				 	| None -> None
-					 | Some(e,_) -> Some e
-				in
-				type_generic_function ~using_param ctx fa el with_type p
-			end else
-				field_call fa using_param el
-		| Method MethMacro ->
-			begin match using_param with
-			| None ->
-				macro_call fa.fa_on fa.fa_field el
-			| Some (eparam,_) ->
-				let eparam,f = push_this ctx eparam in
-				let e = macro_call fa.fa_on fa.fa_field (eparam :: el) in
-				f();
-				e
-			end;
-		| _ ->
-			expr_call (FieldAccess.get_field_expr fa FCall)
-	in
+	let dispatch = new call_dispatcher ctx mode with_type p in
 	match acc with
 	| AKField fa ->
-		field_call fa None el
+		dispatch#field_call fa [] el
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
 		let tthis = abstract_using_param_type sea in
-		field_call sea.se_access (Some(eparam,tthis)) el
-	| AKNo _ | AKAccess _ | AKFieldSet _ ->
+		dispatch#field_call sea.se_access [(eparam,tthis)] el
+	| AKNo _ | AKAccess _ | AKResolve _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
 	| AKAccessor fa ->
-		expr_call (call_getter ctx fa None)
+		dispatch#expr_call (call_getter ctx fa []) el
 	| AKUsingAccessor(sea,_) ->
 		let tthis = abstract_using_param_type sea in
-		let e = field_call sea.se_access (Some(sea.se_this,tthis)) [] in
-		expr_call e
+		let e = dispatch#field_call sea.se_access [(sea.se_this,tthis)] [] in
+		dispatch#expr_call e el
 	| AKExpr e ->
-		expr_call e
+		dispatch#expr_call e el
 
 let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
