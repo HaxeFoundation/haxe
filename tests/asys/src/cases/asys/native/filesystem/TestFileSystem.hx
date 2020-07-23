@@ -240,7 +240,7 @@ class TestFileSystem extends Test {
 		);
 	}
 
-	@:depends(testCreateDirectory, testWriteString, testReadString)
+	@:depends(testCreateDirectory, testWriteString, testReadString, testCheck)
 	function testMove(async:Async) {
 		function createData(path:String, fileContent:String, callback:()->Void) {
 			FileSystem.createDirectory(path, (e, r) -> {
@@ -255,24 +255,27 @@ class TestFileSystem extends Test {
 			createData('test-data/temp/dir1', 'hello', () -> {
 				FileSystem.move('test-data/temp/dir1', 'test-data/temp/moved', (e, r) -> {
 					if(noException(e))
-						FileSystem.readString('test-data/temp/moved/file', (e, r) -> {
-							equals('hello', r);
-							asyncAll(async,
-								//overwrite
-								createData('test-data/temp/dir2', 'world', () -> {
-									FileSystem.move('test-data/temp/dir2', 'test-data/temp/moved', (e, r) -> {
-										if(noException(e))
-											FileSystem.readString('test-data/temp/moved/file', (e, r) -> equals('world', r));
-									});
-								}),
-								//disable overwrite
-								createData('test-data/temp/dir3', 'unexpected', () -> {
-									FileSystem.move('test-data/temp/dir3', 'test-data/temp/moved', false, (e, r) -> {
-										isOfType(e, FsException);
-									});
-								})
-							);
-						});
+						asyncAll(async,
+							FileSystem.check('test-data/temp/dir1', Exists, (e, r) -> isFalse(r)),
+							FileSystem.readString('test-data/temp/moved/file', (e, r) -> {
+								equals('hello', r);
+								asyncAll(async,
+									//overwrite
+									createData('test-data/temp/dir2', 'world', () -> {
+										FileSystem.move('test-data/temp/dir2', 'test-data/temp/moved', (e, r) -> {
+											if(noException(e))
+												FileSystem.readString('test-data/temp/moved/file', (e, r) -> equals('world', r));
+										});
+									}),
+									//disable overwrite
+									createData('test-data/temp/dir3', 'unexpected', () -> {
+										FileSystem.move('test-data/temp/dir3', 'test-data/temp/moved', false, (e, r) -> {
+											isOfType(e, FsException);
+										});
+									})
+								);
+							})
+						);
 				});
 			}),
 			//move file
@@ -290,12 +293,13 @@ class TestFileSystem extends Test {
 		);
 	}
 
-	@:depends(testWriteString)
+	@:depends(testWriteString, testCheck)
 	function testDeleteFile(async:Async) {
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/test.txt', '', (e, r) -> {
 				FileSystem.deleteFile('test-data/temp/test.txt', (e, r) -> {
-					noException(e);
+					if(noException(e))
+						FileSystem.check('test-data/temp/test.txt', Exists, (e, r) -> isFalse(r));
 				});
 			}),
 			FileSystem.deleteFile('non-existent', (e, r) -> {
@@ -309,12 +313,13 @@ class TestFileSystem extends Test {
 		);
 	}
 
-	@:depends(testCreateDirectory, testWriteString)
+	@:depends(testCreateDirectory, testWriteString, testCheck)
 	function testDeleteDirectory(async:Async) {
 		asyncAll(async,
 			FileSystem.createDirectory('test-data/temp/del-dir', (e, r) -> {
 				FileSystem.deleteDirectory('test-data/temp/del-dir', (e, r) -> {
-					noException(e);
+					if(noException(e))
+						FileSystem.check('test-data/temp/del-dir', Exists, (e, r) -> isFalse(r));
 				});
 			}),
 			FileSystem.deleteDirectory('non-existent', (e, r) -> {
