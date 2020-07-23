@@ -1290,8 +1290,11 @@ and type_unop ctx op flag e p =
 			handle_accessor sea.se_this sea.se_access
 		| AKUsingField _ ->
 			error "This kind of operation is not supported" p
-		| AKResolve _ ->
-			error "Invalid operation" p
+		| AKResolve(sea,name) ->
+			if not set then
+				(new call_dispatcher ctx (MCall []) WithType.value p)#resolve_call sea name
+			else
+				error "Invalid operation" p
 		| AKAccessor fa when not set ->
 			access ((new call_dispatcher ctx mode WithType.value p)#field_call fa [] [])
 		| AKAccessor fa ->

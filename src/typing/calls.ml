@@ -622,6 +622,12 @@ object(self)
 		in
 		loop e.etype
 
+	method resolve_call sea name =
+		let eparam = sea.se_this in
+		let tthis = abstract_using_param_type sea in
+		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+		self#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
+
 	method field_call fa el_typed el =
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
@@ -752,10 +758,7 @@ let rec acc_get ctx g p =
 	| AKExpr e -> e
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
-		let eparam = sea.se_this in
-		let tthis = abstract_using_param_type sea in
-		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-		(dispatcher ())#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
+		(dispatcher ())#resolve_call sea name
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
