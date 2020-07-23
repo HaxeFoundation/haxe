@@ -1,4 +1,5 @@
 package unit.issues;
+import haxe.extern.EitherType;
 
 class Issue9721 extends Test {
 	function test() {
@@ -36,6 +37,11 @@ class Issue9721 extends Test {
 
     ((null: {x: Int -> Void}): {x: Foo<Int> -> Void});
     t(unit.HelperMacros.typeError(((null: {x: Int -> Void}): {x: Foo<Float> -> Void})));
+
+    ((null: {x: EitherType<Int,String>}): {x: String});
+    ((null: {x: EitherType<Int,String>}): {x: Int});
+    ((null: {x: String}): {x: EitherType<Int,String>});
+    ((null: {x: Int}): {x: EitherType<Int,String>});
   }
 }
 
