@@ -967,8 +967,8 @@ and unify_with_variance uctx f t1 t2 =
 			| t -> get_underlying_type t)
 		| t -> t
 	in
-	let compare_underlying equality_kind =
-		type_eq {uctx with equality_kind = equality_kind} (get_underlying_type t1) (get_underlying_type t2)
+	let compare_underlying () =
+		type_eq {uctx with equality_kind = EqBothDynamic} (get_underlying_type t1) (get_underlying_type t2)
 	in
 	let unifies_abstract uctx a b ab tl ats =
 		try
@@ -995,13 +995,13 @@ and unify_with_variance uctx f t1 t2 =
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
 		if not (unifies_abstract uctx t1 t2 a1 tl1 a1.a_to)
 		&& not (unifies_abstract uctx t1 t2 a2 tl2 a2.a_from) then fail();
-		compare_underlying EqStrict;
+		compare_underlying();
 	| TAbstract(ab,tl),_ ->
 		if not (unifies_abstract uctx t1 t2 ab tl ab.a_to) then fail();
-		compare_underlying EqBothDynamic;
+		compare_underlying();
 	| _,TAbstract(ab,tl) ->
 		if not (unifies_abstract uctx t1 t2 ab tl ab.a_from) then fail();
-		compare_underlying EqBothDynamic;
+		compare_underlying();
 	| TAnon(a1),TAnon(a2) ->
 		rec_stack_default unify_stack (t1,t2) (fast_eq_pair (t1,t2)) (fun() -> unify_anons uctx t1 t2 a1 a2) ()
 	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
