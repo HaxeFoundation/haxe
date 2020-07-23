@@ -526,20 +526,18 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
-let static_extension_accessor_call ctx sea cf el p =
-	let fa = sea.se_access in
-	let te = abstract_using_param_type sea in
-	let fcc = unify_field_call ctx fa el p fa.fa_inline [sea.se_this,te] in
-	let e = fcc.fc_data() in
-	let t = FieldAccess.get_map_function sea.se_access cf.cf_type in
-	if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
-
 let static_extension_resolve_call ctx sea name el p =
 	let fa = sea.se_access in
 	let te = abstract_using_param_type sea in
 	let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 	let fcc = unify_field_call ctx fa el p fa.fa_inline [(sea.se_this,te);(e_name,e_name.etype)] in
 	fcc.fc_data()
+
+type accessor_resolution =
+	| AccessorFound of field_access
+	| AccessorAnon
+	| AccessorNotFound
+	| AccessorInvalid
 
 class call_dispatcher
 	(ctx : typer)
@@ -645,9 +643,50 @@ object(self)
 		!ethis_f();
 		e
 
+	method resolve_accessor fa = match fa.fa_field.cf_kind with
+		| Var v ->
+			begin match (if is_set then v.v_write else v.v_read) with
+				| AccCall ->
+					let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
+					let forward cf_acc new_host =
+						FieldAccess.create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+					in
+					begin match fa.fa_host with
+					| FAStatic c ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							AccessorNotFound
+						end
+					| FAInstance(c,tl) ->
+						begin try
+							let (c2,_,cf_acc) = class_field ctx c tl name p in
+							let new_host = match c2 with
+								| None -> FAAnon
+								| Some(c,tl) -> FAInstance(c,tl)
+							in
+							AccessorFound (forward cf_acc new_host)
+						with Not_found ->
+							AccessorNotFound
+						end
+					| FAAbstract(a,tl,c) ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							AccessorNotFound
+						end
+					| FAAnon ->
+						AccessorAnon
+					end
+				| _ ->
+					AccessorInvalid
+			end
+		| _ ->
+			AccessorInvalid
+
 	method field_call fa el_typed el =
 		match fa.fa_field.cf_kind with
-		| Method (MethNormal | MethInline) ->
+		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();
 			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
 				type_generic_function ctx fa el_typed el with_type p
@@ -664,8 +703,29 @@ object(self)
 				ctx.this_stack <- cur;
 				e
 			end;
-		| _ ->
-			self#expr_call (FieldAccess.get_field_expr fa FCall) el
+		| Var v ->
+			begin match (if is_set then v.v_write else v.v_read) with
+			| AccCall ->
+				begin match self#resolve_accessor fa with
+				| AccessorFound fa' ->
+					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+					let e = self#field_call fa' el_typed el in
+					if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+				| AccessorAnon ->
+					(* Anons might not have the accessor defined and rely on FDynamic in such cases *)
+					let e = fa.fa_on in
+					let el_typed = List.map fst el_typed in
+					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+					let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
+					make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ fa.fa_field.cf_name))) tf p) el_typed t p
+				| AccessorNotFound ->
+					error ("Could not resolve accessor") fa.fa_pos
+				| AccessorInvalid ->
+					die "Trying to resolve accessor on field that isn't AccCall" __LOC__
+				end
+			| _ ->
+				self#expr_call (FieldAccess.get_field_expr fa FCall) el
+			end
 end
 
 let rec acc_get ctx g p =
@@ -748,17 +808,17 @@ let rec acc_get ctx g p =
 			error "Recursive inline is not supported" p
 		end
 	in
+	let dispatcher () = new call_dispatcher ctx MGet WithType.value p in
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
-		let dispatch = new call_dispatcher ctx MGet WithType.value p in
 		let eparam = sea.se_this in
 		let tthis = abstract_using_param_type sea in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-		dispatch#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
-	| AKUsingAccessor(sea,_) | AKUsingField sea when ctx.in_display ->
+		(dispatcher ())#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
+	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* TODO *)
@@ -783,9 +843,10 @@ let rec acc_get ctx g p =
 				FieldAccess.get_field_expr fa FRead
 		end
 	| AKAccessor fa ->
-		call_getter ctx fa []
-	| AKUsingAccessor(sea,cf) ->
-		static_extension_accessor_call ctx sea cf [] p
+		(dispatcher())#field_call fa [] []
+	| AKUsingAccessor sea ->
+		let tthis = abstract_using_param_type sea in
+		(dispatcher())#field_call sea.se_access [sea.se_this,tthis] []
 	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -830,7 +891,8 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		die "" __LOC__
 	| AKAccessor fa ->
 		dispatch#expr_call (call_getter ctx fa []) el
-	| AKUsingAccessor(sea,_) ->
+	| AKUsingAccessor sea ->
+		if p.pfile = "source/Main.hx" then ctx.com.warning "here" p;
 		let tthis = abstract_using_param_type sea in
 		let e = dispatch#field_call sea.se_access [(sea.se_this,tthis)] [] in
 		dispatch#expr_call e el

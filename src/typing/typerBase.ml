@@ -29,7 +29,7 @@ type access_kind =
 	| AKField of field_access
 	| AKAccessor of field_access (* fa_field is the property, not the accessor *)
 	| AKUsingField of static_extension_access
-	| AKUsingAccessor of static_extension_access * tclass_field
+	| AKUsingAccessor of static_extension_access
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 	| AKResolve of static_extension_access * string
 
@@ -196,7 +196,7 @@ let s_access_kind acc =
 	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
 	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
-	| AKUsingAccessor(sea,_) -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
+	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKResolve(_) -> ""
 

@@ -572,8 +572,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKResolve(sea,name) ->
 			static_extension_resolve_call ctx sea name [e2_syntax] p
-		| AKUsingAccessor(sea,cf) ->
-			static_extension_accessor_call ctx sea cf [e2_syntax] p
+		| AKUsingAccessor sea ->
+			let fa_set = match (new call_dispatcher ctx (MSet (Some e2_syntax)) with_type p)#resolve_accessor sea.se_access with
+				| AccessorFound fa -> fa
+				| _ -> error "Could not resolve accessor" p
+			in
+			let dispatcher = new call_dispatcher ctx (MCall [e2_syntax]) with_type p in
+			let tthis = abstract_using_param_type sea in
+			dispatcher#field_call fa_set [sea.se_this,tthis] [e2_syntax]
 		)
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
@@ -663,8 +669,12 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsingAccessor(sea,cf) ->
-			let ef = FieldAccess.get_field_expr sea.se_access FWrite in
+		| AKUsingAccessor sea ->
+			let fa_set = match (new call_dispatcher ctx (MSet (Some e2_syntax)) with_type p)#resolve_accessor sea.se_access with
+				| AccessorFound fa -> fa
+				| _ -> error "Could not resolve accessor" p
+			in
+			let ef = FieldAccess.get_field_expr fa_set FWrite in
 			let et = sea.se_this in
 			(* abstract setter + getter *)
 			let ta = match sea.se_access.fa_host with
@@ -695,7 +705,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							needs_temp_var e1
 						| _ -> true
 					in
-					if has_class_field_flag sea.se_access.fa_field CfModifiesThis then
+					if has_class_field_flag fa_set.fa_field CfModifiesThis then
 						match et.eexpr with
 						| TField (target,fa) when needs_temp_var target->
 							let tmp = gen_local ctx target.etype target.epos in
@@ -717,7 +727,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
-			let getter_name = String.sub sea.se_access.fa_field.cf_name 4 (String.length sea.se_access.fa_field.cf_name - 4) in
+			let getter_name = sea.se_access.fa_field.cf_name in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
 			unify ctx get.etype ret p;
 			l();
@@ -1186,6 +1196,51 @@ and type_unop ctx op flag e p =
 		) with Not_found ->
 			make e
 	in
+	let handle_accessor etarget fa =
+		let emethod = FieldAccess.get_field_expr fa (if set then FRead else FWrite) in
+		let force_inline = fa.fa_inline in
+		let l = save_locals ctx in
+		let init_tmp,etarget,eget =
+			match needs_temp_var etarget, fst e with
+			| true, EField (_, field_name) ->
+				let tmp = gen_local ctx etarget.etype p in
+				let tmp_ident = (EConst (Ident tmp.v_name), p) in
+				(
+					mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
+					mk (TLocal tmp) tmp.v_type p,
+					(EField (tmp_ident,field_name), p)
+				)
+			| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+		in
+		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
+		let one = (EConst (Int "1"),p) in
+		(match follow emethod.etype with
+		| TFun (_, t) ->
+			(match flag with
+			| Prefix ->
+				let get = type_binop ctx op eget one false WithType.value p in
+				unify ctx get.etype t p;
+				l();
+				let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
+				mk (TBlock [init_tmp; call_setter]) t p
+			| Postfix ->
+				let get = type_expr ctx eget WithType.value in
+				let tmp_value = gen_local ctx t p in
+				let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
+				unify ctx get.etype t p;
+				l();
+				mk (TBlock [
+					init_tmp;
+					mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
+					make_call ctx emethod [etarget; plusone] t ~force_inline p;
+					mk (TLocal tmp_value) t p;
+				]) t p
+			)
+		| _ ->
+			l();
+			die "" __LOC__
+		)
+	in
 	let rec loop acc =
 		match acc with
 		| AKExpr e ->
@@ -1222,52 +1277,15 @@ and type_unop ctx op flag e p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
-		| AKUsingField sea | AKUsingAccessor(sea,_) when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
-			let etarget = sea.se_this in
-			let emethod = FieldAccess.get_field_expr sea.se_access (if set then FRead else FWrite) in
-			let force_inline = sea.se_access.fa_inline in
-			let l = save_locals ctx in
-			let init_tmp,etarget,eget =
-				match needs_temp_var etarget, fst e with
-				| true, EField (_, field_name) ->
-					let tmp = gen_local ctx etarget.etype p in
-					let tmp_ident = (EConst (Ident tmp.v_name), p) in
-					(
-						mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
-						mk (TLocal tmp) tmp.v_type p,
-						(EField (tmp_ident,field_name), p)
-					)
-				| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+		| AKUsingAccessor sea ->
+			let fa_set = match (new call_dispatcher ctx (MSet None) WithType.value p)#resolve_accessor sea.se_access with
+				| AccessorFound fa -> fa
+				| _ -> error "Could not resolve accessor" p
 			in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
-			let one = (EConst (Int "1"),p) in
-			(match follow emethod.etype with
-			| TFun (_, t) ->
-				(match flag with
-				| Prefix ->
-					let get = type_binop ctx op eget one false WithType.value p in
-					unify ctx get.etype t p;
-					l();
-					let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
-					mk (TBlock [init_tmp; call_setter]) t p
-				| Postfix ->
-					let get = type_expr ctx eget WithType.value in
-					let tmp_value = gen_local ctx t p in
-					let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
-					unify ctx get.etype t p;
-					l();
-					mk (TBlock [
-						init_tmp;
-						mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
-						make_call ctx emethod [etarget; plusone] t ~force_inline p;
-						mk (TLocal tmp_value) t p;
-					]) t p
-				)
-			| _ ->
-				l();
-				die "" __LOC__
-			)
-		| AKUsingField _ | AKUsingAccessor _ ->
+			handle_accessor sea.se_this fa_set
+		| AKUsingField sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+			handle_accessor sea.se_this sea.se_access
+		| AKUsingField _ ->
 			error "This kind of operation is not supported" p
 		| AKResolve _ ->
 			error "Invalid operation" p

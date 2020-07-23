@@ -227,9 +227,8 @@ let field_access ctx mode f famode e p =
 			)
 			else begin match famode with
 			| FAAbstract(a,tl,c) ->
-				let fa = PMap.find m c.cl_statics in
-				let sea = make_abstract_static_extension_access a tl c fa e false p in
-				AKUsingAccessor(sea,f)
+				let sea = make_abstract_static_extension_access a tl c f e false p in
+				AKUsingAccessor sea
 			| _ ->
 				AKAccessor (make_access false)
 			end
@@ -424,26 +423,19 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield
 				end;
 			end;
-			let access fmode ft =
+			let access fmode =
 				field_access ctx mode f fmode e p
 			in
 			begin match !(a.a_status) with
 				| Statics c ->
-					access (FAStatic c) (field_type ctx c [] f p)
+					access (FAStatic c)
 				| EnumStatics en ->
 					let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
 				| _ ->
-					match f.cf_params with
-					| [] ->
-						access FAAnon (Type.field_type f)
-					| l ->
-						(* handle possible constraints *)
-						let monos = Monomorph.spawn_constrained_monos (fun t -> t) f.cf_params in
-						let t = apply_params f.cf_params monos f.cf_type in
-						access FAAnon t
+					access FAAnon
 			end
 		with Not_found -> try
 				match !(a.a_status) with
