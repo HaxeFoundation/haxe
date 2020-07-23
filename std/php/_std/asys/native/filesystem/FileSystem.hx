@@ -7,6 +7,7 @@ import asys.native.system.SystemGroup;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import php.Global.*;
+import php.Syntax;
 import php.Resource;
 
 /**
@@ -104,17 +105,20 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Create a directory.
-
-		Default `mode` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to `path`.
-		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
-	**/
-	static public function createDirectory(path:FilePath, mode:FileAccessMode = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				mkdir(cast path, permissions, recursive);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to create a directory'), path));
+			}
+		});
 	}
 
 	/**
@@ -127,18 +131,57 @@ class FileSystem {
 
 		TODO: is it really "temporary"? Probably "unique" would be a better name.
 	**/
-	static public function createTempDirectory(prefix:FilePath, callback:Callback<FilePath>):Void {
+	static public function tempDirectory(prefix:FilePath, callback:Callback<Directory>):Void {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Renames the file or directory located at `oldPath` to `newPath`.
+	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			if(!overwrite && file_exists(cast newPath)) {
+				callback.fail(new FsException(FileExists, newPath));
+				return;
+			}
+			var success = try {
+				moveRecursive(cast oldPath, cast newPath);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), oldPath));
+				return;
+			}
+			if(success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to move file or directory'), oldPath));
+			}
+		});
+	}
 
-		If `newPath` already exists and `overwrite` is `true` (which is the default)
-		the destination is overwritten.
-	**/
-	static public function rename(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	/**
+	 * This is required to avoid "Directory not empty" warning from `rename` function
+	 */
+	static function moveRecursive(oldPath:String, newPath:String):Bool {
+		if(is_dir(newPath) && is_dir(oldPath)) {
+			var dir = opendir(oldPath);
+			var success = true;
+			if(dir == false)
+				throw new FsException(CustomError('Failed to read directory'), oldPath);
+			try {
+				while(true) {
+					switch readdir(dir) {
+						case '.' | '..':
+						case false:
+							break;
+						case entry:
+							success = moveRecursive('$oldPath/$entry', '$newPath/$entry') && success;
+					}
+				}
+			} catch(e:php.Exception) {
+				try closedir(dir) catch(_) {}
+				throw e;
+			}
+			return success;
+		} else {
+			return rename(oldPath, newPath);
+		}
 	}
 
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
@@ -161,16 +204,19 @@ class FileSystem {
 		Remove an empty directory.
 	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Remove everything at the given `path`.
-
-		Removes files, symbolic links and recursively removes directories and their contents.
-	**/
-	static public function delete(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				rmdir(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to delete a file'), path));
+			}
+		});
 	}
 
 	/**
@@ -180,22 +226,43 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Check user's access for a path.
-
-		Example:
-		```haxe
-		import asys.native.filesystem.FileAccessMode;
-		//check path existence
-		FileSystem.check(path, Exists, (error, result) -> trace(result));
-		//check if file is executable
-		FileSystem.check(path, Executable, (error, result) -> trace(result));
-		//check if file is readable and writable
-		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
-		```
-	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+					(!mode.has(Exists) || file_exists(cast path))
+					&& (!mode.has(Readable) || is_readable(cast path))
+					&& (!mode.has(Writable) || is_writable(cast path))
+					&& (!mode.has(Executable) || is_executable(cast path));
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
+	}
+
+	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+					is_dir(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
+	}
+
+	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+					is_file(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
 	/**
@@ -204,7 +271,7 @@ class FileSystem {
 		If `recursive` is `true` and `path` points to a directory: apply `mode`
 		recursively to the directory contents as well.
 	**/
-	static public function setPermissions(path:FilePath, mode:FileAccessMode, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setPermissions(path:FilePath, permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -275,19 +342,24 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Copy a file from `source` path to `destination` path.
-	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Copy all the contents of `source` path to `destination` path.
-		If `source` is a directory, it will be copied recursively.
-	**/
-	static public function copy(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			if(!overwrite && file_exists(cast destination)) {
+				callback.fail(new FsException(FileExists, destination));
+				return;
+			}
+			var success = try {
+				copy(cast source, cast destination);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), source));
+				return;
+			}
+			if (success) {
+				callback.success(NoData);
+			} else {
+				callback.fail(new FsException(CustomError('Failed to copy a file'), source));
+			}
+		});
 	}
 
 	/**
