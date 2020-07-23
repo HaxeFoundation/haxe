@@ -512,7 +512,55 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let rec type_binop ctx op e1 e2 is_assign_op with_type p =
+let rec type_assign ctx e1 e2 with_type p =
+	let e1 = type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
+	let type_rhs with_type = type_expr ctx e2 with_type in
+	let assign_to e1 =
+		let e2 = type_rhs (WithType.with_type e1.etype) in
+		let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
+		check_assign ctx e1;
+		(match e1.eexpr , e2.eexpr with
+		| TLocal i1 , TLocal i2 when i1 == i2 -> error "Assigning a value to itself" p
+		| TField ({ eexpr = TConst TThis },FInstance (_,_,f1)) , TField ({ eexpr = TConst TThis },FInstance (_,_,f2)) when f1 == f2 ->
+			error "Assigning a value to itself" p
+		| _ , _ -> ());
+		mk (TBinop (OpAssign,e1,e2)) e1.etype p
+	in
+	(match e1 with
+	| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+	| AKUsingField _ ->
+		error "Invalid operation" p
+	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
+		error ("Cannot access function " ^ name ^ " for writing") p
+	| AKField fa ->
+		let ef = FieldAccess.get_field_expr fa FWrite in
+		assign_to ef
+	| AKExpr e1  ->
+		assign_to e1
+	| AKAccessor fa ->
+		let fa_set = match FieldAccess.resolve_accessor fa (MSet (Some e2)) with
+			| AccessorFound fa -> fa
+			| _ -> error "Could not resolve accessor" p
+		in
+		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+		dispatcher#field_call fa_set [] [e2]
+	| AKAccess(a,tl,c,ebase,ekey) ->
+		let e2 = type_rhs WithType.value in
+		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
+	| AKResolve(sea,name) ->
+		let eparam = sea.se_this in
+		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+		(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [eparam;e_name] [e2]
+	| AKUsingAccessor sea ->
+		let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2)) with
+			| AccessorFound fa -> fa
+			| _ -> error "Could not resolve accessor" p
+		in
+		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+		dispatcher#field_call fa_set [sea.se_this] [e2]
+	)
+
+and type_binop ctx op e1 e2 is_assign_op with_type p =
 	let type_non_assign_op abstract_overload_only =
 		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
 		   to the individual arguments (issue #2786). *)
@@ -536,54 +584,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	let e2_syntax = e2 in
 	match op with
 	| OpAssign ->
-		let e1 = type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
-		let e2 with_type = type_expr ctx e2 with_type in
-		let assign_to e1 =
-			let e2 = e2 (WithType.with_type e1.etype) in
-			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
-			check_assign ctx e1;
-			(match e1.eexpr , e2.eexpr with
-			| TLocal i1 , TLocal i2 when i1 == i2 -> error "Assigning a value to itself" p
-			| TField ({ eexpr = TConst TThis },FInstance (_,_,f1)) , TField ({ eexpr = TConst TThis },FInstance (_,_,f2)) when f1 == f2 ->
-				error "Assigning a value to itself" p
-			| _ , _ -> ());
-			mk (TBinop (op,e1,e2)) e1.etype p
-		in
-		(match e1 with
-		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKUsingField _ ->
-			error "Invalid operation" p
-		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
-			error ("Cannot access function " ^ name ^ " for writing") p
-		| AKField fa ->
-			let ef = FieldAccess.get_field_expr fa FWrite in
-			assign_to ef
-		| AKExpr e1  ->
-			assign_to e1
-		| AKAccessor fa ->
-			let fa_set = match FieldAccess.resolve_accessor fa (MSet (Some e2_syntax)) with
-				| AccessorFound fa -> fa
-				| _ -> error "Could not resolve accessor" p
-			in
-			let dispatcher = new call_dispatcher ctx (MCall [e2_syntax]) with_type p in
-			dispatcher#field_call fa_set [] [e2_syntax]
-		| AKAccess(a,tl,c,ebase,ekey) ->
-			let e2 = e2 WithType.value in
-			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
-		| AKResolve(sea,name) ->
-			let eparam = sea.se_this in
-			let tthis = abstract_using_param_type sea in
-			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-			(new call_dispatcher ctx (MCall [e2_syntax]) with_type p)#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] [e2_syntax]
-		| AKUsingAccessor sea ->
-			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2_syntax)) with
-				| AccessorFound fa -> fa
-				| _ -> error "Could not resolve accessor" p
-			in
-			let dispatcher = new call_dispatcher ctx (MCall [e2_syntax]) with_type p in
-			let tthis = abstract_using_param_type sea in
-			dispatcher#field_call fa_set [sea.se_this,tthis] [e2_syntax]
-		)
+		type_assign ctx e1 e2 with_type p
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->

@@ -240,11 +240,11 @@ let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
-	let candidates,co,static,map = match fa.fa_host with
+	let candidates,co,static,map,tmap = match fa.fa_host with
 		| FHStatic c ->
-			expand_overloads fa.fa_field,Some c,true,(fun t -> t)
+			expand_overloads fa.fa_field,Some c,true,(fun t -> t),(fun t -> t)
 		| FHAnon ->
-			expand_overloads fa.fa_field,None,false,(fun t -> t)
+			expand_overloads fa.fa_field,None,false,(fun t -> t),(fun t -> t)
 		| FHInstance(c,tl) ->
 			let cf = fa.fa_field in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
@@ -254,9 +254,10 @@ let unify_field_call ctx fa el_typed el p inline =
 					cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,TClass.get_map_function c tl
+			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
-			expand_overloads fa.fa_field,Some c,true,(apply_params a.a_params tl)
+			let map = apply_params a.a_params tl in
+			expand_overloads fa.fa_field,Some c,true,map,(fun t -> map a.a_this)
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in
 	let overload_kind = if has_class_field_flag fa.fa_field CfOverload then OverloadProper
@@ -268,19 +269,19 @@ let unify_field_call ctx fa el_typed el p inline =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
 		| TFun(args,ret) ->
-			let rec loop acc args el_typed = match args,el_typed with
-				| (_,_,t0) :: args,(e,t) :: el_typed ->
+			let rec loop acc tmap args el_typed = match args,el_typed with
+				| (_,_,t0) :: args,e :: el_typed ->
 					begin try
-						unify_raise ctx t t0 e.epos;
+						unify_raise ctx (tmap e.etype) t0 e.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					loop (e :: acc) args el_typed
+					loop (e :: acc) (fun t -> t) args el_typed
 				| _ ->
 					(fun el -> (List.rev acc) @ el),args
 			in
-			let get_call_args,args = loop [] args el_typed in
+			let get_call_args,args = loop [] tmap args el_typed in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
@@ -397,8 +398,8 @@ let type_generic_function ctx fa el_typed el with_type p =
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
 	let args,ret = match t,el_typed with
-		| TFun((_,_,ta) :: args,ret),((e,te) :: _) ->
-			unify ctx te ta p;
+		| TFun((_,_,ta) :: args,ret),(e :: _) ->
+			unify ctx e.etype ta p;
 			args,ret
 		| TFun(args,ret),_ -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
@@ -412,7 +413,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = (List.map fst el_typed) @ el in
+	let el = el_typed @ el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
@@ -624,9 +625,8 @@ object(self)
 
 	method resolve_call sea name =
 		let eparam = sea.se_this in
-		let tthis = abstract_using_param_type sea in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-		self#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] []
+		self#field_call sea.se_access [eparam;e_name] []
 
 	method field_call fa el_typed el =
 		match fa.fa_field.cf_kind with
@@ -642,7 +642,7 @@ object(self)
 				self#macro_call fa.fa_on fa.fa_field el
 			| el_typed ->
 				let cur = ctx.this_stack in
-				let el' = List.map (fun (e,_) -> fst (push_this ctx e)) el_typed in
+				let el' = List.map (fun e -> fst (push_this ctx e)) el_typed in
 				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
 				ctx.this_stack <- cur;
 				e
@@ -658,7 +658,6 @@ object(self)
 				| AccessorAnon ->
 					(* Anons might not have the accessor defined and rely on FDynamic in such cases *)
 					let e = fa.fa_on in
-					let el_typed = List.map fst el_typed in
 					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
 					let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
 					make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ fa.fa_field.cf_name))) tf p) el_typed t p
@@ -786,8 +785,7 @@ let rec acc_get ctx g p =
 	| AKAccessor fa ->
 		(dispatcher())#field_call fa [] []
 	| AKUsingAccessor sea ->
-		let tthis = abstract_using_param_type sea in
-		(dispatcher())#field_call sea.se_access [sea.se_this,tthis] []
+		(dispatcher())#field_call sea.se_access [sea.se_this] []
 	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -825,8 +823,7 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		dispatch#field_call fa [] el
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
-		let tthis = abstract_using_param_type sea in
-		dispatch#field_call sea.se_access [(eparam,tthis)] el
+		dispatch#field_call sea.se_access [eparam] el
 	| AKNo _ | AKAccess _ | AKResolve _ ->
 		ignore(acc_get ctx acc p);
 		die "" __LOC__
@@ -834,8 +831,7 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		let e = dispatch#field_call fa [] [] in
 		dispatch#expr_call e el
 	| AKUsingAccessor sea ->
-		let tthis = abstract_using_param_type sea in
-		let e = dispatch#field_call sea.se_access [(sea.se_this,tthis)] [] in
+		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
 		dispatch#expr_call e el
 	| AKExpr e ->
 		dispatch#expr_call e el
