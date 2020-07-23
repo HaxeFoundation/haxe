@@ -1293,7 +1293,7 @@ and type_unop ctx op flag e p =
 		| AKResolve _ ->
 			error "Invalid operation" p
 		| AKAccessor fa when not set ->
-			(new call_dispatcher ctx mode WithType.value p)#field_call fa [] []
+			access ((new call_dispatcher ctx mode WithType.value p)#field_call fa [] [])
 		| AKAccessor fa ->
 			let e = fa.fa_on in
 			let ef = FieldAccess.get_field_expr fa FCall in
