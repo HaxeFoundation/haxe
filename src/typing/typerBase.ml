@@ -264,6 +264,12 @@ module FieldAccess = struct
 		| FRead (* actual reading, for FClosure and such *)
 		| FWrite (* used as lhs, no semantic difference to FGet *)
 
+	type accessor_resolution =
+		| AccessorFound of field_access
+		| AccessorAnon
+		| AccessorNotFound
+		| AccessorInvalid
+
 	let create e cf fh inline p = {
 		fa_on = e;
 		fa_field = cf;
@@ -313,6 +319,51 @@ module FieldAccess = struct
 				fa,t
 		in
 		mk (TField(fa.fa_on,fa')) t fa.fa_pos
+
+	let resolve_accessor fa mode = match fa.fa_field.cf_kind with
+		| Var v ->
+			begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
+				| AccCall ->
+					let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
+					let forward cf_acc new_host =
+						create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+					in
+					begin match fa.fa_host with
+					| FAStatic c ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
+						end
+					| FAInstance(c,tl) ->
+						begin try
+							let (c2,_,cf_acc) = raw_class_field (fun f -> f.cf_type) c tl name in
+							let new_host = match c2 with
+								| None -> FAAnon
+								| Some(c,tl) -> FAInstance(c,tl)
+							in
+							AccessorFound (forward cf_acc new_host)
+						with Not_found ->
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
+						end
+					| FAAbstract(a,tl,c) ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							if has_class_flag c CExtern then AccessorAnon
+							else AccessorNotFound
+						end
+					| FAAnon ->
+						AccessorAnon
+					end
+				| _ ->
+					AccessorInvalid
+			end
+		| _ ->
+			AccessorInvalid
 end
 
 let make_static_extension_access c cf e_this inline p =

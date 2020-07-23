@@ -518,12 +518,6 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
-type accessor_resolution =
-	| AccessorFound of field_access
-	| AccessorAnon
-	| AccessorNotFound
-	| AccessorInvalid
-
 class call_dispatcher
 	(ctx : typer)
 	(mode : access_mode)
@@ -628,51 +622,6 @@ object(self)
 		in
 		loop e.etype
 
-	method resolve_accessor fa = match fa.fa_field.cf_kind with
-		| Var v ->
-			begin match (if is_set then v.v_write else v.v_read) with
-				| AccCall ->
-					let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
-					let forward cf_acc new_host =
-						FieldAccess.create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
-					in
-					begin match fa.fa_host with
-					| FAStatic c ->
-						begin try
-							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
-						with Not_found ->
-							(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
-							if has_class_flag c CExtern then AccessorAnon
-							else AccessorNotFound
-						end
-					| FAInstance(c,tl) ->
-						begin try
-							let (c2,_,cf_acc) = class_field ctx c tl name p in
-							let new_host = match c2 with
-								| None -> FAAnon
-								| Some(c,tl) -> FAInstance(c,tl)
-							in
-							AccessorFound (forward cf_acc new_host)
-						with Not_found ->
-							if has_class_flag c CExtern then AccessorAnon
-							else AccessorNotFound
-						end
-					| FAAbstract(a,tl,c) ->
-						begin try
-							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
-						with Not_found ->
-							if has_class_flag c CExtern then AccessorAnon
-							else AccessorNotFound
-						end
-					| FAAnon ->
-						AccessorAnon
-					end
-				| _ ->
-					AccessorInvalid
-			end
-		| _ ->
-			AccessorInvalid
-
 	method field_call fa el_typed el =
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
@@ -695,7 +644,7 @@ object(self)
 		| Var v ->
 			begin match (if is_set then v.v_write else v.v_read) with
 			| AccCall ->
-				begin match self#resolve_accessor fa with
+				begin match FieldAccess.resolve_accessor fa mode with
 				| AccessorFound fa' ->
 					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
 					let e = self#field_call fa' el_typed el in

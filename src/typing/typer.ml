@@ -561,12 +561,12 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKExpr e1  ->
 			assign_to e1
 		| AKAccessor fa ->
-			let t = (FieldAccess.get_field_expr fa FCall).etype in
-			let cf = fa.fa_field in
-			let e = fa.fa_on in
-			let e2 = e2 (WithType.with_type t) in
-			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
-			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
+			let fa_set = match FieldAccess.resolve_accessor fa (MSet (Some e2_syntax)) with
+				| AccessorFound fa -> fa
+				| _ -> error "Could not resolve accessor" p
+			in
+			let dispatcher = new call_dispatcher ctx (MCall [e2_syntax]) with_type p in
+			dispatcher#field_call fa_set [] [e2_syntax]
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
@@ -576,7 +576,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 			(new call_dispatcher ctx (MCall [e2_syntax]) with_type p)#field_call sea.se_access [(eparam,tthis);(e_name,e_name.etype)] [e2_syntax]
 		| AKUsingAccessor sea ->
-			let fa_set = match (new call_dispatcher ctx (MSet (Some e2_syntax)) with_type p)#resolve_accessor sea.se_access with
+			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2_syntax)) with
 				| AccessorFound fa -> fa
 				| _ -> error "Could not resolve accessor" p
 			in
@@ -673,7 +673,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				e'
 			]) t p
 		| AKUsingAccessor sea ->
-			let fa_set = match (new call_dispatcher ctx (MSet (Some e2_syntax)) with_type p)#resolve_accessor sea.se_access with
+			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2_syntax)) with
 				| AccessorFound fa -> fa
 				| _ -> error "Could not resolve accessor" p
 			in
@@ -1281,7 +1281,7 @@ and type_unop ctx op flag e p =
 				loop (AKExpr e)
 			end
 		| AKUsingAccessor sea ->
-			let fa_set = match (new call_dispatcher ctx (MSet None) WithType.value p)#resolve_accessor sea.se_access with
+			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet None) with
 				| AccessorFound fa -> fa
 				| _ -> error "Could not resolve accessor" p
 			in
