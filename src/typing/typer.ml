@@ -162,6 +162,33 @@ let check_error ctx err p = match err with
 	| _ ->
 		display_error ctx (error_msg err) p
 
+class value_reference (ctx : typer) =
+
+object(self)
+	val vars = DynArray.create ()
+
+	method get_vars = DynArray.to_list vars
+
+	method as_var e name =
+		let v = alloc_var VGenerated name e.etype e.epos in
+		DynArray.add vars (v,e);
+		mk (TLocal v) v.v_type v.v_pos
+
+	method get_expr name e =
+		match (Texpr.skip e).eexpr with
+		| TLocal _ | TTypeExpr _ | TConst _ ->
+			e
+		| TField(ef,fa) ->
+			let ef = self#get_expr "fh" ef in
+			{e with eexpr = TField(ef,fa)}
+		| TArray(e1,e2) ->
+			let e1 = self#get_expr "base" e1 in
+			let e2 = self#get_expr "index" e2 in
+			{e with eexpr = TArray(e1,e2)}
+		| _ ->
+			self#as_var e name
+end
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -526,7 +553,7 @@ let rec type_assign ctx e1 e2 with_type p =
 		| _ , _ -> ());
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
-	(match e1 with
+	match e1 with
 	| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 	| AKUsingField _ ->
 		error "Invalid operation" p
@@ -538,12 +565,8 @@ let rec type_assign ctx e1 e2 with_type p =
 	| AKExpr e1  ->
 		assign_to e1
 	| AKAccessor fa ->
-		let fa_set = match FieldAccess.resolve_accessor fa (MSet (Some e2)) with
-			| AccessorFound fa -> fa
-			| _ -> error "Could not resolve accessor" p
-		in
 		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-		dispatcher#field_call fa_set [] [e2]
+		dispatcher#setter_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let e2 = type_rhs WithType.value in
 		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
@@ -558,248 +581,149 @@ let rec type_assign ctx e1 e2 with_type p =
 		in
 		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
 		dispatcher#field_call fa_set [sea.se_this] [e2]
-	)
 
-and type_binop ctx op e1 e2 is_assign_op with_type p =
-	let type_non_assign_op abstract_overload_only =
-		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
-		   to the individual arguments (issue #2786). *)
-		let wt = match with_type with
-			| WithType.WithType(t,_) ->
-				begin match follow t with
-					| TAbstract(a,_) ->
-						begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
-							| [_] -> with_type
-							| _ -> WithType.value
-						end
-					| _ ->
-						WithType.value
+and type_assign_op ctx op e1 e2 with_type p =
+	let rhs op cf ev =
+		let access_get = type_field_default_cfg ctx ev cf.cf_name p MGet (WithType.with_type cf.cf_type) in
+		let e_get = acc_get ctx access_get p in
+		type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
+	in
+	let lhs vars e_lhs e_rhs f_assign =
+		let e = match e_rhs.eexpr with
+			| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
+				f_assign ()
+			| _ ->
+				e_rhs
+		in
+		begin match vars with
+		| [] ->
+			e
+		| vl ->
+			let el = List.map (fun (v,e) ->
+				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+			) vl in
+			let e = mk (TBlock (el @ [e])) e.etype e.epos in
+			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+		end
+	in
+	(match type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
+	| AKNo s ->
+		(* try abstract operator overloading *)
+		(try type_non_assign_op ctx op e1 e2 true true with_type p
+		with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		)
+	| AKUsingField _ ->
+		error "Invalid operation" p
+	| AKField fa ->
+		let ef = FieldAccess.get_field_expr fa FWrite in
+		let vr = new value_reference ctx in
+		let ef = vr#get_expr "field" ef in
+		let e_rhs = type_binop2 ctx op ef e2 true (WithType.with_type ef.etype) p in
+		let assign () =
+			mk (TBinop(OpAssign,ef,e_rhs)) ef.etype p
+		in
+		lhs vr#get_vars ef e_rhs assign
+	| AKExpr e ->
+		let vr = new value_reference ctx in
+		let e = vr#get_expr "lhs" e in
+		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
+		let assign () =
+			mk (TBinop(OpAssign,e,e_rhs)) e.etype p
+		in
+		lhs vr#get_vars e e_rhs assign
+	| AKAccessor fa ->
+		let vr = new value_reference ctx in
+		let ev = vr#get_expr "self" fa.fa_on in
+		let e_rhs = rhs op fa.fa_field ev in
+		let assign () =
+			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+			let el = [e_rhs] in
+			let fa_set = {fa with fa_on = ev} in
+			dispatcher#setter_call fa_set el []
+		in
+		lhs vr#get_vars ev e_rhs assign
+	| AKUsingAccessor sea ->
+		let vr = new value_reference ctx in
+		let fa = sea.se_access in
+		let ev = vr#get_expr "self" sea.se_this in
+		let e_rhs = rhs op fa.fa_field ev in
+		let assign () =
+			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+			let el = [ev;e_rhs] in
+			dispatcher#setter_call fa el []
+		in
+		lhs vr#get_vars ev e_rhs assign
+	| AKAccess(a,tl,c,ebase,ekey) ->
+		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
+		(* bind complex keys to a variable so they do not make it into the output twice *)
+		let save = save_locals ctx in
+		let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
+			| Some e -> e,None
+			| None ->
+				let v = gen_local ctx e.etype p in
+				let e' = mk (TLocal v) e.etype p in
+				e', Some (mk (TVar (v,Some e)) ctx.t.tvoid p)
+		in
+		let ekey,ekey' = maybe_bind_to_temp ekey in
+		let ebase,ebase' = maybe_bind_to_temp ebase in
+		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
+		let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
+		unify ctx eget.etype r_get p;
+		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
+		let eget = match eget with None -> die "" __LOC__ | Some e -> e in
+		let et = type_module_type ctx (TClassDecl c) None p in
+		let e = match cf_set.cf_expr,cf_get.cf_expr with
+			| None,None ->
+				let ea = mk (TArray(ebase,ekey)) r_get p in
+				mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p
+			| Some _,Some _ ->
+				let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
+				let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
+				let el = match ebase' with None -> el | Some ebase -> ebase :: el in
+				let el = match ekey' with None -> el | Some ekey -> ekey :: el in
+				begin match el with
+					| [e] -> e
+					| el -> mk (TBlock el) r_set p
 				end
 			| _ ->
-				WithType.value
+				error "Invalid array access getter/setter combination" p
 		in
-		let e1 = type_expr ctx e1 wt in
-		type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
+		save();
+		e
+	| AKResolve _ ->
+		error "Invalid operation" p
+	)
+
+and type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_type p =
+	(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
+		to the individual arguments (issue #2786). *)
+	let wt = match with_type with
+		| WithType.WithType(t,_) ->
+			begin match follow t with
+				| TAbstract(a,_) ->
+					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+						| [_] -> with_type
+						| _ -> WithType.value
+					end
+				| _ ->
+					WithType.value
+			end
+		| _ ->
+			WithType.value
 	in
-	let e2_syntax = e2 in
+	let e1 = type_expr ctx e1 wt in
+	type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
+
+and type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
 		type_assign ctx e1 e2 with_type p
 	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
-		let handle e =
-			let save = save_locals ctx in
-			let v = gen_local ctx e.etype e.epos in
-			let has_side_effect = OptimizerTexpr.has_side_effect e in
-			let e1 = if has_side_effect then (EConst(Ident v.v_name),e.epos) else e1 in
-			let eop = type_binop ctx op e1 e2 true with_type p in
-			save();
-			(match eop.eexpr with
-			| TBinop (_,_,e2) ->
-				unify ctx eop.etype e.etype p;
-				check_assign ctx e;
-				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
-			| TMeta((Meta.RequiresAssign,_,_),e2) ->
-				unify ctx e2.etype e.etype p;
-				check_assign ctx e;
-				begin match e.eexpr with
-					| TArray(ea1,ea2) when has_side_effect ->
-						let v1 = gen_local ctx ea1.etype ea1.epos in
-						let ev1 = mk (TLocal v1) v1.v_type p in
-						let v2 = gen_local ctx ea2.etype ea2.epos in
-						let ev2 = mk (TLocal v2) v2.v_type p in
-						let e = {e with eexpr = TArray(ev1,ev2)} in
-						mk (TBlock [
-							mk (TVar(v1,Some ea1)) ctx.t.tvoid p;
-							mk (TVar(v2,Some ea2)) ctx.t.tvoid p;
-							mk (TVar(v,Some e)) ctx.t.tvoid p;
-							mk (TBinop (OpAssign,e,e2)) e.etype p;
-						]) e.etype p
-					| TField(ea1,fa) when has_side_effect ->
-						let v1 = gen_local ctx ea1.etype ea1.epos in
-						let ev1 = mk (TLocal v1) v1.v_type p in
-						let e = {e with eexpr = TField(ev1,fa)} in
-						mk (TBlock [
-							mk (TVar(v1,Some ea1)) ctx.t.tvoid p;
-							mk (TVar(v,Some e)) ctx.t.tvoid p;
-							mk (TBinop (OpAssign,e,e2)) e.etype p;
-						]) e.etype p
-					| _ ->
-						mk (TBinop (OpAssign,e,e2)) e.etype p;
-				end
-			| _ ->
-				(* this must be an abstract cast *)
-				check_assign ctx e;
-				if has_side_effect then
-					mk (TBlock [
-						mk (TVar(v,Some e)) ctx.t.tvoid eop.epos;
-						eop
-					]) eop.etype eop.epos
-				else
-					eop)
-		in
-		(match type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
-		| AKNo s ->
-			(* try abstract operator overloading *)
-			(try type_non_assign_op true
-			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-			)
-		| AKUsingField _ ->
-			error "Invalid operation" p
-		| AKField fa ->
-			let e1 = FieldAccess.get_field_expr fa FWrite in
-			handle e1
-		| AKExpr e ->
-			handle e
-		| AKAccessor fa ->
-			let e = fa.fa_on in
-			let cf = fa.fa_field in
-			let t = (FieldAccess.get_field_expr fa FCall).etype in
-			let l = save_locals ctx in
-			let v = gen_local ctx e.etype e.epos in
-			let ev = mk (TLocal v) e.etype p in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true with_type p in
-			let e' = match get.eexpr with
-				| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
-					unify ctx get.etype t p;
-					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
-				| _ ->
-					(* abstract setter *)
-					get
-			in
-			l();
-			mk (TBlock [
-				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				e'
-			]) t p
-		| AKUsingAccessor sea ->
-			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2_syntax)) with
-				| AccessorFound fa -> fa
-				| _ -> error "Could not resolve accessor" p
-			in
-			let ef = FieldAccess.get_field_expr fa_set FWrite in
-			let et = sea.se_this in
-			(* abstract setter + getter *)
-			let ta = match sea.se_access.fa_host with
-				| FHAbstract(a,tl,_) -> TAbstract(a,tl)
-				| _ -> die "" __LOC__
-			in
-			let ret = match follow ef.etype with
-				| TFun([_;_],ret) -> ret
-				| _ -> error "Invalid field type for abstract setter" p
-			in
-			let l = save_locals ctx in
-			let v,init_exprs,abstr_this_to_modify = match et.eexpr with
-				| TLocal v when not (Meta.has Meta.This v.v_meta) -> v,[],None
-				| _ ->
-					let v = gen_local ctx ta ef.epos in
-					(match et.eexpr with
-					| TLocal { v_meta = m } -> v.v_meta <- Meta.copy_from_to Meta.This m v.v_meta
-					| _ -> ()
-					);
-					let decl_v e = mk (TVar (v,Some e)) ctx.t.tvoid p in
-					let rec needs_temp_var e =
-						match e.eexpr with
-						| TConst TThis | TTypeExpr _ -> false
-						| TField (e1,(FInstance(_,_,cf) | FStatic(_,cf)))
-							when has_class_field_flag cf CfFinal ->
-							needs_temp_var e1
-						| TParenthesis e1 ->
-							needs_temp_var e1
-						| _ -> true
-					in
-					if has_class_field_flag fa_set.fa_field CfModifiesThis then
-						match et.eexpr with
-						| TField (target,fa) when needs_temp_var target->
-							let tmp = gen_local ctx target.etype target.epos in
-							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
-							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
-							let athis = mk (TField (etmp,fa)) et.etype et.epos in
-							v,[decl_tmp; decl_v athis],(Some athis)
-						| TArray (target,index) when needs_temp_var target ->
-							let tmp = gen_local ctx target.etype target.epos in
-							let decl_tmp = mk (TVar (tmp,Some target)) ctx.t.tvoid target.epos in
-							let etmp = mk (TLocal tmp) tmp.v_type tmp.v_pos in
-							let athis = mk (TArray (etmp,index)) et.etype et.epos in
-							v,[decl_tmp; decl_v athis],(Some athis)
-						| _ ->
-							check_assign ctx et;
-							v,[decl_v et],(Some et)
-					else
-						v,[decl_v et],None
-			in
-			let ev = mk (TLocal v) ta p in
-			(* this relies on the fact that cf_name is set_name *)
-			let getter_name = sea.se_access.fa_field.cf_name in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
-			unify ctx get.etype ret p;
-			l();
-			let e_call = make_call ctx ef [ev;get] ret p in
-			let e_call =
-				(*
-					If this method modifies abstract `this`, we should also apply temp var
-					modifications to the original tempvar-ed expression.
-					Find code like `v = value` and change it to `et = v = value`,
-					where `v` is the temp var and `et` is the original expression stored to the temp var.
-				*)
-				match abstr_this_to_modify with
-				| None ->
-					e_call
-				| Some athis ->
-					let rec loop e =
-						match e.eexpr with
-						| TBinop(OpAssign,({ eexpr = TLocal v1 } as left),right) when v1 == v ->
-							let right = { e with eexpr = TBinop(OpAssign,left,loop right) } in
-							mk (TBinop(OpAssign,athis,right)) e.etype e.epos
-						| _ ->
-							map_expr loop e
-					in
-					loop e_call
-			in
-			mk (TBlock (init_exprs @ [e_call])) ret p
-		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
-			(* bind complex keys to a variable so they do not make it into the output twice *)
-			let save = save_locals ctx in
-			let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
-				| Some e -> e,None
-				| None ->
-					let v = gen_local ctx e.etype p in
-					let e' = mk (TLocal v) e.etype p in
-					e', Some (mk (TVar (v,Some e)) ctx.t.tvoid p)
-			in
-			let ekey,ekey' = maybe_bind_to_temp ekey in
-			let ebase,ebase' = maybe_bind_to_temp ebase in
-			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
-			let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
-			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-			let eget = match eget with None -> die "" __LOC__ | Some e -> e in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let e = match cf_set.cf_expr,cf_get.cf_expr with
-				| None,None ->
-					let ea = mk (TArray(ebase,ekey)) r_get p in
-					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p
-				| Some _,Some _ ->
-					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
-					let el = match ebase' with None -> el | Some ebase -> ebase :: el in
-					let el = match ekey' with None -> el | Some ekey -> ekey :: el in
-					begin match el with
-						| [e] -> e
-						| el -> mk (TBlock el) r_set p
-					end
-				| _ ->
-					error "Invalid array access getter/setter combination" p
-			in
-			save();
-			e
-		| AKResolve _ ->
-			error "Invalid operation" p
-		)
+		type_assign_op ctx op e1 e2 with_type p
 	| _ ->
-		type_non_assign_op false
+		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
 
 and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let with_type = match op with

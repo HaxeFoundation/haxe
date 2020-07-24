@@ -597,6 +597,14 @@ object(self)
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 		self#field_call sea.se_access [eparam;e_name] []
 
+	method setter_call fa el_typed el =
+		let fa_set = match FieldAccess.resolve_accessor fa (MSet None) with
+			| AccessorFound fa -> fa
+			| _ -> error "Could not resolve accessor" p
+		in
+		let dispatcher = new call_dispatcher ctx (MCall el) with_type p in
+		dispatcher#field_call fa_set el_typed el
+
 	(* Calls the field represented by `fa` with the typed arguments `el_typed` and the syntactic arguments `el`.
 
 	   This function inspects the nature of the field being called and dispatches the call accordingly:
