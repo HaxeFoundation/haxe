@@ -1636,8 +1636,8 @@ module Printer = struct
 			in
 			let prefix = match e1.eexpr, follow x.etype with
 				(* the should not apply for the instance methods of the abstract itself *)
-				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
-				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
 				| _, TAbstract({a_path = ["python"],"KwArgs"},_) -> "**"
 				| _, TAbstract({a_path = ["python"],"VarArgs"},_) -> "*"
 				| _, _ -> ""

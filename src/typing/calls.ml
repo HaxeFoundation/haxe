@@ -486,7 +486,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 		error msg p)
 
 let abstract_using_param_type sea = match follow sea.se_this.etype with
-	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
+	| TAbstract(a,tl) when has_class_field_flag sea.se_access.fa_field CfImpl -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
 class call_dispatcher

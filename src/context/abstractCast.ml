@@ -125,7 +125,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				) monos cf.cf_params;
 			in
 			let get_ta() =
-				if has_meta Meta.Impl cf.cf_meta then ta
+				if has_class_field_flag cf CfImpl then ta
 				else TAbstract(a,pl)
 			in
 			match follow (map cf.cf_type) with

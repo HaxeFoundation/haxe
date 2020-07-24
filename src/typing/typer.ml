@@ -368,9 +368,9 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
-		let is_impl = Meta.has Meta.Impl f.cf_meta in
+		let is_impl = has_class_field_flag f CfImpl in
 		let is_enum = Meta.has Meta.Enum f.cf_meta in
-		if is_impl && not (Meta.has Meta.Impl ctx.curfield.cf_meta) && not is_enum then
+		if is_impl && not (has_class_field_flag ctx.curfield CfImpl) && not is_enum then
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
@@ -1057,7 +1057,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
 				loop ol
 			| (op_cf,cf) :: ol ->
-				let is_impl = Meta.has Meta.Impl cf.cf_meta in
+				let is_impl = has_class_field_flag cf CfImpl in
 				begin match follow cf.cf_type with
 					| TFun([(_,_,t1);(_,_,t2)],tret) ->
 						let check e1 e2 swapped =
@@ -1126,7 +1126,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			loop a.a_ops
 		else
 			let not_impl_or_is_commutative (_, cf) =
-				not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Commutative cf.cf_meta
+				not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
 			in
 			loop (List.filter not_impl_or_is_commutative a.a_ops)
 	in
@@ -1179,7 +1179,7 @@ and type_unop ctx op flag e p =
 					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
 						let m = spawn_monomorph ctx p in
 						let tcf = apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type) in
-						if Meta.has Meta.Impl cf.cf_meta then begin
+						if has_class_field_flag cf CfImpl then begin
 							if type_iseq (tfun [apply_params a.a_params pl a.a_this] m) tcf then cf,tcf,m else loop opl
 						end else
 							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
@@ -1287,7 +1287,7 @@ and type_unop ctx op flag e p =
 				| _ -> error "Could not resolve accessor" p
 			in
 			handle_accessor sea.se_this fa_set
-		| AKUsingField sea when (op = Decrement || op = Increment) && has_meta Meta.Impl sea.se_access.fa_field.cf_meta ->
+		| AKUsingField sea when (op = Decrement || op = Increment) && has_class_field_flag sea.se_access.fa_field CfImpl ->
 			handle_accessor sea.se_this sea.se_access
 		| AKUsingField _ ->
 			error "This kind of operation is not supported" p
@@ -2540,7 +2540,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			| TEnum _ -> true
 			| TAbstract (a,tl) when (Meta.has Meta.Forward a.a_meta) && not (Meta.has Meta.CoreType a.a_meta) ->
 				(match a.a_impl with
-					| Some c when (PMap.exists "match" c.cl_statics) && (Meta.has Meta.Impl (PMap.find "match" c.cl_statics).cf_meta) -> false
+					| Some c when (PMap.exists "match" c.cl_statics) && (has_class_field_flag (PMap.find "match" c.cl_statics) CfImpl) -> false
 					| _ -> has_enum_match (Abstract.get_underlying_type ~return_first:true a tl))
 			| _ -> false
 		in

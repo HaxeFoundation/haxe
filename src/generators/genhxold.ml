@@ -142,7 +142,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum | Meta.Impl -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)
@@ -288,7 +288,7 @@ let generate_type com t =
 			in
 
 			List.iter (fun f ->
-				let static = not (Meta.has Meta.Impl f.cf_meta) in
+				let static = not (has_class_field_flag f CfImpl) in
 				if not static && is_enum && Meta.has Meta.Enum f.cf_meta then begin
 					p "\tvar %s;\n" f.cf_name;
 				end else

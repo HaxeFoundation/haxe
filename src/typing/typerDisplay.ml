@@ -53,7 +53,7 @@ let completion_item_of_expr ctx e =
 			Display.merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
-				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
+				| KAbstractImpl _,_ when has_class_field_flag cf CfImpl -> Self decl
 				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension decl
 				| _ -> Self decl
 			in
