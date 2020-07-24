@@ -73,6 +73,7 @@ type field_init_ctx = {
 	is_abstract_member : bool;
 	is_display_field : bool;
 	is_field_debug : bool;
+	is_generic : bool;
 	field_kind : field_kind;
 	display_modifier : placed_access option;
 	mutable do_bind : bool;
@@ -611,6 +612,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = is_abstract_member;
+		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
@@ -1051,7 +1053,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 
 let create_method (ctx,cctx,fctx) c f fd p =
 	let params = TypeloadFunction.type_function_params ctx fd (fst f.cff_name) p in
-	if Meta.has Meta.Generic f.cff_meta then begin
+	if fctx.is_generic then begin
 		if params = [] then error (fst f.cff_name ^ ": Generic functions must have type parameters") p;
 	end;
 	let fd = if fctx.is_macro && not ctx.in_macro && not fctx.is_static then
@@ -1159,6 +1161,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
+	if fctx.is_generic then add_class_field_flag cf CfGeneric;
 	begin match fctx.overload with
 	| Some p ->
 		if ctx.com.config.pf_overload then

@@ -433,11 +433,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 				);
 				cf2.cf_kind <- cf.cf_kind;
 				if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-				let metadata = List.filter (fun (m,_,_) -> match m with
-					| Meta.Generic -> false
-					| _ -> true
-				) cf.cf_meta in
-				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata
+				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
 			in
 			let mk_cf2 name =
 				mk_field ~static:stat name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
@@ -614,7 +610,7 @@ object(self)
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();
-			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
+			 if has_class_field_flag fa.fa_field CfGeneric then begin
 				type_generic_function ctx fa el_typed el with_type p
 			end else
 				self#make_field_call fa el_typed el
