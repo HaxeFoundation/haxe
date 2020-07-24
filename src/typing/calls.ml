@@ -842,9 +842,11 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
 		dispatch#field_call sea.se_access [eparam] el
-	| AKNo _ | AKAccess _ | AKResolve _ ->
+	| AKResolve(sea,name) ->
+		dispatch#expr_call (dispatch#resolve_call sea name) el
+	| AKNo _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);
-		die "" __LOC__
+		error ("Unexpected access mode, please report this: " ^ (s_access_kind acc)) p
 	| AKAccessor fa ->
 		let e = dispatch#field_call fa [] [] in
 		dispatch#expr_call e el
