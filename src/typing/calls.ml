@@ -530,7 +530,7 @@ class call_dispatcher
 
 object(self)
 
-	method private make_field_call fa el_typed el =
+	method private make_field_call (fa : field_access) (el_typed : texpr list) (el : expr list) =
 		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
 		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
 			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
@@ -538,7 +538,7 @@ object(self)
 		end;
 		fcc.fc_data()
 
-	method private macro_call ethis cf el =
+	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
@@ -596,7 +596,9 @@ object(self)
 		!ethis_f();
 		e
 
-	method expr_call e el =
+	(* Calls `e` with arguments `el`. Does not inspect the callee expression, so it should only be
+	   used with actual expression calls and not with something like field calls. *)
+	method expr_call (e : texpr) (el : expr list) =
 		check_assign();
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
@@ -623,12 +625,22 @@ object(self)
 		in
 		loop e.etype
 
-	method resolve_call sea name =
+	(* Calls the resolve method represented by `sea` with an additional string-expression argument `name`. *)
+	method resolve_call (sea : static_extension_access) (name : string) =
 		let eparam = sea.se_this in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 		self#field_call sea.se_access [eparam;e_name] []
 
-	method field_call fa el_typed el =
+	(* Calls the field represented by `fa` with the typed arguments `el_typed` and the syntactic arguments `el`.
+
+	   This function inspects the nature of the field being called and dispatches the call accordingly:
+
+	   * If the field is `@:generic`, call `type_generic_function`.
+	   * If the field is a non-macro method, call it via `make_field_call`.
+	   * If the field is a property, resolve the accessor (depending on `mode`) and recurse onto it.
+	   * Otherwise, call the field as a normal expression via `expr_call`.
+	*)
+	method field_call (fa : field_access) (el_typed : texpr list) (el : expr list) =
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();

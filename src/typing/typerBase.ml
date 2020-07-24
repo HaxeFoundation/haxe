@@ -11,26 +11,43 @@ type field_host =
 	| FHAnon
 
 type field_access = {
-	fa_on : texpr;
-	fa_field : tclass_field;
-	fa_host : field_host;
+	(* The expression on which the field is accessed. For abstracts, this is a type expression
+	   to the implementation class. *)
+	fa_on     : texpr;
+	(* The field being accessed. *)
+	fa_field  : tclass_field;
+	(* The host of the field. *)
+	fa_host   : field_host;
+	(* Whether or not to inline the access. This can be set for non-inline fields via `inline call()` syntax. *)
 	fa_inline : bool;
-	fa_pos : pos;
+	(* The position of the field access expression in syntax. *)
+	fa_pos    : pos;
 }
 
 type static_extension_access = {
-	se_this : texpr;
+	(* The `this` expression which should be passed as first argument. *)
+	se_this   : texpr;
+	(* The field access information. *)
 	se_access : field_access;
 }
 
 type access_kind =
+	(* Access is not possible or allowed. *)
 	| AKNo of string
+	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
+	(* Access on non-property field. *)
 	| AKField of field_access
-	| AKAccessor of field_access (* fa_field is the property, not the accessor *)
+	(* Access on property field. The field is the property, not the accessor. *)
+	| AKAccessor of field_access
+	(* Access via static extension. *)
 	| AKUsingField of static_extension_access
+	(* Access via static extension on property field. The field is the property, not the accessor.
+	   This currently only happens on abstract properties. *)
 	| AKUsingAccessor of static_extension_access
+	(* Access on abstract via array overload. *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
+	(* Access on abstract via resolve method. *)
 	| AKResolve of static_extension_access * string
 
 type object_decl_kind =
@@ -259,36 +276,47 @@ let get_abstract_froms a pl =
 
 module FieldAccess = struct
 	type field_host =
-		| FGet (* get the plain expression with applied field type parameters *)
-		| FCall (* does not apply field type parameters *)
-		| FRead (* actual reading, for FClosure and such *)
-		| FWrite (* used as lhs, no semantic difference to FGet *)
+		(* Get the plain expression with applied field type parameters. *)
+		| FGet
+		(* Does not apply field type parameters. *)
+		| FCall
+		(* Actual reading, for FClosure and such. *)
+		| FRead
+		(* Used as lhs, no semantic difference to FGet. *)
+		| FWrite
 
 	type accessor_resolution =
+		(* Accessor was found. *)
 		| AccessorFound of field_access
+		(* Accessor was not found, but access was made on anonymous structure. *)
 		| AccessorAnon
+		(* Accessor was not found. *)
 		| AccessorNotFound
+		(* Accessor resolution was attempted on a non-property. *)
 		| AccessorInvalid
 
 	let create e cf fh inline p = {
-		fa_on = e;
-		fa_field = cf;
-		fa_host = fh;
+		fa_on     = e;
+		fa_field  = cf;
+		fa_host   = fh;
 		fa_inline = inline;
-		fa_pos = p;
+		fa_pos    = p;
 	}
 
+	(* Creates the `tfield_access` corresponding to this field access, using the provided field. *)
 	let apply_fa cf = function
 		| FHStatic c -> FStatic(c,cf)
 		| FHInstance(c,tl) -> FInstance(c,tl,cf)
 		| FHAbstract(a,tl,c) -> FStatic(c,cf)
 		| FHAnon -> FAnon cf
 
+	(* Returns the mapping function to apply type parameters. *)
 	let get_map_function fa = match fa.fa_host with
 		| FHStatic _ | FHAnon -> (fun t -> t)
 		| FHInstance(c,tl) -> TClass.get_map_function c tl
 		| FHAbstract(a,tl,_) -> apply_params a.a_params tl
 
+	(* Converts the field access to a `TField` node, using the provided `mode`. *)
 	let get_field_expr fa mode =
 		let cf = fa.fa_field in
 		let t = match mode with
@@ -320,6 +348,7 @@ module FieldAccess = struct
 		in
 		mk (TField(fa.fa_on,fa')) t fa.fa_pos
 
+	(* Resolves the accessor on the field access, using the provided `mode`. *)
 	let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 		| Var v ->
 			begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
