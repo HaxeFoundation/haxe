@@ -212,6 +212,7 @@ let null_abstract = {
 	a_array = [];
 	a_read = None;
 	a_write = None;
+	a_enum = false;
 }
 
 let add_dependency m mdep =

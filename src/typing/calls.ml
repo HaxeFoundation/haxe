@@ -659,7 +659,7 @@ let rec acc_get ctx g p =
 			| FHInstance(c,tl) ->
 				(fun t -> t)
 			| FHAbstract(a,tl,c) ->
-				if Meta.has Meta.Enum a.a_meta then begin
+				if a.a_enum then begin
 					(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
 					let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
 					apply_params a.a_params monos;

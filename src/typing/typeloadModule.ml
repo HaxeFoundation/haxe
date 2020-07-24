@@ -330,6 +330,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_this = mk_mono();
 				a_read = None;
 				a_write = None;
+				a_enum = List.mem AbEnum d.d_flags;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
@@ -894,7 +895,7 @@ let init_module_type ctx context_init (decl,p) =
 				is_type := true;
 			| AbExtern ->
 				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
-			| AbPrivate -> ()
+			| AbPrivate | AbEnum -> ()
 		) d.d_flags;
 		a.a_from <- List.rev a.a_from;
 		a.a_to <- List.rev a.a_to;
