@@ -58,7 +58,7 @@ class Boot extends flash.display.MovieClip {
 		var c = flash.Lib.current;
 		try {
 			untyped if (c == this && c.stage != null && c.stage.align == "")
-				c.stage.align = "TOP_LEFT";
+				c.stage.align = cast "TOP_LEFT";
 		} catch (e:Dynamic) {
 			// security error when loading from different domain
 		}
