@@ -583,18 +583,12 @@ let rec type_assign ctx e1 e2 with_type p =
 		dispatcher#field_call fa_set [sea.se_this] [e2]
 
 and type_assign_op ctx op e1 e2 with_type p =
-	let rhs op cf ev =
+	let field_rhs op cf ev =
 		let access_get = type_field_default_cfg ctx ev cf.cf_name p MGet (WithType.with_type cf.cf_type) in
 		let e_get = acc_get ctx access_get p in
 		type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
 	in
-	let lhs vars e_lhs e_rhs f_assign =
-		let e = match e_rhs.eexpr with
-			| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
-				f_assign ()
-			| _ ->
-				e_rhs
-		in
+	let emit vars e =
 		begin match vars with
 		| [] ->
 			e
@@ -606,6 +600,32 @@ and type_assign_op ctx op e1 e2 with_type p =
 			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
 		end
 	in
+	let process_lhs name e_lhs =
+		let vr = new value_reference ctx in
+		let e = vr#get_expr name e_lhs in
+		e,vr#get_vars
+	in
+	let assign vars e e_rhs =
+		let e = match e_rhs.eexpr with
+			| TBinop(op',e1',e2') when Texpr.equal e e1' && op = op' ->
+				{e_rhs with eexpr = TBinop(OpAssignOp op,e1',e2')}
+			| TMeta((Meta.RequiresAssign,_,_),_) ->
+				mk (TBinop(OpAssign,e,e_rhs)) e.etype p
+			| _ ->
+				e_rhs
+		in
+		emit vars e
+	in
+	let set vars fa e_rhs el =
+		let e = match e_rhs.eexpr with
+			| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
+				let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+				dispatcher#setter_call fa el []
+			| _ ->
+				e_rhs
+		in
+		emit vars e
+	in
 	(match type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
 	| AKNo s ->
 		(* try abstract operator overloading *)
@@ -615,44 +635,22 @@ and type_assign_op ctx op e1 e2 with_type p =
 	| AKUsingField _ ->
 		error "Invalid operation" p
 	| AKField fa ->
-		let ef = FieldAccess.get_field_expr fa FWrite in
-		let vr = new value_reference ctx in
-		let ef = vr#get_expr "field" ef in
-		let e_rhs = type_binop2 ctx op ef e2 true (WithType.with_type ef.etype) p in
-		let assign () =
-			mk (TBinop(OpAssign,ef,e_rhs)) ef.etype p
-		in
-		lhs vr#get_vars ef e_rhs assign
-	| AKExpr e ->
-		let vr = new value_reference ctx in
-		let e = vr#get_expr "lhs" e in
+		let e,vars = process_lhs "fh" (FieldAccess.get_field_expr fa FWrite) in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
-		let assign () =
-			mk (TBinop(OpAssign,e,e_rhs)) e.etype p
-		in
-		lhs vr#get_vars e e_rhs assign
+		assign vars e e_rhs
+	| AKExpr e ->
+		let e,vars = process_lhs "lhs" e in
+		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
+		assign vars e e_rhs
 	| AKAccessor fa ->
-		let vr = new value_reference ctx in
-		let ev = vr#get_expr "self" fa.fa_on in
-		let e_rhs = rhs op fa.fa_field ev in
-		let assign () =
-			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-			let el = [e_rhs] in
-			let fa_set = {fa with fa_on = ev} in
-			dispatcher#setter_call fa_set el []
-		in
-		lhs vr#get_vars ev e_rhs assign
+		let ef,vars = process_lhs "fh" fa.fa_on in
+		let e_rhs = field_rhs op fa.fa_field ef in
+		set vars {fa with fa_on = ef} e_rhs [e_rhs]
 	| AKUsingAccessor sea ->
-		let vr = new value_reference ctx in
 		let fa = sea.se_access in
-		let ev = vr#get_expr "self" sea.se_this in
-		let e_rhs = rhs op fa.fa_field ev in
-		let assign () =
-			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-			let el = [ev;e_rhs] in
-			dispatcher#setter_call fa el []
-		in
-		lhs vr#get_vars ev e_rhs assign
+		let ef,vars = process_lhs "fh" sea.se_this in
+		let e_rhs = field_rhs op fa.fa_field ef in
+		set vars sea.se_access e_rhs [ef;e_rhs]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
