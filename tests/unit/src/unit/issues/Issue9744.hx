@@ -74,11 +74,14 @@ class NadakoB {
 }
 
 class Issue9744 extends unit.Test {
+	#if ((cs && fast_cast && erase_generics) || cppia)
+	#else
 	function testAbstractOverAbstractSelf() {
 		var ref = new Ref();
 		eq(1, ref.value = 1);
 		eq(1, ref.value);
 	}
+	#end
 
 	function testUnopProperties() {
 		var vcs = new Vcs(true);
