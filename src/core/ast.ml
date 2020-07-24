@@ -300,6 +300,7 @@ type abstract_flag =
 	| AbTo of type_hint
 	| AbOver of type_hint
 	| AbExtern
+	| AbEnum
 
 type enum_constructor = {
 	ec_name : placed_name;

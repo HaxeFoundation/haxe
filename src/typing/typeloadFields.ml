@@ -431,7 +431,7 @@ let apply_macro ctx mode path el p =
 	ctx.g.do_macro ctx mode cpath meth el p
 
 let build_module_def ctx mt meta fvars context_init fbuild =
-	let loop (f_build,f_enum) = function
+	let loop f_build = function
 		| Meta.Build,args,p -> (fun () ->
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
@@ -447,19 +447,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				(match r with
 				| None -> error "Build failure" p
 				| Some e -> fbuild e)
-			) :: f_build,f_enum
-		| Meta.Enum,_,p -> f_build,Some (fun () ->
-				begin match mt with
-					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
-						(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-							ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
-						context_init#run;
-						let e = build_enum_abstract ctx c a (fvars()) p in
-						fbuild e;
-					| _ ->
-						()
-				end
-			)
+			) :: f_build
 		| Meta.Using,el,p -> (fun () ->
 			List.iter (fun e ->
 				try
@@ -474,23 +462,33 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				with Exit ->
 					error "dot path expected" (pos e)
 			) el;
-		) :: f_build,f_enum
+		) :: f_build
 		| _ ->
-			f_build,f_enum
+			f_build
 	in
 	(* let errors go through to prevent resume if build fails *)
-	let f_build,f_enum = List.fold_left loop ([],None) meta in
+	let f_build = List.fold_left loop [] meta in
 	(* Go for @:using in parents and interfaces *)
-	(match mt with
+	let f_enum = match mt with
+		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
+			Some (fun () ->
+				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+					ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
+				context_init#run;
+				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
+				fbuild e;
+			)
 		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
 			let ti = t_infos mt in
 			let inherit_using (c,_) =
 				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
 			in
 			Option.may inherit_using csup;
-			List.iter inherit_using interfaces
-		| _ -> ()
-	);
+			List.iter inherit_using interfaces;
+			None
+		| _ ->
+			None
+	in
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
@@ -858,7 +856,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				| Var v when v.v_read = AccInline ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
-						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
+						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && a.a_enum ->
 							unify ctx t (TAbstract(a,(Monomorph.spawn_constrained_monos (fun t -> t) a.a_params))) p;
 							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
 							unify ctx e1.etype a.a_this e1.epos

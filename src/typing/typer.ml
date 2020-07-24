@@ -103,7 +103,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let rec loop stack t = match follow t with
 				| TEnum (en,_) ->
 					true,en.e_path,en.e_names,TEnumDecl en
-				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
+				| TAbstract ({a_impl = Some c} as a,_) when a.a_enum ->
 					let fields = ExtList.List.filter_map (fun cf ->
 						if Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
 					) c.cl_ordered_statics in
@@ -404,7 +404,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			| [] -> raise Not_found
 			| (t,pt) :: l ->
 				match t with
-				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
 					begin try
 						let cf = PMap.find i c.cl_statics in
 						if not (Meta.has Meta.Enum cf.cf_meta) then
@@ -427,7 +427,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				| TTypeDecl t ->
 					(match follow t.t_type with
 					| TEnum (e,_) -> loop ((TEnumDecl e,pt) :: l)
-					| TAbstract (a,_) when Meta.has Meta.Enum a.a_meta -> loop ((TAbstractDecl a,pt) :: l)
+					| TAbstract (a,_) when a.a_enum -> loop ((TAbstractDecl a,pt) :: l)
 					| _ -> loop l)
 				| TEnumDecl e ->
 					try

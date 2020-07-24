@@ -104,7 +104,7 @@ let collect_module_symbols mname with_locals (pack,decls) =
 				ignore(add_type d TypeAlias)
 			)
 		| EAbstract d ->
-			let kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract in
+			let kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract in
 			let parent = add_type d kind in
 			List.iter (field parent kind) d.d_data
 		| EStatic d ->

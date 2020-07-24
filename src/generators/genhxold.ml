@@ -268,7 +268,7 @@ let generate_type com t =
 		print_meta a.a_meta;
 		Option.may (fun c -> try print_meta [Meta.get Meta.Require c.cl_meta] with Not_found -> ()) a.a_impl;
 		p "extern ";
-		let is_enum = Meta.has Meta.Enum a.a_meta in
+		let is_enum = a.a_enum in
 		if is_enum then p "enum ";
 		p "abstract %s" (stype (TAbstract (a,List.map snd a.a_params)));
 		if not (Meta.has Meta.CoreType a.a_meta) then p "(%s)" (stype a.a_this);

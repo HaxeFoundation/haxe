@@ -669,7 +669,7 @@ let fix_accessors com =
 		(* filter empty abstract implementation classes (issue #1885). *)
 		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
 			add_class_flag c CExtern;
-		| TClassDecl({cl_kind = KAbstractImpl a} as c) when Meta.has Meta.Enum a.a_meta ->
+		| TClassDecl({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			let is_runtime_field cf =
 				not (Meta.has Meta.Enum cf.cf_meta)
 			in

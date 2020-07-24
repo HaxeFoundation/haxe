@@ -86,7 +86,7 @@ let type_function_arg_value ctx t c do_display =
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
-				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
+				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && Meta.has Meta.Enum cf.cf_meta -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
