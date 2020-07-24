@@ -402,7 +402,7 @@ let push_this ctx e = match e.eexpr with
 
 let is_removable_field ctx f =
 	not (has_class_field_flag f CfOverride) && (
-		has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
+		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
 		|| (match f.cf_kind with
 			| Var {v_read = AccRequire (s,_)} -> true
 			| Method MethMacro -> not ctx.in_macro

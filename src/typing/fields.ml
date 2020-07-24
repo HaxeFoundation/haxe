@@ -143,7 +143,7 @@ let field_access ctx mode f famode e p =
 			| MethMacro, MGet ->
 				display_error ctx "Macro functions must be called immediately" p; normal()
 			| _ , MGet ->
-				if Meta.has Meta.Generic f.cf_meta then display_error ctx "Cannot create closure on generic function" p;
+				if has_class_field_flag f CfGeneric then display_error ctx "Cannot create closure on generic function" p;
 				normal()
 			| _ ->
 				normal()
