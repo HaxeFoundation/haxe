@@ -5,6 +5,7 @@ open Common
 open Typecore
 open TyperBase
 open Fields
+open Calls
 open Error
 open Texpr.Builder
 
@@ -103,7 +104,7 @@ module IterationKind = struct
 					after()
 			in
 			let try_acc acc =
-				let acc_expr = !build_call_ref ctx acc [] WithType.value e.epos in
+				let acc_expr = build_call ctx acc [] WithType.value e.epos in
 				try
 					unify_raise ctx acc_expr.etype t acc_expr.epos;
 					acc_expr
@@ -239,8 +240,8 @@ module IterationKind = struct
 					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
 					| _ -> ()
 				);
-				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
-				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
+				let e_next = build_call ctx acc_next [] WithType.value e.epos in
+				let e_hasNext = build_call ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				(try try_forward_array_iterator ()
@@ -508,8 +509,8 @@ let type_for_loop ctx handle_display it e2 p =
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
-		let enext = !build_call_ref ctx (type_field_default_cfg ctx etmp "next" etmp.epos (MCall []) WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
+		let ehasnext = build_call ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
+		let enext = build_call ctx (type_field_default_cfg ctx etmp "next" etmp.epos (MCall []) WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
 		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet WithType.value) ev.epos in

@@ -2882,6 +2882,5 @@ let rec create com =
 unify_min_ref := unify_min;
 unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
-build_call_ref := build_call;
 type_call_target_ref := type_call_target;
 type_block_ref := type_block
