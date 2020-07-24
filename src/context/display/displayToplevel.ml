@@ -324,7 +324,7 @@ let collect ctx tk with_type sort =
 		| KAbstractImpl ({a_impl = Some c} as a) ->
 			let origin = Self (TAbstractDecl a) in
 			List.iter (fun cf ->
-				if Meta.has Meta.Impl cf.cf_meta then begin
+				if has_class_field_flag cf CfImpl then begin
 					if ctx.curfun = FunStatic then ()
 					else begin
 						let cf = prepare_using_field cf in

@@ -392,6 +392,7 @@ type flag_tclass_field =
 	| CfOverride
 	| CfAbstract
 	| CfOverload
+	| CfImpl
 
 type flag_tvar =
 	| VCaptured
