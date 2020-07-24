@@ -549,6 +549,16 @@ let make_field_call_candidate args t cf data = {
 	fc_data = data;
 }
 
+let s_field_call_candidate fcc =
+	let pctx = print_context() in
+	let se = s_expr_pretty false "" false (s_type pctx) in
+	let sl_args = List.map (fun (e,_) -> se e) fcc.fc_args in
+	Printer.s_record_fields "" [
+		"fc_args",String.concat ", " sl_args;
+		"fc_type",s_type pctx fcc.fc_type;
+		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
+	]
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
