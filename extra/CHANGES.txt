@@ -1,3 +1,23 @@
+2020-07-22 4.1.3
+
+	General improvements:
+
+	all : added an error on `return` outside of a function (#9659)
+	php : support @:native("") for extern classes (#6448)
+	python : support @:native("") for extern classes (#6448)
+
+	Bugfixes:
+
+	all : fixed compilation server bug caused by removing `inline` from a method (#9690)
+	macro : fixed compiler crash if `@:genericBuild` meta is removed by a macro during building (#9391)
+	jvm : fixed "--java-lib-extern" (#9515)
+	flash : fixed var shadowing issue for variables captured in a closure inside of a loop (#9624)
+	flash : fixed `VerifyError` exception when `Void` end up as an argument type after inlining (#9678)
+	php : fixed runtime error "cannot use temporary expression in write context" for call arguments passed by reference
+	cs : fixed `cs.Lib.rethrow` (#9738)
+	nullsafety: fixed `@:nullSafety(Off)` in closures inside of constructors (#9643)
+	nullsafety: fixed "Type not found NullSafetyMode_Impl_" (#9483)
+
 2020-06-19 4.1.2
 
 	Bugfixes:
@@ -20,7 +40,7 @@
 	js : fixed name collisions for catch variables to avoid closure compiler errors (#9617)
 	nullsafety : fixed various scenarios of `if..else` branching (#9474)
 
-2020-22-05 4.1.1
+2020-05-22 4.1.1
 
 	New features:
 
