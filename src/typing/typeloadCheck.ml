@@ -39,7 +39,7 @@ let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	try
 		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
-		Meta.has Meta.Generic ctx.curfield.cf_meta
+		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
 		ignore(List.assoc (snd c.cl_path) ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
