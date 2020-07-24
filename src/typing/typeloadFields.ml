@@ -856,7 +856,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				| Var v when v.v_read = AccInline ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
-						| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && a.a_enum ->
+						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
 							unify ctx t (TAbstract(a,(Monomorph.spawn_constrained_monos (fun t -> t) a.a_params))) p;
 							let e1 = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
 							unify ctx e1.etype a.a_this e1.epos
@@ -909,6 +909,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
+	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -1405,6 +1406,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	if (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
+	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf

@@ -394,6 +394,7 @@ type flag_tclass_field =
 	| CfAbstract
 	| CfOverload
 	| CfImpl
+	| CfEnum
 	| CfGeneric
 
 type flag_tvar =

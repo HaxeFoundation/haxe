@@ -296,7 +296,7 @@ module Pattern = struct
 							en.e_names
 						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 							ExtList.List.filter_map (fun cf ->
-								if has_class_field_flag cf CfImpl && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+								if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
 							) c.cl_ordered_statics
 						| _ ->
 							[]
@@ -1384,7 +1384,7 @@ module TexprConverter = struct
 			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
-					if has_class_field_flag cf CfImpl && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
+					if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
 						| Some e ->
 							begin match extract_const e with
 							| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
