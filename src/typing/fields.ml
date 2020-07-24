@@ -264,7 +264,7 @@ let rec using_field ctx mode e i p =
 	| (c,pc) :: l ->
 		try
 			let cf = PMap.find i c.cl_statics in
-			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
+			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (has_class_field_flag cf CfImpl) then raise Not_found;
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
 			let t = map cf.cf_type in
@@ -411,7 +411,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
-			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
+			if has_class_field_flag f CfImpl && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
 			begin match mode with
 			| MCall _ when has_class_field_flag f CfOverload ->
 				()
@@ -506,7 +506,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (Meta.has Meta.Impl f.cf_meta) then begin
+			if not (has_class_field_flag f CfImpl) then begin
 				static_abstract_access_through_instance := true;
 				raise Not_found;
 			end;

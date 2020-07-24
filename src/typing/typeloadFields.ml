@@ -224,14 +224,14 @@ let transform_abstract_field com this_t a_t a f =
 	let p = f.cff_pos in
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
-		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
-	| FProp _ when not stat ->
+		f
+	| FProp _ when not stat && not (Meta.has Meta.Enum f.cff_meta) ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
 		let init p = (EVars [mk_evar ~t:this_t ("this",null_pos)],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
-		let meta = (Meta.Impl,[],null_pos) :: (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
+		let meta = (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
 		if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem_assoc AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
@@ -252,10 +252,10 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_access = (AStatic,null_pos) :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-		{ f with cff_kind = FFun fu; cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
+		{ f with cff_kind = FFun fu }
 	| _ ->
 		f
 
@@ -382,8 +382,8 @@ let build_enum_abstract ctx c a fields p =
 					visibility
 			in
 			let visibility = loop VUnknown field.cff_access in
-			field.cff_access <- [AStatic,null_pos; match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
-			field.cff_meta <- (Meta.Enum,[],null_pos) :: (Meta.Impl,[],null_pos) :: field.cff_meta;
+			field.cff_access <- [match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
+			field.cff_meta <- (Meta.Enum,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
@@ -559,6 +559,7 @@ let create_field_context (ctx,cctx) c cff =
 	} in
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
+	let is_static,is_abstract_member = if cctx.abstract <> None && not is_static then true,true else is_static,false in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
 	let is_abstract = List.mem_assoc AAbstract cff.cff_access in
 	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
@@ -609,7 +610,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
-		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
+		is_abstract_member = is_abstract_member;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
 		do_add = true;
@@ -729,7 +730,7 @@ let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
-				if Meta.has Meta.Impl cf.cf_meta then
+				if has_class_field_flag cf CfImpl then
 					(if cf.cf_name = "_new" then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
@@ -907,6 +908,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
+	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -944,7 +946,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					| _ -> ()
 					);
 					(* TODO: this doesn't seem quite right... *)
-					if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],null_pos) :: cf.cf_meta;
+					if not (has_class_field_flag cf CfImpl) then add_class_field_flag cf CfImpl;
 					let resolve_m args =
 						(try unify_raise ctx t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						match follow m with
@@ -1004,13 +1006,6 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
 					allows_no_expr := true;
 					fctx.expr_presence_matters <- true;
-				| (Meta.Impl,_,_) :: ml when cf.cf_name <> "_new" && not fctx.is_macro ->
-					begin match follow t with
-						| TFun((_,_,t1) :: _, _) when type_iseq tthis t1 ->
-							()
-						| _ ->
-							display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) cf.cf_pos
-					end;
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let check_fun t1 t2 =
@@ -1147,7 +1142,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let args = loop fd.f_args in
 	let fargs = TypeloadFunction.convert_fargs fd in
 	let args,fargs = match cctx.abstract with
-		| Some a when Meta.has Meta.Impl f.cff_meta && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			("this",None,a.a_this) :: args,(null_pos,[]) :: fargs
 		| _ ->
 			args,fargs
@@ -1163,6 +1158,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
+	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	begin match fctx.overload with
 	| Some p ->
 		if ctx.com.config.pf_overload then
@@ -1297,6 +1293,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 	} in
+	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	let check_method m t is_getter =
 		if ctx.com.display.dms_error_policy = EPIgnore then () else
 		try
@@ -1324,7 +1321,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					display_error ctx (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
 				| _ -> ());
 			unify_raise ctx t2 t f2.cf_pos;
-			if (fctx.is_abstract_member && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (fctx.is_abstract_member)) then
+			if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 				display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
 			f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
 				| Meta.Deprecated -> meta :: acc

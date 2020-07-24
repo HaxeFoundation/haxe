@@ -521,13 +521,6 @@
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
-		"name": "Impl",
-		"metadata": ":impl",
-		"doc": "Used internally to mark abstract implementation fields.",
-		"targets": ["TAbstractField"],
-		"internal": true
-	},
-	{
 		"name": "PythonImport",
 		"metadata": ":pythonImport",
 		"doc": "Generates python import statement for extern classes.",

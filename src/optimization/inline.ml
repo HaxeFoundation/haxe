@@ -250,7 +250,7 @@ let inline_default_config cf t =
 
 let inline_config cls_opt cf call_args return_type =
 	match cls_opt with
-	| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl cf.cf_meta ->
+	| Some ({cl_kind = KAbstractImpl _}) when has_class_field_flag cf CfImpl ->
 		let t = if cf.cf_name = "_new" then
 			return_type
 		else if call_args = [] then
@@ -587,7 +587,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
+				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
