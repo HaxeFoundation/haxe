@@ -417,3 +417,6 @@ let check_signature_mark e p1 p2 =
 			else e
 		end
 	end
+
+let convert_abstract_flags flags =
+	ExtList.List.filter_map decl_flag_to_abstract_flag flags

@@ -294,7 +294,7 @@ module Pattern = struct
 					let sl = match follow t with
 						| TEnum(en,_) ->
 							en.e_names
-						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 							ExtList.List.filter_map (fun cf ->
 								if has_class_field_flag cf CfImpl && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
 							) c.cl_ordered_statics
@@ -1381,7 +1381,7 @@ module TexprConverter = struct
 				add (ConConst(TBool true),null_pos);
 				add (ConConst(TBool false),null_pos);
 				SKValue,RunTimeFinite
-			| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
 					if has_class_field_flag cf CfImpl && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
@@ -1425,7 +1425,7 @@ module TexprConverter = struct
 
 	let report_not_exhaustive v_lookup e_subject unmatched =
 		let sl = match follow e_subject.etype with
-			| TAbstract({a_impl = Some c} as a,tl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,tl) when a.a_enum ->
 				List.map (fun (con,_) -> match fst con with
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->

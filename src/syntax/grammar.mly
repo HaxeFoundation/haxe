@@ -163,7 +163,6 @@ and parse_abstract doc meta flags p1 = parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
 			| [< >] -> syntax_error (Expected ["{";"to";"from"]) s ([],last_pos s)
 		in
-		let flags = ExtList.List.filter_map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
 			d_name = name;
@@ -267,7 +266,7 @@ and parse_type_decl mode s =
 			}, punion p1 p2)
 		| [< '(Kwd Enum,p1) >] ->
 			begin match s with parser
-			| [< '(Kwd Abstract,p1); a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c p1 >] ->
+			| [< '(Kwd Abstract,p1); a,p = parse_abstract doc meta (AbEnum :: (convert_abstract_flags c)) p1 >] ->
 				(EAbstract a,p)
 			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 				(EEnum {
@@ -295,7 +294,7 @@ and parse_type_decl mode s =
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1) >] ->
 			begin match s with parser
-			| [< a,p = parse_abstract doc meta c p1 >] ->
+			| [< a,p = parse_abstract doc meta (convert_abstract_flags c) p1 >] ->
 				EAbstract a,p
 			| [< >] ->
 				let c2 = parse_common_flags s in
