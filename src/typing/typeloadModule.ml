@@ -330,7 +330,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_this = mk_mono();
 				a_read = None;
 				a_write = None;
-				a_enum = List.mem AbEnum d.d_flags;
+				a_enum = List.mem AbEnum d.d_flags || Meta.has Meta.Enum d.d_meta;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
