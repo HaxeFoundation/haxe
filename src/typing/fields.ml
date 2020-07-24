@@ -253,7 +253,8 @@ let rec using_field ctx mode e i p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	if is_set then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
-	let is_dynamic = match follow e.etype with
+	let t = follow e.etype in
+	let is_dynamic = match t with
 		| TMono {tm_constraints = []} -> raise Not_found
 		| t -> t == t_dynamic
 	in
@@ -284,13 +285,12 @@ let rec using_field ctx mode e i p =
 			loop l
 	in
 	try
+		(* type using from `@:using(Path)` *)
+		loop (t_infos (module_type_of_type t)).mt_using
+	with Not_found | Exit -> try
 		(* module using from `using Path` *)
 		loop ctx.m.module_using
 	with Not_found -> try
-		(* type using from `@:using(Path)` *)
-		let mt = module_type_of_type (follow e.etype) in
-		loop (t_infos mt).mt_using
-	with Not_found | Exit -> try
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
