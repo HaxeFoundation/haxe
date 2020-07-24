@@ -378,7 +378,13 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;
 				fcc
-			| _ -> error "Ambiguous overload" p
+			| fcc :: l ->
+				display_error ctx "Ambiguous overload, candidates follow" p;
+				let st = s_type (print_context()) in
+				List.iter (fun fcc ->
+					display_error ctx (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+				) (fcc :: l);
+				fcc
 		end else begin match List.rev candidates with
 			| [] -> fail()
 			| fcc :: _ -> fcc
