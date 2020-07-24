@@ -4,15 +4,34 @@ open Type
 open Typecore
 open Error
 
+type field_host =
+	| FHStatic of tclass
+	| FHInstance of tclass * tparams
+	| FHAbstract of tabstract * tparams * tclass
+	| FHAnon
+
+type field_access = {
+	fa_on : texpr;
+	fa_field : tclass_field;
+	fa_host : field_host;
+	fa_inline : bool;
+	fa_pos : pos;
+}
+
+type static_extension_access = {
+	se_this : texpr;
+	se_access : field_access;
+}
+
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
-	| AKSet of texpr * t * tclass_field
-	| AKInline of texpr * tclass_field * tfield_access * t
-	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
+	| AKField of field_access
+	| AKAccessor of field_access (* fa_field is the property, not the accessor *)
+	| AKUsingField of static_extension_access
+	| AKUsingAccessor of static_extension_access
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
-	| AKFieldSet of texpr * texpr * string * t
+	| AKResolve of static_extension_access * string
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
@@ -143,23 +162,43 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
-let mk_module_type_access ctx t p : access_mode -> WithType.t -> access_kind =
-	let e = type_module_type ctx t None p in
-	(fun _ _ -> AKExpr e)
+let mk_module_type_access ctx t p =
+	AKExpr (type_module_type ctx t None p)
+
+let s_field_access tabs fa =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	let sfa = function
+		| FHStatic c -> Printf.sprintf "FHStatic(%s)" (s_type_path c.cl_path)
+		| FHInstance(c,tl) -> Printf.sprintf "FHInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FHAbstract(a,tl,c) -> Printf.sprintf "FHAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
+		| FHAnon -> Printf.sprintf "FHAnon"
+	in
+	Printer.s_record_fields tabs [
+		"fa_on",se fa.fa_on;
+		"fa_field",fa.fa_field.cf_name;
+		"fa_host",sfa fa.fa_host;
+		"fa_inline",string_of_bool fa.fa_inline
+	]
+
+let s_static_extension_access sea =
+	Printer.s_record_fields "" [
+		"se_this",s_expr_pretty true "" false (s_type (print_context())) sea.se_this;
+		"se_access",s_field_access "\t" sea.se_access
+	]
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
-	let sfa = s_field_access st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
-	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
-	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
+	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
+	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
+	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
+	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
-	| AKFieldSet(_) -> ""
+	| AKResolve(_) -> ""
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
@@ -217,3 +256,128 @@ let get_abstract_froms a pl =
 		| _ ->
 			acc
 	) l a.a_from_field
+
+module FieldAccess = struct
+	type field_host =
+		| FGet (* get the plain expression with applied field type parameters *)
+		| FCall (* does not apply field type parameters *)
+		| FRead (* actual reading, for FClosure and such *)
+		| FWrite (* used as lhs, no semantic difference to FGet *)
+
+	type accessor_resolution =
+		| AccessorFound of field_access
+		| AccessorAnon
+		| AccessorNotFound
+		| AccessorInvalid
+
+	let create e cf fh inline p = {
+		fa_on = e;
+		fa_field = cf;
+		fa_host = fh;
+		fa_inline = inline;
+		fa_pos = p;
+	}
+
+	let apply_fa cf = function
+		| FHStatic c -> FStatic(c,cf)
+		| FHInstance(c,tl) -> FInstance(c,tl,cf)
+		| FHAbstract(a,tl,c) -> FStatic(c,cf)
+		| FHAnon -> FAnon cf
+
+	let get_map_function fa = match fa.fa_host with
+		| FHStatic _ | FHAnon -> (fun t -> t)
+		| FHInstance(c,tl) -> TClass.get_map_function c tl
+		| FHAbstract(a,tl,_) -> apply_params a.a_params tl
+
+	let get_field_expr fa mode =
+		let cf = fa.fa_field in
+		let t = match mode with
+			| FCall -> cf.cf_type
+			| FGet | FRead | FWrite -> Type.field_type cf
+		in
+		let fa',t = match fa.fa_host with
+			| FHStatic c ->
+				FStatic(c,cf),t
+			| FHInstance(c,tl) ->
+				let fa = match cf.cf_kind with
+				| Method _ when mode = FRead ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					FInstance(c,tl,cf)
+				in
+				let t = TClass.get_map_function c tl t in
+				fa,t
+			| FHAbstract(a,tl,c) ->
+				FStatic(c,cf),apply_params a.a_params tl t
+			| FHAnon ->
+				let fa = match cf.cf_kind with
+				| Method _ when mode = FRead ->
+					FClosure(None,cf)
+				| _ ->
+					FAnon cf
+				in
+				fa,t
+		in
+		mk (TField(fa.fa_on,fa')) t fa.fa_pos
+
+	let resolve_accessor fa mode = match fa.fa_field.cf_kind with
+		| Var v ->
+			begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
+				| AccCall ->
+					let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
+					let forward cf_acc new_host =
+						create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+					in
+					begin match fa.fa_host with
+					| FHStatic c ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
+							AccessorAnon
+						end
+					| FHInstance(c,tl) ->
+						begin try
+							(* Accessors can be overridden, so we have to check the actual type. *)
+							let c,tl = match follow fa.fa_on.etype with
+								| TInst(c,tl) -> c,tl
+								| _ -> c,tl
+							in
+							let (c2,_,cf_acc) = raw_class_field (fun f -> f.cf_type) c tl name in
+							let new_host = match c2 with
+								| None -> FHAnon
+								| Some(c,tl) -> FHInstance(c,tl)
+							in
+							AccessorFound (forward cf_acc new_host)
+						with Not_found ->
+							AccessorAnon
+						end
+					| FHAbstract(a,tl,c) ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							AccessorAnon
+						end
+					| FHAnon ->
+						AccessorAnon
+					end
+				| _ ->
+					AccessorInvalid
+			end
+		| _ ->
+			AccessorInvalid
+end
+
+let make_static_extension_access c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FHStatic c) inline p
+	}
+
+let make_abstract_static_extension_access a tl c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) inline p
+	}

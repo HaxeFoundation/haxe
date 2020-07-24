@@ -88,7 +88,7 @@ let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
-let check_no_closure_meta ctx fa mode p =
+let check_no_closure_meta ctx cf fa mode p =
 	match mode with
 	| MGet | MSet _ when not (DisplayPosition.display_position#enclosed_in p) ->
 		let check_field f cl_meta =
@@ -101,95 +101,109 @@ let check_no_closure_meta ctx fa mode p =
 					error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
 			| _ -> ()
 		in
-		begin match fa with
-		| FStatic (c, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FInstance (c, _, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FClosure (Some (c, _), ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
-		| FClosure (None, ({ cf_kind = Method _} as f)) -> check_field f []
-		| FAnon ({ cf_kind = Method _} as f) -> check_field f []
-		| _ -> ()
+		begin match cf.cf_kind with
+		| Method _ ->
+			let meta = match fa with
+				| FHStatic c | FHInstance(c,_) | FHAbstract(_,_,c) -> c.cl_meta
+				| _ -> []
+			in
+			check_field cf meta
+		| _ ->
+			()
 		end
 	| _ ->
 		()
 
-let field_access ctx mode f fmode t e p =
+let check_field_access ctx c f stat p =
+	if not ctx.untyped && not (can_access ctx c f stat) then
+		display_error ctx ("Cannot access private field " ^ f.cf_name) p
+
+let field_access ctx mode f famode e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	check_no_closure_meta ctx fmode mode p;
+	check_no_closure_meta ctx f famode mode p;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
-	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
-	let normal() =
-		match follow e.etype with
-		| TAnon a ->
-			(match !(a.a_status) with
-			| EnumStatics en ->
-				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
-				let fmode = FEnum (en,c) in
-				AKExpr (mk (TField (e,fmode)) t p)
-			| _ -> fnormal())
-		| _ -> fnormal()
-	in
+	let make_access inline = FieldAccess.create e f famode inline p in
 	match f.cf_kind with
 	| Method m ->
+		let normal () = AKField(make_access false) in
 		if is_set && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
-		begin match ctx.curfun,e.eexpr with
-		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
-			let e = mk (TField(e,fmode)) t p in
-			let ethis = get_this ctx p in
-			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_params)} in
-			AKUsing(e,ctx.curclass,f,ethis,false)
-		| _ ->
-			(match m, mode with
-			| MethInline, _ -> AKInline (e,f,fmode,t)
-			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
-			| MethMacro, MCall _ -> AKMacro (e,f)
+		let maybe_check_visibility c static =
+			(* For overloads we have to resolve the actual field before we can check accessibility. *)
+			begin match mode with
+			| MCall _ when has_class_field_flag f CfOverload ->
+				()
+			| _ ->
+				check_field_access ctx c f static p;
+			end;
+		in
+		let default () =
+			match m, mode with
+			| MethInline, _ ->
+				AKField (make_access true)
+			| MethMacro, MGet ->
+				display_error ctx "Macro functions must be called immediately" p; normal()
 			| _ , MGet ->
-				let cmode = (match fmode with
-					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
-					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
-					| FStatic _ | FEnum _ -> fmode
-					| FAnon f -> FClosure (None, f)
-					| FDynamic _ | FClosure _ -> die "" __LOC__
-				) in
-				AKExpr (mk (TField (e,cmode)) t p)
-			| _ -> normal())
-		end
+				if Meta.has Meta.Generic f.cf_meta then display_error ctx "Cannot create closure on generic function" p;
+				normal()
+			| _ ->
+				normal()
+		in
+		begin match famode with
+		| FHInstance(c,tl) ->
+			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
+				| MGet,Var {v_read = AccCall }
+				| MSet _,Var {v_write = AccCall }
+				| MCall _,Var {v_read = AccCall } ->
+					()
+				| MCall _, Var _ ->
+					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" p
+				| MCall _, _ ->
+					()
+				| MGet,Var _
+				| MSet _,Var _ when ctx.com.platform = Flash && has_class_flag c CExtern ->
+					()
+				| _, Method _ ->
+					display_error ctx "Cannot create closure on super method" p
+				| _ ->
+					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
+			(* We need the actual class type (i.e. a potential child class) for visibility checks. *)
+			begin match follow e.etype with
+			| TInst(c,_) ->
+				maybe_check_visibility c false;
+			| _ ->
+				()
+			end;
+			default();
+		| FHStatic c ->
+			maybe_check_visibility c true;
+			default()
+		| FHAnon ->
+			default()
+		| FHAbstract(a,tl,c) ->
+			maybe_check_visibility c true;
+			let sea = make_abstract_static_extension_access a tl c f e false p in
+			AKUsingField sea
+		end;
 	| Var v ->
+		let normal inline =
+			AKField (make_access inline)
+		in
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
+			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal false
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
-				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
+				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
+				| _ -> if ctx.untyped then normal false else AKNo f.cf_name)
 			| _ ->
-				if ctx.untyped then normal() else AKNo f.cf_name)
+				if ctx.untyped then normal false else AKNo f.cf_name)
 		| AccNormal | AccNo ->
-			(*
-				if we are reading from a read-only variable on an anonymous object, it might actually be a method, so make sure to create a closure
-			*)
-			let is_maybe_method() =
-				match v.v_write, follow t, follow e.etype with
-				| (AccNo | AccNever), TFun _, TAnon a ->
-					(match !(a.a_status) with
-					| Statics _ | EnumStatics _ -> false
-					| _ -> true)
-				| _ -> false
-			in
-			if mode = MGet && is_maybe_method() then
-				AKExpr (mk (TField (e,FClosure (None,f))) t p)
-			else
-				normal()
-		| AccCall | AccInline when ctx.in_display ->
-			normal()
+			normal false
+		| AccCall when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+			normal false
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
-			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
-				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) when Meta.has Meta.Impl f.cf_meta  ->
-					c == ctx.curclass
-				| _ ->
-					false
-			in
 			let bypass_accessor =
 				bypass_accessor
 				||
@@ -209,30 +223,22 @@ let field_access ctx mode f fmode t e p =
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
-				AKExpr (mk (TField (e,fmode)) t p)
-			) else if is_abstract_this_access() then begin
-				let this = get_this ctx p in
-				if is_set then begin
-					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> die "" __LOC__ in
-					let f = PMap.find m c.cl_statics in
-					(* we don't have access to the type parameters here, right? *)
-					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
-					let t = (field_type ctx c [] f p) in
-					let ef = mk (TField (e,FStatic (c,f))) t p in
-					AKUsing (ef,c,f,this,false)
-				end else
-					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
-			end else if is_set then
-				AKSet (e,t,f)
-			else
-				AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [] t) p) [] t p)
+				normal false
+			)
+			else begin match famode with
+			| FHAbstract(a,tl,c) ->
+				let sea = make_abstract_static_extension_access a tl c f e false p in
+				AKUsingAccessor sea
+			| _ ->
+				AKAccessor (make_access false)
+			end
 		| AccNever ->
-			if ctx.untyped then normal() else AKNo f.cf_name
+			if ctx.untyped then normal false else AKNo f.cf_name
 		| AccInline ->
-			AKInline (e,f,fmode,t)
+			normal true
 		| AccCtor ->
-			(match ctx.curfun, fmode with
-				| FunConstructor, FInstance(c,_,_) when c == ctx.curclass -> normal()
+			(match ctx.curfun, famode with
+				| FunConstructor, FHInstance(c,_) when c == ctx.curclass -> normal false
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->
@@ -266,9 +272,8 @@ let rec using_field ctx mode e i p =
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let e = unify_static_extension ctx e t0 p in
-					let et = type_module_type ctx (TClassDecl c) None p in
 					ImportHandling.mark_import_position ctx pc;
-					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
+					AKUsingField (make_static_extension_access c cf e false p)
 				| _ ->
 					raise Not_found
 			end
@@ -289,16 +294,12 @@ let rec using_field ctx mode e i p =
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsing (_,c,_,_,_) -> add_dependency ctx.m.curmod c.cl_module
+		| AKUsingField {se_access = {fa_host = FHStatic c}} -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> die "" __LOC__);
 		acc
 	with Not_found ->
 		if not !check_constant_struct then raise Not_found;
 		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
-
-let check_field_access ctx c f stat p =
-	if not ctx.untyped && not (can_access ctx c f stat) then
-		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 let emit_missing_field_error ctx i t pfield =
 	display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield
@@ -371,30 +372,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 		in
 		(try
 			let c2, t , f = class_field ctx c params i p in
-			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
-				| MGet,Var {v_read = AccCall }
-				| MSet _,Var {v_write = AccCall }
-				| MCall _,Var {v_read = AccCall } ->
-					()
-				| MCall _, Var _ ->
-					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" pfield
-				| MCall _, _ ->
-					()
-				| MGet,Var _
-				| MSet _,Var _ when ctx.com.platform = Flash && (match c2 with Some (c2, _) -> has_class_flag c2 CExtern | _ -> false) ->
-					()
-				| _, Method _ ->
-					display_error ctx "Cannot create closure on super method" p
-				| _ ->
-					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
-			(* For overloads we have to resolve the actual field before we can check accessibility. *)
-			begin match mode with
-			| MCall _ when has_class_field_flag f CfOverload ->
-				()
-			| _ ->
-				check_field_access ctx c f false pfield;
-			end;
-			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
+			field_access ctx mode f (match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) e p
 		with Not_found -> try
 			begin match e.eexpr with
 				| TConst TSuper -> raise Not_found
@@ -445,23 +423,20 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield
 				end;
 			end;
-			let fmode, ft = (match !(a.a_status) with
-				| Statics c -> FStatic (c,f), field_type ctx c [] f p
-				| EnumStatics e ->
-					let ef = try PMap.find f.cf_name e.e_constrs with Not_found -> die "" __LOC__ in
-					let t = enum_field_type ctx e ef p in
-					FEnum (e,ef),t
+			let access fmode =
+				field_access ctx mode f fmode e p
+			in
+			begin match !(a.a_status) with
+				| Statics c ->
+					access (FHStatic c)
+				| EnumStatics en ->
+					let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
+					let fmode = FEnum (en,c) in
+					let t = enum_field_type ctx en c p in
+					AKExpr (mk (TField (e,fmode)) t p)
 				| _ ->
-					match f.cf_params with
-					| [] ->
-						FAnon f, Type.field_type f
-					| l ->
-						(* handle possible constraints *)
-						let monos = Monomorph.spawn_constrained_monos (fun t -> t) f.cf_params in
-						let t = apply_params f.cf_params monos f.cf_type in
-						FAnon f, t
-			) in
-			field_access ctx mode f fmode ft e p
+					access FHAnon
+			end
 		with Not_found -> try
 				match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
@@ -482,7 +457,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
 		} in
 		let access f =
-			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+			field_access ctx mode f FHAnon e p
 		in
 		begin match Monomorph.classify_constraints r with
 		| CStructural(fields,is_open) ->
@@ -531,58 +506,11 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			check_field_access ctx c f true pfield;
-			let field_type f =
-				if not (Meta.has Meta.Impl f.cf_meta) then begin
-					static_abstract_access_through_instance := true;
-					raise Not_found;
-				end;
-				let t = field_type ctx c [] f p in
-				apply_params a.a_params pl t
-			in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
-			(match mode, f.cf_kind with
-			| (MGet | MCall _), Var {v_read = AccCall } when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
-				let ef = field_expr f (field_type f) in
-				AKExpr(ef)
-			| (MGet | MCall _), Var {v_read = AccCall } ->
-				(* getter call *)
-				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
-				let t = field_type getter in
-				let r = match follow t with TFun(_,_) -> field_type f | _ -> raise Not_found in
-				let ef = field_expr getter t in
-				AKExpr(make_call ctx ef [e] r p)
-			| MSet _, Var {v_write = AccCall } ->
-				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
-				let t = field_type f in
-				let ef = field_expr f t in
-				AKUsing (ef,c,f,e,false)
-			| (MGet | MCall _), Var {v_read = AccNever} ->
-				AKNo f.cf_name
-			| (MGet | MCall _), _ ->
-				let rec loop cfl = match cfl with
-					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) pfield
-					| cf :: cfl ->
-						match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
-							| TFun((_,_,t1) :: _,_) when type_iseq t1 (Abstract.get_underlying_type a pl) ->
-								cf
-							| _ ->
-								loop cfl
-				in
-				let f = match f.cf_overloads with
-					| [] -> f
-					| cfl -> loop (f :: cfl)
-				in
-				let t = field_type f in
-				begin match follow t with
-					| TFun((_,_,t1) :: _,_) -> ()
-					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
-				end;
-				let ef = field_expr f t in
-				AKUsing (ef,c,f,e,false)
-			| MSet _, _ ->
-				error "This operation is unsupported" p)
+			if not (Meta.has Meta.Impl f.cf_meta) then begin
+				static_abstract_access_through_instance := true;
+				raise Not_found;
+			end;
+			field_access ctx mode f (FHAbstract(a,pl,c)) e p
 		with Not_found -> try
 			if does_forward a false then
 				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
@@ -602,17 +530,8 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| Some c,Some cf -> c,cf
 					| _ -> raise Not_found
 				in
-				let et = type_module_type ctx (TClassDecl c) None p in
-				let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
-				let ef = mk (TField (et,FStatic (c,cf))) t p in
-				let r = match follow t with
-					| TFun(_,r) -> r
-					| _ -> die "" __LOC__
-				in
-				if is_write then
-					AKFieldSet(e,ef,i,r)
-				else
-					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String(i,SDoubleQuotes)),p] NoValue p)
+				let sea = make_abstract_static_extension_access a pl c cf e false p in
+				AKResolve(sea,i)
 			in
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
 			get_resolve (is_set)

@@ -236,52 +236,62 @@ type overload_kind =
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
 
-let unify_field_call ctx fa el args ret p inline =
-	let map_cf cf0 map cf =
-		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		t,cf
+let unify_field_call ctx fa el_typed el p inline =
+	let expand_overloads cf =
+		cf :: cf.cf_overloads
 	in
-	let expand_overloads map cf =
-		(TFun(args,ret),cf) :: (List.map (map_cf cf map) cf.cf_overloads)
-	in
-	let candidates,co,static,cf,mk_fa = match fa with
-		| FStatic(c,cf) ->
-			expand_overloads (fun t -> t) cf,Some c,true,cf,(fun cf -> FStatic(c,cf))
-		| FAnon cf ->
-			expand_overloads (fun t -> t) cf,None,false,cf,(fun cf -> FAnon cf)
-		| FInstance(c,tl,cf) ->
-			let map = apply_params c.cl_params tl in
+	let candidates,co,static,map,tmap = match fa.fa_host with
+		| FHStatic c ->
+			expand_overloads fa.fa_field,Some c,true,(fun t -> t),(fun t -> t)
+		| FHAnon ->
+			expand_overloads fa.fa_field,None,false,(fun t -> t),(fun t -> t)
+		| FHInstance(c,tl) ->
+			let cf = fa.fa_field in
 			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
-				(TFun(args,ret),cf) :: List.map (map_cf cf map) cf.cf_overloads
+				cf :: cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->
-					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-					map (apply_params cf.cf_params monos t),cf
+					cf
 				) (Overloads.get_overloads ctx.com c cf.cf_name)
 			in
-			cfl,Some c,false,cf,(fun cf -> FInstance(c,tl,cf))
-		| FClosure(co,cf) ->
-			let c = match co with None -> None | Some (c,_) -> Some c in
-			expand_overloads (fun t -> t) cf,c,false,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
-		| _ ->
-			error "Invalid field call" p
+			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
+		| FHAbstract(a,tl,c) ->
+			let map = apply_params a.a_params tl in
+			expand_overloads fa.fa_field,Some c,true,map,(fun t -> map a.a_this)
 	in
-	let is_forced_inline = is_forced_inline co cf in
-	let overload_kind = if has_class_field_flag cf CfOverload then OverloadProper
-		else if cf.cf_overloads <> [] then OverloadMeta
+	let is_forced_inline = is_forced_inline co fa.fa_field in
+	let overload_kind = if has_class_field_flag fa.fa_field CfOverload then OverloadProper
+		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	let attempt_call t cf = match follow t with
+	let attempt_call cf =
+		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+		let t = map (apply_params cf.cf_params monos cf.cf_type) in
+		match follow t with
 		| TFun(args,ret) ->
+			let rec loop acc tmap args el_typed = match args,el_typed with
+				| (_,_,t0) :: args,e :: el_typed ->
+					begin try
+						unify_raise ctx (tmap e.etype) t0 e.epos;
+					with Error(Unify _ as msg,p) ->
+						let call_error = Call_error(Could_not_unify msg) in
+						raise(Error(call_error,p))
+					end;
+					loop (e :: acc) (fun t -> t) args el_typed
+				| _ ->
+					(fun el -> (List.rev acc) @ el),args
+			in
+			let get_call_args,args = loop [] tmap args el_typed in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			let mk_call ethis p_field inline =
-				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
-				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
+			let mk_call () =
+				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
+				let el = List.map fst el in
+				let el = get_call_args el in
+				make_call ctx ef el ret ~force_inline:inline p
 			in
 			make_field_call_candidate el tf cf mk_call
-		| _ ->
-			die "" __LOC__
+		| t ->
+			error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let maybe_raise_unknown_ident cerr p =
 		let rec loop err =
@@ -295,12 +305,14 @@ let unify_field_call ctx fa el args ret p inline =
 	let attempt_calls candidates =
 		let rec loop candidates = match candidates with
 			| [] -> [],[]
-			| (t,cf) :: candidates ->
+			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
 					m,m.tm_type,m.tm_constraints
 				) ctx.monomorphs.perfunction in
+				let current_monos = ctx.monomorphs.perfunction in
 				begin try
-					let candidate = attempt_call t cf in
+					let candidate = attempt_call cf in
+					ctx.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
 						candidate :: candidates,failures
@@ -308,9 +320,10 @@ let unify_field_call ctx fa el args ret p inline =
 						[candidate],[]
 				with Error ((Call_error cerr as err),p) ->
 					List.iter (fun (m,t,constr) ->
-						m.tm_type <- t;
-						m.tm_constraints <- constr;
+						if t != m.tm_type then m.tm_type <- t;
+						if constr != m.tm_constraints then m.tm_constraints <- constr;
 					) known_monos;
+					ctx.monomorphs.perfunction <- current_monos;
 					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
 					candidates,(cf,err,p) :: failures
@@ -319,12 +332,12 @@ let unify_field_call ctx fa el args ret p inline =
 		loop candidates
 	in
 	let fail_fun () =
-		let tf = TFun(args,ret) in
-		let call = (fun ethis p_field _ ->
-			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
-			mk (TCall(e1,[])) ret p)
+		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
+		let call () =
+			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
+			mk (TCall(ef,[])) t_dynamic p
 		in
-		make_field_call_candidate [] tf cf call
+		make_field_call_candidate [] tf fa.fa_field call
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)
@@ -336,10 +349,10 @@ let unify_field_call ctx fa el args ret p inline =
 		end;
 	in
 	match candidates with
-	| [t,cf] ->
+	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
-			attempt_call t cf
+			attempt_call cf
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
@@ -371,27 +384,24 @@ let unify_field_call ctx fa el args ret p inline =
 			| fcc :: _ -> fcc
 		end
 
-let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
-	let c,tl,cf,stat = match fa with
-		| FInstance(c,tl,cf) -> c,tl,cf,false
-		| FStatic(c,cf) -> c,[],cf,true
+let type_generic_function ctx fa el_typed el with_type p =
+	let c,tl,stat = match fa.fa_host with
+		| FHInstance(c,tl) -> c,tl,false
+		| FHStatic c -> c,[],true
 		| _ -> die "" __LOC__
 	in
+	let cf = fa.fa_field in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
 	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 	let map_monos t = apply_params cf.cf_params monos t in
 	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
-	let args,ret = match t,using_param with
-		| TFun((_,_,ta) :: args,ret),Some e ->
-			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
-			else match follow ta with TAbstract(a,tl) -> Abstract.get_underlying_type a tl | _ -> die "" __LOC__
-			in
-			(* manually unify first argument *)
+	let args,ret = match t,el_typed with
+		| TFun((_,_,ta) :: args,ret),(e :: _) ->
 			unify ctx e.etype ta p;
 			args,ret
-		| TFun(args,ret),None -> args,ret
+		| TFun(args,ret),_ -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
 	in
 	begin match with_type with
@@ -403,7 +413,7 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = match using_param with None -> el | Some e -> e :: el in
+	let el = el_typed @ el in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
@@ -495,8 +505,9 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 			| KAbstractImpl(a) ->
 				type_type ctx a.a_path p
 			| _ when stat ->
-				Builder.make_typeexpr (TClassDecl c) e.epos
-			| _ -> e
+				Builder.make_typeexpr (TClassDecl c) p
+			| _ ->
+				fa.fa_on
 		in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
@@ -504,183 +515,30 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
-let rec acc_get ctx g p =
-	match g with
-	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
-	| AKExpr e -> e
-	| AKSet _ | AKAccess _ | AKFieldSet _ -> die "" __LOC__
-	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
-		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
-		let ec = type_module_type ctx (TClassDecl c) None p in
-		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
-		let t = match follow et.etype with
-			| TFun (_ :: args,ret) -> TFun(args,ret)
-			| _ -> et.etype
-		in
-		mk (TField(ec,FStatic(c,cf))) t et.epos
-	| AKUsing (et,_,cf,e,_) ->
-		(* build a closure with first parameter applied *)
-		(match follow et.etype with
-		| TFun (_ :: args,ret) ->
-			let tcallb = TFun (args,ret) in
-			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
-			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
-			let args = List.map (fun (n,o,t) ->
-				let t = if o then ctx.t.tnull t else t in
-				o,if n = "" then gen_local ctx t e.epos else alloc_var VGenerated n t e.epos (* TODO: var pos *)
-			) args in
-			let ve = alloc_var VGenerated "_e" e.etype e.epos in
-			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
-			let ecallb = mk (TFunction {
-				tf_args = List.map (fun (o,v) -> v,if o then Some (Texpr.Builder.make_null v.v_type v.v_pos) else None) args;
-				tf_type = ret;
-				tf_expr = (match follow ret with | TAbstract ({a_path = [],"Void"},_) -> ecall | _ -> mk (TReturn (Some ecall)) t_dynamic p);
-			}) tcallb p in
-			let ewrap = mk (TFunction {
-				tf_args = [ve,None];
-				tf_type = tcallb;
-				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
-			}) twrap p in
-			make_call ctx ewrap [e] tcallb p
-		| _ -> die "" __LOC__)
-	| AKInline (e,f,fmode,t) ->
-		(* do not create a closure for static calls *)
-		let cmode,apply_params = match fmode with
-			| FStatic(c,_) ->
-				let f = match c.cl_kind with
-					| KAbstractImpl a when Meta.has Meta.Enum a.a_meta ->
-						(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
-						let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
-						apply_params a.a_params monos;
-					| _ -> (fun t -> t)
-				in
-				fmode,f
-			| FInstance (c,tl,f) ->
-				(FClosure (Some (c,tl),f),(fun t -> t))
-			| _ ->
-				die "" __LOC__
-		in
-		ignore(follow f.cf_type); (* force computing *)
-		begin match f.cf_kind,f.cf_expr with
-		| _ when not (ctx.com.display.dms_inline) ->
-			mk (TField (e,cmode)) t p
-		| Method _,_->
-			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
-			let wrap_extern c =
-				let c2 =
-					let m = c.cl_module in
-					let mpath = (fst m.m_path @ ["_" ^ snd m.m_path],(snd m.m_path) ^ "_Impl_") in
-					try
-						let rec loop mtl = match mtl with
-							| (TClassDecl c) :: _ when c.cl_path = mpath -> c
-							| _ :: mtl -> loop mtl
-							| [] -> raise Not_found
-						in
-						loop c.cl_module.m_types
-					with Not_found ->
-						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos in
-						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
-						c2
-				in
-				let cf = try
-					PMap.find f.cf_name c2.cl_statics
-				with Not_found ->
-					let cf = {f with cf_kind = Method MethNormal} in
-					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
-					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
-					cf
-				in
-				let e_t = type_module_type ctx (TClassDecl c2) None p in
-				mk (TField(e_t,FStatic(c2,cf))) t p
-			in
-			let e_def = mk (TField (e,cmode)) t p in
-			begin match follow e.etype with
-				| TInst (c,_) when chk_class c ->
-					display_error ctx "Can't create closure on an extern inline member method" p;
-					e_def
-				| TAnon a ->
-					begin match !(a.a_status) with
-						| Statics c when has_class_field_flag f CfExtern ->
-							display_error ctx "Cannot create closure on @:extern inline method" p;
-							e_def
-						| Statics c when chk_class c -> wrap_extern c
-						| _ -> e_def
-					end
-				| _ -> e_def
-			end
-		| Var _,Some e ->
-			let rec loop e = Type.map_expr loop { e with epos = p; etype = apply_params e.etype } in
-			let e = loop e in
-			let e = Inline.inline_metadata e f.cf_meta in
-			let tf = apply_params f.cf_type in
-			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
-			else e
-		| Var _,None when ctx.com.display.dms_display ->
-			 mk (TField (e,cmode)) t p
-		| Var _,None ->
-			error "Recursive inline is not supported" p
-		end
-	| AKMacro(e,cf) ->
-		(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
-		if ctx.in_display then begin match e.eexpr with
-			| TTypeExpr (TClassDecl c) ->
-				mk (TField(e,FStatic(c,cf))) cf.cf_type e.epos
-			| _ ->
-				error "Invalid macro access" p
-		end else
-			error "Invalid macro access" p
+let abstract_using_param_type sea = match follow sea.se_this.etype with
+	| TAbstract(a,tl) when Meta.has Meta.Impl sea.se_access.fa_field.cf_meta -> apply_params a.a_params tl a.a_this
+	| _ -> sea.se_this.etype
 
-let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+class call_dispatcher
+	(ctx : typer)
+	(mode : access_mode)
+	(with_type : WithType.t)
+	(p : pos)
+=
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let check_assign () = if is_set then invalid_assign p in
-	match acc with
-	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
-		check_assign();
-		type_generic_function ctx (ethis,fmode) el with_type p
-	| AKInline (ethis,f,fmode,t) ->
-		check_assign();
-		(match follow t with
-			| TFun (args,r) ->
-				let fcc = unify_field_call ctx fmode el args r p true in
-				fcc.fc_data ethis p true
-			| _ ->
-				error (s_type (print_context()) t ^ " cannot be called") p
-		)
-	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
-		check_assign();
-		(match et.eexpr with
-		| TField(ec,fa) ->
-			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
-		| _ -> die "" __LOC__)
-	| AKUsing (et,cl,ef,eparam,force_inline) ->
-		begin match ef.cf_kind with
-		| Method MethMacro ->
-			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			let eparam,f = push_this ctx eparam in
-			let e = build_call ~mode ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
-			f();
-			e
-		| _ ->
-			check_assign();
-			let t = follow (field_type ctx cl [] ef p) in
-			(* for abstracts we have to apply their parameters to the static function *)
-			let t,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl t,apply_params a.a_params tl a.a_this
-				| te -> t,te
-			in
-			let params,args,r,eparam = match t with
-				| TFun ((_,_,t1) :: args,r) ->
-					unify ctx tthis t1 eparam.epos;
-					let ef = prepare_using_field ef in
-					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
-					| el,TFun(args,r) -> el,args,r,eparam
-					| _ -> die "" __LOC__
-					end
-				| _ -> die "" __LOC__
-			in
-			make_call ctx ~force_inline et (eparam :: params) r p
-		end
-	| AKMacro (ethis,cf) ->
+
+object(self)
+
+	method private make_field_call fa el_typed el =
+		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
+		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
+			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+			| _ -> ()
+		end;
+		fcc.fc_data()
+
+	method private macro_call ethis cf el =
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
@@ -737,30 +595,14 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		ctx.on_error <- old;
 		!ethis_f();
 		e
-	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
-		ignore(acc_get ctx acc p);
-		die "" __LOC__
-	| AKExpr e ->
+
+	method expr_call e el =
+		check_assign();
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
-			begin match e.eexpr with
-				| TField(e1,fa) when not (match fa with FEnum _ | FDynamic _ -> true | _ -> false) ->
-					begin match fa with
-						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
-							type_generic_function ctx (e1,fa) el with_type p
-						| _ ->
-							let fcc = unify_field_call ctx fa el args r p false in
-							if has_class_field_flag fcc.fc_field CfAbstract then begin match e1.eexpr with
-								| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
-								| _ -> ()
-							end;
-							fcc.fc_data e1 e.epos false
-					end
-				| _ ->
-					let el, tfunc = unify_call_args ctx el args r p false false in
-					let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-					mk (TCall (e,el)) r p
-			end
+			let el, tfunc = unify_call_args ctx el args r p false false in
+			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			mk (TCall (e,el)) r p
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
 			loop (Abstract.get_underlying_type a tl)
 		| TMono _ ->
@@ -780,6 +622,219 @@ let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 			mk (TCall (e,el)) t p
 		in
 		loop e.etype
+
+	method resolve_call sea name =
+		let eparam = sea.se_this in
+		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+		self#field_call sea.se_access [eparam;e_name] []
+
+	method field_call fa el_typed el =
+		match fa.fa_field.cf_kind with
+		| Method (MethNormal | MethInline | MethDynamic) ->
+			check_assign();
+			 if Meta.has Meta.Generic fa.fa_field.cf_meta then begin
+				type_generic_function ctx fa el_typed el with_type p
+			end else
+				self#make_field_call fa el_typed el
+		| Method MethMacro ->
+			begin match el_typed with
+			| [] ->
+				self#macro_call fa.fa_on fa.fa_field el
+			| el_typed ->
+				let cur = ctx.this_stack in
+				let el' = List.map (fun e -> fst (push_this ctx e)) el_typed in
+				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
+				ctx.this_stack <- cur;
+				e
+			end;
+		| Var v ->
+			begin match (if is_set then v.v_write else v.v_read) with
+			| AccCall ->
+				begin match FieldAccess.resolve_accessor fa mode with
+				| AccessorFound fa' ->
+					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+					let e = self#field_call fa' el_typed el in
+					if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+				| AccessorAnon ->
+					(* Anons might not have the accessor defined and rely on FDynamic in such cases *)
+					let e = fa.fa_on in
+					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+					let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
+					make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ fa.fa_field.cf_name))) tf p) el_typed t p
+				| AccessorNotFound ->
+					error ("Could not resolve accessor") fa.fa_pos
+				| AccessorInvalid ->
+					die "Trying to resolve accessor on field that isn't AccCall" __LOC__
+				end
+			| _ ->
+				self#expr_call (FieldAccess.get_field_expr fa FCall) el
+			end
+end
+
+let rec acc_get ctx g p =
+	let inline_read fa =
+		let cf = fa.fa_field in
+		(* do not create a closure for static calls *)
+		let apply_params = match fa.fa_host with
+			| FHStatic c ->
+				(fun t -> t)
+			| FHInstance(c,tl) ->
+				(fun t -> t)
+			| FHAbstract(a,tl,c) ->
+				if Meta.has Meta.Enum a.a_meta then begin
+					(* Enum abstracts have to apply their type parameters because they are basically statics with type params (#8700). *)
+					let monos = Monomorph.spawn_constrained_monos (fun t -> t) a.a_params in
+					apply_params a.a_params monos;
+				end else
+					(fun t -> t)
+			| _ ->
+				die "" __LOC__
+		in
+		ignore(follow cf.cf_type); (* force computing *)
+		begin match cf.cf_kind,cf.cf_expr with
+		| _ when not (ctx.com.display.dms_inline) ->
+			FieldAccess.get_field_expr fa FRead
+		| Method _,_->
+			let chk_class c = ((has_class_flag c CExtern) || has_class_field_flag cf CfExtern) && not (Meta.has Meta.Runtime cf.cf_meta) in
+			let wrap_extern c =
+				let c2 =
+					let m = c.cl_module in
+					let mpath = (fst m.m_path @ ["_" ^ snd m.m_path],(snd m.m_path) ^ "_Impl_") in
+					try
+						let rec loop mtl = match mtl with
+							| (TClassDecl c) :: _ when c.cl_path = mpath -> c
+							| _ :: mtl -> loop mtl
+							| [] -> raise Not_found
+						in
+						loop c.cl_module.m_types
+					with Not_found ->
+						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos in
+						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
+						c2
+				in
+				let cf = try
+					PMap.find cf.cf_name c2.cl_statics
+				with Not_found ->
+					let cf = {cf with cf_kind = Method MethNormal} in
+					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
+					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
+					cf
+				in
+				let e_t = type_module_type ctx (TClassDecl c2) None p in
+				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FHStatic c2) true p) FRead
+			in
+			let e_def = FieldAccess.get_field_expr fa FRead in
+			begin match follow fa.fa_on.etype with
+				| TInst (c,_) when chk_class c ->
+					display_error ctx "Can't create closure on an extern inline member method" p;
+					e_def
+				| TAnon a ->
+					begin match !(a.a_status) with
+						| Statics c when has_class_field_flag cf CfExtern ->
+							display_error ctx "Cannot create closure on @:extern inline method" p;
+							e_def
+						| Statics c when chk_class c -> wrap_extern c
+						| _ -> e_def
+					end
+				| _ -> e_def
+			end
+		| Var _,Some e ->
+			let rec loop e = Type.map_expr loop { e with epos = p; etype = apply_params e.etype } in
+			let e = loop e in
+			let e = Inline.inline_metadata e cf.cf_meta in
+			let tf = apply_params cf.cf_type in
+			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
+			else e
+		| Var _,None when ctx.com.display.dms_display ->
+			 FieldAccess.get_field_expr fa FRead
+		| Var _,None ->
+			error "Recursive inline is not supported" p
+		end
+	in
+	let dispatcher () = new call_dispatcher ctx MGet WithType.value p in
+	match g with
+	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
+	| AKExpr e -> e
+	| AKAccess _ -> die "" __LOC__
+	| AKResolve(sea,name) ->
+		(dispatcher ())#resolve_call sea name
+	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
+		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
+		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
+		(* TODO *)
+		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let t = match follow e_field.etype with
+			| TFun (_ :: args,ret) -> TFun(args,ret)
+			| t -> t
+		in
+		{e_field with etype = t}
+	| AKField fa ->
+		begin match fa.fa_field.cf_kind with
+		| Method MethMacro ->
+			(* If we are in display mode, we're probably hovering a macro call subject. Just generate a normal field. *)
+			if ctx.in_display then
+				FieldAccess.get_field_expr fa FRead
+			else
+				error "Invalid macro access" p
+		| _ ->
+			if fa.fa_inline then
+				inline_read fa
+			else
+				FieldAccess.get_field_expr fa FRead
+		end
+	| AKAccessor fa ->
+		(dispatcher())#field_call fa [] []
+	| AKUsingAccessor sea ->
+		(dispatcher())#field_call sea.se_access [sea.se_this] []
+	| AKUsingField sea ->
+		let e = sea.se_this in
+		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
+		(* build a closure with first parameter applied *)
+		(match follow e_field.etype with
+		| TFun ((_,_,t0) :: args,ret) ->
+			let te = abstract_using_param_type sea in
+			unify ctx te t0 e.epos;
+			let tcallb = TFun (args,ret) in
+			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
+			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
+			let args = List.map (fun (n,o,t) ->
+				let t = if o then ctx.t.tnull t else t in
+				o,if n = "" then gen_local ctx t e.epos else alloc_var VGenerated n t e.epos (* TODO: var pos *)
+			) args in
+			let ve = alloc_var VGenerated "_e" e.etype e.epos in
+			let ecall = make_call ctx e_field (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
+			let ecallb = mk (TFunction {
+				tf_args = List.map (fun (o,v) -> v,if o then Some (Texpr.Builder.make_null v.v_type v.v_pos) else None) args;
+				tf_type = ret;
+				tf_expr = (match follow ret with | TAbstract ({a_path = [],"Void"},_) -> ecall | _ -> mk (TReturn (Some ecall)) t_dynamic p);
+			}) tcallb p in
+			let ewrap = mk (TFunction {
+				tf_args = [ve,None];
+				tf_type = tcallb;
+				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
+			}) twrap p in
+			make_call ctx ewrap [e] tcallb p
+		| _ -> die "" __LOC__)
+
+let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+	let dispatch = new call_dispatcher ctx mode with_type p in
+	match acc with
+	| AKField fa ->
+		dispatch#field_call fa [] el
+	| AKUsingField sea ->
+		let eparam = sea.se_this in
+		dispatch#field_call sea.se_access [eparam] el
+	| AKNo _ | AKAccess _ | AKResolve _ ->
+		ignore(acc_get ctx acc p);
+		die "" __LOC__
+	| AKAccessor fa ->
+		let e = dispatch#field_call fa [] [] in
+		dispatch#expr_call e el
+	| AKUsingAccessor sea ->
+		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
+		dispatch#expr_call e el
+	| AKExpr e ->
+		dispatch#expr_call e el
 
 let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
@@ -909,8 +964,16 @@ let array_access ctx e1 e2 mode p =
 	given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
 	return a new `access_mode->access_kind` getter for the whole field access chain.
 *)
-let field_chain ctx path e =
-	List.fold_left (fun e (f,_,p) ->
-		let e = acc_get ctx (e MGet WithType.value (* WITHTYPETODO *)) p in
-		type_field_default_cfg ctx e f p
-	) e path
+let field_chain ctx path access mode with_type =
+	let rec loop access path = match path with
+		| [] ->
+			access
+		| [(name,_,p)] ->
+			let e = acc_get ctx access p in
+			type_field_default_cfg ctx e name p mode with_type
+		| (name,_,p) :: path ->
+			let e = acc_get ctx access p in
+			let access = type_field_default_cfg ctx e name p MGet WithType.value in
+			loop access path
+	in
+	loop access path
