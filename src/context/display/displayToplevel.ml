@@ -344,7 +344,7 @@ let collect ctx tk with_type sort =
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
-					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
+					if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
 			| TTypeDecl t ->
@@ -381,7 +381,7 @@ let collect ctx tk with_type sort =
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 					let decl,make = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a,
-							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
+							if has_class_field_flag cf CfEnum then make_ci_enum_abstract_field a else make_ci_class_field
 						| _ -> TClassDecl c,make_ci_class_field
 					in
 					let origin = StaticImport decl in
