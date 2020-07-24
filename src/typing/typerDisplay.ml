@@ -58,7 +58,7 @@ let completion_item_of_expr ctx e =
 				| _ -> Self decl
 			in
 			let make_ci = match c.cl_kind with
-				| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta -> make_ci_enum_abstract_field a
+				| KAbstractImpl a when has_class_field_flag cf CfEnum -> make_ci_enum_abstract_field a
 				| _ -> make_ci_class_field
 			in
 			of_field {e with etype = te} origin cf CFSStatic make_ci

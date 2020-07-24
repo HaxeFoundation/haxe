@@ -105,7 +105,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					true,en.e_path,en.e_names,TEnumDecl en
 				| TAbstract ({a_impl = Some c} as a,_) when a.a_enum ->
 					let fields = ExtList.List.filter_map (fun cf ->
-						if Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+						if has_class_field_flag cf CfEnum then Some cf.cf_name else None
 					) c.cl_ordered_statics in
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -369,7 +369,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
 		let is_impl = has_class_field_flag f CfImpl in
-		let is_enum = Meta.has Meta.Enum f.cf_meta in
+		let is_enum = has_class_field_flag f CfEnum in
 		if is_impl && not (has_class_field_flag ctx.curfield CfImpl) && not is_enum then
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.curclass.cl_kind with
@@ -407,7 +407,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
 					begin try
 						let cf = PMap.find i c.cl_statics in
-						if not (Meta.has Meta.Enum cf.cf_meta) then
+						if not (has_class_field_flag cf CfEnum) then
 							loop l
 						else begin
 							let et = type_module_type ctx (TClassDecl c) None p in

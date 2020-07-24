@@ -171,7 +171,7 @@ let collect ctx e_ast e dk with_type p =
 			Display.merge_core_doc ctx (TAbstractDecl a);
 			(* Abstracts should show all their @:impl fields minus the constructor. *)
 			let items = List.fold_left (fun acc cf ->
-				if has_class_field_flag cf CfImpl && not (Meta.has Meta.Enum cf.cf_meta) && should_access c cf false && is_new_item acc cf.cf_name then begin
+				if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) && should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = Self(TAbstractDecl a) in
 					let cf = prepare_using_field cf in
 					let cf = if tl = [] then cf else {cf with cf_type = apply_params a.a_params tl cf.cf_type} in
@@ -225,7 +225,7 @@ let collect ctx e_ast e dk with_type p =
 				if is_new_item acc name then begin
 					let allow_static_abstract_access c cf =
 						should_access c cf false &&
-						(not (has_class_field_flag cf CfImpl) || Meta.has Meta.Enum cf.cf_meta)
+						(not (has_class_field_flag cf CfImpl) || has_class_field_flag cf CfEnum)
 					in
 					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 					let add origin make_field =
@@ -234,7 +234,7 @@ let collect ctx e_ast e dk with_type p =
 					match !(an.a_status) with
 						| Statics ({cl_kind = KAbstractImpl a} as c) ->
 							if allow_static_abstract_access c cf then
-								let make = if Meta.has Meta.Enum cf.cf_meta then
+								let make = if has_class_field_flag cf CfEnum then
 										(make_ci_enum_abstract_field a)
 									else
 										make_ci_class_field

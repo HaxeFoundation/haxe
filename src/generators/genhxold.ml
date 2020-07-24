@@ -289,7 +289,7 @@ let generate_type com t =
 
 			List.iter (fun f ->
 				let static = not (has_class_field_flag f CfImpl) in
-				if not static && is_enum && Meta.has Meta.Enum f.cf_meta then begin
+				if not static && is_enum && has_class_field_flag f CfEnum then begin
 					p "\tvar %s;\n" f.cf_name;
 				end else
 					print_field static f

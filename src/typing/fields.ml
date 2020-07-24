@@ -411,7 +411,7 @@ let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
-			if has_class_field_flag f CfImpl && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
+			if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx "Cannot access non-static abstract field statically" pfield;
 			begin match mode with
 			| MCall _ when has_class_field_flag f CfOverload ->
 				()
