@@ -59,7 +59,7 @@ class Thread {
 			callb();
 			threads.remove(nt);
 		}
-		nt = new NativeThread(null, callb);
+		nt = new NativeThread(null, wrappedCallB);
 		nt.start();
 		var t = new Thread(nt);
 		threads.set(nt, t);
