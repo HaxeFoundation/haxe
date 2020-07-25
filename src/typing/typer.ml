@@ -56,6 +56,75 @@ type type_class =
 	| KStrParam of t
 	| KAbstract of tabstract * t list
 
+module BinopResult = struct
+
+	type normal_binop = {
+		binop_op : binop;
+		binop_lhs : texpr;
+		binop_rhs : texpr;
+		binop_type : Type.t;
+		binop_needs_assign : bool;
+		binop_swapped : bool;
+		binop_pos : pos;
+	}
+
+	type t =
+		| BinopNormal of normal_binop
+		| BinopSpecial of texpr * bool
+
+	let to_string br =
+		let st = s_type (print_context()) in
+		let se = s_expr_pretty false "" false st in
+		match br with
+		| BinopNormal bn ->
+			Printer.s_record_fields "" [
+				"binop_op",s_binop bn.binop_op;
+				"binop_lhs",se bn.binop_lhs;
+				"binop_rhs",se bn.binop_rhs;
+				"binop_type",st bn.binop_type;
+				"binop_needs_assign",string_of_bool bn.binop_needs_assign;
+				"binop_swapped",string_of_bool bn.binop_swapped;
+				"binop_pos",Printer.s_pos bn.binop_pos;
+			]
+		| BinopSpecial(e,needs_assign) ->
+			Printf.sprintf "BinopSpecial(%s,%b)" (se e) needs_assign
+
+	let create_normal op e1 e2 t needs_assign swapped p =
+		BinopNormal {
+			binop_op = op;
+			binop_lhs = e1;
+			binop_rhs = e2;
+			binop_type = t;
+			binop_needs_assign = needs_assign;
+			binop_swapped = swapped;
+			binop_pos = p;
+		}
+
+	let create_special e needs_assign =
+		BinopSpecial(e,needs_assign)
+
+	let to_texpr vr br assign = match br with
+		| BinopNormal bn ->
+			let e1 = bn.binop_lhs in
+			let e2 = bn.binop_rhs in
+			let e1,e2 = match bn.binop_swapped with
+				| false ->
+					e1,e2
+				| true ->
+					let eloc1 = vr#as_var "lhs" e1 in
+					let eloc2 = vr#as_var "rhs" e2 in
+					eloc2,eloc1
+			in
+			let e = mk (TBinop(bn.binop_op,e1,e2)) bn.binop_type bn.binop_pos in
+			if bn.binop_needs_assign then assign e else e
+		| BinopSpecial(e,needs_assign) ->
+			if needs_assign then assign e else e
+
+	let get_type br = match br with
+		| BinopNormal bn -> bn.binop_type
+		| BinopSpecial(e,_) -> e.etype
+end
+
 let rec classify t =
 	match follow t with
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
@@ -169,7 +238,7 @@ object(self)
 
 	method get_vars = DynArray.to_list vars
 
-	method as_var e name =
+	method as_var name e =
 		let v = alloc_var VGenerated name e.etype e.epos in
 		DynArray.add vars (v,e);
 		mk (TLocal v) v.v_type v.v_pos
@@ -186,7 +255,19 @@ object(self)
 			let e2 = self#get_expr "index" e2 in
 			{e with eexpr = TArray(e1,e2)}
 		| _ ->
-			self#as_var e name
+			self#as_var name e
+
+	method to_texpr e =
+		begin match self#get_vars with
+		| [] ->
+			e
+		| vl ->
+			let el = List.map (fun (v,e) ->
+				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+			) vl in
+			let e = mk (TBlock (el @ [e])) e.etype e.epos in
+			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+		end
 end
 
 (* ---------------------------------------------------------------------- *)
@@ -588,43 +669,28 @@ and type_assign_op ctx op e1 e2 with_type p =
 		let e_get = acc_get ctx access_get p in
 		type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
 	in
-	let emit vars e =
-		begin match vars with
-		| [] ->
-			e
-		| vl ->
-			let el = List.map (fun (v,e) ->
-				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
-			) vl in
-			let e = mk (TBlock (el @ [e])) e.etype e.epos in
-			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end
-	in
 	let process_lhs name e_lhs =
 		let vr = new value_reference ctx in
 		let e = vr#get_expr name e_lhs in
-		e,vr#get_vars
+		e,vr
 	in
-	let assign vars e e_rhs =
-		let e = match e_rhs.eexpr with
-			| TBinop(op',e1',e2') when Texpr.equal e e1' && op = op' ->
-				{e_rhs with eexpr = TBinop(OpAssignOp op,e1',e2')}
-			| TMeta((Meta.RequiresAssign,_,_),_) ->
+	let assign vr e r_rhs =
+		let assign e_rhs = match e_rhs.eexpr with
+			| TBinop(op',e1',e2') when op = op' && Texpr.equal e e1' ->
+				mk (TBinop(OpAssignOp op',e1',e2')) e.etype p
+			| _ ->
 				mk (TBinop(OpAssign,e,e_rhs)) e.etype p
-			| _ ->
-				e_rhs
 		in
-		emit vars e
+		let e = BinopResult.to_texpr vr r_rhs assign in
+		vr#to_texpr e
 	in
-	let set vars fa e_rhs el =
-		let e = match e_rhs.eexpr with
-			| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
-				let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-				dispatcher#setter_call fa el []
-			| _ ->
-				e_rhs
+	let set vr fa r_rhs el =
+		let assign e_rhs =
+			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+			dispatcher#setter_call fa (el @ [e_rhs]) [];
 		in
-		emit vars e
+		let e = BinopResult.to_texpr vr r_rhs assign in
+		vr#to_texpr e
 	in
 	(match type_access ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
 	| AKNo s ->
@@ -635,22 +701,22 @@ and type_assign_op ctx op e1 e2 with_type p =
 	| AKUsingField _ ->
 		error "Invalid operation" p
 	| AKField fa ->
-		let e,vars = process_lhs "fh" (FieldAccess.get_field_expr fa FWrite) in
+		let e,vr = process_lhs "fh" (FieldAccess.get_field_expr fa FWrite) in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
-		assign vars e e_rhs
+		assign vr e e_rhs
 	| AKExpr e ->
-		let e,vars = process_lhs "lhs" e in
+		let e,vr = process_lhs "lhs" e in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
-		assign vars e e_rhs
+		assign vr e e_rhs
 	| AKAccessor fa ->
-		let ef,vars = process_lhs "fh" fa.fa_on in
+		let ef,vr = process_lhs "fh" fa.fa_on in
 		let e_rhs = field_rhs op fa.fa_field ef in
-		set vars {fa with fa_on = ef} e_rhs [e_rhs]
+		set vr {fa with fa_on = ef} e_rhs []
 	| AKUsingAccessor sea ->
 		let fa = sea.se_access in
-		let ef,vars = process_lhs "fh" sea.se_this in
+		let ef,vr = process_lhs "fh" sea.se_this in
 		let e_rhs = field_rhs op fa.fa_field ef in
-		set vars sea.se_access e_rhs [ef;e_rhs]
+		set vr sea.se_access e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -666,6 +732,8 @@ and type_assign_op ctx op e1 e2 with_type p =
 		let ebase,ebase' = maybe_bind_to_temp ebase in
 		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
 		let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
+		let vr = new value_reference ctx in
+		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
 		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
 		let eget = match eget with None -> die "" __LOC__ | Some e -> e in
@@ -687,7 +755,7 @@ and type_assign_op ctx op e1 e2 with_type p =
 				error "Invalid array access getter/setter combination" p
 		in
 		save();
-		e
+		vr#to_texpr	e
 	| AKResolve _ ->
 		error "Invalid operation" p
 	)
@@ -710,7 +778,10 @@ and type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 			WithType.value
 	in
 	let e1 = type_expr ctx e1 wt in
-	type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
+	let result = type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p in
+	let vr = new value_reference ctx in
+	let e = BinopResult.to_texpr vr result (fun _ -> assert false) in
+	vr#to_texpr e
 
 and type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
@@ -723,12 +794,7 @@ and type_binop ctx op e1 e2 is_assign_op with_type p =
 	| _ ->
 		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
 
-and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
-	let with_type = match op with
-		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
-		| _ -> wt
-	in
-	let e2 = type_expr ctx e2 with_type in
+and make_binop ctx op e1 e2 is_assign_op with_type p =
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
@@ -752,14 +818,16 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		loop e.etype
 	in
 	let mk_op e1 e2 t =
-		if op = OpAdd && (classify t) = KString then
+		let e1,e2 = if op = OpAdd && (classify t) = KString then
 			let e1 = to_string e1 in
 			let e2 = to_string e2 in
-			mk (TBinop (op,e1,e2)) t p
+			e1,e2
 		else
-			mk (TBinop (op,e1,e2)) t p
+			e1,e2
+		in
+		BinopResult.create_normal op e1 e2 t is_assign_op false p
 	in
-	let make e1 e2 = match op with
+	match op with
 	| OpAdd ->
 		mk_op e1 e2 (match classify e1.etype, classify e2.etype with
 		| KInt , KInt ->
@@ -930,7 +998,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p
+		BinopSpecial (mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[e1;e2])) t p,false)
 	| OpArrow ->
 		error "Unexpected =>" p
 	| OpIn ->
@@ -938,133 +1006,127 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 	| OpAssign
 	| OpAssignOp _ ->
 		die "" __LOC__
-	in
-	let find_overload a c tl left =
-		let map = apply_params a.a_params tl in
-		let make op_cf cf e1 e2 tret =
-			if cf.cf_expr = None then begin
-				if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive operator method" p;
-				if not (Meta.has Meta.CoreType a.a_meta) then begin
-					(* for non core-types we require that the return type is compatible to the native result type *)
-					let e' = make {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} in
-					let t_expected = e'.etype in
-					begin try
-						unify_raise ctx tret t_expected p
-					with Error (Unify _,_) ->
-						match follow tret with
-							| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
-								()
-							| _ ->
-								let st = s_type (print_context()) in
-								error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
-					end;
+
+and find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type p =
+	let map = apply_params a.a_params tl in
+	let make op_cf cf e1 e2 tret needs_assign swapped =
+		if cf.cf_expr = None then begin
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive operator method" p;
+			if not (Meta.has Meta.CoreType a.a_meta) then begin
+				(* for non core-types we require that the return type is compatible to the native result type *)
+				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op with_type p in
+				let t_expected = BinopResult.get_type result in
+				begin try
+					unify_raise ctx tret t_expected p
+				with Error (Unify _,_) ->
+					match follow tret with
+						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
+							()
+						| _ ->
+							let st = s_type (print_context()) in
+							error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
-				let e = Texpr.Builder.binop op e1 e2 tret p in
-				mk_cast e tret p
-			end else begin
-				let e = make_static_call ctx c cf map [e1;e2] tret p in
-				e
-			end
-		in
-		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
-		   it with the first type to preserve comparison semantics. *)
-		let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
-		if is_eq_op then begin match follow e1.etype,follow e2.etype with
-			| TMono _,_ | _,TMono _ ->
-				Type.unify e1.etype e2.etype
-			| _ ->
-				()
-		end;
-		let rec loop ol = match ol with
-			| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
-				loop ol
-			| (op_cf,cf) :: ol ->
-				let is_impl = has_class_field_flag cf CfImpl in
-				begin match follow cf.cf_type with
-					| TFun([(_,_,t1);(_,_,t2)],tret) ->
-						let check e1 e2 swapped =
-							let map_arguments () =
-								let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
-								let map t = map (apply_params cf.cf_params monos t) in
-								let t1 = map t1 in
-								let t2 = map t2 in
-								let tret = map tret in
-								monos,t1,t2,tret
-							in
-							let monos,t1,t2,tret = map_arguments() in
-							let make e1 e2 = make op_cf cf e1 e2 tret in
-							let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
-							let e1,e2 = if left || not left && swapped then begin
-								Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
-								e1,AbstractCast.cast_or_unify_raise ctx t2 e2 p
-							end else begin
-								Type.type_eq EqStrict e2.etype t2;
-								AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
-							end in
-							let check_null e t = if is_eq_op then match e.eexpr with
-								| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
-								| _ -> ()
-							in
-							(* If either expression is `null` we only allow operator resolving if the argument type
-							   is explicitly Null<T> (issue #3376) *)
-							if is_eq_op then begin
-								check_null e2 t2;
-								check_null e1 t1;
-							end;
-							let e = if not swapped then
-								make e1 e2
-							else if not (OptimizerTexpr.has_side_effect e1) && not (OptimizerTexpr.has_side_effect e2) then
-								make e1 e2
-							else
-								let v1,v2 = gen_local ctx t1 e1.epos, gen_local ctx t2 e2.epos in
-								let ev1,ev2 = mk (TVar(v1,Some e1)) ctx.t.tvoid p,mk (TVar(v2,Some e2)) ctx.t.tvoid p in
-								let eloc1,eloc2 = mk (TLocal v1) v1.v_type p,mk (TLocal v2) v2.v_type p in
-								let e = make eloc1 eloc2 in
-								let e = mk (TBlock [
-									ev2;
-									ev1;
-									e
-								]) e.etype e.epos in
-								e
-							in
-							if is_assign_op && op_cf = op then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
-							else e
-						in
-						begin try
-							check e1 e2 false
-						with Error (Unify _,_) | Unify_error _ -> try
-							if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
-							check e2 e1 true
-						with Not_found | Error (Unify _,_) | Unify_error _ ->
-							loop ol
-						end
-					| _ ->
-						die "" __LOC__
-				end
-			| [] ->
-				raise Not_found
-		in
-		if left then
-			loop a.a_ops
-		else
-			let not_impl_or_is_commutative (_, cf) =
-				not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
-			in
-			loop (List.filter not_impl_or_is_commutative a.a_ops)
+			end;
+			BinopResult.create_normal op e1 e2 tret needs_assign swapped p
+		end else begin
+			let el = if swapped then [e2;e1] else [e1;e2] in
+			BinopResult.create_special (make_static_call ctx c cf map el tret p) needs_assign
+		end
 	in
+	(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
+		it with the first type to preserve comparison semantics. *)
+	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
+	if is_eq_op then begin match follow e1.etype,follow e2.etype with
+		| TMono _,_ | _,TMono _ ->
+			Type.unify e1.etype e2.etype
+		| _ ->
+			()
+	end;
+	let rec loop ol = match ol with
+		| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
+			loop ol
+		| (op_cf,cf) :: ol ->
+			let is_impl = has_class_field_flag cf CfImpl in
+			begin match follow cf.cf_type with
+				| TFun([(_,_,t1);(_,_,t2)],tret) ->
+					let check e1 e2 swapped =
+						let map_arguments () =
+							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
+							let map t = map (apply_params cf.cf_params monos t) in
+							let t1 = map t1 in
+							let t2 = map t2 in
+							let tret = map tret in
+							monos,t1,t2,tret
+						in
+						let monos,t1,t2,tret = map_arguments() in
+						let make e1 e2 = make op_cf cf e1 e2 tret in
+						let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
+						let e1,e2 = if left || not left && swapped then begin
+							Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
+							e1,AbstractCast.cast_or_unify_raise ctx t2 e2 p
+						end else begin
+							Type.type_eq EqStrict e2.etype t2;
+							AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
+						end in
+						let check_null e t = if is_eq_op then match e.eexpr with
+							| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
+							| _ -> ()
+						in
+						(* If either expression is `null` we only allow operator resolving if the argument type
+							is explicitly Null<T> (issue #3376) *)
+						if is_eq_op then begin
+							check_null e2 t2;
+							check_null e1 t1;
+						end;
+						let needs_assign = is_assign_op && op_cf = op in
+						let e = if not swapped then
+							make e1 e2 needs_assign false
+						else begin
+							make e2 e1 needs_assign true
+						end in
+						e
+					in
+					begin try
+						check e1 e2 false
+					with Error (Unify _,_) | Unify_error _ -> try
+						if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
+						check e2 e1 true
+					with Not_found | Error (Unify _,_) | Unify_error _ ->
+						loop ol
+					end
+				| _ ->
+					die "" __LOC__
+			end
+		| [] ->
+			raise Not_found
+	in
+	if left then
+		loop a.a_ops
+	else
+		let not_impl_or_is_commutative (_, cf) =
+			not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
+		in
+		loop (List.filter not_impl_or_is_commutative a.a_ops)
+
+and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
+	let with_type = match op with
+		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
+		| _ -> wt
+	in
+	let e2 = type_expr ctx e2 with_type in
 	try
 		begin match follow e1.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl true
+			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl true is_assign_op with_type p
 			| _ -> raise Not_found
 		end
 	with Not_found -> try
 		begin match follow e2.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl false
+			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl false is_assign_op with_type p
 			| _ -> raise Not_found
 		end
 	with Not_found ->
 		if abstract_overload_only then raise Not_found
-		else make e1 e2
+		else make_binop ctx op e1 e2 is_assign_op with_type p
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
