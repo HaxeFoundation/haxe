@@ -632,7 +632,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs op cf ev =
 		let access_get = type_field_default_cfg ctx ev cf.cf_name p MGet (WithType.with_type cf.cf_type) in
 		let e_get = acc_get ctx access_get p in
-		type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
+		e_get.etype,type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
 	in
 	let process_lhs name e_lhs =
 		let vr = new value_reference ctx in
@@ -640,7 +640,9 @@ let type_assign_op ctx op e1 e2 with_type p =
 		e,vr
 	in
 	let assign vr e r_rhs =
-		let assign e_rhs = match e_rhs.eexpr with
+		let assign e_rhs =
+			let e_rhs = AbstractCast.cast_or_unify ctx e.etype e_rhs p in
+			match e_rhs.eexpr with
 			| TBinop(op',e1',e2') when op = op' && Texpr.equal e e1' ->
 				mk (TBinop(OpAssignOp op',e1',e2')) e.etype p
 			| _ ->
@@ -649,8 +651,9 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let e = BinopResult.to_texpr vr r_rhs assign in
 		vr#to_texpr e
 	in
-	let set vr fa r_rhs el =
+	let set vr fa t_lhs r_rhs el =
 		let assign e_rhs =
+			let e_rhs = AbstractCast.cast_or_unify ctx t_lhs e_rhs p in
 			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
 			dispatcher#setter_call fa (el @ [e_rhs]) [];
 		in
@@ -675,13 +678,13 @@ let type_assign_op ctx op e1 e2 with_type p =
 		assign vr e e_rhs
 	| AKAccessor fa ->
 		let ef,vr = process_lhs "fh" fa.fa_on in
-		let e_rhs = field_rhs op fa.fa_field ef in
-		set vr {fa with fa_on = ef} e_rhs []
+		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
+		set vr {fa with fa_on = ef} t_lhs e_rhs []
 	| AKUsingAccessor sea ->
 		let fa = sea.se_access in
 		let ef,vr = process_lhs "fh" sea.se_this in
-		let e_rhs = field_rhs op fa.fa_field ef in
-		set vr sea.se_access e_rhs [ef]
+		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
+		set vr sea.se_access t_lhs e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
