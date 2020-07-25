@@ -23,36 +23,41 @@
 package sys.thread;
 
 using python.internal.UBuiltins;
-import python.Exceptions.IndexError;
 
 class Deque<T> {
-	
-	var popMutex: Mutex;
-	var nativeDeque: NativeDeque<T>;
+	var deque:NativeDeque<T>;
+	var lock:NativeCondition;
 
 	public function new() {
-		nativeDeque = new NativeDeque<T>();
-		popMutex = new Mutex();
+		deque = new NativeDeque<T>();
+		lock = new NativeCondition();
 	}
 
 	public function add(i:T) {
-		nativeDeque.append(i);
+		lock.acquire();
+		deque.append(i);
+		lock.notify();
+		lock.release();
 	}
 
 	public function push(i:T) {
-		nativeDeque.appendleft(i);
+		lock.acquire();
+		deque.appendleft(i);
+		lock.notify();
+		lock.release();
 	}
 
 	public function pop(block:Bool):Null<T> {
-		popMutex.acquire();
-		while (block && nativeDeque.len() == 0) { }
-		var value = try {
-			nativeDeque.popleft();
-		} catch (e:IndexError) {
-			null;
-		};
-		popMutex.release();
-		return value;
+		var ret = null;
+		lock.acquire();
+		if (block) {
+			lock.wait_for(() -> deque.bool());
+			ret = deque.popleft();
+		} else if (deque.bool()) {
+			ret = deque.popleft();
+		}
+		lock.release();
+		return ret;
 	}
 }
 
@@ -63,4 +68,16 @@ extern class NativeDeque<T> {
 	function append(x:T):Void;
 	function appendleft(x:T):Void;
 	function popleft():T;
+}
+
+@:pythonImport("threading", "Condition")
+@:native("Condition")
+private extern class NativeCondition {
+	function new(?lock:Dynamic);
+	function acquire(blocking:Bool = true, timeout:Float = -1):Bool;
+	function release():Void;
+	function wait(?timeout:Float):Bool;
+	function wait_for(predicate:()->Bool, ?timeout:Float):Bool;
+	function notify(n:Int = 1):Void;
+	function notify_all():Void;
 }
