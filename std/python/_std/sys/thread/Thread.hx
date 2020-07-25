@@ -53,7 +53,13 @@ class Thread {
 
 	public static function create(callb:Void->Void):Thread {
 		threadsMutex.acquire();
-		var nt = new NativeThread(null, callb);
+		var nt:NativeThread = null;
+		// Wrap the callback so it will clear the thread reference once the thread is finished
+		var wrappedCallB = () -> { 
+			callb();
+			threads.remove(nt);
+		}
+		nt = new NativeThread(null, callb);
 		nt.start();
 		var t = new Thread(nt);
 		threads.set(nt, t);
