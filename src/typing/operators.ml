@@ -531,25 +531,31 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 		in
 		loop (List.filter not_impl_or_is_commutative a.a_ops)
 
-let type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
-	let with_type = match op with
-		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
-		| _ -> wt
-	in
-	let e2 = type_expr ctx e2 with_type in
+let try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p =
 	try
 		begin match follow e1.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl true is_assign_op with_type p
 			| _ -> raise Not_found
 		end
-	with Not_found -> try
+	with Not_found ->
 		begin match follow e2.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl false is_assign_op with_type p
 			| _ -> raise Not_found
 		end
+
+let type_binop_rhs ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
+	let with_type = match op with
+		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
+		| _ -> wt
+	in
+	type_expr ctx e2 with_type,with_type
+
+let type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op with_type p =
+	let e2,with_type = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
+	try
+		try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p
 	with Not_found ->
-		if abstract_overload_only then raise Not_found
-		else make_binop ctx op e1 e2 is_assign_op with_type p
+		make_binop ctx op e1 e2 is_assign_op with_type p
 
 let type_assign ctx e1 e2 with_type p =
 	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
@@ -612,7 +618,12 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 			WithType.value
 	in
 	let e1 = type_expr ctx e1 wt in
-	let result = type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p in
+	let result = if abstract_overload_only then begin
+		let e2,with_type = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
+		try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p
+	end else
+		type_binop2 ctx op e1 e2 is_assign_op wt p
+	in
 	let vr = new value_reference ctx in
 	let e = BinopResult.to_texpr vr result (fun _ -> assert false) in
 	vr#to_texpr e
