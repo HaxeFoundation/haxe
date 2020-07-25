@@ -27,6 +27,8 @@ class Thread {
 	var messages: Deque<Dynamic>;
 
 	static var threads = new haxe.ds.ObjectMap<NativeThread, Thread>();
+	static var threadsMutex: Mutex = new Mutex();
+	static var mainThread: Thread;
 
 	private function new(t:NativeThread) {
 		nativeThread = t;
@@ -34,29 +36,33 @@ class Thread {
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
-		trace('sending message $msg');
 		messages.add(msg);
 	}
 
 	public static function current():Thread {
+		threadsMutex.acquire();
 		var ct = PyThreadingAPI.current_thread();
-		if (!threads.exists(ct)) threads.set(ct, new Thread(ct));
-		return threads.get(ct);
+		if (ct == PyThreadingAPI.main_thread()) {
+			if (mainThread == null) mainThread = new Thread(ct);
+			return mainThread;
+		}
+		var t = threads.get(ct);
+		threadsMutex.release();
+		return t;
 	}
 
 	public static function create(callb:Void->Void):Thread {
+		threadsMutex.acquire();
 		var nt = new NativeThread(null, callb);
 		nt.start();
 		var t = new Thread(nt);
 		threads.set(nt, t);
+		threadsMutex.release();
 		return t;
 	}
 
 	public static function readMessage(block:Bool):Dynamic {
-		trace("readMessage called");
-		var msg = current().messages.pop(block);
-		trace('readMessage finished with $msg');
-		return msg;
+		return current().messages.pop(block);
 	}
 }
 
@@ -71,4 +77,5 @@ private extern class NativeThread {
 @:native("threading")
 private extern class PyThreadingAPI {
 	static function current_thread():NativeThread;
+	static function main_thread():NativeThread;
 }
