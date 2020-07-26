@@ -586,8 +586,7 @@ and type_access ctx e p mode with_type =
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
 	| EDisplay (e,dk) ->
-		let resume_typing = type_expr ~mode in
-		AKExpr (TyperDisplay.handle_edisplay ~resume_typing ctx e dk WithType.value)
+		AKExpr (TyperDisplay.handle_edisplay ctx e dk mode WithType.value)
 	| _ ->
 		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
 
@@ -1074,7 +1073,7 @@ and type_try ctx e1 catches with_type p =
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked MGet with_type pc);
 		v.v_type <- t2;
 		locals();
 		((v,e) :: acc1),(e :: acc2)
@@ -1627,7 +1626,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		else
 			e
 	| (EDisplay((EConst (Ident "super"),_ as e1),dk),_),_ ->
-		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk with_type
+		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk mode with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.curfun <> FunConstructor then error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
@@ -1795,7 +1794,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->
-		TyperDisplay.handle_edisplay ctx e dk with_type
+		TyperDisplay.handle_edisplay ctx e dk mode with_type
 	| EDisplayNew t ->
 		die "" __LOC__
 	| ECheckType (e,t) ->

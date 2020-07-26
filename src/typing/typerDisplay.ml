@@ -300,7 +300,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			end
 		| _ -> error "Call expected" p
 
-and display_expr ctx e_ast e dk with_type p =
+and display_expr ctx e_ast e dk mode with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -502,7 +502,7 @@ let handle_structure_display ctx e fields origin =
 	| _ ->
 		error "Expected object expression" p
 
-let handle_display ?resume_typing ctx e_ast dk with_type =
+let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -532,9 +532,7 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
-		match resume_typing with
-		| None -> type_expr ctx e_ast with_type
-		| Some fn -> fn ctx e_ast with_type
+		type_expr ~mode ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
@@ -622,13 +620,11 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	end;
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e dk with_type p
+	display_expr ctx e_ast e dk mode with_type p
 
-let handle_edisplay ?resume_typing ctx e dk with_type =
+let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =
-		match resume_typing with
-		| Some resume_typing -> handle_display ~resume_typing ctx e dk with_type
-		| None -> handle_display ctx e dk with_type
+		handle_display ctx e dk mode with_type
 	in
 	match dk,ctx.com.display.dms_kind with
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
