@@ -356,46 +356,36 @@ let unify_field_call ctx fa el_typed el p inline =
 		end
 
 let type_generic_function ctx fa el_typed el with_type p =
-	let c,tl,stat = match fa.fa_host with
-		| FHInstance(c,tl) -> c,tl,false
-		| FHStatic c -> c,[],true
+	let c,stat = match fa.fa_host with
+		| FHInstance(c,tl) -> c,false
+		| FHStatic c -> c,true
+		| FHAbstract(a,tl,c) -> c,true
 		| _ -> die "" __LOC__
 	in
 	let cf = fa.fa_field in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let map = if stat then (fun t -> t) else apply_params c.cl_params tl in
-	let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-	let map_monos t = apply_params cf.cf_params monos t in
-	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
-	let t = map cf.cf_type in
-	let args,ret = match t,el_typed with
-		| TFun((_,_,ta) :: args,ret),(e :: _) ->
-			unify ctx e.etype ta p;
-			args,ret
-		| TFun(args,ret),_ -> args,ret
-		| _ ->  error "Invalid field type for generic call" p
-	in
+	let fcc = unify_field_call ctx fa el_typed el p false in
 	begin match with_type with
-		| WithType.WithType(t,_) -> unify ctx ret t p
+		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
 		| _ -> ()
 	end;
-	let el,_ = unify_call_args ctx el args ret p false false in
+	let monos = fcc.fc_monos in
 	List.iter (fun t -> match follow t with
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = el_typed @ el in
+	let el = List.map fst fcc.fc_args in
 	(try
 		let gctx = Generic.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
 		let unify_existing_field tcf pcf = try
-			unify_raise ctx tcf t p
+			unify_raise ctx tcf fcc.fc_type p
 		with Error(Unify _,_) as err ->
 			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
 			display_error ctx (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
-		let c, cf2 = try
+		let fa = try
 			let cf2 = if stat then
 				let cf2 = PMap.find name c.cl_statics in
 				unify_existing_field cf2.cf_type cf2.cf_pos;
@@ -405,7 +395,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			in
-			c, cf2
+			{fa with fa_field = cf2}
 			(*
 				java.Lib.array() relies on the ability to shadow @:generic function for certain types
 				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
@@ -437,27 +427,29 @@ let type_generic_function ctx fa el_typed el with_type p =
 				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
 			in
 			let mk_cf2 name =
-				mk_field ~static:stat name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos
+				mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
 			in
 			if stat then begin
 				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
 					let c = Generic.static_method_container gctx c cf p in
-					try
+					let cf2 = try
 						let cf2 = PMap.find cf.cf_name c.cl_statics in
 						unify_existing_field cf2.cf_type cf2.cf_pos;
-						c, cf2
+						cf2
 					with Not_found ->
 						let cf2 = mk_cf2 cf.cf_name in
 						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 						finalize_field c cf2;
-						c, cf2
+						cf2
+					in
+					{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
 				end else begin
 					let cf2 = mk_cf2 name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 					finalize_field c cf2;
-					c, cf2
+					{fa with fa_field = cf2}
 				end
 			end else begin
 				let cf2 = mk_cf2 name in
@@ -465,20 +457,11 @@ let type_generic_function ctx fa el_typed el with_type p =
 				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
 				finalize_field c cf2;
-				c, cf2
+				{fa with fa_field = cf2}
 			end
 		in
-		let e = match c.cl_kind with
-			| KAbstractImpl(a) ->
-				type_type ctx a.a_path p
-			| _ when stat ->
-				Builder.make_typeexpr (TClassDecl c) p
-			| _ ->
-				fa.fa_on
-		in
-		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
-		let e = mk (TField(e,fa)) cf2.cf_type p in
-		make_call ctx e el ret p
+		let e = FieldAccess.get_field_expr fa FCall in
+		make_call ctx e el fcc.fc_ret p
 	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
