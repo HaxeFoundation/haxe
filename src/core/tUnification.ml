@@ -556,6 +556,7 @@ let type_iseq_strict a b =
 		false
 
 let unify_stack = new_rec_stack()
+let variance_stack = new_rec_stack()
 let abstract_cast_stack = new_rec_stack()
 let unify_new_monos = new_rec_stack()
 
@@ -564,6 +565,8 @@ let print_stacks() =
 	let st = s_type ctx in
 	print_endline "unify_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) unify_stack.rec_stack;
+	print_endline "variance_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) variance_stack.rec_stack;
 	print_endline "monos";
 	List.iter (fun m -> print_endline ("\t" ^ st m)) unify_new_monos.rec_stack;
 	print_endline "abstract_cast_stack";
@@ -958,18 +961,28 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 		| _ -> die "" __LOC__)
 
 and unify_with_variance uctx f t1 t2 =
-	let t1 = follow t1 in
-	let t2 = follow t2 in
+	let t1 = follow_without_type t1 in
+	let t2 = follow_without_type t2 in
+	let unify_rec f = rec_stack_default variance_stack (t1,t2) (fast_eq_pair (t1,t2)) f () in
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
-	let get_this_type ab tl = follow (apply_params ab.a_params tl ab.a_this) in
-	let rec get_underlying_type t = match map get_underlying_type t with
-		| TAbstract(ab,tl) -> (match get_this_type ab tl with
-			| TAbstract(ab',_) as t when ab == ab' -> t
-			| t -> get_underlying_type t)
-		| t -> t
+	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
+	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
+	let get_defined_type td tl = follow_without_type (apply_params td.t_params tl td.t_type) in
+	let rec get_underlying_type stack t = match follow_without_type t with
+		| TType(td,tl) ->
+			(match List.exists (fast_eq t) stack with
+			| true -> map (get_underlying_type stack) t
+			| false -> get_underlying_type (t :: stack) (get_defined_type td tl))
+		| t ->
+			(match map (get_underlying_type stack) t with
+			| TAbstract(ab,tl) ->
+				(match get_this_type ab tl with
+				| TAbstract(ab',_) as t when ab == ab' -> t
+				| t -> get_underlying_type stack t)
+			| t -> t)
 	in
 	let compare_underlying () =
-		type_eq {uctx with equality_kind = EqBothDynamic} (get_underlying_type t1) (get_underlying_type t2)
+		type_eq {uctx with equality_kind = EqBothDynamic} (get_underlying_type [] t1) (get_underlying_type [] t2)
 	in
 	let unifies_abstract uctx a b ab tl ats =
 		try
@@ -988,15 +1001,21 @@ and unify_with_variance uctx f t1 t2 =
 	let fail () = error [cannot_unify t1 t2] in
 	match t1,t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
 	| TEnum(en1,tl1),TEnum(en2,tl2) when en1 == en2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
+	| TType(td1,tl1),TType(td2,tl2) when td1 == td2 ->
+		unify_tls tl1 tl2
+	| TType(td,tl),_ ->
+		unify_rec (fun() -> unify_with_variance uctx f (get_defined_type td tl) t2)
+	| _,TType(td,tl) ->
+		unify_rec (fun() -> unify_with_variance uctx f t1 (get_defined_type td tl))
 	| TAbstract(ab,tl),_ when Meta.has Meta.ForwardVariance ab.a_meta ->
-		unify_with_variance uctx f (get_this_type ab tl) t2
+		with_variance uctx f (get_this_type ab tl) t2
 	| _,TAbstract(ab,tl) when Meta.has Meta.ForwardVariance ab.a_meta ->
-		unify_with_variance uctx f t1 (get_this_type ab tl)
+		with_variance uctx f t1 (get_this_type ab tl)
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
 		if not (unifies_abstract uctx t1 t2 a1 tl1 a1.a_to)
 		&& not (unifies_abstract uctx t1 t2 a2 tl2 a2.a_from) then fail();
@@ -1008,7 +1027,7 @@ and unify_with_variance uctx f t1 t2 =
 		if not (unifies_abstract uctx t1 t2 ab tl ab.a_from) then fail();
 		compare_underlying();
 	| TAnon(a1),TAnon(a2) ->
-		rec_stack_default unify_stack (t1,t2) (fast_eq_pair (t1,t2)) (fun() -> unify_anons uctx t1 t2 a1 a2) ()
+		unify_anons uctx t1 t2 a1 a2
 	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
 		List.iter2 (fun (_,_,t1) (_,_,t2) -> unify_nested t1 t2) al1 al2;
 		unify_nested r1 r2;
