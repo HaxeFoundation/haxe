@@ -233,21 +233,22 @@ let unify_field_call ctx fa el_typed el p inline =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
 		| TFun(args,ret) ->
-			let rec loop acc tmap args el_typed = match args,el_typed with
-				| (_,opt,t0) :: args,e :: el_typed ->
+			let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
+				| ((_,opt,t0) as arg) :: args,e :: el_typed ->
 					begin try
 						unify_raise ctx (tmap e.etype) t0 e.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					loop ((e,opt) :: acc) (fun t -> t) args el_typed
+					loop ((e,opt) :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
 				| _ ->
-					(fun el -> (List.rev acc) @ el),args
+					List.rev acc_el,List.rev acc_args,args
 			in
-			let get_call_args,args = loop [] tmap args el_typed in
-			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			let el = get_call_args el in
+			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
+			let el,_ = unify_call_args' ctx el args ret p inline is_forced_inline in
+			let el = el_typed @ el in
+			let tf = TFun(args_typed @ args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				let el = List.map fst el in
