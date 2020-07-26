@@ -44,7 +44,12 @@ class Thread {
 		var ct = PyThreadingAPI.current_thread();
 		if (ct == PyThreadingAPI.main_thread()) {
 			if (mainThread == null) mainThread = new Thread(ct);
+			threadsMutex.release();
 			return mainThread;
+		}
+		// If the current thread was not created via the haxe API, it can still be wrapped
+		if (!threads.exists(ct)) {
+			threads.set(ct, new Thread(ct));
 		}
 		var t = threads.get(ct);
 		threadsMutex.release();
@@ -52,18 +57,20 @@ class Thread {
 	}
 
 	public static function create(callb:Void->Void):Thread {
-		threadsMutex.acquire();
 		var nt:NativeThread = null;
 		// Wrap the callback so it will clear the thread reference once the thread is finished
 		var wrappedCallB = () -> { 
 			callb();
+			threadsMutex.acquire();
 			threads.remove(nt);
+			threadsMutex.release();
 		}
 		nt = new NativeThread(null, wrappedCallB);
-		nt.start();
 		var t = new Thread(nt);
+		threadsMutex.acquire();
 		threads.set(nt, t);
 		threadsMutex.release();
+		nt.start();
 		return t;
 	}
 
