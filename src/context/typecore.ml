@@ -143,11 +143,22 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+(* This record holds transient information about an (attempted) call on a field. It is created when resolving
+   field calls and is passed to overload filters. *)
 type 'a field_call_candidate = {
-	fc_args : (texpr * bool) list;
-	fc_type : Type.t;
+	(* The argument expressions for this call and whether or not the argument is optional on the
+	   target function. *)
+	fc_args  : (texpr * bool) list;
+	(* The applied return type. *)
+	fc_ret   : Type.t;
+	(* The applied function type. *)
+	fc_type  : Type.t;
+	(* The class field being called. *)
 	fc_field : tclass_field;
-	fc_data : 'a;
+	(* The field monomorphs that were created for this call. *)
+	fc_monos : Type.t list;
+	(* The custom data associated with this call. *)
+	fc_data  : 'a;
 }
 
 exception Forbid_package of (string * path * pos) * pos list * string
@@ -542,11 +553,13 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let make_field_call_candidate args t cf data = {
-	fc_args = args;
-	fc_type = t;
+let make_field_call_candidate args ret monos t cf data = {
+	fc_args  = args;
+	fc_type  = t;
 	fc_field = cf;
-	fc_data = data;
+	fc_data  = data;
+	fc_ret   = ret;
+	fc_monos = monos;
 }
 
 let s_field_call_candidate fcc =

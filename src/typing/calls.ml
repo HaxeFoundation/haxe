@@ -234,26 +234,26 @@ let unify_field_call ctx fa el_typed el p inline =
 		match follow t with
 		| TFun(args,ret) ->
 			let rec loop acc tmap args el_typed = match args,el_typed with
-				| (_,_,t0) :: args,e :: el_typed ->
+				| (_,opt,t0) :: args,e :: el_typed ->
 					begin try
 						unify_raise ctx (tmap e.etype) t0 e.epos;
 					with Error(Unify _ as msg,p) ->
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					loop (e :: acc) (fun t -> t) args el_typed
+					loop ((e,opt) :: acc) (fun t -> t) args el_typed
 				| _ ->
 					(fun el -> (List.rev acc) @ el),args
 			in
 			let get_call_args,args = loop [] tmap args el_typed in
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
+			let el = get_call_args el in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				let el = List.map fst el in
-				let el = get_call_args el in
 				make_call ctx ef el ret ~force_inline:inline p
 			in
-			make_field_call_candidate el tf cf mk_call
+			make_field_call_candidate el ret monos tf cf mk_call
 		| t ->
 			error (s_type (print_context()) t ^ " cannot be called") p
 	in
@@ -301,7 +301,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
 			mk (TCall(ef,[])) t_dynamic p
 		in
-		make_field_call_candidate [] tf fa.fa_field call
+		make_field_call_candidate [] t_dynamic [] tf fa.fa_field call
 	in
 	let maybe_check_access cf =
 		(* type_field doesn't check access for overloads, so let's check it here *)

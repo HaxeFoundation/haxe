@@ -6,7 +6,7 @@ open TFunctions
 let unify_cf map_type c cf el =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	match follow (apply_params cf.cf_params monos (map_type cf.cf_type)) with
-		| TFun(tl'',_) as tf ->
+		| TFun(tl'',ret) as tf ->
 			let rec loop2 acc el tl = match el,tl with
 				| e :: el,(_,o,t) :: tl ->
 					begin try
@@ -17,7 +17,7 @@ let unify_cf map_type c cf el =
 						| TAbstract({a_path=["haxe";"extern"],"Rest"},[t]),[] ->
 							begin try
 								let el = List.map (fun e -> unify t e.etype; e,o) el in
-								let fcc = make_field_call_candidate ((List.rev acc) @ el) tf cf (c,cf,monos) in
+								let fcc = make_field_call_candidate ((List.rev acc) @ el) ret monos tf cf (c,cf,monos) in
 								Some fcc
 							with _ ->
 								None
@@ -26,7 +26,7 @@ let unify_cf map_type c cf el =
 							None
 					end
 				| [],[] ->
-					let fcc = make_field_call_candidate (List.rev acc) tf cf (c,cf,monos) in
+					let fcc = make_field_call_candidate (List.rev acc) ret monos tf cf (c,cf,monos) in
 					Some fcc
 				| _ ->
 					None
