@@ -472,7 +472,7 @@ let type_for_loop ctx handle_display it e2 p =
 		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
 		| _ ->
 			begin match dko with
-			| Some dk -> ignore(handle_display ctx e1 dk WithType.value);
+			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
 			| None -> ()
 			end;
 			error "For expression should be 'v in expr'" (snd it)
@@ -485,7 +485,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
-		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType.with_type i.v_type))
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk MGet (WithType.with_type i.v_type))
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->

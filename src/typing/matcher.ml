@@ -480,7 +480,7 @@ module Pattern = struct
 						let v = add_local false s p in
 						begin match dko with
 						| None -> ()
-						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType.with_type t) p);
+						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (MSet None) (WithType.with_type t) p);
 						end;
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
@@ -509,18 +509,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
