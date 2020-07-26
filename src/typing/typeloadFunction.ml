@@ -176,7 +176,7 @@ let type_function ctx args fargs ret fmode e do_display p =
 			None
 		| Some (csup,tl) ->
 			try
-				let _,cf = get_constructor (fun f->f.cf_type) csup in
+				let cf = get_constructor csup in
 				Some (Meta.has Meta.CompilerGenerated cf.cf_meta,TInst(csup,tl))
 			with Not_found ->
 				None
@@ -246,7 +246,7 @@ let add_constructor ctx c force_constructor p =
 			Some(cfsup,csup,cparams)
 		| Some (csup,cparams) ->
 			try
-				let _,cfsup = Type.get_constructor (fun ctor -> apply_params csup.cl_params cparams ctor.cf_type) csup in
+				let cfsup = Type.get_constructor csup in
 				Some(cfsup,csup,cparams)
 			with Not_found ->
 				None

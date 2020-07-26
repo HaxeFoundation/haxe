@@ -737,17 +737,15 @@ let quick_field_dynamic t s =
 	try quick_field t s
 	with Not_found -> FDynamic s
 
-let rec get_constructor build_type c =
+let rec get_constructor c =
 	match c.cl_constructor, c.cl_super with
-	| Some c, _ -> build_type c, c
+	| Some c, _ -> c
 	| None, None -> raise Not_found
-	| None, Some (csup,cparams) ->
-		let t, c = get_constructor build_type csup in
-		apply_params csup.cl_params cparams t, c
+	| None, Some (csup,_) -> get_constructor csup
 
 let has_constructor c =
 	try
-		ignore(get_constructor (fun cf -> cf.cf_type) c);
+		ignore(get_constructor c);
 		true
 	with Not_found -> false
 
