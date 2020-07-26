@@ -1881,8 +1881,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				[jf#get_jsig]
 			)
 		| TNew(c,tl,el) ->
-			begin match get_constructor (fun cf -> cf.cf_type) c with
-			|_,cf ->
+			begin match get_constructor c with
+			| cf ->
 				begin match OverloadResolution.maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el with
 				| None -> Error.error "Could not find overload" e.epos
 				| Some (c',cf,_) ->

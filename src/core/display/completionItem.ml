@@ -188,7 +188,7 @@ module CompletionModuleType = struct
 		let ctor c =
 			try
 				if has_class_flag c CAbstract then raise Not_found;
-				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
+				let cf = get_constructor c in
 				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No

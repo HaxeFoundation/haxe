@@ -528,7 +528,8 @@ module UnificationCallback = struct
 				{e with eexpr = TCall(e1,el)}
 			| TNew(c,tl,el) ->
 				begin try
-					let tcf,_ = get_constructor (fun cf -> apply_params c.cl_params tl cf.cf_type) c in
+					let cf = get_constructor c in
+					let tcf = apply_params c.cl_params tl cf.cf_type in
 					let el = check_call f el tcf in
 					{e with eexpr = TNew(c,tl,el)}
 				with Not_found ->

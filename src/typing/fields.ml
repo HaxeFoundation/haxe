@@ -80,7 +80,7 @@ let get_constructor_access ctx c params p =
 		let cf = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
 		FieldAccess.create (Builder.make_static_this c p) cf (FHAbstract(a,params,c)) false p
 	| _ ->
-		let _,cf = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
+		let cf = (try Type.get_constructor c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
 		FieldAccess.create (Builder.make_static_this c p) cf (FHInstance(c,params)) false p
 
 let check_constructor_access ctx c f p =
