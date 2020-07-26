@@ -99,7 +99,7 @@ let completion_item_of_expr ctx e =
 				| TAnon an -> make_ci_anon an (tpair e.etype)
 				| _ -> itexpr e
 			end
-		| TNew(c,tl,_) ->
+		| TNew(c,tl,el) ->
 			Display.merge_core_doc ctx (TClassDecl c);
 			(* begin match fst e_ast with
 			| EConst (Regexp (r,opt)) ->
@@ -119,10 +119,12 @@ let completion_item_of_expr ctx e =
 				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
 				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
 			| _ -> *)
-				let t,cf = get_constructor2 ctx c tl e.epos in
-				let t = match follow t with
+				let fa = get_constructor_access ctx c tl e.epos in
+				let fcc = unify_field_call ctx fa el [] e.epos false in
+				let cf = fcc.fc_field in
+				let t = match follow (FieldAccess.get_map_function fa cf.cf_type) with
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
-					| _ -> t
+					| t -> t
 				in
 				make_ci_class_field (CompletionClassField.make cf CFSConstructor (Self (decl_of_class c)) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
 			(* end *)
@@ -218,9 +220,15 @@ let rec handle_signature_display ctx e_ast with_type =
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
-			let ct,cf = get_constructor2 ctx c tl p in
-			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
-			tl
+			let fa = get_constructor_access ctx c tl p in
+			let is_wacky_overload = not (has_class_field_flag fa.fa_field CfOverload) in
+			let map = FieldAccess.get_map_function fa in
+			let map_cf cf =
+				(* Ghetto overloads have their documentation on the main field. *)
+				let doc = if is_wacky_overload then fa.fa_field.cf_doc else cf.cf_doc in
+				map cf.cf_type,doc,get_value_meta cf.cf_meta
+			in
+			List.map map_cf (fa.fa_field :: fa.fa_field.cf_overloads)
 		| _ ->
 			[]
 	in
@@ -295,8 +303,8 @@ and display_expr ctx e_ast e dk with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let _, f = get_constructor2 ctx c params p in
-			f,c
+			let fa = get_constructor_access ctx c params p in
+			fa.fa_field,c
 	in
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
@@ -321,7 +329,8 @@ and display_expr ctx e_ast e dk with_type p =
 			Display.ReferencePosition.set (snd ti.mt_path,ti.mt_name_pos,symbol_of_module_type mt);
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor2 ctx c tl p in
+				let fa = get_constructor_access ctx c tl p in
+				let cf = fa.fa_field in
 				Display.ReferencePosition.set (snd c.cl_path,cf.cf_name_pos,SKConstructor cf);
 			with Not_found ->
 				()
@@ -368,7 +377,8 @@ and display_expr ctx e_ast e dk with_type p =
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor2 ctx c tl p in
+				let fa = get_constructor_access ctx c tl p in
+				let cf = fa.fa_field in
 				if Meta.has Meta.CoreApi c.cl_meta then begin
 					let c' = ctx.g.do_load_core_class ctx c in
 					begin match c'.cl_constructor with

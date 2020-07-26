@@ -857,8 +857,9 @@ and type_object_decl ctx fl with_type p =
 		let t, fl = type_fields a.a_fields in
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
-		let t,ctor = get_constructor2 ctx c tl p in
-		let args = match follow t with
+		let fa = get_constructor_access ctx c tl p in
+		let ctor = fa.fa_field in
+		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
 			| TFun(args,_) -> args
 			| _ -> die "" __LOC__
 		in
@@ -925,7 +926,7 @@ and type_new ctx path el with_type force_inline p =
 	in
 	let unify_constructor_call c fa =
 		try
-			let fcc = unify_field_call ctx fa [] el p false in
+			let fcc = unify_field_call ctx fa [] el p fa.fa_inline in
 			check_constructor_access ctx c fcc.fc_field p;
 			fcc
 		with Error (e,p) ->
@@ -954,9 +955,8 @@ and type_new ctx path el with_type force_inline p =
 		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
-			let ct, f = get_constructor2 ctx c monos p in
+			let fa = get_constructor_access ctx c monos p in
 			no_abstract_constructor c p;
-			let fa = FieldAccess.create (Builder.make_static_this c p) f (FHInstance(c,monos)) false p in
 			ignore (unify_constructor_call c fa);
 			begin try
 				Generic.build_generic ctx c p monos
@@ -983,6 +983,7 @@ and type_new ctx path el with_type force_inline p =
 	let t = follow t in
 	let build_constructor_call ao c tl =
 		let fa = get_constructor_access ctx c tl p in
+		let fa = if force_inline then {fa with fa_inline = true} else fa in
 		let cf = fa.fa_field in
 		no_abstract_constructor c p;
 		begin match cf.cf_kind with
@@ -1632,11 +1633,12 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let _,f = get_constructor2 ctx c params p in
+			let fa = get_constructor_access ctx c params p in
+			let cf = fa.fa_field in
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
-			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-			let fa = FieldAccess.create e f (FHInstance(c,params)) false p in
+			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
+			let fa = FieldAccess.create e cf (FHInstance(c,params)) false p in
 			let fcc = unify_field_call ctx fa [] el p false in
 			let el = List.map fst fcc.fc_args in
 			el,t
