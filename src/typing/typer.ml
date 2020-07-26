@@ -558,19 +558,18 @@ and type_access ctx e p mode with_type =
 				| MGet -> ()
 				end;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
-				let ct, cf = get_constructor ctx c monos p in
+				let fa = get_constructor_access ctx c monos p in
+				let cf = fa.fa_field in
 				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
-				let args = match follow ct with TFun(args,ret) -> args | _ -> die "" __LOC__ in
+				let args = match follow (FieldAccess.get_map_function fa cf.cf_type) with TFun(args,ret) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
 				let ec,t = match c.cl_kind with
 					| KAbstractImpl a ->
-						let e = type_module_type ctx (TClassDecl c) None p in
-						let e = mk (TField (e,(FStatic (c,cf)))) ct p in
 						let t = TAbstract(a,monos) in
-						make_call ctx e el t p,t
+						(new call_dispatcher ctx (MCall []) WithType.value p)#field_call fa el [],t
 					| _ ->
 						let t = TInst(c,monos) in
 						mk (TNew(c,monos,el)) t p,t
@@ -858,7 +857,7 @@ and type_object_decl ctx fl with_type p =
 		let t, fl = type_fields a.a_fields in
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
-		let t,ctor = get_constructor ctx c tl p in
+		let t,ctor = get_constructor2 ctx c tl p in
 		let args = match follow t with
 			| TFun(args,_) -> args
 			| _ -> die "" __LOC__
@@ -925,13 +924,12 @@ and type_new ctx path el with_type force_inline p =
 		end
 	in
 	let unify_constructor_call c fa =
-		(try
+		try
 			let fcc = unify_field_call ctx fa [] el p false in
 			check_constructor_access ctx c fcc.fc_field p;
-			List.map fst fcc.fc_args
+			fcc
 		with Error (e,p) ->
-			display_error ctx (error_msg e) p;
-			[])
+			error (error_msg e) p;
 	in
 	let t = if (fst path).tparams <> [] then begin
 		try
@@ -956,7 +954,7 @@ and type_new ctx path el with_type force_inline p =
 		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
-			let ct, f = get_constructor ctx c monos p in
+			let ct, f = get_constructor2 ctx c monos p in
 			no_abstract_constructor c p;
 			let fa = FieldAccess.create (Builder.make_static_this c p) f (FHInstance(c,monos)) false p in
 			ignore (unify_constructor_call c fa);
@@ -984,18 +982,14 @@ and type_new ctx path el with_type force_inline p =
 	DisplayEmitter.check_display_type ctx t path;
 	let t = follow t in
 	let build_constructor_call ao c tl =
-		let ct, f = get_constructor ctx c tl p in
+		let fa = get_constructor_access ctx c tl p in
+		let cf = fa.fa_field in
 		no_abstract_constructor c p;
-		(match f.cf_kind with
-		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
-		| _ -> ());
-		let fa = match ao with
-			| None -> FHInstance(c,tl)
-			| Some a -> FHAbstract(a,tl,c)
-		in
-		let fa = FieldAccess.create (Builder.make_static_this c p) f fa false p in
-		let el = unify_constructor_call c fa in
-		el,f,ct
+		begin match cf.cf_kind with
+			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
+			| _ -> ()
+		end;
+		unify_constructor_call c fa
 	in
 	try begin match t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
@@ -1008,13 +1002,11 @@ and type_new ctx path el with_type force_inline p =
 			mk (TNew (c,params,el)) t p
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
-		let el,cf,ct = build_constructor_call (Some a) c tl in
-		let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
-		let e = mk (TTypeExpr (TClassDecl c)) ta p in
-		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
-		make_call ctx e el t ~force_inline p
+		let fcc = build_constructor_call (Some a) c tl in
+		fcc.fc_data ();
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
-		let el,_,_ = build_constructor_call None c params in
+		let fcc = build_constructor_call None c params in
+		let el = List.map fst fcc.fc_args in
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		error (s_type (print_context()) t ^ " cannot be constructed") p
@@ -1640,7 +1632,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let ct, f = get_constructor ctx c params p in
+			let _,f = get_constructor2 ctx c params p in
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;

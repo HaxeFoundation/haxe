@@ -74,7 +74,7 @@ let field_type ctx c pl f p =
 let no_abstract_constructor c p =
 	if has_class_flag c CAbstract then raise_error (Abstract_class (TClassDecl c)) p
 
-let get_constructor ctx c params p =
+let get_constructor2 ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->
 		let f = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
@@ -83,6 +83,15 @@ let get_constructor ctx c params p =
 	| _ ->
 		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
 		apply_params c.cl_params params ct, f
+
+let get_constructor_access ctx c params p =
+	match c.cl_kind with
+	| KAbstractImpl a ->
+		let cf = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
+		FieldAccess.create (Builder.make_static_this c p) cf (FHAbstract(a,params,c)) false p
+	| _ ->
+		let _,cf = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
+		FieldAccess.create (Builder.make_static_this c p) cf (FHInstance(c,params)) false p
 
 let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;

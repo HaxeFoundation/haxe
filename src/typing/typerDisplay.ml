@@ -119,7 +119,7 @@ let completion_item_of_expr ctx e =
 				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
 				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
 			| _ -> *)
-				let t,cf = get_constructor ctx c tl e.epos in
+				let t,cf = get_constructor2 ctx c tl e.epos in
 				let t = match follow t with
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
@@ -218,7 +218,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
-			let ct,cf = get_constructor ctx c tl p in
+			let ct,cf = get_constructor2 ctx c tl p in
 			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
 			tl
 		| _ ->
@@ -295,7 +295,7 @@ and display_expr ctx e_ast e dk with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let _, f = get_constructor ctx c params p in
+			let _, f = get_constructor2 ctx c params p in
 			f,c
 	in
 	match ctx.com.display.dms_kind with
@@ -321,7 +321,7 @@ and display_expr ctx e_ast e dk with_type p =
 			Display.ReferencePosition.set (snd ti.mt_path,ti.mt_name_pos,symbol_of_module_type mt);
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor ctx c tl p in
+				let _,cf = get_constructor2 ctx c tl p in
 				Display.ReferencePosition.set (snd c.cl_path,cf.cf_name_pos,SKConstructor cf);
 			with Not_found ->
 				()
@@ -368,7 +368,7 @@ and display_expr ctx e_ast e dk with_type p =
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor ctx c tl p in
+				let _,cf = get_constructor2 ctx c tl p in
 				if Meta.has Meta.CoreApi c.cl_meta then begin
 					let c' = ctx.g.do_load_core_class ctx c in
 					begin match c'.cl_constructor with
