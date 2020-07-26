@@ -629,10 +629,13 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	vr#to_texpr e
 
 let type_assign_op ctx op e1 e2 with_type p =
-	let field_rhs op cf ev =
-		let access_get = type_field_default_cfg ctx ev cf.cf_name p MGet (WithType.with_type cf.cf_type) in
+	let field_rhs_by_name op name ev with_type =
+		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
 		let e_get = acc_get ctx access_get p in
 		e_get.etype,type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
+	in
+	let field_rhs op cf ev =
+		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
 	in
 	let process_lhs name e_lhs =
 		let vr = new value_reference ctx in
@@ -724,8 +727,15 @@ let type_assign_op ctx op e1 e2 with_type p =
 		in
 		save();
 		vr#to_texpr	e
-	| AKResolve _ ->
-		error "Invalid operation" p
+	| AKResolve(sea,name) ->
+		let e,vr = process_lhs "fh" sea.se_this in
+		let t_lhs,r_rhs = field_rhs_by_name op name e WithType.value in
+		let assign e_rhs =
+			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+			(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [sea.se_this;e_name;e_rhs] []
+		in
+		let e = BinopResult.to_texpr vr r_rhs assign in
+		vr#to_texpr e
 	)
 
 let type_binop ctx op e1 e2 is_assign_op with_type p =
