@@ -307,6 +307,22 @@ and display_expr ctx e_ast e dk mode with_type p =
 			let fa = get_constructor_access c params p in
 			fa.fa_field,c
 	in
+	let maybe_expand_overload e e_on host cf = match mode with
+		| MCall el when cf.cf_overloads <> [] ->
+			let fa = FieldAccess.create e_on cf host false p in
+			let fcc = unify_field_call ctx fa [] el p false in
+			FieldAccess.get_field_expr {fa with fa_field = fcc.fc_field} FCall
+		| _ ->
+			e
+	in
+	(* If we display on a TField node that points to an overloaded field, let's try to unify the field call
+	   in order to resolve the correct overload (issue #7753). *)
+	let e = match e.eexpr with
+		| TField(e1,FStatic(c,cf)) -> maybe_expand_overload e e1 (FHStatic c) cf
+		| TField(e1,(FInstance(c,tl,cf) | FClosure(Some(c,tl),cf))) -> maybe_expand_overload e e1 (FHInstance(c,tl)) cf
+		| TField(e1,(FAnon cf | FClosure(None,cf))) -> maybe_expand_overload e e1 FHAnon cf
+		| _ -> e
+	in
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
 		die "" __LOC__
