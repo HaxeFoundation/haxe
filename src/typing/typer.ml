@@ -558,7 +558,7 @@ and type_access ctx e p mode with_type =
 				| MGet -> ()
 				end;
 				let monos = Monomorph.spawn_constrained_monos (fun t -> t) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
-				let fa = get_constructor_access ctx c monos p in
+				let fa = FieldAccess.get_constructor_access c monos p in
 				let cf = fa.fa_field in
 				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
@@ -857,7 +857,7 @@ and type_object_decl ctx fl with_type p =
 		let t, fl = type_fields a.a_fields in
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
-		let fa = get_constructor_access ctx c tl p in
+		let fa = FieldAccess.get_constructor_access c tl p in
 		let ctor = fa.fa_field in
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
 			| TFun(args,_) -> args
@@ -955,7 +955,7 @@ and type_new ctx path el with_type force_inline p =
 		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) c.cl_params in
-			let fa = get_constructor_access ctx c monos p in
+			let fa = FieldAccess.get_constructor_access c monos p in
 			no_abstract_constructor c p;
 			ignore (unify_constructor_call c fa);
 			begin try
@@ -982,7 +982,7 @@ and type_new ctx path el with_type force_inline p =
 	DisplayEmitter.check_display_type ctx t path;
 	let t = follow t in
 	let build_constructor_call ao c tl =
-		let fa = get_constructor_access ctx c tl p in
+		let fa = FieldAccess.get_constructor_access c tl p in
 		let fa = if force_inline then {fa with fa_inline = true} else fa in
 		let cf = fa.fa_field in
 		no_abstract_constructor c p;
@@ -1633,7 +1633,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let fa = get_constructor_access ctx c params p in
+			let fa = FieldAccess.get_constructor_access c params p in
 			let cf = fa.fa_field in
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in

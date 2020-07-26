@@ -17,6 +17,7 @@ open TyperBase
 open Fields
 open Calls
 open Error
+open FieldAccess
 
 let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
@@ -119,7 +120,7 @@ let completion_item_of_expr ctx e =
 				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
 				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
 			| _ -> *)
-				let fa = get_constructor_access ctx c tl e.epos in
+				let fa = get_constructor_access c tl e.epos in
 				let fcc = unify_field_call ctx fa el [] e.epos false in
 				let cf = fcc.fc_field in
 				let t = match follow (FieldAccess.get_map_function fa cf.cf_type) with
@@ -220,7 +221,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
-			let fa = get_constructor_access ctx c tl p in
+			let fa = get_constructor_access c tl p in
 			let is_wacky_overload = not (has_class_field_flag fa.fa_field CfOverload) in
 			let map = FieldAccess.get_map_function fa in
 			let map_cf cf =
@@ -303,7 +304,7 @@ and display_expr ctx e_ast e dk with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let fa = get_constructor_access ctx c params p in
+			let fa = get_constructor_access c params p in
 			fa.fa_field,c
 	in
 	match ctx.com.display.dms_kind with
@@ -329,7 +330,7 @@ and display_expr ctx e_ast e dk with_type p =
 			Display.ReferencePosition.set (snd ti.mt_path,ti.mt_name_pos,symbol_of_module_type mt);
 		| TNew(c,tl,_) ->
 			begin try
-				let fa = get_constructor_access ctx c tl p in
+				let fa = get_constructor_access c tl p in
 				let cf = fa.fa_field in
 				Display.ReferencePosition.set (snd c.cl_path,cf.cf_name_pos,SKConstructor cf);
 			with Not_found ->
@@ -377,7 +378,7 @@ and display_expr ctx e_ast e dk with_type p =
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
-				let fa = get_constructor_access ctx c tl p in
+				let fa = get_constructor_access c tl p in
 				let cf = fa.fa_field in
 				if Meta.has Meta.CoreApi c.cl_meta then begin
 					let c' = ctx.g.do_load_core_class ctx c in

@@ -487,8 +487,6 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = new_rec_stack()
-
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
 			| e :: el, (n,_,t) :: tl ->
@@ -507,67 +505,6 @@ module UnificationCallback = struct
 			check_call_params f el args
 		| _ ->
 			List.map (fun e -> f e t_dynamic) el
-
-	let rec run ff e =
-		let f e t =
-			if not (type_iseq e.etype t) then
-				ff e t
-			else
-				e
-		in
-		let check e = match e.eexpr with
-			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
-				die "" __LOC__; (* this trigger #4347, to be fixed before enabling
-				let e2 = f e2 e1.etype in
-				{e with eexpr = TBinop(op,e1,e2)} *)
-			| TVar(v,Some ev) ->
-				let eo = Some (f ev v.v_type) in
-				{ e with eexpr = TVar(v,eo) }
-			| TCall(e1,el) ->
-				let el = check_call f el e1.etype in
-				{e with eexpr = TCall(e1,el)}
-			| TNew(c,tl,el) ->
-				begin try
-					let cf = get_constructor c in
-					let tcf = apply_params c.cl_params tl cf.cf_type in
-					let el = check_call f el tcf in
-					{e with eexpr = TNew(c,tl,el)}
-				with Not_found ->
-					e
-				end
-			| TArrayDecl el ->
-				begin match follow e.etype with
-					| TInst({cl_path=[],"Array"},[t]) -> {e with eexpr = TArrayDecl(List.map (fun e -> f e t) el)}
-					| _ -> e
-				end
-			| TObjectDecl fl ->
-				begin match follow e.etype with
-					| TAnon an ->
-						let fl = List.map (fun ((n,p,qs),e) ->
-							let e = try
-								let t = (PMap.find n an.a_fields).cf_type in
-								f e t
-							with Not_found ->
-								e
-							in
-							(n,p,qs),e
-						) fl in
-						{ e with eexpr = TObjectDecl fl }
-					| _ -> e
-				end
-			| TReturn (Some e1) ->
-				begin match tf_stack.rec_stack with
-					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
-					| _ -> e
-				end
-			| _ ->
-				e
-		in
-		match e.eexpr with
-			| TFunction tf ->
-				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
-			| _ ->
-				check (Type.map_expr (run ff) e)
 end;;
 
 let interpolate_code com code tl f_string f_expr p =
