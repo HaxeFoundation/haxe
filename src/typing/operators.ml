@@ -44,6 +44,14 @@ object(self)
 			let e = mk (TBlock (el @ [e])) e.etype e.epos in
 			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
 		end
+
+	method to_texpr_el el e =
+		let vl = self#get_vars in
+		let el_vars = List.map (fun (v,e) ->
+			mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+		) vl in
+		let e = mk (TBlock (el_vars @ el @ [e])) e.etype e.epos in
+		{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
 end
 
 module BinopResult = struct
@@ -628,6 +636,12 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	let e = BinopResult.to_texpr vr result (fun _ -> assert false) in
 	vr#to_texpr e
 
+let process_lhs_expr ctx name e_lhs =
+	let vr = new value_reference ctx in
+	let e = vr#get_expr name e_lhs in
+	e,vr
+
+
 let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs_by_name op name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
@@ -636,11 +650,6 @@ let type_assign_op ctx op e1 e2 with_type p =
 	in
 	let field_rhs op cf ev =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
-	in
-	let process_lhs name e_lhs =
-		let vr = new value_reference ctx in
-		let e = vr#get_expr name e_lhs in
-		e,vr
 	in
 	let assign vr e r_rhs =
 		let assign e_rhs =
@@ -672,20 +681,20 @@ let type_assign_op ctx op e1 e2 with_type p =
 	| AKUsingField _ ->
 		error "Invalid operation" p
 	| AKField fa ->
-		let e,vr = process_lhs "fh" (FieldAccess.get_field_expr fa FWrite) in
+		let e,vr = process_lhs_expr ctx "fh" (FieldAccess.get_field_expr fa FWrite) in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
 		assign vr e e_rhs
 	| AKExpr e ->
-		let e,vr = process_lhs "lhs" e in
+		let e,vr = process_lhs_expr ctx "lhs" e in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
 		assign vr e e_rhs
 	| AKAccessor fa ->
-		let ef,vr = process_lhs "fh" fa.fa_on in
+		let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
 		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
 		set vr {fa with fa_on = ef} t_lhs e_rhs []
 	| AKUsingAccessor sea ->
 		let fa = sea.se_access in
-		let ef,vr = process_lhs "fh" sea.se_this in
+		let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
 		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
 		set vr sea.se_access t_lhs e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
@@ -728,7 +737,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		save();
 		vr#to_texpr	e
 	| AKResolve(sea,name) ->
-		let e,vr = process_lhs "fh" sea.se_this in
+		let e,vr = process_lhs_expr ctx "fh" sea.se_this in
 		let t_lhs,r_rhs = field_rhs_by_name op name e WithType.value in
 		let assign e_rhs =
 			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
@@ -750,12 +759,47 @@ let type_binop ctx op e1 e2 is_assign_op with_type p =
 		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
 
 let type_unop ctx op flag e p =
-	let set = (op = Increment || op = Decrement) in
-	let mode = if set then (MSet None) else MGet in
-	let acc = !type_access_ref ctx (fst e) (snd e) mode WithType.value (* WITHTYPETODO *) in
-	let access e =
-		let make e =
-			let t = (match op with
+	let try_abstract_unop_overloads e = match follow e.etype with
+		| TAbstract ({a_impl = Some c} as a,tl) ->
+			let rec loop opl = match opl with
+				| [] ->
+					raise Not_found
+				| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
+					let sea = if has_class_field_flag cf CfImpl then
+						make_abstract_static_extension_access a tl c cf e false p
+					else
+						make_static_extension_access c cf e false p
+					in
+					begin try
+						unify_field_call ctx sea.se_access [sea.se_this] [] p false
+					with Error _ ->
+						loop opl
+					end
+				| (_,_,cf) :: opl ->
+					loop opl
+			in
+			let fcc = loop a.a_unops in
+			ignore(follow fcc.fc_field.cf_type);
+			begin match fcc.fc_field.cf_expr with
+			| None ->
+				mk (TUnop(op,flag,e)) fcc.fc_ret p
+			| Some _ ->
+				fcc.fc_data()
+			end
+		| _ ->
+			raise Not_found
+	in
+	let make e =
+		let check_int () =
+			match classify e.etype with
+			| KFloat -> ctx.t.tfloat
+			| KNumParam t ->
+				unify ctx e.etype ctx.t.tfloat e.epos;
+				t
+			| k ->
+				if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat
+		in
+		let t = match op with
 			| Not ->
 				if flag = Postfix then error "Postfix ! is not supported" p;
 				unify ctx e.etype ctx.t.tbool e.epos;
@@ -764,106 +808,76 @@ let type_unop ctx op flag e p =
 				unify ctx e.etype ctx.t.tint e.epos;
 				ctx.t.tint
 			| Increment
-			| Decrement
+			| Decrement ->
+				check_assign ctx e;
+				check_int()
 			| Neg ->
-				if set then check_assign ctx e;
-				(match classify e.etype with
-				| KFloat -> ctx.t.tfloat
-				| KNumParam t ->
-					unify ctx e.etype ctx.t.tfloat e.epos;
-					t
-				| k ->
-					if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat)
-			) in
-			mk (TUnop (op,flag,e)) t p
+				check_int()
 		in
-		try (match follow e.etype with
-			| TAbstract ({a_impl = Some c} as a,pl) ->
-				let rec loop opl = match opl with
-					| [] -> raise Not_found
-					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
-						let m = spawn_monomorph ctx p in
-						let tcf = apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type) in
-						if has_class_field_flag cf CfImpl then begin
-							if type_iseq (tfun [apply_params a.a_params pl a.a_this] m) tcf then cf,tcf,m else loop opl
-						end else
-							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
-					| _ :: opl -> loop opl
-				in
-				let cf,t,r = try loop a.a_unops with Not_found -> raise Not_found in
-				(match cf.cf_expr with
-				| None ->
-					let e = {e with etype = apply_params a.a_params pl a.a_this} in
-					let e = mk (TUnop(op,flag,e)) r p in
-					(* unify ctx r e.etype p; *) (* TODO: I'm not sure why this was here (related to #2295) *)
-					e
-				| Some _ ->
-					let et = type_module_type ctx (TClassDecl c) None p in
-					let ef = mk (TField (et,FStatic (c,cf))) t p in
-					make_call ctx ef [e] r p)
-			| _ -> raise Not_found
-		) with Not_found ->
+		mk (TUnop (op,flag,e)) t p
+	in
+	let find_overload_or_make e =
+		try
+			try_abstract_unop_overloads e
+		with Not_found ->
 			make e
 	in
-	let handle_accessor etarget fa =
-		let emethod = FieldAccess.get_field_expr fa (if set then FRead else FWrite) in
-		let force_inline = fa.fa_inline in
-		let l = save_locals ctx in
-		let init_tmp,etarget,eget =
-			match needs_temp_var etarget, fst e with
-			| true, EField (_, field_name) ->
-				let tmp = gen_local ctx etarget.etype p in
-				let tmp_ident = (EConst (Ident tmp.v_name), p) in
-				(
-					mk (TVar (tmp, Some etarget)) ctx.t.tvoid p,
-					mk (TLocal tmp) tmp.v_type p,
-					(EField (tmp_ident,field_name), p)
-				)
-			| _ -> (mk (TBlock []) ctx.t.tvoid p, etarget, e)
+	match op with
+	| Not | Neg | NegBits ->
+		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
+		let e = acc_get ctx access_get p in
+		find_overload_or_make e
+	| Increment | Decrement ->
+		let binop = if op = Increment then OpAdd else OpSub in
+		let e_one = mk (TConst (TInt Int32.one)) ctx.t.tint p in
+		let read_on vr ef fa =
+			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+			let e_lhs = acc_get ctx access_get p in
+			let e_lhs = vr#get_expr "lhs" e_lhs in
+			let e_out = if flag = Prefix then None else Some (vr#as_var "postfix" e_lhs) in
+			e_lhs,e_out
 		in
-		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
-		let one = (EConst (Int "1"),p) in
-		(match follow emethod.etype with
-		| TFun (_, t) ->
-			(match flag with
-			| Prefix ->
-				let get = type_binop ctx op eget one false WithType.value p in
-				unify ctx get.etype t p;
-				l();
-				let call_setter = make_call ctx emethod [etarget; get] t ~force_inline p in
-				mk (TBlock [init_tmp; call_setter]) t p
-			| Postfix ->
-				let get = type_expr ctx eget WithType.value in
-				let tmp_value = gen_local ctx t p in
-				let plusone = type_binop ctx op (EConst (Ident tmp_value.v_name),p) one false WithType.value p in
-				unify ctx get.etype t p;
-				l();
-				mk (TBlock [
-					init_tmp;
-					mk (TVar (tmp_value,Some get)) ctx.t.tvoid p;
-					make_call ctx emethod [etarget; plusone] t ~force_inline p;
-					mk (TLocal tmp_value) t p;
-				]) t p
-			)
-		| _ ->
-			l();
-			die "" __LOC__
-		)
-	in
-	let rec loop acc =
-		match acc with
+		let generate vr e_out e = match e_out with
+			| None -> vr#to_texpr e
+			| Some e' -> vr#to_texpr_el [e] e'
+		in
+		let access_set = !type_access_ref ctx (fst e) (snd e) (MSet None) WithType.value (* WITHTYPETODO *) in
+		match access_set with
+		| AKNo name ->
+			error ("The field or identifier " ^ name ^ " is not accessible for writing") p
 		| AKExpr e ->
-			access e
+			find_overload_or_make e
 		| AKField fa ->
-			if fa.fa_inline && not set then
-				access (acc_get ctx acc p)
-			else begin
-				let e = FieldAccess.get_field_expr fa (if set then FWrite else FRead) in
-				access e
-			end
-		| AKUsingField _ | AKUsingAccessor _ when not set -> access (acc_get ctx acc p)
-		| AKNo s ->
-			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
+			let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
+			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+			let e,e_out = match access_get with
+			| AKField _ ->
+				let e = FieldAccess.get_field_expr {fa with fa_on = ef} FGet in
+				find_overload_or_make e,None
+			| _ ->
+				let e_set = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
+				let e_lhs = acc_get ctx access_get p in
+				let e_lhs = vr#get_expr "lhs" e_lhs in
+				let e_out = if flag = Prefix then None else Some (vr#as_var "postfix" e_lhs) in
+				let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+				mk (TBinop(OpAssign,e_set,e_op)) e_set.etype p,e_out
+			in
+			generate vr e_out e
+		| AKAccessor fa ->
+			let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
+			let fa = {fa with fa_on = ef} in
+			let e_lhs,e_out = read_on vr ef fa in
+			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
+			let e = dispatcher#setter_call fa [e_op] [] in
+			generate vr e_out e
+		| AKUsingAccessor sea ->
+			let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
+			let e_lhs,e_out = read_on vr ef sea.se_access in
+			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
+			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
+			let e = dispatcher#setter_call sea.se_access [ef;e_op] [] in
+			generate vr e_out e
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			begin try
 				(match op with Increment | Decrement -> () | _ -> raise Not_found);
@@ -884,57 +898,7 @@ let type_unop ctx op flag e p =
 				mk (TBlock el) e_set.etype p
 			with Not_found ->
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
-				loop (AKExpr e)
+				find_overload_or_make e
 			end
-		| AKUsingAccessor sea ->
-			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet None) with
-				| AccessorFound fa -> fa
-				| _ -> error "Could not resolve accessor" p
-			in
-			handle_accessor sea.se_this fa_set
-		| AKUsingField sea when (op = Decrement || op = Increment) && has_class_field_flag sea.se_access.fa_field CfImpl ->
-			handle_accessor sea.se_this sea.se_access
-		| AKUsingField _ ->
-			error "This kind of operation is not supported" p
-		| AKResolve(sea,name) ->
-			if not set then
-				access ((new call_dispatcher ctx (MCall []) WithType.value p)#resolve_call sea name)
-			else
-				error "Invalid operation" p
-		| AKAccessor fa when not set ->
-			access ((new call_dispatcher ctx mode WithType.value p)#field_call fa [] [])
-		| AKAccessor fa ->
-			let e = fa.fa_on in
-			let ef = FieldAccess.get_field_expr fa FCall in
-			let t = ef.etype in
-			let cf = fa.fa_field in
-			let l = save_locals ctx in
-			let v = gen_local ctx e.etype p in
-			let ev = mk (TLocal v) e.etype p in
-			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> die "" __LOC__) in
-			let one = (EConst (Int "1"),p) in
-			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
-			match flag with
-			| Prefix ->
-				let get = type_binop ctx op eget one false WithType.value p in
-				unify ctx get.etype t p;
-				l();
-				mk (TBlock [
-					mk (TVar (v,Some e)) ctx.t.tvoid p;
-					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
-				]) t p
-			| Postfix ->
-				let v2 = gen_local ctx t p in
-				let ev2 = mk (TLocal v2) t p in
-				let get = type_expr ctx eget WithType.value in
-				let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false WithType.value p in
-				unify ctx get.etype t p;
-				l();
-				mk (TBlock [
-					mk (TVar (v,Some e)) ctx.t.tvoid p;
-					mk (TVar (v2,Some get)) ctx.t.tvoid p;
-					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
-					ev2
-				]) t p
-	in
-	loop acc
+		| AKUsingField _ | AKResolve _ ->
+			error "Invalid operation" p

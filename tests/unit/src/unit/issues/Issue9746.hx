@@ -154,9 +154,49 @@ class Issue9746 extends unit.Test {
 		ctx.check(1, 1, 1);
 	}
 
+	function testClassPrefix() {
+		var ctx = new PropertyClassTestContext();
+		eq(1, ++ctx.get()[ctx.index++].propGet);
+		ctx.check(1, 1, 0);
+
+		var ctx = new PropertyClassTestContext();
+		eq(1, ++ctx.get()[ctx.index++].propSet);
+		ctx.check(1, 0, 1);
+
+		var ctx = new PropertyClassTestContext();
+		eq(1, ++ctx.get()[ctx.index++].propGetSet);
+		ctx.check(1, 1, 1);
+	}
+
+	function testClassPostfix() {
+		var ctx = new PropertyClassTestContext();
+		eq(0, ctx.get()[ctx.index++].propGet++);
+		ctx.check(1, 1, 0);
+
+		var ctx = new PropertyClassTestContext();
+		eq(0, ctx.get()[ctx.index++].propSet++);
+		ctx.check(1, 0, 1);
+
+		var ctx = new PropertyClassTestContext();
+		eq(0, ctx.get()[ctx.index++].propGetSet++);
+		ctx.check(1, 1, 1);
+	}
+
 	function testAbstract() {
 		var ctx = new PropertyAbstractTestContext();
 		eq(2, ctx.get()[ctx.index++].propGetSet += 2);
+		ctx.check(1, 1, 1);
+	}
+
+	function testAbstractPrefix() {
+		var ctx = new PropertyAbstractTestContext();
+		eq(1, ++ctx.get()[ctx.index++].propGetSet);
+		ctx.check(1, 1, 1);
+	}
+
+	function testAbstractPostfix() {
+		var ctx = new PropertyAbstractTestContext();
+		eq(0, ctx.get()[ctx.index++].propGetSet++);
 		ctx.check(1, 1, 1);
 	}
 
