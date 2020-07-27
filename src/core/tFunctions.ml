@@ -492,6 +492,18 @@ let rec follow_without_null t =
 		follow_without_null (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
+let rec follow_without_type t =
+	match t with
+	| TMono r ->
+		(match r.tm_type with
+		| Some t -> follow_without_type t
+		| _ -> t)
+	| TLazy f ->
+		follow_without_type (lazy_type f)
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		follow_without_type t
+	| _ -> t
+
 let rec ambiguate_funs t =
 	match follow t with
 	| TFun _ -> TFun ([], t_dynamic)
