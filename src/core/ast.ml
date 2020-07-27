@@ -256,6 +256,7 @@ and access =
 	| AExtern
 	| AAbstract
 	| AOverload
+	| AConstructor
 
 and placed_access = access * pos
 
@@ -437,6 +438,7 @@ let s_access = function
 	| AExtern -> "extern"
 	| AAbstract -> "abstract"
 	| AOverload -> "overload"
+	| AConstructor -> "constructor"
 
 let s_placed_access (a,_) = s_access a
 

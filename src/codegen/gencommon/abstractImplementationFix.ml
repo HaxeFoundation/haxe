@@ -24,7 +24,7 @@ let add_abstract_params = function
 	| TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
 		List.iter (
 			function
-			| ({ cf_name = "_new" } as cf) ->
+			| cf when has_class_field_flag cf CfConstructor ->
 				cf.cf_params <- cf.cf_params @ a.a_params
 			| cf when has_class_field_flag cf CfImpl ->
 				(match cf.cf_expr with

@@ -184,6 +184,7 @@ let reify in_macro =
 			| AExtern -> "AExtern"
 			| AAbstract -> "AAbstract"
 			| AOverload -> "AOverload"
+			| AConstructor -> "AConstructor"
 			) in
 			mk_enum "Access" n [] p
 		in

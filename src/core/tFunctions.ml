@@ -204,6 +204,7 @@ let null_abstract = {
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;
+	a_constructor = None;
 	a_this = t_dynamic;
 	a_from = [];
 	a_from_field = [];

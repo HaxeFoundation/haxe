@@ -134,7 +134,7 @@ let assign_to_this_is_allowed ctx =
 		| KAbstractImpl _ ->
 			(match ctx.curfield.cf_kind with
 				| Method MethInline -> true
-				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| Method _ when has_class_field_flag ctx.curfield CfConstructor -> true
 				| _ -> false
 			)
 		| _ -> false
@@ -399,7 +399,10 @@ module FieldAccess = struct
 	let get_constructor_access c params p =
 		match c.cl_kind with
 		| KAbstractImpl a ->
-			let cf = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
+			let cf = match a.a_constructor with
+				| Some cf -> cf
+				| None -> raise_error (No_constructor (TAbstractDecl a)) p
+			in
 			create (Builder.make_static_this c p) cf (FHAbstract(a,params,c)) false p
 		| _ ->
 			let cf = (try Type.get_constructor c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in

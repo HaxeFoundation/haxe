@@ -303,6 +303,7 @@ and tabstract = {
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
+	mutable a_constructor : tclass_field option;
 	mutable a_this : t;
 	mutable a_from : t list;
 	mutable a_from_field : (t * tclass_field) list;
@@ -396,6 +397,7 @@ type flag_tclass_field =
 	| CfImpl
 	| CfEnum
 	| CfGeneric
+	| CfConstructor
 
 type flag_tvar =
 	| VCaptured

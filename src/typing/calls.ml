@@ -50,7 +50,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match cl, ctx.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
 				if
-					f.cf_name <> "_new"
+					not (has_class_field_flag f CfConstructor)
 					&& has_meta Meta.This v_meta
 					&& has_class_field_flag f CfModifiesThis
 				then
@@ -221,7 +221,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
 			let map = apply_params a.a_params tl in
-			let tmap = if fa.fa_field.cf_name = "_new" (* TODO: BAD BAD BAD BAD *) then (fun t -> t) else (fun t -> map a.a_this) in
+			let tmap = if has_class_field_flag fa.fa_field CfConstructor then (fun t -> t) else (fun t -> map a.a_this) in
 			expand_overloads fa.fa_field,Some c,true,map,tmap
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in

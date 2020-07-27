@@ -59,6 +59,7 @@ type class_init_ctx = {
 type field_kind =
 	| FKNormal
 	| FKConstructor
+	| FKAbstractConstructor
 	| FKInit
 
 type field_init_ctx = {
@@ -100,6 +101,7 @@ let dump_class_context cctx =
 let s_field_kind = function
 	| FKNormal -> "FKNormal"
 	| FKConstructor -> "FKConstructor"
+	| FKAbstractConstructor -> "FKAbstractConstructor"
 	| FKInit -> "FKInit"
 
 let dump_field_context fctx =
@@ -253,7 +255,7 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_new",pos f.cff_name; cff_kind = FFun fu; cff_meta = meta; cff_access = (AConstructor,null_pos) :: f.cff_access }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 		{ f with cff_kind = FFun fu }
@@ -595,7 +597,11 @@ let create_field_context (ctx,cctx) c cff =
 	let field_kind = match fst cff.cff_name with
 		| "new" -> FKConstructor
 		| "__init__" when is_static -> FKInit
-		| _ -> FKNormal
+		| _ ->
+			if List.mem_assoc AConstructor cff.cff_access && cctx.abstract <> None then
+				FKAbstractConstructor
+			else
+				FKNormal
 	in
 	let fctx = {
 		is_inline = is_inline;
@@ -731,7 +737,7 @@ let check_field_display ctx fctx c cf =
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
 				if has_class_field_flag cf CfImpl then
-					(if cf.cf_name = "_new" then
+					(if has_class_field_flag cf CfConstructor then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
 						CFSMember, cf)
@@ -957,10 +963,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun () -> t);
 						let args = if Meta.has Meta.MultiType a.a_meta then begin
-							let ctor = try
-								PMap.find "_new" c.cl_statics
-							with Not_found ->
-								error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+							let ctor = match a.a_constructor with
+								| Some cf ->
+									cf
+								| None ->
+									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 							in
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
@@ -1045,7 +1052,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
 				end
 			in
-			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+			if has_class_field_flag cf CfConstructor && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
 			if !allows_no_expr then check_bind()
 		| _ ->
 			()
@@ -1143,7 +1150,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let args = loop fd.f_args in
 	let fargs = TypeloadFunction.convert_fargs fd in
 	let args,fargs = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && not (List.mem_assoc AConstructor f.cff_access) && not fctx.is_macro ->
 			("this",None,a.a_this) :: args,(null_pos,[]) :: fargs
 		| _ ->
 			args,fargs
@@ -1196,7 +1203,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				| Some _ ->
 					(match args with
 					| ("this",_,_) :: _ -> FunMemberAbstract
-					| _ when fst f.cff_name = "_new" -> FunMemberAbstract
+					| _ when List.mem_assoc AConstructor f.cff_access -> FunMemberAbstract
 					| _ -> FunStatic)
 				| None ->
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
@@ -1434,7 +1441,7 @@ let init_field (ctx,cctx,fctx) f =
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
-		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
+		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ | AConstructor, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
 		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
@@ -1603,6 +1610,15 @@ let init_class ctx c p context_init herits fields =
 						display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
 							display_error ctx "Duplicate constructor" p
+				end
+			| FKAbstractConstructor ->
+				begin match cctx.abstract with
+					| Some a ->
+						add_class_field_flag cf CfConstructor;
+						a.a_constructor <- Some cf;
+						if fctx.do_add then TClass.add_field c cf
+					| None ->
+						die "" __LOC__
 				end
 			| FKInit ->
 				()

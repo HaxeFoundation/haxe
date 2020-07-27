@@ -596,9 +596,9 @@ let handle_display ctx e_ast dk mode with_type =
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
 						| TClassDecl c when has_constructor c -> true
-						| TAbstractDecl {a_impl = Some c} ->
+						| TAbstractDecl ({a_impl = Some c} as a) ->
 							ignore(c.cl_build());
-							PMap.mem "_new" c.cl_statics
+							a.a_constructor <> None
 						| _ -> false
 						end
 					with _ ->
