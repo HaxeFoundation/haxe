@@ -221,7 +221,8 @@ let unify_field_call ctx fa el_typed el p inline =
 			cfl,Some c,false,TClass.get_map_function c tl,(fun t -> t)
 		| FHAbstract(a,tl,c) ->
 			let map = apply_params a.a_params tl in
-			expand_overloads fa.fa_field,Some c,true,map,(fun t -> map a.a_this)
+			let tmap = if fa.fa_field.cf_name = "_new" (* TODO: BAD BAD BAD BAD *) then (fun t -> t) else (fun t -> map a.a_this) in
+			expand_overloads fa.fa_field,Some c,true,map,tmap
 	in
 	let is_forced_inline = is_forced_inline co fa.fa_field in
 	let overload_kind = if has_class_field_flag fa.fa_field CfOverload then OverloadProper
