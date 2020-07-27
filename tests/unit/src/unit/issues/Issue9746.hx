@@ -154,6 +154,8 @@ class Issue9746 extends unit.Test {
 		ctx.check(1, 1, 1);
 	}
 
+	#if (cs && fast_cast && erase_generics)
+	#else
 	function testClassPrefix() {
 		var ctx = new PropertyClassTestContext();
 		eq(1, ++ctx.get()[ctx.index++].propGet);
@@ -167,6 +169,7 @@ class Issue9746 extends unit.Test {
 		eq(1, ++ctx.get()[ctx.index++].propGetSet);
 		ctx.check(1, 1, 1);
 	}
+	#end
 
 	function testClassPostfix() {
 		var ctx = new PropertyClassTestContext();
