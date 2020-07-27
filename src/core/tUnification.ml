@@ -35,6 +35,7 @@ type unification_context = {
 	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
 	allow_dynamic_to_cast : bool; (* allows a cast from dynamic to non-dynamic *)
 	equality_kind         : eq_kind;
+	equality_underlying   : bool;
 }
 
 type unify_min_result =
@@ -57,6 +58,7 @@ let default_unification_context = {
 	allow_abstract_cast   = true;
 	allow_dynamic_to_cast = true;
 	equality_kind         = EqStrict;
+	equality_underlying   = false;
 }
 
 module Monomorph = struct
@@ -444,6 +446,10 @@ let rec type_eq uctx a b =
 		| EqDoNotFollowNull -> not (is_explicit_null t)
 		| _ -> true
 	in
+	let can_follow_abstract ab = uctx.equality_underlying && match ab.a_this with
+		| TAbstract (ab',_) -> ab' != ab
+		| _ -> true
+	in
 	if a == b then
 		()
 	else match a , b with
@@ -457,6 +463,12 @@ let rec type_eq uctx a b =
 		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
+	| TDynamic a , TDynamic b ->
+		type_eq uctx a b
+	| _ , _ when a == t_dynamic && param = EqBothDynamic ->
+		()
+	| _ , _ when b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) ->
+		()
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
 		type_eq uctx t1 t2
 	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
@@ -491,11 +503,12 @@ let rec type_eq uctx a b =
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
 				error (cannot_unify a b :: msg :: l)
 		)
-	| TDynamic a , TDynamic b ->
-		type_eq uctx a b
-	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 || (param = EqCoreType && a1.a_path = a2.a_path) ->
 		type_eq_params uctx a b tl1 tl2
+	| TAbstract (ab,tl) , _ when can_follow_abstract ab ->
+		type_eq uctx (apply_params ab.a_params tl ab.a_this) b
+	| _ , TAbstract (ab,tl) when can_follow_abstract ab ->
+		type_eq uctx a (apply_params ab.a_params tl ab.a_this)
 	| TAnon a1, TAnon a2 ->
 		(try
 			(match !(a2.a_status) with
@@ -523,12 +536,7 @@ let rec type_eq uctx a b =
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
-		if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
-			()
-		else if a == t_dynamic && param = EqBothDynamic then
-			()
-		else
-			error [cannot_unify a b]
+		error [cannot_unify a b]
 
 and type_eq_params uctx a b tl1 tl2 =
 	let i = ref 0 in
@@ -556,6 +564,7 @@ let type_iseq_strict a b =
 		false
 
 let unify_stack = new_rec_stack()
+let variance_stack = new_rec_stack()
 let abstract_cast_stack = new_rec_stack()
 let unify_new_monos = new_rec_stack()
 
@@ -564,6 +573,8 @@ let print_stacks() =
 	let st = s_type ctx in
 	print_endline "unify_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) unify_stack.rec_stack;
+	print_endline "variance_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) variance_stack.rec_stack;
 	print_endline "monos";
 	List.iter (fun m -> print_endline ("\t" ^ st m)) unify_new_monos.rec_stack;
 	print_endline "abstract_cast_stack";
@@ -958,19 +969,14 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 		| _ -> die "" __LOC__)
 
 and unify_with_variance uctx f t1 t2 =
-	let t1 = follow t1 in
-	let t2 = follow t2 in
+	let t1 = follow_without_type t1 in
+	let t2 = follow_without_type t2 in
+	let unify_rec f = rec_stack_default variance_stack (t1,t2) (fast_eq_pair (t1,t2)) f () in
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
-	let get_this_type ab tl = follow (apply_params ab.a_params tl ab.a_this) in
-	let rec get_underlying_type t = match map get_underlying_type t with
-		| TAbstract(ab,tl) -> (match get_this_type ab tl with
-			| TAbstract(ab',_) as t when ab == ab' -> t
-			| t -> get_underlying_type t)
-		| t -> t
-	in
-	let compare_underlying () =
-		type_eq {uctx with equality_kind = EqBothDynamic} (get_underlying_type t1) (get_underlying_type t2)
-	in
+	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
+	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
+	let get_defined_type td tl = follow_without_type (apply_params td.t_params tl td.t_type) in
+	let compare_underlying () = type_eq {uctx with equality_underlying = true; equality_kind = EqBothDynamic} t1 t2 in
 	let unifies_abstract uctx a b ab tl ats =
 		try
 			let uctx = get_abstract_context uctx a b ab in
@@ -988,15 +994,21 @@ and unify_with_variance uctx f t1 t2 =
 	let fail () = error [cannot_unify t1 t2] in
 	match t1,t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
 	| TEnum(en1,tl1),TEnum(en2,tl2) when en1 == en2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 ->
-		List.iter2 unify_nested tl1 tl2
+		unify_tls tl1 tl2
+	| TType(td1,tl1),TType(td2,tl2) when td1 == td2 ->
+		unify_tls tl1 tl2
+	| TType(td,tl),_ ->
+		unify_rec (fun() -> unify_with_variance uctx f (get_defined_type td tl) t2)
+	| _,TType(td,tl) ->
+		unify_rec (fun() -> unify_with_variance uctx f t1 (get_defined_type td tl))
 	| TAbstract(ab,tl),_ when Meta.has Meta.ForwardVariance ab.a_meta ->
-		unify_with_variance uctx f (get_this_type ab tl) t2
+		with_variance uctx f (get_this_type ab tl) t2
 	| _,TAbstract(ab,tl) when Meta.has Meta.ForwardVariance ab.a_meta ->
-		unify_with_variance uctx f t1 (get_this_type ab tl)
+		with_variance uctx f t1 (get_this_type ab tl)
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
 		if not (unifies_abstract uctx t1 t2 a1 tl1 a1.a_to)
 		&& not (unifies_abstract uctx t1 t2 a2 tl2 a2.a_from) then fail();
@@ -1008,7 +1020,7 @@ and unify_with_variance uctx f t1 t2 =
 		if not (unifies_abstract uctx t1 t2 ab tl ab.a_from) then fail();
 		compare_underlying();
 	| TAnon(a1),TAnon(a2) ->
-		rec_stack_default unify_stack (t1,t2) (fast_eq_pair (t1,t2)) (fun() -> unify_anons uctx t1 t2 a1 a2) ()
+		unify_anons uctx t1 t2 a1 a2
 	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
 		List.iter2 (fun (_,_,t1) (_,_,t2) -> unify_nested t1 t2) al1 al2;
 		unify_nested r1 r2;
