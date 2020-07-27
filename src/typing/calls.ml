@@ -211,7 +211,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			expand_overloads fa.fa_field,None,false,(fun t -> t),(fun t -> t)
 		| FHInstance(c,tl) ->
 			let cf = fa.fa_field in
-			let cfl = if cf.cf_name = "new" || not (has_class_field_flag cf CfOverload) then
+			let cfl = if has_class_field_flag cf CfConstructor || not (has_class_field_flag cf CfOverload) then
 				cf :: cf.cf_overloads
 			else
 				List.map (fun (t,cf) ->

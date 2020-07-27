@@ -33,11 +33,11 @@ let extend_remoting ctx c t p async prot =
 	ctx.com.package_rules <- rules;
 	let base_fields = [
 		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath (mk_type_path (["haxe";"remoting"],if async then "AsyncConnection" else "Connection")),null_pos),None) };
-		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic,null_pos]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
+		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [(APublic,null_pos);(AConstructor,null_pos)]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
 	let tvoid = CTPath (mk_type_path ([],"Void")) in
 	let build_field is_public acc f =
-		if fst f.cff_name = "new" then
+		if List.mem_assoc AConstructor f.cff_access then
 			acc
 		else match f.cff_kind with
 		| FFun fd when (is_public || List.mem_assoc APublic f.cff_access) && not (List.mem_assoc AStatic f.cff_access) ->

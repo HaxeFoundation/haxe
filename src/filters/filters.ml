@@ -476,6 +476,7 @@ let add_field_inits locals ctx t =
 					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
 				}) ct c.cl_pos in
 				let ctor = mk_field "new" ct c.cl_pos null_pos in
+				add_class_field_flag ctor CfConstructor;
 				ctor.cf_kind <- Method MethNormal;
 				{ ctor with cf_expr = Some ce }
 			| Some cf ->

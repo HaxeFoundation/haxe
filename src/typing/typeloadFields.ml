@@ -216,6 +216,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		} in
 		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
 		let cf = mk_field "new" e.etype p null_pos in
+		add_class_field_flag cf CfConstructor;
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
@@ -230,7 +231,7 @@ let transform_abstract_field com this_t a_t a f =
 		f
 	| FProp _ when not stat && not (Meta.has Meta.Enum f.cff_meta) ->
 		error "Member property accessors must be get/set or never" p;
-	| FFun fu when fst f.cff_name = "new" && not stat ->
+	| FFun fu when List.mem_assoc AConstructor f.cff_access && not stat ->
 		let init p = (EVars [mk_evar ~t:this_t ("this",null_pos)],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
@@ -594,14 +595,16 @@ let create_field_context (ctx,cctx) c cff =
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let overload = try Some (List.assoc AOverload cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
-	let field_kind = match fst cff.cff_name with
-		| "new" -> FKConstructor
-		| "__init__" when is_static -> FKInit
-		| _ ->
-			if List.mem_assoc AConstructor cff.cff_access && cctx.abstract <> None then
+	let field_kind =
+		if List.mem_assoc AConstructor cff.cff_access then begin
+			if cctx.abstract <> None then
 				FKAbstractConstructor
 			else
-				FKNormal
+				FKConstructor
+		end else if fst cff.cff_name = "__init__" && is_static then
+			FKInit
+		else
+			FKNormal
 	in
 	let fctx = {
 		is_inline = is_inline;
@@ -1163,6 +1166,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 		cf_params = params;
 	} in
+	if fctx.field_kind = FKConstructor then add_class_field_flag cf CfConstructor;
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then add_class_field_flag cf CfAbstract;

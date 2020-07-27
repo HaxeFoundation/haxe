@@ -327,6 +327,7 @@ let build_class com c file =
 		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
 		let flags, accessor_flags = [APublic,null_pos], [APrivate,null_pos] in
 		let flags, accessor_flags = if stat then (AStatic,null_pos) :: flags, (AStatic,null_pos) :: accessor_flags else flags, accessor_flags in
+		let flags = if name = "new" then (AConstructor,null_pos) :: flags else flags in
 		let property_typehint = Some (make_dyn_type t,null_pos) in
 		let fields = [] in
 		let read_access, fields =

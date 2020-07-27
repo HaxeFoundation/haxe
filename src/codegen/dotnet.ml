@@ -412,6 +412,7 @@ let convert_ilmethod ctx p is_interface m is_explicit_impl =
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
 	let acc = (AOverload,p) :: acc in
+	let acc = if cff_name = "new" then (AConstructor,null_pos) :: acc else acc in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 

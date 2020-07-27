@@ -695,12 +695,15 @@ and decode_class_field_kind v =
 and decode_field v =
 	let fkind = decode_class_field_kind (field v "kind") in
 	let pos = decode_pos (field v "pos") in
+	let name = decode_string (field v "name"),decode_pos_default (field v "name_pos") pos in
+	let access = List.map decode_access (opt_list decode_array (field v "access")) in
+	let access = if fst name = "new" && not (List.mem_assoc AConstructor access) then (AConstructor,Globals.null_pos) :: access else access in
 	{
-		cff_name = (decode_string (field v "name"),decode_pos_default (field v "name_pos") pos);
+		cff_name = name;
 		cff_doc = decode_doc (field v "doc");
 		cff_pos = pos;
 		cff_kind = fkind;
-		cff_access = List.map decode_access (opt_list decode_array (field v "access"));
+		cff_access = access;
 		cff_meta = opt_list decode_meta_content (field v "meta");
 	}
 

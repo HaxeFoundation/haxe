@@ -321,6 +321,7 @@ let add_constructor ctx c force_constructor p =
 			tf_expr = mk (TBlock []) ctx.t.tvoid p;
 		}) (tfun [] ctx.t.tvoid) p in
 		let cf = mk_field "new" constr.etype p null_pos in
+		add_class_field_flag cf CfConstructor;
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];

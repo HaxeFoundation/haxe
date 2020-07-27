@@ -524,7 +524,7 @@ and load_complex_type' ctx allow_display (t,p) =
 				| None -> error ("Explicit type required for field " ^ n) p
 				| Some t -> load_complex_type ctx allow_display t
 			in
-			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
+			if List.mem_assoc AConstructor f.cff_access then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
 				| None -> ()
 				| Some (_,p) -> error "Expression not allowed here" p

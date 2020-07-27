@@ -160,6 +160,7 @@ class Printer {
 			case AFinal: "final";
 			case AExtern: "extern";
 			case AAbstract: "abstract";
+			case AConstructor: "constructor";
 		}
 
 	public function printField(field:Field) {

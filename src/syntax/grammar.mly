@@ -864,7 +864,7 @@ and parse_enum_param = parser
 	| [< name, _ = ident; t = parse_type_hint >] -> (name,false,t)
 
 and parse_function_field doc meta al = parser
-	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+	| [< '(Kwd Function,p1); name,is_ctor = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let e, p2 = (match s with parser
 			| [< e = expr; s >] ->
 				ignore(semicolon s);
@@ -878,6 +878,7 @@ and parse_function_field doc meta al = parser
 			f_type = t;
 			f_expr = e;
 		} in
+		let al = if is_ctor then (AConstructor,null_pos) :: al else al in
 		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
@@ -982,8 +983,8 @@ and parse_cf_rights = parser
 	| [< '(Kwd Overload,p) >] -> AOverload,p
 
 and parse_fun_name = parser
-	| [< name,p = dollar_ident >] -> name,p
-	| [< '(Kwd New,p) >] -> "new",p
+	| [< name,p = dollar_ident >] -> (name,p),false
+	| [< '(Kwd New,p) >] -> ("new",p),true
 
 and parse_fun_param s =
 	let meta = parse_meta s in

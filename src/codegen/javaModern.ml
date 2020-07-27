@@ -785,6 +785,7 @@ module Converter = struct
 		in
 		let name = match String.nsplit jf.jf_name "$" with
 			| ["<init>"] ->
+				add_access (AConstructor,null_pos);
 				"new"
 			| [name] ->
 				if is_haxe_keyword name then begin

@@ -64,7 +64,7 @@ let rec change_func com cl cf =
 	| Var _, _ | Method MethDynamic, _ ->
 		()
 	| _, TFun(args, ret) ->
-		let is_ctor = cf.cf_name = "new" in
+		let is_ctor = has_class_field_flag cf CfConstructor in
 		let basic = com.basic in
 
 		let found = ref false in

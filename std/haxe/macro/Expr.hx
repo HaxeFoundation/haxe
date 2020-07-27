@@ -862,6 +862,11 @@ enum Access {
 		Abstract access modifier.
 	**/
 	AAbstract;
+
+	/**
+		Field is a constructor.
+	**/
+	AConstructor;
 }
 
 /**
@@ -968,6 +973,7 @@ enum TypeDefKind {
 		Represents a module-level field.
 	**/
 	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+
 }
 
 /**

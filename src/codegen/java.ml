@@ -244,7 +244,9 @@ let convert_java_enum ctx p pe =
 		let cff_meta = ref [] in
 		let cff_access = ref [] in
 		let cff_name = match field.jf_name with
-			| "<init>" -> "new"
+			| "<init>" ->
+				cff_access := (AConstructor,null_pos) :: !cff_access;
+				"new"
 			| "<clinit>"-> raise Exit (* __init__ field *)
 			| name when String.length name > 5 ->
 					(match String.sub name 0 5 with

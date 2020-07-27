@@ -79,7 +79,7 @@ module CompletionModuleType = struct
 		| EClass d ->
 			let ctor =
 				try
-					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					let cff = List.find (fun cff -> List.mem_assoc AConstructor cff.cff_access) d.d_data in
 					if List.mem HExtern d.d_flags || List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes
 					else YesButPrivate
 				with Not_found ->
@@ -136,7 +136,7 @@ module CompletionModuleType = struct
 		| EAbstract d ->
 			let ctor =
 				try
-					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					let cff = List.find (fun cff -> List.mem_assoc AConstructor cff.cff_access) d.d_data in
 					if List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes else YesButPrivate
 				with Not_found ->
 					No

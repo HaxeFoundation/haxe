@@ -114,7 +114,7 @@ let rec keep_field dce cf c is_static =
 	|| has_class_field_flag cf CfExtern
 	|| (not is_static && overrides_extern_field cf c)
 	|| (
-		cf.cf_name = "new"
+		has_class_field_flag cf CfConstructor
 		&& match c.cl_super with (* parent class kept constructor *)
 			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
 			| _ -> false
@@ -160,7 +160,7 @@ and mark_field dce c cf stat =
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
 		end
 	in
-	if cf.cf_name = "new" then begin
+	if has_class_field_flag cf CfConstructor then begin
 		let rec loop c =
 			begin match c.cl_constructor with
 				| Some cf -> add cf
