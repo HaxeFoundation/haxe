@@ -270,13 +270,19 @@ class Boot {
 		}
 	}
 
-	static var os_patterns = [
-		'Windows' => ['windows', '^mingw', '^cygwin'],
-		'Linux' => ['linux'],
-		'Mac' => ['mac', 'darwin', 'osx'],
-		'BSD' => ['bsd$'],
-		'Solaris' => ['SunOS']
-	];
+	static var os_patterns(get,default):Map<String,Array<String>>;
+	static function get_os_patterns():Map<String,Array<String>> {
+		if(os_patterns == null) {
+			os_patterns = [
+				'Windows' => ['windows', '^mingw', '^cygwin'],
+				'Linux' => ['linux'],
+				'Mac' => ['mac', 'darwin', 'osx'],
+				'BSD' => ['bsd$'],
+				'Solaris' => ['SunOS']
+			];
+		}
+		return os_patterns;
+	}
 
 	public static function systemName():String {
 		var os:String = null;
