@@ -30,6 +30,28 @@ typedef TypeResolver = {
 	function resolveEnum(name:String):Enum<Dynamic>;
 }
 
+#if php
+private abstract FastString(php.NativeString) from String {
+	public var length(get,never):Int;
+	inline function get_length():Int
+		return php.Global.strlen(this);
+
+	public inline function charCodeAt(pos:Int):Int {
+		return php.Global.ord(this[pos]);
+	}
+
+	public inline function charAt(pos:Int):String {
+		return this[pos];
+	}
+
+	public inline function substr(pos:Int, length:Int):String {
+		return php.Global.substr(this, pos, length);
+	}
+}
+#else
+private typedef FastString = String;
+#end
+
 /**
 	The `Unserializer` class is the complement to the `Serializer` class. It parses
 	a serialization `String` and creates objects from the contained data.
@@ -77,7 +99,7 @@ class Unserializer {
 	}
 	#end
 
-	var buf:String;
+	var buf:FastString;
 	var pos:Int;
 	var length:Int;
 	var cache:Array<Dynamic>;
@@ -98,7 +120,7 @@ class Unserializer {
 	**/
 	public function new(buf:String) {
 		this.buf = buf;
-		length = buf.length;
+		length = this.buf.length;
 		pos = 0;
 		#if neko
 		upos = 0;
@@ -137,8 +159,12 @@ class Unserializer {
 		return resolver;
 	}
 
-	inline function get(p):Int {
+	inline function get(p:Int):Int {
+		#if php
+		return p >= length ? 0 : buf.charCodeAt(p);
+		#else
 		return StringTools.fastCodeAt(buf, p);
+		#end
 	}
 
 	function readDigits() {
