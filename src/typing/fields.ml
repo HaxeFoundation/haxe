@@ -273,6 +273,23 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
 		type_field_by_forward f Meta.Forward a
 	in
+	let type_field_by_interfaces c =
+		let rec loop cl = match cl with
+			| [] ->
+				raise Not_found
+			| (ci,tl) :: cl ->
+				begin try
+					let c2, t, f = class_field ctx ci tl i p in
+					let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
+					(* It should be fine to just add the field to our class to make future lookups a bit faster. *)
+					TClass.add_field c f;
+					field_access ctx mode f fmode e p
+				with Not_found ->
+					loop cl
+				end
+		in
+		loop c.cl_implements
+	in
 	let rec type_field_by_type e t =
 		let field_access f fmode = field_access ctx mode f fmode e p in
 		match t with
@@ -288,7 +305,13 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 						| TAbstract _ -> type_field_by_e type_field_by_type (mk_cast e t p);
 						| _ -> raise Not_found
 					) tl
-				| _ -> raise Not_found
+				| _ ->
+					(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field
+					   generation. We instead do this lazily here by browsing the implemented interfaces (issue #9768). *)
+					if has_class_flag c CExtern && Meta.has Meta.LibType c.cl_meta then
+						type_field_by_interfaces c
+					else
+						raise Not_found
 			)
 		| TAnon a ->
 			(try
@@ -362,7 +385,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			)
 		| _ -> raise Not_found
 	in
-	let rec type_field_by_extension f t e =
+	let type_field_by_extension f t e =
 		let check_constant_struct = ref false in
 		let loop = type_field_by_list (fun (c,pc) ->
 			try

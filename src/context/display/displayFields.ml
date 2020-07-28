@@ -121,6 +121,19 @@ let collect ctx e_ast e dk with_type p =
 	in
 	let rec loop items t =
 		let is_new_item items name = not (PMap.mem name items) in
+		let rec browse_interfaces c acc =
+			List.fold_left (fun acc (c,tl) ->
+				let acc = List.fold_left (fun acc cf ->
+					if is_new_item acc cf.cf_name then begin
+						let origin = Parent(TClassDecl c) in
+						let item = make_class_field origin cf in
+						PMap.add cf.cf_name item acc
+					end else
+						acc
+				) acc c.cl_ordered_fields in
+				List.fold_left (fun acc (c,_) -> browse_interfaces c acc) acc c.cl_implements
+			) acc c.cl_implements
+		in
 		match follow t with
 		| TMono m ->
 			begin match Monomorph.classify_constraints m with
@@ -145,14 +158,20 @@ let collect ctx e_ast e dk with_type p =
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
 			Display.merge_core_doc ctx (TClassDecl c0);
-			PMap.foldi (fun k (c,cf) acc ->
+			let acc = PMap.foldi (fun k (c,cf) acc ->
 				if should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
 					let item = make_class_field origin cf in
 					PMap.add k item acc
 				end else
 					acc
-			) fields items
+			) fields items in
+			let acc = if has_class_flag c0 CExtern && Meta.has Meta.LibType c0.cl_meta then
+				browse_interfaces c0 acc
+			else
+				acc
+			in
+			acc
 		| TEnum _ ->
 			let t = ctx.g.do_load_type_def ctx p {tpackage=[];tname="EnumValue";tsub=None;tparams=[]} in
 			begin match t with
