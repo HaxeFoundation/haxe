@@ -252,7 +252,7 @@ class FileSystem {
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
-					is_dir(cast path);
+				is_dir(cast path);
 			} catch(e:php.Exception) {
 				callback.fail(new FsException(CustomError(e.getMessage()), path));
 				return;
@@ -264,7 +264,7 @@ class FileSystem {
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
-					is_file(cast path);
+				is_file(cast path);
 			} catch(e:php.Exception) {
 				callback.fail(new FsException(CustomError(e.getMessage()), path));
 				return;
@@ -273,14 +273,19 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Set path permissions.
-
-		If `recursive` is `true` and `path` points to a directory: apply `mode`
-		recursively to the directory contents as well.
-	**/
-	static public function setPermissions(path:FilePath, permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				chmod(cast path, permissions);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to set permissions'), path));
+		});
 	}
 
 	/**

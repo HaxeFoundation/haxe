@@ -711,6 +711,11 @@ extern class Global {
 	static function lstat(filename:String):EitherType<NativeArray, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.chmod.php
+	**/
+	static function chmod(filename:String, mode:Int):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.realpath.php
 	**/
 	static function realpath(path:String):EitherType<String, Bool>;
