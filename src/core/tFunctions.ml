@@ -212,6 +212,7 @@ let null_abstract = {
 	a_array = [];
 	a_read = None;
 	a_write = None;
+	a_enum = false;
 }
 
 let add_dependency m mdep =
@@ -253,7 +254,7 @@ let map loop t =
 		(match r.tm_type with
 		| None -> t
 		| Some t -> loop t) (* erase*)
-	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) | TAbstract (_,[]) ->
 		t
 	| TEnum (e,tl) ->
 		TEnum (e, List.map loop tl)
@@ -491,28 +492,22 @@ let rec follow_without_null t =
 		follow_without_null (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
-(** Assumes `follow` has already been applied *)
-let rec ambiguate_funs t =
+let rec follow_without_type t =
 	match t with
-	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
 		(match r.tm_type with
-		| Some _ -> die "" __LOC__
+		| Some t -> follow_without_type t
 		| _ -> t)
-	| TInst (a, pl) ->
-	    TInst (a, List.map ambiguate_funs pl)
-	| TEnum (a, pl) ->
-	    TEnum (a, List.map ambiguate_funs pl)
-	| TAbstract (a, pl) ->
-	    TAbstract (a, List.map ambiguate_funs pl)
-	| TType (a, pl) ->
-	    TType (a, List.map ambiguate_funs pl)
-	| TDynamic _ -> t
-	| TAnon a ->
-	    TAnon { a with a_fields =
-		    PMap.map (fun af -> { af with cf_type =
-				ambiguate_funs af.cf_type }) a.a_fields }
-	| TLazy _ -> die "" __LOC__
+	| TLazy f ->
+		follow_without_type (lazy_type f)
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		follow_without_type t
+	| _ -> t
+
+let rec ambiguate_funs t =
+	match follow t with
+	| TFun _ -> TFun ([], t_dynamic)
+	| _ -> map ambiguate_funs t
 
 let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
@@ -754,17 +749,15 @@ let quick_field_dynamic t s =
 	try quick_field t s
 	with Not_found -> FDynamic s
 
-let rec get_constructor build_type c =
+let rec get_constructor c =
 	match c.cl_constructor, c.cl_super with
-	| Some c, _ -> build_type c, c
+	| Some c, _ -> c
 	| None, None -> raise Not_found
-	| None, Some (csup,cparams) ->
-		let t, c = get_constructor build_type csup in
-		apply_params csup.cl_params cparams t, c
+	| None, Some (csup,_) -> get_constructor csup
 
 let has_constructor c =
 	try
-		ignore(get_constructor (fun cf -> cf.cf_type) c);
+		ignore(get_constructor c);
 		true
 	with Not_found -> false
 

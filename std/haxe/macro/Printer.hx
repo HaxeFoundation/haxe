@@ -277,6 +277,7 @@ class Printer {
 			case EThrow(e1): "throw " + printExpr(e1);
 			case ECast(e1, cto) if (cto != null): 'cast(${printExpr(e1)}, ${printComplexType(cto)})';
 			case ECast(e1, _): "cast " + printExpr(e1);
+			case EIs(e1, ct): '${printExpr(e1)} is ${printComplexType(ct)}';
 			case EDisplay(e1, _): '#DISPLAY(${printExpr(e1)})';
 			case EDisplayNew(tp): '#DISPLAY(${printTypePath(tp)})';
 			case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
@@ -533,6 +534,9 @@ class Printer {
 					loopI(e);
 				case ECast(e, t):
 					add("ECast");
+					loopI(e);
+				case EIs(e, t):
+					add("EIs");
 					loopI(e);
 				case EDisplay(e, displayKind):
 					add("EDisplay");

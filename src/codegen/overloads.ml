@@ -2,74 +2,45 @@ open Globals
 open Type
 open Typecore
 
-type overload_args_comparison =
-  | Same
-  | Different
-  | Impl_conflict
-
-let distinguishes_funs_as_params ctx =
-  	match ctx.com.platform with
-  	| Java -> false
-  	| _ -> true
-
-let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
-	let get_vmtype = match get_vmtype with
-		| None -> (fun f -> f)
-		| Some f -> f
-	in
-	if List.length f1.cf_params <> List.length f2.cf_params then
-		Different
-	else
-	let amb_funs =
-		match ctx with
-		| None -> false
-		| Some ctx -> not (distinguishes_funs_as_params ctx) in
-	let rec follow_skip_null t = match t with
-		| TMono r ->
-			(match r.tm_type with
-			| Some t -> follow_skip_null t
-			| _ -> t)
-		| TLazy f ->
-			follow_skip_null (lazy_type f)
-		| TAbstract ({ a_path = [],"Null" } as a, [p]) ->
-			TAbstract(a,[follow p])
-		| TType (t,tl) ->
-			follow_skip_null (apply_params t.t_params tl t.t_type)
-		| _ -> t
-	in
-	let compare_type t1 t2 =
-		(if type_iseq t1 t2 then
-			Same
-		else if amb_funs && type_iseq (ambiguate_funs t1) (ambiguate_funs t2) then
-			Impl_conflict
-		else
-			Different) in
-	let compare_arg t1 t2 =
-		let t1 = get_vmtype (follow_skip_null t1) in
-		let t2 = get_vmtype (follow_skip_null t2) in
-		match t1, t2 with
-			| TType _, TType _ -> compare_type t1 t2
-			| TType _, _
-			| _, TType _ -> Different
-			| _ -> compare_type t1 t2
-	in
-
-	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
-		| TFun(a1,_), TFun(a2,_) ->
-			let rec loop args1 args2 =
-				match args1, args2 with
-				| [], [] -> Same
-				| [], _ | _, [] -> Different
-				| (_,_,t1) :: rest1, (_,_,t2) :: rest2 ->
-					match compare_arg t1 t2 with
-					| Same -> loop rest1 rest2
-					| result -> result
-			in
-			loop a1 a2
-		| _ -> die "" __LOC__
-
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
-	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
+	let f_transform = match get_vmtype with
+		| Some f -> f
+		| None -> (fun t -> t)
+	in
+	let f_eq t1 t2 = type_iseq (f_transform t1) (f_transform t2) in
+	let compare_type_params () =
+		let rec loop params1 params2 = match params1,params2 with
+			| [],[] ->
+				true
+			| (n1,t1) :: params1,(n2,t2) :: params2 ->
+				n1 = n2 && f_eq t1 t2 && loop params1 params2
+			| [],_
+			| _,[] ->
+				false
+		in
+		loop f1.cf_params f2.cf_params
+	in
+	let compare_arguments tl1 tl2 =
+		let rec loop tl1 tl2 = match tl1,tl2 with
+			| [],[] ->
+				true
+			| (n1,o1,t1) :: tl1,(n2,o2,t2) :: tl2 ->
+				(* TODO: do we want to compare n and o here? *)
+				f_eq t1 t2 && loop tl1 tl2
+			| _ ->
+				false
+		in
+		loop tl1 tl2
+	in
+	let compare_types () =
+		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1) in
+		match t1,follow t2 with
+		| TFun(tl1,_),TFun(tl2,_) ->
+			compare_arguments tl1 tl2
+		| _ ->
+			false
+	in
+	compare_type_params () && compare_types ()
 
 let collect_overloads map c i =
 	let acc = ref [] in
@@ -106,14 +77,12 @@ let collect_overloads map c i =
 	List.rev !acc
 
 let get_overloads (com : Common.context) c i =
-	collect_overloads (fun t -> t) c i
-	(* TODO: check why this kills Java *)
-	(* try
+	try
 		Hashtbl.find com.overload_cache (c.cl_path,i)
 	with Not_found ->
-		let l = collect_overloads c i in
+		let l = collect_overloads (fun t -> t) c i in
 		Hashtbl.add com.overload_cache (c.cl_path,i) l;
-		l *)
+		l
 
 (** Overload resolution **)
 module Resolution =

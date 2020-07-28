@@ -394,13 +394,10 @@ let convert_ilmethod ctx p is_interface m is_explicit_impl =
 				| _ -> name)
 		| name -> name
 	in
-	let meta = [Meta.Overload, [], p] in
+	let meta = [] in
 	let acc, meta = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem ->
 			(APrivate,null_pos), ((Meta.Protected, [], p) :: meta)
-		(* | FAPrivate -> APrivate *)
-		| FAPublic when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
-			(APrivate,null_pos), meta
 		| FAPublic -> (APublic,null_pos), meta
 		| _ ->
 			if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
@@ -414,6 +411,7 @@ let convert_ilmethod ctx p is_interface m is_explicit_impl =
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
+	let acc = (AOverload,p) :: acc in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 

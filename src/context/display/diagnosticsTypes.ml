@@ -9,5 +9,5 @@ type diagnostics_context = {
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable missing_fields : (pos,(tclass * (missing_fields_diagnostics list ref))) PMap.t;
+	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }

@@ -170,7 +170,7 @@ module PrototypeBuilder = struct
 end
 
 let is_removable_field cf =
-	has_class_field_flag cf CfExtern || Meta.has Meta.Generic cf.cf_meta
+	has_class_field_flag cf CfExtern || has_class_field_flag cf CfGeneric
 
 let is_persistent cf =
 	Meta.has Meta.Persistent cf.cf_meta

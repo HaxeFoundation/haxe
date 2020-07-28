@@ -115,7 +115,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 		in
 		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->
-		let cf = if Meta.has Meta.Impl cf.cf_meta then
+		let cf = if has_class_field_flag cf CfImpl then
 			prepare_using_field cf
 		else
 			cf

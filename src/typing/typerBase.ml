@@ -4,23 +4,59 @@ open Type
 open Typecore
 open Error
 
+type field_host =
+	| FHStatic of tclass
+	| FHInstance of tclass * tparams
+	| FHAbstract of tabstract * tparams * tclass
+	| FHAnon
+
+type field_access = {
+	(* The expression on which the field is accessed. For abstracts, this is a type expression
+	   to the implementation class. *)
+	fa_on     : texpr;
+	(* The field being accessed. *)
+	fa_field  : tclass_field;
+	(* The host of the field. *)
+	fa_host   : field_host;
+	(* Whether or not to inline the access. This can be set for non-inline fields via `inline call()` syntax. *)
+	fa_inline : bool;
+	(* The position of the field access expression in syntax. *)
+	fa_pos    : pos;
+}
+
+type static_extension_access = {
+	(* The `this` expression which should be passed as first argument. *)
+	se_this   : texpr;
+	(* The field access information. *)
+	se_access : field_access;
+}
+
 type access_kind =
+	(* Access is not possible or allowed. *)
 	| AKNo of string
+	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
-	| AKSet of texpr * t * tclass_field
-	| AKInline of texpr * tclass_field * tfield_access * t
-	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
+	(* Access on non-property field. *)
+	| AKField of field_access
+	(* Access on property field. The field is the property, not the accessor. *)
+	| AKAccessor of field_access
+	(* Access via static extension. *)
+	| AKUsingField of static_extension_access
+	(* Access via static extension on property field. The field is the property, not the accessor.
+	   This currently only happens on abstract properties. *)
+	| AKUsingAccessor of static_extension_access
+	(* Access on abstract via array overload. *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
-	| AKFieldSet of texpr * texpr * string * t
+	(* Access on abstract via resolve method. *)
+	| AKResolve of static_extension_access * string
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
 
-let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
-let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -143,23 +179,43 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
-let mk_module_type_access ctx t p : access_mode -> access_kind =
-	let e = type_module_type ctx t None p in
-	(fun _ -> AKExpr e)
+let mk_module_type_access ctx t p =
+	AKExpr (type_module_type ctx t None p)
+
+let s_field_access tabs fa =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	let sfa = function
+		| FHStatic c -> Printf.sprintf "FHStatic(%s)" (s_type_path c.cl_path)
+		| FHInstance(c,tl) -> Printf.sprintf "FHInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FHAbstract(a,tl,c) -> Printf.sprintf "FHAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
+		| FHAnon -> Printf.sprintf "FHAnon"
+	in
+	Printer.s_record_fields tabs [
+		"fa_on",se fa.fa_on;
+		"fa_field",fa.fa_field.cf_name;
+		"fa_host",sfa fa.fa_host;
+		"fa_inline",string_of_bool fa.fa_inline
+	]
+
+let s_static_extension_access sea =
+	Printer.s_record_fields "" [
+		"se_this",s_expr_pretty true "" false (s_type (print_context())) sea.se_this;
+		"se_access",s_field_access "\t" sea.se_access
+	]
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
-	let sfa = s_field_access st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
-	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
-	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
+	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
+	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
+	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
+	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
-	| AKFieldSet(_) -> ""
+	| AKResolve(_) -> ""
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
@@ -200,7 +256,7 @@ let unify_static_extension ctx e t p =
 	if multitype_involed e.etype t then
 		AbstractCast.cast_or_unify_raise ctx t e p
 	else begin
-		Type.unify_custom {default_unification_context with allow_transitive_cast = false} e.etype t;
+		Type.unify_custom {default_unification_context with allow_dynamic_to_cast = false} e.etype t;
 		e
 	end
 
@@ -217,3 +273,149 @@ let get_abstract_froms a pl =
 		| _ ->
 			acc
 	) l a.a_from_field
+
+module FieldAccess = struct
+	type field_host =
+		(* Get the plain expression with applied field type parameters. *)
+		| FGet
+		(* Does not apply field type parameters. *)
+		| FCall
+		(* Actual reading, for FClosure and such. *)
+		| FRead
+		(* Used as lhs, no semantic difference to FGet. *)
+		| FWrite
+
+	type accessor_resolution =
+		(* Accessor was found. *)
+		| AccessorFound of field_access
+		(* Accessor was not found, but access was made on anonymous structure. *)
+		| AccessorAnon
+		(* Accessor was not found. *)
+		| AccessorNotFound
+		(* Accessor resolution was attempted on a non-property. *)
+		| AccessorInvalid
+
+	let create e cf fh inline p = {
+		fa_on     = e;
+		fa_field  = cf;
+		fa_host   = fh;
+		fa_inline = inline;
+		fa_pos    = p;
+	}
+
+	(* Creates the `tfield_access` corresponding to this field access, using the provided field. *)
+	let apply_fa cf = function
+		| FHStatic c -> FStatic(c,cf)
+		| FHInstance(c,tl) -> FInstance(c,tl,cf)
+		| FHAbstract(a,tl,c) -> FStatic(c,cf)
+		| FHAnon -> FAnon cf
+
+	(* Returns the mapping function to apply type parameters. *)
+	let get_map_function fa = match fa.fa_host with
+		| FHStatic _ | FHAnon -> (fun t -> t)
+		| FHInstance(c,tl) -> TClass.get_map_function c tl
+		| FHAbstract(a,tl,_) -> apply_params a.a_params tl
+
+	(* Converts the field access to a `TField` node, using the provided `mode`. *)
+	let get_field_expr fa mode =
+		let cf = fa.fa_field in
+		let t = match mode with
+			| FCall -> cf.cf_type
+			| FGet | FRead | FWrite -> Type.field_type cf
+		in
+		let fa',t = match fa.fa_host with
+			| FHStatic c ->
+				FStatic(c,cf),t
+			| FHInstance(c,tl) ->
+				let fa = match cf.cf_kind with
+				| Method _ when mode = FRead ->
+					FClosure(Some(c,tl),cf)
+				| _ ->
+					FInstance(c,tl,cf)
+				in
+				let t = TClass.get_map_function c tl t in
+				fa,t
+			| FHAbstract(a,tl,c) ->
+				FStatic(c,cf),apply_params a.a_params tl t
+			| FHAnon ->
+				let fa = match cf.cf_kind with
+				| Method _ when mode = FRead ->
+					FClosure(None,cf)
+				| _ ->
+					FAnon cf
+				in
+				fa,t
+		in
+		mk (TField(fa.fa_on,fa')) t fa.fa_pos
+
+	(* Resolves the accessor on the field access, using the provided `mode`. *)
+	let resolve_accessor fa mode = match fa.fa_field.cf_kind with
+		| Var v ->
+			begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
+				| AccCall ->
+					let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
+					let forward cf_acc new_host =
+						create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+					in
+					begin match fa.fa_host with
+					| FHStatic c ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
+							AccessorAnon
+						end
+					| FHInstance(c,tl) ->
+						begin try
+							(* Accessors can be overridden, so we have to check the actual type. *)
+							let c,tl = match follow fa.fa_on.etype with
+								| TInst(c,tl) -> c,tl
+								| _ -> c,tl
+							in
+							let (c2,_,cf_acc) = raw_class_field (fun f -> f.cf_type) c tl name in
+							let new_host = match c2 with
+								| None -> FHAnon
+								| Some(c,tl) -> FHInstance(c,tl)
+							in
+							AccessorFound (forward cf_acc new_host)
+						with Not_found ->
+							AccessorAnon
+						end
+					| FHAbstract(a,tl,c) ->
+						begin try
+							AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						with Not_found ->
+							AccessorAnon
+						end
+					| FHAnon ->
+						AccessorAnon
+					end
+				| _ ->
+					AccessorInvalid
+			end
+		| _ ->
+			AccessorInvalid
+
+	let get_constructor_access c params p =
+		match c.cl_kind with
+		| KAbstractImpl a ->
+			let cf = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
+			create (Builder.make_static_this c p) cf (FHAbstract(a,params,c)) false p
+		| _ ->
+			let cf = (try Type.get_constructor c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
+			create (Builder.make_static_this c p) cf (FHInstance(c,params)) false p
+end
+
+let make_static_extension_access c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FHStatic c) inline p
+	}
+
+let make_abstract_static_extension_access a tl c cf e_this inline p =
+	let e_static = Texpr.Builder.make_static_this c p in
+	{
+		se_this = e_this;
+		se_access = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) inline p
+	}

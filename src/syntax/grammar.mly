@@ -163,7 +163,6 @@ and parse_abstract doc meta flags p1 = parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
 			| [< >] -> syntax_error (Expected ["{";"to";"from"]) s ([],last_pos s)
 		in
-		let flags = ExtList.List.filter_map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
 			d_name = name;
@@ -267,7 +266,7 @@ and parse_type_decl mode s =
 			}, punion p1 p2)
 		| [< '(Kwd Enum,p1) >] ->
 			begin match s with parser
-			| [< '(Kwd Abstract,p1); a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c p1 >] ->
+			| [< '(Kwd Abstract,p1); a,p = parse_abstract doc meta (AbEnum :: (convert_abstract_flags c)) p1 >] ->
 				(EAbstract a,p)
 			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 				(EEnum {
@@ -295,7 +294,7 @@ and parse_type_decl mode s =
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1) >] ->
 			begin match s with parser
-			| [< a,p = parse_abstract doc meta c p1 >] ->
+			| [< a,p = parse_abstract doc meta (convert_abstract_flags c) p1 >] ->
 				EAbstract a,p
 			| [< >] ->
 				let c2 = parse_common_flags s in
@@ -476,7 +475,7 @@ and resume tdecl fdecl s =
 		| Kwd New :: Kwd Function :: _ when fdecl ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
 			junk_tokens (k - 1);
 			true
 		| BrClose :: _ when tdecl ->
@@ -980,6 +979,7 @@ and parse_cf_rights = parser
 	| [< '(Kwd Inline,p) >] -> AInline,p
 	| [< '(Kwd Extern,p) >] -> AExtern,p
 	| [< '(Kwd Abstract,p) >] -> AAbstract,p
+	| [< '(Kwd Overload,p) >] -> AOverload,p
 
 and parse_fun_name = parser
 	| [< name,p = dollar_ident >] -> name,p
@@ -1489,10 +1489,10 @@ and expr_next' e1 = parser
 		end
 	| [< '(Kwd In,_); e2 = expr >] ->
 		make_binop OpIn e1 e2
-	| [< '(Const (Ident "is"),p_is); tp = parse_type_path; s >] ->
+	| [< '(Const (Ident "is"),p_is); t = parse_complex_type; s >] ->
 		let p1 = pos e1 in
-		let p2 = pos tp in
-		let e_is = make_is e1 tp (punion p1 p2) p_is in
+		let p2 = pos t in
+		let e_is = EIs (e1,t), (punion p1 p2) in
 		expr_next e_is s
 	| [< >] -> e1
 

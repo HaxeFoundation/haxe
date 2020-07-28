@@ -1043,30 +1043,6 @@ let mt_to_t_dyn md =
 		| TAbstractDecl a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_params)
 		| TTypeDecl t -> TType(t, List.map (fun _ -> t_dynamic) t.t_params)
 
-let mt_to_t mt params =
-	match mt with
-		| TClassDecl (cl) -> TInst(cl, params)
-		| TEnumDecl (e) -> TEnum(e, params)
-		| TAbstractDecl a -> TAbstract(a, params)
-		| _ -> die "" __LOC__
-
-let t_to_mt t =
-	match follow t with
-		| TInst(cl, _) -> TClassDecl(cl)
-		| TEnum(e, _) -> TEnumDecl(e)
-		| TAbstract(a, _) -> TAbstractDecl a
-		| _ -> die "" __LOC__
-
-let rec get_last_ctor cl =
-	Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
-
-let add_constructor cl cf =
-	match cl.cl_constructor with
-	| None -> cl.cl_constructor <- Some cf
-	| Some ctor ->
-			if ctor != cf && not (List.memq cf ctor.cf_overloads) then
-				ctor.cf_overloads <- cf :: ctor.cf_overloads
-
 (* replace open TMonos with TDynamic *)
 let rec replace_mono t =
 	match t with
@@ -1125,7 +1101,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	let rec loop_cl depth c tl tlch =
 		(try
 			let ret = PMap.find field c.cl_fields in
-			if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
+			if has_class_field_flag ret CfOverload then is_overload := true;
 			match !chosen, exact_field with
 			| Some(d,f,_,_,_), _ when depth <= d || (is_var ret && not (is_var f)) -> ()
 			| _, None ->
@@ -1157,8 +1133,8 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	| None ->
 		None
 	| Some(_,f,c,tl,tlch) ->
-		if !is_overload && not (Meta.has Meta.Overload f.cf_meta) then
-			f.cf_meta <- (Meta.Overload,[],f.cf_pos) :: f.cf_meta;
+		if !is_overload && not (has_class_field_flag f CfOverload) then
+			add_class_field_flag f CfOverload;
 		let declared_t = apply_params c.cl_params tl f.cf_type in
 		let params_t = apply_params c.cl_params tlch f.cf_type in
 		let actual_t = match follow params_t with

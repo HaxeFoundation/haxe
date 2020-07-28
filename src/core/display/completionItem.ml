@@ -152,7 +152,7 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem AbExtern d.d_flags;
 				is_final = false;
-				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
+				kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract;
 				has_constructor = ctor;
 				source = Syntax td;
 			}
@@ -188,7 +188,7 @@ module CompletionModuleType = struct
 		let ctor c =
 			try
 				if has_class_flag c CAbstract then raise Not_found;
-				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
+				let cf = get_constructor c in
 				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
@@ -207,7 +207,7 @@ module CompletionModuleType = struct
 				in
 				false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),actor a
+				false,false,(if a.a_enum then EnumAbstract else Abstract),actor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with

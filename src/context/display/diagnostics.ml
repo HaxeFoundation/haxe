@@ -152,7 +152,7 @@ let prepare com =
 		) com.modules;
 		List.iter (function
 			| MissingFields mf ->
-				let p = mf.mf_on.cl_name_pos in
+				let p = mf.mf_pos in
 				begin try
 					let _,l = PMap.find p dctx.missing_fields in
 					l := mf :: !l

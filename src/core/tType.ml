@@ -15,7 +15,6 @@ and var_access =
 	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
-	| AccResolve        (* call resolve("field") when accessed *)
 	| AccCall           (* perform a method call when accessed *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
@@ -312,6 +311,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	a_enum : bool;
 }
 
 and module_type =
@@ -392,6 +392,10 @@ type flag_tclass_field =
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 	| CfOverride
 	| CfAbstract
+	| CfOverload
+	| CfImpl
+	| CfEnum
+	| CfGeneric
 
 type flag_tvar =
 	| VCaptured

@@ -1881,8 +1881,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				[jf#get_jsig]
 			)
 		| TNew(c,tl,el) ->
-			begin match get_constructor (fun cf -> cf.cf_type) c with
-			|_,cf ->
+			begin match get_constructor c with
+			| cf ->
 				begin match OverloadResolution.maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el with
 				| None -> Error.error "Could not find overload" e.epos
 				| Some (c',cf,_) ->
@@ -2475,7 +2475,7 @@ class tclass_to_jvm gctx c = object(self)
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
 					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
-				) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
+				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
 				if not (has_class_flag c CInterface) && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
 		in

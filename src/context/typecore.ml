@@ -46,8 +46,8 @@ type macro_mode =
 
 type access_mode =
 	| MGet
-	| MSet
-	| MCall
+	| MSet of Ast.expr option (* rhs, if exists *)
+	| MCall of Ast.expr list (* call arguments *)
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
@@ -143,11 +143,22 @@ and monomorphs = {
 	mutable perfunction : (tmono * pos) list;
 }
 
+(* This record holds transient information about an (attempted) call on a field. It is created when resolving
+   field calls and is passed to overload filters. *)
 type 'a field_call_candidate = {
-	fc_args : (texpr * bool) list;
-	fc_type : Type.t;
+	(* The argument expressions for this call and whether or not the argument is optional on the
+	   target function. *)
+	fc_args  : (texpr * bool) list;
+	(* The applied return type. *)
+	fc_ret   : Type.t;
+	(* The applied function type. *)
+	fc_type  : Type.t;
+	(* The class field being called. *)
 	fc_field : tclass_field;
-	fc_data : 'a;
+	(* The field monomorphs that were created for this call. *)
+	fc_monos : Type.t list;
+	(* The custom data associated with this call. *)
+	fc_data  : 'a;
 }
 
 exception Forbid_package of (string * path * pos) * pos list * string
@@ -402,7 +413,7 @@ let push_this ctx e = match e.eexpr with
 
 let is_removable_field ctx f =
 	not (has_class_field_flag f CfOverride) && (
-		has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
+		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
 		|| (match f.cf_kind with
 			| Var {v_read = AccRequire (s,_)} -> true
 			| Method MethMacro -> not ctx.in_macro
@@ -410,10 +421,8 @@ let is_removable_field ctx f =
 	)
 
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx ?(in_overload=false) c cf stat =
+let rec can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
-		true
-	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
 	else if c == ctx.curclass then
 		true
@@ -544,12 +553,24 @@ let safe_mono_close ctx m p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let make_field_call_candidate args t cf data = {
-	fc_args = args;
-	fc_type = t;
+let make_field_call_candidate args ret monos t cf data = {
+	fc_args  = args;
+	fc_type  = t;
 	fc_field = cf;
-	fc_data = data;
+	fc_data  = data;
+	fc_ret   = ret;
+	fc_monos = monos;
 }
+
+let s_field_call_candidate fcc =
+	let pctx = print_context() in
+	let se = s_expr_pretty false "" false (s_type pctx) in
+	let sl_args = List.map (fun (e,_) -> se e) fcc.fc_args in
+	Printer.s_record_fields "" [
+		"fc_args",String.concat ", " sl_args;
+		"fc_type",s_type pctx fcc.fc_type;
+		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
+	]
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

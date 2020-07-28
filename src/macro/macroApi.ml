@@ -315,6 +315,7 @@ and encode_access a =
 		| AFinal -> 7
 		| AExtern -> 8
 		| AAbstract -> 9
+		| AOverload -> 10
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -501,6 +502,8 @@ and encode_expr e =
 				27, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
 				28, [encode_meta_entry m;loop e]
+			| EIs (e,t) ->
+				29, [loop e;encode_ctype t]
 		in
 		encode_obj [
 			"pos", encode_pos p;
@@ -666,6 +669,7 @@ and decode_access v =
 	| 7 -> AFinal
 	| 8 -> AExtern
 	| 9 -> AAbstract
+	| 10 -> AOverload
 	| _ -> raise Invalid_expr
 	in
 	a,p
@@ -825,8 +829,8 @@ and decode_expr v =
 			ECheckType (loop e, (decode_ctype t))
 		| 28, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
-		| 29, [e;f] ->
-			EField (loop e, decode_string f) (*** deprecated EType, keep until haxe 3 **)
+		| 29, [e;t] ->
+			EIs (loop e,decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
@@ -963,7 +967,6 @@ and encode_var_access a =
 		| AccNormal -> 0, []
 		| AccNo -> 1, []
 		| AccNever -> 2, []
-		| AccResolve -> 3, []
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
@@ -1287,7 +1290,6 @@ let decode_var_access v =
 	| 0, [] -> AccNormal
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
-	| 3, [] -> AccResolve
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)

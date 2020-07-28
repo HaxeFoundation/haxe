@@ -307,11 +307,6 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
-let make_is e (t,p_t) p p_is =
-	let e_is = EField((EConst(Ident "Std"),null_pos),"isOfType"),p_is in
-	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
-	ECall(e_is,[e;e2]),p
-
 let handle_xml_literal p1 =
 	Lexer.reset();
 	let i = Lexer.lex_xml p1.pmin !code_ref in
@@ -417,3 +412,6 @@ let check_signature_mark e p1 p2 =
 			else e
 		end
 	end
+
+let convert_abstract_flags flags =
+	ExtList.List.filter_map decl_flag_to_abstract_flag flags

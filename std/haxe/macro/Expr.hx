@@ -559,6 +559,11 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta(s:MetadataEntry, e:Expr);
+
+	/**
+		An `expr is Type` expression.
+	**/
+	EIs(e:Expr, t:ComplexType);
 }
 
 enum DisplayKind {

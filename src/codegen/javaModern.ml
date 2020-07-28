@@ -796,7 +796,7 @@ module Converter = struct
 				add_native_meta();
 				String.concat "_" parts
 		in
-		if is_method then add_meta (Meta.Overload,[],p);
+		if is_method then add_access (AOverload,p);
 		if AccessFlags.has_flag jf.jf_flags MFinal then add_access (AFinal,p);
 		if not is_interface && AccessFlags.has_flag jf.jf_flags MAbstract then add_access (AAbstract,p);
 		let extract_local_names () =

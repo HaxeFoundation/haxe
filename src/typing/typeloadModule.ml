@@ -330,7 +330,9 @@ let module_pass_1 ctx m tdecls loadp =
 				a_this = mk_mono();
 				a_read = None;
 				a_write = None;
+				a_enum = List.mem AbEnum d.d_flags || Meta.has Meta.Enum d.d_meta;
 			} in
+			if a.a_enum && not (Meta.has Meta.Enum a.a_meta) then a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta;
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
 			| [] when Meta.has Meta.CoreType a.a_meta ->
@@ -894,7 +896,7 @@ let init_module_type ctx context_init (decl,p) =
 				is_type := true;
 			| AbExtern ->
 				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
-			| AbPrivate -> ()
+			| AbPrivate | AbEnum -> ()
 		) d.d_flags;
 		a.a_from <- List.rev a.a_from;
 		a.a_to <- List.rev a.a_to;

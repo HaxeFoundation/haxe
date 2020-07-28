@@ -403,6 +403,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardVariance",
+		"metadata": ":forward.variance",
+		"doc": "Forwards variance unification to underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "From",
 		"metadata": ":from",
 		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
@@ -519,13 +525,6 @@
 		"params": ["Feature name"],
 		"targets": ["TClassField"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
-	},
-	{
-		"name": "Impl",
-		"metadata": ":impl",
-		"doc": "Used internally to mark abstract implementation fields.",
-		"targets": ["TAbstractField"],
-		"internal": true
 	},
 	{
 		"name": "PythonImport",
@@ -1005,12 +1004,6 @@
 		"params": ["Compiler flag to check"],
 		"targets": ["TClassField"],
 		"links": ["https://haxe.org/manual/lf-condition-compilation.html"]
-	},
-	{
-		"name": "RequiresAssign",
-		"metadata": ":requiresAssign",
-		"doc": "Used internally to mark certain abstract operator overloads.",
-		"internal": true
 	},
 	{
 		"name": "Resolve",

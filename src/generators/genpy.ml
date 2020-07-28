@@ -1636,8 +1636,8 @@ module Printer = struct
 			in
 			let prefix = match e1.eexpr, follow x.etype with
 				(* the should not apply for the instance methods of the abstract itself *)
-				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
-				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
 				| _, TAbstract({a_path = ["python"],"KwArgs"},_) -> "**"
 				| _, TAbstract({a_path = ["python"],"VarArgs"},_) -> "*"
 				| _, _ -> ""
@@ -1717,11 +1717,9 @@ module Generator = struct
 	(* Transformer interface *)
 
 	let transform_expr e =
-		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform e
 
 	let transform_to_value e =
-		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform_to_value e
 
 	(* Printer interface *)
@@ -1750,8 +1748,6 @@ module Generator = struct
 		let methods = DynArray.create () in
 		List.iter (fun cf ->
 			match cf.cf_kind with
-				| Var({v_read = AccResolve}) ->
-					()
 				| Var _ when not (is_physical_field cf) ->
 					()
 				| Var({v_read = AccCall}) ->
@@ -1958,7 +1954,7 @@ module Generator = struct
 			print ctx "    @staticmethod\n    def _hx_empty_init(_hx_o):";
 			let found_fields = ref false in
 			List.iter (fun cf -> match cf.cf_kind with
-					| Var ({v_read = AccResolve | AccCall}) ->
+					| Var ({v_read = AccCall}) ->
 						()
 					| Var _ ->
 						found_fields := true;

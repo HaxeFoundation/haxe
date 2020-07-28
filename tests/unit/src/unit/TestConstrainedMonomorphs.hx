@@ -21,15 +21,15 @@ private class MyNotString {
 #if java
 @:native("unit.DetectiveHaxeExtern")
 extern private class DetectiveHaxeExtern {
-	@:overload static function itWasYou(i1:Int, i2:Int):String;
-	@:overload static function itWasYou(s1:String, s2:String):String;
-	@:overload static function itWasYou(f1:Float, f2:Float):String;
+	overload static function itWasYou(i1:Int, i2:Int):String;
+	overload static function itWasYou(s1:String, s2:String):String;
+	overload static function itWasYou(f1:Float, f2:Float):String;
 }
 
 @:native("unit.DetectiveHaxeExtern")
 @:keep
 private class DetectiveHaxeImplementation {
-	@:overload static function itWasYou(s1:String, s2:String) {
+	overload static function itWasYou(s1:String, s2:String) {
 		return s1 + s2;
 	}
 }

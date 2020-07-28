@@ -39,7 +39,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet WithType.value) e.epos
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
@@ -294,9 +294,9 @@ module Pattern = struct
 					let sl = match follow t with
 						| TEnum(en,_) ->
 							en.e_names
-						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 							ExtList.List.filter_map (fun cf ->
-								if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+								if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
 							) c.cl_ordered_statics
 						| _ ->
 							[]
@@ -441,7 +441,7 @@ module Pattern = struct
 							) in
 							collect_fields (Abstract.get_underlying_type a tl) filter);
 						List.iter (fun cf ->
-							if Meta.has Meta.Impl cf.cf_meta then
+							if has_class_field_flag cf CfImpl then
 								collect_field cf (apply_params a.a_params tl cf.cf_type) filter
 						) c.cl_ordered_statics;
 					| _ ->
@@ -480,7 +480,7 @@ module Pattern = struct
 						let v = add_local false s p in
 						begin match dko with
 						| None -> ()
-						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType.with_type t) p);
+						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (MSet None) (WithType.with_type t) p);
 						end;
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
@@ -509,18 +509,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
@@ -550,7 +550,7 @@ module Case = struct
 				let e2 = collapse_case el in
 				EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 			| [] ->
-				die "" __LOC__
+				error "case without pattern" p
 		in
 		let e = collapse_case el in
 		let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
@@ -1381,10 +1381,10 @@ module TexprConverter = struct
 				add (ConConst(TBool true),null_pos);
 				add (ConConst(TBool false),null_pos);
 				SKValue,RunTimeFinite
-			| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
-					if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
+					if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
 						| Some e ->
 							begin match extract_const e with
 							| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
@@ -1425,7 +1425,7 @@ module TexprConverter = struct
 
 	let report_not_exhaustive v_lookup e_subject unmatched =
 		let sl = match follow e_subject.etype with
-			| TAbstract({a_impl = Some c} as a,tl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,tl) when a.a_enum ->
 				List.map (fun (con,_) -> match fst con with
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->
