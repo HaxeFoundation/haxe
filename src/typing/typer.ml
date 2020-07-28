@@ -1804,6 +1804,26 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
 		type_meta ~mode ctx m e1 with_type p
+	| EIs (e,(t,p_t)) ->
+		match t with
+		| CTPath tp ->
+			if tp.tparams <> [] then display_error ctx "Type parameters are not supported for the `is` operator" p_t;
+			let e = type_expr ctx e WithType.value in
+			let e_t = type_type ctx (tp.tpackage,tp.tname) p_t in
+			let e_Std_isOfType =
+				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
+				| TClassDecl c ->
+					let cf =
+						try PMap.find "isOfType" c.cl_statics
+						with Not_found -> die "" __LOC__
+					in
+					Texpr.Builder.make_static_field c cf (mk_zero_range_pos p)
+				| _ -> die "" __LOC__
+			in
+			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
+		| _ ->
+			display_error ctx "Unsupported type for `is` operator" p_t;
+			Texpr.Builder.make_bool ctx.com.basic false p
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
