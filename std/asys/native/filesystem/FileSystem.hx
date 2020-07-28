@@ -143,6 +143,10 @@ class FileSystem {
 
 	/**
 		Get file or directory information at the given path.
+		If `path` is a symbolic link then the link is followed.
+
+		@see `asys.native.filesystem.FileSystem.linkInfo` to get information of the
+		link itself.
 	**/
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
 		throw new NotImplementedException();
@@ -242,6 +246,13 @@ class FileSystem {
 		Get the value of a symbolic link.
 	**/
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Get symbolic link information at the given path.
+	**/
+	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
 		throw new NotImplementedException();
 	}
 

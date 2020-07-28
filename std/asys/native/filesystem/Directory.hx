@@ -8,19 +8,10 @@ import haxe.exceptions.NotImplementedException;
 **/
 class Directory {
 	/**
-		Path to this directory.
-	**/
-	public final path:FilePath;
-	/**
 		How many entries are buffered internally when reading from the directory.
 		Higher numbers improve performance, but increase memory usage.
 	**/
 	public var buffer:Int = 32;
-
-	//TODO: this is a dummy constructor to make the compiler shut up about uninitialized finals.
-	function new() {
-		path = cast null;
-	}
 
 	/**
 		Read next directory entry.

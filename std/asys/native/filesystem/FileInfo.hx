@@ -8,8 +8,8 @@ import haxe.exceptions.NotImplementedException;
 	TODO:
 	- Decide on data type for time fields: `Date` means additional allocations;
 		`Int` means "end-of-time" issue. Maybe `Float`?
-	- Decide on `ino` type: theoretically it could be any big number. `Int` may
-		not fit it in future.
+	- Decide on `ino` type: theoretically it could be any big number. For example
+		on Windows it could be a 64-bit unsigned integer. So may overflow.
 	- Decide on `size` type: `Int` limits `size` to ~2GB.
 **/
 typedef FileStat = {
@@ -45,86 +45,111 @@ typedef FileStat = {
 	Provides information about a file.
 **/
 abstract FileInfo(FileStat) from FileStat to FileStat {
+	/** file type bit mask */
+	static inline var S_IFMT:Int = 61440;
+	/** named pipe (fifo) */
+	static inline var S_IFIFO:Int = 4096;
+	/** character special */
+	static inline var S_IFCHR:Int = 8192;
+	/** directory */
+	static inline var S_IFDIR:Int = 16384;
+	/** block special */
+	static inline var S_IFBLK:Int = 24576;
+	/** regular */
+	static inline var S_IFREG:Int = 32768;
+	/** symbolic link */
+	static inline var S_IFLNK:Int = 40960;
+	/** socket */
+	static inline var S_IFSOCK:Int = 49152;
+	/** whiteout */
+	static inline var S_IFWHT:Int = 57344;
+
 	/** Time of last access (Unix timestamp) */
-	var accessTime(get,never):Int;
-	inline function get_accessTime() return this.atime;
+	public var accessTime(get,never):Int;
+	inline function get_accessTime():Int
+		return this.atime;
 
 	/** Time of last modification (Unix timestamp) */
-	var modificationTime(get,never):Int;
-	inline function get_modificationTime() return this.mtime;
+	public var modificationTime(get,never):Int;
+	inline function get_modificationTime():Int
+		return this.mtime;
 
 	/** Time of last inode change (Unix timestamp) */
-	var creationTime(get,never):Int;
-	inline function get_creationTime() return this.ctime;
+	public var creationTime(get,never):Int;
+	inline function get_creationTime():Int
+		return this.ctime;
 
 	/** Device number */
-	var deviceNumber(get,never):Int;
-	inline function get_deviceNumber() return this.dev;
+	public var deviceNumber(get,never):Int;
+	inline function get_deviceNumber():Int
+		return this.dev;
 
 	/** Group id of owner */
-	var groupId(get,never):Int;
-	inline function get_groupId() return this.gid;
+	public var groupId(get,never):Int;
+	inline function get_groupId():Int
+		return this.gid;
 
 	/** User id of owner */
-	var userId(get,never):Int;
-	inline function get_userId() return this.uid;
+	public var userId(get,never):Int;
+	inline function get_userId():Int
+		return this.uid;
 
 	/** Inode number */
-	var inodeNumber(get,never):Int;
-	inline function get_inodeNumber() return this.ino;
+	public var inodeNumber(get,never):Int;
+	inline function get_inodeNumber():Int
+		return this.ino;
 
 	/** Inode protection mode */
-	var mode(get,never):Int;
-	inline function get_mode() return this.mode;
+	public var mode(get,never):Int;
+	inline function get_mode():Int
+		return this.mode;
 
 	/** Number of links */
-	var links(get,never):Int;
-	inline function get_links() return this.nlink;
+	public var links(get,never):Int;
+	inline function get_links():Int
+		return this.nlink;
 
 	/** Device type, if inode device */
-	var deviceType(get,never):Int;
-	inline function get_deviceType() return this.rdev;
+	public var deviceType(get,never):Int;
+	inline function get_deviceType():Int
+		return this.rdev;
 
 	/** Size in bytes */
-	var size(get,never):Int;
-	inline function get_size() return this.size;
+	public var size(get,never):Int;
+	inline function get_size():Int
+		return this.size;
 
 	/** Block size of filesystem for IO operations */
-	var blockSize(get,never):Int;
-	inline function get_blockSize() return this.blksize;
+	public var blockSize(get,never):Int;
+	inline function get_blockSize():Int
+		return this.blksize;
 
 	/** Number of 512-bytes blocks allocated */
-	var blocks(get,never):Int;
-	inline function get_blocks() return this.blocks;
+	public var blocks(get,never):Int;
+	inline function get_blocks():Int
+		return this.blocks;
 
-	public function isBlockDevice():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isBlockDevice():Bool
+		return this.mode & S_IFMT == S_IFBLK;
 
-	public function isCharacterDevice():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isCharacterDevice():Bool
+		return this.mode & S_IFMT == S_IFCHR;
 
-	public function isDirectory():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isDirectory():Bool
+		return this.mode & S_IFMT == S_IFDIR;
 
 	/**
 		TODO: Fifo? FiFo?
 	**/
-	public function isFIFO():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isFIFO():Bool
+		return this.mode & S_IFMT == S_IFIFO;
 
-	public function isFile():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isFile():Bool
+		return this.mode & S_IFMT == S_IFREG;
 
-	public function isSocket():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isSocket():Bool
+		return this.mode & S_IFMT == S_IFSOCK;
 
-	public function isSymbolicLink():Bool {
-		throw new NotImplementedException();
-	}
+	public inline function isSymbolicLink():Bool
+		return this.mode & S_IFMT == S_IFLNK;
 }
