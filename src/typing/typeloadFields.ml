@@ -908,7 +908,10 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
-	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
+	if fctx.is_abstract_member then begin
+		cf.cf_meta <- ((Meta.Custom ":impl"),[],null_pos) :: cf.cf_meta;
+		add_class_field_flag cf CfImpl;
+	end;
 	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
