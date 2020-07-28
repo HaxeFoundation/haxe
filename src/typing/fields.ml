@@ -5,6 +5,7 @@ open Type
 open TyperBase
 open Error
 open Typecore
+open FieldAccess
 
 module TypeFieldConfig = struct
 	type t = {
@@ -103,10 +104,6 @@ let check_no_closure_meta ctx cf fa mode p =
 		end
 	| _ ->
 		()
-
-let check_field_access ctx c f stat p =
-	if not ctx.untyped && not (can_access ctx c f stat) then
-		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 let field_access ctx mode f famode e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in

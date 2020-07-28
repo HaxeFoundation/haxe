@@ -161,11 +161,40 @@ type 'a field_call_candidate = {
 	fc_data  : 'a;
 }
 
+type field_host =
+	| FHStatic of tclass
+	| FHInstance of tclass * tparams
+	| FHAbstract of tabstract * tparams * tclass
+	| FHAnon
+
+type field_access = {
+	(* The expression on which the field is accessed. For abstracts, this is a type expression
+	   to the implementation class. *)
+	fa_on     : texpr;
+	(* The field being accessed. *)
+	fa_field  : tclass_field;
+	(* The host of the field. *)
+	fa_host   : field_host;
+	(* Whether or not to inline the access. This can be set for non-inline fields via `inline call()` syntax. *)
+	fa_inline : bool;
+	(* The position of the field access expression in syntax. *)
+	fa_pos    : pos;
+}
+
+type static_extension_access = {
+	(* The `this` expression which should be passed as first argument. *)
+	se_this   : texpr;
+	(* The field access information. *)
+	se_access : field_access;
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
 let memory_marker = [|Unix.time()|]
+
+let locate_macro_error = ref true
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
 let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
@@ -173,6 +202,7 @@ let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = re
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LOC__)
 let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
+let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx:unification_context _ _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -513,6 +543,10 @@ let rec can_access ctx c cf stat =
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
+
+let check_field_access ctx c f stat p =
+	if not ctx.untyped && not (can_access ctx c f stat) then
+		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
