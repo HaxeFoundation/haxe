@@ -530,13 +530,26 @@ object(self)
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
 		self#field_call sea.se_access [eparam;e_name] []
 
-	method setter_call fa el_typed el =
-		let fa_set = match FieldAccess.resolve_accessor fa (MSet None) with
-			| AccessorFound fa -> fa
-			| _ -> error "Could not resolve accessor" p
-		in
-		let dispatcher = new call_dispatcher ctx (MCall el) with_type p in
-		dispatcher#field_call fa_set el_typed el
+	(* Resolves the accessor function for `fa` and calls it with the provided arguments.
+	   If no accessor function is found (AccessorAnon case), a generic field access is generated instead.
+	*)
+	method accessor_call fa el_typed el =
+		match FieldAccess.resolve_accessor fa mode with
+			| AccessorFound fa_accessor ->
+				let dispatcher = new call_dispatcher ctx (MCall el) with_type p in
+				let e = dispatcher#field_call fa_accessor el_typed el in
+				let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+				if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
+			| AccessorAnon ->
+				let e = fa.fa_on in
+				let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
+				let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+				let el_typed = el_typed @ el in
+				let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
+				let name = Printf.sprintf "%s_%s" (if is_set then "set" else "get") fa.fa_field.cf_name in
+				make_call ctx (mk (TField (e,quick_field_dynamic e.etype name)) tf p) el_typed t p
+			| _ ->
+				error "Could not resolve accessor" p
 
 	(* Calls the field represented by `fa` with the typed arguments `el_typed` and the syntactic arguments `el`.
 
@@ -569,22 +582,7 @@ object(self)
 		| Var v ->
 			begin match (if is_set then v.v_write else v.v_read) with
 			| AccCall ->
-				begin match FieldAccess.resolve_accessor fa mode with
-				| AccessorFound fa' ->
-					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
-					let e = self#field_call fa' el_typed el in
-					if not (type_iseq_strict t e.etype) then mk (TCast(e,None)) t e.epos else e
-				| AccessorAnon ->
-					(* Anons might not have the accessor defined and rely on FDynamic in such cases *)
-					let e = fa.fa_on in
-					let t = FieldAccess.get_map_function fa fa.fa_field.cf_type in
-					let tf = tfun (List.map (fun e -> e.etype) el_typed) t in
-					make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("get_" ^ fa.fa_field.cf_name))) tf p) el_typed t p
-				| AccessorNotFound ->
-					error ("Could not resolve accessor") fa.fa_pos
-				| AccessorInvalid ->
-					die "Trying to resolve accessor on field that isn't AccCall" __LOC__
-				end
+				self#accessor_call fa el_typed el
 			| _ ->
 				self#expr_call (FieldAccess.get_field_expr fa FCall) el
 			end

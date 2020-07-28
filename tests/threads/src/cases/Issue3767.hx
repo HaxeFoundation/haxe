@@ -6,7 +6,7 @@ import utest.ITest;
 class Issue3767 implements ITest {
 	public function new() { }
 
-	#if java
+	#if (java || python)
 
 	@:timeout(5000)
 	function testBasicLock(async:utest.Async) {

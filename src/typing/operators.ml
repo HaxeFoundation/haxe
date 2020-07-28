@@ -111,8 +111,8 @@ module BinopResult = struct
 				| false ->
 					e1,e2
 				| true ->
-					let eloc1 = vr#as_var "lhs" e1 in
-					let eloc2 = vr#as_var "rhs" e2 in
+					let eloc1 = vr#as_var "lhs" e2 in
+					let eloc2 = vr#as_var "rhs" e1 in
 					eloc2,eloc1
 			in
 			let e = mk (TBinop(bn.binop_op,e1,e2)) bn.binop_type bn.binop_pos in
@@ -461,10 +461,15 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 				end;
 			end;
 			BinopResult.create_normal op e1 e2 tret needs_assign swapped p
-		end else begin
-			let el = if swapped then [e2;e1] else [e1;e2] in
-			BinopResult.create_special (make_static_call ctx c cf map el tret p) needs_assign
-		end
+		end else if swapped then begin
+			let vr = new value_reference ctx in
+			let e2' = vr#as_var "lhs" e2 in
+			let e1' = vr#as_var "rhs" e1 in
+			let e = make_static_call ctx c cf map [e1';e2'] tret p in
+			let e = vr#to_texpr e in
+			BinopResult.create_special e needs_assign
+		end else
+			BinopResult.create_special (make_static_call ctx c cf map [e1;e2] tret p) needs_assign
 	in
 	(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		it with the first type to preserve comparison semantics. *)
@@ -512,12 +517,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 							check_null e1 t1;
 						end;
 						let needs_assign = is_assign_op && op_cf = op in
-						let e = if not swapped then
-							make e1 e2 needs_assign false
-						else begin
-							make e2 e1 needs_assign true
-						end in
-						e
+						make e1 e2 needs_assign swapped
 					in
 					begin try
 						check e1 e2 false
@@ -593,8 +593,8 @@ let type_assign ctx e1 e2 with_type p =
 	| AKExpr e1  ->
 		assign_to e1
 	| AKAccessor fa ->
-		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-		dispatcher#setter_call fa [] [e2]
+		let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+		dispatcher#accessor_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let e2 = type_rhs WithType.value in
 		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
@@ -668,8 +668,8 @@ let type_assign_op ctx op e1 e2 with_type p =
 	let set vr fa t_lhs r_rhs el =
 		let assign e_rhs =
 			let e_rhs = AbstractCast.cast_or_unify ctx t_lhs e_rhs p in
-			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-			dispatcher#setter_call fa (el @ [e_rhs]) [];
+			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+			dispatcher#accessor_call fa (el @ [e_rhs]) [];
 		in
 		let e = BinopResult.to_texpr vr r_rhs assign in
 		vr#to_texpr e
@@ -870,15 +870,15 @@ let type_unop ctx op flag e p =
 			let fa = {fa with fa_on = ef} in
 			let e_lhs,e_out = read_on vr ef fa in
 			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
-			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
-			let e = dispatcher#setter_call fa [e_op] [] in
+			let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
+			let e = dispatcher#accessor_call fa [e_op] [] in
 			generate vr e_out e
 		| AKUsingAccessor sea ->
 			let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
 			let e_lhs,e_out = read_on vr ef sea.se_access in
 			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
-			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
-			let e = dispatcher#setter_call sea.se_access [ef;e_op] [] in
+			let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
+			let e = dispatcher#accessor_call sea.se_access [ef;e_op] [] in
 			generate vr e_out e
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			begin try

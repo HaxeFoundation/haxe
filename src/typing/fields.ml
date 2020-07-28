@@ -236,297 +236,287 @@ let field_access ctx mode f famode e p =
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
 
-let rec using_field ctx mode e i p =
-	let is_set = match mode with MSet _ -> true | _ -> false in
-	if is_set then raise Not_found;
-	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
-	let t = follow e.etype in
-	let is_dynamic = match t with
-		| TMono {tm_constraints = []} -> raise Not_found
-		| t -> t == t_dynamic
-	in
-	let check_constant_struct = ref false in
-	let rec loop = function
-	| [] ->
-		raise Not_found
-	| (c,pc) :: l ->
-		try
-			let cf = PMap.find i c.cl_statics in
-			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (has_class_field_flag cf CfImpl) then raise Not_found;
-			let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
-			let map = apply_params cf.cf_params monos in
-			let t = map cf.cf_type in
-			begin match follow t with
-				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
-					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
-					let e = unify_static_extension ctx e t0 p in
-					ImportHandling.mark_import_position ctx pc;
-					AKUsingField (make_static_extension_access c cf e false p)
-				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			loop l
-		| Unify_error el | Error (Unify el,_) ->
-			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
-			loop l
-	in
-	try
-		(* type using from `@:using(Path)` *)
-		loop (t_infos (module_type_of_type t)).mt_using
-	with Not_found | Exit -> try
-		(* module using from `using Path` *)
-		loop ctx.m.module_using
-	with Not_found -> try
-		(* global using *)
-		let acc = loop ctx.g.global_using in
-		(match acc with
-		| AKUsingField {se_access = {fa_host = FHStatic c}} -> add_dependency ctx.m.curmod c.cl_module
-		| _ -> die "" __LOC__);
-		acc
-	with Not_found ->
-		if not !check_constant_struct then raise Not_found;
-		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
-
-let emit_missing_field_error ctx i t pfield =
-	display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield
-
-let handle_missing_field ctx tthis i mode with_type pfield =
-	try
-		if not (Diagnostics.is_diagnostics_run ctx.com pfield) then raise Exit;
-		DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
-	with Exit ->
-		emit_missing_field_error ctx i tthis pfield
-
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 (* Note: if mode = MCall, with_type (if known) refers to the return type *)
-let rec type_field cfg ctx e i p mode (with_type : WithType.t) =
-	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
+let type_field cfg ctx e i p mode (with_type : WithType.t) =
+	let pfield = if e.epos = p then p else { p with pmin = p.pmax - (String.length i) } in
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let no_field() =
-		if TypeFieldConfig.do_resume cfg then raise Not_found;
-		let t = match follow e.etype with
-			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a} -> TAbstract(a,[])
-				| _ -> e.etype)
-			| TInst({cl_kind = KAbstractImpl a},_) -> TAbstract(a,[])
-			| _ -> e.etype
-		in
-		let has_special_field a =
-			List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
-			|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-			|| List.exists (fun cf -> cf.cf_name = i) a.a_array
-		in
-		if not ctx.untyped then begin
-			match t with
-			| TAbstract(a,_) when has_special_field a ->
-				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
-			| _ ->
-				match follow t with
-				| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
-					display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
-				| _ ->
-					handle_missing_field ctx e.etype i mode with_type pfield
-		end;
-		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
+	let find_some = function
+		| Some x -> x
+		| None -> raise Not_found
 	in
-	let does_forward a stat =
-		try
-			let _,el,_ = Meta.get (if stat then Meta.ForwardStatics else Meta.Forward) a.a_meta in
-			match el with
-				| [] ->
-					true
-				| _ ->
-					List.exists (fun e -> match fst e with
-						| EConst(Ident s | String(s,_)) -> s = i
-						| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
-					) el
-		with Not_found ->
-			false
+	let type_field_by_et f e t =
+		f { e with etype = t } (follow t)
 	in
-	match follow e.etype with
-	| TInst (c,params) ->
-		let rec loop_dyn c params =
-			match c.cl_dynamic with
-			| Some t ->
-				let t = apply_params c.cl_params params t in
-				AKExpr (mk (TField (e,FDynamic i)) t p)
-			| None ->
-				match c.cl_super with
-				| None -> raise Not_found
-				| Some (c,params) -> loop_dyn c params
+	let type_field_by_e f e =
+		f e (follow e.etype)
+	in
+	let rec type_field_by_list f = function
+		| [] -> raise Not_found
+		| x :: l -> try f x with Not_found -> type_field_by_list f l
+	in
+	let type_field_by_forward f meta a =
+		let _,el,_ = Meta.get meta a.a_meta in
+		if el <> [] && not (List.exists (fun e -> match fst e with
+			| EConst (Ident i' | String (i',_)) -> i' = i
+			| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
+		) el) then raise Not_found;
+		f()
+	in
+	let type_field_by_forward_static f a =
+		type_field_by_forward f Meta.ForwardStatics a
+	in
+	let type_field_by_forward_member f e a tl =
+		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
+		type_field_by_forward f Meta.Forward a
+	in
+	let type_field_by_interfaces c =
+		let rec loop cl = match cl with
+			| [] ->
+				raise Not_found
+			| (ci,tl) :: cl ->
+				begin try
+					let c2, t, f = class_field ctx ci tl i p in
+					let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
+					(* It should be fine to just add the field to our class to make future lookups a bit faster. *)
+					TClass.add_field c f;
+					field_access ctx mode f fmode e p
+				with Not_found ->
+					loop cl
+				end
 		in
-		(try
-			let c2, t , f = class_field ctx c params i p in
-			field_access ctx mode f (match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) e p
-		with Not_found -> try
-			begin match e.eexpr with
-				| TConst TSuper -> raise Not_found
-				| _ -> using_field ctx mode e i p
-			end
-		with Not_found -> try
-			loop_dyn c params
-		with Not_found -> try
-			(* if we have an abstract constraint we have to check its static fields and recurse (issue #2343) *)
-			begin match c.cl_kind with
+		loop c.cl_implements
+	in
+	let rec type_field_by_type e t =
+		let field_access f fmode = field_access ctx mode f fmode e p in
+		match t with
+		| TInst (c,tl) ->
+			(try
+				let c2, t, f = class_field ctx c tl i p in
+				let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
+				field_access f fmode
+			with Not_found ->
+				match c.cl_kind with
 				| KTypeParameter tl ->
-					let rec loop tl = match tl with
-						| t :: tl ->
-							begin match follow t with
-								| TAbstract({a_impl = Some c},tl) when PMap.mem i c.cl_statics ->
-									let e = mk_cast e t p in
-									type_field cfg ctx e i p mode with_type;
-								| _ ->
-									loop tl
-							end
-						| [] ->
-							raise Not_found
-					in
-					loop tl
+					type_field_by_list (fun t -> match follow t with
+						| TAbstract _ -> type_field_by_e type_field_by_type (mk_cast e t p);
+						| _ -> raise Not_found
+					) tl
 				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
-			no_field())
-	| TDynamic t ->
-		(try
-			using_field ctx mode e i p
-		with Not_found ->
-			AKExpr (mk (TField (e,FDynamic i)) t p))
-	| TAnon a ->
-		(try
-			let f = PMap.find i a.a_fields in
-			if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx "Cannot access non-static abstract field statically" pfield;
-			begin match mode with
-			| MCall _ when has_class_field_flag f CfOverload ->
-				()
-			| _ ->
-				if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
-					match !(a.a_status) with
+					(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field
+					   generation. We instead do this lazily here by browsing the implemented interfaces (issue #9768). *)
+					if has_class_flag c CExtern && Meta.has Meta.LibType c.cl_meta then
+						type_field_by_interfaces c
+					else
+						raise Not_found
+			)
+		| TAnon a ->
+			(try
+				let f = PMap.find i a.a_fields in
+				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx "Cannot access non-static abstract field statically" pfield;
+				(match mode with
+				| MCall _ when has_class_field_flag f CfOverload -> ()
+				| _ when has_class_field_flag f CfPublic || ctx.untyped -> ()
+				| _ -> (match !(a.a_status) with
 					| Closed | Extend _ -> () (* always allow anon private fields access *)
 					| Statics c when can_access ctx c f true -> ()
-					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield
-				end;
-			end;
-			let access fmode =
-				field_access ctx mode f fmode e p
-			in
-			begin match !(a.a_status) with
-				| Statics c ->
-					access (FHStatic c)
+					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield)
+				);
+				match !(a.a_status) with
 				| EnumStatics en ->
-					let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__) in
+					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
+				| Statics c ->
+					field_access f (FHStatic c)
 				| _ ->
-					access FHAnon
-			end
-		with Not_found -> try
+					field_access f FHAnon
+			with Not_found ->
 				match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
-					let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
-					let et = type_module_type ctx mt None p in
-					type_field cfg ctx et i p mode with_type;
-				| _ ->
-					raise Not_found
-			with Not_found ->
-				try
-					using_field ctx mode e i p
-				with Not_found ->
-					no_field()
-		)
-	| TMono r ->
-		let mk_field () = {
-			(mk_field i (mk_mono()) p null_pos) with
-			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet _ -> AccNormal | MGet | MCall _ -> AccNo) };
-		} in
-		let access f =
-			field_access ctx mode f FHAnon e p
-		in
-		begin match Monomorph.classify_constraints r with
-		| CStructural(fields,is_open) ->
-			begin try
-				let f = PMap.find i fields in
-				if is_open && is_set then begin match f.cf_kind with
+				| Statics { cl_kind = KAbstractImpl a } ->
+					type_field_by_forward_static (fun() ->
+						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
+						let et = type_module_type ctx mt None p in
+						type_field_by_e type_field_by_type et
+					) a
+				| _ -> raise Not_found
+			)
+		| TMono r ->
+			let mk_field () = {
+				(mk_field i (mk_mono()) p null_pos) with
+				cf_kind = Var { v_read = AccNormal; v_write = if is_set then AccNormal else AccNo }
+			} in
+			(match Monomorph.classify_constraints r with
+			| CStructural (fields,is_open) ->
+				(try
+					let f = PMap.find i fields in
+					(match f.cf_kind with
 					(* We previously inferred to read-only, but now we want to write. This can happen in cases like #8079. *)
-					| Var ({v_write = AccNo} as acc) -> f.cf_kind <- Var {acc with v_write = AccNormal}
-					| _ -> ()
-				end;
-				access f
-			with Not_found ->
-				if not is_open then
-					try
-						using_field ctx mode e i p
-					with Not_found ->
-						no_field()
-				else begin
+					| Var ({ v_write = AccNo } as acc) when is_open && is_set -> f.cf_kind <- Var { acc with v_write = AccNormal }
+					| _ -> ());
+					field_access f FHAnon
+				with Not_found when is_open ->
 					let f = mk_field() in
 					Monomorph.add_constraint r (MField f);
-					access f
-				end
-			end
-		| CTypes tl ->
-			let rec loop tl = match tl with
-				| [] ->
-					no_field()
-				| (t,_) :: tl ->
-					try
-						type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = t} i p mode with_type
-					with Not_found ->
-						loop tl
-			in
-			loop tl
-		| CUnknown ->
-			if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then begin
-				ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
-			end;
-			let f = mk_field() in
-			Monomorph.add_constraint r (MField f);
-			Monomorph.add_constraint r MOpenStructure;
-			access f
-		end
-	| TAbstract (a,pl) ->
-		let static_abstract_access_through_instance = ref false in
-		(try
-			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
-			let f = PMap.find i c.cl_statics in
-			if not (has_class_field_flag f CfImpl) then begin
-				static_abstract_access_through_instance := true;
-				raise Not_found;
-			end;
-			field_access ctx mode f (FHAbstract(a,pl,c)) e p
-		with Not_found -> try
-			if does_forward a false then
-				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
-				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode with_type
-			else
+					field_access f FHAnon
+				)
+			| CTypes tl ->
+				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+			| CUnknown ->
+				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
+					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
+				let f = mk_field() in
+				Monomorph.add_constraint r (MField f);
+				Monomorph.add_constraint r MOpenStructure;
+				field_access f FHAnon
+			)
+		| TAbstract (a,tl) ->
+			(try
+				let c = find_some a.a_impl in
+				let f = PMap.find i c.cl_statics in
+				if not (has_class_field_flag f CfImpl) then raise Not_found;
+				field_access f (FHAbstract (a,tl,c))
+			with Not_found ->
+				type_field_by_forward_member type_field_by_type e a tl
+			)
+		| _ -> raise Not_found
+	in
+	let type_field_by_extension f t e =
+		let check_constant_struct = ref false in
+		let loop = type_field_by_list (fun (c,pc) ->
+			try
+				let cf = PMap.find i c.cl_statics in
+				if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (has_class_field_flag cf CfImpl) then raise Not_found;
+				let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
+				let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
+				match cft with
+				| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
+					if t == t_dynamic && follow t0 != t then raise Not_found;
+					let e = unify_static_extension ctx e t0 p in
+					ImportHandling.mark_import_position ctx pc;
+					AKUsingField (make_static_extension_access c cf e false p)
+				| _ -> raise Not_found
+			with Unify_error el | Error (Unify el,_) ->
+				check_constant_struct := !check_constant_struct || List.exists (function
+					| Has_extra_field _ -> true
+					| _ -> false
+				) el;
 				raise Not_found
-		with Not_found -> try
-			using_field ctx mode e i p
-		(* TODO: not sure what this is/was doing (see #9680) *)
-		(* with Not_found -> try
-			(match ctx.curfun, e.eexpr with
-			| FunMemberAbstract, TConst (TThis) -> type_field cfg ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-			| _ -> raise Not_found) *)
-		with Not_found -> try
-			let get_resolve is_write =
-				let c,cf = match a.a_impl,(if is_write then a.a_write else a.a_read) with
-					| Some c,Some cf -> c,cf
+		) in
+		try
+			f loop
+		with Not_found when !check_constant_struct ->
+			remove_constant_flag t (function
+				| true -> f loop
+				| false -> raise Not_found)
+	in
+	let rec type_field_by_type_extension e t =
+		if is_set then raise Not_found;
+		let type_field_by_extension () = type_field_by_extension (fun loop ->
+			let mt = try module_type_of_type t with Exit -> raise Not_found in
+			loop (t_infos mt).mt_using
+		) t e in
+		match t with
+		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
+		| TMono _ -> raise Not_found
+		| TAbstract (a,tl) ->
+			(try
+				type_field_by_extension()
+			with Not_found ->
+				type_field_by_forward_member type_field_by_type_extension e a tl
+			)
+		| _ -> type_field_by_extension()
+	in
+	let rec type_field_by_module_extension e t =
+		if is_set then raise Not_found;
+		let type_field_by_extension () = type_field_by_extension (fun loop ->
+			try
+				loop ctx.m.module_using
+			with Not_found ->
+				match loop ctx.g.global_using with
+				| AKUsingField { se_access = { fa_host = FHStatic c } } as acc ->
+					add_dependency ctx.m.curmod c.cl_module;
+					acc
+				| _ -> die "" __LOC__
+		) t e in
+		match t with
+		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
+		| TMono r ->
+			(match Monomorph.classify_constraints r with
+			| CStructural (_,is_open) when not is_open -> type_field_by_extension()
+			| _ -> raise Not_found
+			)
+		| TAbstract (a,tl) ->
+			(try
+				type_field_by_extension()
+			with Not_found ->
+				type_field_by_forward_member type_field_by_module_extension e a tl
+			)
+		| _ -> type_field_by_extension()
+	in
+	let rec type_field_by_fallback e t =
+		match t with
+		| TInst (c,tl) ->
+			(try
+				let rec loop c tl = match c with
+					| { cl_dynamic = Some t } -> AKExpr (mk (TField (e,FDynamic i)) (apply_params c.cl_params tl t) p)
+					| { cl_super = Some (c,tl) } -> loop c tl
 					| _ -> raise Not_found
 				in
-				let sea = make_abstract_static_extension_access a pl c cf e false p in
+				loop c tl
+			with Not_found when PMap.mem i c.cl_statics ->
+				error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
+			)
+		| TDynamic t ->
+			AKExpr (mk (TField (e,FDynamic i)) t p)
+		| TAbstract (a,tl) ->
+			(try
+				if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
+				let c = find_some a.a_impl in
+				let f = find_some (if is_set then a.a_write else a.a_read) in
+				let sea = make_abstract_static_extension_access a tl c f e false p in
 				AKResolve(sea,i)
+			with Not_found -> try
+				type_field_by_forward_member type_field_by_fallback e a tl
+			with Not_found when not (has_class_field_flag (PMap.find i (find_some a.a_impl).cl_statics) CfImpl) ->
+				error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
+			)
+		| _ -> raise Not_found
+	in
+	let t = follow e.etype in
+	try
+		type_field_by_type e t
+	with Not_found -> try
+		type_field_by_type_extension e t
+	with Not_found -> try
+		type_field_by_module_extension e t
+	with Not_found -> try
+		type_field_by_fallback e t
+	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
+		if not ctx.untyped then begin
+			let has_special_field a =
+				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
+				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
+				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
 			in
-			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
-			get_resolve (is_set)
-		with Not_found ->
-			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
-			else no_field())
-	| _ ->
-		try using_field ctx mode e i p with Not_found -> no_field()
+			match t with
+			| TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a } } }
+			| TInst ({ cl_kind = KAbstractImpl a },_)
+			| TAbstract (a,_) when has_special_field a ->
+				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
+				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
+			| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
+				display_error ctx ("Static access to instance field " ^ i ^ " is not allowed") pfield;
+			| _ ->
+				let tthis = e.etype in
+				try
+					if not (Diagnostics.is_diagnostics_run ctx.com pfield) then raise Exit;
+					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
+				with Exit ->
+					display_error ctx (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
+		end;
+		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 
