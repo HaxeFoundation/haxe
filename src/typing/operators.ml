@@ -109,8 +109,8 @@ module BinopResult = struct
 				| false ->
 					e1,e2
 				| true ->
-					let eloc1 = vr#as_var "lhs" e1 in
-					let eloc2 = vr#as_var "rhs" e2 in
+					let eloc1 = vr#as_var "lhs" e2 in
+					let eloc2 = vr#as_var "rhs" e1 in
 					eloc2,eloc1
 			in
 			let e = mk (TBinop(bn.binop_op,e1,e2)) bn.binop_type bn.binop_pos in
@@ -459,10 +459,15 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 				end;
 			end;
 			BinopResult.create_normal op e1 e2 tret needs_assign swapped p
-		end else begin
-			let el = if swapped then [e2;e1] else [e1;e2] in
-			BinopResult.create_special (make_static_call ctx c cf map el tret p) needs_assign
-		end
+		end else if swapped then begin
+			let vr = new value_reference ctx in
+			let e2' = vr#as_var "lhs" e2 in
+			let e1' = vr#as_var "rhs" e1 in
+			let e = make_static_call ctx c cf map [e1';e2'] tret p in
+			let e = vr#to_texpr e in
+			BinopResult.create_special e needs_assign
+		end else
+			BinopResult.create_special (make_static_call ctx c cf map [e1;e2] tret p) needs_assign
 	in
 	(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		it with the first type to preserve comparison semantics. *)
@@ -510,12 +515,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 							check_null e1 t1;
 						end;
 						let needs_assign = is_assign_op && op_cf = op in
-						let e = if not swapped then
-							make e1 e2 needs_assign false
-						else begin
-							make e2 e1 needs_assign true
-						end in
-						e
+						make e1 e2 needs_assign swapped
 					in
 					begin try
 						check e1 e2 false
