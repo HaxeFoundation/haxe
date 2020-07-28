@@ -244,6 +244,13 @@ let class_field ctx c tl name p =
 let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let pfield = if e.epos = p then p else { p with pmin = p.pmax - (String.length i) } in
 	let is_set = match mode with MSet _ -> true | _ -> false in
+	let field_access e f fmode = field_access ctx mode f fmode e p in
+	let class_field_with_access e c tl =
+		let c2, t, f = class_field ctx c tl i p in
+		let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
+		let acc = field_access e f fmode in
+		f, acc
+	in
 	let find_some = function
 		| Some x -> x
 		| None -> raise Not_found
@@ -273,45 +280,33 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
 		type_field_by_forward f Meta.Forward a
 	in
-	let type_field_by_interfaces c =
-		let rec loop cl = match cl with
-			| [] ->
-				raise Not_found
-			| (ci,tl) :: cl ->
-				begin try
-					let c2, t, f = class_field ctx ci tl i p in
-					let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
-					(* It should be fine to just add the field to our class to make future lookups a bit faster. *)
-					TClass.add_field c f;
-					field_access ctx mode f fmode e p
-				with Not_found ->
-					loop cl
-				end
-		in
-		loop c.cl_implements
+	let type_field_by_interfaces e c =
+		(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field
+		   generation. We instead do this lazily here by browsing the implemented interfaces (issue #9768). *)
+		if not (has_class_flag c CExtern && Meta.has Meta.LibType c.cl_meta) then raise Not_found;
+		type_field_by_list (fun (ci,tl) ->
+			let f, acc = class_field_with_access e ci tl in
+			(* It should be fine to just add the field to our class to make future lookups a bit faster. *)
+			TClass.add_field c f;
+			acc
+		) c.cl_implements
 	in
 	let rec type_field_by_type e t =
-		let field_access f fmode = field_access ctx mode f fmode e p in
+		let field_access = field_access e in
 		match t with
 		| TInst (c,tl) ->
 			(try
-				let c2, t, f = class_field ctx c tl i p in
-				let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
-				field_access f fmode
-			with Not_found ->
+				snd (class_field_with_access e c tl)
+			with Not_found -> try
 				match c.cl_kind with
 				| KTypeParameter tl ->
 					type_field_by_list (fun t -> match follow t with
 						| TAbstract _ -> type_field_by_e type_field_by_type (mk_cast e t p);
 						| _ -> raise Not_found
 					) tl
-				| _ ->
-					(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field
-					   generation. We instead do this lazily here by browsing the implemented interfaces (issue #9768). *)
-					if has_class_flag c CExtern && Meta.has Meta.LibType c.cl_meta then
-						type_field_by_interfaces c
-					else
-						raise Not_found
+				| _ -> raise Not_found
+			with Not_found ->
+				type_field_by_interfaces e c
 			)
 		| TAnon a ->
 			(try
