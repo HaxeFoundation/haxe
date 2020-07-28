@@ -189,10 +189,9 @@ class FileSystem {
 	/**
 		Set path permissions.
 
-		If `recursive` is `true` and `path` points to a directory: apply `permissions`
-		recursively to the directory contents as well.
+		If `path` is a symbolic link it is dereferenced.
 	**/
-	static public function setPermissions(path:FilePath, permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
