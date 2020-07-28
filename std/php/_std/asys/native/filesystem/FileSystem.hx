@@ -8,6 +8,7 @@ import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import php.Global.*;
 import php.Syntax;
+import php.NativeArray;
 import php.Resource;
 
 /**
@@ -200,9 +201,6 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Remove an empty directory.
-	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var success = try {
@@ -219,11 +217,21 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Get file or directory information at the given path.
-	**/
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				stat(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to stat'), path));
+				case _:
+					callback.success(phpStatToHx(result));
+			}
+		});
 	}
 
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
@@ -342,6 +350,23 @@ class FileSystem {
 		});
 	}
 
+	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				lstat(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to stat'), path));
+				case _:
+					callback.success(phpStatToHx(result));
+			}
+		});
+	}
+
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		EntryPoint.runInMainThread(() -> {
 			if(!overwrite && file_exists(cast destination)) {
@@ -399,5 +424,23 @@ class FileSystem {
 		if(f == false)
 			throw new FsException(CustomError('Cannot open file'), file);
 		return f;
+	}
+
+	static function phpStatToHx(phpStat:NativeArray):FileInfo {
+		return {
+			atime: phpStat['atime'],
+			mtime: phpStat['mtime'],
+			ctime: phpStat['ctime'],
+			dev: phpStat['dev'],
+			gid: phpStat['gid'],
+			uid: phpStat['uid'],
+			ino: phpStat['ino'],
+			mode: phpStat['mode'],
+			nlink: phpStat['nlink'],
+			rdev: phpStat['rdev'],
+			size: phpStat['size'],
+			blksize: phpStat['blksize'],
+			blocks: phpStat['blocks']
+		}
 	}
 }

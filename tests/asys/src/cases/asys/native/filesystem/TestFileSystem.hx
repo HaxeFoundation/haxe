@@ -343,6 +343,38 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	function testInfo(async:Async) {
+		asyncAll(async,
+			FileSystem.info('test-data/sub/hello.world', (e, r) -> {
+				if(noException(e)) {
+					equals(13, r.size);
+					isTrue(r.isFile());
+					isFalse(r.isDirectory());
+					isFalse(r.isSymbolicLink());
+				}
+			}),
+			FileSystem.info('test-data/symlink', (e, r) -> {
+				if(noException(e)) {
+					equals(13, r.size);
+					isTrue(r.isFile());
+					isFalse(r.isDirectory());
+					isFalse(r.isSymbolicLink());
+				}
+			}),
+			FileSystem.info('test-data/sub', (e, r) -> {
+				if(noException(e)) {
+					isFalse(r.isFile());
+					isTrue(r.isDirectory());
+					isFalse(r.isSymbolicLink());
+				}
+			}),
+			FileSystem.info('non-existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
 	function testIsLink(async:Async) {
 		asyncAll(async,
 			FileSystem.isLink('test-data/symlink', (e, r) -> {
@@ -375,6 +407,22 @@ class TestFileSystem extends Test {
 					equals('test-data/sub/hello.world', cast(e, FsException).path.toString());
 			}),
 			FileSystem.readLink('non-existent', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
+	function testLinkInfo(async:Async) {
+		asyncAll(async,
+			FileSystem.linkInfo('test-data/symlink', (e, r) -> {
+				if(noException(e)) {
+					isFalse(r.isFile());
+					isFalse(r.isDirectory());
+					isTrue(r.isSymbolicLink());
+				}
+			}),
+			FileSystem.linkInfo('non-existent', (e, r) -> {
 				if(isOfType(e, FsException))
 					equals('non-existent', cast(e, FsException).path.toString());
 			})
