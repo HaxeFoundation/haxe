@@ -309,3 +309,5 @@ let handle_abstract_casts ctx e =
 			Type.map_expr (loop ctx) e
 	in
 	loop ctx e
+;;
+Typecore.cast_or_unify_raise_ref := cast_or_unify_raise
