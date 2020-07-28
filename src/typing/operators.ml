@@ -591,8 +591,8 @@ let type_assign ctx e1 e2 with_type p =
 	| AKExpr e1  ->
 		assign_to e1
 	| AKAccessor fa ->
-		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-		dispatcher#setter_call fa [] [e2]
+		let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+		dispatcher#accessor_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let e2 = type_rhs WithType.value in
 		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
@@ -666,8 +666,8 @@ let type_assign_op ctx op e1 e2 with_type p =
 	let set vr fa t_lhs r_rhs el =
 		let assign e_rhs =
 			let e_rhs = AbstractCast.cast_or_unify ctx t_lhs e_rhs p in
-			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-			dispatcher#setter_call fa (el @ [e_rhs]) [];
+			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+			dispatcher#accessor_call fa (el @ [e_rhs]) [];
 		in
 		let e = BinopResult.to_texpr vr r_rhs assign in
 		vr#to_texpr e
@@ -868,15 +868,15 @@ let type_unop ctx op flag e p =
 			let fa = {fa with fa_on = ef} in
 			let e_lhs,e_out = read_on vr ef fa in
 			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
-			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
-			let e = dispatcher#setter_call fa [e_op] [] in
+			let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
+			let e = dispatcher#accessor_call fa [e_op] [] in
 			generate vr e_out e
 		| AKUsingAccessor sea ->
 			let ef,vr = process_lhs_expr ctx "fh" sea.se_this in
 			let e_lhs,e_out = read_on vr ef sea.se_access in
 			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
-			let dispatcher = new call_dispatcher ctx (MCall []) WithType.value p in
-			let e = dispatcher#setter_call sea.se_access [ef;e_op] [] in
+			let dispatcher = new call_dispatcher ctx (MSet None) WithType.value p in
+			let e = dispatcher#accessor_call sea.se_access [ef;e_op] [] in
 			generate vr e_out e
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			begin try
