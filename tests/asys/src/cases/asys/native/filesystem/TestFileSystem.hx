@@ -222,6 +222,18 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	function testSetPermissions(async:Async) {
+		asyncAll(async,
+			FileSystem.setPermissions('test-data/temp', [0, 7, 7, 7], (e, r) -> {
+				noException(e);
+			}),
+			FileSystem.setPermissions('non-existent', [0, 7, 7, 7], (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('non-existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
 	@:depends(testIsDirectory)
 	function testCreateDirectory(async:Async) {
 		asyncAll(async,
