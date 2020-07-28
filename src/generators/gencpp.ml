@@ -1749,7 +1749,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
       | TAbstract (abs,pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
          cpp_type_from_path stack ctx abs.a_path pl (fun () ->
-               cpp_type_of stack ctx (Abstract.get_underlying_type abs pl) )
+               cpp_type_of stack ctx (Abstract.get_underlying_type ~return_first:true abs pl) )
 
       | TAbstract (a,params) ->
          cpp_type_from_path stack ctx a.a_path params (fun () ->
