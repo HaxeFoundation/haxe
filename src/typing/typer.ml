@@ -992,7 +992,7 @@ and type_new ctx path el with_type force_inline p =
 		end;
 		unify_constructor_call c fa
 	in
-	try begin match t with
+	try begin match Abstract.follow_with_forward_ctor t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
  		begin match get_constructible_constraint ctx tl p with
@@ -1004,7 +1004,7 @@ and type_new ctx path el with_type force_inline p =
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let fcc = build_constructor_call (Some a) c tl in
-		fcc.fc_data ();
+		{ (fcc.fc_data()) with etype = t }
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 		let fcc = build_constructor_call None c params in
 		let el = List.map fst fcc.fc_args in
