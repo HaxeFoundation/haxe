@@ -83,8 +83,6 @@ type field_init_ctx = {
 	mutable expr_presence_matters : bool;
 }
 
-let locate_macro_error = ref true
-
 let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
@@ -668,6 +666,19 @@ let transform_field (ctx,cctx) c f fields p =
 		| _ -> ());
 	f
 
+let type_var_field ctx t e stat do_display p =
+	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
+	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+	let e = type_expr ctx e (WithType.with_type t) in
+	let e = AbstractCast.cast_or_unify ctx t e p in
+	match t with
+	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
+	| _ -> e
+
+let type_var_field ctx t e stat do_display p =
+	let save = TypeloadFunction.save_field_state ctx in
+	Std.finally save (type_var_field ctx t e stat do_display) p
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -806,7 +817,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				r := lazy_processing (fun() -> t);
 				cctx.context_init#run;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
-				let e = TypeloadFunction.type_var_field ctx t e fctx.is_static fctx.is_display_field p in
+				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
 					| _ -> !analyzer_run_on_expr_ref ctx.com e

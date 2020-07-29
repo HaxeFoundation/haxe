@@ -57,19 +57,6 @@ let save_field_state ctx =
 		ctx.in_function <- old_in_function;
 	)
 
-let type_var_field ctx t e stat do_display p =
-	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
-	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-	let e = type_expr ctx e (WithType.with_type t) in
-	let e = AbstractCast.cast_or_unify ctx t e p in
-	match t with
-	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
-	| _ -> e
-
-let type_var_field ctx t e stat do_display p =
-	let save = save_field_state ctx in
-	Std.finally save (type_var_field ctx t e stat do_display) p
-
 let type_function_params ctx fd fname p =
 	let params = ref [] in
 	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;

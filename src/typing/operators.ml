@@ -4,8 +4,10 @@ open Type
 open TyperBase
 open Typecore
 open Error
+open CallUnification
 open Calls
 open Fields
+open FieldAccess
 
 class value_reference (ctx : typer) =
 
