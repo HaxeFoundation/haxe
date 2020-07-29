@@ -456,7 +456,10 @@ let rec can_access ctx c cf stat =
 		true
 	else if c == ctx.curclass then
 		true
-	else
+	else match ctx.m.curmod.m_statics with
+		| Some c' when c == c' ->
+			true
+		| _ ->
 	(* has metadata path *)
 	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
