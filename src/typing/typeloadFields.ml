@@ -429,8 +429,9 @@ let apply_macro ctx mode path el p =
 	ctx.g.do_macro ctx mode cpath meth el p
 
 let build_module_def ctx mt meta fvars context_init fbuild =
+	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
 	let loop f_build = function
-		| Meta.Build,args,p -> (fun () ->
+		| Meta.Build,args,p when not is_typedef -> (fun () ->
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
