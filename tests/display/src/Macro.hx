@@ -21,6 +21,7 @@ class Macro {
 			} else {
 				doc += field.doc;
 			}
+			doc = StringTools.replace(doc, "**\\/", "**/");
 			var transform = Marker.extractMarkers(doc);
 			var markers = transform.markers.length > 0 ? macro $a{transform.markers} : macro new Map();
 			var filename = Context.getPosInfos(c.pos).file;
