@@ -280,7 +280,6 @@ let module_pass_1 ctx m tdecls loadp =
 		| ETypedef d ->
 			let name = fst d.d_name in
 			check_type_name name d.d_meta;
-			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv d.d_meta p in
@@ -841,6 +840,7 @@ let init_module_type ctx context_init (decl,p) =
 			| None -> Monomorph.bind r tt;
 			| Some _ -> die "" __LOC__);
 		| _ -> die "" __LOC__);
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> error "@:build on typedef is not allowed" p);
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
