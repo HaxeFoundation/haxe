@@ -689,14 +689,16 @@ let type_assign_op ctx op e1 e2 with_type p =
 		)
 	| AKUsingField _ ->
 		error "Invalid operation" p
-	| AKField fa ->
-		let e,vr = process_lhs_expr ctx "fh" (FieldAccess.get_field_expr fa FWrite) in
-		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
-		assign vr e e_rhs
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
 		assign vr e e_rhs
+	| AKField fa ->
+		let vr = new value_reference ctx in
+		let ef = vr#get_expr_part "fh" fa.fa_on in
+		let _,e_rhs = field_rhs op fa.fa_field ef in
+		let e_lhs = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
+		assign vr e_lhs e_rhs
 	| AKAccessor fa ->
 		let vr = new value_reference ctx in
 		let ef = vr#get_expr_part "fh" fa.fa_on in
