@@ -1332,6 +1332,10 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						), p))
 			in
 			let t2, f2 = get_overload overloads in
+			f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
+				| Meta.Deprecated -> meta :: acc
+				| _ -> acc
+			) f2.cf_meta f.cff_meta;
 			(* Now that we know there is a field, we have to delay the actual unification even further. The reason is that unification could resolve
 			   TLazy, which would then cause field typing before we're done with our PConnectField pass. This could cause interface fields to not
 			   be generated in time. *)
@@ -1345,10 +1349,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					unify_raise ctx t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 						display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
-					f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
-						| Meta.Deprecated -> meta :: acc
-						| _ -> acc
-					) f2.cf_meta f.cff_meta;
 				with Error (Unify l,p) ->
 					raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			)
