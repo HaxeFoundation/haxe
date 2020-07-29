@@ -43,7 +43,7 @@ class Issue9778 {
 	@:js('
 		var c = new issues_Issue9778Class();
 		c.set_x(c.get_x() + 1);
-		c.y += 1;
+		c.y = c.get_y() + 1;
 		c.set_z(c.z + 1);
 		c.set_x(c.get_x() + 1);
 		c.y = c.get_y() + 1;
@@ -71,7 +71,7 @@ class Issue9778 {
 		var fh = c.next;
 		fh.set_x(fh.get_x() + 1);
 		var fh = c.next;
-		fh.y += 1;
+		fh.y = fh.get_y() + 1;
 		var fh = c.next;
 		fh.set_z(fh.z + 1);
 		var fh = c.next;
@@ -104,7 +104,7 @@ class Issue9778 {
 	@:js('
 		var c = new issues_Issue9778Class();
 		issues_Issue9778.use(c.set_x(c.get_x() + 1));
-		issues_Issue9778.use(c.y += 1);
+		issues_Issue9778.use(c.y = c.get_y() + 1);
 		issues_Issue9778.use(c.set_z(c.z + 1));
 		issues_Issue9778.use(c.set_x(c.get_x() + 1));
 		issues_Issue9778.use(c.y = c.get_y() + 1);
