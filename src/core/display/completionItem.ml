@@ -193,7 +193,7 @@ module CompletionModuleType = struct
 			with Not_found ->
 				No
 		in
-		let is_extern,is_final,kind,ctor = match mt with
+		let rec ctor_info = function
 			| TClassDecl c ->
 				(has_class_flag c CExtern),has_class_flag c CFinal,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
@@ -202,13 +202,20 @@ module CompletionModuleType = struct
 				let kind,ctor = match follow td.t_type with
 					| TAnon _ -> Struct,No
 					| TInst(c,_) -> TypeAlias,ctor c
-					| TAbstract(a,_) -> TypeAlias,actor a
+					| TAbstract(a,_) -> let _,_,_,ctor = ctor_info (TAbstractDecl a) in TypeAlias,ctor
 					| _ -> TypeAlias,No
 				in
 				false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if a.a_enum then EnumAbstract else Abstract),actor a
+				let kind = if a.a_enum then EnumAbstract else Abstract in
+				let is_extern,is_final,ctor = match Abstract.follow_with_forward_ctor (TAbstract(a,List.map snd a.a_params)) with
+					| TInst(c,_) -> let is_extern,is_final,_,ctor = ctor_info (TClassDecl c) in is_extern,is_final,ctor
+					| TAbstract(a,_) -> false,false,actor a
+					| _ -> false,false,No
+				in
+				is_extern,is_final,kind,ctor
 		in
+		let is_extern,is_final,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
 			| TInst(c,_) -> {
