@@ -106,7 +106,7 @@ let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 						in
 						AccessorFound (forward cf_acc new_host)
 					with Not_found ->
-						AccessorAnon
+						if has_class_flag c CExtern then AccessorAnon else AccessorNotFound
 					end
 				| FHAbstract(a,tl,c) ->
 					begin try
