@@ -1775,7 +1775,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
-		type_unop ctx op flag e p
+		type_unop ctx op flag e with_type p
 	| EFunction (kind,f) ->
 		type_local_function ctx kind f with_type p
 	| EUntyped e ->
