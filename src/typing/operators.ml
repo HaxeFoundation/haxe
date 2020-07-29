@@ -21,19 +21,27 @@ object(self)
 		DynArray.add vars (v,e);
 		mk (TLocal v) v.v_type v.v_pos
 
+	method private get_expr_aux depth name e =
+		let rec loop depth name e = match (Texpr.skip e).eexpr with
+			| TLocal _ | TTypeExpr _ | TConst _ ->
+				e
+			| TField(ef,fa) when depth = 0 ->
+				let ef = loop (depth + 1) "fh" ef in
+				{e with eexpr = TField(ef,fa)}
+			| TArray(e1,e2) when depth = 0 ->
+				let e1 = loop (depth + 1) "base" e1 in
+				let e2 = loop (depth + 1) "index" e2 in
+				{e with eexpr = TArray(e1,e2)}
+			| _ ->
+				self#as_var name e
+		in
+		loop depth name e
+
 	method get_expr name e =
-		match (Texpr.skip e).eexpr with
-		| TLocal _ | TTypeExpr _ | TConst _ ->
-			e
-		| TField(ef,fa) ->
-			let ef = self#get_expr "fh" ef in
-			{e with eexpr = TField(ef,fa)}
-		| TArray(e1,e2) ->
-			let e1 = self#get_expr "base" e1 in
-			let e2 = self#get_expr "index" e2 in
-			{e with eexpr = TArray(e1,e2)}
-		| _ ->
-			self#as_var name e
+		self#get_expr_aux 0 name e
+
+	method get_expr_part name e =
+		self#get_expr_aux 1 name e
 
 	method to_texpr e =
 		begin match self#get_vars with
@@ -643,7 +651,6 @@ let process_lhs_expr ctx name e_lhs =
 	let e = vr#get_expr name e_lhs in
 	e,vr
 
-
 let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs_by_name op name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
@@ -691,7 +698,8 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
 		assign vr e e_rhs
 	| AKAccessor fa ->
-		let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
+		let vr = new value_reference ctx in
+		let ef = vr#get_expr_part "fh" fa.fa_on in
 		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
 		set vr {fa with fa_on = ef} t_lhs e_rhs []
 	| AKUsingAccessor sea ->
@@ -760,7 +768,7 @@ let type_binop ctx op e1 e2 is_assign_op with_type p =
 	| _ ->
 		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
 
-let type_unop ctx op flag e p =
+let type_unop ctx op flag e with_type p =
 	let try_abstract_unop_overloads e = match follow e.etype with
 		| TAbstract ({a_impl = Some c} as a,tl) ->
 			let rec loop opl = match opl with
@@ -832,11 +840,17 @@ let type_unop ctx op flag e p =
 	| Increment | Decrement ->
 		let binop = if op = Increment then OpAdd else OpSub in
 		let e_one = mk (TConst (TInt Int32.one)) ctx.t.tint p in
+		let maybe_tempvar_postfix vr e_lhs =
+			if flag = Postfix && with_type <> WithType.no_value then begin
+				let e_lhs = vr#get_expr "lhs" e_lhs in
+				e_lhs,Some (vr#as_var "postfix" e_lhs)
+			end else
+				e_lhs,None
+		in
 		let read_on vr ef fa =
 			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
 			let e_lhs = acc_get ctx access_get p in
-			let e_lhs = vr#get_expr "lhs" e_lhs in
-			let e_out = if flag = Prefix then None else Some (vr#as_var "postfix" e_lhs) in
+			let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 			e_lhs,e_out
 		in
 		let generate vr e_out e = match e_out with
@@ -850,7 +864,8 @@ let type_unop ctx op flag e p =
 		| AKExpr e ->
 			find_overload_or_make e
 		| AKField fa ->
-			let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
+			let vr = new value_reference ctx in
+			let ef = vr#get_expr_part "fh" fa.fa_on in
 			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
 			let e,e_out = match access_get with
 			| AKField _ ->
@@ -859,14 +874,14 @@ let type_unop ctx op flag e p =
 			| _ ->
 				let e_set = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
 				let e_lhs = acc_get ctx access_get p in
-				let e_lhs = vr#get_expr "lhs" e_lhs in
-				let e_out = if flag = Prefix then None else Some (vr#as_var "postfix" e_lhs) in
+				let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 				let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
 				mk (TBinop(OpAssign,e_set,e_op)) e_set.etype p,e_out
 			in
 			generate vr e_out e
 		| AKAccessor fa ->
-			let ef,vr = process_lhs_expr ctx "fh" fa.fa_on in
+			let vr = new value_reference ctx in
+			let ef = vr#get_expr_part "fh" fa.fa_on in
 			let fa = {fa with fa_on = ef} in
 			let e_lhs,e_out = read_on vr ef fa in
 			let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
