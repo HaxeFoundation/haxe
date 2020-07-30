@@ -1214,8 +1214,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	| Some p ->
 		if ctx.com.config.pf_overload then
 			add_class_field_flag cf CfOverload
+		else if fctx.field_kind = FKConstructor then
+			display_error ctx "Constructors cannot be overloaded on this target" p
+		else if (has_class_flag c CExtern || fctx.is_extern) then
+			add_class_field_flag cf CfOverload
 		else
-			display_error ctx "This platform does not support this kind of overload declaration. Try @:overload(function()... {}) instead" p
+			display_error ctx "Only extern functions may be overloaded on this target" p
 	| None ->
 		()
 	end;

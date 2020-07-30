@@ -173,7 +173,7 @@ let check_overriding ctx c f =
 		let i = f.cf_name in
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (has_class_field_flag f CfOverload) then
-				display_error ctx ("Missing @:overload declaration for field " ^ i) p);
+				display_error ctx ("Missing overload declaration for field " ^ i) p);
 			let t, f2 = get_super_field csup i in
 			check_native_name_override ctx f f2;
 			(* allow to define fields that are not defined for this platform version in superclass *)
@@ -181,10 +181,11 @@ let check_overriding ctx c f =
 			| Var { v_read = AccRequire _ } -> raise Not_found;
 			| _ -> ());
 			if (has_class_field_flag f2 CfOverload && not (has_class_field_flag f CfOverload)) then
-				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
-			else if not (has_class_field_flag f CfOverride) then
-				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
-			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
+				display_error ctx ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
+			else if not (has_class_field_flag f CfOverride) then begin
+				if has_class_flag c CExtern then add_class_field_flag f CfOverride
+				else display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
+			end else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
