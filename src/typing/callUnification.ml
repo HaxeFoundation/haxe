@@ -311,116 +311,6 @@ let unify_field_call ctx fa el_typed el p inline =
 			| fcc :: _ -> fcc
 		end
 
-let type_generic_function ctx fa el_typed el with_type p =
-	let c,stat = match fa.fa_host with
-		| FHInstance(c,tl) -> c,false
-		| FHStatic c -> c,true
-		| FHAbstract(a,tl,c) -> c,true
-		| _ -> die "" __LOC__
-	in
-	let cf = fa.fa_field in
-	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let fcc = unify_field_call ctx fa el_typed el p false in
-	begin match with_type with
-		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
-		| _ -> ()
-	end;
-	let monos = fcc.fc_monos in
-	List.iter (fun t -> match follow t with
-		| TMono m -> safe_mono_close ctx m p
-		| _ -> ()
-	) monos;
-	let el = List.map fst fcc.fc_args in
-	(try
-		let gctx = Generic.make_generic ctx cf.cf_params monos p in
-		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
-		let unify_existing_field tcf pcf = try
-			unify_raise ctx tcf fcc.fc_type p
-		with Error(Unify _,_) as err ->
-			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx (compl_msg "Conflicting field was defined here") pcf;
-			raise err
-		in
-		let fa = try
-			let cf2 = if stat then
-				let cf2 = PMap.find name c.cl_statics in
-				unify_existing_field cf2.cf_type cf2.cf_pos;
-				cf2
-			else
-				let cf2 = PMap.find name c.cl_fields in
-				unify_existing_field cf2.cf_type cf2.cf_pos;
-				cf2
-			in
-			{fa with fa_field = cf2}
-			(*
-				java.Lib.array() relies on the ability to shadow @:generic function for certain types
-				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
-			*)
-			(* if cf.cf_name_pos = cf2.cf_name_pos then
-				cf2
-			else
-				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
-		with Not_found ->
-			let finalize_field c cf2 =
-				ignore(follow cf.cf_type);
-				let rec check e = match e.eexpr with
-					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
-						display_error ctx "Only generic type parameters can be constructed" e.epos;
-						display_error ctx "While specializing this call" p;
-					| _ ->
-						Type.iter check e
-				in
-				cf2.cf_expr <- (match cf.cf_expr with
-					| None ->
-						display_error ctx "Recursive @:generic function" p; None;
-					| Some e ->
-						let e = Generic.generic_substitute_expr gctx e in
-						check e;
-						Some e
-				);
-				cf2.cf_kind <- cf.cf_kind;
-				if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
-				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
-			in
-			let mk_cf2 name =
-				mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
-			in
-			if stat then begin
-				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
-					let c = Generic.static_method_container gctx c cf p in
-					let cf2 = try
-						let cf2 = PMap.find cf.cf_name c.cl_statics in
-						unify_existing_field cf2.cf_type cf2.cf_pos;
-						cf2
-					with Not_found ->
-						let cf2 = mk_cf2 cf.cf_name in
-						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
-						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
-						finalize_field c cf2;
-						cf2
-					in
-					{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
-				end else begin
-					let cf2 = mk_cf2 name in
-					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
-					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
-					finalize_field c cf2;
-					{fa with fa_field = cf2}
-				end
-			end else begin
-				let cf2 = mk_cf2 name in
-				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
-				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
-				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
-				finalize_field c cf2;
-				{fa with fa_field = cf2}
-			end
-		in
-		let e = FieldAccess.get_field_expr fa FCall in
-		make_call ctx e el fcc.fc_ret p
-	with Generic.Generic_Exception (msg,p) ->
-		error msg p)
-
 class call_dispatcher
 	(ctx : typer)
 	(mode : access_mode)
@@ -568,7 +458,7 @@ object(self)
 		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();
 			 if has_class_field_flag fa.fa_field CfGeneric then begin
-				type_generic_function ctx fa el_typed el with_type p
+				!type_generic_function_ref ctx fa el_typed el with_type p
 			end else
 				self#make_field_call fa el_typed el
 		| Method MethMacro ->
@@ -590,3 +480,22 @@ object(self)
 				self#expr_call (FieldAccess.get_field_expr fa FCall) el
 			end
 end
+
+let maybe_reapply_overload_call ctx e =
+	match e.eexpr with
+		| TCall({eexpr = TField(e1,fa)} as ef,el) ->
+			let recall fh cf =
+				let fa = FieldAccess.create e1 cf fh false ef.epos in
+				let fcc = unify_field_call ctx fa el [] e.epos false in
+				fcc.fc_data()
+			in
+			begin match fa with
+			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
+				recall (FHStatic c) cf
+			| FInstance(c,tl,cf) when has_class_field_flag cf CfOverload ->
+				recall (FHInstance(c,tl)) cf
+			| _ ->
+				e
+			end
+		| _ ->
+			e
