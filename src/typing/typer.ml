@@ -1183,21 +1183,19 @@ and type_local_function ctx kind f with_type p =
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
-	let args = List.map (fun ((s,_),opt,_,t,c) ->
-		let t = Typeload.load_type_hint ctx p t in
-		let t, c = TypeloadFunction.type_function_arg ctx t c opt p in
-		s, c, t
-	) f.f_args in
+	let type_arg opt t p = Typeload.load_type_hint ~opt ctx p t in
+	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
+	let targs = args#for_type in
 	(match with_type with
 	| WithType.WithType(t,_) ->
 		let rec loop t =
 			(match follow t with
-			| TFun (args2,tr) when List.length args2 = List.length args ->
+			| TFun (args2,tr) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
 					match follow t1 with
 					| TMono _ -> unify ctx t2 t1 p
 					| _ -> ()
-				) args args2;
+				) targs args2;
 				(* unify for top-down inference unless we are expecting Void *)
 				begin
 					match follow tr,follow rt with
@@ -1214,7 +1212,7 @@ and type_local_function ctx kind f with_type p =
 		if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 	| _ ->
 		());
-	let ft = TFun (fun_args args,rt) in
+	let ft = TFun (targs,rt) in
 	let v = (match v with
 		| None -> None
 		| Some v ->
@@ -1228,12 +1226,11 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let fargs = TypeloadFunction.convert_fargs f in
-	let e , fargs = TypeloadFunction.type_function ctx args fargs rt curfun f.f_expr ctx.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let tf = {
-		tf_args = fargs;
+		tf_args = args#for_expr;
 		tf_type = rt;
 		tf_expr = e;
 	} in
