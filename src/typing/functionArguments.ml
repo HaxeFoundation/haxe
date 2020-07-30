@@ -49,25 +49,17 @@ let type_function_arg_value ctx t c do_display =
 			in
 			loop e
 
-let process_function_arg ctx n t c do_display check_name p =
-	if check_name && starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
-	type_function_arg_value ctx t c do_display
-
-let convert_fargs fd =
-	List.map (fun ((_,pn),_,m,_,_) -> (pn,m)) fd.f_args
-
 class function_arguments
 	(ctx : typer)
-	(from_local_function : bool)
-	(is_core_api : bool)
+	(type_arg : bool -> type_hint option -> pos -> Type.t)
 	(is_extern : bool)
-	(is_display_field : bool)
+	(do_display : bool)
 	(abstract_this : Type.t option)
 	(syntax : (placed_name * bool * metadata * type_hint option * expr option) list)
 =
 	let with_default =
 		let l = List.map (fun ((name,pn),opt,m,t,eo) ->
-			let t = if from_local_function then Typeload.load_type_hint ~opt ctx pn t else type_opt ctx is_core_api pn t in
+			let t = type_arg opt t pn in
 			let t,eo = type_function_arg ctx t eo opt pn in
 			(name,eo,t)
 		) syntax in
@@ -85,6 +77,7 @@ object(self)
 	val mutable type_repr = None
 	val mutable expr_repr = None
 
+	(* Returns the `(string * bool * Type.t) list` requires by `TFun` .*)
 	method for_type = match type_repr with
 		| Some l ->
 			l
@@ -103,13 +96,14 @@ object(self)
 			| _ ->
 				()
 
+	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not
+	   an argument should be displayed. *)
 	method for_expr = match expr_repr with
 		| Some l ->
 			l
 		| None ->
 			let make_local name t meta pn =
 				let v = alloc_var (VUser TVOArgument) name t pn in
-				if not is_extern then check_local_variable_name ctx name TVOArgument pn;
 				v.v_meta <- v.v_meta @ meta;
 				v
 			in
@@ -120,11 +114,12 @@ object(self)
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					let c = process_function_arg ctx name t eo is_display_field (not is_extern) pn in
+					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
+					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name t m pn in
-					if is_display_field && DisplayPosition.display_position#enclosed_in pn then
+					if do_display && DisplayPosition.display_position#enclosed_in pn then
 						DisplayEmitter.display_variable ctx v pn;
-					loop ((v,c) :: acc) false syntax typed
+					loop ((v,eo) :: acc) false syntax typed
 				| [],[] ->
 					List.rev acc
 				| _ ->
@@ -134,6 +129,23 @@ object(self)
 			expr_repr <- Some l;
 			l
 
+	(* Verifies the validity of any argument typed as `haxe.extern.Rest` and checks default values. *)
+	method verify_extern =
+		let rec loop is_abstract_this syntax typed = match syntax,typed with
+			| syntax,(name,_,t) :: typed when is_abstract_this ->
+				loop false syntax typed
+			| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
+				delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+				ignore(type_function_arg_value ctx t eo do_display);
+				loop false syntax typed
+			| [],[] ->
+				()
+			| _ ->
+				die "" __LOC__
+		in
+		loop (abstract_this <> None) syntax with_default
+
+	(* Brings arguments into context by adding them to `ctx.locals`. *)
 	method bring_into_context =
 		List.iter (fun (v,_) ->
 			ctx.locals <- PMap.add v.v_name v ctx.locals

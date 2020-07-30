@@ -1194,7 +1194,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let args = new FunctionArguments.function_arguments ctx false cctx.is_core_api is_extern fctx.is_display_field abstract_this fd.f_args in
+	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api p t in
+	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
@@ -1236,11 +1237,14 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.do_bind then
 		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
-		delay ctx PTypeField (fun () ->
-			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-			ignore(args#for_expr)
-		);
-		check_field_display ctx fctx c cf;
+		if fctx.is_display_field then begin
+			delay ctx PTypeField (fun () ->
+				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
+				ignore(args#for_expr)
+			);
+			check_field_display ctx fctx c cf;
+		end else
+			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
 			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
