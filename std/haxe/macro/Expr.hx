@@ -283,7 +283,7 @@ typedef Case = {
 	/**
 		The optional guard expressions of the case, if available.
 	**/
-	var ?guard:Null<Expr>;
+	var ?guard:Expr;
 
 	/**
 		The expression of the case, if available.
@@ -508,7 +508,7 @@ enum ExprDef {
 	/**
 		A `return` or `return e` expression.
 	**/
-	EReturn(?e:Null<Expr>);
+	EReturn(?e:Expr);
 
 	/**
 		A `break` expression.
@@ -647,7 +647,7 @@ typedef TypePath = {
 		Sub is set on module sub-type access:
 		`pack.Module.Type` has `name = "Module"`, `sub = "Type"`, if available.
 	**/
-	var ?sub:Null<String>;
+	var ?sub:String;
 }
 
 /**
@@ -734,7 +734,7 @@ typedef FunctionArg = {
 	/**
 		The optional value of the function argument, if available.
 	**/
-	var ?value:Null<Expr>;
+	var ?value:Expr;
 
 	/**
 		The metadata of the function argument.
@@ -780,7 +780,7 @@ typedef Field = {
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
@@ -876,7 +876,7 @@ enum FieldType {
 	/**
 		Represents a variable field type.
 	**/
-	FVar(t:Null<ComplexType>, ?e:Null<Expr>);
+	FVar(t:Null<ComplexType>, ?e:Expr);
 
 	/**
 		Represents a function field type.
@@ -886,7 +886,7 @@ enum FieldType {
 	/**
 		Represents a property with getter and setter field type.
 	**/
-	FProp(get:String, set:String, ?t:Null<ComplexType>, ?e:Null<Expr>);
+	FProp(get:String, set:String, ?t:ComplexType, ?e:Expr);
 }
 
 /**
@@ -907,7 +907,7 @@ typedef TypeDefinition = {
 		The documentation of the type, if available. If the type has no
 		documentation, the value is `null`.
 	**/
-	var ?doc:Null<String>;
+	var ?doc:String;
 
 	/**
 		The position to the type definition.

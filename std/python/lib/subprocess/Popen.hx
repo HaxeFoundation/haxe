@@ -78,7 +78,7 @@ extern class Popen {
 		universal_newlines:Bool = false, startupinfo:StartupInfo = null, creationflags:Int = 0):Void;
 
 	function kill():Void;
-	function wait(?timeout:Null<Int>):Null<Int>;
+	function wait(?timeout:Int):Null<Int>;
 	function poll():Null<Int>;
 	function terminate():Void;
 
