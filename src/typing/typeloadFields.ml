@@ -696,48 +696,6 @@ let build_fields (ctx,cctx) c fields =
 	List.iter (fun f -> f()) !pending;
 	!fields
 
-let bind_type (ctx,cctx,fctx) cf r p =
-	let c = cctx.tclass in
-	let rec is_full_type t =
-		match t with
-		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
-		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
-		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
-	in
-	let force_macro () =
-		(* force macro system loading of this class in order to get completion *)
-		delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
-	in
-	let handle_display_field () =
-		if fctx.is_macro && not ctx.in_macro then
-			force_macro()
-		else begin
-			cf.cf_type <- TLazy r;
-			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-		end
-	in
-	if ctx.com.display.dms_full_typing then begin
-		if fctx.is_macro && not ctx.in_macro then
-			force_macro ()
-		else begin
-			cf.cf_type <- TLazy r;
-			(* is_lib ? *)
-			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-		end
-	end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
-		force_macro()
-	else begin
-		if fctx.is_display_field then begin
-			handle_display_field()
-		end else begin
-			if not (is_full_type cf.cf_type) then begin
-				cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
-				cf.cf_type <- TLazy r;
-			end else if fctx.expr_presence_matters then
-				cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
-		end
-	end
-
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
 		let scope, cf = match c.cl_kind with
@@ -765,39 +723,81 @@ let check_field_display ctx fctx c cf =
 		DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 	end
 
-let bind_var (ctx,cctx,fctx) cf e =
-	let c = cctx.tclass in
-	let p = cf.cf_pos in
-	let rec get_declared f = function
-		| None -> None
-		| Some (c,a) when PMap.exists f c.cl_fields ->
-			Some (c,a)
-		| Some (c,_) ->
-			let ret = get_declared f c.cl_super in
-			match ret with
-				| Some r -> Some r
-				| None ->
-					let rec loop ifaces = match ifaces with
-						| [] -> None
-						| i :: ifaces -> match get_declared f (Some i) with
-							| Some r -> Some r
-							| None -> loop ifaces
-					in
-					loop c.cl_implements
-	in
-	if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
-			| None -> ()
-			| Some (csup,_) ->
-				(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-				if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-					error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
-	end;
-	let t = cf.cf_type in
+module TypeBinding = struct
 
-	match e with
-	| None ->
-		check_field_display ctx fctx c cf;
-	| Some e ->
+	let bind_type ctx cctx fctx cf r p =
+		let c = cctx.tclass in
+		let rec is_full_type t =
+			match t with
+			| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
+			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
+			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+		in
+		let force_macro () =
+			(* force macro system loading of this class in order to get completion *)
+			delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
+		in
+		let handle_display_field () =
+			if fctx.is_macro && not ctx.in_macro then
+				force_macro()
+			else begin
+				cf.cf_type <- TLazy r;
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
+		in
+		if ctx.com.display.dms_full_typing then begin
+			if fctx.is_macro && not ctx.in_macro then
+				force_macro ()
+			else begin
+				cf.cf_type <- TLazy r;
+				(* is_lib ? *)
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
+		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
+			force_macro()
+		else begin
+			if fctx.is_display_field then begin
+				handle_display_field()
+			end else begin
+				if not (is_full_type cf.cf_type) then begin
+					cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
+					cf.cf_type <- TLazy r;
+				end else if fctx.expr_presence_matters then
+					cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
+			end
+		end
+
+	let check_redefinition ctx cctx fctx cf =
+		let c = cctx.tclass in
+		let rec get_declared f = function
+			| None -> None
+			| Some (c,a) when PMap.exists f c.cl_fields ->
+				Some (c,a)
+			| Some (c,_) ->
+				let ret = get_declared f c.cl_super in
+				match ret with
+					| Some r -> Some r
+					| None ->
+						let rec loop ifaces = match ifaces with
+							| [] -> None
+							| i :: ifaces -> match get_declared f (Some i) with
+								| Some r -> Some r
+								| None -> loop ifaces
+						in
+						loop c.cl_implements
+		in
+		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
+				| None -> ()
+				| Some (csup,_) ->
+					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
+					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
+						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+		end
+
+	let bind_var_expression ctx cctx fctx cf e =
+		let c = cctx.tclass in
+		let t = cf.cf_type in
+		let p = cf.cf_pos in
 		if (has_class_flag c CInterface) then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -887,7 +887,71 @@ let bind_var (ctx,cctx,fctx) cf e =
 			t
 		) "bind_var" in
 		if not fctx.is_static then cctx.force_constructor <- true;
-		bind_type (ctx,cctx,fctx) cf r (snd e)
+		bind_type ctx cctx fctx cf r (snd e)
+
+	let bind_var ctx cctx fctx cf e =
+		let c = cctx.tclass in
+		check_redefinition ctx cctx fctx cf;
+		match e with
+		| None ->
+			check_field_display ctx fctx c cf;
+		| Some e ->
+			bind_var_expression ctx cctx fctx cf e
+
+	let bind_method ctx cctx fctx cf t args ret fargs e p =
+		let c = cctx.tclass in
+		let bind r =
+			r := lazy_processing (fun() -> t);
+			cctx.context_init#run;
+			incr stats.s_methods_typed;
+			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+			let fmode = (match cctx.abstract with
+				| Some _ ->
+					(match args with
+					| ("this",_,_) :: _ -> FunMemberAbstract
+					| _ when cf.cf_name = "_new" -> FunMemberAbstract
+					| _ -> FunStatic)
+				| None ->
+					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
+			) in
+			begin match ctx.com.platform with
+				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
+					if e <> None then
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+					cf.cf_expr <- None;
+					cf.cf_type <- t
+				| _ ->
+					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					let e , fargs = TypeloadFunction.type_function ctx args fargs ret fmode e fctx.is_display_field p in
+					begin match fctx.field_kind with
+					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
+					| _ -> ()
+					end;
+					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
+					(* List.iter (fun (v,_) ->
+						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
+					) fargs; *)
+					let tf = {
+						tf_args = fargs;
+						tf_type = ret;
+						tf_expr = e;
+					} in
+					if fctx.field_kind = FKInit then
+						(match e.eexpr with
+						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+						| _ -> c.cl_init <- Some e);
+					cf.cf_expr <- Some (mk (TFunction tf) t p);
+					cf.cf_type <- t;
+					check_field_display ctx fctx c cf;
+			end;
+		in
+		let maybe_bind r =
+			if not !return_partial_type then bind r;
+			t
+		in
+		let r = exc_protect ~force:false ctx maybe_bind "type_fun" in
+		bind_type ctx cctx fctx cf r p
+end
 
 let create_variable (ctx,cctx,fctx) c f t eo p =
 	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
@@ -926,7 +990,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	end;
 	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
-	bind_var (ctx,cctx,fctx) cf eo;
+	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
 let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
@@ -1201,56 +1265,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
-	let r = exc_protect ~force:false ctx (fun r ->
-		if not !return_partial_type then begin
-			r := lazy_processing (fun() -> t);
-			cctx.context_init#run;
-			incr stats.s_methods_typed;
-			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
-			let fmode = (match cctx.abstract with
-				| Some _ ->
-					(match args with
-					| ("this",_,_) :: _ -> FunMemberAbstract
-					| _ when fst f.cff_name = "_new" -> FunMemberAbstract
-					| _ -> FunStatic)
-				| None ->
-					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
-			) in
-			begin match ctx.com.platform with
-				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
-					if fd.f_expr <> None then
-						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
-					cf.cf_expr <- None;
-					cf.cf_type <- t
-				| _ ->
-					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let e , fargs = TypeloadFunction.type_function ctx args fargs ret fmode fd.f_expr fctx.is_display_field p in
-					begin match fctx.field_kind with
-					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
-					| _ -> ()
-					end;
-					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
-					(* List.iter (fun (v,_) ->
-						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
-					) fargs; *)
-					let tf = {
-						tf_args = fargs;
-						tf_type = ret;
-						tf_expr = e;
-					} in
-					if fctx.field_kind = FKInit then
-						(match e.eexpr with
-						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
-					cf.cf_expr <- Some (mk (TFunction tf) t p);
-					cf.cf_type <- t;
-					check_field_display ctx fctx c cf;
-			end;
-		end;
-		t
-	) "type_fun" in
 	if fctx.do_bind then
-		bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx cf t args ret fargs fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		delay ctx PTypeField (fun () ->
 			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
@@ -1430,7 +1446,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
-	bind_var (ctx,cctx,fctx) cf eo;
+	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
 (**

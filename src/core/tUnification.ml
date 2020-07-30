@@ -1074,6 +1074,7 @@ let type_eq param = type_eq {default_unification_context with equality_kind = pa
 
 let type_iseq_custom = type_iseq
 let type_iseq = type_iseq default_unification_context
+
 module UnifyMinT = struct
 	let collect_base_types t =
 		let tl = ref [] in
