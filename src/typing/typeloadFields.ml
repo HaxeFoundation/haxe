@@ -637,18 +637,6 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let type_opt (ctx,cctx) p t =
-	let c = cctx.tclass in
-	match t with
-	| None when (has_class_flag c CExtern) || (has_class_flag c CInterface) ->
-		display_error ctx "Type required for extern classes and interfaces" p;
-		t_dynamic
-	| None when cctx.is_core_api ->
-		display_error ctx "Type required for core api classes" p;
-		t_dynamic
-	| _ ->
-		load_type_hint ctx p t
-
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
@@ -898,7 +886,7 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx cctx fctx cf t args ret fargs e p =
+	let bind_method ctx cctx fctx cf t args ret e p =
 		let c = cctx.tclass in
 		let bind r =
 			r := lazy_processing (fun() -> t);
@@ -907,10 +895,7 @@ module TypeBinding = struct
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			let fmode = (match cctx.abstract with
 				| Some _ ->
-					(match args with
-					| ("this",_,_) :: _ -> FunMemberAbstract
-					| _ when cf.cf_name = "_new" -> FunMemberAbstract
-					| _ -> FunStatic)
+					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
 				| None ->
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
@@ -922,7 +907,7 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let e , fargs = TypeloadFunction.type_function ctx args fargs ret fmode e fctx.is_display_field p in
+					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
 					| _ -> ()
@@ -932,7 +917,7 @@ module TypeBinding = struct
 						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
 					) fargs; *)
 					let tf = {
-						tf_args = fargs;
+						tf_args = args#for_expr;
 						tf_type = ret;
 						tf_expr = e;
 					} in
@@ -1201,33 +1186,15 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
-	let rec loop args = match args with
-		| ((name,p),opt,m,t,ct) :: args ->
-			(* TODO is_lib: avoid forcing the field to be typed *)
-			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
-			delay ctx PTypeField (fun() -> match follow t with
-				| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-					if not fctx.is_extern && not (has_class_flag c CExtern) then error "Rest argument are only supported for extern methods" p;
-					if opt then error "Rest argument cannot be optional" p;
-					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
-					if args <> [] then error "Rest should only be used for the last function argument" p;
-				| _ ->
-					()
-			);
-			(name, ct, t) :: (loop args)
-		| [] ->
-			[]
-	in
-	let args = loop fd.f_args in
-	let fargs = TypeloadFunction.convert_fargs fd in
-	let args,fargs = match cctx.abstract with
+	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api p fd.f_type in
+	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
-			("this",None,a.a_this) :: args,(null_pos,[]) :: fargs
+			Some a.a_this
 		| _ ->
-			args,fargs
+			None
 	in
-	let t = TFun (fun_args args,ret) in
+	let args = new FunctionArguments.function_arguments ctx false cctx.is_core_api fctx.is_extern fctx.is_display_field abstract_this fd.f_args in
+	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1266,22 +1233,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx cf t args ret fargs fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		delay ctx PTypeField (fun () ->
 			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-			List.iter2 (fun (n,ct,t) (pn,m) ->
-				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
-				begin if ctx.com.platform = Flash && (has_class_flag c CExtern) then
-					()
-				else
-					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not (has_class_flag c CExtern) && not fctx.is_extern) pn)
-				end;
-				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
-					let v = add_local_with_origin ctx TVOArgument n t pn in
-					DisplayEmitter.display_variable ctx v pn;
-				end
-			) args fargs;
+			ignore(args#for_expr)
 		);
 		check_field_display ctx fctx c cf;
 		if fd.f_expr <> None then begin

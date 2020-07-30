@@ -27,19 +27,7 @@ open DisplayTypes.DisplayMode
 open DisplayException
 open Common
 open Error
-
-let type_function_arg ctx t e opt p =
-	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
-	(* delay ctx PTypeField (fun() ->
-		if ExtType.is_void (follow t) then
-			error "Arguments of type Void are not allowed" p
-	); *)
-	if opt then
-		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
-		ctx.t.tnull t, e
-	else
-		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
-		t, e
+open FunctionArguments
 
 let save_field_state ctx =
 	let old_ret = ctx.ret in
@@ -62,48 +50,13 @@ let type_function_params ctx fd fname p =
 	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
-let type_function_arg_value ctx t c do_display =
-	match c with
-		| None -> None
-		| Some e ->
-			let p = pos e in
-			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType.with_type t)) in
-			unify ctx e.etype t p;
-			let rec loop e = match e.eexpr with
-				| TConst _ -> Some e
-				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
-				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
-				| TCast(e,None) -> loop e
-				| _ ->
-					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
-						display_error ctx "Parameter default value should be constant" p;
-					None
-			in
-			loop e
-
-let process_function_arg ctx n t c do_display check_name p =
-	if check_name && starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
-	type_function_arg_value ctx t c do_display
-
-let convert_fargs fd =
-	List.map (fun ((_,pn),_,m,_,_) -> (pn,m)) fd.f_args
-
-let type_function ctx args fargs ret fmode e do_display p =
-	let fargs = List.map2 (fun (n,c,t) (pn,m) ->
-		let c = process_function_arg ctx n t c do_display true pn in
-		let v = add_local_with_origin ctx TVOArgument n t pn in
-		v.v_meta <- v.v_meta @ m;
-		if do_display && DisplayPosition.display_position#enclosed_in pn then
-			DisplayEmitter.display_variable ctx v pn;
-		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
-		v,c
-	) args fargs in
+let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	ctx.in_function <- true;
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	ctx.monomorphs.perfunction <- [];
+	args#bring_into_context;
 	let e = match e with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then
@@ -219,11 +172,11 @@ let type_function ctx args fargs ret fmode e do_display p =
 	List.iter (fun r -> r := Closed) ctx.opened;
 	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
-	e , fargs
+	e
 
-let type_function ctx args fargs ret fmode e do_display p =
+let type_function ctx args ret fmode e do_display p =
 	let save = save_field_state ctx in
-	Std.finally save (type_function ctx args fargs ret fmode e do_display) p
+	Std.finally save (type_function ctx args ret fmode e do_display) p
 
 let add_constructor ctx c force_constructor p =
 	let super() =
