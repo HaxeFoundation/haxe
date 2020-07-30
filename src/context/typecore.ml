@@ -203,6 +203,7 @@ let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LO
 let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
+let type_generic_function_ref : (typer -> field_access -> texpr list -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
