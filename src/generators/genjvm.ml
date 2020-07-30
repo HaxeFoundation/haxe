@@ -1480,14 +1480,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
-			let c,cf = match cf.cf_overloads with
-				| [] -> c,cf
-				| _ -> match OverloadResolution.filter_overloads (OverloadResolution.find_overload (fun t -> t) c cf el) with
-					| None ->
-						Error.error "Could not find overload" e1.epos
-					| Some(c,cf,_) ->
-						c,cf
-			in
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
@@ -1521,13 +1513,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				self#texpr rvalue_any e1;
 				false
 			in
-			begin match OverloadResolution.maybe_resolve_instance_overload false (apply_params c.cl_params tl) c cf el with
-			| None -> Error.error "Could not find overload" e1.epos
-			| Some(c,cf,_) ->
-				let tl,tr = self#call_arguments cf.cf_type el in
-				(if is_super then jm#invokespecial else if (has_class_flag c CInterface) then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (self#vtype cf.cf_type);
-				tr
-			end
+			let tl,tr = self#call_arguments cf.cf_type el in
+			(if is_super then jm#invokespecial else if (has_class_flag c CInterface) then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (method_sig tl tr);
+			tr
 		| TField(_,FEnum(en,ef)) ->
 			let tl,_ = self#call_arguments ef.ef_type el in
 			let tr = self#vtype tr in

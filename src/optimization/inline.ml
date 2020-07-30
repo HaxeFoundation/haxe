@@ -619,7 +619,24 @@ class inline_state ctx ethis params cf f p = object(self)
 				if List.memq e params then (fun t -> t)
 				else map_type
 			in
-			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
+			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
+			match e.eexpr with
+			| TCall({eexpr = TField(e1,fa)} as ef,el) ->
+				let recall fh cf =
+					let fa = FieldAccess.create e1 cf fh false ef.epos in
+					let fcc = CallUnification.unify_field_call ctx fa el [] e.epos false in
+					fcc.fc_data()
+				in
+				begin match fa with
+				| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
+					recall (FHStatic c) cf
+				| FInstance(c,tl,cf) when has_class_field_flag cf CfOverload ->
+					recall (FHInstance(c,tl)) cf
+				| _ ->
+					e
+				end
+			| _ ->
+				e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =
