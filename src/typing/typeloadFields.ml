@@ -1193,7 +1193,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| _ ->
 			None
 	in
-	let args = new FunctionArguments.function_arguments ctx false cctx.is_core_api fctx.is_extern fctx.is_display_field abstract_this fd.f_args in
+	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
+	let args = new FunctionArguments.function_arguments ctx false cctx.is_core_api is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with

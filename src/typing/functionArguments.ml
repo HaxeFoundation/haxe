@@ -96,7 +96,7 @@ object(self)
 	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
 		match follow t with
 			| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-				if not is_extern && not (has_class_flag ctx.curclass CExtern) then error "Rest argument are only supported for extern methods" pn;
+				if not is_extern then error "Rest argument are only supported for extern methods" pn;
 				if opt then error "Rest argument cannot be optional" pn;
 				begin match eo with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
 				if not is_last then error "Rest should only be used for the last function argument" pn;
@@ -109,7 +109,7 @@ object(self)
 		| None ->
 			let make_local name t meta pn =
 				let v = alloc_var (VUser TVOArgument) name t pn in
-				check_local_variable_name ctx name TVOArgument pn;
+				if not is_extern then check_local_variable_name ctx name TVOArgument pn;
 				v.v_meta <- v.v_meta @ meta;
 				v
 			in
@@ -120,7 +120,7 @@ object(self)
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					let c = process_function_arg ctx name t eo is_display_field true pn in
+					let c = process_function_arg ctx name t eo is_display_field (not is_extern) pn in
 					let v = make_local name t m pn in
 					if is_display_field && DisplayPosition.display_position#enclosed_in pn then
 						DisplayEmitter.display_variable ctx v pn;
