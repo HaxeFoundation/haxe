@@ -149,6 +149,7 @@ module Pattern = struct
 		| PatOr of pattern * pattern
 		| PatTuple of pattern list
 		| PatExtractor of tvar * texpr * pattern
+		| PatWith of (tvar * texpr) list * pattern
 
 	and pattern = t * pos
 
@@ -172,6 +173,10 @@ module Pattern = struct
 		| PatOr(pat1,pat2) -> Printf.sprintf "(%s) | (%s)" (to_string pat1) (to_string pat2)
 		| PatTuple pl -> Printf.sprintf "[%s]" (String.concat ", " (List.map to_string pl))
 		| PatExtractor(v,e,pat1) -> Printf.sprintf "%s => %s" (s_expr_pretty e) (to_string pat1)
+		| PatWith(ves,pat1) ->
+			Printf.sprintf "(%s).with(%s)" (to_string pat1) (String.concat ", " (List.map (fun (v,e) ->
+				Printf.sprintf "%s = %s" v.v_name (s_expr_pretty e)
+			) ves))
 
 	let unify_type_pattern ctx mt t p =
 		let tcl = get_general_module_type ctx mt p in
@@ -191,7 +196,7 @@ module Pattern = struct
 		let verror name p =
 			error (Printf.sprintf "Variable %s must appear exactly once in each sub-pattern" name) p
 		in
-		let add_local final name p =
+		let add_local final name t p =
 			let is_wildcard_local = name = "_" in
 			if not is_wildcard_local && pctx.is_postfix_match then error "Pattern variables are not allowed in .match patterns" p;
 			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
@@ -199,6 +204,7 @@ module Pattern = struct
 			| Some map when not is_wildcard_local ->
 				let v,p = try PMap.find name map with Not_found -> verror name p in
 				unify ctx t v.v_type p;
+				if final then add_var_flag v VFinal;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
@@ -308,7 +314,7 @@ module Pattern = struct
 								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
 						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
-					let v = add_local false s p in
+					let v = add_local false s t p in
 					PatVariable v
 				end
 		in
@@ -337,8 +343,22 @@ module Pattern = struct
 						else handle_ident i (pos e)
 				end
 			| EVars([{ ev_name = (s,p); ev_final = final; ev_type = None; ev_expr = None; }]) ->
-				let v = add_local final s p in
+				let v = add_local final s t p in
 				PatVariable v
+			| ECall((EField(epat,"with"),_),esets) ->
+				let ves = List.map (fun eset ->
+					match fst eset with
+					| EBinop (OpAssign,(EConst (Ident i),p),e) ->
+						let v = add_local false i (mk_mono()) p in
+						let unapplied = pctx.unapply_type_parameters () in
+						let e = type_expr ctx e (WithType.with_type v.v_type) in
+						reapply_type_parameters unapplied;
+						(v,e)
+					| _ ->
+						fail()
+				) esets in
+				let pat = make pctx toplevel t epat in
+				PatWith(ves,pat)
 			| ECall(e1,el) ->
 				let e1 = type_expr ctx e1 (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
@@ -477,7 +497,7 @@ module Pattern = struct
 			| EBinop(OpAssign,e1,e2) ->
 				let rec loop dko e = match e with
 					| (EConst (Ident s),p) ->
-						let v = add_local false s p in
+						let v = add_local false s t p in
 						begin match dko with
 						| None -> ()
 						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (MSet None) (WithType.with_type t) p);
@@ -492,7 +512,7 @@ module Pattern = struct
 			| EBinop(OpArrow,e1,e2) ->
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
-				let v = add_local false "_" null_pos in
+				let v = add_local false "_" t null_pos in
 				(* Tricky stuff: Extractor expressions are like normal expressions, so we don't want to deal with GADT-applied types here.
 				   Let's unapply, then reapply after we're done with the extractor (#5952). *)
 				let unapplied = pctx.unapply_type_parameters () in
@@ -757,7 +777,7 @@ module Useless = struct
 					| (PatAny,p) :: patterns2 ->
 						let patterns1 = ExtList.List.make (arity con) (PatAny,p) in
 						loop ((patterns1 @ patterns2) :: acc) pM
-					| (PatBind(_,pat1),_) :: patterns2 ->
+					| ((PatBind(_,pat1) | PatWith(_,pat1)),_) :: patterns2 ->
 						loop acc ((pat1 :: patterns2) :: pM)
 					| _ ->
 						loop acc pM
@@ -800,7 +820,7 @@ module Useless = struct
 					u d ql
 				| PatOr(pat1,pat2) ->
 					u pM (pat1 :: ql) || u pM (pat2 :: ql)
-				| PatBind(_,pat1) ->
+				| PatBind(_,pat1) | PatWith(_,pat1) ->
 					loop pat1
 				| PatExtractor _ ->
 					true (* ? *)
@@ -832,7 +852,7 @@ module Useless = struct
 						loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
 					| ((PatOr(pat1,pat2)),_) :: patterns2 ->
 						loop pAcc qAcc rAcc (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pM)) (q1 :: q1 :: qM) (r1 :: r1 :: rM)
-					| (PatBind(_,pat1),_) :: patterns2 ->
+					| ((PatBind(_,pat1) | PatWith(_,pat1)),_) :: patterns2 ->
 						loop2 (pat1 :: patterns2)
 					| _ ->
 						loop pAcc qAcc rAcc pM qM rM
@@ -901,7 +921,7 @@ module Useless = struct
 				| PatOr _ ->
 					let pM,rM = transfer_column pM rM in
 					u' pM qM rM pl q (pat :: r)
-				| PatBind(_,pat1) ->
+				| PatBind(_,pat1) | PatWith(_,pat1) ->
 					loop pat1
 				| PatExtractor _ ->
 					True
@@ -959,6 +979,8 @@ module Compile = struct
 	let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 	let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
+	let with_bindings p ves = List.map (fun (v,e) -> (v,p,e)) ves
+
 	let rec get_sub_subjects mctx e con arg_positions =
 		match fst con with
 		| ConEnum(en,ef) ->
@@ -1004,11 +1026,13 @@ module Compile = struct
 					| (PatVariable v,p) :: patterns2 ->
 						let patterns1 = ExtList.List.make arity (PatAny,p) in
 						loop ((case,((v,p,subject) :: bindings),patterns1 @ patterns2) :: acc) cases
-					| ((PatAny,_)) as pat :: patterns2 ->
+					| (PatAny,_) as pat :: patterns2 ->
 						let patterns1 = ExtList.List.make arity pat in
 						loop ((case,bindings,patterns1 @ patterns2) :: acc) cases
-					| ((PatBind(v,pat),p)) :: patterns ->
-						loop acc ((case,((v,p,subject) :: bindings),pat :: patterns) :: cases)
+					| (PatBind(v,pat1),p) :: patterns ->
+						loop acc ((case,((v,p,subject) :: bindings),pat1 :: patterns) :: cases)
+					| (PatWith(ves,pat1),p) :: patterns ->
+						loop acc ((case,((with_bindings p ves) @ bindings),pat1 :: patterns) :: cases)
 					| _ ->
 						loop acc cases
 				end
@@ -1027,8 +1051,10 @@ module Compile = struct
 						loop ((case,((v,p,subject) :: bindings),patterns) :: acc) cases
 					| (PatAny,_) :: patterns ->
 						loop ((case,bindings,patterns) :: acc) cases
-					| (PatBind(v,pat),p) :: patterns ->
-						loop acc ((case,((v,p,subject) :: bindings),pat :: patterns) :: cases)
+					| (PatBind(v,pat1),p) :: patterns ->
+						loop acc ((case,((v,p,subject) :: bindings),pat1 :: patterns) :: cases)
+					| (PatWith(ves,pat1),p) :: patterns ->
+						loop acc ((case,((with_bindings p ves) @ bindings),pat1 :: patterns) :: cases)
 					| _ ->
 						loop acc cases
 				end
@@ -1048,6 +1074,8 @@ module Compile = struct
 					true,(case,bindings,f pat2 :: patterns) :: (case,bindings,f pat1 :: patterns) :: acc
 				| (PatBind(v,pat1),p) :: patterns ->
 					loop (fun pat2 -> f (PatBind(v,pat2),p)) (pat1 :: patterns)
+				| (PatWith(ves,pat1),p) :: patterns ->
+					loop (fun pat2 -> f (PatWith(ves,pat2),p)) (pat1 :: patterns)
 				| (PatTuple patterns1,_) :: patterns2 ->
 					loop f (patterns1 @ patterns2)
 				| pat :: patterns ->
@@ -1076,6 +1104,7 @@ module Compile = struct
 	let select_column subjects cases =
 		let rec loop i patterns = match patterns with
 			| ((PatVariable _ | PatAny | PatExtractor _),_) :: patterns -> loop (i + 1) patterns
+			| ((PatBind(_,pat1) | PatWith(_,pat1)),_) :: patterns -> loop i (pat1 :: patterns)
 			| [] -> 0
 			| _ -> i
 		in
@@ -1158,7 +1187,8 @@ module Compile = struct
 						if case.case_guard = None then ConTable.replace unguarded con true;
 						let arg_positions = snd (List.split patterns) in
 						ConTable.replace sigma con arg_positions;
-					| PatBind(v,pat) -> loop ((v,pos pat,subject) :: bindings) pat
+					| PatBind(v,pat1) -> loop ((v,pos pat,subject) :: bindings) pat1
+					| PatWith(ves,pat1) -> loop ((with_bindings (pos pat) ves) @ bindings) pat1
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
 					| _ -> error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
@@ -1208,20 +1238,21 @@ module Compile = struct
 		let num_extractors,extractors = List.fold_left (fun (i,extractors) (_,_,patterns) ->
 			let rec loop bindings pat = match pat with
 				| (PatExtractor(v,e1,pat),_) -> i + 1,Some (v,e1,pat,bindings) :: extractors
-				| (PatBind(v,pat1),_) -> loop (v :: bindings) pat1
+				| (PatBind(v,pat1),p) -> loop ((v,p,subject) :: bindings) pat1
+				| (PatWith(ves,pat1),p) -> loop ((with_bindings p ves) @ bindings) pat1
 				| _ -> i,None :: extractors
 			in
 			loop [] (List.hd patterns)
 		) (0,[]) cases in
 		let pat_any = (PatAny,null_pos) in
 		let _,_,ex_subjects,cases,bindings = List.fold_left2 (fun (left,right,subjects,cases,ex_bindings) (case,bindings,patterns) extractor -> match extractor,patterns with
-			| Some(v,e1,pat,vars), _ :: patterns ->
+			| Some(v,e1,pat,binds), _ :: patterns ->
 				let rec loop e = match e.eexpr with
 					| TLocal v' when v' == v -> subject
 					| _ -> Type.map_expr loop e
 				in
 				let e1 = loop e1 in
-				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
+				let bindings = binds @ bindings in
 				begin try
 					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
 					let ev = mk (TLocal v) v.v_type e1.epos in
