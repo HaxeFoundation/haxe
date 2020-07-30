@@ -195,6 +195,9 @@ let unify_field_call ctx fa el_typed el p inline =
 						raise(Error(call_error,p))
 					end;
 					loop ((e,opt) :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
+				| [],_ :: _ ->
+					let call_error = Call_error(Too_many_arguments) in
+					raise(Error(call_error,p))
 				| _ ->
 					List.rev acc_el,List.rev acc_args,args
 			in
