@@ -954,7 +954,8 @@ module TypeBinding = struct
 end
 
 let create_variable (ctx,cctx,fctx) c f t eo p =
-	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
+	let is_abstract_enum_field = Meta.has Meta.Enum f.cff_meta in
+	if fctx.is_abstract_member && not is_abstract_enum_field then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
 	if fctx.is_final && not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))  && eo = None then begin
@@ -988,7 +989,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf.cf_meta <- ((Meta.Custom ":impl"),[],null_pos) :: cf.cf_meta;
 		add_class_field_flag cf CfImpl;
 	end;
-	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
+	if is_abstract_enum_field then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
