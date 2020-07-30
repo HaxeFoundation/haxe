@@ -346,7 +346,7 @@ module Inheritance = struct
 			try
 				let t2, f2 = class_field_no_interf c i in
 				let t2, f2 =
-					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload) then
+					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
 						let overloads = Overloads.get_overloads ctx.com c i in
 						is_overload := true;
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
@@ -403,7 +403,7 @@ module Inheritance = struct
 		in
 		let check_field i cf =
 			check_field i cf;
-			if ctx.com.config.pf_overload then
+			if has_class_field_flag cf CfOverload then
 				List.iter (check_field i) (List.rev cf.cf_overloads)
 		in
 		PMap.iter check_field intf.cl_fields

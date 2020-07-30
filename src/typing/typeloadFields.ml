@@ -1269,19 +1269,11 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 	in
 	let find_accessor m =
-		(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
-		if ctx.com.config.pf_overload then
-			if fctx.is_static then
-				let f = PMap.find m c.cl_statics in
-				(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-			else
-				Overloads.get_overloads ctx.com c m
-		else
-			[ if fctx.is_static then
-				let f = PMap.find m c.cl_statics in
-				f.cf_type, f
-			else match class_field c (List.map snd c.cl_params) m with
-				| _, t,f -> t,f ]
+		if fctx.is_static then begin
+			let cf = PMap.find m c.cl_statics in
+			(cf.cf_type,cf) :: (List.map (fun cf -> cf.cf_type,cf) cf.cf_overloads)
+		end else
+			Overloads.get_overloads ctx.com c m
 	in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
@@ -1290,24 +1282,20 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	} in
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	let check_method m t is_getter =
-		if ctx.com.display.dms_error_policy = EPIgnore then () else
-		try
+		if ctx.com.display.dms_error_policy = EPIgnore then
+			()
+		else try
 			let overloads = find_accessor m in
-			(* choose the correct overload if and only if there is more than one overload found *)
 			let rec get_overload overl = match overl with
-				| [tf] -> tf
+				| [tf] ->
+					tf
 				| (t2,f2) :: overl ->
 					if type_iseq t t2 then
 						(t2,f2)
 					else
 						get_overload overl
 				| [] ->
-					if (has_class_flag c CInterface) || Diagnostics.is_diagnostics_run ctx.com f.cff_pos then
-						raise Not_found
-					else
-						raise (Error (Custom
-							(Printf.sprintf "No overloaded method named %s was compatible with the property %s with expected type %s" m (name) (s_type (print_context()) t)
-						), p))
+					raise Not_found
 			in
 			let t2, f2 = get_overload overloads in
 			f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
