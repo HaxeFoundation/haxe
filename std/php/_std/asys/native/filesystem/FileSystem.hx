@@ -2,8 +2,6 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.EntryPoint;
-import asys.native.system.SystemUser;
-import asys.native.system.SystemGroup;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import php.Global.*;
@@ -288,24 +286,34 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Set path owner and group.
-
-		If `recursive` is `true` and `path` points to a directory: apply recursively
-		to the directory contents as well.
-	**/
-	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				chown(cast path, userId) && chgrp(cast path, groupId);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to set owner'), path));
+		});
 	}
 
-	/**
-		Set path owning group.
-
-		If `recursive` is `true` and `path` points to a directory: apply recursively
-		to the directory contents as well.
-	**/
-	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				lchown(cast path, userId) && lchgrp(cast path, groupId);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to set owner'), path));
+		});
 	}
 
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {

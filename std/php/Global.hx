@@ -726,6 +726,26 @@ extern class Global {
 	static function chmod(filename:String, mode:Int):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.chown.php
+	**/
+	static function chown(filename:String, user:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.chgrp.php
+	**/
+	static function chgrp(filename:String, group:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.lchown.php
+	**/
+	static function lchown(filename:String, user:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.lchgrp.php
+	**/
+	static function lchgrp(filename:String, group:EitherType<Int,String>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.realpath.php
 	**/
 	static function realpath(path:String):EitherType<String, Bool>;
