@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if false
+#if java
 
 overload function moduleOverload(i:Int) {
 	return "Int: " + i;
@@ -13,7 +13,7 @@ overload function moduleOverload(s:String) {
 #end
 
 class Issue9791 extends unit.Test {
-	#if false
+	#if java
 	function test() {
 		eq("Int: 12", moduleOverload(12));
 		eq("String: foo", moduleOverload("foo"));

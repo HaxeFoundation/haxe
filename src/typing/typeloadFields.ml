@@ -1621,6 +1621,7 @@ let init_class ctx c p context_init herits fields =
 					else
 						let type_kind,path = match c.cl_kind with
 							| KAbstractImpl a -> "abstract",a.a_path
+							| KModuleFields m -> "module",m.m_path
 							| _ -> "class",c.cl_path
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
