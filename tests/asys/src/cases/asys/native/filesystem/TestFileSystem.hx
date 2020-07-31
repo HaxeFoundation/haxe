@@ -441,6 +441,34 @@ class TestFileSystem extends Test {
 		);
 	}
 
+	@:depends(testReadLink, testIsLink, testReadString)
+	function testLink(async:Async) {
+		asyncAll(async,
+			FileSystem.link('../sub/hello.world', 'test-data/temp/symlink', SymLink, (e, r) -> {
+				if(noException(e))
+					FileSystem.readLink('test-data/temp/symlink', (e, r) -> {
+						if(noException(e))
+							equals('../sub/hello.world', r.toString());
+					});
+			}),
+			FileSystem.link('test-data/sub/hello.world', 'test-data/temp/hardlink', HardLink, (e, r) -> {
+				if(noException(e))
+					FileSystem.isLink('test-data/temp/hardlink', (e, r) -> {
+						if(noException(e))
+							if(isFalse(r))
+								FileSystem.readString('test-data/temp/hardlink', (e, r) -> {
+									if(noException(e))
+										equals('Hello, world!', r);
+								});
+					});
+			}),
+			FileSystem.link('../sub/hello.world', 'test-data/temp/non-existent/link', (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('test-data/temp/non-existent/link', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
 	@:depends(testReadLink, testReadBytes, testReadString)
 	function testCopyFile(async:Async) {
 		asyncAll(async,
@@ -482,30 +510,54 @@ class TestFileSystem extends Test {
 		);
 	}
 
-	@:depends(testReadLink, testIsLink, testReadString)
-	function testLink(async:Async) {
+	@:depends(testWriteString,testReadString,testReadBytes)
+	function testResize(async:Async) {
 		asyncAll(async,
-			FileSystem.link('../sub/hello.world', 'test-data/temp/symlink', SymLink, (e, r) -> {
-				if(noException(e))
-					FileSystem.readLink('test-data/temp/symlink', (e, r) -> {
-						if(noException(e))
-							equals('../sub/hello.world', r.toString());
-					});
+			FileSystem.writeString('test-data/temp/resize1', 'hello', (e, r) -> {
+				FileSystem.resize('test-data/temp/resize1', 2, (e, r) -> {
+					if(noException(e))
+						FileSystem.readString('test-data/temp/resize1', (e, r) -> equals('he', r));
+				});
 			}),
-			FileSystem.link('test-data/sub/hello.world', 'test-data/temp/hardlink', HardLink, (e, r) -> {
-				if(noException(e))
-					FileSystem.isLink('test-data/temp/hardlink', (e, r) -> {
-						if(noException(e))
-							if(isFalse(r))
-								FileSystem.readString('test-data/temp/hardlink', (e, r) -> {
-									if(noException(e))
-										equals('Hello, world!', r);
-								});
-					});
+			FileSystem.writeString('test-data/temp/resize2', 'hi', (e, r) -> {
+				FileSystem.resize('test-data/temp/resize2', 10, (e, r) -> {
+					if(noException(e)) {
+						var expected = Bytes.alloc(10);
+						expected.set(0, 'h'.code);
+						expected.set(1, 'i'.code);
+						FileSystem.readBytes('test-data/temp/resize2', (e, r) -> equals(0, expected.compare(r)));
+					}
+				});
 			}),
-			FileSystem.link('../sub/hello.world', 'test-data/temp/non-existent/link', (e, r) -> {
+			FileSystem.resize('test-data/temp/non-existent', 5, (e, r) -> {
 				if(isOfType(e, FsException))
-					equals('test-data/temp/non-existent/link', cast(e, FsException).path.toString());
+					equals('test-data/temp/non-existent', cast(e, FsException).path.toString());
+			})
+		);
+	}
+
+	@:depends(testInfo)
+	function testSetTimes(async:Async) {
+		var modificationTime = Std.int(Date.fromString('2020-01-01 00:01:02').getTime() / 1000);
+		var accessTime = Std.int(Date.fromString('2020-02-03 04:05:06').getTime() / 1000);
+		asyncAll(async,
+			FileSystem.setTimes('test-data/sub/hello.world', accessTime, modificationTime, (e, r) -> {
+				if(noException(e))
+					FileSystem.info('test-data/sub/hello.world', (e, r) -> {
+						equals(modificationTime, r.modificationTime);
+						equals(accessTime, r.accessTime);
+					});
+			}),
+			FileSystem.setTimes('test-data/temp/set-times-non-existent', accessTime, modificationTime, (e, r) -> {
+				if(noException(e))
+					FileSystem.info('test-data/temp/set-times-non-existent', (e, r) -> {
+						equals(modificationTime, r.modificationTime);
+						equals(accessTime, r.accessTime);
+					});
+			}),
+			FileSystem.setTimes('test-data/temp/non/existent/set-times', accessTime, modificationTime, (e, r) -> {
+				if(isOfType(e, FsException))
+					equals('test-data/temp/non/existent/set-times', cast(e, FsException).path.toString());
 			})
 		);
 	}
