@@ -12,8 +12,8 @@ overload function moduleOverload(s:String) {
 
 #end
 
-	#if false
 class Issue9791 extends unit.Test {
+	#if false
 	function test() {
 		eq("Int: 12", moduleOverload(12));
 		eq("String: foo", moduleOverload("foo"));
