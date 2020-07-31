@@ -5,7 +5,7 @@ import haxe.exceptions.EncodingException;
 import haxe.io.Bytes;
 import asys.native.filesystem.FilePath;
 
-class TestFilePath extends Test {
+class TestFilePath extends FsTest {
 	/**
 	 * Allocates 255 bytes with values from 1 to 255.
 	 */

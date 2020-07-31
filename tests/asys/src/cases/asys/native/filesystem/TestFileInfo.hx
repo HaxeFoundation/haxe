@@ -1,10 +1,9 @@
 package cases.asys.native.filesystem;
 
-import utest.Assert;
 import asys.native.filesystem.FileInfo;
 
-class TestFileInfo extends Test {
+class TestFileInfo extends FsTest {
 	function test() {
-		Assert.pass();
+		pass();
 	}
 }

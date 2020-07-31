@@ -8,23 +8,11 @@ import asys.native.filesystem.FilePath;
 import asys.native.filesystem.FsException;
 import asys.native.filesystem.FileSystem;
 
-class TestFileSystem extends Test {
-	function setup() {
-		var tempDir = 'test-data/temp';
-		//TODO: Find a way to create & cleanup `test-data/temp` directory without using old sys API
-		if(!sys.FileSystem.exists(tempDir))
-			sys.FileSystem.createDirectory(tempDir);
-		switch sys.FileSystem.readDirectory(tempDir) {
-			case []:
-			case _:
-				if(isWindows)
-					Sys.command('rmdir', [tempDir, '/S', '/Q'])
-				else
-					Sys.command('rm', ['-rf', tempDir]);
-				sys.FileSystem.createDirectory(tempDir);
-		}
-	}
-
+@:depends(
+	cases.asys.native.filesystem.TestFilePath,
+	cases.asys.native.filesystem.TestFilePermissions
+)
+class TestFileSystem extends FsTest {
 	/**
 	 * Expected content of `test-data/bytes.bin` file
 	 */
