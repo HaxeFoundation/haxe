@@ -277,6 +277,8 @@ class FileSystem {
 	/**
 		Change access and modification times of a file.
 
+		If the file does not exist, it is created.
+
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
 	**/
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
