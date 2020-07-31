@@ -43,6 +43,7 @@ type decl_flag =
 	| DInline
 	| DPublic
 	| DStatic
+	| DOverload
 
 type type_decl_completion_mode =
 	| TCBeforePackage
@@ -101,6 +102,7 @@ let s_decl_flag = function
 	| DInline -> "inline"
 	| DPublic -> "public"
 	| DStatic -> "static"
+	| DOverload -> "overload"
 
 let syntax_completion kind so p =
 	raise (SyntaxCompletion(kind,DisplayTypes.make_subject so p))
@@ -204,23 +206,24 @@ let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> Some HPrivate
 	| DExtern -> Some HExtern
 	| DFinal -> Some HFinal
-	| DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_class flag p
+	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p
 
 let decl_flag_to_enum_flag (flag,p) = match flag with
 	| DPrivate -> Some EPrivate
 	| DExtern -> Some EExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_enum flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p
 
 let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_abstract flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
 
 let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
+	| DOverload -> Some (AOverload,p)
 	| DExtern | DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
 let serror() = raise (Stream.Error "")
