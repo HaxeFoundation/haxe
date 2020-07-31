@@ -30,7 +30,7 @@ class Certificate {
 	var __x:Dynamic;
 
 	@:allow(sys.ssl.Socket)
-	function new(x:Dynamic, ?h:Null<Certificate>) {
+	function new(x:Dynamic, ?h:Certificate) {
 		__x = x;
 		__h = h;
 	}

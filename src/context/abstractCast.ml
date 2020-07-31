@@ -4,6 +4,7 @@ open Ast
 open Type
 open Typecore
 open Error
+open CallUnification
 
 let cast_stack = new_rec_stack()
 
@@ -308,3 +309,5 @@ let handle_abstract_casts ctx e =
 			Type.map_expr (loop ctx) e
 	in
 	loop ctx e
+;;
+Typecore.cast_or_unify_raise_ref := cast_or_unify_raise

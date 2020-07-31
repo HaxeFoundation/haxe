@@ -194,7 +194,7 @@ let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
 	let statics = ref [] in
-	let check_name name meta p =
+	let check_name name meta also_statics p =
 		DeprecationCheck.check_is com name meta p;
 		let error prev_pos =
 			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
@@ -203,12 +203,13 @@ let module_pass_1 ctx m tdecls loadp =
 		List.iter (fun (t2,(_,p2)) ->
 			if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
 		) !decls;
-		List.iter (fun (d,_) ->
-			if fst d.d_name = name then error (snd d.d_name)
-		) !statics
+		if also_statics then
+			List.iter (fun (d,_) ->
+				if fst d.d_name = name then error (snd d.d_name)
+			) !statics
 	in
 	let make_path name priv meta p =
-		check_name name meta p;
+		check_name name meta true p;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
 	let has_declaration = ref false in
@@ -223,7 +224,7 @@ let module_pass_1 ctx m tdecls loadp =
 			if !has_declaration then error "import and using may not appear after a declaration" p;
 			acc
 		| EStatic d ->
-			check_name (fst d.d_name) d.d_meta (snd d.d_name);
+			check_name (fst d.d_name) d.d_meta false (snd d.d_name);
 			has_declaration := true;
 			statics := (d,p) :: !statics;
 			acc;
@@ -280,7 +281,6 @@ let module_pass_1 ctx m tdecls loadp =
 		| ETypedef d ->
 			let name = fst d.d_name in
 			check_type_name name d.d_meta;
-			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv d.d_meta p in
@@ -841,6 +841,7 @@ let init_module_type ctx context_init (decl,p) =
 			| None -> Monomorph.bind r tt;
 			| Some _ -> die "" __LOC__);
 		| _ -> die "" __LOC__);
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in

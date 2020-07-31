@@ -83,8 +83,6 @@ type field_init_ctx = {
 	mutable expr_presence_matters : bool;
 }
 
-let locate_macro_error = ref true
-
 let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
@@ -431,8 +429,9 @@ let apply_macro ctx mode path el p =
 	ctx.g.do_macro ctx mode cpath meth el p
 
 let build_module_def ctx mt meta fvars context_init fbuild =
+	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
 	let loop f_build = function
-		| Meta.Build,args,p -> (fun () ->
+		| Meta.Build,args,p when not is_typedef -> (fun () ->
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
@@ -638,18 +637,6 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
-let type_opt (ctx,cctx) p t =
-	let c = cctx.tclass in
-	match t with
-	| None when (has_class_flag c CExtern) || (has_class_flag c CInterface) ->
-		display_error ctx "Type required for extern classes and interfaces" p;
-		t_dynamic
-	| None when cctx.is_core_api ->
-		display_error ctx "Type required for core api classes" p;
-		t_dynamic
-	| _ ->
-		load_type_hint ctx p t
-
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
@@ -668,6 +655,19 @@ let transform_field (ctx,cctx) c f fields p =
 		| _ -> ());
 	f
 
+let type_var_field ctx t e stat do_display p =
+	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
+	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
+	let e = type_expr ctx e (WithType.with_type t) in
+	let e = AbstractCast.cast_or_unify ctx t e p in
+	match t with
+	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
+	| _ -> e
+
+let type_var_field ctx t e stat do_display p =
+	let save = TypeloadFunction.save_field_state ctx in
+	Std.finally save (type_var_field ctx t e stat do_display) p
+
 let build_fields (ctx,cctx) c fields =
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -683,48 +683,6 @@ let build_fields (ctx,cctx) c fields =
 	c.cl_build <- (fun() -> Building [c]);
 	List.iter (fun f -> f()) !pending;
 	!fields
-
-let bind_type (ctx,cctx,fctx) cf r p =
-	let c = cctx.tclass in
-	let rec is_full_type t =
-		match t with
-		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
-		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
-		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
-	in
-	let force_macro () =
-		(* force macro system loading of this class in order to get completion *)
-		delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
-	in
-	let handle_display_field () =
-		if fctx.is_macro && not ctx.in_macro then
-			force_macro()
-		else begin
-			cf.cf_type <- TLazy r;
-			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-		end
-	in
-	if ctx.com.display.dms_full_typing then begin
-		if fctx.is_macro && not ctx.in_macro then
-			force_macro ()
-		else begin
-			cf.cf_type <- TLazy r;
-			(* is_lib ? *)
-			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-		end
-	end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
-		force_macro()
-	else begin
-		if fctx.is_display_field then begin
-			handle_display_field()
-		end else begin
-			if not (is_full_type cf.cf_type) then begin
-				cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
-				cf.cf_type <- TLazy r;
-			end else if fctx.expr_presence_matters then
-				cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
-		end
-	end
 
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
@@ -753,39 +711,81 @@ let check_field_display ctx fctx c cf =
 		DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 	end
 
-let bind_var (ctx,cctx,fctx) cf e =
-	let c = cctx.tclass in
-	let p = cf.cf_pos in
-	let rec get_declared f = function
-		| None -> None
-		| Some (c,a) when PMap.exists f c.cl_fields ->
-			Some (c,a)
-		| Some (c,_) ->
-			let ret = get_declared f c.cl_super in
-			match ret with
-				| Some r -> Some r
-				| None ->
-					let rec loop ifaces = match ifaces with
-						| [] -> None
-						| i :: ifaces -> match get_declared f (Some i) with
-							| Some r -> Some r
-							| None -> loop ifaces
-					in
-					loop c.cl_implements
-	in
-	if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
-			| None -> ()
-			| Some (csup,_) ->
-				(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-				if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-					error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
-	end;
-	let t = cf.cf_type in
+module TypeBinding = struct
 
-	match e with
-	| None ->
-		check_field_display ctx fctx c cf;
-	| Some e ->
+	let bind_type ctx cctx fctx cf r p =
+		let c = cctx.tclass in
+		let rec is_full_type t =
+			match t with
+			| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
+			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
+			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+		in
+		let force_macro () =
+			(* force macro system loading of this class in order to get completion *)
+			delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
+		in
+		let handle_display_field () =
+			if fctx.is_macro && not ctx.in_macro then
+				force_macro()
+			else begin
+				cf.cf_type <- TLazy r;
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
+		in
+		if ctx.com.display.dms_full_typing then begin
+			if fctx.is_macro && not ctx.in_macro then
+				force_macro ()
+			else begin
+				cf.cf_type <- TLazy r;
+				(* is_lib ? *)
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
+		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
+			force_macro()
+		else begin
+			if fctx.is_display_field then begin
+				handle_display_field()
+			end else begin
+				if not (is_full_type cf.cf_type) then begin
+					cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
+					cf.cf_type <- TLazy r;
+				end else if fctx.expr_presence_matters then
+					cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
+			end
+		end
+
+	let check_redefinition ctx cctx fctx cf =
+		let c = cctx.tclass in
+		let rec get_declared f = function
+			| None -> None
+			| Some (c,a) when PMap.exists f c.cl_fields ->
+				Some (c,a)
+			| Some (c,_) ->
+				let ret = get_declared f c.cl_super in
+				match ret with
+					| Some r -> Some r
+					| None ->
+						let rec loop ifaces = match ifaces with
+							| [] -> None
+							| i :: ifaces -> match get_declared f (Some i) with
+								| Some r -> Some r
+								| None -> loop ifaces
+						in
+						loop c.cl_implements
+		in
+		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
+				| None -> ()
+				| Some (csup,_) ->
+					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
+					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
+						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+		end
+
+	let bind_var_expression ctx cctx fctx cf e =
+		let c = cctx.tclass in
+		let t = cf.cf_type in
+		let p = cf.cf_pos in
 		if (has_class_flag c CInterface) then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -806,7 +806,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				r := lazy_processing (fun() -> t);
 				cctx.context_init#run;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
-				let e = TypeloadFunction.type_var_field ctx t e fctx.is_static fctx.is_display_field p in
+				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
 					| _ -> !analyzer_run_on_expr_ref ctx.com e
@@ -875,10 +875,72 @@ let bind_var (ctx,cctx,fctx) cf e =
 			t
 		) "bind_var" in
 		if not fctx.is_static then cctx.force_constructor <- true;
-		bind_type (ctx,cctx,fctx) cf r (snd e)
+		bind_type ctx cctx fctx cf r (snd e)
+
+	let bind_var ctx cctx fctx cf e =
+		let c = cctx.tclass in
+		check_redefinition ctx cctx fctx cf;
+		match e with
+		| None ->
+			check_field_display ctx fctx c cf;
+		| Some e ->
+			bind_var_expression ctx cctx fctx cf e
+
+	let bind_method ctx cctx fctx cf t args ret e p =
+		let c = cctx.tclass in
+		let bind r =
+			r := lazy_processing (fun() -> t);
+			cctx.context_init#run;
+			incr stats.s_methods_typed;
+			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+			let fmode = (match cctx.abstract with
+				| Some _ ->
+					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
+				| None ->
+					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
+			) in
+			begin match ctx.com.platform with
+				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
+					if e <> None then
+						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+					cf.cf_expr <- None;
+					cf.cf_type <- t
+				| _ ->
+					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
+					begin match fctx.field_kind with
+					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
+					| _ -> ()
+					end;
+					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
+					(* List.iter (fun (v,_) ->
+						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
+					) fargs; *)
+					let tf = {
+						tf_args = args#for_expr;
+						tf_type = ret;
+						tf_expr = e;
+					} in
+					if fctx.field_kind = FKInit then
+						(match e.eexpr with
+						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+						| _ -> c.cl_init <- Some e);
+					cf.cf_expr <- Some (mk (TFunction tf) t p);
+					cf.cf_type <- t;
+					check_field_display ctx fctx c cf;
+			end;
+		in
+		let maybe_bind r =
+			if not !return_partial_type then bind r;
+			t
+		in
+		let r = exc_protect ~force:false ctx maybe_bind "type_fun" in
+		bind_type ctx cctx fctx cf r p
+end
 
 let create_variable (ctx,cctx,fctx) c f t eo p =
-	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
+	let is_abstract_enum_field = Meta.has Meta.Enum f.cff_meta in
+	if fctx.is_abstract_member && not is_abstract_enum_field then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
 	if fctx.is_final && not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))  && eo = None then begin
@@ -912,9 +974,9 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf.cf_meta <- ((Meta.Custom ":impl"),[],null_pos) :: cf.cf_meta;
 		add_class_field_flag cf CfImpl;
 	end;
-	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
+	if is_abstract_enum_field then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
-	bind_var (ctx,cctx,fctx) cf eo;
+	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
 let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
@@ -1125,33 +1187,17 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
-	let rec loop args = match args with
-		| ((name,p),opt,m,t,ct) :: args ->
-			(* TODO is_lib: avoid forcing the field to be typed *)
-			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
-			delay ctx PTypeField (fun() -> match follow t with
-				| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-					if not fctx.is_extern && not (has_class_flag c CExtern) then error "Rest argument are only supported for extern methods" p;
-					if opt then error "Rest argument cannot be optional" p;
-					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
-					if args <> [] then error "Rest should only be used for the last function argument" p;
-				| _ ->
-					()
-			);
-			(name, ct, t) :: (loop args)
-		| [] ->
-			[]
-	in
-	let args = loop fd.f_args in
-	let fargs = TypeloadFunction.convert_fargs fd in
-	let args,fargs = match cctx.abstract with
+	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api p fd.f_type in
+	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
-			("this",None,a.a_this) :: args,(null_pos,[]) :: fargs
+			Some a.a_this
 		| _ ->
-			args,fargs
+			None
 	in
-	let t = TFun (fun_args args,ret) in
+	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
+	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api p t in
+	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1189,73 +1235,17 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
-	let r = exc_protect ~force:false ctx (fun r ->
-		if not !return_partial_type then begin
-			r := lazy_processing (fun() -> t);
-			cctx.context_init#run;
-			incr stats.s_methods_typed;
-			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
-			let fmode = (match cctx.abstract with
-				| Some _ ->
-					(match args with
-					| ("this",_,_) :: _ -> FunMemberAbstract
-					| _ when fst f.cff_name = "_new" -> FunMemberAbstract
-					| _ -> FunStatic)
-				| None ->
-					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
-			) in
-			begin match ctx.com.platform with
-				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
-					if fd.f_expr <> None then
-						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
-					cf.cf_expr <- None;
-					cf.cf_type <- t
-				| _ ->
-					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let e , fargs = TypeloadFunction.type_function ctx args fargs ret fmode fd.f_expr fctx.is_display_field p in
-					begin match fctx.field_kind with
-					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
-					| _ -> ()
-					end;
-					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
-					(* List.iter (fun (v,_) ->
-						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
-					) fargs; *)
-					let tf = {
-						tf_args = fargs;
-						tf_type = ret;
-						tf_expr = e;
-					} in
-					if fctx.field_kind = FKInit then
-						(match e.eexpr with
-						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
-					cf.cf_expr <- Some (mk (TFunction tf) t p);
-					cf.cf_type <- t;
-					check_field_display ctx fctx c cf;
-			end;
-		end;
-		t
-	) "type_fun" in
 	if fctx.do_bind then
-		bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
-		delay ctx PTypeField (fun () ->
-			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-			List.iter2 (fun (n,ct,t) (pn,m) ->
-				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
-				begin if ctx.com.platform = Flash && (has_class_flag c CExtern) then
-					()
-				else
-					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field (not (has_class_flag c CExtern) && not fctx.is_extern) pn)
-				end;
-				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
-					let v = add_local_with_origin ctx TVOArgument n t pn in
-					DisplayEmitter.display_variable ctx v pn;
-				end
-			) args fargs;
-		);
-		check_field_display ctx fctx c cf;
+		if fctx.is_display_field then begin
+			delay ctx PTypeField (fun () ->
+				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
+				ignore(args#for_expr)
+			);
+			check_field_display ctx fctx c cf;
+		end else
+			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
 			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
@@ -1320,20 +1310,27 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						), p))
 			in
 			let t2, f2 = get_overload overloads in
-			(match f2.cf_kind with
-				| Method MethMacro ->
-					display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-					display_error ctx (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
-				| _ -> ());
-			unify_raise ctx t2 t f2.cf_pos;
-			if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
-				display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
 			f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
 				| Meta.Deprecated -> meta :: acc
 				| _ -> acc
 			) f2.cf_meta f.cff_meta;
+			(* Now that we know there is a field, we have to delay the actual unification even further. The reason is that unification could resolve
+			   TLazy, which would then cause field typing before we're done with our PConnectField pass. This could cause interface fields to not
+			   be generated in time. *)
+			delay ctx PForce (fun () ->
+				try
+					(match f2.cf_kind with
+						| Method MethMacro ->
+							display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
+							display_error ctx (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
+						| _ -> ());
+					unify_raise ctx t2 t f2.cf_pos;
+					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
+						display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
+				with Error (Unify l,p) ->
+					raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
+			)
 		with
-			| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			| Not_found ->
 				let generate_field () =
 					let cf = mk_field m t p null_pos in
@@ -1411,7 +1408,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
-	bind_var (ctx,cctx,fctx) cf eo;
+	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
 (**
@@ -1624,6 +1621,7 @@ let init_class ctx c p context_init herits fields =
 					else
 						let type_kind,path = match c.cl_kind with
 							| KAbstractImpl a -> "abstract",a.a_path
+							| KModuleFields m -> "module",m.m_path
 							| _ -> "class",c.cl_path
 						in
 						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos

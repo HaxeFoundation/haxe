@@ -35,6 +35,9 @@ class DisplayTestCase implements utest.ITest {
 	inline function signature(pos1)
 		return ctx.signature(pos1);
 
+	inline function doc(pos1)
+		return ctx.doc(pos1);
+
 	inline function metadataDoc(pos1)
 		return ctx.metadataDoc(pos1);
 

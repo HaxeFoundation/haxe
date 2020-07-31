@@ -619,7 +619,8 @@ class inline_state ctx ethis params cf f p = object(self)
 				if List.memq e params then (fun t -> t)
 				else map_type
 			in
-			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
+			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
+			CallUnification.maybe_reapply_overload_call ctx e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =

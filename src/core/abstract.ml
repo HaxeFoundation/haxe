@@ -111,6 +111,19 @@ let rec get_underlying_type ?(return_first=false) a pl =
 		else
 			maybe_recurse (apply_params a.a_params pl a.a_this)
 
+let rec follow_with_forward_ctor ?(build=false) t = match follow t with
+	| TAbstract(a,tl) as t ->
+		if build then build_abstract a;
+		if Meta.has Meta.ForwardNew a.a_meta && not (match a.a_impl with
+			| Some c -> PMap.mem "_new" c.cl_statics
+			| None -> false
+		) then
+			follow_with_forward_ctor (get_underlying_type ~return_first:true a tl)
+		else
+			t
+	| t ->
+		t
+
 let rec follow_with_abstracts t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		follow_with_abstracts (get_underlying_type a tl)

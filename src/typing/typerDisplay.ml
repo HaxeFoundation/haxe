@@ -15,6 +15,7 @@ open Type
 open Typecore
 open TyperBase
 open Fields
+open CallUnification
 open Calls
 open Error
 open FieldAccess
@@ -271,7 +272,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
-			let t = Typeload.load_instance ctx tpath true in
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath true) in
 			handle_call (find_constructor_types t) el (pos tpath)
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
@@ -595,10 +596,11 @@ let handle_display ctx e_ast dk mode with_type =
 					begin try
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
-						| TClassDecl c when has_constructor c -> true
-						| TAbstractDecl {a_impl = Some c} ->
-							ignore(c.cl_build());
-							PMap.mem "_new" c.cl_statics
+						| TClassDecl c -> has_constructor c
+						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,List.map snd a.a_params)) with
+							| TInst(c,_) -> has_constructor c
+							| TAbstract({a_impl = Some c},_) -> PMap.mem "_new" c.cl_statics
+							| _ -> false)
 						| _ -> false
 						end
 					with _ ->

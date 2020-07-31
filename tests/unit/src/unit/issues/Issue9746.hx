@@ -142,7 +142,7 @@ class Issue9746 extends unit.Test {
 		#else
 		var ctx = new PropertyClassTestContext();
 		eq(2, ctx.get()[ctx.index++].propGet += 2);
-		ctx.check(1, 0 /* TODO: I think this should be 1 */, 0);
+		ctx.check(1, 1, 0);
 		#end
 
 		var ctx = new PropertyClassTestContext();

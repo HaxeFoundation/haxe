@@ -1,2 +1,1 @@
-Fields.hx:5: characters 10-14 : Name main is already defined in this module
-Fields.hx:1: characters 10-14 : ... Previous declaration here
+Fields.hx:5: characters 10-14 : Duplicate module field declaration : Fields.main

@@ -66,6 +66,10 @@ let check_display_class ctx cc cfile c =
 			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
 	in
+	let check_field sc cf =
+		check_field sc cf;
+		List.iter (check_field sc) cf.cf_overloads
+	in
 	match c.cl_kind with
 	| KAbstractImpl a ->
 		let sa = find_abstract_by_position cfile c.cl_name_pos in

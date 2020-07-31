@@ -342,6 +342,7 @@ enum abstract KeywordKind(String) to String {
 	var Extern = "extern";
 	var Dynamic = "dynamic";
 	var Override = "override";
+	var Overload = "overload";
 	var Class = "class";
 	var Interface = "interface";
 	var Enum = "enum";

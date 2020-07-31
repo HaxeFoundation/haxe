@@ -5,6 +5,7 @@ open Type
 open TyperBase
 open Error
 open Typecore
+open FieldAccess
 
 module TypeFieldConfig = struct
 	type t = {
@@ -103,10 +104,6 @@ let check_no_closure_meta ctx cf fa mode p =
 		end
 	| _ ->
 		()
-
-let check_field_access ctx c f stat p =
-	if not ctx.untyped && not (can_access ctx c f stat) then
-		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 let field_access ctx mode f famode e p =
 	let is_set = match mode with MSet _ -> true | _ -> false in
@@ -256,10 +253,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| None -> raise Not_found
 	in
 	let type_field_by_et f e t =
-		f { e with etype = t } (follow t)
+		f { e with etype = t } (follow_without_type t)
 	in
 	let type_field_by_e f e =
-		f e (follow e.etype)
+		f e (follow_without_type e.etype)
 	in
 	let rec type_field_by_list f = function
 		| [] -> raise Not_found
@@ -280,6 +277,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let f () = type_field_by_et f e (Abstract.get_underlying_type ~return_first:true a tl) in
 		type_field_by_forward f Meta.Forward a
 	in
+	let type_field_by_typedef f e td tl =
+		f e (follow_without_type (apply_params td.t_params tl td.t_type))
+	in
 	let type_field_by_interfaces e c =
 		(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field
 		   generation. We instead do this lazily here by browsing the implemented interfaces (issue #9768). *)
@@ -294,6 +294,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let rec type_field_by_type e t =
 		let field_access = field_access e in
 		match t with
+		| TType (td,tl) -> type_field_by_typedef type_field_by_type e td tl
 		| TInst (c,tl) ->
 			(try
 				snd (class_field_with_access e c tl)
@@ -416,6 +417,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			loop (t_infos mt).mt_using
 		) t e in
 		match t with
+		| TType (td,tl) ->
+			(try
+				type_field_by_extension()
+			with Not_found ->
+				type_field_by_typedef type_field_by_type_extension e td tl
+			)
 		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono _ -> raise Not_found
 		| TAbstract (a,tl) ->
@@ -439,6 +446,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				| _ -> die "" __LOC__
 		) t e in
 		match t with
+		| TType (td,tl) -> type_field_by_typedef type_field_by_module_extension e td tl
 		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono r ->
 			(match Monomorph.classify_constraints r with
@@ -455,6 +463,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	in
 	let rec type_field_by_fallback e t =
 		match t with
+		| TType (td,tl) -> type_field_by_typedef type_field_by_fallback e td tl
 		| TInst (c,tl) ->
 			(try
 				let rec loop c tl = match c with
@@ -482,7 +491,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			)
 		| _ -> raise Not_found
 	in
-	let t = follow e.etype in
+	let t = follow_without_type e.etype in
 	try
 		type_field_by_type e t
 	with Not_found -> try
@@ -498,7 +507,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
 				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
 			in
-			match t with
+			match follow t with
 			| TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a } } }
 			| TInst ({ cl_kind = KAbstractImpl a },_)
 			| TAbstract (a,_) when has_special_field a ->
