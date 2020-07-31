@@ -27,6 +27,14 @@ class Test extends utest.Test {
 	}
 
 	/**
+		Assert `v` is of type `type`. Executes `callback(v)` If assertion holds.
+	**/
+	inline function assertType<T:Exception>(v:Any, type:Class<T>, callback:(v:T)->Void):Void {
+		if(isOfType(v, type))
+			callback(v);
+	}
+
+	/**
 		Takes a list of expressions with Continuation-Passing-Style calls like these:
 		```haxe
 		asyncAll(asyncVar,
