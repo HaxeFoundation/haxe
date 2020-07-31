@@ -646,6 +646,16 @@ extern class Global {
 	static function ftell(handle:Resource):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.ftruncate.php
+	**/
+	static function ftruncate(handle:Resource, size:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.touch.php
+	**/
+	static function touch(filename:String, ?time:Int, ?atime:Int):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.rewind.php
 	**/
 	static function rewind(handle:Resource):Bool;

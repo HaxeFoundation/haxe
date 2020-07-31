@@ -392,25 +392,41 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Shrink or expand a file specified by `path` to `newSize` bytes.
-
-		If the file does not exist, it is created.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var f = fopen(cast path, 'r+');
+				var result = ftruncate(f, newSize);
+				fclose(f);
+				result;
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to resize file'), path));
+				case _:
+					callback.success(NoData);
+			}
+		});
 	}
 
-	/**
-		Change access and modification times of a file.
-
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				touch(cast path, modificationTime, accessTime);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to set file times'), path));
+				case _:
+					callback.success(NoData);
+			}
+		});
 	}
 
 	static function fopenHx(file:String, flag:FileOpenFlag<Dynamic>):Resource {
