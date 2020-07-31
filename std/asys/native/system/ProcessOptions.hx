@@ -1,7 +1,6 @@
 package asys.native.system;
 
 import asys.native.system.StdioConfig;
-import asys.native.system.SystemUser;
 import asys.native.filesystem.FilePath;
 
 /**
@@ -42,12 +41,12 @@ typedef ProcessOptions = {
 		Run new process with `user` identity.
 		By default: the owner of the current process.
 	**/
-	var ?user:SystemUser;
+	var ?user:Int;
 	/**
 		Run new process on behalf of `group`.
 		By default: the group of the current process.
 	**/
-	var ?group:SystemGroup;
+	var ?group:Int;
 	/**
 		When `true`, creates a detached process which can continue running after
 		the current process exits.

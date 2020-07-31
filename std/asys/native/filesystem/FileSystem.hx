@@ -1,8 +1,6 @@
 package asys.native.filesystem;
 
 import haxe.io.Bytes;
-import asys.native.system.SystemUser;
-import asys.native.system.SystemGroup;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 
@@ -198,20 +196,16 @@ class FileSystem {
 	/**
 		Set path owner and group.
 
-		If `recursive` is `true` and `path` points to a directory: apply recursively
-		to the directory contents as well.
+		If `path` is a symbolic link it is dereferenced.
 	**/
-	static public function setOwner(path:FilePath, user:SystemUser, ?group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
-		Set path owning group.
-
-		If `recursive` is `true` and `path` points to a directory: apply recursively
-		to the directory contents as well.
+		Set symbolic link owner and group.
 	**/
-	static public function setGroup(path:FilePath, group:SystemGroup, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 

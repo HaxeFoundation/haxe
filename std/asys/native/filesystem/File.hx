@@ -1,7 +1,5 @@
 package asys.native.filesystem;
 
-import asys.native.system.SystemGroup;
-import asys.native.system.SystemUser;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
@@ -80,14 +78,7 @@ class File implements IDuplex {
 	/**
 		Set file owner and group.
 	**/
-	public function setOwner(user:SystemUser, ?group:SystemGroup, callback:Callback<NoData>) {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Set file owning group.
-	**/
-	public function setGroup(group:SystemGroup, callback:Callback<NoData>) {
+	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>) {
 		throw new NotImplementedException();
 	}
 

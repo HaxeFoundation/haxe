@@ -84,12 +84,18 @@ abstract FileInfo(FileStat) from FileStat to FileStat {
 	inline function get_deviceNumber():Int
 		return this.dev;
 
-	/** Group id of owner */
+	/**
+		Group id of owner.
+		May be `0` in windows.
+	**/
 	public var groupId(get,never):Int;
 	inline function get_groupId():Int
 		return this.gid;
 
-	/** User id of owner */
+	/**
+		User id of owner.
+		May be `0` in windows.
+	**/
 	public var userId(get,never):Int;
 	inline function get_userId():Int
 		return this.uid;
