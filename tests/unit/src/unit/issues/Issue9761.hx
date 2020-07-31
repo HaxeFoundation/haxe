@@ -24,12 +24,15 @@ class Issue9761 extends Test {
     ((null: Array<YT<YT<Int>>>): Array<YT<XT<Int>>>);
     ((null: Array<YT<YT<Int>>>): Array<XT<XT<Int>>>);
 
+    ((null: X): Z);
+
     noAssert();
   }
 }
 
 private typedef X = {?x: X}
 private abstract Y(X) from X to X {}
+private abstract Z({?x: Z}) from X to X {}
 
 private typedef XT<T> = {?x: XT<T>, ?t: T}
 private abstract YT<T>(XT<T>) from XT<T> to XT<T> {}

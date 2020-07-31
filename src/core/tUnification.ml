@@ -478,7 +478,9 @@ let rec type_eq uctx a b =
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params uctx a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
-		try_apply_params_rec t.t_params tl t.t_type (fun a -> type_eq uctx a b)
+		rec_stack eq_stack (a,b) (fast_eq_pair (a,b))
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (fun a -> type_eq uctx a b))
+			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) when can_follow b ->
 		rec_stack eq_stack (a,b) (fast_eq_pair (a,b))
 			(fun() -> try_apply_params_rec t.t_params tl t.t_type (type_eq uctx a))
@@ -971,7 +973,8 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 and unify_with_variance uctx f t1 t2 =
 	let t1 = follow_without_type t1 in
 	let t2 = follow_without_type t2 in
-	let unify_rec f = rec_stack_default variance_stack (t1,t2) (fast_eq_pair (t1,t2)) f () in
+	let fail () = error [cannot_unify t1 t2] in
+	let unify_rec f = rec_stack variance_stack (t1,t2) (fast_eq_pair (t1,t2)) f (fun _ -> fail()) in
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
 	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
 	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
@@ -991,7 +994,6 @@ and unify_with_variance uctx f t1 t2 =
 			) false
 		with Unify_error _ -> false
 	in
-	let fail () = error [cannot_unify t1 t2] in
 	match t1,t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
 		unify_tls tl1 tl2
