@@ -534,6 +534,7 @@ and parse_common_flags = parser
 	| [< '(Kwd Inline,p); l = parse_common_flags >] -> (DInline,p) :: l
 	| [< '(Kwd Public,p); l = parse_common_flags >] -> (DPublic,p) :: l
 	| [< '(Kwd Static,p); l = parse_common_flags >] -> (DStatic,p) :: l
+	| [< '(Kwd Overload,p); l = parse_common_flags >] -> (DOverload,p) :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
