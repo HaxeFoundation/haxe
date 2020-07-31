@@ -29,8 +29,8 @@ class Test extends utest.Test {
 	/**
 		Assert `v` is of type `type`. Executes `callback(v)` If assertion holds.
 	**/
-	inline function assertType<T:Exception>(v:Any, type:Class<T>, callback:(v:T)->Void):Void {
-		if(isOfType(v, type))
+	inline function assertType<T:Exception>(v:Any, type:Class<T>, callback:(v:T)->Void, ?pos:PosInfos):Void {
+		if(isOfType(v, type, pos))
 			callback(v);
 	}
 

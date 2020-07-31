@@ -539,4 +539,46 @@ class TestFileSystem extends Test {
 			})
 		);
 	}
+
+	@:depends(testWriteString,testInfo)
+	function testSetOwner(async:Async) {
+		if(isWindows) {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/set-owner', '', (e, r) -> {
+				FileSystem.info('test-data/temp/set-owner', (e, r) -> {
+					FileSystem.setOwner('test-data/temp/set-owner', r.userId, r.groupId, (e, r) -> {
+						noException(e);
+					});
+				});
+			}),
+			FileSystem.setOwner('test-data/temp/non-existent', 0, 0, (e, r) -> {
+				assertType(e, FsException, e -> equals('test-data/temp/non-existent', e.path.toString()));
+			})
+		);
+	}
+
+	@:depends(testLink,testInfo)
+	function testSetLinkOwner(async:Async) {
+		if(isWindows) {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.link('../sub/hello.world', 'test-data/temp/set-link-owner', (e, r) -> {
+				FileSystem.info('test-data/temp/set-link-owner', (e, r) -> {
+					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.userId, r.groupId, (e, r) -> {
+						noException(e);
+					});
+				});
+			}),
+			FileSystem.setLinkOwner('test-data/temp/non-existent-link', 0, 0, (e, r) -> {
+				assertType(e, FsException, e -> equals('test-data/temp/non-existent-link', e.path.toString()));
+			})
+		);
+	}
 }
