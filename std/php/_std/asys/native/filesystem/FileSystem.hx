@@ -14,25 +14,17 @@ import php.Resource;
 **/
 @:coreApi
 class FileSystem {
-	/**
-		Open file for reading and/or writing.
 
-		Depending on `flag` value `callback` will be invoked with the appropriate
-		object type to read and/or write the file:
-		- `asys.native.filesystem.File` for reading and writing;
-		- `asys.native.filesystem.FileRead` for reading only;
-		- `asys.native.filesystem.FileWrite` for writing only;
-		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-
-		`mode` is used to set permissions for a created file in case of appropriate
-		`flag` are chosen.
-		Default `mode` equals to octal `0666`, which means read+write permissions
-		for everyone.
-	**/
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var file = try {
+				@:privateAccess new File(fopenHx(cast path, flag), path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(cast file);
+		});
 	}
 
 	static public function tempFile(callback:Callback<File>):Void {
@@ -451,7 +443,7 @@ class FileSystem {
 			case OverwriteRead: fopen(file, 'c+');
 		}
 		if(f == false)
-			throw new FsException(CustomError('Cannot open file'), file);
+			throw new php.Exception('Cannot open file');
 		return f;
 	}
 
