@@ -1,4 +1,5 @@
 package haxe;
+
 import lua.Lua.select;
 import lua.TableTools.maxn;
 import lua.TableTools.pack;
@@ -6,20 +7,21 @@ import lua.Table;
 
 @:coreType
 abstract Rest<T> {
-    public var length(get,never):Int;
-    inline function get_length() : Int {
+    public var length(get, never):Int;
+
+    inline function get_length():Int {
         return maxn(cast this);
     }
 
     @:arrayAccess inline function get(index:Int):T {
-        return select(index+1, this);
+        return select(index + 1, this);
     }
 
     @:to public inline function toArray():Array<T> {
-        return [for(i in 0...length) get(i)];
+        return [for (i in 0...length) get(i)];
     }
 
-    public inline function toString() : String {
+    public inline function toString():String {
         return this.toArray().toString();
     }
 
@@ -33,10 +35,10 @@ abstract Rest<T> {
 }
 
 private class RestIterator<T> {
-    final args:Table<Int,T>;
+    final args:Table<Int, T>;
     var current:Int = 0;
 
-    public inline function new(args:Table<Int,T>) {
+    public inline function new(args:Table<Int, T>) {
         this.args = args;
     }
 
@@ -47,15 +49,15 @@ private class RestIterator<T> {
     public inline function next():T {
         var old = current;
         current = current + 1;
-        return args[old+1];
+        return args[old + 1];
     }
 }
 
 private class RestKeyValueIterator<T> {
-    final args:Table<Int,T>;
+    final args:Table<Int, T>;
     var current:Int = 0;
 
-    public inline function new(args:Table<Int,T>) {
+    public inline function new(args:Table<Int, T>) {
         this.args = args;
     }
 
@@ -66,6 +68,6 @@ private class RestKeyValueIterator<T> {
     public inline function next():{key:Int, value:T} {
         var old = current;
         current = current + 1;
-        return {key:old, value:args[old+1]};
+        return {key: old, value: args[old + 1]};
     }
 }
