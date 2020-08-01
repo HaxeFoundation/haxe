@@ -1885,6 +1885,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| [] -> ()
 				| (v,body) :: rest ->
 					self#write (" catch(" ^ (self#use_t v.v_type) ^ " $" ^ v.v_name ^ ") ");
+					vars#declared v.v_name;
 					self#write_as_block body;
 					traverse rest
 			in
