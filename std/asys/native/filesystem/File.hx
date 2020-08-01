@@ -8,6 +8,12 @@ import asys.native.IWritable;
 import asys.native.IReadable;
 
 class File implements IDuplex {
+	/** The path of this file */
+	public final path:FilePath;
+
+	function new() {
+		path = 'stub';
+	}
 
 	/**
 		Change file position pointer.
@@ -20,14 +26,21 @@ class File implements IDuplex {
 		If `whence` is `SeekMove(offset)` move the pointer by `offset` bytes
 		relative to the current position.
 	**/
-	public function seek(whence:FileSeek) {
+	public function seek(whence:FileSeek, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Get current position pointer offset.
 	**/
-	public function getOffset():Int64 {
+	public function getOffset(callback:Callback<Int64>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Check if file pointer is at end-of-file.
+	**/
+	public function isEof(callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -42,6 +55,11 @@ class File implements IDuplex {
 	/**
 		Read up to `length` bytes and write them into `buffer` starting from `offset`
 		position in `buffer`, then invoke `callback` with the amount of bytes read.
+
+		Reading at the end of file yields zero bytes read and leaves `buffer` unaffected.
+
+		If `offset + length` is greater than `buffer.length`, an error is passed to the
+		`callback`
 	**/
 	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		throw new NotImplementedException();
@@ -130,24 +148,3 @@ class File implements IDuplex {
 		throw new NotImplementedException();
 	}
 }
-
-/**
-	Limits file operations to reading.
-	@see asys.native.filesystem.File
-**/
-@:forward(path,seek,getOffset,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close)
-abstract FileRead(File) from File to IReadable {}
-
-/**
-	Limits file operations to writing.
-	@see asys.native.filesystem.File
-**/
-@:forward(path,seek,getOffset,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
-abstract FileWrite(File) from File to IWritable {}
-
-/**
-	Limits file operations to writing at the end of file.
-	@see asys.native.filesystem.File
-**/
-@:forward(path,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
-abstract FileAppend(File) from File to IWritable {}
