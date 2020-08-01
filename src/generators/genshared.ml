@@ -10,112 +10,12 @@ type method_type =
 	| MConstructor
 
 let is_extern_abstract a = match a.a_impl with
-	| Some {cl_extern = true} -> true
+	| Some c -> has_class_flag c CExtern
 	| _ -> match a.a_path with
 		| ([],("Void" | "Float" | "Int" | "Single" | "Bool" | "Null")) -> true
 		| _ -> false
 
-let unify_cf map_type c cf el =
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-	match follow (apply_params cf.cf_params monos (map_type cf.cf_type)) with
-		| TFun(tl'',_) as tf ->
-			let rec loop2 acc el tl = match el,tl with
-				| e :: el,(_,o,t) :: tl ->
-					begin try
-						Type.unify e.etype t;
-						loop2 ((e,o) :: acc) el tl
-					with _ ->
-						match follow t,tl with
-						| TAbstract({a_path=["haxe"],"Rest"},[t]),[] ->
-							begin try
-								let el = List.map (fun e -> unify t e.etype; e,o) el in
-								Some ((List.rev acc) @ el,tf,(c,cf,monos))
-							with _ ->
-								None
-							end
-						| _ ->
-							None
-					end
-				| [],[] ->
-					Some ((List.rev acc),tf,(c,cf,monos))
-				| _ ->
-					None
-			in
-			loop2 [] el tl''
-		| t ->
-			None
-
-let unify_cf_with_fallback map_type c cf el =
-	match unify_cf map_type c cf el with
-	| Some(_,_,r) -> r
-	| None -> (c,cf,List.map snd cf.cf_params)
-
-let find_overload map_type c cf el =
-	let matches = ref [] in
-	let rec loop cfl = match cfl with
-		| cf :: cfl ->
-			begin match unify_cf map_type c cf el with
-			| Some r -> matches := r :: !matches;
-			| None -> ()
-			end;
-			loop cfl
-		| [] ->
-			List.rev !matches
-	in
-	loop (cf :: cf.cf_overloads)
-
-let filter_overloads candidates =
-	match Overloads.Resolution.reduce_compatible candidates with
-	| [_,_,(c,cf,tl)] -> Some(c,cf,tl)
-	| [] -> None
-	| ((_,_,(c,cf,tl)) :: _) (* as resolved *) ->
-		(* let st = s_type (print_context()) in
-		print_endline (Printf.sprintf "Ambiguous overload for %s(%s)" name (String.concat ", " (List.map (fun e -> st e.etype) el)));
-		List.iter (fun (_,t,(c,cf)) ->
-			print_endline (Printf.sprintf "\tCandidate: %s.%s(%s)" (s_type_path c.cl_path) cf.cf_name (st t));
-		) resolved; *)
-		Some(c,cf,tl)
-
-let find_overload_rec' is_ctor map_type c name el =
-	let candidates = ref [] in
-	let has_function t1 (_,t2,_) =
-		begin match follow t1,t2 with
-		| TFun(tl1,_),TFun(tl2,_) -> type_iseq (TFun(tl1,t_dynamic)) (TFun(tl2,t_dynamic))
-		| _ -> false
-		end
-	in
-	let rec loop map_type c =
-		begin try
-			let cf = if is_ctor then
-				(match c.cl_constructor with Some cf -> cf | None -> raise Not_found)
-			else
-				PMap.find name c.cl_fields
-			in
-			begin match find_overload map_type c cf el with
-			| [] -> raise Not_found
-			| l ->
-				List.iter (fun ((_,t,_) as ca) ->
-					if not (List.exists (has_function t) !candidates) then candidates := ca :: !candidates
-				) l
-			end;
-			if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then raise Not_found
-		with Not_found ->
-			if c.cl_interface then
-				List.iter (fun (c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c) c.cl_implements
-			else match c.cl_super with
-			| None -> ()
-			| Some(c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c
-		end;
-	in
-	loop map_type c;
-	filter_overloads (List.rev !candidates)
-
-let find_overload_rec is_ctor map_type c cf el =
-	if Meta.has Meta.Overload cf.cf_meta || cf.cf_overloads <> [] then
-		find_overload_rec' is_ctor map_type c cf.cf_name el
-	else match unify_cf map_type c cf el with
-		| Some (_,_,(c,cf,tl)) -> Some (c,cf,tl)
-		| None -> Some(c,cf,List.map snd cf.cf_params)
+open OverloadResolution
 
 type path_field_mapping = {
 	pfm_path : path;
@@ -130,13 +30,13 @@ let pfm_of_typedef td = match follow td.t_type with
 		pfm_fields = an.a_fields;
 	}
 	| _ ->
-		assert false
+		die "" __LOC__
 
 exception Typedef_result of path_field_mapping
 
 class ['a] tanon_identification (empty_path : string list * string) =
 	let is_normal_anon an = match !(an.a_status) with
-		| Closed | Const | Opened -> true
+		| Closed | Const -> true
 		| _ -> false
 	in
 object(self)
@@ -263,7 +163,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 	in
 	let rec get_constructor c =
 		match c.cl_constructor, c.cl_super with
-		| Some cf, _ -> c,cf
+		| Some cf, _ -> cf
 		| None, None -> raise Not_found
 		| None, Some (csup,cparams) -> get_constructor csup
 	in
@@ -302,9 +202,9 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		let find_super_ctor el =
 			let csup,map_type = match c.cl_super with
 				| Some(c,tl) -> c,apply_params c.cl_params tl
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
-			match find_overload_rec' true map_type csup "new" el with
+			match resolve_instance_overload true map_type csup "new" el with
 			| Some(c,cf,_) ->
 				let rec loop csup =
 					if c != csup then begin
@@ -312,7 +212,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 						| Some(c',_) ->
 							self#add_implicit_ctor csup c' cf;
 							loop c'
-						| None -> assert false
+						| None -> die "" __LOC__
 					end
 				in
 				loop csup;
@@ -324,7 +224,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			(* This is a bit hacky: We always want the direct super class, not the one that actually holds
 			   the ctor. It will be implicitly copied to it anyway. *)
 			match c.cl_super with
-			| None -> assert false
+			| None -> die "" __LOC__
 			| Some(c,_) -> c,cf
 		in
 		let rec promote_this_before_super c cf = match self#get_field_info cf.cf_meta with
@@ -364,24 +264,24 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			super_call_fields = DynArray.to_list super_call_fields;
 		}
 
-	method check_overrides c = match c.cl_overrides with
+	method check_overrides c = match List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields with
 		| [] ->
 			()
 		| fields ->
 			let csup,map_type = match c.cl_super with
 				| Some(c,tl) -> c,apply_params c.cl_params tl
-				| None -> assert false
+				| None -> die "" __LOC__
 			in
 			let fix_covariant_return cf =
 				let tl = match follow cf.cf_type with
 					| TFun(tl,_) -> tl
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
-				match find_overload_rec' false map_type csup cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
+				match resolve_instance_overload false map_type csup cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
 				| Some(_,cf',_) ->
 					let tr = match follow cf'.cf_type with
 						| TFun(_,tr) -> tr
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					in
 					cf.cf_type <- TFun(tl,tr);
 					cf.cf_expr <- begin match cf.cf_expr with
@@ -424,7 +324,11 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		match c.cl_constructor with
 		| None ->
 			begin try
-				let csup,cf = get_constructor c in
+				let cf = get_constructor c in
+				let csup = match c.cl_super with
+					| Some(c,_) -> c
+					| _ -> die "" __LOC__
+				in
 				List.iter (fun cf -> self#add_implicit_ctor c csup cf) (cf :: cf.cf_overloads)
 			with Not_found ->
 				()
@@ -442,7 +346,7 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: cf.cf_meta;
 					if not (Meta.has Meta.HxGen cf.cf_meta) then begin
 						let rec loop next c =
-							if c.cl_extern then make_native cf
+							if (has_class_flag c CExtern) then make_native cf
 							else match c.cl_constructor with
 								| Some cf' when Meta.has Meta.HxGen cf'.cf_meta -> make_haxe cf
 								| Some cf' when Meta.has Meta.NativeGen cf'.cf_meta -> make_native cf
@@ -506,10 +410,10 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			if PMap.is_empty fields then raise (Unify_error [Unify_custom "no fields"]);
 			let path,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 			let c = mk_class null_module path null_pos null_pos in
-			c.cl_interface <- true;
+			add_class_flag c CInterface;
 			c.cl_fields <- fields;
 			c.cl_ordered_fields <- PMap.fold (fun cf acc -> cf :: acc) fields [];
-			if is_extern then c.cl_extern <- true;
+			if is_extern then add_class_flag c CExtern;
 			Hashtbl.replace interfaces pfm.pfm_path c;
 			c
 

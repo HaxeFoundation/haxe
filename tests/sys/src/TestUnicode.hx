@@ -26,12 +26,8 @@ class TestUnicode extends utest.Test {
 		"bin-hl";
 #elseif lua
 		"bin-lua";
-#elseif (java && jvm)
-		#if debug
-			"bin-jvm-debug";
-		#else
-			"bin-jvm";
-		#end
+#elseif jvm
+		"bin-jvm";
 #elseif java
 		#if debug
 			"bin-java-debug";
@@ -295,7 +291,7 @@ class TestUnicode extends utest.Test {
 	}
 
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
-	#if (travis || appveyor || azure)
+	#if (azure || github)
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {

@@ -1,6 +1,6 @@
-Main3.hx:9: characters 17-18 : Module name should start with an uppercase letter: "lowercase"
-Main3.hx:9: characters 17-18 : "0_class" is not a valid module name
-Main3.hx:9: characters 17-18 : "0_enum" is not a valid module name
-Main3.hx:9: characters 17-18 : "0_struct" is not a valid module name
-Main3.hx:9: characters 17-18 : "0_abstract_Impl_" is not a valid type name
-Main3.hx:9: characters 17-18 : "0_abstract" is not a valid module name
+Main3.hx:9: characters 17-18 : Module "lowercase" does not have a valid name. Module name should start with an uppercase letter: "lowercase"
+Main3.hx:9: characters 17-18 : Module "0_class" does not have a valid name. "0_class" is not a valid module name.
+Main3.hx:9: characters 17-18 : Module "0_enum" does not have a valid name. "0_enum" is not a valid module name.
+Main3.hx:9: characters 17-18 : Module "0_struct" does not have a valid name. "0_struct" is not a valid module name.
+Main3.hx:9: characters 17-18 : "0_abstract_Impl_" is not a valid type name.
+Main3.hx:9: characters 17-18 : Module "0_abstract" does not have a valid name. "0_abstract" is not a valid module name.

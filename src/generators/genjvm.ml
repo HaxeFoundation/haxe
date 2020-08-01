@@ -60,6 +60,7 @@ type generation_context = {
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions;
 	closure_paths : (path * string * jsignature,path) Hashtbl.t;
+	enum_paths : (path,unit) Hashtbl.t;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
@@ -109,17 +110,20 @@ let rec jsignature_of_type gctx stack t =
 			| [],"Null" ->
 				begin match tl with
 				| [t] -> get_boxed_type (jsignature_of_type t)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 				end
 			| (["haxe";"ds"],"Vector") | (["haxe"],"Rest") ->
 				begin match tl with
 				| [t] -> TArray(jsignature_of_type t,None)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 				end
 			| [],"Dynamic" ->
 				object_sig
 			| [],("Class" | "Enum") ->
-				java_class_sig
+				begin match tl with
+				| [t] -> TObject(java_class_path,[TType(WNone,jsignature_of_type t)])
+				| _ -> java_class_sig
+				end
 			| [],"EnumValue" ->
 				java_enum_sig object_sig
 			| _ ->
@@ -145,7 +149,9 @@ let rec jsignature_of_type gctx stack t =
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
-	| TEnum(en,tl) -> TObject(en.e_path,List.map jtype_argument_of_type tl)
+	| TEnum(en,tl) ->
+		Hashtbl.replace gctx.enum_paths en.e_path ();
+		TObject(en.e_path,List.map jtype_argument_of_type tl)
 	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
 		let jsig = jsignature_of_type t in
 		let jsig = if o then get_boxed_type jsig else jsig in
@@ -240,7 +246,7 @@ let convert_cmp_op = function
 	| OpLte -> CmpLe
 	| OpGt -> CmpGt
 	| OpGte -> CmpGe
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let flip_cmp_op = function
 	| CmpEq -> CmpNe
@@ -286,7 +292,7 @@ let is_const_string_pattern (el,_) =
 	) el
 
 let is_interface_var_access c cf =
-	c.cl_interface && match cf.cf_kind with
+	(has_class_flag c CInterface) && match cf.cf_kind with
 		| Var _ | Method MethDynamic -> true
 		| _ -> false
 
@@ -299,7 +305,7 @@ class haxe_exception gctx (t : Type.t) =
 	let is_haxe_exception = Exceptions.is_haxe_exception t
 	and native_type = jsignature_of_type gctx t in
 object(self)
-	val native_path = (match native_type with TObject(path,_) -> path | _ -> assert false)
+	val native_path = (match native_type with TObject(path,_) -> path | _ -> die "" __LOC__)
 
 	method is_assignable_to (exc2 : haxe_exception) =
 		match self#is_haxe_exception,exc2#is_haxe_exception with
@@ -347,7 +353,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		| TMethod(args,ret) ->
 			List.mapi (fun i jsig -> (Printf.sprintf "arg%i" i,jsig)) args,ret
 		| _ ->
-			assert false
+			die "" __LOC__
 	in
 	let jm_invoke = wf#generate_invoke args ret in
 	let vars = List.map (fun (name,jsig) ->
@@ -431,7 +437,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method get_local_by_id (vid,vname) =
 		if vid = 0 && env = None then
-			(0,(fun () -> jm#load_this),(fun () -> assert false))
+			(0,(fun () -> jm#load_this),(fun () -> die "" __LOC__))
 		else try
 			Hashtbl.find local_lookup vid
 		with Not_found -> try
@@ -474,7 +480,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method make_static_closure_field (name : string) (jc_closure : JvmClass.builder) =
 		let jm_init = jc_closure#get_static_init_method in
-		let jf_closure = jc_closure#spawn_field name jc_closure#get_jsig [FdStatic;FdPublic] in
+		let jf_closure = jc_closure#spawn_field name jc_closure#get_jsig [FdStatic;FdPublic;FdFinal] in
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
@@ -595,9 +601,15 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let read_static_closure path cf =
 			let args,ret = match follow cf.cf_type with
 				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			self#read_static_closure path cf.cf_name args ret
+		in
+		let dynamic_read s =
+			self#texpr rvalue_any e1;
+			jm#string s;
+			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
+			cast();
 		in
 		match fa with
 		| FStatic({cl_path = (["java";"lang"],"Math")},({cf_name = "NaN" | "POSITIVE_INFINITY" | "NEGATIVE_INFINITY"} as cf)) ->
@@ -630,15 +642,15 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| FAnon cf ->
 			self#texpr rvalue_any e1;
 			self#read_anon_field cast e1.etype cf;
-		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(Some({cl_interface = true},_),{cf_name = s}) | FClosure(None,{cf_name = s}) ->
-			self#texpr rvalue_any e1;
-			jm#string s;
-			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
-			cast();
+		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
+			dynamic_read s
 		| FClosure((Some(c,_)),cf) ->
-			create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
-				self#texpr rvalue_any e1;
-			)
+			if has_class_flag c CInterface then
+				dynamic_read cf.cf_name
+			else
+				create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
+					self#texpr rvalue_any e1;
+				)
 
 	method read_write ret ak e (f : unit -> unit) =
 		let apply dup =
@@ -756,7 +768,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				end
 		| _ ->
 			print_endline (s_expr_ast false "" (s_type (print_context())) e);
-			assert false
+			die "" __LOC__
 
 	(* branching *)
 
@@ -771,6 +783,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let label_then2 = jm#spawn_label "then2" in
 			self#condition flip e1 label_then2 label_else;
 			label_then2#here;
+			self#condition flip e2 label_then label_else;
+		in
+		let bool_or flip e1 e2 =
+			let label_else2 = jm#spawn_label "else2" in
+			self#condition (not flip) e1 label_else2 label_then;
+			label_else2#here;
 			self#condition flip e2 label_then label_else;
 		in
 		let involves_float_compare e =
@@ -795,8 +813,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			label_else#apply (self#apply_cmp (self#binop_compare op e1 e2))
 		| TBinop(OpBoolAnd,e1,e2) when not flip ->
 			bool_and false e1 e2
+		| TBinop(OpBoolAnd,e1,e2) when not (involves_float_compare e1) ->
+			bool_or true e1 e2
 		| TBinop(OpBoolOr,e1,e2) when flip ->
 			bool_and true e1 e2
+		| TBinop(OpBoolOr,e1,e2) when not (involves_float_compare e1) ->
+			bool_or false e1 e2
 		| TUnop(Not,_,e1) when not (involves_float_compare e1) ->
 			self#condition (not flip) e1 label_then label_else
 		| _ ->
@@ -820,7 +842,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let cases = List.map (fun (el,e) ->
 				let il = List.map (fun e -> match e.eexpr with
 					| TConst (TInt i32) -> i32
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				) el in
 				(il,(fun () -> self#texpr ret e))
 			) cases in
@@ -835,7 +857,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let cases = List.map (fun (el,e) ->
 				let sl = List.map (fun e -> match e.eexpr with
 					| TConst (TString s) -> s
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				) el in
 				(sl,(fun () -> self#texpr ret e))
 			) cases in
@@ -860,7 +882,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let el = List.rev_map (fun (el,e) ->
 				let f e' = mk (TBinop(OpEq,ev,e')) com.basic.tbool e'.epos in
 				let e_cond = match el with
-					| [] -> assert false
+					| [] -> die "" __LOC__
 					| [e] -> f e
 					| e :: el ->
 						List.fold_left (fun eacc e ->
@@ -870,7 +892,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(e_cond,e)
 			) cases in
 			(* If we rewrite an exhaustive switch that has no default value, treat the last case as the default case to satisfy control flow. *)
-			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> assert false) else cases,def in
+			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> die "" __LOC__) else cases,def in
 			let e = List.fold_left (fun e_else (e_cond,e_then) -> Some (mk (TIf(e_cond,e_then,e_else)) e_then.etype e_then.epos)) def el in
 			self#texpr ret (Option.get e);
 			pop_scope()
@@ -1076,7 +1098,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| OpShl -> "opShl"
 			| OpShr -> "opShr"
 			| OpUShr -> "opUshr"
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		begin match cast_type with
 			| TByte | TShort | TInt ->
@@ -1370,7 +1392,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method call ret tr e1 el =
 		let invoke t =
 			jm#cast haxe_function_sig;
-			let tl,tr = self#call_arguments t el in
+			(* Don't use call_arguments here because we don't have to cast. *)
+			let tl = List.map (fun e ->
+				self#texpr rvalue_any e;
+				code#get_stack#top
+			) el in
+			let _,tr = self#get_argument_signatures t el in
 			let meth = gctx.typed_functions#register_signature tl tr in
 			jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 			tr
@@ -1380,7 +1407,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let tl,tr = self#call_arguments cf.cf_type el in
 			begin match tl with
 				| [t1;t2] -> self#boolop (CmpSpecial (code#if_acmp_ne t1 t2))
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			tr
 		| TField(_,FStatic({cl_path = ["haxe";"jvm"],"Jvm"},({cf_name = "instanceof"}))) ->
@@ -1404,7 +1431,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#invokestatic (["java";"lang"],"Double") name (method_sig [TDouble] (Some TBool));
 				Some TBool
 			| _ ->
-				assert false
+				die "" __LOC__
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")},{cf_name = ("floor" | "ceil" | "round") as name})) ->
 			begin match el with
@@ -1416,7 +1443,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#cast TInt;
 				Some TInt
 			| _ ->
-				assert false
+				die "" __LOC__
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")} as c,({cf_name = ("ffloor" | "fceil")} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
@@ -1444,7 +1471,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#get_code#lor_;
 				Some TLong
 			| _ ->
-				assert false
+				die "" __LOC__
 			end
 		| TIdent "__array__" | TField(_,FStatic({cl_path = (["java"],"NativeArray")},{cf_name = "make"})) ->
 			begin match follow tr with
@@ -1456,14 +1483,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
-			let c,cf = match cf.cf_overloads with
-				| [] -> c,cf
-				| _ -> match filter_overloads (find_overload (fun t -> t) c cf el) with
-					| None ->
-						Error.error "Could not find overload" e1.epos
-					| Some(c,cf,_) ->
-						c,cf
-			in
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
 			tr
@@ -1497,13 +1516,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				self#texpr rvalue_any e1;
 				false
 			in
-			begin match find_overload_rec false (apply_params c.cl_params tl) c cf el with
-			| None -> Error.error "Could not find overload" e1.epos
-			| Some(c,cf,_) ->
-				let tl,tr = self#call_arguments cf.cf_type el in
-				(if is_super then jm#invokespecial else if c.cl_interface then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (self#vtype cf.cf_type);
-				tr
-			end
+			let tl,tr = self#call_arguments cf.cf_type el in
+			(if is_super then jm#invokespecial else if (has_class_flag c CInterface) then jm#invokeinterface else jm#invokevirtual) c.cl_path cf.cf_name (method_sig tl tr);
+			tr
 		| TField(_,FEnum(en,ef)) ->
 			let tl,_ = self#call_arguments ef.ef_type el in
 			let tr = self#vtype tr in
@@ -1517,7 +1532,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					let c,_,cf = raw_class_field (fun cf -> cf.cf_type) c [] cf.cf_name in
 					let path_inner = match c with
 						| Some(c,_) -> c.cl_path
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					in
 					self#texpr rvalue_any e11;
 					let tl,tr = self#call_arguments cf.cf_type el in
@@ -1600,7 +1615,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					if not term_try then jm#add_stack_frame;
 					jm#close_jumps true ([term_try,r_try]);
 					None
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end
 		| _ ->
 			self#texpr rvalue_any e1;
@@ -1610,7 +1625,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| false,Some _ -> code#pop
 		| false,None -> ()
 		| true,Some _ -> self#cast tr;
-		| true,None -> assert false
+		| true,None -> die "" __LOC__
 
 	(* exceptions *)
 
@@ -1692,7 +1707,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			end
 		| TBool true -> code#bconst true
 		| TBool false -> code#bconst false
-		| TNull -> code#aconst_null (self#vtype t)
+		| TNull -> jm#load_default_value (self#vtype t)
 		| TThis ->
 			let _,load,_ = self#get_local_by_id (0,"this") in
 			load()
@@ -1701,6 +1716,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method new_native_array jsig el =
 		jm#new_native_array jsig (List.map (fun e -> fun () -> self#texpr (rvalue_sig jsig) e) el)
+
+	method spawn_compiled_pattern_field (s1 : string) (s2 : string) =
+		let name = Printf.sprintf "_hx_pattern_%s_%i" (patch_name jm#get_name) jm#get_next_regex_id in
+		let jf = jc#spawn_field name NativeSignatures.haxe_compiled_pattern_sig [FdStatic;FdPrivate;FdFinal] in
+		let jm = jc#get_static_init_method in
+		jm#string s1;
+		jm#string s2;
+		jm#invokestatic NativeSignatures.haxe_ereg_path "compilePattern" (method_sig [string_sig;string_sig] (Some NativeSignatures.haxe_compiled_pattern_sig));
+		jm#putstatic jc#get_this_path jf#get_name jf#get_jsig;
+		jf
 
 	method texpr ret e =
 		try
@@ -1840,10 +1865,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#texpr (if need_val ret then rvalue_any else RVoid) e1;
 			(* Technically this could throw... but whatever *)
 			if need_val ret then ignore(NativeArray.create jm#get_code jc#get_pool (jsignature_of_type gctx t))
+		| TNew({cl_path=(["haxe";"root"],"EReg") as ereg_path},[],[{eexpr = TConst (TString s1)};{eexpr = TConst (TString s2)}]) when jm != jc#get_static_init_method ->
+			let jf = self#spawn_compiled_pattern_field s1 s2 in
+			jm#construct ConstructInit ereg_path (fun () ->
+				jm#getstatic jc#get_this_path jf#get_name jf#get_jsig;
+				[jf#get_jsig]
+			)
 		| TNew(c,tl,el) ->
-			begin match get_constructor (fun cf -> cf.cf_type) c with
-			|_,cf ->
-				begin match find_overload_rec true (apply_params c.cl_params tl) c cf el with
+			begin match get_constructor c with
+			| cf ->
+				begin match OverloadResolution.maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el with
 				| None -> Error.error "Could not find overload" e.epos
 				| Some (c',cf,_) ->
 					let f () =
@@ -1873,7 +1904,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
 				self#cast e.etype
 			| _ ->
-				assert false
+				die "" __LOC__
 			end
 		| TArray(e1,e2) when not (need_val ret) ->
 			(* Array access never throws so this should be fine... *)
@@ -1904,7 +1935,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			if ret = RReturn && not jm#is_terminated then jm#return;
 		| TBlock el ->
 			let rec loop el = match el with
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [e1] ->
 					self#texpr ret e1;
 					if ret = RReturn && not jm#is_terminated then jm#return;
@@ -1937,7 +1968,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				| TFun(tl,TEnum(en,_)) ->
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			let cpath = ((fst path),Printf.sprintf "%s$%s" (snd path) ef.ef_name) in
 			let jsig = (object_path_sig cpath) in
@@ -2118,13 +2149,13 @@ class tclass_to_jvm gctx c = object(self)
 	val jc = new JvmClass.builder c.cl_path (match c.cl_super with
 		| Some(c,_) -> c.cl_path
 		| None ->
-			if c.cl_interface || Meta.has Meta.NativeGen c.cl_meta then object_path else haxe_object_path
+			if (has_class_flag c CInterface) || Meta.has Meta.NativeGen c.cl_meta then object_path else haxe_object_path
 		)
 
 	method private set_access_flags =
 		jc#add_access_flag 1; (* public *)
-		if c.cl_final then jc#add_access_flag 0x10;
-		if c.cl_interface then begin
+		if has_class_flag c CFinal then jc#add_access_flag 0x10;
+		if (has_class_flag c CInterface) then begin
 			jc#add_access_flag 0x200;
 			jc#add_access_flag 0x400;
 		end;
@@ -2134,6 +2165,7 @@ class tclass_to_jvm gctx c = object(self)
 			(* TODO: this should be done via Haxe metadata instead of hardcoding it here *)
 			jc#add_annotation retention_path ["value",(AEnum(retention_policy_sig,"RUNTIME"))];
 		end;
+		if (has_class_flag c CAbstract) then jc#add_access_flag 0x0400; (* abstract *)
 		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
 
 	method private handle_relation_type_params =
@@ -2154,7 +2186,7 @@ class tclass_to_jvm gctx c = object(self)
 					let tr = loop tr in
 					TFun(tl,tr)
 				| _ ->
-					assert false
+					die "" __LOC__
 			in
 			if !has_type_param then Some t else None
 		in
@@ -2166,7 +2198,7 @@ class tclass_to_jvm gctx c = object(self)
 					let jm = jc#spawn_method cf_impl.cf_name jsig [MPublic;MSynthetic;MBridge] in
 					jm#load_this;
 					let jsig_impl = jsignature_of_type gctx cf_impl.cf_type in
-					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> assert false in
+					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> die "" __LOC__ in
 					List.iter2 (fun (n,_,t) jsig ->
 						let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 						load();
@@ -2202,9 +2234,9 @@ class tclass_to_jvm gctx c = object(self)
 					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c ->
 						let tl = match follow (map_type cf.cf_type) with
 							| TFun(tl,_) -> tl
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						in
-						begin match find_overload_rec' false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
+						begin match OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
 							| Some(_,cf_impl,_) -> check true cf cf_impl
 							| None -> ()
 						end;
@@ -2215,7 +2247,8 @@ class tclass_to_jvm gctx c = object(self)
 			) c_int.cl_implements
 		in
 		loop (fun t -> t) c;
-		begin match c.cl_overrides,c.cl_super with
+		let overrides = List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields in
+		begin match overrides,c.cl_super with
 		| [],_ ->
 			()
 		| fields,Some(c_sup,tl) ->
@@ -2225,7 +2258,7 @@ class tclass_to_jvm gctx c = object(self)
 				| _ -> ()
 			) fields
 		| _ ->
-			assert false
+			die "" __LOC__
 		end
 
 	method private set_interfaces =
@@ -2276,7 +2309,7 @@ class tclass_to_jvm gctx c = object(self)
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
 				) field_inits;
-				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> assert false in
+				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> die "" __LOC__ in
 				List.iter (fun (n,_,t) ->
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
@@ -2329,11 +2362,12 @@ class tclass_to_jvm gctx c = object(self)
 		gctx.current_field_info <- gctx.preprocessor#get_field_info cf.cf_meta;
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = if Meta.has Meta.Private cf.cf_meta then [MPrivate] else if Meta.has Meta.Protected cf.cf_meta then [MProtected] else [MPublic] in
-		let flags = if c.cl_interface then MAbstract :: flags else flags in
+		let flags = if (has_class_flag c CInterface) then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
 		let flags = if has_class_field_flag cf CfFinal then MFinal :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then MSynthetic :: flags else flags in
 		let flags = if Meta.has Meta.NativeJni cf.cf_meta then MNative :: flags else flags in
+		let flags = if (has_class_field_flag cf CfAbstract) then MAbstract :: flags else flags in
 		let name,scmode,flags = match mtype with
 			| MConstructor ->
 				let rec has_super_ctor c = match c.cl_super with
@@ -2432,9 +2466,9 @@ class tclass_to_jvm gctx c = object(self)
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
 					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
-				) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
+				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
-				if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
+				if not (has_class_flag c CInterface) && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
 		in
 		Option.may (fun (c2,e) -> if c2 == c then self#generate_main e) gctx.entry_point;
 		List.iter (field MStatic) c.cl_ordered_statics;
@@ -2454,7 +2488,17 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map fst c.cl_params);
+		jc#set_type_parameters (List.map (fun (n,t) ->
+			let jsigs = match follow t with
+			| TInst({cl_kind = KTypeParameter tl},_) ->
+				List.map (fun t ->
+					get_boxed_type (jsignature_of_type gctx t)
+				 ) tl
+			| _ ->
+				[]
+			in
+			(n,jsigs)
+		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)
 			| _ -> ()
@@ -2465,18 +2509,18 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate =
 		self#set_access_flags;
+		jc#set_source_file c.cl_pos.pfile;
 		self#generate_fields;
 		self#set_interfaces;
-		if not c.cl_interface then begin
+		if not (has_class_flag c CInterface) then begin
 			self#generate_empty_ctor;
 			self#generate_implicit_ctors;
 			self#handle_relation_type_params;
 		end;
 		self#generate_signature;
-		if not (Meta.has Meta.NativeGen c.cl_meta) && not c.cl_interface then
+		if not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
-		jc#add_attribute (AttributeSourceFile (jc#get_pool#add_string c.cl_pos.pfile));
 		let jc = jc#export_class gctx.default_export_config in
 		write_class gctx.jar c.cl_path jc
 end
@@ -2489,34 +2533,45 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let jm_equals,load = generate_equals_function jc_ctor (haxe_enum_sig object_sig) in
 	let code = jm_equals#get_code in
 	let jm_equals_handler = new texpr_to_jvm gctx jc_ctor jm_equals (Some TBool) in
-	let is_maybe_enum jsig = match jsig with
-		| TObject _ | TTypeParameter _ -> true
-		| _ -> false
+	let is_haxe_enum jsig = match jsig with
+		| TObject(path,_) ->
+			Hashtbl.mem gctx.enum_paths path
+		| _ ->
+			false
+	in
+	let compare_whatever jsig =
+		jm_equals#invokestatic haxe_jvm_path "maybeEnumEq" (method_sig [object_sig;object_sig] (Some TBool));
+		jm_equals#if_then
+			(code#if_ CmpNe)
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			)
+	in
+	let compare_haxe_enum jsig =
+		jm_equals#invokestatic haxe_type_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
+		jm_equals#if_then
+			(code#if_ CmpNe)
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			)
+	in
+	let compare_standard jsig =
+		jm_equals#if_then
+			(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
+			(fun () ->
+				code#bconst false;
+				jm_equals#return;
+			);
 	in
 	let compare jsig =
-		if is_maybe_enum jsig then begin
-			jm_equals#if_then_else
-				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
-				(fun () ->
-					jm_equals#invokestatic haxe_jvm_path "enumEq" (method_sig [object_sig;object_sig] (Some TBool));
-					jm_equals#if_then
-						(code#if_ CmpNe)
-						(fun () ->
-							code#bconst false;
-							jm_equals#return;
-						)
-				)
-				(fun () ->
-					code#pop;
-					code#pop;
-				)
-		end else
-			jm_equals#if_then
-				(jm_equals_handler#apply_cmp (jm_equals_handler#do_compare CmpNe))
-				(fun () ->
-					code#bconst false;
-					jm_equals#return;
-				);
+		if NativeSignatures.is_dynamic_at_runtime jsig then
+			compare_whatever jsig
+		else if is_haxe_enum jsig then
+			compare_haxe_enum jsig
+		else
+			compare_standard jsig
 	in
 	load();
 	jm_equals#invokevirtual java_enum_path "ordinal" (method_sig [] (Some TInt));
@@ -2526,10 +2581,8 @@ let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let compare_field n jsig =
 		load();
 		jm_equals#getfield jc_ctor#get_this_path n jsig;
-		if is_maybe_enum jsig then code#dup;
 		jm_equals#load_this;
 		jm_equals#getfield jc_ctor#get_this_path n jsig;
-		if is_maybe_enum jsig then code#dup_x1;
 		compare jsig;
 	in
 	jm_equals,compare_field
@@ -2570,7 +2623,7 @@ let generate_enum gctx en =
 			jm_ctor#string ef.ef_name;
 			jm_ctor#call_super_ctor ConstructInit jsig_enum_ctor;
 			List.iter (fun (n,jsig) ->
-				jm_ctor#add_argument_and_field n jsig
+				jm_ctor#add_argument_and_field n jsig [FdPublic;FdFinal]
 			) args;
 			jm_ctor#return;
 			jc_ctor#add_annotation (["haxe";"jvm";"annotation"],"EnumValueReflectionInformation") (["argumentNames",AArray (List.map (fun (name,_) -> AString name) args)]);
@@ -2658,7 +2711,7 @@ let debug_path path = match path with
 let generate_module_type ctx mt =
 	failsafe (t_infos mt).mt_pos (fun () ->
 		match mt with
-		| TClassDecl c when not c.cl_extern && debug_path c.cl_path -> generate_class ctx c
+		| TClassDecl c when not (has_class_flag c CExtern) && debug_path c.cl_path -> generate_class ctx c
 		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
 		| _ -> ()
 	)
@@ -2674,7 +2727,7 @@ let generate_anons gctx =
 			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
 			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
 			List.iter (fun (name,jsig) ->
-				jm_ctor#add_argument_and_field name jsig;
+				jm_ctor#add_argument_and_field name jsig [FdPublic]
 			) fields;
 			jm_ctor#return;
 		end;
@@ -2708,7 +2761,7 @@ let generate_anons gctx =
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
 				let tl,tr = match follow cf.cf_type with
 					| TFun(tl,tr) -> tl,tr
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				let locals = List.map (fun (n,_,t) ->
 					let jsig = jsignature_of_type gctx t in
@@ -2742,13 +2795,20 @@ module Preprocessor = struct
 	let make_root path =
 		["haxe";"root"],snd path
 
+	let has_primary_type m =
+		List.exists (fun mt -> snd (t_infos mt).mt_path = snd m.m_path) m.m_types
+
 	let check_path mt =
 		(* don't rewrite if there's an explicit @:native *)
 		if Meta.has Meta.Native mt.mt_meta then
 			()
-		else if mt.mt_private then begin
+		else if mt.mt_private && has_primary_type mt.mt_module then begin
 			let m = mt.mt_module in
-			mt.mt_path <- (fst m.m_path,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
+			let pack = match fst m.m_path with
+				| [] -> ["haxe";"root"]
+				| pack -> pack
+			in
+			mt.mt_path <- (pack,Printf.sprintf "%s$%s" (snd m.m_path) (snd mt.mt_path))
 		end else if fst mt.mt_path = [] then
 			mt.mt_path <- make_root mt.mt_path
 
@@ -2765,7 +2825,7 @@ module Preprocessor = struct
 		List.iter (fun m ->
 			List.iter (fun mt ->
 				match mt with
-				| TClassDecl ({cl_interface=true} as c) when has_runtime_meta c.cl_meta ->
+				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
 				| TClassDecl _ | TEnumDecl _ ->
 					check_path (t_infos mt);
@@ -2780,37 +2840,42 @@ module Preprocessor = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
-				if debug_path c.cl_path && not c.cl_interface then gctx.preprocessor#preprocess_class c
+				if debug_path c.cl_path && not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
 		List.iter (fun mt -> match mt with
-			| TClassDecl c when debug_path c.cl_path && not c.cl_interface && not c.cl_extern ->
+			| TClassDecl c when debug_path c.cl_path && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 				gctx.typedef_interfaces#process_class c;
 			| _ ->
 				()
 		) gctx.com.types
 end
 
-let file_name_and_extension file =
-	match List.rev (ExtString.String.nsplit file "/") with
-	| e1 :: _ -> e1
-	| _ -> assert false
-
-let generate com =
-	mkdir_from_path com.file;
-	let jar_name,manifest_suffix,entry_point = match get_entry_point com with
-		| Some (jarname,cl,expr) ->
-			let pack = match fst cl.cl_path with
-				| [] -> ["haxe";"root"]
-				| pack -> pack
-			in
-			jarname,"\nMain-Class: " ^ (s_type_path (pack,snd cl.cl_path)), Some (cl,expr)
-		| None -> "jar","",None
+let generate jvm_flag com =
+	let path = FilePath.parse com.file in
+	let jar_name,entry_point = match get_entry_point com with
+		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
+		| None -> "jar",None
 	in
-	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
-	let jar_dir = add_trailing_slash com.file in
-	let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+	let jar_dir,jar_path = if jvm_flag then begin
+		match path.file_name with
+		| Some _ ->
+			begin match path.directory with
+				| None ->
+					"./","./" ^ com.file
+				| Some dir ->
+					mkdir_from_path dir;
+					add_trailing_slash dir,com.file
+			end
+		| None ->
+			failwith "Please specify an output file name"
+	end else begin
+		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
+		let jar_dir = add_trailing_slash com.file in
+		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+		jar_dir,jar_path
+	end in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let gctx = {
 		com = com;
@@ -2824,6 +2889,7 @@ let generate com =
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
+		enum_paths = Hashtbl.create 0;
 		current_field_info = None;
 		default_export_config = {
 			export_debug = true;
@@ -2834,11 +2900,11 @@ let generate com =
 	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
-		if java_lib#has_flag NativeLibraries.FlagIsStd then None
+		if java_lib#has_flag NativeLibraries.FlagIsStd || java_lib#has_flag FlagIsExtern then None
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;
-			let name = file_name_and_extension java_lib#get_file_path in
+			let name = FilePath.name_and_extension (FilePath.parse java_lib#get_file_path) in
 			let ch_in = open_in_bin java_lib#get_file_path in
 			let ch_out = open_out_bin (Printf.sprintf "%s%s" dir name) in
 			let b = IO.read_all (IO.input_channel ch_in) in
@@ -2848,14 +2914,6 @@ let generate com =
 			Some (Printf.sprintf "lib/%s" name)
 		end
 	) com.native_libs.java_libs in
-	let manifest_content =
-		"Manifest-Version: 1.0\n" ^
-		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
-		"Created-By: Haxe (Haxe Foundation)" ^
-		manifest_suffix ^
-		"\n\n"
-	in
-	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
 	Hashtbl.iter (fun name v ->
 		let filename = Codegen.escape_res_name name true in
 		Zip.add_entry v gctx.jar filename;
@@ -2871,4 +2929,14 @@ let generate com =
 	Std.finally (Timer.timer ["generate";"java";"typed interfaces"]) generate_typed_interfaces ();
 	Std.finally (Timer.timer ["generate";"java";"anons"]) generate_anons gctx;
 	Std.finally (Timer.timer ["generate";"java";"typed functions"]) generate_typed_functions gctx;
+
+	let manifest_content =
+		"Manifest-Version: 1.0\n" ^
+		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
+		"Created-By: Haxe (Haxe Foundation)" ^
+		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
+		"\n\n"
+	in
+	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
+
 	Zip.close_out gctx.jar

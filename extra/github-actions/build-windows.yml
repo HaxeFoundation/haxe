@@ -1,0 +1,53 @@
+- name: choco install nsis
+  uses: nick-invision/retry@v1
+  with:
+    timeout_minutes: 10
+    max_attempts: 10
+    command: choco install --no-progress nsis.portable --version 3.02 -y
+- name: choco install things
+  shell: pwsh
+  run: choco install --no-progress curl wget 7zip.portable -y
+- name: Prepend Chocolatey path
+  shell: pwsh
+  run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
+
+- name: Install OCaml and OCaml libraries
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
+    Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre" -Wait
+    curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
+    curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam${ARCH}/install.sh')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
+
+- name: Expose mingw dll files
+  shell: pwsh
+  run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+- name: Build Haxe
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win -j`nproc` haxe 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win haxelib 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco 2>&1')
+    dir out
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxe.exe')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
+
+- name: Upload artifact
+  uses: actions/upload-artifact@v1.0.0
+  with:
+    name: win${{env.ARCH}}Binaries
+    path: out

@@ -20,6 +20,7 @@ module CompletionModuleKind = struct
 		| TypeAlias
 		| Struct
 		| TypeParameter
+		| Static
 
 	let to_int = function
 		| Class -> 0
@@ -30,6 +31,7 @@ module CompletionModuleKind = struct
 		| TypeAlias -> 5
 		| Struct -> 6
 		| TypeParameter -> 7
+		| Static -> 8
 end
 
 module ImportStatus = struct
@@ -150,8 +152,24 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem AbExtern d.d_flags;
 				is_final = false;
-				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
+				kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract;
 				has_constructor = ctor;
+				source = Syntax td;
+			}
+		| EStatic d ->
+			{
+				pack = pack;
+				name = fst d.d_name;
+				module_name = module_name;
+				pos = p;
+				is_private = List.exists (fun (f,_) -> f = APrivate) d.d_flags;
+				params = d.d_params;
+				meta = d.d_meta;
+				doc = d.d_doc;
+				is_extern = List.exists (fun (f,_) -> f = AExtern) d.d_flags;
+				is_final = true;
+				kind = Static;
+				has_constructor = No;
 				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
@@ -163,33 +181,41 @@ module CompletionModuleType = struct
 			| Some c ->
 				try
 					let cf = PMap.find "_new" c.cl_statics in
-					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+					if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No
 		in
 		let ctor c =
 			try
-				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+				if has_class_flag c CAbstract then raise Not_found;
+				let cf = get_constructor c in
+				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
 		in
-		let is_extern,is_final,kind,ctor = match mt with
+		let rec ctor_info = function
 			| TClassDecl c ->
-				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),ctor c
+				(has_class_flag c CExtern),has_class_flag c CFinal,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
 				en.e_extern,false,Enum,No
 			| TTypeDecl td ->
 				let kind,ctor = match follow td.t_type with
 					| TAnon _ -> Struct,No
 					| TInst(c,_) -> TypeAlias,ctor c
-					| TAbstract(a,_) -> TypeAlias,actor a
+					| TAbstract(a,_) -> let _,_,_,ctor = ctor_info (TAbstractDecl a) in TypeAlias,ctor
 					| _ -> TypeAlias,No
 				in
 				false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),actor a
+				let kind = if a.a_enum then EnumAbstract else Abstract in
+				let is_extern,is_final,ctor = match Abstract.follow_with_forward_ctor (TAbstract(a,List.map snd a.a_params)) with
+					| TInst(c,_) -> let is_extern,is_final,_,ctor = ctor_info (TClassDecl c) in is_extern,is_final,ctor
+					| TAbstract(a,_) -> false,false,actor a
+					| _ -> false,false,No
+				in
+				is_extern,is_final,kind,ctor
 		in
+		let is_extern,is_final,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
 			| TInst(c,_) -> {
@@ -199,7 +225,7 @@ module CompletionModuleType = struct
 				tp_meta = c.cl_meta
 			}
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		{
 			pack = fst infos.mt_path;
@@ -769,7 +795,7 @@ let to_json ctx index item =
 					"meta",generate_metadata ctx c.cl_meta;
 					"constraints",jlist (generate_type ctx) tl;
 				]
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		| ITDefine(n,v) -> "Define",jobject [
 			"name",jstring n;

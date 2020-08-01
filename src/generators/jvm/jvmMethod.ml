@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open JvmGlobals
 open JvmData
@@ -127,7 +127,7 @@ module NativeArray = struct
 		| TArray _ ->
 			let offset = pool#add_type (generate_signature false je) in
 			code#anewarray ja offset
-		| TObjectInner _ | TUninitialized _ -> assert false
+		| TObjectInner _ | TUninitialized _ -> die "" __LOC__
 		end;
 		ja
 end
@@ -143,6 +143,7 @@ class builder jc name jsig = object(self)
 	val mutable argument_locals = []
 	val mutable thrown_exceptions = Hashtbl.create 0
 	val mutable closure_count = 0
+	val mutable regex_count = 0
 
 	(* per-frame *)
 	val mutable locals = []
@@ -175,7 +176,7 @@ class builder jc name jsig = object(self)
 						debug_locals <- ld :: debug_locals;
 						loop (i - (signature_size t)) l
 					| [] ->
-						assert false
+						die "" __LOC__
 				end
 			in
 			loop delta locals;
@@ -193,6 +194,11 @@ class builder jc name jsig = object(self)
 	method get_next_closure_id =
 		let id = closure_count in
 		closure_count <- closure_count + 1;
+		id
+
+	method get_next_regex_id =
+		let id = regex_count in
+		regex_count <- regex_count + 1;
 		id
 
 	(** Adds the current state of locals and stack as a stack frame. This has to be called on every branch target. **)
@@ -226,28 +232,28 @@ class builder jc name jsig = object(self)
 		| TMethod(tl,tr) ->
 			let offset = code#get_pool#add_field path name jsigm FKMethod in
 			code#invokevirtual offset (object_path_sig path) tl (match tr with None -> [] | Some tr -> [tr])
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	(** Emits an invokeinterface instruction to invoke method [name] on [path] with signature [jsigm]. **)
 	method invokeinterface (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
 			let offset = code#get_pool#add_field path name jsigm FKInterfaceMethod in
 			code#invokeinterface offset (object_path_sig path) tl (match tr with None -> [] | Some tr -> [tr])
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	(** Emits an invokespecial instruction to invoke method [name] on [path] with signature [jsigm]. **)
 	method invokespecial (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
 			let offset = code#get_pool#add_field path name jsigm FKMethod in
 			code#invokespecial offset (object_path_sig path) tl (match tr with None -> [] | Some tr -> [tr])
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	(** Emits an invokestatic instruction to invoke method [name] on [path] with signature [jsigm]. **)
 	method invokestatic (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
 			let offset = code#get_pool#add_field path name jsigm FKMethod in
 			code#invokestatic offset tl (match tr with None -> [] | Some tr -> [tr])
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	(** Emits a getfield instruction to get the value of field [name] on object [path] with signature [jsigf]. **)
 	method getfield (path : jpath) (name : string) (jsigf : jsignature) =
@@ -298,7 +304,7 @@ class builder jc name jsig = object(self)
 			code#ldc offset (TObject(java_class_path,[TType(WNone,object_sig)]))
 		| jsig ->
 			print_endline (generate_signature false jsig);
-			assert false
+			die "" __LOC__
 
 	(** Loads `this` **)
 	method load_this =
@@ -316,15 +322,13 @@ class builder jc name jsig = object(self)
 
 	(** Adds a field named [name] with signature [jsig_field] to the enclosing class, and adds an argument with the same name
 	    to this method. The argument value is loaded and stored into the field immediately. **)
-	method add_argument_and_field (name : string) (jsig_field : jsignature) =
+	method add_argument_and_field (name : string) (jsig_field : jsignature) (flags : FieldAccessFlags.t list) =
 		assert (not (self#has_method_flag MStatic));
-		let jf = new builder jc name jsig_field in
-		jf#add_access_flag 1;
-		jc#add_field jf#export_field;
+		ignore(jc#spawn_field name jsig_field flags);
 		let _,load,_ = self#add_local name jsig_field VarArgument in
 		self#load_this;
 		load();
-		self#putfield jc#get_this_path name jsig_field;
+		self#putfield jc#get_this_path name jsig_field
 
 	(** Constructs a [path] object using the specified construction_kind [kind].
 
@@ -389,7 +393,7 @@ class builder jc name jsig = object(self)
 				code#return_value jsig
 			end;
 		| _ ->
-			assert false
+			die "" __LOC__
 
 	(* casting *)
 
@@ -482,7 +486,7 @@ class builder jc name jsig = object(self)
 				code#d2i;
 				unboxed_to_short ();
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		let rec unboxed_to_int () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
@@ -495,7 +499,7 @@ class builder jc name jsig = object(self)
 			| TDouble ->
 				code#d2i;
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		let rec unboxed_to_long () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
@@ -507,7 +511,7 @@ class builder jc name jsig = object(self)
 			| TDouble ->
 				code#d2l;
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		let rec unboxed_to_float () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
@@ -519,7 +523,7 @@ class builder jc name jsig = object(self)
 			| TDouble ->
 				code#d2f;
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		let rec unboxed_to_double () = match code#get_stack#top with
 			| TBool | TByte | TShort | TChar | TInt ->
@@ -531,7 +535,7 @@ class builder jc name jsig = object(self)
 			| TDouble ->
 				()
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		let get_conv = function
 			| "Byte" -> unboxed_to_byte
@@ -540,7 +544,7 @@ class builder jc name jsig = object(self)
 			| "Long" -> unboxed_to_long
 			| "Float" -> unboxed_to_float
 			| "Double" -> unboxed_to_double
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		let number_to name =
 			let boxed_sig = TObject((["java";"lang"],name),[]) in
@@ -556,7 +560,7 @@ class builder jc name jsig = object(self)
 				self#expect_reference_type
 			end else if is_number_sig name jsig then
 				number_to name
-			else if jsig = object_sig then
+			else if is_dynamic_at_runtime jsig then
 				dynamic_to name
 			else
 				code#checkcast (["java";"lang"],name)
@@ -791,7 +795,7 @@ class builder jc name jsig = object(self)
 			| [],[] ->
 				()
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		loop cases jump_table;
 		(* exprs *)
@@ -986,14 +990,14 @@ class builder jc name jsig = object(self)
 		let rec loop locals = match locals with
 			| [(_,_,jsig)] -> jsig
 			| _ :: locals -> loop locals
-			| [] -> assert false
+			| [] -> die "" __LOC__
 		in
 		loop locals
 
 	method set_this_initialized =
 		let rec loop acc locals = match locals with
 			| [(init,name,_)] -> List.rev ((init,name,jc#get_jsig) :: acc)
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| l :: locals -> loop (l :: acc) locals
 		in
 		locals <- loop [] locals

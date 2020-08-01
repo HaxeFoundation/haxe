@@ -13,7 +13,7 @@ class TestHttp extends Test {
 
 	function run(async:Async, test:()->Void) {
 		// { comment this out to run http tests locally
-		#if (!azure || (azure && js && !nodejs)) //also don't run on sauce labs
+		#if (!(azure || github) || ((azure || github) && js && !nodejs)) //also don't run on sauce labs
 		noAssert();
 		async.done();
 		return;
@@ -27,7 +27,7 @@ class TestHttp extends Test {
 			return;
 		}
 		test();
-		#elseif (azure && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
+		#elseif ((azure || github) && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
 		noAssert();
 		async.done();
 		return;
@@ -35,7 +35,7 @@ class TestHttp extends Test {
 		test();
 		#end
 	}
-#if !(azure && hl)
+#if !((azure || github) && hl)
 	@:timeout(1000)
 	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';

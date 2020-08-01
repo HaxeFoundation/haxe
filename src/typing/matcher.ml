@@ -39,7 +39,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet WithType.value) e.epos
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
@@ -176,8 +176,8 @@ module Pattern = struct
 	let unify_type_pattern ctx mt t p =
 		let tcl = get_general_module_type ctx mt p in
 		match tcl with
-			| TAbstract(a,_) -> unify ctx (TAbstract(a,[mk_mono()])) t p
-			| _ -> assert false
+			| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
+			| _ -> die "" __LOC__
 
 	let rec make pctx toplevel t e =
 		let ctx = pctx.ctx in
@@ -203,7 +203,7 @@ module Pattern = struct
 				v
 			| _ ->
 				let v = alloc_var (VUser TVOPatternVariable) name t p in
-				if final then v.v_final <- true;
+				if final then add_var_flag v VFinal;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
@@ -234,6 +234,9 @@ module Pattern = struct
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
+				| TMeta((Meta.Deprecated,_,_) as m, e1) ->
+					DeprecationCheck.check_meta pctx.ctx.com [m] "field" e1.epos;
+					loop e1
 				| _ ->
 					raise Exit
 			in
@@ -291,9 +294,9 @@ module Pattern = struct
 					let sl = match follow t with
 						| TEnum(en,_) ->
 							en.e_names
-						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 							ExtList.List.filter_map (fun cf ->
-								if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+								if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
 							) c.cl_ordered_statics
 						| _ ->
 							[]
@@ -322,7 +325,7 @@ module Pattern = struct
 				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
-				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
+				let ct = match e.eexpr with TConst ct -> ct | _ -> die "" __LOC__ in
 				PatConstructor(con_const ct p,[])
 			| EConst (Ident i) ->
 				begin match follow t with
@@ -333,21 +336,22 @@ module Pattern = struct
 						if i = "_" then PatAny
 						else handle_ident i (pos e)
 				end
-			| EVars([(s,p),final,None,None]) ->
+			| EVars([{ ev_name = (s,p); ev_final = final; ev_type = None; ev_expr = None; }]) ->
 				let v = add_local final s p in
 				PatVariable v
 			| ECall(e1,el) ->
 				let e1 = type_expr ctx e1 (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
-						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-						let map t = apply_params en.e_params tl (apply_params ef.ef_params monos t) in
+						let map = apply_params en.e_params tl in
+						let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
+						let map t = map (apply_params ef.ef_params monos t) in
 						unify ctx (map ef.ef_type) e1.etype e1.epos;
 						let args = match follow e1.etype with
 							| TFun(args,r) ->
 								unify_expected r;
 								args
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						in
 						let rec loop el tl = match el,tl with
 							| [EConst (Ident "_"),p],(_,_,t) :: tl ->
@@ -405,43 +409,45 @@ module Pattern = struct
 				in
 				pattern t
 			| EObjectDecl fl ->
-				let rec known_fields t = match follow t with
+				let known_fields = ref [] in
+				let collect_field cf t filter =	match filter with
+					| Some sl when not (List.mem cf.cf_name sl) -> ()
+					| _ -> known_fields := (cf,t) :: (List.filter (fun (cf',_) -> cf'.cf_name <> cf.cf_name) !known_fields)
+				in
+				let rec collect_fields t filter = match follow t with
 					| TAnon an ->
-						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
+						PMap.iter (fun _ cf -> collect_field cf cf.cf_type filter) an.a_fields
 					| TInst(c,tl) ->
-						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf ->
-								if Typecore.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
-								else acc
-							) fields c.cl_ordered_fields in
-							match c.cl_super with
-								| None -> fields
-								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
+						let rec loop c tl =
+							(match c.cl_super with
+								| Some (csup,tlsup) -> loop csup (List.map (apply_params c.cl_params tl) tlsup)
+								| _ -> ());
+							List.iter (fun cf ->
+								if Typecore.can_access ctx c cf false then
+									collect_field cf (apply_params c.cl_params tl cf.cf_type) filter
+							) c.cl_ordered_fields
 						in
-						loop [] c tl
+						loop c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
-						let fields = try
+						(if Meta.has Meta.Forward a.a_meta then
 							let _,el,_ = Meta.get Meta.Forward a.a_meta in
 							let sl = ExtList.List.filter_map (fun e -> match fst e with
 								| EConst(Ident s) -> Some s
 								| _ -> None
 							) el in
-							let fields = known_fields (Abstract.get_underlying_type a tl) in
-							if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields
-						with Not_found ->
-							[]
-						in
-						let fields = List.fold_left (fun acc cf ->
-							if Meta.has Meta.Impl cf.cf_meta then
-								(cf,apply_params a.a_params tl cf.cf_type) :: acc
-							else
-								acc
-						) fields c.cl_ordered_statics in
-						fields
+							let filter = if sl = [] then filter else Some (match filter with
+								| Some fsl -> List.filter (fun s -> List.mem s fsl) sl
+								| None -> sl
+							) in
+							collect_fields (Abstract.get_underlying_type a tl) filter);
+						List.iter (fun cf ->
+							if has_class_field_flag cf CfImpl then
+								collect_field cf (apply_params a.a_params tl cf.cf_type) filter
+						) c.cl_ordered_statics;
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
-				let known_fields = known_fields t in
+				collect_fields t None;
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
@@ -455,7 +461,7 @@ module Pattern = struct
 							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
 						else
 							patterns,fields
-				) ([],[]) known_fields in
+				) ([],[]) !known_fields in
 				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(con_fields fields (pos e),patterns)
 			| EBinop(OpOr,e1,e2) ->
@@ -474,7 +480,7 @@ module Pattern = struct
 						let v = add_local false s p in
 						begin match dko with
 						| None -> ()
-						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType.with_type t) p);
+						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (MSet None) (WithType.with_type t) p);
 						end;
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
@@ -503,18 +509,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
@@ -544,7 +550,7 @@ module Case = struct
 				let e2 = collapse_case el in
 				EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 			| [] ->
-				assert false
+				error "case without pattern" p
 		in
 		let e = collapse_case el in
 		let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
@@ -835,7 +841,7 @@ module Useless = struct
 			| [],_,_ ->
 				List.rev pAcc,List.rev qAcc,List.rev rAcc
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		loop [] [] [] pM qM rM
 
@@ -861,7 +867,7 @@ module Useless = struct
 						 		let rec loop acc k l = match l with
 						 			| x :: l when i = k -> x,(List.rev acc) @ l @ q
 						 			| x :: l -> loop (x :: acc) (k + 1) l
-						 			| [] -> assert false
+						 			| [] -> die "" __LOC__
 						 		in
 						 		loop [] 0 l
 						 	in
@@ -878,7 +884,7 @@ module Useless = struct
 							let p = punion (pos pat1) (pos pat2) in
 							let et = combine (et,p) (et3,p) in
 							(i + 1,et)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					) (0,True) r)
 			end
 		| (pat :: pl) ->
@@ -956,7 +962,7 @@ module Compile = struct
 	let rec get_sub_subjects mctx e con arg_positions =
 		match fst con with
 		| ConEnum(en,ef) ->
-			let tl = List.map (fun _ -> mk_mono()) en.e_params in
+			let tl = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
 			let t_en = TEnum(en,tl) in
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with
@@ -1232,7 +1238,7 @@ module Compile = struct
 				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
 				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
 			| _,[] ->
-				assert false
+				die "" __LOC__
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
 		let bindings = List.map (fun (a,b,c,_,_) -> (a,b,c)) bindings in
@@ -1288,7 +1294,7 @@ module TexprConverter = struct
 				if top then loop false s e1
 				else loop false (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
 			| TEnumParameter(e1,ef,i) ->
-				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> assert false in
+				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> die "" __LOC__ in
 				let l = make_offset_list i (arity - i - 1) s "_" in
 				loop false (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
 			| TLocal v ->
@@ -1375,10 +1381,10 @@ module TexprConverter = struct
 				add (ConConst(TBool true),null_pos);
 				add (ConConst(TBool false),null_pos);
 				SKValue,RunTimeFinite
-			| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
-					if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
+					if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
 						| Some e ->
 							begin match extract_const e with
 							| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
@@ -1419,7 +1425,7 @@ module TexprConverter = struct
 
 	let report_not_exhaustive v_lookup e_subject unmatched =
 		let sl = match follow e_subject.etype with
-			| TAbstract({a_impl = Some c} as a,tl) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstract({a_impl = Some c} as a,tl) when a.a_enum ->
 				List.map (fun (con,_) -> match fst con with
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->
@@ -1448,7 +1454,7 @@ module TexprConverter = struct
 		let v_lookup = ref IntMap.empty in
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" __LOC__ in
 		let mk_index_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a

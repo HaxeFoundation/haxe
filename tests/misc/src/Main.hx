@@ -16,7 +16,7 @@ class Main {
 		var result:Result = compileProjects();
 		Sys.println('Done running ${result.count} tests with ${result.failures} failures');
 		if(result.count > 20 && result.failures > 0) {
-			Sys.println('Summary:');
+			Sys.println('SUMMARY:');
 			Sys.println(result.summary);
 		}
 		Sys.exit(result.failures);
@@ -49,7 +49,7 @@ class Main {
 					++count;
 					if (!result.success) {
 						failures++;
-						failuresSummary.push(result.summary);
+						failuresSummary.push(path + '\n' + result.summary);
 					}
 					Sys.setCwd(old);
 				}
@@ -74,13 +74,11 @@ class Main {
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String, properCase = false):String {
+	static function normPath(_, p:String):String {
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
-			if (!properCase)
-				p = p.toLowerCase();
 		}
 		return p;
 	}

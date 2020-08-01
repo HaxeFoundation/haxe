@@ -116,6 +116,7 @@ let create com api is_macro =
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
+		file_keys = com.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		toplevel = 	vobject {
@@ -149,14 +150,14 @@ let call_path ctx path f vl api =
 		let old = ctx.curapi in
 		ctx.curapi <- api;
 		let path = match List.rev path with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) EKEntrypoint (Hashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -316,7 +317,7 @@ let value_signature v =
 			addc 'B';
 			adds (rev_hash path)
 		| VPrototype _ ->
-			assert false
+			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
 			(* Custom format: enumerate functions as F0, F1 etc. *)
 			cache v (fun () ->
@@ -361,7 +362,7 @@ let setup get_api =
 			in
 			let v = VFunction (f,b) in
 			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	) api;
 	Globals.macro_platform := Globals.Eval
 
@@ -380,18 +381,27 @@ let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		set_instance_field i key_message (EvalString.create_unknown msg);
+		let msg = EvalString.create_unknown msg in
+		set_instance_field i key_exception_message msg;
 		set_instance_field i key_pos (encode_pos pos);
+		set_instance_field i key_native_exception msg;
+		let ctx = get_ctx() in
+		let eval = get_eval ctx in
+		(match eval.env with
+		| Some _ ->
+			let stack = EvalStdLib.StdNativeStackTrace.make_stack_value (call_stack eval) in
+			set_instance_field i key_native_stack stack;
+		| None -> ());
 		exc vi
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec value_to_expr v p =
 	let path i =
 		let mt = IntMap.find i (get_ctx()).type_cache in
 		let make_path t =
 			let rec loop = function
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
 				| name :: l -> (EField (loop l,name),p)
 			in
@@ -422,7 +432,7 @@ let rec value_to_expr v p =
 			let expr = path e.epath in
 			let name = match proto.pkind with
 				| PEnum names -> fst (List.nth names e.eindex)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			(EField (expr, name), p)
 		in
@@ -534,7 +544,7 @@ let handle_decoding_error f v t =
 			end
 		| TInst _ | TAbstract _ | TFun _ ->
 			(* TODO: might need some more of these, not sure *)
-			assert false
+			die "" __LOC__
 		| TMono r ->
 			begin match r.tm_type with
 				| None -> ()

@@ -19,7 +19,7 @@ class Issue3967 extends Test {
 	}
 
 	function testNicolas() {
-		var x:{ var test(default,never) : Void -> String; } = new A("foo");
+		var x:{ var test(default,never) : () -> String; } = new A("foo");
 		eq("foo", x.test());
 	}
 }

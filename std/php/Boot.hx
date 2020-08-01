@@ -557,8 +557,10 @@ class Boot {
 	/**
 		Create Haxe-compatible anonymous structure of `data` associative array
 	**/
-	static public inline function createAnon(data:NativeArray):Dynamic {
-		return new HxAnon(data);
+	static public function createAnon(data:NativeArray):Dynamic {
+		var o = new HxAnon();
+		Syntax.foreach(data, (field:String, value:Any) -> Syntax.setField(o, field, value));
+		return o;
 	}
 
 	/**
@@ -589,10 +591,13 @@ class Boot {
 		Creates Haxe-compatible closure of an instance method.
 		@param obj - any object
 	**/
-	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String):Null<HxClosure> {
 		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
 		if (result != null) {
 			return result;
+		}
+		if(!Global.method_exists(obj, methodName) && !Global.isset(Syntax.field(obj, methodName))) {
+			return null;
 		}
 		result = new HxClosure(obj, methodName);
 		if (!Global.property_exists(obj, '__hx_closureCache')) {
@@ -675,7 +680,7 @@ private class HxClass {
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
 		} else if (phpClassName.method_exists(property)) {
-			return new HxClosure(phpClassName, property);
+			return Boot.getStaticClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
@@ -937,13 +942,6 @@ private class HxDynamicStr extends HxClosure {
 @:keep
 @:dox(hide)
 private class HxAnon extends StdClass {
-	public function new(fields:NativeArray = null) {
-		super();
-		if (fields != null) {
-			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
-		}
-	}
-
 	@:phpMagic
 	function __get(name:String) {
 		return null;

@@ -47,11 +47,11 @@ let priority = solve_deps name []
 let run ~explicit_fn_name ~get_vmtype gen =
 	let implement_explicitly = is_some explicit_fn_name in
 	let run md = match md with
-		| TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
+		| TClassDecl c when (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 			(* overrides can be removed from interfaces *)
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try
-					if Meta.has Meta.Overload f.cf_meta then raise Not_found;
+					if has_class_field_flag f CfOverload then raise Not_found;
 					let f2 = Codegen.find_field gen.gcon c f in
 					if f2 == f then raise Not_found;
 					c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
@@ -60,7 +60,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 					true
 			) c.cl_ordered_fields;
 			md
-		| TClassDecl({ cl_extern = false } as c) ->
+		| TClassDecl c when not (has_class_flag c CExtern) ->
 			let this = { eexpr = TConst TThis; etype = TInst(c,List.map snd c.cl_params); epos = c.cl_pos } in
 			(* look through all interfaces, and try to find a type that applies exactly *)
 			let rec loop_iface (iface:tclass) itl =
@@ -71,11 +71,11 @@ let run ~explicit_fn_name ~get_vmtype gen =
 					let ftype = apply_params iface.cl_params itl f.cf_type in
 					let real_ftype = get_real_fun gen (apply_params iface.cl_params real_itl f.cf_type) in
 					replace_mono real_ftype;
-					let overloads = Overloads.get_overloads c f.cf_name in
+					let overloads = Overloads.collect_overloads (fun t -> t) c f.cf_name in
 					try
 						let t2, f2 =
 							match overloads with
-							| (_, cf) :: _ when Meta.has Meta.Overload cf.cf_meta -> (* overloaded function *)
+							| (_, cf) :: _ when has_class_field_flag cf CfOverload -> (* overloaded function *)
 								(* try to find exact function *)
 								List.find (fun (t,f2) ->
 									Overloads.same_overload_args ~get_vmtype ftype t f f2
@@ -109,7 +109,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									(* override return type and cast implemented function *)
 									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map snd f2.cf_params) real_ftype) with
 										| TFun(a,_), TFun(_,r) -> a,r
-										| _ -> assert false
+										| _ -> Globals.die "" __LOC__
 									in
 									f2.cf_type <- TFun(args,newr);
 									(match f2.cf_expr with
@@ -153,7 +153,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								with | Not_found ->
 									c.cl_fields <- PMap.add name newf c.cl_fields;
 									c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
-							| _ -> assert false
+							| _ -> Globals.die "" __LOC__
 						end
 					with | Not_found -> ()
 				in
@@ -163,7 +163,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 			(* now go through all overrides, *)
 			let rec check_f f =
 				(* find the first declared field *)
-				let is_overload = Meta.has Meta.Overload f.cf_meta in
+				let is_overload = has_class_field_flag f CfOverload in
 				let decl = if is_overload then
 					find_first_declared_field gen c ~get_vmtype ~exact_field:f f.cf_name
 				else
@@ -201,11 +201,11 @@ let run ~explicit_fn_name ~get_vmtype gen =
 											with Unify_error _ ->
 												true
 										with Unify_error _ -> false) current_args original_args
-								| _ -> assert false
+								| _ -> Globals.die "" __LOC__
 							in
-							if (not (Meta.has Meta.Overload f.cf_meta) && has_contravariant_args) then
-								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;
-							if Meta.has Meta.Overload f.cf_meta then begin
+							if (not (has_class_field_flag f CfOverload) && has_contravariant_args) then
+								add_class_field_flag f CfOverload;
+							if has_class_field_flag f CfOverload then begin
 								(* if it is overload, create another field with the requested type *)
 								let f3 = mk_class_field f.cf_name t (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params in
 								let p = f.cf_pos in
@@ -254,8 +254,14 @@ let run ~explicit_fn_name ~get_vmtype gen =
 						| _ -> f)
 				| _ -> f
 			in
-			if not c.cl_extern then
-				c.cl_overrides <- List.map (fun f -> check_f f) c.cl_overrides;
+			if not (has_class_flag c CExtern) then
+				List.iter (fun f ->
+					if has_class_field_flag f CfOverride then begin
+						remove_class_field_flag f CfOverride;
+						let f2 = check_f f in
+						add_class_field_flag f2 CfOverride
+					end
+				) c.cl_ordered_fields;
 			md
 		| _ -> md
 	in

@@ -27,5 +27,5 @@ package php;
 **/
 @:native('JsonSerializable')
 extern interface JsonSerializable<T> {
-	private function jsonSerialize():T;
+	function jsonSerialize():T;
 }

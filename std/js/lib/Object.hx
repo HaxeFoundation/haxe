@@ -51,6 +51,7 @@ extern class Object {
 	/**
 		Adds the named property described by a given descriptor to an object.
 	**/
+	@:overload(function<T:{}>(obj:T, prop:Symbol, descriptor:ObjectPropertyDescriptor):T {})
 	static function defineProperty<T:{}>(obj:T, prop:String, descriptor:ObjectPropertyDescriptor):T;
 
 	/**
@@ -73,6 +74,8 @@ extern class Object {
 	/**
 		Returns a property descriptor for a named property on an object.
 	**/
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor> {})
+	@:overload(function(obj:{}, prop:Symbol):Null<ObjectPropertyDescriptor> {})
 	@:pure static function getOwnPropertyDescriptor(obj:{}, prop:String):Null<ObjectPropertyDescriptor>;
 
 	/**
@@ -96,7 +99,16 @@ extern class Object {
 		(which differs from both Abstract Equality Comparison and
 		Strict Equality Comparison).
 	**/
+	@:deprecated('js.lib.Object.is is deprecated. Use js.lib.Object.isSame instead.')
 	@:pure static function is<T>(value1:T, value2:T):Bool;
+
+	/**
+		Compares if two values are the same value. Equates all NaN values
+		(which differs from both Abstract Equality Comparison and
+		Strict Equality Comparison).
+	**/
+	@:native('is')
+	@:pure static function isSame<T>(value1:T, value2:T):Bool;
 
 	/**
 		Determines if extending of an object is allowed.

@@ -1,0 +1,124 @@
+package unit;
+
+import utest.Assert;
+
+private class MyNotString {
+	var s:String;
+
+	public function new(s:String) {
+		this.s = s;
+	}
+
+	public function toUpperCase() {
+		return new MyNotString(s.toUpperCase());
+	}
+
+	public function getString() {
+		return s;
+	}
+}
+
+#if java
+@:native("unit.DetectiveHaxeExtern")
+extern private class DetectiveHaxeExtern {
+	overload static function itWasYou(i1:Int, i2:Int):String;
+	overload static function itWasYou(s1:String, s2:String):String;
+	overload static function itWasYou(f1:Float, f2:Float):String;
+}
+
+@:native("unit.DetectiveHaxeExtern")
+@:keep
+private class DetectiveHaxeImplementation {
+	overload static function itWasYou(s1:String, s2:String) {
+		return s1 + s2;
+	}
+}
+#end
+
+#if neko
+@:native("unit.Issue6065Extern")
+extern class Issue6065Extern {
+    @:overload(function(t:String):String {})
+    static function f<T:Int>(t:T):T;
+}
+
+@:native("unit.Issue6065Extern")
+@:keep
+class Issue6065Implementation {
+    static public function f<T>(t:T) {
+		return t;
+	}
+}
+#end
+
+class TestConstrainedMonomorphs extends Test {
+
+	function infer(arg) {
+		var s1:MyNotString = arg.toUpperCase();
+		var s:MyNotString = arg;
+		HelperMacros.typedAs(arg, (null : MyNotString));
+		return s.getString() + s1.getString();
+	}
+
+	function testNarrowingInference() {
+		eq("fooFOO", infer(new MyNotString("foo")));
+	}
+
+	#if java
+	function testDetectiveHaxe() {
+		var a = null;
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
+	}
+
+	function testDetectiveHaxe2() {
+		var a = [];
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a[0], "foo"));
+	}
+
+	#if maybe_todo
+	function testDetectiveHaxe3() {
+		/* This doesn't work because the monomorphs of the inner function are not in-context while
+		   the call is being made. */
+		var a = () -> null;
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a(), "foo"));
+	}
+
+	static var a = null;
+	function testDetectiveHaxe4() {
+		/* Similar problem: The monomorph of `static var a` is not in-context,  so it's not reset after the
+		   call failed. */
+		eq("nullfoo", DetectiveHaxeExtern.itWasYou(a, "foo"));
+	}
+	#end
+
+	#end
+
+	static function merge<A:{}, B:{}, C:A & B>(a:A, b:B):C {
+		return cast {
+			foo: (cast a).foo,
+			bar: (cast b).bar
+		};
+	}
+
+	function testMergedConstraints() {
+		var a = merge({foo: 5}, {bar: "bar"});
+		eq(5, a.foo);
+		eq("bar", a.bar);
+		t(HelperMacros.typeError(a.oh));
+	}
+
+	public static function returnC<C:{foo:Int}>():C {
+		return notMerge();
+	}
+
+	public static function notMerge<C:{foo:Int}>():C {
+		return null;
+	}
+
+	#if neko
+	public function testIssue6065() {
+		eq("hi", Issue6065Extern.f("hi"));
+	}
+	#end
+
+}

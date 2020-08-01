@@ -15,7 +15,6 @@ and var_access =
 	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
-	| AccResolve        (* call resolve("field") when accessed *)
 	| AccCall           (* perform a method call when accessed *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
@@ -45,7 +44,20 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
+	mutable tm_constraints : tmono_constraint list;
 }
+
+and tmono_constraint =
+	| MMono of tmono * string option
+	| MField of tclass_field
+	| MType of t * string option
+	| MOpenStructure
+	| MEmptyStructure
+
+and tmono_constraint_kind =
+	| CUnknown
+	| CStructural of (string,tclass_field) PMap.t * bool
+	| CTypes of (t * string option) list
 
 and tlazy =
 	| LAvailable of t
@@ -67,7 +79,10 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = {
+	v_params : type_params;
+	v_expr : texpr option;
+}
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -89,10 +104,9 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_capture : bool;
-	mutable v_final : bool;
-	mutable v_extra : tvar_extra;
+	mutable v_extra : tvar_extra option;
 	mutable v_meta : metadata;
+	mutable v_flags : int;
 	v_pos : pos;
 }
 
@@ -104,7 +118,6 @@ and tfunc = {
 
 and anon_status =
 	| Closed
-	| Opened
 	| Const
 	| Extend of t list
 	| Statics of tclass
@@ -185,6 +198,7 @@ and tclass_kind =
 	| KMacroType
 	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
+	| KModuleFields of module_def
 
 and metadata = Ast.metadata
 
@@ -212,9 +226,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
-	mutable cl_extern : bool;
-	mutable cl_final : bool;
-	mutable cl_interface : bool;
+	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string, tclass_field) PMap.t;
@@ -225,7 +237,6 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
@@ -300,6 +311,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	a_enum : bool;
 }
 
 and module_type =
@@ -312,6 +324,7 @@ and module_def = {
 	m_id : int;
 	m_path : path;
 	mutable m_types : module_type list;
+	mutable m_statics : tclass option;
 	m_extra : module_def_extra;
 }
 
@@ -322,7 +335,7 @@ and module_def_display = {
 }
 
 and module_def_extra = {
-	m_file : string;
+	m_file : Path.UniqueKey.lazy_t;
 	m_sign : string;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
@@ -365,8 +378,26 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+type flag_tclass =
+	| CExtern
+	| CFinal
+	| CInterface
+	| CAbstract
+
 type flag_tclass_field =
 	| CfPublic
+	| CfStatic
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
+	| CfOverride
+	| CfAbstract
+	| CfOverload
+	| CfImpl
+	| CfEnum
+	| CfGeneric
+
+type flag_tvar =
+	| VCaptured
+	| VFinal
+	| VUsed (* used by the analyzer *)

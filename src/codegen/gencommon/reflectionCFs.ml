@@ -536,7 +536,7 @@ let get_delete_field ctx cl is_dynamic =
 		] in
 
 		if ctx.rcf_optimize then
-			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+			let v_name = match tf_args with (v,_) :: _ -> v | _ -> Globals.die "" __LOC__ in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
@@ -647,7 +647,7 @@ let implement_dynamic_object_ctor ctx cl =
 			match e1.eexpr, e2.eexpr with
 				| TConst(TInt i1), TConst(TInt i2) -> compare i1 i2
 				| TConst(TString s1), TConst(TString s2) -> compare s1 s2
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 		in
 
 		let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
@@ -777,7 +777,7 @@ let implement_final_lookup ctx cl =
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ cfs;
 		List.iter (fun cf ->
 			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-			if is_override then cl.cl_overrides <- cf :: cl.cl_overrides
+			if is_override then add_class_field_flag cf CfOverride
 		) cfs
 	in
 	if not is_override then begin
@@ -999,7 +999,7 @@ let implement_get_set ctx cl =
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
-				(if names = [] then assert false);
+				(if names = [] then Globals.die "" __LOC__);
 				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 			) fields in
 			let default = Some(do_default()) in
@@ -1028,7 +1028,7 @@ let implement_get_set ctx cl =
 			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cfield];
 			cl.cl_fields <- PMap.add fun_name cfield cl.cl_fields;
 
-			(if is_override then cl.cl_overrides <- cfield	:: cl.cl_overrides)
+			(if is_override then add_class_field_flag cfield CfOverride)
 		end else ()
 	in
 	mk_cfield true true;
@@ -1065,7 +1065,7 @@ let implement_getFields ctx cl =
 		List.map (fun (_,cf) ->
 			match cf.cf_kind with
 				| Var _
-				| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
+				| Method MethDynamic when not (has_class_field_flag cf CfOverride) ->
 					has_value := true;
 					mk_push (make_string gen.gcon.basic cf.cf_name pos)
 				| _ -> null basic.tvoid pos
@@ -1100,7 +1100,7 @@ let implement_getFields ctx cl =
 	if !has_value || not (is_override cl) then begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
 		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-		(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
+		(if is_override cl then add_class_field_flag cf CfOverride)
 	end
 
 
@@ -1194,7 +1194,7 @@ let implement_invokeField ctx slow_invoke cl =
 		in
 
 		let cfs = List.filter (fun (_,cf) -> match cf.cf_kind with
-			| Method _ -> if List.memq cf cl.cl_overrides then false else true
+			| Method _ -> if has_class_field_flag cf CfOverride then false else true
 			| _ -> true) cfs
 		in
 
@@ -1244,7 +1244,7 @@ let implement_invokeField ctx slow_invoke cl =
 
 		let nonstatics =
 			List.filter (fun (n,cf) ->
-				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
+				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || has_class_field_flag cf CfOverride in
 				(if is_old then old_nonstatics := cf :: !old_nonstatics);
 				not is_old
 			) nonstatics
@@ -1267,7 +1267,7 @@ let implement_invokeField ctx slow_invoke cl =
 	if !is_override && not (!has_method) then () else begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [dyn_fun];
 		cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
-		(if !is_override then cl.cl_overrides <- dyn_fun :: cl.cl_overrides)
+		(if !is_override then add_class_field_flag dyn_fun CfOverride)
 	end
 
 let implement_varargs_cl ctx cl =
@@ -1322,7 +1322,7 @@ let implement_varargs_cl ctx cl =
 	) all_cfs;
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) cl.cl_ordered_fields
 
 let implement_closure_cl ctx cl =
@@ -1380,7 +1380,7 @@ let implement_closure_cl ctx cl =
 	let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) all_cfs;
 	let all_cfs = cfs @ all_cfs in
 
@@ -1480,10 +1480,10 @@ struct
 		let rec run md =
 			if is_hxgen md then
 				match md with
-				| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+				| TClassDecl cl when (has_class_flag cl CInterface) && cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-				| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
-					(* don't add any base classes to abstract implementations *)
+				| TClassDecl ({ cl_kind = KAbstractImpl _ | KModuleFields _ }) ->
+					(* don't add any base classes to abstract implementations and module field containers *)
 					()
 				| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_super <- Some (baseclass,[])
@@ -1502,15 +1502,10 @@ end;;
 *)
 let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-let add_override cl cf =
-	if List.memq cf cl.cl_overrides then
-		cl.cl_overrides
-	else
-		cf :: cl.cl_overrides
-
 let has_field_override cl name =
 	try
-		cl.cl_overrides <- add_override cl (PMap.find name cl.cl_fields);
+		let cf = PMap.find name cl.cl_fields in
+		add_class_field_flag cf CfOverride;
 		true
 	with | Not_found ->
 		false
@@ -1518,7 +1513,7 @@ let has_field_override cl name =
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
+		| TClassDecl cl when not (has_class_flag cl CExtern) && is_hxgen md && ( not (has_class_flag cl CInterface) || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
 			if is_some cl.cl_super then begin
 				ignore (has_field_override cl (mk_internal_name "hx" "setField"));
 				ignore (has_field_override cl (mk_internal_name "hx" "setField_f"));

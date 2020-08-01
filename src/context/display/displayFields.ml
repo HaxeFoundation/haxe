@@ -19,6 +19,7 @@
 open Ast
 open Globals
 open Error
+open Common
 open Typecore
 open Type
 open CompletionItem
@@ -50,11 +51,11 @@ let collect_static_extensions ctx items e p =
 		| (c,_) :: l ->
 			let rec dup t = Type.map dup t in
 			let acc = List.fold_left (fun acc f ->
-				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name acc then
+				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || has_class_field_flag f CfImpl || PMap.mem f.cf_name acc then
 					acc
 				else begin
 					let f = { f with cf_type = opt_type f.cf_type } in
-					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+					let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
 					let map = apply_params f.cf_params monos in
 					match follow (map f.cf_type) with
 					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
@@ -111,7 +112,7 @@ let collect ctx e_ast e dk with_type p =
 			| "get_" | "set_" -> false
 			| _ -> can_access ctx c cf stat
 		end else
-			(not stat || not (Meta.has Meta.Impl cf.cf_meta)) &&
+			(not stat || not (has_class_field_flag cf CfImpl)) &&
 			can_access ctx c cf stat
 	in
 	let make_class_field origin cf =
@@ -120,7 +121,36 @@ let collect ctx e_ast e dk with_type p =
 	in
 	let rec loop items t =
 		let is_new_item items name = not (PMap.mem name items) in
+		let rec browse_interfaces c acc =
+			List.fold_left (fun acc (c,tl) ->
+				let acc = List.fold_left (fun acc cf ->
+					if is_new_item acc cf.cf_name then begin
+						let origin = Parent(TClassDecl c) in
+						let item = make_class_field origin cf in
+						PMap.add cf.cf_name item acc
+					end else
+						acc
+				) acc c.cl_ordered_fields in
+				List.fold_left (fun acc (c,_) -> browse_interfaces c acc) acc c.cl_implements
+			) acc c.cl_implements
+		in
 		match follow t with
+		| TMono m ->
+			begin match Monomorph.classify_constraints m with
+			| CStructural(fields,is_open) ->
+				if not is_open then begin
+					Monomorph.close m;
+					begin match m.tm_type with
+					| None -> items
+					| Some t -> loop items t
+					end
+				end else
+					loop items (mk_anon ~fields (ref Closed))
+			| CTypes tl ->
+				items
+			| CUnknown ->
+				items
+			end
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items tl
@@ -128,14 +158,20 @@ let collect ctx e_ast e dk with_type p =
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
 			Display.merge_core_doc ctx (TClassDecl c0);
-			PMap.foldi (fun k (c,cf) acc ->
+			let acc = PMap.foldi (fun k (c,cf) acc ->
 				if should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
 					let item = make_class_field origin cf in
 					PMap.add k item acc
 				end else
 					acc
-			) fields items
+			) fields items in
+			let acc = if has_class_flag c0 CExtern && Meta.has Meta.LibType c0.cl_meta then
+				browse_interfaces c0 acc
+			else
+				acc
+			in
+			acc
 		| TEnum _ ->
 			let t = ctx.g.do_load_type_def ctx p {tpackage=[];tname="EnumValue";tsub=None;tparams=[]} in
 			begin match t with
@@ -154,7 +190,7 @@ let collect ctx e_ast e dk with_type p =
 			Display.merge_core_doc ctx (TAbstractDecl a);
 			(* Abstracts should show all their @:impl fields minus the constructor. *)
 			let items = List.fold_left (fun acc cf ->
-				if Meta.has Meta.Impl cf.cf_meta && not (Meta.has Meta.Enum cf.cf_meta) && should_access c cf false && is_new_item acc cf.cf_name then begin
+				if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) && should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = Self(TAbstractDecl a) in
 					let cf = prepare_using_field cf in
 					let cf = if tl = [] then cf else {cf with cf_type = apply_params a.a_params tl cf.cf_type} in
@@ -208,7 +244,7 @@ let collect ctx e_ast e dk with_type p =
 				if is_new_item acc name then begin
 					let allow_static_abstract_access c cf =
 						should_access c cf false &&
-						(not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Enum cf.cf_meta)
+						(not (has_class_field_flag cf CfImpl) || has_class_field_flag cf CfEnum)
 					in
 					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 					let add origin make_field =
@@ -217,7 +253,7 @@ let collect ctx e_ast e dk with_type p =
 					match !(an.a_status) with
 						| Statics ({cl_kind = KAbstractImpl a} as c) ->
 							if allow_static_abstract_access c cf then
-								let make = if Meta.has Meta.Enum cf.cf_meta then
+								let make = if has_class_field_flag cf CfEnum then
 										(make_ci_enum_abstract_field a)
 									else
 										make_ci_class_field
@@ -285,3 +321,86 @@ let collect ctx e_ast e dk with_type p =
 		items @ get_submodule_fields ctx (List.tl sl,List.hd sl)
 	with Exit | Not_found ->
 		items
+
+let handle_missing_field_raise ctx tthis i mode with_type pfield =
+	let tret = match with_type with
+		| WithType.WithType(t,_) -> t
+		| WithType.Value _ -> mk_mono()
+		| WithType.NoValue ->
+			match mode with
+			| MCall _ -> ctx.t.tvoid
+			| MSet (Some e) ->
+				begin try
+					let e = type_expr ctx e WithType.value in
+					e.etype
+				with _ ->
+					raise Exit
+				end
+			| _ -> raise Exit
+	in
+	let t,kind = match mode with
+		| MCall el ->
+			begin try
+				let tl = List.mapi (fun i e ->
+					let name = match Expr.find_ident e with
+						| Some name -> name
+						| None -> Printf.sprintf "arg%i" i
+					in
+					let e = type_expr ctx e WithType.value in
+					(name,false,e.etype)
+				) el in
+				(TFun(tl,tret),Method MethNormal)
+			with _ ->
+				raise Exit
+			end
+		| MGet ->
+			tret,Var {v_read = AccNormal;v_write = AccNo}
+		| MSet _ ->
+			tret,Var {v_read = AccNormal;v_write = AccNormal}
+	in
+	let cf = mk_field ~public:false i t pfield null_pos in
+	cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos;Meta.NoCompletion,[],null_pos];
+	cf.cf_kind <- kind;
+	let mt,scope,public = match follow tthis with
+		| TInst(c,_) -> TClassDecl c,CFSMember,not (can_access ctx c cf false)
+		| TEnum(en,_) -> TEnumDecl en,CFSMember,true
+		| TAbstract(a,_) -> TAbstractDecl a,CFSMember,true
+		| TAnon an ->
+			begin match !(an.a_status) with
+			| Statics c -> TClassDecl c,CFSStatic,not (can_access ctx c cf true)
+			| EnumStatics en -> TEnumDecl en,CFSStatic,true
+			| AbstractStatics a -> TAbstractDecl a,CFSStatic,true
+			| _ -> raise Exit
+			end
+		| _ ->
+			raise Exit
+	in
+	if public then add_class_field_flag cf CfPublic;
+	begin match scope with
+		| CFSStatic -> add_class_field_flag cf CfStatic
+		| _ -> ()
+	end;
+	let diag = {
+		mf_pos = pfield;
+		mf_on = mt;
+		mf_fields = [(cf,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
+		mf_cause = FieldAccess;
+	} in
+	let display = ctx.com.display_information in
+	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+
+let handle_missing_ident ctx i mode with_type p =
+	match ctx.curfun with
+	| FunStatic ->
+		let e_self = Texpr.Builder.make_static_this ctx.curclass p in
+		begin try
+			handle_missing_field_raise ctx e_self.etype i mode with_type p
+		with Exit ->
+			()
+		end
+	| _ ->
+		begin try
+			handle_missing_field_raise ctx ctx.tthis i mode with_type p
+		with Exit ->
+			()
+		end

@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open EvalValue
 
 let vstring s = VString s
@@ -128,7 +128,7 @@ let get_offset' s c_index =
 		in
 		b_offset,r
 	| _ ->
-		assert false
+		Globals.die "" __LOC__
 
 let get_offset s c_index =
 	let b_offset,(cr_index,br_offset) = get_offset' s c_index in

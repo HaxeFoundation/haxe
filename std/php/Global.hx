@@ -721,6 +721,16 @@ extern class Global {
 	static function mkdir(pathname:String, mode:Int = 511, recursive:Bool = false, ?context:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.link.php
+	**/
+	static function link(target:String, link:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.symlink.php
+	**/
+	static function symlink(target:String, link:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.unlink.php
 	**/
 	static function unlink(filename:String, ?context:Resource):Bool;
@@ -734,6 +744,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.dirname.php
 	**/
 	static function dirname(path:String, levels:Int = 1):String;
+
+	/**
+		@see http://php.net/manual/en/function.basename.php
+	**/
+	static function basename(path:String, ?suffix:String):String;
 
 	/**
 		@see http://php.net/manual/en/function.glob.php
@@ -756,6 +771,11 @@ extern class Global {
 	static function readdir(?dir_handle:Resource):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.readlink.php
+	**/
+	static function readlink(filename:String):EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.rewinddir.php
 	**/
 	static function rewinddir(?dir_handle:Resource):Void;
@@ -764,6 +784,31 @@ extern class Global {
 		@see http://php.net/manual/en/function.is-dir.php
 	**/
 	static function is_dir(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-executable.php
+	**/
+	static function is_executable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-file.php
+	**/
+	static function is_file(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-link.php
+	**/
+	static function is_link(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-readable.php
+	**/
+	static function is_readable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-writable.php
+	**/
+	static function is_writable(filename:String):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.rename.php
@@ -864,8 +909,9 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.setcookie.php
 	**/
-	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "", secure:Bool = false,
-		httponly:Bool = false):Bool;
+	@:overload(function(name:String, value:String = "", ?options:NativeStructArray<{?expires:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
+	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "",
+		secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
@@ -1023,6 +1069,11 @@ extern class Global {
 	static function mb_check_encoding(str:String = null, ?encoding:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-scrub.php
+	**/
+	static function mb_scrub(str:String, ?encoding:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.mb-split.php
 	**/
 	static function mb_split(pattern:String, str:String, ?limit:Int):NativeIndexedArray<String>;
@@ -1036,6 +1087,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr(str:String, start:Int, length:Int = null, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-substitute-character.php
+	**/
+	static function mb_substitute_character(?substchar:EitherType<Int,String>):EitherType<Bool,EitherType<String,Int>>;
 
 	/**
 		@see http://php.net/manual/en/function.mb-chr.php
@@ -1385,6 +1441,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.session-set-cookie-params.php
 	**/
+	@:overload(function(options:NativeStructArray<{?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
 	static function session_set_cookie_params(lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
@@ -1458,4 +1515,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.gc-collect-cycles.php
 	**/
 	static function gc_collect_cycles():Int;
+
+	/**
+		@see http://php.net/manual/en/function.cli-set-process-title.php
+	**/
+	static function cli_set_process_title(title:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.http-response-code.php
+	**/
+	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
 }

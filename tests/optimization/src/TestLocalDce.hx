@@ -175,9 +175,9 @@ class TestLocalDce {
 
 	@:js('
 		var s = TestLocalDce.keep(1);
-		var _g1 = [0,3,4];
-		while(0 < _g1.length) {
-			var i = _g1[0];
+		var _g = [0,3,4];
+		while(0 < _g.length) {
+			var i = _g[0];
 			s += i * 2;
 			break;
 		}

@@ -68,6 +68,22 @@ class GrandChildNoArgs extends ChildOneArg {
 	}
 }
 
+class Issue9426_1 {
+	static function __init__() {
+		var sameName = Std.random(10);
+		Test.use(sameName);
+		Test.use(sameName);
+	}
+}
+
+class Issue9426_2 {
+	static function __init__() {
+		var sameName = Std.random(10);
+		Test.use(sameName);
+		Test.use(sameName);
+	}
+}
+
 class Test {
 	public static var calls:Array<String>;
 	@:pure(false) public static function use(v:Any) {}

@@ -40,7 +40,15 @@ class HxOverrides {
 		return Syntax.callField(x, "iterator");
 	}
 
-	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	static public function keyValueIterator(x) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).keyValueIterator();
+		}
+		return Syntax.callField(x, "keyValueIterator");
+	}
+
+	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=", "type_param_binop_==", "type_param_binop_!=")
 	static function eq(a:Dynamic, b:Dynamic):Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
 			return Syntax.code('a is b');

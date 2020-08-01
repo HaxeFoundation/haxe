@@ -35,11 +35,11 @@ extern class Native {
 	@:native("memcpy")
 	static function nativeMemcpy(dest:cpp.Star<cpp.Void>, src:cpp.Star<cpp.Void>, bytes:Int):Void;
 
-	@:native("hx::ClassSizeOf") @:templatedCall
+	@:native("::hx::ClassSizeOf") @:templatedCall
 	static function sizeof<T>(t:T):Int;
 
 	#if !cppia
-	@:native("hx::Dereference")
+	@:native("::hx::Dereference")
 	static function star<T>(ptr:cpp.Star<T>):cpp.Reference<T>;
 
 	@:generic
@@ -75,7 +75,7 @@ extern class Native {
 			nativeFree(cast ptr);
 	}
 
-	@:native("hx::StarOf")
+	@:native("::hx::StarOf")
 	static function addressOf<T>(inVariable:Reference<T>):Star<T>;
 	#else
 	static inline function addressOf<T>(inVariable:Reference<T>):Star<T> {

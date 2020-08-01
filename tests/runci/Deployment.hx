@@ -14,20 +14,12 @@ class Deployment {
 
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
-			case TravisCI:
-				Sys.getEnv("TRAVIS_REPO_SLUG");
-			case AppVeyor:
-				Sys.getEnv("APPVEYOR_PROJECT_SLUG");
 			case AzurePipelines:
 				Sys.getEnv("AZURE_PIPELINES_REPO_URL");
 			case _:
 				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
 		},
 		branch: switch (ci) {
-			case TravisCI:
-				Sys.getEnv("TRAVIS_BRANCH");
-			case AppVeyor:
-				Sys.getEnv("APPVEYOR_REPO_BRANCH");
 			case AzurePipelines:
 				Sys.getEnv("AZURE_PIPELINES_BRANCH");
 			case _:
@@ -87,7 +79,7 @@ class Deployment {
 			Sys.getEnv("DEPLOY_API_DOCS") != null &&
 			(
 				gitInfo.branch == "development" ||
-				switch(Sys.getEnv("TRAVIS_TAG")) {
+				switch(Sys.getEnv("TRAVIS_TAG")) { // TODO: there's no Travis anymore, we might want to change this for GH actions
 					case null, _.trim() => "":
 						false;
 					case tag:
@@ -275,27 +267,6 @@ class Deployment {
 	}
 
 	static public function deploy():Void {
-		switch (ci) {
-			case TravisCI:
-				switch (Sys.getEnv("TRAVIS_PULL_REQUEST")) {
-					case "false", null:
-						// not a PR
-					case _:
-						infoMsg("Not deploying in PR builds.");
-						return;
-				}
-			case AppVeyor:
-				switch (Sys.getEnv("APPVEYOR_PULL_REQUEST_NUMBER")) {
-					case null:
-						// not a PR
-					case _:
-						infoMsg("Not deploying in PR builds.");
-						return;
-				}
-			case _:
-				// pass
-		}
-
 		if (isDeployApiDocsRequired()) {
 			deployApiDoc();
 		} else {

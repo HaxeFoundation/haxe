@@ -119,11 +119,11 @@ let mk_conversion_fun gen e =
 	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
-			v.v_capture <- true;
+			add_var_flag v VCaptured;
 			[],e
 		| _ ->
 			let tmp = mk_temp "delegate_conv" e.etype in
-			tmp.v_capture <- true;
+			add_var_flag tmp VCaptured;
 			[{ eexpr = TVar(tmp,Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }], mk_local tmp e.epos
 	in
 	let body = {
@@ -191,29 +191,29 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				| None -> Type.map_expr run e
 				| Some tparam_anon_decl ->
 					(match (vv, ve) with
-						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
-						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some ({ eexpr = TFunction tf } as f)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 							tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 							{ e with eexpr = TBlock([]) }
 						| _ ->
 							Type.map_expr run { e with eexpr = TVar(vv, ve) })
 					)
-			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
+			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some({v_params = _ :: _}) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
 				(match tparam_anon_decl with
-					| None -> assert false
+					| None -> die "" __LOC__
 					| Some tparam_anon_decl ->
 						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 						{ e with eexpr = TBlock([]) }
 				)
-			| TLocal ({ v_extra = Some( _ :: _, _) } as v) ->
+			| TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v e false)
-			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr), _) -> (* captured transformation *)
+			| TArray ( ({ eexpr = TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) } as expr), _) -> (* captured transformation *)
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v { expr with etype = e.etype } false)
-			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr)) ->
+			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some({v_params = _ :: _}) } as v) } as expr)) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v expr true)
@@ -291,7 +291,7 @@ let rec get_type_params acc t =
 			PMap.fold (fun cf acc ->
 				let params = List.map (fun (_,t) -> match follow t with
 					| TInst(c,_) -> c
-					| _ -> assert false) cf.cf_params
+					| _ -> die "" __LOC__) cf.cf_params
 				in
 				List.filter (fun t -> not (List.memq t params)) (get_type_params acc cf.cf_type)
 			) a.a_fields acc
@@ -334,14 +334,14 @@ let get_captured expr =
 				Type.iter traverse expr
 			| TVar (v, opt) ->
 				(match v.v_extra with
-					| Some(_ :: _, _) -> ()
+					| Some({v_params = _ :: _}) -> ()
 					| _ ->
 						check_params v.v_type);
 				Hashtbl.add ignored v.v_id v;
 				ignore(Option.map traverse opt)
-			| TLocal { v_extra = Some( (_ :: _ ),_) } ->
+			| TLocal { v_extra = Some({v_params = (_ :: _ )}) } ->
 				()
-			| TLocal(( { v_capture = true } ) as v) ->
+			| TLocal v when has_var_flag v VCaptured ->
 				(if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
 			| _ -> Type.iter traverse expr
 	in traverse expr;
@@ -392,7 +392,7 @@ let configure gen ft =
 		let captured = List.sort (fun e1 e2 -> match e1, e2 with
 			| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
 				compare v1.v_name v2.v_name
-			| _ -> assert false) captured
+			| _ -> die "" __LOC__) captured
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
@@ -448,13 +448,13 @@ let configure gen ft =
 
 					let ctor_v = alloc_var v.v_name v.v_type in
 					((ctor_v, None) :: ctor_args, (v.v_name, false, v.v_type) :: ctor_sig, (mk_this_assign v cls.cl_pos) :: ctor_exprs)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 		) ([],[],[]) captured in
 
 		(* change all captured variables to this.capturedVariable *)
 		let rec change_captured e =
 			match e.eexpr with
-				| TLocal( ({ v_capture = true }) as v ) when Hashtbl.mem captured_ht v.v_id ->
+				| TLocal v when has_var_flag v VCaptured && Hashtbl.mem captured_ht v.v_id ->
 					mk_this v e.epos
 				| _ -> Type.map_expr change_captured e
 		in
@@ -524,11 +524,11 @@ let configure gen ft =
 		(* add invoke function to the class *)
 		cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
 		cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
-		cls.cl_overrides <- invoke_field :: cls.cl_overrides;
+		add_class_field_flag invoke_field CfOverride;
 
 		(match tvar with
 		| None -> ()
-		| Some ({ v_extra = Some(_ :: _, _) } as v) ->
+		| Some ({ v_extra = Some({v_params = _ :: _}) } as v) ->
 			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
 		| _ -> ());
 
@@ -540,7 +540,7 @@ let configure gen ft =
 			match captured, tparams with
 			| [], [] ->
 				let cache_var = mk_internal_name "hx" "current" in
-				let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
+				let cache_cf = mk_class_field ~static:true cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
 				cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
 				cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
 
@@ -593,11 +593,11 @@ let configure gen ft =
 			let captured = List.sort (fun e1 e2 -> match e1, e2 with
 				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
 					compare v1.v_name v2.v_name
-				| _ -> assert false) captured
+				| _ -> die "" __LOC__) captured
 			in
 			let types = match v.v_extra with
-				| Some(t,_) -> t
-				| _ -> assert false
+				| Some ve -> ve.v_params
+				| _ -> die "" __LOC__
 			in
 			let monos = List.map (fun _ -> mk_mono()) types in
 			let vt = match follow v.v_type with
@@ -741,7 +741,7 @@ struct
 			in
 
 			if arity >= max_arity then begin
-				let varray = match changed_args with | [v,_] -> v | _ -> assert false in
+				let varray = match changed_args with | [v,_] -> v | _ -> die "" __LOC__ in
 				let varray_local = mk_local varray pos in
 				let mk_varray i = { eexpr = TArray(varray_local, make_int gen.gcon.basic i pos); etype = t_dynamic; epos = pos } in
 				let el =
@@ -773,7 +773,7 @@ struct
 									epos = pos
 								} )); etype = basic.tvoid; epos = pos } :: acc in
 							loop acc args fargs dargs
-						| _ -> assert false
+						| _ -> die "" __LOC__
 				in
 
 				loop [] args float_args dyn_args
@@ -797,7 +797,7 @@ struct
 					let ret_t = if is_dynamic_func then t_dynamic else ret_t in
 
 					(TFun(args_real_to_func_sig _sig, ret_t), arity, type_n, ret_t, ExtType.is_void ret, is_dynamic_func)
-				| _ -> (print_endline (s_type (print_context()) (follow old_sig) )); assert false
+				| _ -> (print_endline (s_type (print_context()) (follow old_sig) )); die "" __LOC__
 			in
 
 			let tf_expr = if is_void then begin
@@ -810,7 +810,7 @@ struct
 				let e = mk_block (map tfunc.tf_expr) in
 				match e.eexpr with
 					| TBlock bl -> { e with eexpr = TBlock (bl @ [mk_return (null t_dynamic e.epos)]) }
-					| _ -> assert false
+					| _ -> die "" __LOC__
 			end else tfunc.tf_expr in
 
 			let changed_sig_ret = if is_dynamic_func then t_dynamic else changed_sig_ret in
@@ -866,7 +866,7 @@ struct
 						| _ -> default()
 					in
 					tc, params, rest_args, params_len, call_expr
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			let ct = gen.greal_type call_expr.etype in
 			let postfix, ret_t =

@@ -23,7 +23,7 @@
 package sys.io;
 
 class FileOutput extends cs.io.NativeOutput {
-	public function new(stream:cs.system.io.FileStream) {
+	function new(stream:cs.system.io.FileStream) {
 		super(stream);
 	}
 }

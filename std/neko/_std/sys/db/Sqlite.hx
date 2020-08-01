@@ -75,12 +75,10 @@ private class SqliteConnection implements Connection {
 
 	public function commit() {
 		request("COMMIT");
-		startTransaction(); // match mysql usage
 	}
 
 	public function rollback() {
 		request("ROLLBACK");
-		startTransaction(); // match mysql usage
 	}
 
 	static var _encode = neko.Lib.load("std", "base_encode", 2);
@@ -177,6 +175,12 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames():Array<String> {
+		if(hasNext()) {
+			return switch cache.first() {
+				case null: null;
+				case row: Reflect.fields(row);
+			}
+		}
 		return null;
 	}
 

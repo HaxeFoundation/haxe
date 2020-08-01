@@ -112,7 +112,7 @@ let build_exception_stack ctx env =
 			List.rev acc
 		else match env'.env_parent with
 			| Some env -> loop acc env
-			| None -> assert false
+			| None -> die "" __LOC__
 	in
 	let d = match eval.env with
 	| Some env -> loop [] env
@@ -142,12 +142,28 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
-			let v1 = field v key_message in
+			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
 			GlobalState.get_ctx_ref := prev;
 			final();
-			match v1,v2 with
-				| VString s,VInstance {ikind = IPos p} ->
+			match v1 with
+				| VString s ->
+					let p =
+						match v2 with
+						| VInstance { ikind = IPos p } -> p
+						| VObject o ->
+							(try
+								let fields = object_fields o in
+								let min = match List.assoc key_min fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
+								and max = match List.assoc key_max fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
+								and file = match List.assoc key_file fields with VString s -> s.sstring | _ -> raise Not_found
+								in
+								{ pmin = min; pmax = max; pfile = file }
+							with Not_found ->
+								null_pos
+							)
+						| _ -> null_pos
+					in
 					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
 					Error.error "Something went wrong" null_pos

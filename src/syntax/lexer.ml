@@ -58,7 +58,6 @@ type lexer_file = {
 	mutable lmaxline : int;
 	mutable llines : (int * int) list;
 	mutable lalines : (int * int) array;
-	mutable lstrings : int list;
 	mutable llast : int;
 	mutable llastindex : int;
 }
@@ -70,7 +69,6 @@ let make_file file =
 		lmaxline = 1;
 		llines = [0,1];
 		lalines = [|0,1|];
-		lstrings = [];
 		llast = max_int;
 		llastindex = 0;
 	}
@@ -128,37 +126,6 @@ let newline lexbuf =
 	let cur = !cur in
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
-
-let fmt_pos p =
-	p.pmin + (p.pmax - p.pmin) * 1000000
-
-let add_fmt_string p =
-	let file = (try
-		Hashtbl.find all_files p.pfile
-	with Not_found ->
-		let f = make_file p.pfile in
-		Hashtbl.replace all_files p.pfile f;
-		f
-	) in
-	file.lstrings <- (fmt_pos p) :: file.lstrings
-
-let fast_add_fmt_string p =
-	let cur = !cur in
-	cur.lstrings <- (fmt_pos p) :: cur.lstrings
-
-let is_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		List.mem (fmt_pos p) file.lstrings
-	with Not_found ->
-		false
-
-let remove_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		file.lstrings <- List.filter ((<>) (fmt_pos p)) file.lstrings
-	with Not_found ->
-		()
 
 let find_line p f =
 	(* rebuild cache if we have a new line *)
@@ -226,7 +193,15 @@ let resolve_pos file =
 		f
 
 let find_file file =
-	try Hashtbl.find all_files file with Not_found -> try resolve_pos file with Sys_error _ -> make_file file
+	try
+		Hashtbl.find all_files file
+	with Not_found ->
+		try
+			let f = resolve_pos file in
+			Hashtbl.add all_files file f;
+			f
+		with Sys_error _ ->
+			make_file file
 
 let find_pos p =
 	find_line p.pmin (find_file p.pfile)
@@ -256,6 +231,8 @@ let get_error_pos printer p =
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
 		end else
 			Printf.sprintf "%s lines %d-%d" (printer p.pfile l1) l1 l2
+;;
+Globals.get_error_pos_ref := get_error_pos
 
 let reset() = Buffer.reset buf
 let contents() = Buffer.contents buf
@@ -306,6 +283,20 @@ let sharp_ident = [%sedlex.regexp?
 	)
 ]
 
+let is_whitespace = function
+	| ' ' | '\n' | '\r' | '\t' -> true
+	| _ -> false
+
+let string_is_whitespace s =
+	try
+		for i = 0 to String.length s - 1 do
+			if not (is_whitespace (String.unsafe_get s i)) then
+				raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
@@ -320,7 +311,7 @@ let rec skip_header lexbuf =
 	| 0xfeff -> skip_header lexbuf
 	| "#!", Star (Compl ('\n' | '\r')) -> skip_header lexbuf
 	| "" | eof -> ()
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let rec token lexbuf =
 	match%sedlex lexbuf with
@@ -407,9 +398,7 @@ let rec token lexbuf =
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
-		let t = mk_tok (Const (String(str,SSingleQuotes))) pmin pmax in
-		fast_add_fmt_string (snd t);
-		t
+		mk_tok (Const (String(str,SSingleQuotes))) pmin pmax;
 	| "~/" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
@@ -486,7 +475,7 @@ and comment lexbuf =
 	| "*/" -> lexeme_end lexbuf
 	| '*' -> store lexbuf; comment lexbuf
 	| Plus (Compl ('*' | '\n' | '\r')) -> store lexbuf; comment lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and string lexbuf =
 	match%sedlex lexbuf with
@@ -497,7 +486,7 @@ and string lexbuf =
 	| '\\' -> store lexbuf; string lexbuf
 	| '"' -> lexeme_end lexbuf
 	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store lexbuf; string lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and string2 lexbuf =
 	match%sedlex lexbuf with
@@ -514,7 +503,7 @@ and string2 lexbuf =
 		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
 		string2 lexbuf;
 	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and code_string lexbuf open_braces =
 	match%sedlex lexbuf with
@@ -534,9 +523,8 @@ and code_string lexbuf open_braces =
 	| "'" ->
 		add "'";
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
+		(try ignore(string2 lexbuf) with Exit -> error Unterminated_string pmin);
 		add "'";
-		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
 		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
@@ -548,7 +536,7 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and regexp lexbuf =
 	match%sedlex lexbuf with
@@ -563,7 +551,7 @@ and regexp lexbuf =
 	| '\\', Compl '\\' -> error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
 	| '/' -> regexp_options lexbuf, lexeme_end lexbuf
 	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store lexbuf; regexp lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and regexp_options lexbuf =
 	match%sedlex lexbuf with
@@ -572,7 +560,7 @@ and regexp_options lexbuf =
 		l ^ regexp_options lexbuf
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and not_xml ctx depth in_open =
 	let lexbuf = ctx.lexbuf in
@@ -616,7 +604,7 @@ and not_xml ctx depth in_open =
 		store lexbuf;
 		not_xml ctx depth in_open
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec sharp_token lexbuf =
 	match%sedlex lexbuf with

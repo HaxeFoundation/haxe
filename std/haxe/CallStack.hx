@@ -28,7 +28,7 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module(m:String);
-	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
+	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Int);
 	Method(classname:Null<String>, method:String);
 	LocalFunction(?v:Int);
 }
@@ -133,7 +133,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 	static function exceptionToString(e:Exception):String {
 		if(e.previous == null) {
-			return 'Exception: ${e.message}${e.stack}';
+			return 'Exception: ${e.toString()}${e.stack}';
 		}
 		var result = '';
 		var e:Null<Exception> = e;

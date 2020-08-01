@@ -20,7 +20,7 @@ let extend_remoting ctx c t p async prot =
 	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
 	(* check if the proxy already exists *)
 	let t = (try
-		load_type_def ctx p { tpackage = fst path; tname = new_name; tparams = []; tsub = None }
+		load_type_def ctx p (mk_type_path (fst path,new_name))
 	with
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
@@ -32,10 +32,10 @@ let extend_remoting ctx c t p async prot =
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
+		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath (mk_type_path (["haxe";"remoting"],if async then "AsyncConnection" else "Connection")),null_pos),None) };
 		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic,null_pos]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
-	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
+	let tvoid = CTPath (mk_type_path ([],"Void")) in
 	let build_field is_public acc f =
 		if fst f.cff_name = "new" then
 			acc
@@ -87,47 +87,6 @@ let extend_remoting ctx c t p async prot =
 	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
 	| _ -> error "Remoting proxy must be a class without parameters" p
 
-(* -------------------------------------------------------------------------- *)
-(* HAXE.XML.PROXY *)
-
-let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false (t,p) in
-	let file = (try Common.find_file ctx.com file with Not_found -> file) in
-	add_dependency c.cl_module (create_fake_module ctx file);
-	let used = ref PMap.empty in
-	let print_results() =
-		PMap.iter (fun id used ->
-			if not used then ctx.com.warning (id ^ " is not used") p;
-		) (!used)
-	in
-	let check_used = Common.defined ctx.com Define.CheckXmlProxy in
-	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
-	try
-		let rec loop = function
-			| Xml.Element (_,attrs,childs) ->
-				(try
-					let id = List.assoc "id" attrs in
-					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
-					let t = if not check_used then t else begin
-						used := PMap.add id false (!used);
-						let ft() = used := PMap.add id true (!used); t in
-						TLazy (ref (lazy_wait ft))
-					end in
-					let f = {
-						(mk_field id t p null_pos) with
-						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
-					} in
-					c.cl_fields <- PMap.add id f c.cl_fields;
-				with
-					Not_found -> ());
-				List.iter loop childs;
-			| Xml.PCData _ -> ()
-		in
-		loop (Xml.parse_file file)
-	with
-		| Xml.Error e -> error ("XML error " ^ Xml.error e) p
-		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
-
 let on_inherit ctx c p (is_extends,tp) =
 	if not is_extends then
 		true
@@ -138,8 +97,5 @@ let on_inherit ctx c p (is_extends,tp) =
 	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String(file,SDoubleQuotes)),p);TPType (t,_)] } ->
-		extend_xml_proxy ctx c t file p;
-		true
 	| _ ->
 		true

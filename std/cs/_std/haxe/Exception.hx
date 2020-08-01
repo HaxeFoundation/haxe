@@ -18,7 +18,7 @@ class Exception extends NativeException {
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static public function caught(value:Any):Exception {
-		if(Std.is(value, Exception)) {
+		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, CsException)) {
 			return new Exception((value:CsException).Message, null, value);
@@ -64,6 +64,10 @@ class Exception extends NativeException {
 	}
 
 	public function toString():String {
+		return message;
+	}
+
+	public function details():String {
 		return inline CallStack.exceptionToString(this);
 	}
 

@@ -35,7 +35,7 @@ extern class Stdlib {
 	@:native("memcpy")
 	static function nativeMemcpy(dest:cpp.RawPointer<cpp.Void>, src:cpp.RawConstPointer<cpp.Void>, bytes:Int):Void;
 
-	@:native("hx::ClassSizeOf") @:templatedCall
+	@:native("::hx::ClassSizeOf") @:templatedCall
 	static function sizeof<T>(t:T):Int;
 
 	inline static function memcpy<DEST, SRC>(dest:cpp.Pointer<DEST>, src:cpp.ConstPointer<SRC>, bytes:Int):Void

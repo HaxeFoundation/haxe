@@ -41,14 +41,14 @@ class File {
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		return new FileOutput(Io.open(path, "a"));
+		return @:privateAccess new FileOutput(Io.open(path, "a"));
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
 		if (!FileSystem.exists(path)) {
 			write(path).close();
 		}
-		return new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
+		return @:privateAccess new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {
@@ -73,14 +73,14 @@ class File {
 		var fh = Io.open(path, binary ? 'rb' : 'r');
 		if (fh == null)
 			throw 'Invalid path : $path';
-		return new FileInput(fh);
+		return @:privateAccess new FileInput(fh);
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
 		var fh = Io.open(path, binary ? 'wb' : 'w');
 		if (fh == null)
 			throw 'Invalid path : $path';
-		return new FileOutput(fh);
+		return @:privateAccess new FileOutput(fh);
 	}
 
 	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {

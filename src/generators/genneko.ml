@@ -177,7 +177,7 @@ let gen_constant ctx pe c =
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
 	| TThis -> this p
-	| TSuper -> assert false
+	| TSuper -> die "" __LOC__
 
 let rec gen_binop ctx p op e1 e2 =
 	(EBinop (Ast.s_binop op,gen_expr ctx e1,gen_expr ctx e2),p)
@@ -193,7 +193,7 @@ and gen_unop ctx p op flag e =
 and gen_call ctx p e el =
 	match e.eexpr , el with
 	| TConst TSuper , _ ->
-		let c = (match follow e.etype with TInst (c,_) -> c | _ -> assert false) in
+		let c = (match follow e.etype with TInst (c,_) -> c | _ -> die "" __LOC__) in
 		call p (builtin p "call") [
 			field p (gen_type_path p c.cl_path) "__construct__";
 			this p;
@@ -204,7 +204,7 @@ and gen_call ctx p e el =
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
-		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
+		let c = (match follow t with TInst (c,_) -> c | _ -> die "" __LOC__) in
 		call p (builtin p "call") [
 			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) (field_name f);
 			this p;
@@ -222,7 +222,7 @@ and gen_expr ctx e =
 	| TIdent s when s.[0] = '$' ->
 		(EConst (Builtin (String.sub s 1 (String.length s - 1))),p)
 	| TLocal v ->
-		if v.v_capture then
+		if has_var_flag v VCaptured then
 			(EArray (ident p v.v_name,int p 0),p)
 		else
 			ident p v.v_name
@@ -245,7 +245,7 @@ and gen_expr ctx e =
 				else
 					call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 			] , p
-		| _ -> assert false)
+		| _ -> die "" __LOC__)
 	| TEnumParameter (e,_,i) ->
 		EArray (field p (gen_expr ctx e) "args",int p i),p
 	| TEnumIndex e ->
@@ -274,13 +274,13 @@ and gen_expr ctx e =
 		(EVars (
 			let e = (match eo with
 				| None ->
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [null p])
 					else
 						None
 				| Some e ->
 					let e = gen_expr ctx e in
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [e])
 					else
 						Some e
@@ -289,7 +289,7 @@ and gen_expr ctx e =
 		),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
-			let acc = if a.v_capture then
+			let acc = if has_var_flag a VCaptured then
 				(EBinop ("=",ident p a.v_name,call p (builtin p "array") [ident p a.v_name]),p) :: acc
 			else
 				acc
@@ -307,7 +307,7 @@ and gen_expr ctx e =
 		let it = gen_expr ctx it in
 		let e = gen_expr ctx e in
 		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
+		let next = (if has_var_flag v VCaptured then call p (builtin p "array") [next] else next) in
 		(EBlock
 			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
@@ -334,14 +334,14 @@ and gen_expr ctx e =
 					| TEnum (e,_) -> Some e.e_path
 					| TAbstract (a,_) -> Some a.a_path
 					| TDynamic _ -> None
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				) in
 				let cond = (match path with
 					| None -> (EConst True,p)
 					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
 				let id = ident p "@tmp" in
-				let id = (if v.v_capture then call p (builtin p "array") [id] else id) in
+				let id = (if has_var_flag v VCaptured then call p (builtin p "array") [id] else id) in
 				let e = gen_expr ctx e in
 				(EIf (cond,(EBlock [
 					EVars [v.v_name,Some id],p;
@@ -380,7 +380,7 @@ and gen_expr ctx e =
 				e,
 				List.map (fun (el,e2) ->
 					match List.map (gen_expr ctx) el with
-					| [] -> assert false
+					| [] -> die "" __LOC__
 					| [e] -> e, gen_expr ctx e2
 					| _ -> raise Exit
 				) cases,
@@ -392,7 +392,7 @@ and gen_expr ctx e =
 					(EVars ["@tmp",Some e],p);
 					List.fold_left (fun acc (el,e) ->
 						let cond = (match el with
-							| [] -> assert false
+							| [] -> die "" __LOC__
 							| e :: l ->
 								let eq e = (EBinop ("==",ident p "@tmp",gen_expr ctx e),p) in
 								List.fold_left (fun acc e -> (EBinop ("||",acc,eq e),p)) (eq e) l
@@ -556,7 +556,7 @@ let gen_type ctx t acc =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			acc
 		else
 			gen_class ctx c :: acc
@@ -572,7 +572,7 @@ let gen_static_vars ctx t =
 	match t with
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ -> []
 	| TClassDecl c ->
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			[]
 		else
 			List.fold_right (fun f acc ->
@@ -641,7 +641,7 @@ let gen_name ctx acc t =
 		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
+		if (has_class_flag c CExtern) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
 			acc
 		else
 			let p = pos ctx c.cl_pos in
@@ -736,7 +736,7 @@ let header() =
 	let p = { psource = "<header>"; pline = 1 } in
 	let fields l =
 		let rec loop = function
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| [x] -> ident p x
 			| x :: l -> field p (loop l) x
 		in

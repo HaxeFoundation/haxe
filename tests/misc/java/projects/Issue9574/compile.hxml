@@ -1,0 +1,10 @@
+--cmd javac -d bin Test.java -g
+--cmd cd bin
+--cmd jar cf test.jar Test.class
+--cmd cd ..
+
+--next
+
+--main Main
+--java-lib-extern bin/test.jar
+--jvm bin/main.jar

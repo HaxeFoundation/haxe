@@ -23,14 +23,48 @@
 package sys.db;
 
 interface ResultSet {
+	/**
+		Get amount of rows left in this set.
+		Depending on a database management system accessing this field may cause
+		all rows to be fetched internally. However, it does not affect `next` calls.
+	**/
 	var length(get, null):Int;
+	/**
+		Amount of columns in a row.
+		Depending on a database management system may return `0` if the query
+		did not match any rows.
+	**/
 	var nfields(get, null):Int;
 
+	/**
+		Tells whether there is a row to be fetched.
+	**/
 	function hasNext():Bool;
+	/**
+		Fetch next row.
+	**/
 	function next():Dynamic;
+	/**
+		Fetch all the rows not fetched yet.
+	**/
 	function results():List<Dynamic>;
+	/**
+		Get the value of `n`-th column of the current row.
+		Throws an exception if the re
+	**/
 	function getResult(n:Int):String;
+	/**
+		Get the value of `n`-th column of the current row as an integer value.
+	**/
 	function getIntResult(n:Int):Int;
+	/**
+		Get the value of `n`-th column of the current row as a float value.
+	**/
 	function getFloatResult(n:Int):Float;
+	/**
+		Get the list of column names.
+		Depending on a database management system may return `null` if there's no
+		more rows to fetch.
+	**/
 	function getFieldsNames():Null<Array<String>>;
 }

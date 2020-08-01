@@ -15,7 +15,7 @@ class Exception {
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
-		if(Std.is(value, Exception)) {
+		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else {
 			return new ValueException(value, null, value);
@@ -48,7 +48,12 @@ class Exception {
 		return __nativeException;
 	}
 
+	@:ifFeature("haxe.Exception.thrown")
 	public function toString():String {
+		return message;
+	}
+
+	public function details():String {
 		return inline CallStack.exceptionToString(this);
 	}
 

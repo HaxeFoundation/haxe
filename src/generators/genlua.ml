@@ -130,7 +130,7 @@ let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (s_escape_lua s) ^ "']" else s
 let static_field c s =
     match s with
-    | "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
+    | "length" | "name" when not (has_class_flag c CExtern) || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
     | s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
@@ -146,9 +146,7 @@ let spr ctx s =
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> begin
-            Buffer.add_string ctx.buf s
-        end)
+    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -237,7 +235,7 @@ let mk_mr_box ctx e =
         match follow e.etype with
         | TInst (c,_) ->
             String.concat ", " (List.map (fun f -> "\"" ^ f.cf_name ^ "\"") c.cl_ordered_fields)
-        | _ -> assert false
+        | _ -> Globals.die "" __LOC__
     in
     add_feature ctx "use._hx_box_mr";
     add_feature ctx "use._hx_table";
@@ -251,7 +249,7 @@ let mk_mr_select com e ecall name =
         | TInst (c,_) ->
             index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
         | _ ->
-            assert false
+            Globals.die "" __LOC__
     in
     if i == 0 then
         mk_lua_code com "{0}" [ecall] e.etype e.epos
@@ -320,7 +318,7 @@ let gen_constant ctx p = function
     | TBool b -> spr ctx (if b then "true" else "false")
     | TNull -> spr ctx "nil"
     | TThis -> spr ctx (this ctx)
-    | TSuper -> assert false
+    | TSuper -> Globals.die "" __LOC__
 
 
 
@@ -461,7 +459,7 @@ and gen_call ctx e el =
          print ctx "}, %i)" !count;
      | TIdent "`trace", [e;infos] ->
          if has_feature ctx "haxe.Log.trace" then begin
-             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
+             let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> Globals.die "" __LOC__) in
              spr ctx (ctx.type_accessor t);
              spr ctx ".trace(";
              gen_value ctx e;
@@ -705,7 +703,7 @@ and gen_expr ?(local=true) ctx e = begin
          | [(EConst(String(id,_)), _)] ->
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
-             assert false);
+             Globals.die "" __LOC__);
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
@@ -795,7 +793,7 @@ and gen_expr ?(local=true) ctx e = begin
                         | TInst (c, _) ->
                             List.map (fun f -> id ^ "_" ^name ^ "_" ^ f.cf_name) c.cl_ordered_fields
                         | _ ->
-                            assert false
+                            Globals.die "" __LOC__
                     in
                     spr ctx "local ";
                     spr ctx (String.concat ", " names);
@@ -970,7 +968,7 @@ and gen_expr ?(local=true) ctx e = begin
         | [v,e] ->
             print ctx "  local %s = _hx_result;" v.v_name;
             gen_block_element ctx e;
-        | _ -> assert false
+        | _ -> Globals.die "" __LOC__
         );
         bend();
         newline ctx;
@@ -1072,7 +1070,7 @@ and gen_block_element ctx e  =
             else (match eelse with
                 | [] -> ()
                 | [e] -> gen_block_element ctx e
-                | _ -> assert false)
+                | _ -> Globals.die "" __LOC__)
         | _ ->
             newline ctx;
             gen_expr ctx e;
@@ -1118,7 +1116,7 @@ and gen_anon_value ctx e =
 and gen_value ctx e =
     let assign e =
         mk (TBinop (Ast.OpAssign,
-                    mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
+                    mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
                     e
                    )) e.etype e.epos
     in
@@ -1468,7 +1466,7 @@ and can_gen_class_field ctx = function
 let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
-        if not c.cl_extern then
+        if not (has_class_flag c CExtern) then
             error "MultiReturns must be externs" c.cl_pos
         else if List.length c.cl_ordered_statics > 0 then
             error "MultiReturns must not contain static fields" c.cl_pos
@@ -1782,9 +1780,9 @@ let generate_type ctx = function
         (* A special case for Std because we do not want to generate it if it's empty. *)
         if p = "Std" && c.cl_ordered_statics = [] then
             ()
-        else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
+        else if (not (has_class_flag c CExtern)) && Meta.has Meta.LuaDotMethod c.cl_meta then
             error "LuaDotMethod is valid for externs only" c.cl_pos
-        else if not c.cl_extern then
+        else if not (has_class_flag c CExtern) then
             generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
@@ -1794,7 +1792,7 @@ let generate_type ctx = function
 
 let generate_type_forward ctx = function
     | TClassDecl c ->
-        if not c.cl_extern then
+        if not (has_class_flag c CExtern) then
             begin
                 let p = s_path ctx c.cl_path in
                 let l,c = c.cl_path in
@@ -1829,7 +1827,7 @@ let alloc_ctx com =
         break_depth = 0;
         handle_continue = false;
         id_counter = 0;
-        type_accessor = (fun _ -> assert false);
+        type_accessor = (fun _ -> Globals.die "" __LOC__);
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
@@ -1841,7 +1839,7 @@ let alloc_ctx com =
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
         match t with
-        | TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.LuaRequire c.cl_meta)
+        | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
         | TEnumDecl { e_extern = true }
             -> s_path ctx p
@@ -2043,13 +2041,12 @@ let generate com =
     newline ctx;
 
     let b = open_block ctx in
-    println ctx "local _hx_static_init = function()";
-    (* Generate statics *)
-    List.iter (generate_static ctx) (List.rev ctx.statics);
     (* Localize init variables inside a do-block *)
-    (* Note: __init__ logic can modify static variables. *)
+    println ctx "local _hx_static_init = function()";
     (* Generate static inits *)
     List.iter (gen_block_element ctx) (List.rev ctx.inits);
+    (* Generate statics *)
+    List.iter (generate_static ctx) (List.rev ctx.statics);
     b();
     newline ctx;
     println ctx "end";
@@ -2098,9 +2095,24 @@ let generate com =
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
-    (match com.main with
-     | None -> ()
-     | Some e -> gen_expr ctx e; newline ctx);
+    Option.may (fun e ->
+        spr ctx "_G.xpcall(";
+        (match e.eexpr with
+        | TCall(e2,[]) ->
+            gen_value ctx e2;
+        | _->
+            let fn =
+                {
+                    tf_args = [];
+                    tf_type = com.basic.tvoid;
+                    tf_expr = mk (TBlock [e]) com.basic.tvoid e.epos;
+                }
+            in
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
+        );
+        spr ctx ", _hx_error)";
+        newline ctx
+    ) com.main;
 
     if anyExposed then
         println ctx "return _hx_exports";

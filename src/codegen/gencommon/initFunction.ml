@@ -49,7 +49,7 @@ let ensure_simple_expr com e =
 
 let handle_override_dynfun acc e this field =
 	let v = mk_temp ("super_" ^ field) e.etype in
-	v.v_capture <- true;
+	add_var_flag v  VCaptured;
 
 	let add_expr = ref None in
 
@@ -57,11 +57,11 @@ let handle_override_dynfun acc e this field =
 		match e.eexpr with
 		| TField ({ eexpr = TConst TSuper }, f) ->
 			let n = field_name f in
-			if n <> field then assert false;
+			if n <> field then Globals.die "" __LOC__;
 			if Option.is_none !add_expr then
 				add_expr := Some { e with eexpr = TVar(v, Some this) };
 			mk_local v e.epos
-		| TConst TSuper -> assert false
+		| TConst TSuper -> Globals.die "" __LOC__
 		| _ -> Type.map_expr loop e
 	in
 	let e = loop e in
@@ -126,7 +126,7 @@ let handle_class com cl =
 				let var = mk (TField ((mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) cf.cf_pos), FInstance(cl, List.map snd cl.cl_params, cf))) cf.cf_type cf.cf_pos in
 				let ret = binop Ast.OpAssign var e cf.cf_type cf.cf_pos in
 				cf.cf_expr <- None;
-				let is_override = List.memq cf cl.cl_overrides in
+				let is_override = has_class_field_flag cf CfOverride in
 
 				if is_override then begin
 					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -146,7 +146,7 @@ let handle_class com cl =
 
 				let ret = binop Ast.OpAssign var (change_expr e) (fn cf.cf_type) cf.cf_pos in
 				cf.cf_expr <- None;
-				let is_override = List.memq cf cl.cl_overrides in
+				let is_override = has_class_field_flag cf CfOverride in
 
 				if is_override then begin
 					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -217,7 +217,7 @@ let handle_class com cl =
 					let tf_expr = add_fn (mk_block tf.tf_expr) in
 					{ e with eexpr = TFunction { tf with tf_expr = tf_expr } }
 				| _ ->
-					assert false
+					Globals.die "" __LOC__
 			in
 			ctor.cf_expr <- Some func
 		in
@@ -226,7 +226,7 @@ let handle_class com cl =
 
 let mod_filter com md =
 	match md with
-	| TClassDecl cl when not cl.cl_extern ->
+	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		handle_class com cl
 	| _ -> ()
 

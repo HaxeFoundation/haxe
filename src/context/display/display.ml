@@ -23,8 +23,14 @@ let parse_module ctx m p =
 
 module ReferencePosition = struct
 	let reference_position = ref ("",null_pos,SKOther)
-	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let set (s,p,k) =
+		let p =
+			if p = null_pos then p
+			else {p with pfile = Path.get_full_path p.pfile}
+		in
+		reference_position := (s,p,k)
 	let get () = !reference_position
+	let reset () = reference_position := ("",null_pos,SKOther)
 end
 
 module ExprPreprocessing = struct
@@ -66,13 +72,13 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
-					| ((s,pn),final,tho,eo) as v :: vl ->
+					| v :: vl ->
 						if mark then
 							loop2 (v :: acc) mark vl
-						else if is_annotated pn then
+						else if is_annotated (snd v.ev_name) then
 							(* If the name is the display position, mark the expression *)
 							loop2 (v :: acc) true vl
-						else begin match eo with
+						else begin match v.ev_expr with
 							| None ->
 								(* If there is no expression, we don't have to do anything.
 								   Should the display position be on the type-hint, it will
@@ -84,13 +90,13 @@ module ExprPreprocessing = struct
 								   we cannot determine that correctly without knowing its position.
 								   Note: We know `e` itself isn't the display position because this entire
 								   algorithm is bottom-up and it would be marked already if it was. *)
-								let p0 = match tho with
+								let p0 = match v.ev_type with
 									| Some (_,pt) -> pt
-									| None -> pn
+									| None -> snd v.ev_name
 								in
 								let p = {p0 with pmax = (pos e).pmin} in
 								let e = if is_annotated p then annotate_marked e else e in
-								loop2 (((s,pn),final,tho,(Some e)) :: acc) mark vl
+								loop2 ({ v with ev_expr = Some e } :: acc) mark vl
 						end
 					| [] ->
 						List.rev acc,mark
@@ -183,14 +189,14 @@ module ExprPreprocessing = struct
 				raise Exit
 			| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->
 				annotate_marked e
-			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
+			| EConst (String (_,q)) when ((q <> SSingleQuotes) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
 				(* TODO: check if this makes any sense *)
 				raise Exit
 			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
 				raise Exit
 			| EVars vl when is_annotated (pos e) ->
 				(* We only want to mark EVars if we're on a var name. *)
-				if List.exists (fun ((_,pn),_,_,_) -> is_annotated pn) vl then
+				if List.exists (fun v -> is_annotated (snd v.ev_name)) vl then
 					annotate_marked e
 				else
 					raise Exit
@@ -315,7 +321,7 @@ let sort_fields l with_type tk =
 
 let get_import_status ctx path =
 	try
-		let mt' = ctx.g.do_load_type_def ctx null_pos {tpackage = []; tname = snd path; tparams = []; tsub = None} in
+		let mt' = ctx.g.do_load_type_def ctx null_pos (mk_type_path ([],snd path)) in
 		if path <> (t_infos mt').mt_path then Shadowed else Imported
 	with _ ->
 		Unimported

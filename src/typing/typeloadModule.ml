@@ -39,7 +39,8 @@ let make_module ctx mpath file loadp =
 		m_id = alloc_mid();
 		m_path = mpath;
 		m_types = [];
-		m_extra = module_extra (Path.unique_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
+		m_statics = None;
+		m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
 	} in
 	m
 
@@ -113,7 +114,7 @@ module StrictMeta = struct
 			let left_side = match ctx.com.platform with
 				| Cs -> field
 				| Java -> (ECall(field,[]),pos)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 
 			let left = type_expr ctx left_side NoValue in
@@ -129,7 +130,7 @@ module StrictMeta = struct
 			| TTypeExpr(md) ->
 				ECall(get_native_repr md texpr.epos, extra), texpr.epos
 			| _ ->
-				display_error ctx "Unexpected expression" texpr.epos; assert false
+				display_error ctx "Unexpected expression" texpr.epos; die "" __LOC__
 
 	let get_strict_meta ctx meta params pos =
 		let pf = ctx.com.platform in
@@ -192,16 +193,26 @@ end
 let module_pass_1 ctx m tdecls loadp =
 	let com = ctx.com in
 	let decls = ref [] in
-	let make_path name priv p =
+	let statics = ref [] in
+	let check_name name meta also_statics p =
+		DeprecationCheck.check_is com name meta p;
+		let error prev_pos =
+			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
+			error (compl_msg "Previous declaration here") prev_pos;
+		in
 		List.iter (fun (t2,(_,p2)) ->
-			if snd (t_path t2) = name then begin
-				display_error ctx ("Type name " ^ name ^ " is already defined in this module") p;
-				error "Previous declaration here" p2;
-			end
+			if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
 		) !decls;
+		if also_statics then
+			List.iter (fun (d,_) ->
+				if fst d.d_name = name then error (snd d.d_name)
+			) !statics
+	in
+	let make_path name priv meta p =
+		check_name name meta true p;
 		if priv then (fst m.m_path @ ["_" ^ snd m.m_path], name) else (fst m.m_path, name)
 	in
-	let pt = ref None in
+	let has_declaration = ref false in
 	let rec make_decl acc decl =
 		let p = snd decl in
 		let check_type_name type_name meta =
@@ -210,14 +221,18 @@ let module_pass_1 ctx m tdecls loadp =
 		in
 		let acc = (match fst decl with
 		| EImport _ | EUsing _ ->
-			(match !pt with
-			| None -> acc
-			| Some _ -> error "import and using may not appear after a type declaration" p)
+			if !has_declaration then error "import and using may not appear after a declaration" p;
+			acc
+		| EStatic d ->
+			check_name (fst d.d_name) d.d_meta false (snd d.d_name);
+			has_declaration := true;
+			statics := (d,p) :: !statics;
+			acc;
 		| EClass d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta (snd d.d_name) in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
@@ -225,20 +240,25 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			if List.mem HAbstract d.d_flags then add_class_flag c CAbstract;
 			List.iter (function
-				| HExtern -> c.cl_extern <- true
-				| HInterface -> c.cl_interface <- true
-				| HFinal -> c.cl_final <- true
+				| HExtern -> add_class_flag c CExtern
+				| HInterface -> add_class_flag c CInterface
+				| HFinal -> add_class_flag c CFinal
 				| _ -> ()
 			) d.d_flags;
-			if not c.cl_extern then check_type_name name d.d_meta;
+			if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
+			if has_class_flag c CAbstract then begin
+				if has_class_flag c CInterface then display_error ctx "An interface may not be abstract" c.cl_name_pos;
+				if has_class_flag c CFinal then display_error ctx "An abstract class may not be final" c.cl_name_pos;
+			end;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
@@ -261,10 +281,9 @@ let module_pass_1 ctx m tdecls loadp =
 		| ETypedef d ->
 			let name = fst d.d_name in
 			check_type_name name d.d_meta;
-			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
-			pt := Some p;
+			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -289,7 +308,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 	let name = fst d.d_name in
 			check_type_name name d.d_meta;
 			let priv = List.mem AbPrivate d.d_flags in
-			let path = make_path name priv p in
+			let path = make_path name priv d.d_meta p in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -311,7 +330,9 @@ let module_pass_1 ctx m tdecls loadp =
 				a_this = mk_mono();
 				a_read = None;
 				a_write = None;
+				a_enum = List.mem AbEnum d.d_flags || Meta.has Meta.Enum d.d_meta;
 			} in
+			if a.a_enum && not (Meta.has Meta.Enum a.a_meta) then a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta;
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
 			| [] when Meta.has Meta.CoreType a.a_meta ->
@@ -319,8 +340,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = fst t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
-					CTPath { tpackage = []; tname = fst d.d_name; tparams = params; tsub = None },null_pos
+					let params = List.map (fun t -> TPType (CTPath (mk_type_path ([],fst t.tp_name)),null_pos)) d.d_params in
+					CTPath (mk_type_path ~params ([],fst d.d_name)),null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -342,13 +363,50 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_final <- true;
-				| _ -> assert false);
+					add_class_flag c CFinal;
+				| _ -> die "" __LOC__);
 				acc
 		) in
 		decl :: acc
 	in
 	let tdecls = List.fold_left make_decl [] tdecls in
+	let tdecls =
+		match !statics with
+		| [] ->
+			tdecls
+		| statics ->
+			let first_pos = ref null_pos in
+			let fields = List.map (fun (d,p) ->
+				first_pos := p;
+				{
+					cff_name = d.d_name;
+					cff_doc = d.d_doc;
+					cff_pos = p;
+					cff_meta = d.d_meta;
+					cff_access = (AStatic,null_pos) :: d.d_flags;
+					cff_kind = d.d_data;
+				}
+			) statics in
+			let p = let p = !first_pos in { p with pmax = p.pmin } in
+			let c = EClass {
+				d_name = (snd m.m_path) ^ "_Fields_", null_pos;
+				d_flags = [HPrivate];
+				d_data = List.rev fields;
+				d_doc = None;
+				d_params = [];
+				d_meta = []
+			} in
+			let tdecls = make_decl tdecls (c,p) in
+			(match !decls with
+			| (TClassDecl c,_) :: _ ->
+				assert (m.m_statics = None);
+				m.m_statics <- Some c;
+				c.cl_kind <- KModuleFields m;
+				add_class_flag c CFinal;
+			| _ -> assert false);
+			tdecls
+
+	in
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
@@ -391,6 +449,7 @@ let load_enum_field ctx e et is_flat index c =
 		ef_params = params;
 		ef_meta = c.ec_meta;
 	} in
+	DeprecationCheck.check_is ctx.com f.ef_name f.ef_meta f.ef_name_pos;
 	let cf = {
 		(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
 		cf_kind = (match follow f.ef_type with
@@ -411,14 +470,14 @@ let load_enum_field ctx e et is_flat index c =
 *)
 let init_module_type ctx context_init (decl,p) =
 	let get_type name =
-		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
+		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die "" __LOC__
 	in
 	let commit_import path mode p =
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
 	in
 	let check_path_display path p =
-		if DisplayPosition.display_position#is_in_file p.pfile then DisplayPath.handle_path_display ctx path p
+		if DisplayPosition.display_position#is_in_file (ctx.com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx path p
 	in
 	let init_import path mode =
 		check_path_display path p;
@@ -443,7 +502,8 @@ let init_module_type ctx context_init (decl,p) =
 			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 			let types = md.m_types in
 			let no_private (t,_) = not (t_infos t).mt_private in
-			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
+			let error_private p = error "Importing private declarations from a module is not allowed" p in
+			let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
 				let t = (try List.find (has_name tname) types with Not_found -> error (StringError.string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
@@ -491,7 +551,16 @@ let init_module_type ctx context_init (decl,p) =
 				| [] ->
 					(match name with
 					| None ->
-						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types
+						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types;
+						Option.may (fun c ->
+							context_init#add (fun () ->
+								ignore(c.cl_build());
+								List.iter (fun cf ->
+									if has_class_field_flag cf CfPublic then
+										ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals
+								) c.cl_ordered_statics
+							);
+						) md.m_statics
 					| Some(newname,pname) ->
 						ctx.m.module_types <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_types);
 				| [tsub,p2] ->
@@ -502,13 +571,39 @@ let init_module_type ctx context_init (decl,p) =
 						ctx.m.module_types <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_types
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
-						let tmain = get_type tname in
-						context_init#add (fun() ->
+						let find_main_type_static () =
+							let tmain = get_type tname in
 							try
 								add_static_init tmain name tsub
 							with Not_found ->
+								(* TODO: mention module-level declarations in the error message? *)
 								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						))
+						in
+						context_init#add (fun() ->
+							match md.m_statics with
+							| Some c ->
+								(try
+									ignore(c.cl_build());
+									let rec loop fl =
+										match fl with
+										| [] -> raise Not_found
+										| cf :: rest ->
+											if cf.cf_name = tsub then
+												if not (has_class_field_flag cf CfPublic) then
+													error_private p
+												else
+													let imported_name = match name with None -> tsub | Some (n,pname) -> n in
+													ctx.m.module_globals <- PMap.add imported_name (TClassDecl c,tsub,p) ctx.m.module_globals;
+											else
+												loop rest
+									in
+									loop c.cl_ordered_statics
+								with Not_found ->
+									find_main_type_static ())
+							| None ->
+								find_main_type_static ()
+						)
+					)
 				| (tsub,p2) :: (fname,p3) :: rest ->
 					(match rest with
 					| [] -> ()
@@ -555,14 +650,14 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
 		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
-		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
+		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
-				c.cl_final <- true;
+				add_class_flag c CFinal;
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p; *)
 			end
@@ -585,7 +680,7 @@ let init_module_type ctx context_init (decl,p) =
 						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
 					in
 					(match state with
-					| Built -> assert false
+					| Built -> die "" __LOC__
 					| Building cl ->
 						if !build_count = !prev_build_count then error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
 						prev_build_count := !build_count;
@@ -606,7 +701,7 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
-		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not c.cl_extern then
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -622,7 +717,7 @@ let init_module_type ctx context_init (decl,p) =
 					| _ -> ()
 			);
 	| EEnum d ->
-		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
+		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
@@ -650,7 +745,7 @@ let init_module_type ctx context_init (decl,p) =
 		in
 		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
 			match e with
-			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
+			| EVars [{ ev_type = Some (CTAnonymous fields,p); ev_expr = None }] ->
 				constructs := List.map (fun f ->
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t
@@ -701,7 +796,7 @@ let init_module_type ctx context_init (decl,p) =
 				) e.e_constrs
 			);
 	| ETypedef d ->
-		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
+		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
@@ -744,15 +839,16 @@ let init_module_type ctx context_init (decl,p) =
 		| TMono r ->
 			(match r.tm_type with
 			| None -> Monomorph.bind r tt;
-			| Some _ -> assert false);
-		| _ -> assert false);
+			| Some _ -> die "" __LOC__);
+		| _ -> die "" __LOC__);
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			);
 	| EAbstract d ->
-		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
+		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
@@ -800,15 +896,20 @@ let init_module_type ctx context_init (decl,p) =
 				a.a_this <- at;
 				is_type := true;
 			| AbExtern ->
-				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
-			| AbPrivate -> ()
+				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
+			| AbPrivate | AbEnum -> ()
 		) d.d_flags;
+		a.a_from <- List.rev a.a_from;
+		a.a_to <- List.rev a.a_to;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
 				a.a_this <- TAbstract(a,List.map snd a.a_params)
 			else
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
+	| EStatic _ ->
+		(* nothing to do here as module fields are collected into a special EClass *)
+		()
 
 let module_pass_2 ctx m decls tdecls p =
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
@@ -830,7 +931,7 @@ let module_pass_2 ctx m decls tdecls p =
 		| (TAbstractDecl a, (EAbstract d, p)) ->
 			a.a_params <- type_type_params ctx a.a_path (fun() -> a.a_params) p d.d_params;
 		| _ ->
-			assert false
+			die "" __LOC__
 	) decls;
 	(* setup module types *)
 	let context_init = new TypeloadFields.context_init in
@@ -859,7 +960,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
@@ -879,9 +980,13 @@ let type_types_into_module ctx m tdecls p =
 		untyped = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
+		in_function = false;
 		in_loop = false;
 		opened = [];
 		in_call_args = false;
+		monomorphs = {
+			perfunction = [];
+		};
 		vthis = None;
 		memory_marker = Typecore.memory_marker;
 	} in
@@ -894,7 +999,7 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = match List.rev (Path.get_path_parts m.m_extra.m_file) with
+	let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
 		| [] -> []
 		| _ :: l -> l
 	in
@@ -949,7 +1054,7 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMResolve s ->
-			DisplayPath.resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+			DisplayPath.resolve_position_by_path ctx (mk_type_path ([],s)) p
 		| _ ->
 			()
 	end;
