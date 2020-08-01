@@ -13,14 +13,6 @@ import asys.native.filesystem.FileSystem;
 	cases.asys.native.filesystem.TestFilePermissions
 )
 class TestFileSystem extends FsTest {
-	/**
-	 * Expected content of `test-data/bytes.bin` file
-	 */
-	function bytesBinContent():Bytes {
-		var data = Bytes.alloc(256);
-		for(i in 0...data.length) data.set(i, i);
-		return data;
-	}
 
 	function testReadBytes(async:Async) {
 		asyncAll(async,

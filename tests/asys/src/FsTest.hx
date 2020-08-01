@@ -1,3 +1,5 @@
+import haxe.io.Bytes;
+
 /**
 	Base class for filesystem-related tests
 **/
@@ -17,5 +19,14 @@ class FsTest extends Test {
 					Sys.command('rm', ['-rf', tempDir]);
 				sys.FileSystem.createDirectory(tempDir);
 		}
+	}
+
+	/**
+	 * Expected content of `test-data/bytes.bin` file
+	 */
+	function bytesBinContent():Bytes {
+		var data = Bytes.alloc(256);
+		for(i in 0...data.length) data.set(i, i);
+		return data;
 	}
 }
