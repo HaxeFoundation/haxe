@@ -47,6 +47,9 @@ class File implements IDuplex {
 	/**
 		Write up to `length` bytes from `buffer` (starting from buffer `offset`),
 		then invoke `callback` with the amount of bytes written.
+
+		If `offset` is outside of `buffer` bounds or if `length` is negative, an error
+		is passed to the `callback`.
 	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		throw new NotImplementedException();
@@ -58,8 +61,8 @@ class File implements IDuplex {
 
 		Reading at the end of file yields zero bytes read and leaves `buffer` unaffected.
 
-		If `offset + length` is greater than `buffer.length`, an error is passed to the
-		`callback`
+		If `offset` or `offset + length` is outside of `buffer` bounds, an error is passed
+		to the `callback`.
 	**/
 	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		throw new NotImplementedException();
