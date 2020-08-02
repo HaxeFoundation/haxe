@@ -63,12 +63,25 @@ class File implements IDuplex {
 		});
 	}
 
-	/**
-		Write up to `length` bytes from `buffer` (starting from buffer `offset`),
-		then invoke `callback` with the amount of bytes written.
-	**/
 	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				if(length < 0)
+					throw new php.Exception('File.write(): negative length');
+				if(offset < 0 || offset >= buffer.length)
+					throw new php.Exception('File.write(): offset out of bounds');
+				fwrite(handle, buffer.getData().sub(offset, length));
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to read a file'), path));
+				case _:
+					callback.success(result);
+			}
+		});
 	}
 
 	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
