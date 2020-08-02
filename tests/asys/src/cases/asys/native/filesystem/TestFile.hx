@@ -165,43 +165,74 @@ class TestFile extends FsTest {
 		);
 	}
 
-	// @:depends(testSeek)
-	// function testOpenAppendRead(async:Async) {
-	// 	asyncAll(async,
-
-	// 		//non-existent file
-	// 		FileSystem.openFile('test-data/temp/non-existent.bin', AppendRead, (e, file) -> {
-	// 			if(noException(e)) {
-	// 				var buffer = bytes([1, 2, 3, 4, 5]);
-	// 				file.write(buffer, 0, buffer.length, (e, r) -> {
-	// 					if(noException(e) && equals(buffer.length, r)) {
-	// 						file.seek(0, (e, _) -> {
-	// 							var readBuf = Bytes.alloc(buffer.length);
-	// 							file.read(readBuf, 0, buffer.length, (e, r) -> {
-	// 								if(noException(e)) {
-	// 									equals(buffer.length, r);
-	// 									same(buffer, readBuf);
-	// 									file.close((e, _) -> {
-	// 										if(noException(e))
-	// 											FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
-	// 												same(buffer, r);
-	// 											});
-	// 									});
-	// 								}
-	// 							});
-	// 						});
-	// 					}
-	// 				});
-	// 			}
-	// 		}),
-	// 		//in non-existent directory
-	// 		FileSystem.openFile('test-data/temp/non/existent.bin', AppendRead, (e, file) -> {
-	// 			assertType(e, FsException, e -> {
-	// 				equals('test-data/temp/non/existent.bin', e.path.toString());
-	// 			});
-	// 		})
-	// 	);
-	// }
+	@:depends(testGetPosition)
+	function testOpenAppendRead(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/append-read.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/append-read.bin', AppendRead, (e, file) -> {
+					if(noException(e)) {
+						file.getPosition((e, r) -> {
+							if(noException(e)) {
+								equals(0, Int64.toInt(r));
+								var data = bytes([3, 2, 1, 0]);
+								var b = new BytesOutput();
+								var bb = bytesBinContent();
+								b.writeBytes(bb, 0, bb.length);
+								b.writeBytes(data, 1, 2);
+								var expected = b.getBytes();
+								file.write(data, 1, 2, (e, r) -> {
+									if(noException(e)) {
+										equals(2, r);
+										file.getPosition((e, r) -> {
+											equals(2, Int64.toInt(r));
+											file.close((e, _) -> {
+												if(noException(e))
+													FileSystem.readBytes('test-data/temp/append-read.bin', (_, r) -> {
+														same(expected, r);
+													});
+											});
+										});
+									}
+								});
+							}
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent.bin', AppendRead, (e, file) -> {
+				if(noException(e)) {
+					var buffer = bytes([1, 2, 3, 4, 5]);
+					file.write(buffer, 0, buffer.length, (e, r) -> {
+						if(noException(e) && equals(buffer.length, r)) {
+							file.seek(0, (e, _) -> {
+								var readBuf = Bytes.alloc(buffer.length);
+								file.read(readBuf, 0, buffer.length, (e, r) -> {
+									if(noException(e)) {
+										equals(buffer.length, r);
+										same(buffer, readBuf);
+										file.close((e, _) -> {
+											if(noException(e))
+												FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
+													same(buffer, r);
+												});
+										});
+									}
+								});
+							});
+						}
+					});
+				}
+			}),
+			//in non-existent directory
+			FileSystem.openFile('test-data/temp/non/existent.bin', AppendRead, (e, file) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent.bin', e.path.toString());
+				});
+			})
+		);
+	}
 
 	@:depends(testOpenRead)
 	function testIsEof(async:Async) {
