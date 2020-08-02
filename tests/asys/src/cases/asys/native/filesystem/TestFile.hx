@@ -13,39 +13,36 @@ class TestFile extends FsTest {
 	function testOpenRead(async:Async) {
 		asyncAll(async,
 			FileSystem.openFile('test-data/bytes.bin', Read, (e, file) -> {
-				if(noException(e))
-					file.getOffset((e, r) -> {
-						if(noException(e) && equals(0, Int64.toInt(r))) {
-							var expected = bytesBinContent();
-							var bufOffset = 5;
-							var buf = Bytes.alloc(expected.length + bufOffset);
-							var firstReadLength = 10;
-							//read less than EOF
-							file.read(buf, bufOffset, firstReadLength, (e, r) -> {
-								if(noException(e) && equals(firstReadLength, r)) {
-									var expectedRead = expected.sub(0, r);
-									var actualRead = buf.sub(bufOffset, r);
-									if(same(expectedRead, actualRead)) {
-										bufOffset += r;
-										//read more than EOF
-										file.read(buf, bufOffset, expected.length, (e, r) -> {
-											if(noException(e) && equals(expected.length - firstReadLength, r)) {
-												var expectedRead = expected.sub(firstReadLength, r);
-												var actualRead = buf.sub(bufOffset, r);
-												if(same(expectedRead, actualRead)) {
-													//read after EOF
-													file.read(buf, 0, 1, (e, r) -> {
-														if(noException(e) && equals(0, r))
-															file.close((e, _) -> noException(e));
-													});
-												}
-											}
-										});
+				if(noException(e)) {
+					var expected = bytesBinContent();
+					var bufOffset = 5;
+					var buf = Bytes.alloc(expected.length + bufOffset);
+					var firstReadLength = 10;
+					//read less than EOF
+					file.read(buf, bufOffset, firstReadLength, (e, r) -> {
+						if(noException(e) && equals(firstReadLength, r)) {
+							var expectedRead = expected.sub(0, r);
+							var actualRead = buf.sub(bufOffset, r);
+							if(same(expectedRead, actualRead)) {
+								bufOffset += r;
+								//read more than EOF
+								file.read(buf, bufOffset, expected.length, (e, r) -> {
+									if(noException(e) && equals(expected.length - firstReadLength, r)) {
+										var expectedRead = expected.sub(firstReadLength, r);
+										var actualRead = buf.sub(bufOffset, r);
+										if(same(expectedRead, actualRead)) {
+											//read after EOF
+											file.read(buf, 0, 1, (e, r) -> {
+												if(noException(e) && equals(0, r))
+													file.close((e, _) -> noException(e));
+											});
+										}
 									}
-								}
-							});
+								});
+							}
 						}
 					});
+				}
 			}),
 			//Buffer is too small
 			FileSystem.openFile('test-data/bytes.bin', Read, (e, file) -> {
@@ -115,6 +112,96 @@ class TestFile extends FsTest {
 			})
 		);
 	}
+
+	@:depends(testOpenRead)
+	function testSeek(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/bytes.bin', Read, (_, file) -> {
+				var content = bytesBinContent();
+				var buf = Bytes.alloc(10);
+				// SeekSet
+				file.seek(20, SeekSet, (e, _) -> {
+					if(noException(e))
+						file.read(buf, 0, buf.length, (_, _) -> {
+							same(content.sub(20, buf.length), buf);
+							// SeekMove
+							file.seek(20, SeekMove, (e, _) -> {
+								if(noException(e))
+									file.read(buf, 0, buf.length, (_, _) -> {
+										same(content.sub(20 + buf.length + 20, buf.length), buf);
+										// SeekEnd
+										file.seek(-20, SeekEnd, (e, _) -> {
+											if(noException(e))
+												file.read(buf, 0, buf.length, (_, _) -> {
+													same(content.sub(content.length - 20, buf.length), buf);
+													file.close((_, _) -> {});
+												});
+										});
+									});
+							});
+						});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenRead, testSeek)
+	function testGetPosition(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/bytes.bin', Read, (_, file) -> {
+				file.getPosition((e, r) -> {
+					if(noException(e)) {
+						equals(0, Int64.toInt(r));
+						file.seek(20, (_, _) -> {
+							file.getPosition((e, r) -> {
+								if(noException(e))
+									equals(20, Int64.toInt(r));
+								file.close((_, _) -> {});
+							});
+						});
+					}
+				});
+			})
+		);
+	}
+
+	// @:depends(testSeek)
+	// function testOpenAppendRead(async:Async) {
+	// 	asyncAll(async,
+
+	// 		//non-existent file
+	// 		FileSystem.openFile('test-data/temp/non-existent.bin', AppendRead, (e, file) -> {
+	// 			if(noException(e)) {
+	// 				var buffer = bytes([1, 2, 3, 4, 5]);
+	// 				file.write(buffer, 0, buffer.length, (e, r) -> {
+	// 					if(noException(e) && equals(buffer.length, r)) {
+	// 						file.seek(0, (e, _) -> {
+	// 							var readBuf = Bytes.alloc(buffer.length);
+	// 							file.read(readBuf, 0, buffer.length, (e, r) -> {
+	// 								if(noException(e)) {
+	// 									equals(buffer.length, r);
+	// 									same(buffer, readBuf);
+	// 									file.close((e, _) -> {
+	// 										if(noException(e))
+	// 											FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
+	// 												same(buffer, r);
+	// 											});
+	// 									});
+	// 								}
+	// 							});
+	// 						});
+	// 					}
+	// 				});
+	// 			}
+	// 		}),
+	// 		//in non-existent directory
+	// 		FileSystem.openFile('test-data/temp/non/existent.bin', AppendRead, (e, file) -> {
+	// 			assertType(e, FsException, e -> {
+	// 				equals('test-data/temp/non/existent.bin', e.path.toString());
+	// 			});
+	// 		})
+	// 	);
+	// }
 
 	@:depends(testOpenRead)
 	function testIsEof(async:Async) {
