@@ -214,7 +214,6 @@ extern class Const {
 		@see http://php.net/manual/en/function.feof.php
 	**/
 	static final SEEK_SET:Int;
-
 	static final SEEK_CUR:Int;
 	static final SEEK_END:Int;
 

@@ -9,6 +9,7 @@ import asys.native.IWritable;
 import asys.native.IReadable;
 import php.Resource;
 import php.Global.*;
+import php.Const.*;
 
 class File implements IDuplex {
 
@@ -21,22 +22,32 @@ class File implements IDuplex {
 		this.path = path;
 	}
 
-	/**
-		Change file position pointer.
-		The pointer position is used in read and write operations as the starting byte
-		of reading or writing respectively.
-
-		If `whence` is `SeekSet(offset)` set the pointer to the exact position
-		specified by `offset`.
-	 	If `whence` is `SeekEnd` move the pointer to the end-of-file.
-		If `whence` is `SeekMove(offset)` move the pointer by `offset` bytes
-		relative to the current position.
-	**/
-	public function seek(whence:FileSeek, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	public function seek(offset:Int64, whence:FileSeek = SeekSet, callback:Callback<NoData>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var whence = switch whence {
+					case SeekSet: SEEK_SET;
+					case SeekEnd: SEEK_END;
+					case SeekMove: SEEK_CUR;
+				}
+				var offset = if(PHP_INT_SIZE == 4) {
+					Int64.toInt(offset);
+				} else {
+					((cast offset:{high:Int}).high << 32) | (cast offset:{low:Int}).low;
+				}
+				fseek(handle, offset, whence);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(result == 0)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to set file position'), path));
+		});
 	}
 
-	public function getOffset(callback:Callback<Int64>):Void {
+	public function getPosition(callback:Callback<Int64>):Void {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
 				ftell(handle);
