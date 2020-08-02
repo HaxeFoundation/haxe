@@ -278,7 +278,11 @@ let create_instance_prototype ctx c =
 		| Var _,_ when is_physical_field cf ->
 			let name = hash cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
-		|  _ ->
+		| Method meth,None when has_class_field_flag cf CfAbstract ->
+			let name = hash cf.cf_name in
+			let v = lazy vnull in
+			PrototypeBuilder.add_proto_field pctx name v
+		| _ ->
 			()
 	) fields;
 	PrototypeBuilder.finalize pctx
