@@ -77,19 +77,19 @@ enum abstract FileOpenFlag<T>(Int) {
 	Limits file operations to reading.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,seek,getOffset,isEof,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close)
+@:forward(path,seek,getPosition,isEof,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close)
 abstract FileRead(File) from File to IReadable {}
 
 /**
 	Limits file operations to writing.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,seek,getOffset,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
+@:forward(path,seek,getPosition,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,getOffset,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
+@:forward(path,getPosition,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileAppend(File) from File to IWritable {}

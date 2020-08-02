@@ -20,20 +20,20 @@ class File implements IDuplex {
 		The pointer position is used in read and write operations as the starting byte
 		of reading or writing respectively.
 
-		If `whence` is `SeekSet(offset)` set the pointer to the exact position
+		If `whence` is `SeekSet` set the pointer to the exact position
 		specified by `offset`.
-	 	If `whence` is `SeekEnd` move the pointer to the end-of-file.
-		If `whence` is `SeekMove(offset)` move the pointer by `offset` bytes
+	 	If `whence` is `SeekEnd` set the pointer to the the end-of-file + `offset`.
+		If `whence` is `SeekMove` move the pointer by `offset` bytes
 		relative to the current position.
 	**/
-	public function seek(whence:FileSeek, callback:Callback<NoData>):Void {
+	public function seek(offset:Int64, whence:FileSeek, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Get current position pointer offset.
 	**/
-	public function getOffset(callback:Callback<Int64>):Void {
+	public function getPosition(callback:Callback<Int64>):Void {
 		throw new NotImplementedException();
 	}
 
