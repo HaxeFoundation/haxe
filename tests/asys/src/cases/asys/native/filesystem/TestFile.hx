@@ -1,5 +1,6 @@
 package cases.asys.native.filesystem;
 
+import haxe.io.BytesOutput;
 import haxe.Int64;
 import haxe.Callback;
 import haxe.io.Bytes;
@@ -24,14 +25,14 @@ class TestFile extends FsTest {
 								if(noException(e) && equals(firstReadLength, r)) {
 									var expectedRead = expected.sub(0, r);
 									var actualRead = buf.sub(bufOffset, r);
-									if(equals(0, expectedRead.compare(actualRead))) {
+									if(same(expectedRead, actualRead)) {
 										bufOffset += r;
 										//read more than EOF
 										file.read(buf, bufOffset, expected.length, (e, r) -> {
 											if(noException(e) && equals(expected.length - firstReadLength, r)) {
 												var expectedRead = expected.sub(firstReadLength, r);
 												var actualRead = buf.sub(bufOffset, r);
-												if(equals(0, expectedRead.compare(actualRead))) {
+												if(same(expectedRead, actualRead)) {
 													//read after EOF
 													file.read(buf, 0, 1, (e, r) -> {
 														if(noException(e) && equals(0, r))
@@ -52,6 +53,7 @@ class TestFile extends FsTest {
 					var buf = Bytes.alloc(1);
 					file.read(buf, 0, 10, (e, _) -> {
 						assertType(e, FsException, e -> equals('test-data/bytes.bin', e.path.toString()));
+						file.close((_, _) -> {});
 					});
 				}
 			}),
@@ -59,6 +61,56 @@ class TestFile extends FsTest {
 			FileSystem.openFile('test-data/temp/non-existent', Read, (e, r) -> {
 				assertType(e, FsException, e -> {
 					equals('test-data/temp/non-existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	function testOpenAppend(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/append.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/append.bin', Append, (e, file) -> {
+					if(noException(e)) {
+						var data = bytes([3, 2, 1, 0]);
+						var b = new BytesOutput();
+						var bb = bytesBinContent();
+						b.writeBytes(bb, 0, bb.length);
+						b.writeBytes(data, 1, 2);
+						var expected = b.getBytes();
+
+						file.write(data, 1, 2, (e, r) -> {
+							if(noException(e) && equals(2, r))
+								file.close((e, _) -> {
+									if(noException(e))
+										FileSystem.readBytes('test-data/temp/append.bin', (_, r) -> {
+											same(expected, r);
+										});
+								});
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent.bin', Append, (e, file) -> {
+				if(noException(e)) {
+					var buffer = bytes([1, 2, 3, 4, 5]);
+					//try to write more bytes than `buffer` contains.
+					file.write(buffer, 2, buffer.length + 2, (e, r) -> {
+						if(noException(e) && equals(buffer.length - 2, r))
+							file.close((e, _) -> {
+								if(noException(e))
+									FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
+										same(buffer.sub(2, buffer.length - 2), r);
+									});
+							});
+					});
+				}
+			}),
+			//in non-existent directory
+			FileSystem.openFile('test-data/temp/non/existent.bin', Append, (e, file) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent.bin', e.path.toString());
 				});
 			})
 		);
@@ -75,6 +127,28 @@ class TestFile extends FsTest {
 							isTrue(r);
 							file.close((_, _) -> {});
 						}
+					});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenAppend)
+	function testWrite_OutOfBufferBounds(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/write.oob', Append, (_, file) -> {
+				var buf = bytes([1, 2, 3]);
+				//offset negative
+				file.write(buf, -1, buf.length, (e, _) -> {
+					assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+					//offset >= buf.length
+					file.write(buf, buf.length, buf.length, (e, _) -> {
+						assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+						//length negative
+						file.write(buf, buf.length, buf.length, (e, _) -> {
+							assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+							file.close((_, _) -> {});
+						});
 					});
 				});
 			})

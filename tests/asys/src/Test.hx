@@ -1,6 +1,7 @@
 import haxe.PosInfos;
 import haxe.macro.Expr;
 import haxe.Exception;
+import haxe.io.Bytes;
 
 /**
 	Base class for asys tests
@@ -11,6 +12,17 @@ class Test extends utest.Test {
 	var isWindows(get,never):Bool;
 	function get_isWindows():Bool {
 		return __systemName == 'Windows';
+	}
+
+	/**
+		Allocate `haxe.io.Bytes` with the provided bytes values.
+	**/
+	function bytes(data:Array<Int>):Bytes {
+		var b = Bytes.alloc(data.length);
+		for (index => value in data) {
+			b.set(index, value);
+		}
+		return b;
 	}
 
 	/**

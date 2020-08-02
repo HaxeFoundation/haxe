@@ -18,7 +18,7 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.readBytes('test-data/bytes.bin', (e, r) -> {
 				if(noException(e))
-					equals(0, bytesBinContent().compare(r));
+					same(bytesBinContent(), r);
 			}),
 			FileSystem.readBytes('test-data/', (e, r) -> {
 				assertType(e, FsException, e -> equals('test-data/', e.path.toString()));
@@ -84,20 +84,13 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					FileSystem.readBytes('test-data/temp/test.bin', (e, r) -> {
 						if(noException(e))
-							callback(equals(0, expectedContent.compare(r)))
+							callback(same(expectedContent, r))
 						else
 							callback(true);
 					})
 				else
 					callback(false);
 			});
-		}
-		function bytes(data:Array<Int>):Bytes {
-			var b = Bytes.alloc(data.length);
-			for (index => value in data) {
-				b.set(index, value);
-			}
-			return b;
 		}
 
 		asyncAll(async,
@@ -436,8 +429,7 @@ class TestFileSystem extends FsTest {
 			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/copy', (e, r) -> {
 				if(noException(e))
 					FileSystem.readBytes('test-data/temp/copy', (e, r) -> {
-						if(noException(e)) {
-							equals(0, bytesBinContent().compare(r));
+						if(noException(e) && same(bytesBinContent(), r)) {
 							asyncAll(async,
 								//overwrite
 								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', (e, r) -> {
@@ -485,7 +477,7 @@ class TestFileSystem extends FsTest {
 						var expected = Bytes.alloc(10);
 						expected.set(0, 'h'.code);
 						expected.set(1, 'i'.code);
-						FileSystem.readBytes('test-data/temp/resize2', (e, r) -> equals(0, expected.compare(r)));
+						FileSystem.readBytes('test-data/temp/resize2', (e, r) -> same(expected, r));
 					}
 				});
 			}),
