@@ -15,6 +15,7 @@ enum abstract FileOpenFlag<T>(Int) {
 		The file is created if it does not exist.
 		The file pointer for reading is placed at the beginning of the file, but
 		writing always appends to the end of the file.
+		Writing also moves the file pointer for reading by the amount of bytes written.
 	**/
 	var AppendRead:FileOpenFlag<File>;
 
