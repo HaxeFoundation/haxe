@@ -638,7 +638,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.fseek.php
 	**/
-	static function fseek(handle:Resource, offset:Int, ?whence:Int):EitherType<Int, Bool>;
+	static function fseek(handle:Resource, offset:Int, ?whence:Int):Int;
 
 	/**
 		@see http://php.net/manual/en/function.ftell.php
