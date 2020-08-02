@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	php : fixed false detection of `catch` vars in anonymous functions as captured from outer scope
+	php : fixed return type of extern definition for `fseek` function
 
 2020-07-22 4.1.3
 
