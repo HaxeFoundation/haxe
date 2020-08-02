@@ -43,5 +43,5 @@ enum Signal {
 	/**
 		Any signal can be specified by its code.
 	**/
-	CSignal(code:CSignalCode);
+	SignalCode(code:PosixSignalCode);
 }

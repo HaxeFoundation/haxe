@@ -1,7 +1,5 @@
 package asys.native;
 
-import asys.native.CErrNo;
-
 /**
 	Error types
 **/
@@ -34,7 +32,7 @@ enum IoErrorType {
 	/** Connection refused */
 	ConnectionRefused;
 	/** Other errors from system calls described in <error.h> */
-	CError(errNo:CErrNo);
+	ErrorCode(code:PosixErrorCode);
 	/** Any other error */
 	CustomError(message:String);
 }
@@ -71,7 +69,7 @@ class IoErrorTypeTools {
 				"Operation timed out";
 			case ConnectionRefused:
 				"Connection refused";
-			case CError(errNo):
+			case ErrorCode(errNo):
 				errNo.toString();
 			case CustomError(message):
 				message;
