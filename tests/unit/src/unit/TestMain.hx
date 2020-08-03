@@ -101,6 +101,7 @@ function main() {
 		#if (java || cs)
 		new TestOverloads(),
 		#end
+		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
 		#if ((dce == "full") && !interp)
