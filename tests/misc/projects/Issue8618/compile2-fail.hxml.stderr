@@ -1,2 +1,2 @@
-Main2.hx:3: characters 9-45 : Method instanceMethod cannot be used as a value
-Main2.hx:3: characters 9-45 : ... For function argument 'v'
+Main2.hx:3: characters 31-45 : Method instanceMethod cannot be used as a value
+Main2.hx:3: characters 31-45 : ... For function argument 'v'
