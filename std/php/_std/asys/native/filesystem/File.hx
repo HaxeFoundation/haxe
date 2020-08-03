@@ -10,6 +10,7 @@ import asys.native.IReadable;
 import php.Resource;
 import php.Global.*;
 import php.Const.*;
+import php.Syntax;
 
 class File implements IDuplex {
 
@@ -124,80 +125,102 @@ class File implements IDuplex {
 		});
 	}
 
-	/**
-		Force all buffered data to be written to disk.
-	**/
 	public function flush(callback:Callback<NoData>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var success = try {
+				fflush(handle);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to flush a file'), path));
+		});
 	}
 
-	/**
-		Synchronize file in-memory state with the storage device.
-	**/
 	public function sync(callback:Callback<NoData>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				if(function_exists('eio_fsync')) {
+					Syntax.code('eio_fsync({0})', handle);
+				} else {
+					throw new php.Exception('asys.native.filesystem.File.sync requires Eio extension to be enabled in PHP. See https://www.php.net/manual/en/book.eio.php');
+				}
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to sync a file'), path));
+				case _:
+					callback.success(NoData);
+			}
+		});
 	}
 
-	/**
-		Get file status information.
-	**/
 	public function info(callback:Callback<FileInfo>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				fstat(handle);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(@:privateAccess FileSystem.phpStatToHx(result));
+		});
 	}
 
-	/**
-		Set file permissions.
-	**/
-	public function setPermissions(mode:FileAccessMode, callback:Callback<NoData>) {
-		throw new NotImplementedException();
+	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>) {
+		//PHP does not have `fchmod`
+		FileSystem.setPermissions(path, mode, callback);
 	}
 
-	/**
-		Set file owner and group.
-	**/
 	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>) {
-		throw new NotImplementedException();
+		//PHP does not have `fchown`
+		FileSystem.setOwner(path, userId, groupId, callback);
 	}
 
-	/**
-		Shrink or expand the file to `newSize` bytes.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
 	public function resize(newSize:Int, callback:Callback<NoData>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var result = ftruncate(handle, newSize);
+				result;
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to resize file'), path));
+				case _:
+					callback.success(NoData);
+			}
+		});
 	}
 
-	/**
-		Change access and modification times of the file.
-
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
 	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
-		throw new NotImplementedException();
+		//PHP does not have `utime` or `utimes`
+		FileSystem.setTimes(path, accessTime, modificationTime, callback);
 	}
 
-	/**
-		Acquire or release a file lock.
-
-		The `callback` is supplied with `true` if a lock was successfully acquired.
-
-		Modes:
-		- `Shared` - acquire a shared lock (usually used for reading)
-		- `Exclusive` - acquire an exclusive lock (usually used for writing)
-		- `Unlock` - release a lock.
-
-		By default (`wait` is `true`) `lock` waits until a lock can be acquired.
-		Pass `false` to `wait` to invoke `callback` with `false` if a lock cannot
-		be acquired immediately.
-
-		Although a lock may be released automatically on file closing, for a
-		consistent cross-platform behavior it is strongly recommended to always
-		release a lock manually.
-	**/
 	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				var mode = switch mode {
+					case Exclusive: LOCK_EX;
+					case Shared: LOCK_SH;
+					case Unlock: LOCK_UN;
+				}
+				flock(handle, wait ? mode : mode | LOCK_NB);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
 	public function close(callback:Callback<NoData>) {

@@ -423,4 +423,12 @@ extern class Const {
 	static final ZLIB_SYNC_FLUSH:Int;
 	static final ZLIB_FULL_FLUSH:Int;
 	static final ZLIB_FINISH:Int;
+
+	/**
+		@see https://www.php.net/manual/en/function.flock.php
+	**/
+	static final LOCK_SH:Int;
+	static final LOCK_EX:Int;
+	static final LOCK_UN:Int;
+	static final LOCK_NB:Int;
 }

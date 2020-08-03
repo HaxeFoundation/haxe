@@ -631,6 +631,11 @@ extern class Global {
 	static function fclose(handle:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.feof.php
 	**/
 	static function feof(handle:Resource):Bool;
