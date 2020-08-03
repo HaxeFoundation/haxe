@@ -272,4 +272,87 @@ class TestFile extends FsTest {
 			})
 		);
 	}
+
+	function testOpenReadWrite(async:Async) {
+		asyncAll(async,
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/read-write.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/read-write.bin', ReadWrite, (e, file) -> {
+					if(noException(e)) {
+						var expected = bytesBinContent();
+						var buf = Bytes.alloc(10);
+						file.read(buf, 0, buf.length, (e, bytesRead) -> {
+							if(noException(e)) {
+								equals(buf.length, bytesRead);
+								same(expected.sub(0, buf.length), buf);
+								buf = bytes([100, 50, 25]);
+								expected.blit(bytesRead, buf, 0, buf.length);
+								file.write(buf, 0, buf.length, (e, r) -> {
+									if(noException(e) && equals(buf.length, r)) {
+										file.close((e, _) -> {
+											if(noException(e))
+												FileSystem.readBytes('test-data/temp/read-write.bin', (_, r) -> {
+													same(expected, r);
+												});
+										});
+									}
+								});
+							}
+						});
+					}
+				});
+			}),
+			FileSystem.openFile('test-data/temp/non-existent', ReadWrite, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non-existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	function testOpenWrite(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/write.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/write.bin', Write, (e, file) -> {
+					if(noException(e)) {
+						var data = bytes([99, 88, 77]);
+						file.write(data, 0, data.length, (e, r) -> {
+							if(noException(e)) {
+								equals(data.length, r);
+								file.close((e, _) -> {
+									if(noException(e))
+										FileSystem.readBytes('test-data/temp/write.bin', (_, r) -> {
+											same(data, r);
+										});
+								});
+							}
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', Write, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([66, 55, 44]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.close((e, _) -> {
+								if(noException(e))
+									FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+										same(data, r);
+									});
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', Write, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
 }
