@@ -1,5 +1,6 @@
 package cases.asys.native.filesystem;
 
+import asys.native.filesystem.FilePermissions;
 import haxe.NoData;
 import asys.native.filesystem.Callback;
 import asys.native.filesystem.FileOpenFlag;
@@ -189,10 +190,17 @@ class TestFileSystem extends FsTest {
 		);
 	}
 
+	@:depends(testWriteString, testInfo)
 	function testSetPermissions(async:Async) {
 		asyncAll(async,
-			FileSystem.setPermissions('test-data/temp', [0, 7, 7, 7], (e, r) -> {
-				noException(e);
+			FileSystem.writeString('test-data/temp/perm', '', (_, _) -> {
+				var mode:FilePermissions = [0, 7, 6, 5];
+				FileSystem.setPermissions('test-data/temp/perm', mode, (e, r) -> {
+					if(noException(e))
+						FileSystem.info('test-data/temp/perm', (_, r) -> {
+							isTrue(mode == r.mode & mode);
+						});
+				});
 			}),
 			FileSystem.setPermissions('non-existent', [0, 7, 7, 7], (e, r) -> {
 				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));

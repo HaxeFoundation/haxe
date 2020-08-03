@@ -1,5 +1,6 @@
 package cases.asys.native.filesystem;
 
+import asys.native.filesystem.FilePermissions;
 import haxe.io.BytesOutput;
 import haxe.Int64;
 import haxe.Callback;
@@ -634,6 +635,178 @@ class TestFile extends FsTest {
 			FileSystem.openFile('test-data/temp/non/existent', OverwriteRead, (e, _) -> {
 				assertType(e, FsException, e -> {
 					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	//TODO create a test which actually tests `flush` behavior
+	@:depends(testOpenWrite)
+	function testFlush(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/flush', Write, (e, file) -> {
+				var data = bytes([123, 234, 56]);
+				file.write(data, 0, data.length, (_, _) -> {
+					file.flush((e, _) -> {
+						if(noException(e))
+							file.close((_, _) -> {});
+					});
+				});
+			})
+		);
+	}
+
+	//TODO create a test which actually tests `sync` behavior
+#if !php
+	@:depends(testOpenWrite)
+	function testSync(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/sync', Write, (e, file) -> {
+				var data = bytes([123, 234, 56]);
+				file.write(data, 0, data.length, (_, _) -> {
+					file.sync((e, _) -> {
+						if(noException(e))
+							file.close((_, _) -> {});
+					});
+				});
+			})
+		);
+	}
+#end
+
+	@:depends(testOpenRead)
+	function testInfo(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/sub/hello.world', Read, (_, file) -> {
+				file.info((e, r) -> {
+					if(noException(e)) {
+						equals(13, r.size);
+						isTrue(r.isFile());
+						isFalse(r.isDirectory());
+						isFalse(r.isSymbolicLink());
+					}
+					file.close((_, _) -> {});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenWrite, testInfo)
+	function testPermissions(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/set-perm', Write, (_, file) -> {
+				var mode:FilePermissions = [0, 7, 6, 5];
+				file.setPermissions(mode, (e, r) -> {
+					if(noException(e))
+						file.info((_, r) -> {
+							isTrue(mode == r.mode & mode);
+							file.close((_, _) -> {});
+						});
+				});
+			})
+		);
+	}
+
+	@:depends(testInfo, testOpenWrite)
+	function testSetOwner(async:Async) {
+		if(isWindows) {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/set-owner', Write, (_, file) -> {
+				file.info((_, r) -> {
+					file.setOwner(r.userId, r.groupId, (e, _) -> {
+						noException(e);
+						file.close((_, _) -> {});
+					});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenReadWrite)
+	function testResize(async:Async) {
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/resize1', 'hello', (_, _) -> {
+				FileSystem.openFile('test-data/temp/resize1', ReadWrite, (_, file) -> {
+					file.resize(2, (e, r) -> {
+						if(noException(e)) {
+							var buf = Bytes.alloc(100);
+							file.read(buf, 0, buf.length, (e, r) -> {
+								if(noException(e)) {
+									equals(2, r);
+									same(bytes(['h'.code, 'e'.code]), buf.sub(0, 2));
+								}
+								file.close((_, _) -> {});
+							});
+						}
+					});
+				});
+			}),
+			FileSystem.writeString('test-data/temp/resize2', 'hi', (_, _) -> {
+				FileSystem.openFile('test-data/temp/resize2', ReadWrite, (_, file) -> {
+					file.resize(10, (e, r) -> {
+						if(noException(e)) {
+							var buf = Bytes.alloc(100);
+							file.read(buf, 0, buf.length, (e, r) -> {
+								if(noException(e)) {
+									equals(10, r);
+									var expected = Bytes.alloc(10);
+									expected.set(0, 'h'.code);
+									expected.set(1, 'i'.code);
+									same(expected, buf.sub(0, 10));
+								}
+								file.close((_, _) -> {});
+							});
+						}
+					});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenWrite, testInfo)
+	function testSetTimes(async:Async) {
+		var modificationTime = Std.int(Date.fromString('2020-01-01 00:01:02').getTime() / 1000);
+		var accessTime = Std.int(Date.fromString('2020-02-03 04:05:06').getTime() / 1000);
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/set-times', Write, (_, file) -> {
+				file.setTimes(accessTime, modificationTime, (e, r) -> {
+					if(noException(e))
+						file.info((_, r) -> {
+							equals(modificationTime, r.modificationTime);
+							equals(accessTime, r.accessTime);
+							file.close((_, _) -> {});
+						});
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenWrite)
+	function testLock(async:Async) {
+		//TODO: proper test for File.lock
+		if(Sys.systemName() != 'Linux') {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.openFile('test-data/temp/file.lock', Write, (_, file) -> {
+				file.lock(Exclusive, false, (e, r) -> {
+					if(noException(e) && isTrue(r)) {
+						var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
+						isFalse(lockedExternally);
+						file.lock(Unlock, (e, r) -> {
+							if(noException(e) && isTrue(r)) {
+								var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
+								isTrue(lockedExternally);
+							}
+							file.close((_, _) -> {});
+						});
+					}
 				});
 			})
 		);
