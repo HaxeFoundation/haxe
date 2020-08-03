@@ -85,12 +85,12 @@ abstract FileRead(File) from File to IReadable {}
 	Limits file operations to writing.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,seek,getPosition,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
+@:forward(path,seek,getPosition,isEof,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileWrite(File) from File to IWritable {}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,getPosition,isEof,write,flush,sync,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
+@:forward(path,getPosition,isEof,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
 abstract FileAppend(File) from File to IWritable {}

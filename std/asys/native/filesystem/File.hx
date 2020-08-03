@@ -92,7 +92,7 @@ class File implements IDuplex {
 	/**
 		Set file permissions.
 	**/
-	public function setPermissions(mode:FileAccessMode, callback:Callback<NoData>) {
+	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>) {
 		throw new NotImplementedException();
 	}
 
