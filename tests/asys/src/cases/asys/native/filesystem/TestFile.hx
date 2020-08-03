@@ -355,4 +355,287 @@ class TestFile extends FsTest {
 			})
 		);
 	}
+
+	function testOpenWriteX(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/writeX.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/writeX.bin', WriteX, (e, _) -> {
+					assertType(e, FsException, e -> {
+						equals('test-data/temp/writeX.bin', e.path.toString());
+					});
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', WriteX, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([12, 34, 56, 78]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.close((e, _) -> {
+								if(noException(e))
+									FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+										same(data, r);
+									});
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', WriteX, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	@:depends(testSeek)
+	function testOpenWriteRead(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/write-read.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/write-read.bin', WriteRead, (e, file) -> {
+					if(noException(e)) {
+						var readBuf = Bytes.alloc(10);
+						file.read(readBuf, 0, readBuf.length, (e, r) -> {
+							if(noException(e)) {
+								equals(0, r);
+								same(Bytes.alloc(10), readBuf);
+								var writeBuf = bytes([5, 7, 8, 9]);
+								file.write(writeBuf, 0, writeBuf.length, (e, r) -> {
+									if(noException(e)) {
+										equals(writeBuf.length, r);
+										file.seek(0, (_, _) -> {
+											file.read(readBuf, 0, writeBuf.length, (e, r) -> {
+												if(noException(e)) {
+													equals(writeBuf.length, r);
+													same(writeBuf, readBuf.sub(0, writeBuf.length));
+													file.close((e, _) -> {
+														if(noException(e))
+															FileSystem.readBytes('test-data/temp/write-read.bin', (e, r) -> {
+																same(writeBuf, r);
+															});
+													});
+												}
+											});
+										});
+									}
+								});
+							}
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', WriteRead, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([12, 34, 56, 78]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.seek(0, (_, _) -> {
+								if(noException(e)) {
+									var buf = Bytes.alloc(data.length);
+									file.read(buf, 0, data.length, (e, r) -> {
+										if(noException(e)) {
+											equals(data.length, r);
+											same(data, buf);
+											file.close((e, _) -> {
+												if(noException(e))
+													FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+														same(data, r);
+													});
+											});
+										}
+									});
+								}
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', WriteRead, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	@:depends(testSeek)
+	function testOpenWriteReadX(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/write-readX.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/write-readX.bin', WriteReadX, (e, file) -> {
+					assertType(e, FsException, e -> {
+						equals('test-data/temp/write-readX.bin', e.path.toString());
+					});
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', WriteReadX, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([12, 34, 56, 78]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.seek(0, (_, _) -> {
+								if(noException(e)) {
+									var buf = Bytes.alloc(data.length);
+									file.read(buf, 0, data.length, (e, r) -> {
+										if(noException(e)) {
+											equals(data.length, r);
+											same(data, buf);
+											file.close((e, _) -> {
+												if(noException(e))
+													FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+														same(data, r);
+													});
+											});
+										}
+									});
+								}
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', WriteReadX, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	function testOpenOverwrite(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/overwrite.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/overwrite.bin', Overwrite, (e, file) -> {
+					if(noException(e)) {
+						var data = bytes([99, 88, 77]);
+						file.write(data, 0, data.length, (e, r) -> {
+							if(noException(e)) {
+								equals(data.length, r);
+								file.close((e, _) -> {
+									if(noException(e))
+										FileSystem.readBytes('test-data/temp/overwrite.bin', (_, r) -> {
+											var expected = bytesBinContent();
+											expected.blit(0, data, 0, data.length);
+											same(expected, r);
+										});
+								});
+							}
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', Overwrite, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([66, 55, 44]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.close((e, _) -> {
+								if(noException(e))
+									FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+										same(data, r);
+									});
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', Overwrite, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	@:depends(testSeek)
+	function testOpenOverwriteRead(async:Async) {
+		asyncAll(async,
+			//existing file
+			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/overwrite-read.bin', (_, _) -> {
+				FileSystem.openFile('test-data/temp/overwrite-read.bin', OverwriteRead, (e, file) -> {
+					if(noException(e)) {
+						var readBuf = Bytes.alloc(10);
+						var content = bytesBinContent();
+						file.read(readBuf, 0, readBuf.length, (e, r) -> {
+							if(noException(e)) {
+								equals(readBuf.length, r);
+								same(content.sub(0, readBuf.length), readBuf);
+								var writeBuf = bytes([5, 7, 8, 9]);
+								file.write(writeBuf, 0, writeBuf.length, (e, r) -> {
+									if(noException(e)) {
+										equals(writeBuf.length, r);
+										file.seek(readBuf.length, (_, _) -> {
+											file.read(readBuf, 0, writeBuf.length, (e, r) -> {
+												if(noException(e)) {
+													equals(writeBuf.length, r);
+													same(writeBuf, readBuf.sub(0, writeBuf.length));
+													file.close((e, _) -> {
+														if(noException(e))
+															FileSystem.readBytes('test-data/temp/overwrite-read.bin', (e, r) -> {
+																content.blit(readBuf.length, writeBuf, 0, writeBuf.length);
+																same(content, r);
+															});
+													});
+												}
+											});
+										});
+									}
+								});
+							}
+						});
+					}
+				});
+			}),
+			//non-existent file
+			FileSystem.openFile('test-data/temp/non-existent', OverwriteRead, (e, file) -> {
+				if(noException(e)) {
+					var data = bytes([12, 34, 56, 78]);
+					file.write(data, 0, data.length, (e, r) -> {
+						if(noException(e)) {
+							equals(data.length, r);
+							file.seek(0, (_, _) -> {
+								if(noException(e)) {
+									var buf = Bytes.alloc(data.length);
+									file.read(buf, 0, data.length, (e, r) -> {
+										if(noException(e)) {
+											equals(data.length, r);
+											same(data, buf);
+											file.close((e, _) -> {
+												if(noException(e))
+													FileSystem.readBytes('test-data/temp/non-existent', (_, r) -> {
+														same(data, r);
+													});
+											});
+										}
+									});
+								}
+							});
+						}
+					});
+				}
+			}),
+			//exceptions
+			FileSystem.openFile('test-data/temp/non/existent', OverwriteRead, (e, _) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non/existent', e.path.toString());
+				});
+			})
+		);
+	}
 }
