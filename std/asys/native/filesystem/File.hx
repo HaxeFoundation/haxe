@@ -26,7 +26,7 @@ class File implements IDuplex {
 		If `whence` is `SeekMove` move the pointer by `offset` bytes
 		relative to the current position.
 	**/
-	public function seek(offset:Int64, whence:FileSeek, callback:Callback<NoData>):Void {
+	public function seek(offset:Int64, whence:FileSeek = SeekSet, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
