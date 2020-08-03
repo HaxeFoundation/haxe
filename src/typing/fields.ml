@@ -105,22 +105,24 @@ let check_no_closure_meta ctx cf fa mode p =
 	| _ ->
 		()
 
-let field_access ctx mode f famode e p =
+(* Note: `p` is the position of the field access expression. *)
+let field_access ctx mode f fh e pfield =
+	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	check_no_closure_meta ctx f famode mode p;
+	check_no_closure_meta ctx f fh mode pfield;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
-	let make_access inline = FieldAccess.create e f famode inline p in
+	let make_access inline = FieldAccess.create e f fh inline pfull in
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
-		if is_set && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
+		if is_set && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
 		let maybe_check_visibility c static =
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
 			begin match mode with
 			| MCall _ when has_class_field_flag f CfOverload ->
 				()
 			| _ ->
-				check_field_access ctx c f static p;
+				check_field_access ctx c f static pfield
 			end;
 		in
 		let default () =
@@ -128,14 +130,14 @@ let field_access ctx mode f famode e p =
 			| MethInline, _ ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
-				display_error ctx "Macro functions must be called immediately" p; normal()
+				display_error ctx "Macro functions must be called immediately" pfield; normal()
 			| _ , MGet ->
-				if has_class_field_flag f CfGeneric then display_error ctx "Cannot create closure on generic function" p;
+				if has_class_field_flag f CfGeneric then display_error ctx "Cannot create closure on generic function" pfield;
 				normal()
 			| _ ->
 				normal()
 		in
-		begin match famode with
+		begin match fh with
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
 				| MGet,Var {v_read = AccCall }
@@ -143,16 +145,16 @@ let field_access ctx mode f famode e p =
 				| MCall _,Var {v_read = AccCall } ->
 					()
 				| MCall _, Var _ ->
-					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" p
+					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" pfield
 				| MCall _, _ ->
 					()
 				| MGet,Var _
 				| MSet _,Var _ when ctx.com.platform = Flash && has_class_flag c CExtern ->
 					()
 				| _, Method _ ->
-					display_error ctx "Cannot create closure on super method" p
+					display_error ctx "Cannot create closure on super method" pfield
 				| _ ->
-					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
+					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
 			(* We need the actual class type (i.e. a potential child class) for visibility checks. *)
 			begin match follow e.etype with
 			| TInst(c,_) ->
@@ -168,17 +170,31 @@ let field_access ctx mode f famode e p =
 			default()
 		| FHAbstract(a,tl,c) ->
 			maybe_check_visibility c true;
-			let sea = make_abstract_static_extension_access a tl c f e false p in
+			let sea = make_abstract_static_extension_access a tl c f e false pfull in
 			AKUsingField sea
 		end;
 	| Var v ->
+		begin match fh with
+		| FHStatic c | FHAbstract(_,_,c) ->
+			check_field_access ctx c f true pfield
+		| FHInstance _ ->
+			begin match follow e.etype with
+			| TInst(c,_) ->
+				check_field_access ctx c f false pfield
+			| _ ->
+				()
+			end;
+		| FHAnon ->
+			()
+		end;
 		let normal inline =
 			AKField (make_access inline)
 		in
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal false
+			| TInst (c,_) when extends ctx.curclass c || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false ->
+				normal false
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
@@ -187,7 +203,7 @@ let field_access ctx mode f famode e p =
 				if ctx.untyped then normal false else AKNo f.cf_name)
 		| AccNormal | AccNo ->
 			normal false
-		| AccCall when ctx.in_display && DisplayPosition.display_position#enclosed_in p ->
+		| AccCall when ctx.in_display && DisplayPosition.display_position#enclosed_in pfull ->
 			normal false
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in
@@ -205,16 +221,16 @@ let field_access ctx mode f famode e p =
 				)
 			in
 			if bypass_accessor then (
-				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
+				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
-					display_error ctx "This field cannot be accessed because it is not a real variable" p;
+					display_error ctx "This field cannot be accessed because it is not a real variable" pfield;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
 				normal false
 			)
-			else begin match famode with
+			else begin match fh with
 			| FHAbstract(a,tl,c) ->
-				let sea = make_abstract_static_extension_access a tl c f e false p in
+				let sea = make_abstract_static_extension_access a tl c f e false pfull in
 				AKUsingAccessor sea
 			| _ ->
 				AKAccessor (make_access false)
@@ -224,14 +240,14 @@ let field_access ctx mode f famode e p =
 		| AccInline ->
 			normal true
 		| AccCtor ->
-			(match ctx.curfun, famode with
+			(match ctx.curfun, fh with
 				| FunConstructor, FHInstance(c,_) when c == ctx.curclass -> normal false
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->
 			match msg with
-			| None -> error_require r p
-			| Some msg -> error msg p
+			| None -> error_require r pfield
+			| Some msg -> error msg pfield
 
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
@@ -241,7 +257,7 @@ let class_field ctx c tl name p =
 let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let pfield = if e.epos = p then p else { p with pmin = p.pmax - (String.length i) } in
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let field_access e f fmode = field_access ctx mode f fmode e p in
+	let field_access e f fmode = field_access ctx mode f fmode e pfield in
 	let class_field_with_access e c tl =
 		let c2, t, f = class_field ctx c tl i p in
 		let fmode = match c2 with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl) in
@@ -313,14 +329,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			(try
 				let f = PMap.find i a.a_fields in
 				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx "Cannot access non-static abstract field statically" pfield;
-				(match mode with
-				| MCall _ when has_class_field_flag f CfOverload -> ()
-				| _ when has_class_field_flag f CfPublic || ctx.untyped -> ()
-				| _ -> (match !(a.a_status) with
-					| Closed | Extend _ -> () (* always allow anon private fields access *)
-					| Statics c when can_access ctx c f true -> ()
-					| _ -> display_error ctx ("Cannot access private field " ^ i) pfield)
-				);
 				match !(a.a_status) with
 				| EnumStatics en ->
 					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in

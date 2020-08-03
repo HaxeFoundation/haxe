@@ -1,7 +1,7 @@
 package unit.issues;
 
 private abstract A1(I) {
-	var v(get, set):Int;
+	public var v(get, set):Int;
 
 	public function new(self:I) {
 		this = self;
@@ -19,7 +19,7 @@ private interface I {
 }
 
 private abstract A2(T) {
-	var v(get, set):Int;
+	public var v(get, set):Int;
 
 	public function new(self:T) {
 		this = self;
