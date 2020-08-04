@@ -51,6 +51,10 @@ import haxe.exceptions.NotImplementedException;
 		throw new NotImplementedException();
 	}
 
+	@:op(A == B) function equals(p:FilePath):Bool {
+		throw new NotImplementedException();
+	}
+
 	/**
 		Encode file path to a valid unicode string replacing any invalid bytes with `patch`
 		unicode character code (the code of `?` is used by default).

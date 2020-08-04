@@ -89,6 +89,15 @@ class FileSystem {
 	}
 
 	/**
+		List directory contents.
+		Does not add `.` and `..` to the result.
+		Entries are provided as paths relative to the directory.
+	**/
+	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
 		Create a directory.
 
 		Default `permissions` equals to octal `0777`, which means read+write+execution
@@ -102,16 +111,20 @@ class FileSystem {
 	}
 
 	/**
-		Create a unique temporary directory.
+		Create a directory with auto-generated unique name.
 
-		For a directory name `prefix` gets appended with random characters.
+		`prefix` gets appended with random characters.
 		The created directory path is passed to the `callback`.
 
 		Created directory will _not_ be deleted automatically.
 
-		TODO: is it really "temporary"? Probably "unique" would be a better name.
+		Default `permissions` equals to octal `0777`, which means read+write+execution
+		permissions for everyone.
+
+		If `recursive` is `true`: create missing directories tree all the way down to `path`.
+		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function tempDirectory(prefix:FilePath, callback:Callback<Directory>):Void {
+	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
 

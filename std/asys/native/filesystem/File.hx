@@ -7,11 +7,12 @@ import haxe.exceptions.NotImplementedException;
 import asys.native.IWritable;
 import asys.native.IReadable;
 
+@:coreApi
 class File implements IDuplex {
 	/** The path of this file */
 	public final path:FilePath;
 
-	function new() {
+	function new():Void {
 		path = 'stub';
 	}
 
@@ -51,7 +52,7 @@ class File implements IDuplex {
 		If `offset` is outside of `buffer` bounds or if `length` is negative, an error
 		is passed to the `callback`.
 	**/
-	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
+	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -64,42 +65,42 @@ class File implements IDuplex {
 		If `offset` or `offset + length` is outside of `buffer` bounds, an error is passed
 		to the `callback`.
 	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
+	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Force all buffered data to be written to disk.
 	**/
-	public function flush(callback:Callback<NoData>) {
+	public function flush(callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Synchronize file in-memory state with the storage device.
 	**/
-	public function sync(callback:Callback<NoData>) {
+	public function sync(callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Get file status information.
 	**/
-	public function info(callback:Callback<FileInfo>) {
+	public function info(callback:Callback<FileInfo>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Set file permissions.
 	**/
-	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>) {
+	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Set file owner and group.
 	**/
-	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>) {
+	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -109,7 +110,7 @@ class File implements IDuplex {
 		If the file is larger than `newSize`, the extra data is lost.
 		If the file is shorter, zero bytes are used to fill the added length.
 	**/
-	public function resize(newSize:Int, callback:Callback<NoData>) {
+	public function resize(newSize:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -118,7 +119,7 @@ class File implements IDuplex {
 
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
 	**/
-	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
+	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -140,14 +141,14 @@ class File implements IDuplex {
 		consistent cross-platform behavior it is strongly recommended to always
 		release a lock manually.
 	**/
-	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
+	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Close the file.
 	**/
-	public function close(callback:Callback<NoData>) {
+	public function close(callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 }

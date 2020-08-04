@@ -1,6 +1,6 @@
 package haxe;
 
-typedef CallbackHandler<E,R> = (error:Null<E>, result:Null<R>) -> Void;
+typedef CallbackHandler<E,R> = (error:Null<E>, result:R) -> Void;
 
 /**
 	A callback.
@@ -22,7 +22,7 @@ abstract Callback<E,R>(CallbackHandler<E,R>) from CallbackHandler<E,R> {
 		This method may be used instead of allocating an anonymous function to ignore
 		the outcome of an operation.
 	**/
-	static public function ignore<E,R>(?e:Null<E>, result:Null<R>):Void {}
+	static public function ignore<E,R>(?e:Null<E>, result:R):Void {}
 
 	/**
 		Create a callback, which ignores the result of an operation.
@@ -38,7 +38,7 @@ abstract Callback<E,R>(CallbackHandler<E,R>) from CallbackHandler<E,R> {
 		Report a failure.
 	**/
 	public inline function fail(error:E):Void {
-		this(error, null);
+		this(error, @:nullSafety(Off) null);
 	}
 
 	/**
