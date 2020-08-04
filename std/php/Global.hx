@@ -691,6 +691,11 @@ extern class Global {
 	static function fread(handle:Resource, length:Int):EitherType<Bool, String>;
 
 	/**
+		@see http://php.net/manual/en/function.tmpfile.php
+	**/
+	static function tmpfile():EitherType<Resource, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.file-exists.php
 	**/
 	static function file_exists(filename:String):Bool;
@@ -799,6 +804,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.glob.php
 	**/
 	static function glob(pattern:String, flags:Int = 0):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.scandir.php
+	**/
+	static function scandir(directory:String, ?sorting_order:Int, ?context:Resource):EitherType<Bool,NativeIndexedArray<String>>;
 
 	/**
 		@see http://php.net/manual/en/function.opendir.php
@@ -1205,6 +1215,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-get-contents.php
 	**/
 	static function stream_get_contents(handle:Resource, maxlength:Int = -1, offset:Int = -1):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.stream-get-meta-data.php
+	**/
+	static function stream_get_meta_data(handle:Resource):NativeArray;
 
 	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php

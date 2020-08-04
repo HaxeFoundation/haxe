@@ -63,7 +63,6 @@ extern class Const {
 		@see https://php.net/manual/en/dir.constants.php
 	**/
 	static final DIRECTORY_SEPARATOR:String;
-
 	static final PATH_SEPARATOR:String;
 	static final SCANDIR_SORT_ASCENDING:Int;
 	static final SCANDIR_SORT_DESCENDING:Int;

@@ -7,6 +7,7 @@ import haxe.exceptions.NotImplementedException;
 import php.Global.*;
 import php.Syntax;
 import php.NativeArray;
+import php.NativeIndexedArray;
 import php.Resource;
 
 /**
@@ -28,7 +29,20 @@ class FileSystem {
 	}
 
 	static public function tempFile(callback:Callback<File>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				tmpfile();
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), '(unknown path)'));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to create a temporary file'), '(unknown path)'));
+				case _:
+					callback.success(@:privateAccess new File(result, stream_get_meta_data(result)['uri']));
+			}
+		});
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
@@ -89,11 +103,38 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Open directory for listing.
-	**/
 	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
-		throw new NotImplementedException();
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				opendir(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to open a directory'), path));
+				case _:
+					callback.success(@:privateAccess new Directory(result, path));
+			}
+		});
+	}
+
+	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var result = try {
+				scandir(cast path);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to list a directory'), path));
+				case (_:NativeIndexedArray<String>) => list:
+					callback.success([for(item in list) if(item != '.' && item != '..') (item:FilePath)]);
+			}
+		});
 	}
 
 	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
@@ -112,18 +153,46 @@ class FileSystem {
 		});
 	}
 
-	/**
-		Create a unique temporary directory.
+	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+		EntryPoint.runInMainThread(() -> {
+			var dirPath = try {
+				var path:String = (cast prefix:String) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+				while(true) {
+					try {
+						if(mkdir(path, permissions, recursive)) {
+							break;
+						} else {
+							throw new php.Exception('Failed to create a directory');
+						}
+					} catch(e:php.Exception) {
+						switch strpos(e.getMessage(), 'mkdir(): File exists') {
+							case false:
+								throw e;
+							case _:
+								path += getRandomChar();
+						}
+					}
+				}
+				path;
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), prefix));
+				return;
+			}
+			callback.success(dirPath);
+		});
+	}
 
-		For a directory name `prefix` gets appended with random characters.
-		The created directory path is passed to the `callback`.
-
-		Created directory will _not_ be deleted automatically.
-
-		TODO: is it really "temporary"? Probably "unique" would be a better name.
-	**/
-	static public function tempDirectory(prefix:FilePath, callback:Callback<Directory>):Void {
-		throw new NotImplementedException();
+	static var __codes:Array<String> = null;
+	static function getRandomChar():String {
+		var codes = switch __codes {
+			case null:
+				var a = [for(c in '0'.code...'9'.code) String.fromCharCode(c)];
+				for(c in 'A'.code...'Z'.code) a.push(String.fromCharCode(c));
+				for(c in 'a'.code...'z'.code) a.push(String.fromCharCode(c));
+				__codes = a;
+			case a: a;
+		}
+		return codes[Std.random(codes.length)];
 	}
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {

@@ -2,7 +2,6 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.EntryPoint;
-import haxe.exceptions.NotImplementedException;
 import haxe.exceptions.EncodingException;
 import php.*;
 import php.Global.*;

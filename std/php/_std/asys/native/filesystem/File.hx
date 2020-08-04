@@ -4,7 +4,6 @@ import haxe.Int64;
 import haxe.EntryPoint;
 import haxe.io.Bytes;
 import haxe.NoData;
-import haxe.exceptions.NotImplementedException;
 import asys.native.IWritable;
 import asys.native.IReadable;
 import php.Resource;
