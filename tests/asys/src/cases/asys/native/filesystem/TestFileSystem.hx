@@ -561,4 +561,42 @@ class TestFileSystem extends FsTest {
 			})
 		);
 	}
+
+	function testListDirectory(async:Async) {
+		asyncAll(async,
+			FileSystem.listDirectory('test-data', (e, r) -> {
+				if(noException(e)) {
+					var stringified = r.map(p -> p.toString());
+					var expected = ['sub', 'symlink-dir', 'temp', 'bytes.bin', 'symlink'];
+					expected.sort(Reflect.compare);
+					stringified.sort(Reflect.compare);
+					same(expected, stringified);
+				}
+			}),
+			FileSystem.listDirectory('test-data/temp/non-existent', (e, r) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non-existent', e.path.toString());
+				});
+			})
+		);
+	}
+
+	@:depends(testInfo)
+	function testUniqueDirectory(async:Async) {
+		var mode:FilePermissions = [0, 7, 6, 5];
+		asyncAll(async,
+			FileSystem.uniqueDirectory('test-data/temp/non-existent/dir1', mode, true, (e, path) -> {
+				if(noException(e))
+					FileSystem.info(path, (e, r) -> {
+						if(noException(e))
+							isTrue(r.isDirectory());
+					});
+			}),
+			FileSystem.uniqueDirectory('test-data/temp/non-existent-2/dir2', false, (e, path) -> {
+				assertType(e, FsException, e -> {
+					equals('test-data/temp/non-existent-2/dir2', e.path.toString());
+				});
+			})
+		);
+	}
 }

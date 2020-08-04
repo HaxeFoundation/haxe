@@ -9,7 +9,11 @@ import asys.native.filesystem.FsException;
 import asys.native.filesystem.FileSystem;
 import asys.native.filesystem.File;
 
-@:depends(cases.asys.native.filesystem.TestFileSystem)
+@:depends(
+	cases.asys.native.filesystem.TestFilePath,
+	cases.asys.native.filesystem.TestFilePermissions,
+	cases.asys.native.filesystem.TestFileSystem
+)
 class TestFile extends FsTest {
 	function testOpenRead(async:Async) {
 		asyncAll(async,
@@ -808,6 +812,36 @@ class TestFile extends FsTest {
 						});
 					}
 				});
+			})
+		);
+	}
+
+	@:depends(testSeek, testOpenWriteRead)
+	function testFileSystem_tmpFile(async:Async) {
+		asyncAll(async,
+			FileSystem.tempFile((e, file) -> {
+				if(noException(e)) {
+					var path = file.path;
+					FileSystem.check(path, Exists, (_, r) -> {
+						if(isTrue(r)) {
+							var writeBuf = bytes([0, 1, 2, 3]);
+							file.write(writeBuf, 0, writeBuf.length, (_, r) -> {
+								if(equals(writeBuf.length, r)) {
+									file.seek(0, (_, _) -> {
+										var readBuf = Bytes.alloc(writeBuf.length);
+										file.read(readBuf, 0, readBuf.length, (_, r) -> {
+											same(writeBuf, readBuf);
+											equals(readBuf.length, r);
+											file.close((_, _) -> {
+												FileSystem.check(path, Exists, (_, r) -> isFalse(r));
+											});
+										});
+									});
+								}
+							});
+						}
+					});
+				}
 			})
 		);
 	}

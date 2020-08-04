@@ -9,7 +9,7 @@ class TestFilePath extends FsTest {
 	/**
 	 * Allocates 255 bytes with values from 1 to 255.
 	 */
-	static function arbitraryBytes():Bytes {
+	static function allBytes():Bytes {
 		var b = Bytes.alloc(254);
 		for (i in 0...b.length)
 			b.set(i, i + 1);
@@ -17,12 +17,12 @@ class TestFilePath extends FsTest {
 	}
 
 	function testToString_nonUnicodePath_throwsEncodingException() {
-		var p:FilePath = arbitraryBytes();
+		var p:FilePath = allBytes();
 		raises(() -> (p:String), EncodingException);
 	}
 
 	function testFromBytes_toBytes() {
-		var b = arbitraryBytes();
+		var b = allBytes();
 		var p:FilePath = b;
 		equals(0, b.compare(p));
 	}
@@ -72,10 +72,10 @@ class TestFilePath extends FsTest {
 			});
 		},{
 			var p:FilePath = 'non-existent';
-			p.real((e, p2) -> {
-				if(isOfType(e, FsException)) {
-					isTrue(p == cast(e, FsException).path);
-				}
+			p.real((e, _) -> {
+				assertType(e, FsException, e -> {
+					isTrue(p == e.path);
+				});
 			});
 		});
 	}
