@@ -38,7 +38,7 @@ abstract Callback<E,R>(CallbackHandler<E,R>) from CallbackHandler<E,R> {
 		Report a failure.
 	**/
 	public inline function fail(error:E):Void {
-		this(error, @:nullSafety(Off) null);
+		this(error, @:nullSafety(Off) (null:R));
 	}
 
 	/**

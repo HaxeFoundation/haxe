@@ -182,15 +182,18 @@ class FileSystem {
 		});
 	}
 
-	static var __codes:Array<String> = null;
+	static var __codes:Null<Array<String>>;
 	static function getRandomChar():String {
-		var codes = switch __codes {
+		//TODO: null safety issue if `switch` result is assigned directly to this var declaration
+		var codes:Array<String>;
+		switch __codes {
 			case null:
 				var a = [for(c in '0'.code...'9'.code) String.fromCharCode(c)];
 				for(c in 'A'.code...'Z'.code) a.push(String.fromCharCode(c));
 				for(c in 'a'.code...'z'.code) a.push(String.fromCharCode(c));
-				__codes = a;
-			case a: a;
+				codes = __codes = a;
+			case a:
+				codes = a;
 		}
 		return codes[Std.random(codes.length)];
 	}
