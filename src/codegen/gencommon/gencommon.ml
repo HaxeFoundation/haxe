@@ -691,7 +691,7 @@ let reorder_modules gen =
 
 let run_filters_from gen t filters =
 	match t with
-	| TClassDecl c ->
+	| TClassDecl c when not (FiltersCommon.is_removable_class c) ->
 		trace (snd c.cl_path);
 		gen.gcurrent_path <- c.cl_path;
 		gen.gcurrent_class <- Some(c);
@@ -719,7 +719,7 @@ let run_filters_from gen t filters =
 		| None -> ()
 		| Some e ->
 			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
-	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
+	| TClassDecl _ | TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
 let run_filters gen =
