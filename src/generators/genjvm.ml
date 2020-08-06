@@ -1362,32 +1362,29 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	(* calls *)
 
-	method get_argument_signatures t el =
-		match jsignature_of_type gctx t with
-		| TMethod(jsigs,r) -> jsigs,r
-		| _ -> List.map (fun _ -> object_sig) el,(Some object_sig)
-
-	method call_arguments t el =
-		let tl,tr = self#get_argument_signatures t el in
-		let varargs_type = match follow t with
-			| TFun(tl,_) ->
-				begin match List.rev tl with
-				| (_,_,(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t]))) :: _ -> Some (jsignature_of_type gctx t)
-				| _ -> None
-				end
+	method call_arguments ?(cast=true) t el =
+		let tl,tr = match follow t with
+			| TFun(tl,tr) ->
+				tl,return_of_type gctx tr
 			| _ ->
-				None
+				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)
 		in
 		let rec loop acc tl el = match tl,el with
-			| jsig :: tl,e :: el ->
-				begin match tl,varargs_type with
-				| [],Some jsig' ->
-					self#new_native_array jsig' (e :: el);
+			| (_,_,t) :: tl,e :: el ->
+				let jsig = jsignature_of_type gctx t in
+				begin match tl,Type.follow t with
+				| [],(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t])) ->
+					self#new_native_array (jsignature_of_type gctx t) (e :: el);
 					List.rev (jsig :: acc)
 				| _ ->
 					self#texpr (rvalue_sig jsig) e;
-					jm#cast jsig;
-					loop (jsig :: acc) tl el
+					let acc = if cast then begin
+						jm#cast jsig;
+						jsig :: acc
+					end else
+						code#get_stack#top :: acc
+					in
+					loop acc tl el
 				end
 			| _,[] -> List.rev acc
 			| [],e :: el ->
@@ -1401,12 +1398,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method call ret tr e1 el =
 		let invoke t =
 			jm#cast haxe_function_sig;
-			(* Don't use call_arguments here because we don't have to cast. *)
-			let tl = List.map (fun e ->
-				self#texpr rvalue_any e;
-				code#get_stack#top
-			) el in
-			let _,tr = self#get_argument_signatures t el in
+			(* We don't want to cast because typed functions handle that for us. *)
+			let tl,tr = self#call_arguments ~cast:false t el in
 			let meth = gctx.typed_functions#register_signature tl tr in
 			jm#invokevirtual haxe_function_path meth.name (method_sig meth.dargs meth.dret);
 			tr
