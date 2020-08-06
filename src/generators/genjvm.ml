@@ -2784,7 +2784,7 @@ let generate_anons gctx =
 			) c.cl_ordered_fields
 		end;
 		write_class gctx.jar path (jc#export_class gctx.default_export_config)
-	) gctx.anon_identification#get_anons
+	) gctx.anon_identification#get_pfms
 
 let generate_typed_functions gctx =
 	let jc_function = gctx.typed_functions#generate in

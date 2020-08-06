@@ -21,13 +21,18 @@ type path_field_mapping = {
 	pfm_path : path;
 	pfm_params : type_params;
 	pfm_fields : (string,tclass_field) PMap.t;
+	pfm_arity : int;
 }
+
+let count_fields pm =
+	PMap.fold (fun _ i -> i + 1) pm 0
 
 let pfm_of_typedef td = match follow td.t_type with
 	| TAnon an -> {
 		pfm_path = td.t_path;
 		pfm_params = td.t_params;
 		pfm_fields = an.a_fields;
+		pfm_arity = count_fields an.a_fields;
 	}
 	| _ ->
 		die "" __LOC__
@@ -41,10 +46,18 @@ class ['a] tanon_identification (empty_path : string list * string) =
 	in
 object(self)
 
-	val td_anons = Hashtbl.create 0
+	val pfms = Hashtbl.create 0
+	val pfm_by_arity = DynArray.create ()
 	val mutable num = 0
 
-	method get_anons = td_anons
+	method get_pfms = pfms
+
+	method add_pfm (path : path) (pfm : path_field_mapping) =
+		while DynArray.length pfm_by_arity <= pfm.pfm_arity do
+			DynArray.add pfm_by_arity (DynArray.create ())
+		done;
+		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
+		Hashtbl.replace pfms path pfm
 
 	method unify (tc : Type.t) (pfm : path_field_mapping) =
 		let check () =
@@ -82,15 +95,17 @@ object(self)
 		with Not_found ->
 			raise (Unify_error [])
 
-	method find_compatible (tc : Type.t) =
+	method find_compatible (arity : int) (tc : Type.t) =
 		try
-			Hashtbl.iter (fun _ td ->
+			if arity >= DynArray.length pfm_by_arity then
+				raise Not_found;
+			DynArray.iter (fun pfm ->
 				try
-					self#unify tc td;
-					raise (Typedef_result td)
+					self#unify tc pfm;
+					raise (Typedef_result pfm)
 				with Unify_error _ ->
 					()
-			) td_anons;
+			) (DynArray.get pfm_by_arity arity);
 			raise Not_found
 		with Typedef_result td ->
 			td
@@ -98,7 +113,7 @@ object(self)
 	method identify_typedef (td : tdef) =
 		let rec loop t = match t with
 			| TAnon an when is_normal_anon an && not (PMap.is_empty an.a_fields) ->
-				Hashtbl.replace td_anons td.t_path (pfm_of_typedef td);
+				self#add_pfm td.t_path (pfm_of_typedef td)
 			| TMono {tm_type = Some t} ->
 				loop t
 			| TLazy f ->
@@ -112,7 +127,7 @@ object(self)
 		match t with
 		| TType(td,tl) ->
 			begin try
-				Some (Hashtbl.find td_anons td.t_path)
+				Some (Hashtbl.find pfms td.t_path)
 			with Not_found ->
 				self#identify accept_anons (apply_params td.t_params tl td.t_type)
 			end
@@ -125,11 +140,12 @@ object(self)
 		| TLazy f ->
 			self#identify accept_anons (lazy_type f)
 		| TAnon an when accept_anons && not (PMap.is_empty an.a_fields) ->
-			PMap.iter (fun _ cf ->
-				Gencommon.replace_mono cf.cf_type
-			) an.a_fields;
+			let arity = PMap.fold (fun cf i ->
+				Gencommon.replace_mono cf.cf_type;
+				i + 1
+			) an.a_fields 0 in
 			begin try
-				Some (self#find_compatible t)
+				Some (self#find_compatible arity t)
 			with Not_found ->
 				let id = num in
 				num <- num + 1;
@@ -138,8 +154,9 @@ object(self)
 					pfm_path = path;
 					pfm_params = [];
 					pfm_fields = an.a_fields;
+					pfm_arity = count_fields an.a_fields;
 				} in
-				Hashtbl.replace td_anons path pfm;
+				self#add_pfm path pfm;
 				Some pfm
 			end;
 		| _ ->
@@ -435,6 +452,6 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 				(ci :: acc)
 			with Unify_error _ ->
 				acc
-		) anon_identification#get_anons [] in
+		) anon_identification#get_pfms [] in
 		Hashtbl.add lut c.cl_path l
 end
