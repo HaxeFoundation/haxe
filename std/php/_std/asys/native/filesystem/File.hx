@@ -11,77 +11,31 @@ import php.Global.*;
 import php.Const.*;
 import php.Syntax;
 
-class File implements IDuplex {
+class File {
 
 	public final path:FilePath;
 
 	final handle:Resource;
+	var isClosed:Bool = false;
 
 	function new(handle:Resource, path:FilePath) {
 		this.handle = handle;
 		this.path = path;
 	}
 
-	public function seek(offset:Int64, whence:FileSeek = SeekSet, callback:Callback<NoData>):Void {
-		EntryPoint.runInMainThread(() -> {
-			var result = try {
-				var whence = switch whence {
-					case SeekSet: SEEK_SET;
-					case SeekEnd: SEEK_END;
-					case SeekMove: SEEK_CUR;
-				}
-				var offset = if(PHP_INT_SIZE == 4) {
-					Int64.toInt(offset);
-				} else {
-					((cast offset:{high:Int}).high << 32) | (cast offset:{low:Int}).low;
-				}
-				fseek(handle, offset, whence);
-			} catch(e:php.Exception) {
-				callback.fail(new FsException(CustomError(e.getMessage()), path));
-				return;
-			}
-			if(result == 0)
-				callback.success(NoData)
-			else
-				callback.fail(new FsException(CustomError('Failed to set file position'), path));
-		});
-	}
-
-	public function getPosition(callback:Callback<Int64>):Void {
-		EntryPoint.runInMainThread(() -> {
-			var result = try {
-				ftell(handle);
-			} catch(e:php.Exception) {
-				callback.fail(new FsException(CustomError(e.getMessage()), path));
-				return;
-			}
-			switch result {
-				case false: callback.fail(new FsException(CustomError('Failed to get file position'), path));
-				case r: callback.success(r);
-			}
-		});
-	}
-
-	public function isEof(callback:Callback<Bool>):Void {
-		EntryPoint.runInMainThread(() -> {
-			var result = try {
-				feof(handle);
-			} catch(e:php.Exception) {
-				callback.fail(new FsException(CustomError(e.getMessage()), path));
-				return;
-			}
-			callback.success(result);
-		});
-	}
-
-	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
+	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
 				if(length < 0)
 					throw new php.Exception('File.write(): negative length');
+				if(position < 0)
+					throw new php.Exception('File.write(): negative position');
 				if(offset < 0 || offset >= buffer.length)
-					throw new php.Exception('File.write(): offset out of bounds');
-				fwrite(handle, buffer.getData().sub(offset, length));
+					throw new php.Exception('File.write(): offset out of buffer bounds');
+				if(fseek(handle, int64ToInt(position)) == 0)
+					fwrite(handle, buffer.getData().sub(offset, length))
+				else
+					throw new php.Exception('File.write(): Failed to set file position');
 			} catch(e:php.Exception) {
 				callback.fail(new FsException(CustomError(e.getMessage()), path));
 				return;
@@ -95,10 +49,19 @@ class File implements IDuplex {
 		});
 	}
 
-	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
+	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
 		EntryPoint.runInMainThread(() -> {
 			var result = try {
-				fread(handle, length);
+				if(length < 0)
+					throw new php.Exception('File.read(): negative length');
+				if(position < 0)
+					throw new php.Exception('File.read(): negative position');
+				if(offset < 0 || offset >= buffer.length)
+					throw new php.Exception('File.read(): offset out of buffer bounds');
+				if(fseek(handle, int64ToInt(position)) == 0)
+					fread(handle, length)
+				else
+					throw new php.Exception('File.read(): Failed to set file position');
 			} catch(e:php.Exception) {
 				callback.fail(new FsException(CustomError(e.getMessage()), path));
 				return;
@@ -235,5 +198,13 @@ class File implements IDuplex {
 			else
 				callback.fail(new FsException(CustomError('Failed to close a file'), path));
 		});
+	}
+
+	inline function int64ToInt(i64:Int64):Int {
+		return if(PHP_INT_SIZE == 4) {
+			Int64.toInt(i64);
+		} else {
+			((cast i64:{high:Int}).high << 32) | (cast i64:{low:Int}).low;
+		}
 	}
 }
