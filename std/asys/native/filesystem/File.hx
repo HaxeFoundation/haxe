@@ -8,7 +8,7 @@ import asys.native.IWritable;
 import asys.native.IReadable;
 
 @:coreApi
-class File implements IDuplex {
+class File {
 	/** The path of this file */
 	public final path:FilePath;
 
@@ -17,55 +17,32 @@ class File implements IDuplex {
 	}
 
 	/**
-		Change file position pointer.
-		The pointer position is used in read and write operations as the starting byte
-		of reading or writing respectively.
+		Write up to `length` bytes from `buffer` starting at the buffer `offset`
+		to the file starting at the file `position`, then invoke `callback` with
+		the amount of bytes written.
 
-		If `whence` is `SeekSet` set the pointer to the exact position
-		specified by `offset`.
-	 	If `whence` is `SeekEnd` set the pointer to the the end-of-file + `offset`.
-		If `whence` is `SeekMove` move the pointer by `offset` bytes
-		relative to the current position.
+		If `position` is greater than the file size then the file will be grown
+		to the required size with the zero bytes before writing.
+
+		If `position` is negative or `offset` is outside of `buffer` bounds or
+		if `length` is negative, an error is passed to the `callback`.
 	**/
-	public function seek(offset:Int64, whence:FileSeek = SeekSet, callback:Callback<NoData>):Void {
+	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
-		Get current position pointer offset.
+		Read up to `length` bytes from the file `position` and write them into
+		`buffer` starting at `offset` position in `buffer`, then invoke `callback`
+		with the amount of bytes read.
+
+		If `position` is greater or equal to the file size at the moment of reading
+		then `0` is passed to the `callback` and `buffer` is unaffected.
+
+		If `position` is negative or `offset` is outside of `buffer` bounds, an
+		error is passed to the `callback`.
 	**/
-	public function getPosition(callback:Callback<Int64>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Check if file pointer is at end-of-file.
-	**/
-	public function isEof(callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Write up to `length` bytes from `buffer` (starting from buffer `offset`),
-		then invoke `callback` with the amount of bytes written.
-
-		If `offset` is outside of `buffer` bounds or if `length` is negative, an error
-		is passed to the `callback`.
-	**/
-	public function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Read up to `length` bytes and write them into `buffer` starting from `offset`
-		position in `buffer`, then invoke `callback` with the amount of bytes read.
-
-		Reading at the end of file yields zero bytes read and leaves `buffer` unaffected.
-
-		If `offset` or `offset + length` is outside of `buffer` bounds, an error is passed
-		to the `callback`.
-	**/
-	public function read(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
+	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		throw new NotImplementedException();
 	}
 

@@ -1,35 +1,31 @@
 package asys.native.filesystem;
 
 import asys.native.filesystem.File;
+import haxe.io.Bytes;
 
 enum abstract FileOpenFlag<T>(Int) {
 	/**
 		Open file for appending.
 		The file is created if it does not exist.
-		The file pointer is placed at the end of the file.
 	**/
 	var Append:FileOpenFlag<FileAppend>;
 
 	/**
 		Open file for appending and reading.
 		The file is created if it does not exist.
-		The file pointer for reading is placed at the beginning of the file, but
-		writing always appends to the end of the file.
-		Writing also moves the file pointer for reading by the amount of bytes written.
+		Writing always appends to the end of the file.
 	**/
-	var AppendRead:FileOpenFlag<File>;
+	var AppendRead:FileOpenFlag<FileAppendRead>;
 
 	/**
 		Open file for reading.
 		Fails if the file does not exist.
-		The file pointer is placed at the beginning of the file.
 	**/
 	var Read:FileOpenFlag<FileRead>;
 
 	/**
 		Open file for reading and writing.
 		Fails if the file does not exist.
-		The file pointer is placed at the beginning of the file.
 	**/
 	var ReadWrite:FileOpenFlag<File>;
 
@@ -41,7 +37,9 @@ enum abstract FileOpenFlag<T>(Int) {
 	var Write:FileOpenFlag<FileWrite>;
 
 	/**
-		The same as `Write`, but fails if the path exists.
+		Open file for writing.
+		The file is truncated if it exists.
+		Fails if the file doesn't exist.
 	**/
 	var WriteX:FileOpenFlag<FileWrite>;
 
@@ -53,7 +51,9 @@ enum abstract FileOpenFlag<T>(Int) {
 	var WriteRead:FileOpenFlag<File>;
 
 	/**
-		Like `WriteRead`, but fails if the path exists.
+		Open file for writing and reading.
+		The file is truncated if it exists.
+		Fails if the file doesn't exists.
 	**/
 	var WriteReadX:FileOpenFlag<File>;
 
@@ -61,7 +61,6 @@ enum abstract FileOpenFlag<T>(Int) {
 		Open file for writing.
 		The file is _not_ truncated if it exists (as opposed to `Write`).
 		The file is created if it doesn't exist.
-		The file pointer is placed at the beginning of the file.
 	**/
 	var Overwrite:FileOpenFlag<FileWrite>;
 
@@ -69,7 +68,6 @@ enum abstract FileOpenFlag<T>(Int) {
 		Open file for writing and reading.
 		The file is _not_ truncated if it exists (as opposed to `WriteRead`).
 		The file is created if it doesn't exist.
-		The file pointer is placed at the beginning of the file.
 	**/
 	var OverwriteRead:FileOpenFlag<File>;
 }
@@ -78,19 +76,39 @@ enum abstract FileOpenFlag<T>(Int) {
 	Limits file operations to reading.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,seek,getPosition,isEof,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close)
-abstract FileRead(File) from File to IReadable {}
+@:forward(path,read,info,setPermissions,setOwner,setGroup,setTimes,lock,close,isOpen)
+abstract FileRead(File) from File {}
 
 /**
 	Limits file operations to writing.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,seek,getPosition,isEof,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
-abstract FileWrite(File) from File to IWritable {}
+@:forward(path,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
+abstract FileWrite(File) from File {}
+
+/**
+	Limits file operations to writing at the end of file and reading.
+	@see asys.native.filesystem.File
+**/
+@:forward(path,read,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
+abstract FileAppendRead(File) from File {
+	/**
+		Append up to `length` bytes from `buffer` starting at the buffer `offset`
+		to the file, then invoke `callback` with the amount of bytes written.
+
+		If `offset` is outside of `buffer` bounds or if `length` is negative, an
+		error passed to the `callback`.
+
+		TODO: Is `append` a better name for this method?
+	**/
+	public inline function write(buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
+		this.write(0, buffer, offset, length, callback);
+	}
+}
 
 /**
 	Limits file operations to writing at the end of file.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,getPosition,isEof,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close)
-abstract FileAppend(File) from File to IWritable {}
+@:forward(path,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
+abstract FileAppend(FileAppendRead) from File {}
