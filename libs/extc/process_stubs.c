@@ -25,6 +25,7 @@
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/callback.h>
+#include <caml/custom.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
 
@@ -62,7 +63,6 @@
 #define val_array_ptr(v) (&Field(v,0))
 #define val_string(v) String_val(v)
 #define val_strlen(v) caml_string_length(v)
-#define alloc_abstract(_,data) ((value)data)
 #define alloc_int(i) Val_int(i)
 #define val_null Val_int(0)
 #define val_some(v) Field(v,0)
@@ -196,7 +196,7 @@ typedef struct {
 #endif
 } vprocess;
 
-#define val_process(v)	((vprocess*)val_data(v))
+#define val_process(v) (*((vprocess**) Data_custom_val(v)))
 
 /**
 	<doc>
@@ -219,6 +219,9 @@ static int do_close( int fd ) {
 
 static void free_process( value vp ) {
 	vprocess *p = val_process(vp);
+	if (p == NULL) {
+		return;
+	}
 #	ifdef _WIN32
 	CloseHandle(p->eread);
 	CloseHandle(p->oread);
@@ -230,7 +233,17 @@ static void free_process( value vp ) {
 	do_close(p->oread);
 	do_close(p->iwrite);
 #	endif
+	free(p);
 }
+
+static struct custom_operations vprocess_ops = {
+	.identifier  = "vprocess_ops",
+	.finalize    = custom_finalize_default,
+	.compare     = custom_compare_default,
+	.hash        = custom_hash_default,
+	.serialize   = custom_serialize_default,
+	.deserialize = custom_deserialize_default,
+};
 
 /**
 	process_run : cmd:string -> args:string array option -> 'process
@@ -243,10 +256,11 @@ static void free_process( value vp ) {
 	</doc>
 **/
 CAMLprim value process_run( value cmd, value vargs ) {
-	CAMLparam2(cmd,vargs);
+	CAMLparam2(cmd, vargs);
 	CAMLlocal1(vp);
 	int i, isRaw;
 	vprocess *p;
+	vp = caml_alloc_custom(&vprocess_ops, sizeof(vprocess*), 0, 1);
 	isRaw = vargs == val_null;
 	if (!isRaw) {
 		vargs = val_some(vargs);
@@ -314,7 +328,7 @@ CAMLprim value process_run( value cmd, value vargs ) {
 			}
 		}
 		sargs = buffer_to_string(b);
-		p = (vprocess*)alloc_private(sizeof(vprocess));
+		p = (vprocess*)malloc(sizeof(vprocess));
 		// startup process
 		sattr.nLength = sizeof(sattr);
 		sattr.bInheritHandle = TRUE;
@@ -366,7 +380,7 @@ CAMLprim value process_run( value cmd, value vargs ) {
 	int input[2], output[2], error[2];
 	if( pipe(input) || pipe(output) || pipe(error) )
 		neko_error();
-	p = (vprocess*)alloc_private(sizeof(vprocess));
+	p = (vprocess*)malloc(sizeof(vprocess));
 	p->pid = fork();
 	if( p->pid == -1 ) {
 		do_close(input[0]);
@@ -397,7 +411,7 @@ CAMLprim value process_run( value cmd, value vargs ) {
 	p->oread = output[0];
 	p->eread = error[0];
 #	endif
-	vp = alloc_abstract(k_process,p);
+	val_process(vp) = p;
 	CAMLreturn(vp);
 }
 
@@ -508,8 +522,7 @@ CAMLprim value process_stdin_write( value vp, value str, value pos, value len ) 
 **/
 CAMLprim value process_stdin_close( value vp ) {
 	CAMLparam1(vp);
-	vprocess *p;
-	p = val_process(vp);
+	vprocess *p = val_process(vp);
 #	ifdef _WIN32
 	if( !CloseHandle(p->iwrite) )
 		neko_error();
@@ -529,8 +542,7 @@ CAMLprim value process_stdin_close( value vp ) {
 **/
 CAMLprim value process_exit( value vp ) {
 	CAMLparam1(vp);
-	vprocess *p;
-	p = val_process(vp);
+	vprocess *p = val_process(vp);
 #	ifdef _WIN32
 	{
 		DWORD rval;
@@ -560,8 +572,7 @@ CAMLprim value process_exit( value vp ) {
 **/
 CAMLprim value process_pid( value vp ) {
 	CAMLparam1(vp);
-	vprocess *p;
-	p = val_process(vp);
+	vprocess *p = val_process(vp);
 #	ifdef _WIN32
 	CAMLreturn(alloc_int(p->pinf.dwProcessId));
 #	else
