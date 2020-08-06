@@ -46,8 +46,6 @@ let get_construction_mode c cf =
 
 (* Haxe *)
 
-exception HarderFailure of string
-
 type generation_context = {
 	com : Common.context;
 	jar : Zip.out_file;
@@ -308,9 +306,6 @@ let is_interface_var_access c cf =
 		| Var _ | Method MethDynamic -> true
 		| _ -> false
 
-let type_unifies a b =
-	try Type.unify a b; true with _ -> false
-
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
@@ -322,7 +317,7 @@ object(self)
 	method is_assignable_to (exc2 : haxe_exception) =
 		match self#is_haxe_exception,exc2#is_haxe_exception with
 		| true, true | false, false ->
-			type_unifies t exc2#get_type
+			does_unify t exc2#get_type
 		(* `haxe.Exception` is assignable to java.lang.RuntimeException/Exception/Throwable *)
 		| false,true ->
 			List.mem exc2#get_native_type [throwable_sig; exception_sig; runtime_exception_sig]
@@ -1730,10 +1725,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jf
 
 	method texpr ret e =
-		try
-			if not jm#is_terminated then self#texpr' ret e
-		with Failure s ->
-			raise (HarderFailure (Printf.sprintf "Expr %s\n%s" (s_expr_pretty false "" false (s_type (print_context())) e) s))
+		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
 		code#set_line (Lexer.get_error_line e.epos);
@@ -1979,7 +1971,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#cast e.etype;
 		| TThrow e1 ->
 			self#texpr rvalue_any e1;
-			if not (Exceptions.is_haxe_exception e1.etype) && not (type_unifies e1.etype gctx.t_runtime_exception) then begin
+			if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
 				let exc = new haxe_exception gctx e1.etype in
 				if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
 					jm#add_thrown_exception exc#get_native_path;
@@ -2057,12 +2049,6 @@ type super_ctor_mode =
 	| SCNone
 	| SCJava
 	| SCHaxe
-
-let failsafe p f =
-	try
-		f ()
-	with Failure s | HarderFailure s ->
-		Error.error s p
 
 let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 	begin match fields with
@@ -2467,10 +2453,10 @@ class tclass_to_jvm gctx c = object(self)
 		let field mtype cf = match cf.cf_kind with
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
-					failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
+					self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
-				if not (has_class_flag c CInterface) && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
+				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
 		in
 		let field mtype cf =
 			run_timed gctx true cf.cf_name (fun () -> field mtype cf)
@@ -2705,12 +2691,10 @@ let generate_enum gctx en =
 	write_class gctx.jar en.e_path (jc_enum#export_class gctx.default_export_config)
 
 let generate_module_type ctx mt =
-	failsafe (t_infos mt).mt_pos (fun () ->
-		match mt with
+	match mt with
 		| TClassDecl c when not (has_class_flag c CExtern) -> generate_class ctx c
 		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
 		| _ -> ()
-	)
 
 let generate_anons gctx =
 	Hashtbl.iter (fun path pfm ->
