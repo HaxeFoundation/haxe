@@ -90,10 +90,6 @@ class jvm_stack = object(self)
 		loop [] i stack
 end
 
-let s_vt = generate_method_signature true
-
-let s_vtl l = Printf.sprintf "[%s]" (String.concat ", " (List.map s_vt l))
-
 class builder pool = object(self)
 	val stack = new jvm_stack;
 	val lines = DynArray.create()
@@ -102,37 +98,11 @@ class builder pool = object(self)
 
 	(* ops *)
 	val ops = DynArray.create();
-	val stack_debug = DynArray.create()
 	val mutable fp = 0
 	val mutable terminated = false
 
 	method is_terminated = terminated
 	method set_terminated b = terminated <- b
-
-	method debug_stack =
-		let l = DynArray.to_list stack_debug in
-		let opmax = ref 0 in
-		let l = List.map (fun (op,_,after,line) ->
-			let sop = JvmDebug.s_jcode pool op in
-			if String.length sop > !opmax then opmax := String.length sop;
-			let safter = s_vtl after in
-			(line,sop,safter)
-		) l in
-		let s_ops = String.concat "\n\t\t" (List.map (fun (line,sop,safter) ->
-			Printf.sprintf "%4i %*s %s" line !opmax sop safter
-		) l) in
-		s_ops
-
-	method stack_error opcode expected actual =
-		let s_ops = self#debug_stack in
-		jerror
-			(Printf.sprintf "Stack error\n\tops      :\n\t\t%s\n\t     line: %i\n\toperation: %s\n\texpected : %s\n\tactual   : %s"
-				s_ops
-				current_line
-				(JvmDebug.s_jcode pool opcode)
-				(s_vtl expected)
-				(s_vtl actual)
-			)
 
 	method op opcode length expect return =
 		if last_line <> current_line then begin
@@ -141,33 +111,10 @@ class builder pool = object(self)
 		end;
 		DynArray.add ops opcode;
 		fp <- fp + length;
-		let cur = stack#get_stack in
 		List.iter (fun js ->
-			let js' = try
-				stack#pop
-			with EmptyStack ->
-				self#stack_error opcode expect cur;
-				Globals.die "" __LOC__
-			in
-			(* TODO: some unification or something? *)
-			match js,js' with
-			| (TObject _ | TTypeParameter _),(TObject _ | TTypeParameter _ | TArray _) -> () (* TODO ??? *)
-			| TMethod _,TMethod _ -> ()
-			| TMethod _,TObject(path,[]) when path = NativeSignatures.haxe_function_path -> ()
-			| TTypeParameter _,TMethod _ -> ()
-			| TObject _,TMethod _ -> ()
-			| TMethod _,TObject _ -> ()
-			| TArray _,TArray _ -> ()
-			| TBool,TInt -> ()
-			| TInt,TBool -> ()
-			| TDouble,TInt -> ()
-			| TInt,(TChar | TShort | TByte) -> ()
-			| (TObject _ | TTypeParameter _),TUninitialized _ -> ()
-			| _ ->
-				if js <> js' then self#stack_error opcode expect cur
+			ignore(stack#pop)
 		) expect;
 		List.iter stack#push (List.rev return);
-		DynArray.add stack_debug (opcode,cur,stack#get_stack,current_line);
 		if terminates opcode then terminated <- true
 
 	method op_maybe_wide op opw i tl tr = match get_numeric_range_unsigned i with
