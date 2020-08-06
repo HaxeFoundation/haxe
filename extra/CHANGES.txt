@@ -1,5 +1,9 @@
 2020-XX-XX 4.1.4:
 
+	General improvements:
+
+	all : allowed `Any` as type parameter in `catch(e:SomeType<Any>)` (#9641)
+
 	Bugfixes:
 
 	php : fixed false detection of `catch` vars in anonymous functions as captured from outer scope
