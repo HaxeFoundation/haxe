@@ -61,6 +61,8 @@ type generation_context = {
 	typed_functions : JvmFunctions.typed_functions;
 	closure_paths : (path * string * jsignature,path) Hashtbl.t;
 	enum_paths : (path,unit) Hashtbl.t;
+	detail_times : bool;
+	mutable timer : Timer.timer;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 }
@@ -86,6 +88,16 @@ type block_exit =
 let need_val = function
 	| RValue _ -> true
 	| _ -> false
+
+let run_timed gctx detail name f =
+	if detail && not gctx.detail_times then
+		f()
+	else begin
+		let sub = gctx.timer#nest name in
+		let old = gctx.timer in
+		gctx.timer <- sub;
+		sub#run_finally f (fun () -> gctx.timer <- old)
+	end
 
 open NativeSignatures
 
@@ -2467,6 +2479,9 @@ class tclass_to_jvm gctx c = object(self)
 			| _ ->
 				if not (has_class_flag c CInterface) && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
 		in
+		let field mtype cf =
+			run_timed gctx true cf.cf_name (fun () -> field mtype cf)
+		in
 		Option.may (fun (c2,e) -> if c2 == c then self#generate_main e) gctx.entry_point;
 		List.iter (field MStatic) c.cl_ordered_statics;
 		List.iter (field MInstance) c.cl_ordered_fields;
@@ -2504,10 +2519,10 @@ class tclass_to_jvm gctx c = object(self)
 		AnnotationHandler.generate_annotations (jc :> JvmBuilder.base_builder) c.cl_meta;
 		jc#add_annotation (["haxe";"jvm";"annotation"],"ClassReflectionInformation") (["hasSuperClass",(ABool (c.cl_super <> None))])
 
-	method generate =
+	method private do_generate =
 		self#set_access_flags;
 		jc#set_source_file c.cl_pos.pfile;
-		self#generate_fields;
+		run_timed gctx true "fields" (fun () -> self#generate_fields);
 		self#set_interfaces;
 		if not (has_class_flag c CInterface) then begin
 			self#generate_empty_ctor;
@@ -2520,6 +2535,9 @@ class tclass_to_jvm gctx c = object(self)
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
 		write_class gctx.jar c.cl_path jc
+
+	method generate =
+		run_timed gctx true (s_type_path c.cl_path) (fun () -> self#do_generate)
 end
 
 let generate_class gctx c =
@@ -2693,22 +2711,10 @@ let generate_enum gctx en =
 	jc_enum#add_annotation (["haxe";"jvm";"annotation"],"EnumReflectionInformation") (["constructorNames",AArray names]);
 	write_class gctx.jar en.e_path (jc_enum#export_class gctx.default_export_config)
 
-let generate_abstract gctx a =
-	let super_path = object_path in
-	let jc = new JvmClass.builder a.a_path super_path in
-	jc#add_access_flag 1; (* public *)
-	let jc = jc#export_class gctx.default_export_config in
-	write_class gctx.jar a.a_path jc
-
-let debug_path path = match path with
-	(* | ([],"Main") | (["haxe";"jvm"],_) -> true *)
-	| (["haxe";"lang"],_) -> false (* Old Haxe/Java stuff that's weird *)
-	| _ -> true
-
 let generate_module_type ctx mt =
 	failsafe (t_infos mt).mt_pos (fun () ->
 		match mt with
-		| TClassDecl c when not (has_class_flag c CExtern) && debug_path c.cl_path -> generate_class ctx c
+		| TClassDecl c when not (has_class_flag c CExtern) -> generate_class ctx c
 		| TEnumDecl en when not en.e_extern -> generate_enum ctx en
 		| _ -> ()
 	)
@@ -2837,12 +2843,12 @@ module Preprocessor = struct
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c ->
-				if debug_path c.cl_path && not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
+				if not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
 		List.iter (fun mt -> match mt with
-			| TClassDecl c when debug_path c.cl_path && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
+			| TClassDecl c when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 				gctx.typedef_interfaces#process_class c;
 			| _ ->
 				()
@@ -2890,7 +2896,9 @@ let generate jvm_flag com =
 		current_field_info = None;
 		default_export_config = {
 			export_debug = true;
-		}
+		};
+		detail_times = Common.Define.raw_defined com.defines "jvm-times";
+		timer = new Timer.timer ["generate";"java"];
 	} in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
@@ -2921,11 +2929,11 @@ let generate jvm_flag com =
 	let generate_typed_interfaces () =
 		Hashtbl.iter (fun _ c -> generate_module_type gctx (TClassDecl c)) gctx.typedef_interfaces#get_interfaces;
 	in
-	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
-	Std.finally (Timer.timer ["generate";"java";"real types"]) generate_real_types ();
-	Std.finally (Timer.timer ["generate";"java";"typed interfaces"]) generate_typed_interfaces ();
-	Std.finally (Timer.timer ["generate";"java";"anons"]) generate_anons gctx;
-	Std.finally (Timer.timer ["generate";"java";"typed functions"]) generate_typed_functions gctx;
+	run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
+	run_timed gctx false "real types" generate_real_types;
+	run_timed gctx false "typed interfaces" generate_typed_interfaces;
+	run_timed gctx false "anons" (fun () -> generate_anons gctx);
+	run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
