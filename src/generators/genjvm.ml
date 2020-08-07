@@ -189,10 +189,16 @@ let jsignature_of_type gctx t =
 let return_of_type gctx t =
 	return_of_type gctx [] t
 
-let convert_fields gctx fields =
-	let l = PMap.foldi (fun s cf acc -> (s,cf) :: acc) fields [] in
-	let l = List.sort (fun (s1,_) (s2,_) -> compare s1 s2) l in
-	List.map (fun (s,cf) -> s,jsignature_of_type gctx cf.cf_type) l
+let convert_fields gctx pfm =
+	match pfm.pfm_converted with
+	| Some l ->
+		l
+	| None ->
+		let l = PMap.foldi (fun s cf acc -> (s,cf) :: acc) pfm.pfm_fields [] in
+		let l = List.sort (fun (s1,_) (s2,_) -> compare s1 s2) l in
+		let l = List.map (fun (s,cf) -> s,jsignature_of_type gctx cf.cf_type) l in
+		pfm.pfm_converted <- Some l;
+		l
 
 module AnnotationHandler = struct
 	let generate_annotations builder meta =
@@ -1984,7 +1990,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			(* The guard is here because in the case of quoted fields like `"a-b"`, the field is not part of the
 			   type. In this case we have to do full dynamic construction. *)
 			| TAnon an,Some pfm when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
-				let fl' = convert_fields gctx pfm.pfm_fields in
+				let fl' = convert_fields gctx pfm in
 				jm#construct ConstructInit pfm.pfm_path (fun () ->
 					(* We have to respect declaration order, so let's temp var where necessary *)
 					let rec loop fl fl' ok acc = match fl,fl' with
@@ -2697,8 +2703,9 @@ let generate_module_type ctx mt =
 		| _ -> ()
 
 let generate_anons gctx =
-	Hashtbl.iter (fun path pfm ->
-		let fields = convert_fields gctx pfm.pfm_fields in
+	Hashtbl.iter (fun _ pfm ->
+		let path = pfm.pfm_path in
+		let fields = convert_fields gctx pfm in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
 		begin

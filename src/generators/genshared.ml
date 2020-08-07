@@ -17,10 +17,11 @@ let is_extern_abstract a = match a.a_impl with
 
 open OverloadResolution
 
-type path_field_mapping = {
+type 'a path_field_mapping = {
 	pfm_path : path;
 	pfm_params : type_params;
 	pfm_fields : (string,tclass_field) PMap.t;
+	mutable pfm_converted : (string * 'a) list option;
 	pfm_arity : int;
 }
 
@@ -32,12 +33,11 @@ let pfm_of_typedef td = match follow td.t_type with
 		pfm_path = td.t_path;
 		pfm_params = td.t_params;
 		pfm_fields = an.a_fields;
+		pfm_converted = None;
 		pfm_arity = count_fields an.a_fields;
 	}
 	| _ ->
 		die "" __LOC__
-
-exception Typedef_result of path_field_mapping
 
 class ['a] tanon_identification (empty_path : string list * string) =
 	let is_normal_anon an = match !(an.a_status) with
@@ -52,14 +52,14 @@ object(self)
 
 	method get_pfms = pfms
 
-	method add_pfm (path : path) (pfm : path_field_mapping) =
+	method add_pfm (path : path) (pfm : 'a path_field_mapping) =
 		while DynArray.length pfm_by_arity <= pfm.pfm_arity do
 			DynArray.add pfm_by_arity (DynArray.create ())
 		done;
 		DynArray.add (DynArray.get pfm_by_arity pfm.pfm_arity) pfm;
 		Hashtbl.replace pfms path pfm
 
-	method unify (tc : Type.t) (pfm : path_field_mapping) =
+	method unify (tc : Type.t) (pfm : 'a path_field_mapping) =
 		let check () =
 			let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
 			let map = apply_params pfm.pfm_params monos in
@@ -96,19 +96,21 @@ object(self)
 			raise (Unify_error [])
 
 	method find_compatible (arity : int) (tc : Type.t) =
-		try
-			if arity >= DynArray.length pfm_by_arity then
+		if arity >= DynArray.length pfm_by_arity then
+			raise Not_found;
+		let d = DynArray.get pfm_by_arity arity in
+		let l = DynArray.length d in
+		let rec loop i =
+			if i >= l then
 				raise Not_found;
-			DynArray.iter (fun pfm ->
-				try
-					self#unify tc pfm;
-					raise (Typedef_result pfm)
-				with Unify_error _ ->
-					()
-			) (DynArray.get pfm_by_arity arity);
-			raise Not_found
-		with Typedef_result td ->
-			td
+			let pfm = DynArray.unsafe_get d i in
+			try
+				self#unify tc pfm;
+				pfm
+			with Unify_error _ ->
+				loop (i + 1)
+		in
+		loop 0
 
 	method identify_typedef (td : tdef) =
 		let rec loop t = match t with
@@ -154,6 +156,7 @@ object(self)
 					pfm_path = path;
 					pfm_params = [];
 					pfm_fields = an.a_fields;
+					pfm_converted = None;
 					pfm_arity = count_fields an.a_fields;
 				} in
 				self#add_pfm path pfm;
@@ -413,7 +416,7 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			| Some (c,_) -> self#implements_recursively c path
 			| None -> false
 
-	method private make_interface_class (pfm : path_field_mapping) =
+	method private make_interface_class (pfm : 'a path_field_mapping) =
 		let path_inner = (fst pfm.pfm_path,snd pfm.pfm_path ^ "$Interface") in
 		try
 			Hashtbl.find interfaces path_inner
