@@ -9,6 +9,7 @@
 	php : fixed false detection of `catch` vars in anonymous functions as captured from outer scope
 	php : fixed return type of extern definition for `fseek` function
 	cs,java : fixed generation of `@:generic` classes with anonymous functions (#9799)
+	flash : fixed loading swc libraries containing `Vector` without a type parameter (#9805)
 
 2020-07-22 4.1.3
 

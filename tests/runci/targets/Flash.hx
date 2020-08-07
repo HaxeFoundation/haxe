@@ -11,6 +11,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Flash {
+	static var miscFlashDir(get,never):String;
+	static inline function get_miscFlashDir() return miscDir + 'flash/';
+
 	static public function getLatestFPVersion():Array<Int> {
 		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
@@ -161,6 +164,10 @@ class Flash {
 				success = false;
 			}
 		}
+
+		changeDirectory(miscFlashDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		if (!success)
 			fail();
 	}
