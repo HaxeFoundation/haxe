@@ -61,27 +61,37 @@ object(self)
 
 	method unify (tc : Type.t) (pfm : 'a path_field_mapping) =
 		let check () =
-			let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
-			let map = apply_params pfm.pfm_params monos in
-			begin match follow tc with
-			| TInst(c,tl) ->
-				PMap.iter (fun _ cf ->
-					let cf' = PMap.find cf.cf_name c.cl_fields in
-					if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
-					Type.unify (apply_params c.cl_params tl (monomorphs cf'.cf_params cf'.cf_type)) (map (monomorphs cf.cf_params cf.cf_type))
-				) pfm.pfm_fields
-			| TAnon an1 ->
-				let fields = ref an1.a_fields in
-				PMap.iter (fun _ cf ->
-					let cf' = PMap.find cf.cf_name an1.a_fields in
-					if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
-					fields := PMap.remove cf.cf_name !fields;
-					Type.type_eq EqDoNotFollowNull cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
-				) pfm.pfm_fields;
-				if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"])
-			| _ ->
-				raise (Unify_error [Unify_custom "bad type"])
-			end;
+			let pair_up fields =
+				PMap.fold (fun cf acc ->
+					let cf' = PMap.find cf.cf_name fields in
+					(cf,cf') :: acc
+				) pfm.pfm_fields []
+			in
+			let monos = match follow tc with
+				| TInst(c,tl) ->
+					let pairs = pair_up c.cl_fields in
+					let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
+					let map = apply_params pfm.pfm_params monos in
+					List.iter (fun (cf,cf') ->
+						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						Type.unify (apply_params c.cl_params tl (monomorphs cf'.cf_params cf'.cf_type)) (map (monomorphs cf.cf_params cf.cf_type))
+					) pairs;
+					monos
+				| TAnon an1 ->
+					let fields = ref an1.a_fields in
+					let pairs = pair_up an1.a_fields in
+					let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
+					let map = apply_params pfm.pfm_params monos in
+					List.iter (fun (cf,cf') ->
+						if not (unify_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						fields := PMap.remove cf.cf_name !fields;
+						Type.type_eq EqDoNotFollowNull cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
+					) pairs;
+					if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"]);
+					monos
+				| _ ->
+					raise (Unify_error [Unify_custom "bad type"])
+			in
 			(* Check if we applied Void to a return type parameter... (#3463) *)
 			List.iter (fun t -> match follow t with
 				| TMono r ->
