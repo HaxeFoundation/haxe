@@ -184,6 +184,38 @@ type field_generation_info = {
 	mutable super_call_fields : (tclass * tclass_field) list;
 }
 
+module Info = struct
+	type 'a tclass_info = {
+		mutable typedef_implements : tclass list option;
+		mutable implicit_ctors : ((path * 'a),(tclass * tclass_field)) PMap.t;
+	}
+
+	class ['a] info_context = object(self)
+		val class_infos : 'a tclass_info DynArray.t = DynArray.create ()
+
+		method get_class_info (c : tclass) =
+			let rec loop ml = match ml with
+			| (Meta.Custom ":jvm.classInfo",[(EConst (Int s),_)],_) :: _ ->
+				DynArray.get class_infos (int_of_string s)
+			| _ :: ml ->
+				loop ml
+			| [] ->
+				let index = DynArray.length class_infos in
+				let infos = {
+					typedef_implements = None;
+					implicit_ctors = PMap.empty;
+				} in
+				DynArray.add class_infos infos;
+				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: c.cl_meta;
+				infos
+			in
+			loop c.cl_meta
+	end
+end
+
+open Info
+
+
 class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 	let make_native cf =
 		cf.cf_meta <- (Meta.NativeGen,[],null_pos) :: cf.cf_meta
@@ -197,13 +229,15 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 		| None, None -> raise Not_found
 		| None, Some (csup,cparams) -> get_constructor csup
 	in
-	object(self)
 
-	val implicit_ctors : (path,((path * 'a),(tclass * tclass_field)) PMap.t) Hashtbl.t = Hashtbl.create 0
+object(self)
+	val infos = new info_context
 	val field_infos : field_generation_info DynArray.t = DynArray.create()
 
-	method get_implicit_ctor (path : path) =
-		Hashtbl.find implicit_ctors path
+	method get_infos = infos
+
+	method get_implicit_ctor (c : tclass) =
+		(infos#get_class_info c).implicit_ctors
 
 	method get_field_info (ml : metadata) =
 		let rec loop ml = match ml with
@@ -218,11 +252,8 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 
 	method add_implicit_ctor (c : tclass) (c' : tclass) (cf : tclass_field) =
 		let jsig = convert cf.cf_type in
-		try
-			let sm = Hashtbl.find implicit_ctors c.cl_path in
-			Hashtbl.replace implicit_ctors c.cl_path (PMap.add (c'.cl_path,jsig) (c',cf) sm);
-		with Not_found ->
-			Hashtbl.add implicit_ctors c.cl_path (PMap.add (c'.cl_path,jsig) (c',cf) PMap.empty)
+		let info = infos#get_class_info c in
+		info.implicit_ctors <- (PMap.add (c'.cl_path,jsig) (c',cf)) info.implicit_ctors;
 
 	method preprocess_constructor_expr (c : tclass) (cf : tclass_field) (e : texpr) =
 		let used_this = ref false in
@@ -395,9 +426,8 @@ class ['a] preprocessor (basic : basic_types) (convert : Type.t -> 'a) =
 			List.iter field (cf :: cf.cf_overloads)
 end
 
-class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = object(self)
+class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : 'a tanon_identification) = object(self)
 
-	val lut = Hashtbl.create 0
 	val interfaces = Hashtbl.create 0
 	val interface_rewrites = Hashtbl.create 0
 
@@ -411,18 +441,23 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 	method get_interfaces = interfaces
 
 	method process_class (c : tclass) =
-		if not (Hashtbl.mem lut c.cl_path) then
-			self#do_process_class c
+		let info = infos#get_class_info c in
+		match info.typedef_implements with
+		| Some _ ->
+			()
+		| None ->
+			self#do_process_class c info
 
-	method private implements (path_class : path) (path_interface : path) =
-		try
-			let l = Hashtbl.find lut path_class in
-			List.exists (fun c -> c.cl_path = path_interface) l
-		with Not_found ->
+	method private implements (c : tclass) (path_interface : path) =
+		let info = infos#get_class_info c in
+		match info.typedef_implements with
+		| None ->
 			false
+		| Some l ->
+			List.exists (fun c -> c.cl_path = path_interface) l
 
 	method private implements_recursively (c : tclass) (path : path) =
-		self#implements c.cl_path path || match c.cl_super with
+		self#implements c path || match c.cl_super with
 			| Some (c,_) -> self#implements_recursively c path
 			| None -> false
 
@@ -447,7 +482,7 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			Hashtbl.replace interfaces pfm.pfm_path c;
 			c
 
-	method private do_process_class (c : tclass) =
+	method private do_process_class (c : tclass) (info : 'a tclass_info) =
 		begin match c.cl_super with
 			| Some(c,_) -> self#process_class c
 			| None -> ()
@@ -466,5 +501,5 @@ class ['a] typedef_interfaces (anon_identification : 'a tanon_identification) = 
 			with Unify_error _ ->
 				acc
 		) anon_identification#get_pfms [] in
-		Hashtbl.add lut c.cl_path l
+		info.typedef_implements <- Some l
 end

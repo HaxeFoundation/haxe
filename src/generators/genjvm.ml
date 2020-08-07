@@ -2294,7 +2294,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method private generate_implicit_ctors =
 		try
-			let sm = gctx.preprocessor#get_implicit_ctor c.cl_path in
+			let sm = gctx.preprocessor#get_implicit_ctor c in
 			PMap.iter (fun _ (c,cf) ->
 				let cmode = get_construction_mode c cf in
 				let jm = jc#spawn_method (if cmode = ConstructInit then "<init>" else "new") (jsignature_of_type gctx cf.cf_type) [MPublic] in
@@ -2886,7 +2886,7 @@ let generate jvm_flag com =
 	} in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
-	gctx.typedef_interfaces <- new typedef_interfaces anon_identification;
+	gctx.typedef_interfaces <- new typedef_interfaces gctx.preprocessor#get_infos anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd || java_lib#has_flag FlagIsExtern then None
