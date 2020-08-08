@@ -419,6 +419,26 @@ let apply_native_paths ctx t =
 			c.cl_meta <- meta :: c.cl_meta;
 			c.cl_path <- path;
 		| TEnumDecl e ->
+			let did_change = ref false in
+			let field _ ef = try
+				let meta,name = get_real_name ef.ef_meta ef.ef_name in
+				ef.ef_name <- name;
+				ef.ef_meta <- meta :: ef.ef_meta;
+				did_change := true;
+			with Not_found ->
+				()
+			in
+			PMap.iter field e.e_constrs;
+			if !did_change then begin
+				let names = ref [] in
+				e.e_constrs <- PMap.fold
+					(fun ef map ->
+						names := ef.ef_name :: !names;
+						PMap.add ef.ef_name ef map
+					)
+					e.e_constrs PMap.empty;
+				e.e_names <- !names;
+			end;
 			let meta,path = get_real_path e.e_meta e.e_path in
 			e.e_meta <- meta :: e.e_meta;
 			e.e_path <- path;
