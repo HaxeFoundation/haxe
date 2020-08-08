@@ -64,6 +64,7 @@ type generation_context = {
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
 	jar_compression_level : int;
+	dynamic_level : int;
 }
 
 type ret =
@@ -2069,15 +2070,19 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let cases = List.map (fun (name,jsig,kind) ->
 			[name],(fun () ->
 			begin match kind,jsig with
-					| Method (MethNormal | MethInline),TMethod(args,_) ->
+				| Method (MethNormal | MethInline),TMethod(args,_) ->
+					if gctx.dynamic_level >= 2 then begin
+						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () -> jm#load_this)
+					end else begin
 						jm#load_this;
 						jm#string name;
 						jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
 						jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
-					| _ ->
-						jm#load_this;
-						jm#getfield jc#get_this_path name jsig;
-						jm#expect_reference_type;
+					end
+				| _ ->
+					jm#load_this;
+					jm#getfield jc#get_this_path name jsig;
+					jm#expect_reference_type;
 				end;
 				ignore(jm#get_code#get_stack#pop);
 				jm#get_code#get_stack#push object_sig;
@@ -2516,7 +2521,7 @@ class tclass_to_jvm gctx c = object(self)
 			self#handle_relation_type_params;
 		end;
 		self#generate_signature;
-		if not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
+		if gctx.dynamic_level > 0 && not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
@@ -2738,7 +2743,7 @@ let generate_anons gctx =
 			load();
 			jm_fields#return
 		end;
-		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
+		if gctx.dynamic_level > 0 then generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
 		begin match gctx.typedef_interfaces#get_interface_class path with
 		| None ->
 			()
@@ -2871,6 +2876,12 @@ let generate jvm_flag com =
 		6
 	in
 	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
+	let dynamic_level = try
+		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
+	with _ ->
+		1
+	in
+	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
@@ -2891,6 +2902,7 @@ let generate jvm_flag com =
 		detail_times = Common.Define.raw_defined com.defines "jvm-times";
 		timer = new Timer.timer ["generate";"java"];
 		jar_compression_level = compression_level;
+		dynamic_level = dynamic_level;
 	} in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
