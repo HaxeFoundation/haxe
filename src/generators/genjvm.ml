@@ -63,6 +63,7 @@ type generation_context = {
 	mutable timer : Timer.timer;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
 	mutable current_field_info : field_generation_info option;
+	jar_compression_level : int;
 }
 
 type ret =
@@ -283,7 +284,7 @@ let resolve_class com path =
 	in
 	loop com.types
 
-let write_class jar path jc =
+let write_class gctx path jc =
 	let dir = match path with
 		| ([],s) -> s
 		| (sl,s) -> String.concat "/" sl ^ "/" ^ s
@@ -292,7 +293,7 @@ let write_class jar path jc =
 	let t = Timer.timer ["jvm";"write"] in
 	let ch = IO.output_bytes() in
 	JvmWriter.write_jvm_class ch jc;
-	Zip.add_entry (Bytes.unsafe_to_string (IO.close_out ch)) jar path;
+	Zip.add_entry ~level:gctx.jar_compression_level (Bytes.unsafe_to_string (IO.close_out ch)) gctx.jar path;
 	t()
 
 let is_const_int_pattern (el,_) =
@@ -397,7 +398,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		code#bconst true;
 		jm_equals#return;
 	end;
-	write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+	write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
 	jc_closure#get_this_path
 
 let create_field_closure gctx jc path_this jm name jsig f =
@@ -551,7 +552,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				) env);
 			);
 		end;
-		write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+		write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
 
 	(* access *)
 
@@ -605,7 +606,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
 			(* Static init *)
 			self#make_static_closure_field name jc_closure;
-			write_class gctx.jar jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+			write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
 			jc_closure#get_this_path;
 		in
 		jm#getstatic closure_path name (object_path_sig closure_path);
@@ -2519,7 +2520,7 @@ class tclass_to_jvm gctx c = object(self)
 			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
-		write_class gctx.jar c.cl_path jc
+		write_class gctx c.cl_path jc
 
 	method generate =
 		run_timed gctx true (s_type_path c.cl_path) (fun () -> self#do_generate)
@@ -2645,7 +2646,7 @@ let generate_enum gctx en =
 			end;
 			jc_ctor
 		end in
-		write_class gctx.jar jc_ctor#get_this_path (jc_ctor#export_class gctx.default_export_config);
+		write_class gctx jc_ctor#get_this_path (jc_ctor#export_class gctx.default_export_config);
 		begin match args with
 			| [] ->
 				(* Create static field for ctor without args *)
@@ -2694,7 +2695,7 @@ let generate_enum gctx en =
 	end;
 	AnnotationHandler.generate_annotations (jc_enum :> JvmBuilder.base_builder) en.e_meta;
 	jc_enum#add_annotation (["haxe";"jvm";"annotation"],"EnumReflectionInformation") (["constructorNames",AArray names]);
-	write_class gctx.jar en.e_path (jc_enum#export_class gctx.default_export_config)
+	write_class gctx en.e_path (jc_enum#export_class gctx.default_export_config)
 
 let generate_module_type ctx mt =
 	match mt with
@@ -2767,16 +2768,16 @@ let generate_anons gctx =
 				jm#return
 			) c.cl_ordered_fields
 		end;
-		write_class gctx.jar path (jc#export_class gctx.default_export_config)
+		write_class gctx path (jc#export_class gctx.default_export_config)
 	) gctx.anon_identification#get_pfms
 
 let generate_typed_functions gctx =
 	let jc_function = gctx.typed_functions#generate in
-	write_class gctx.jar jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
+	write_class gctx jc_function#get_this_path (jc_function#export_class gctx.default_export_config);
 	let jc_varargs = gctx.typed_functions#generate_var_args in
-	write_class gctx.jar jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
+	write_class gctx jc_varargs#get_this_path (jc_varargs#export_class gctx.default_export_config);
 	let jc_closure_dispatch = gctx.typed_functions#generate_closure_dispatch in
-	write_class gctx.jar jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config)
+	write_class gctx jc_closure_dispatch#get_this_path (jc_closure_dispatch#export_class gctx.default_export_config)
 
 module Preprocessor = struct
 	let make_root path =
@@ -2864,6 +2865,12 @@ let generate jvm_flag com =
 		jar_dir,jar_path
 	end in
 	let anon_identification = new tanon_identification haxe_dynamic_object_path in
+	let compression_level = try
+		int_of_string (Define.defined_value com.defines Define.JvmCompressionLevel)
+	with _ ->
+		6
+	in
+	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
 	let gctx = {
 		com = com;
 		jar = Zip.open_out jar_path;
@@ -2883,6 +2890,7 @@ let generate jvm_flag com =
 		};
 		detail_times = Common.Define.raw_defined com.defines "jvm-times";
 		timer = new Timer.timer ["generate";"java"];
+		jar_compression_level = compression_level;
 	} in
 	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
@@ -2905,7 +2913,7 @@ let generate jvm_flag com =
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
 		let filename = Codegen.escape_res_name name true in
-		Zip.add_entry v gctx.jar filename;
+		Zip.add_entry ~level:gctx.jar_compression_level v gctx.jar filename;
 	) com.resources;
 	let generate_real_types () =
 		List.iter (generate_module_type gctx) com.types;
@@ -2926,6 +2934,6 @@ let generate jvm_flag com =
 		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
 		"\n\n"
 	in
-	Zip.add_entry manifest_content gctx.jar "META-INF/MANIFEST.MF";
+	Zip.add_entry ~level:gctx.jar_compression_level manifest_content gctx.jar "META-INF/MANIFEST.MF";
 
 	Zip.close_out gctx.jar
