@@ -113,7 +113,6 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs()
 		//new TestUnspecified(),
-		//new TestRemoting(),
 	];
 
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
