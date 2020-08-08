@@ -2743,7 +2743,8 @@ let generate_anons gctx =
 			load();
 			jm_fields#return
 		end;
-		if gctx.dynamic_level > 0 then generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
+		(* This has to run even with dynamic_level = 0 because the entire DynamicObject logic depends on it. *)
+		generate_dynamic_access gctx jc (List.map (fun (name,jsig) -> name,jsig,Var {v_write = AccNormal;v_read = AccNormal}) fields) true;
 		begin match gctx.typedef_interfaces#get_interface_class path with
 		| None ->
 			()
