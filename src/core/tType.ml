@@ -248,7 +248,7 @@ and tclass = {
 }
 
 and tenum_field = {
-	ef_name : string;
+	mutable ef_name : string;
 	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
