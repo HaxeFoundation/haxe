@@ -5,11 +5,14 @@ import runci.Config.*;
 
 class Jvm {
 	static public function run(args:Array<String>) {
-		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
-		runCommand("java", ["-jar", "bin/unit.jar"]);
+		for (level in 0...3) {
+			var args = args.concat(["-D", "jvm.dynamic-level=" + level]);
+			runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
 
-		runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
-		runCommand("java", ["-jar", "bin/unit.jar"]);
+			runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+		}
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
