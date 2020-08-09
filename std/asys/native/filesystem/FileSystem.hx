@@ -2,13 +2,30 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.NoData;
+import haxe.IJobExecutor;
 import haxe.exceptions.NotImplementedException;
 
 /**
 	File system operations.
+
+	By default all IO operations are delegated to a default `haxe.IJobExecutor`
+	implementation which depends on a target platform.
+
+	Custom `haxe.IJobExecutor` implementation may be used via `FileSystem.get`
+	method which returns an object with the same API as `FileSystem` class.
 **/
 @:coreApi
 class FileSystem {
+	/**
+		Returns an object which allows to run all IO operations through the
+		given job `executor`.
+
+		Default executor implementation depends on a target platform.
+	**/
+	static function create(executor:IJobExecutor = null):IFileSystem {
+		throw new NotImplementedException();
+	}
+
 	/**
 		Open file for reading and/or writing.
 
