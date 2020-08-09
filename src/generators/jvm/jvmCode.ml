@@ -88,6 +88,10 @@ class jvm_stack = object(self)
 				raise EmptyStack
 		in
 		loop [] i stack
+
+	method replace jsig =
+		ignore(self#pop);
+		self#push jsig
 end
 
 class builder pool = object(self)
