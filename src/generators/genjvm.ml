@@ -2084,8 +2084,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 					jm#getfield jc#get_this_path name jsig;
 					jm#expect_reference_type;
 				end;
-				ignore(jm#get_code#get_stack#pop);
-				jm#get_code#get_stack#push object_sig;
+				jm#replace_top object_sig;
 			)
 		) fields in
 		let def = (fun () ->
