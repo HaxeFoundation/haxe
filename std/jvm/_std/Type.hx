@@ -108,6 +108,9 @@ class Type {
 	}
 
 	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name.indexOf(".") == -1) {
+			name = "haxe.root." + name;
+		}
 		return try {
 			var c = java.lang.Class.forName(name);
 			if (!isEnumClass(c)) {
