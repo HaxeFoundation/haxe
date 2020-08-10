@@ -607,7 +607,12 @@ module PathConverter = struct
 		| _ -> false
 end
 
-type java_lib_ctx = {
+type java_lib_ctx_type = {
+	mutable unimplemented_methods : string list;
+}
+
+type java_lib_ctx_field = {
+	type_ctx : java_lib_ctx_type;
 	type_params : (string,complex_type) PMap.t;
 }
 
@@ -759,7 +764,7 @@ module Converter = struct
 		) acc params
 
 	let convert_field ctx is_method (jc : jclass) (is_interface : bool) (jf : jfield) p =
-		let ctx = {
+		let ctx = { ctx with
 			type_params = type_param_lut ctx.type_params jf.jf_types;
 		} in
 		let p = {p with pfile = p.pfile ^ "@" ^ jf.jf_name} in
@@ -860,6 +865,10 @@ module Converter = struct
 					assert false
 				end
 		in
+		if is_interface && not is_static then begin
+			if jf.jf_code <> None then add_meta (JvmDefault,[],null_pos)
+			else ctx.type_ctx.unimplemented_methods <- name :: ctx.type_ctx.unimplemented_methods;
+		end;
 		let cff = {
 			cff_name = (name,p);
 			cff_doc = None;
@@ -930,6 +939,12 @@ module Converter = struct
 		end;
 		let _,class_name = jname_to_hx (snd jc.jc_path) in
 		add_meta (Meta.Native, [EConst (String (s_type_path jc.jc_path,SDoubleQuotes) ),p],p);
+		if is_interface then begin match ctx.type_ctx.unimplemented_methods with
+			| [name] ->
+				add_meta (Meta.FunctionalInterface,[EConst(String(name,SDoubleQuotes)),null_pos],null_pos);
+			| _ ->
+				()
+		end;
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;
@@ -946,6 +961,9 @@ module Converter = struct
 	let convert_module pack jcs =
 		let types = List.map (fun (jc,_,file) ->
 			let ctx = {
+				type_ctx = {
+					unimplemented_methods = [];
+				};
 				type_params = type_param_lut PMap.empty jc.jc_types;
 			} in
 			convert_type ctx jc file;

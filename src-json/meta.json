@@ -621,6 +621,13 @@
 		"internal": true
 	},
 	{
+		"name": "JvmDefault",
+		"metadata": ":jvm.default",
+		"doc": "Marks interface methods as having default implementations",
+		"platforms": ["java"],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "JvmSynthetic",
 		"metadata": ":jvm.synthetic",
 		"doc": "Mark generated class, field or method as synthetic",

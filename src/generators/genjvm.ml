@@ -156,7 +156,7 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) -> jsignature_of_type t
+	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
 	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
@@ -2810,6 +2810,27 @@ module Preprocessor = struct
 		end else if fst mt.mt_path = [] then
 			mt.mt_path <- make_root mt.mt_path
 
+	let check_functional_interface gctx c =
+		let rec loop meta = match meta with
+			| (Meta.FunctionalInterface,[EConst(String(name,_)),_],_) :: _ ->
+				begin try
+					let cf = PMap.find name c.cl_fields in
+					let jsig = jsignature_of_type gctx cf.cf_type in
+					JvmFunctions.JavaFunctionalInterfaces.add_functional_interface c.cl_path jsig cf.cf_name (List.map fst c.cl_params)
+				with Not_found ->
+					()
+				end
+			| _ :: meta ->
+				loop meta
+			| [] ->
+				()
+		in
+		match c.cl_path with
+		| "sun" :: _,_ ->
+			()
+		| _ ->
+			loop c.cl_meta
+
 	let preprocess gctx =
 		let rec has_runtime_meta = function
 			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
@@ -2839,6 +2860,7 @@ module Preprocessor = struct
 			match mt with
 			| TClassDecl c ->
 				if not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
+				else check_functional_interface gctx c
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
