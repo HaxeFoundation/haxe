@@ -1096,7 +1096,7 @@ let load_module ctx m p =
 				raise (Forbid_package (inf,p::pl,pf))
 	) in
 	add_dependency ctx.m.curmod m2;
-	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
+	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2
 
 (* let load_module ctx m p =
