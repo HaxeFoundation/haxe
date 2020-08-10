@@ -1683,7 +1683,11 @@ module Match = struct
 		end;
 		let e = try
 			let t_switch = infer_switch_type() in
-			(match tmono with Some t -> unify ctx t_switch t p | _ -> ());
+			(match tmono with
+			| Some t when allow_min_void && ExtType.is_void (follow t) -> ()
+			| Some t -> unify ctx t_switch t p
+			| _ -> ()
+			);
 			TexprConverter.to_texpr ctx t_switch match_debug with_type dt
 		with TexprConverter.Not_exhaustive ->
 			error "Unmatched patterns: _" p;
