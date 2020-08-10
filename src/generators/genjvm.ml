@@ -916,10 +916,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	(* binops *)
 
 	method binop_exprs cast_type f1 f2 =
-		f1();
-		jm#cast ~allow_to_string:true cast_type;
-		f2();
-		jm#cast ~allow_to_string:true cast_type;
+		f1 (rvalue_sig cast_type);
+		jm#cast cast_type;
+		f2 (rvalue_sig cast_type);
+		jm#cast cast_type;
 
 	method get_binop_type_sig jsig1 jsig2 = match jsig1,jsig2 with
 		| TObject((["java";"lang"],"String"),_),_
@@ -1010,7 +1010,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| _ ->
 			match is_unboxed sig1,is_unboxed sig2 with
 			| true,true ->
-				let f e () = self#texpr rvalue_any e in
+				let f e ret = self#texpr ret e in
 				self#binop_exprs (self#get_binop_type e1.etype e2.etype) (f e1) (f e2);
 				self#do_compare op
 			| false,false ->
@@ -1128,9 +1128,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					emit_exprs();
 					code#imul
 				| OpDiv ->
-					f1();
+					f1 (rvalue_sig TDouble);
 					jm#cast TDouble;
-					f2();
+					f2 (rvalue_sig TDouble);
 					jm#cast TDouble;
 					code#ddiv;
 				| OpAnd ->
@@ -1200,21 +1200,21 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					emit_exprs();
 					code#lxor_
 				| OpShl ->
-					f1();
+					f1 (rvalue_sig TLong);
 					jm#cast TLong;
-					f2();
+					f2 (rvalue_sig TLong);
 					jm#cast TInt;
 					code#lshl;
 				| OpShr ->
-					f1();
+					f1 (rvalue_sig TLong);
 					jm#cast TLong;
-					f2();
+					f2 (rvalue_sig TInt);
 					jm#cast TInt;
 					code#lshr;
 				| OpUShr ->
-					f1();
+					f1 (rvalue_sig TLong);
 					jm#cast TLong;
-					f2();
+					f2 (rvalue_sig TInt);
 					jm#cast TInt;
 					code#lushr;
 				| OpMod ->
@@ -1226,7 +1226,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				begin match op with
 				| OpBoolAnd ->
 					let operand f =
-						f();
+						f (rvalue_sig TBool);
 						jm#cast TBool;
 					in
 					operand f1;
@@ -1236,7 +1236,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						(fun () -> code#bconst false)
 				| OpBoolOr ->
 					let operand f =
-						f();
+						f (rvalue_sig TBool);
 						jm#cast TBool;
 					in
 					operand f1;
@@ -1250,10 +1250,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					jm#invokestatic haxe_jvm_path name (method_sig [object_sig;object_sig] (Some object_sig))
 				end
 			| TObject(path,_) ->
-				emit_exprs();
-				if path = string_path then
+				if path = string_path then begin
+					f1 rvalue_any;
+					jm#cast ~allow_to_string:true cast_type;
+					f2 rvalue_any;
+					jm#cast ~allow_to_string:true cast_type;
 					jm#invokestatic haxe_jvm_path "stringConcat" (method_sig [object_sig;object_sig] (Some string_sig))
-				else begin
+				end else begin
+					emit_exprs();
 					let name = method_name () in
 					jm#invokestatic haxe_jvm_path name (method_sig [object_sig;object_sig] (Some object_sig))
 				end
@@ -1296,13 +1300,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				if need_val ret then load();
 			| _ ->
 				let f () =
-					self#binop_basic ret op (self#get_binop_type e1.etype e2.etype) (fun () -> ()) (fun () -> self#texpr rvalue_any e2);
+					self#binop_basic ret op (self#get_binop_type e1.etype e2.etype) (fun _ -> ()) (fun ret -> self#texpr ret e2);
 					jm#cast jsig1;
 				in
 				self#read_write ret AKPre e1 f
 			end
 		| _ ->
-			let f e () = self#texpr rvalue_any e in
+			let f e ret = self#texpr ret e in
 			self#binop_basic ret op (self#get_binop_type e1.etype e2.etype) (f e1) (f e2)
 
 	method unop ret op flag e =
@@ -1702,7 +1706,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method const ret t ct = match ct with
 		| Type.TInt i32 ->
 			begin match ret with
-			| RValue (Some (TDouble | TObject((["java";"lang"],"Double"),_))) -> code#lconst (Int64.of_int32 i32)
+			| RValue (Some (TLong | TObject((["java";"lang"],"Long"),_))) -> code#lconst (Int64.of_int32 i32)
+			| RValue (Some (TDouble | TObject((["java";"lang"],"Double"),_))) -> code#dconst (Int32.to_float i32)
 			| _ -> code#iconst i32
 			end
 		| TFloat f ->
