@@ -349,17 +349,26 @@ module JavaFunctionalInterfaces = struct
 		| _ ->
 			None
 
-	let find_compatible args ret =
+	let find_compatible args ret filter =
 		let arity = List.length args in
 		if arity >= DynArray.length java_functional_interfaces then
 			[]
 		else begin
 			let l = ref [] in
-			DynArray.iter (fun jfi -> match unify jfi args ret with
+			DynArray.iter (fun jfi ->
+				let attempt () = match unify jfi args ret with
 				| None ->
 					()
 				| Some r ->
 					l := r :: !l
+				in
+				match filter with
+				| [] ->
+					attempt()
+				| l when List.mem jfi.jpath l ->
+					attempt()
+				| _ ->
+					()
 			) (DynArray.get java_functional_interfaces arity);
 			!l
 		end
@@ -403,7 +412,7 @@ class typed_function
 		jm_ctor#return;
 		jm_ctor
 
-	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option)=
+	method generate_invoke (args : (string * jsignature) list) (ret : jsignature option) (functional_interface_filter : jpath list) =
 		let arg_sigs = List.map snd args in
 		let meth = functions#register_signature arg_sigs ret in
 		let jsig_invoke = method_sig arg_sigs ret in
@@ -426,7 +435,7 @@ class typed_function
 		in
 		let check_functional_interfaces meth =
 			try
-				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret in
+				let l = JavaFunctionalInterfaces.find_compatible meth.dargs meth.dret functional_interface_filter in
 				List.iter (fun (jfi,params) ->
 					add_interface jfi.jpath params;
 					spawn_forward_function {meth with name=jfi.jname} meth false;

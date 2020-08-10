@@ -370,7 +370,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		| _ ->
 			die "" __LOC__
 	in
-	let jm_invoke = wf#generate_invoke args ret in
+	let jm_invoke = wf#generate_invoke args ret [] in
 	let vars = List.map (fun (name,jsig) ->
 		jm_invoke#add_local name jsig VarArgument
 	) args in
@@ -499,7 +499,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
-	method tfunction e tf =
+	method tfunction ret e tf =
 		let outside,accesses_this = Texpr.collect_captured_vars e in
 		let env = List.map (fun v ->
 			v.v_id,(v.v_name,self#vtype v.v_type)
@@ -509,6 +509,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let wf = new JvmFunctions.typed_function gctx.typed_functions FuncLocal jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
+		let filter = match ret with
+			| RValue (Some (TObject(path,_))) -> [path]
+			| _ -> []
+		in
 		let args,ret =
 			let args = List.map (fun (v,eo) ->
 				(* TODO: Can we do this differently? *)
@@ -517,7 +521,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			) tf.tf_args in
 			args,(return_of_type gctx tf.tf_type)
 		in
-		let jm_invoke = wf#generate_invoke args ret in
+		let jm_invoke = wf#generate_invoke args ret filter in
 		let handler = new texpr_to_jvm gctx jc_closure jm_invoke ret in
 		handler#set_env env;
 		let args = List.map (fun (v,eo) ->
@@ -594,7 +598,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
-			let jm_invoke = wf#generate_invoke args ret in
+			let jm_invoke = wf#generate_invoke args ret [] in
 			let vars = List.map (fun (name,jsig) ->
 				jm_invoke#add_local name jsig VarArgument
 			) args in
@@ -1901,7 +1905,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#emit_block_exits false;
 			jm#return;
 		| TFunction tf ->
-			self#tfunction e tf
+			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->
 			List.iter (self#texpr ret) el
 		| TArrayDecl el ->
