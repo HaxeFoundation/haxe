@@ -674,6 +674,19 @@ let rec unify (uctx : unification_context) a b =
 			Unify_error l ->
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
 				error (cannot_unify a b :: msg :: l))
+	| TFun _ , TInst(c,tl) ->
+		begin try
+			let (_,el,_) = Meta.get Meta.FunctionalInterface c.cl_meta in
+			begin match el with
+			| [(EConst(String(name,_)),_)] ->
+				let cf = PMap.find name c.cl_fields in
+				unify uctx a (apply_params c.cl_params tl cf.cf_type)
+			| _ ->
+				raise Not_found
+			end
+		with Not_found ->
+			error [cannot_unify a b]
+		end
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->

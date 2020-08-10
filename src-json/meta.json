@@ -422,6 +422,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
+		"name": "FunctionalInterface",
+		"metadata": ":functionalInterface",
+		"doc": "Marks single-method interfaces",
+		"targets": ["TClass"]
+	},
+	{
 		"name": "FunctionCode",
 		"metadata": ":functionCode",
 		"doc": "Used to inject platform-native code into a function.",

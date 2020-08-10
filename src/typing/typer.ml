@@ -1203,6 +1203,18 @@ and type_local_function ctx kind f with_type p =
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
+			| TInst(c,tl) when Meta.has Meta.FunctionalInterface c.cl_meta ->
+				begin match Meta.get Meta.FunctionalInterface c.cl_meta with
+				| (_,[EConst (String(name,_)),_],_) ->
+					begin try
+						let cf = PMap.find name c.cl_fields in
+						loop (apply_params c.cl_params tl cf.cf_type)
+					with Not_found ->
+						()
+					end;
+				| _ ->
+					()
+				end
 			| TAbstract(a,tl) ->
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> ())
