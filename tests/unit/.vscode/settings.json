@@ -1,5 +1,6 @@
 {
 	"haxe.configurations": [
+		{"label": "JavaScript", "args": ["compile-js.hxml", "-cmd", "node -e \"require('./bin/unit.js').unit.TestMain.main()\""]},
 		{"label": "JVM", "args": ["compile-jvm-only.hxml", "-cmd", "java -jar bin/unit.jar"]},
 		{"label": "Interp", "args": ["compile-macro.hxml"]},
 	],
