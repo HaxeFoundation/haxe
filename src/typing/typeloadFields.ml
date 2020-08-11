@@ -1459,6 +1459,8 @@ let init_field (ctx,cctx,fctx) f =
 			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	if Meta.has Meta.InheritDoc cf.cf_meta then
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf
 
 let check_overload ctx f fs =
