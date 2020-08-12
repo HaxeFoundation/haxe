@@ -343,6 +343,18 @@
 		"platforms": ["java"]
 	},
 	{
+		"name": "JvmCompressionLevel",
+		"define": "jvm.compression-level",
+		"doc": "Set the compression level of the generated file between 0 (no compression) and 9 (highest compression). Default: 6",
+		"platforms": ["java"]
+	},
+	{
+		"name": "JvmDynamicLevel",
+		"define": "jvm.dynamic-level",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
+		"platforms": ["java"]
+	},
+	{
 		"name": "KeepOldOutput",
 		"define": "keep_old_output",
 		"doc": "Keep old source files in the output directory.",

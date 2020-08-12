@@ -392,24 +392,42 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	let type_field_by_extension f t e =
 		let check_constant_struct = ref false in
 		let loop = type_field_by_list (fun (c,pc) ->
-			try
-				let cf = PMap.find i c.cl_statics in
-				if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (has_class_field_flag cf CfImpl) then raise Not_found;
-				let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
-				let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
-				match cft with
-				| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
-					if t == t_dynamic && follow t0 != t then raise Not_found;
-					let e = unify_static_extension ctx e t0 p in
-					ImportHandling.mark_import_position ctx pc;
-					AKUsingField (make_static_extension_access c cf e false p)
-				| _ -> raise Not_found
-			with Unify_error el | Error (Unify el,_) ->
-				check_constant_struct := !check_constant_struct || List.exists (function
-					| Has_extra_field _ -> true
-					| _ -> false
-				) el;
-				raise Not_found
+			let cf0 = PMap.find i c.cl_statics in
+			let rec check cfl = match cfl with
+				| [] ->
+					raise Not_found
+				| cf :: cfl when Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (has_class_field_flag cf CfImpl) ->
+					check cfl
+				| cf :: cfl ->
+					(* We always want to reset monomorphs here because they will be handled again when making the actual call. *)
+					let current_monos = ctx.monomorphs.perfunction in
+					let check () =
+						ctx.monomorphs.perfunction <- current_monos;
+						check cfl
+					in
+					try
+						let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
+						let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
+						match cft with
+						| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
+							if t == t_dynamic && follow t0 != t then
+								check()
+							else begin
+								let e = unify_static_extension ctx e t0 p in
+								ImportHandling.mark_import_position ctx pc;
+								ctx.monomorphs.perfunction <- current_monos;
+								AKUsingField (make_static_extension_access c cf e false p)
+							end
+						| _ ->
+							check()
+					with Unify_error el | Error (Unify el,_) ->
+						check_constant_struct := !check_constant_struct || List.exists (function
+							| Has_extra_field _ -> true
+							| _ -> false
+						) el;
+						check()
+			in
+			check (cf0 :: cf0.cf_overloads)
 		) in
 		try
 			f loop

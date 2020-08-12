@@ -71,7 +71,7 @@ let rec make_tpath = function
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
-			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+			| ["__AS3__";"vec"] , "Vector" -> pdyn := true; ["flash"], "Vector"
 			| _ -> lowercase_pack pack, name
 		in
 		{

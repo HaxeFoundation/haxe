@@ -25,25 +25,20 @@ package sys.thread;
 import java.Lib;
 import java.lang.Runnable;
 
-abstract Thread(HaxeThread) {
+abstract Thread(HaxeThread) from HaxeThread to java.lang.Thread {
 	inline function new(t:HaxeThread) {
 		this = t;
 	}
 
 	public static function create(callb:Void->Void):Thread {
-		var haxeThread = new HaxeThread(new java.lang.Thread((cast callb : Runnable)));
-		haxeThread.native.setDaemon(true);
-		haxeThread.native.start();
-		return new Thread(haxeThread);
+		var ret = new HaxeThread((cast callb : Runnable));
+		ret.setDaemon(true);
+		ret.start();
+		return new Thread(ret);
 	}
 
 	public static function current():Thread {
-		var nativeThread = java.lang.Thread.currentThread();
-		Lib.lock(HaxeThread.threadMap, {
-			var haxeThread = HaxeThread.threadMap.get(nativeThread);
-			return new Thread(haxeThread);
-		});
-		return null;
+		return new Thread(Std.downcast(java.lang.Thread.currentThread(), HaxeThread));
 	}
 
 	public static function readMessage(block:Bool):Dynamic {
@@ -59,22 +54,11 @@ abstract Thread(HaxeThread) {
 	}
 }
 
-class HaxeThread {
-	static public var threadMap = new haxe.ds.WeakMap<java.lang.Thread, HaxeThread>();
+class HaxeThread extends java.lang.Thread {
 
-	@:keep
-	static var mainHaxeThread = new HaxeThread(java.lang.Thread.currentThread());
+	public final messages = new Deque<Dynamic>();
 
-	public var messages:Deque<Dynamic>;
-	public var native:java.lang.Thread;
-
-	public function new(native:java.lang.Thread) {
-		this.native = native;
-		this.messages = new Deque();
-		Lib.lock(threadMap, threadMap.set(native, this));
-	}
-
-	public function sendMessage(msg:Dynamic):Void {
+	public inline function sendMessage(msg:Dynamic):Void {
 		messages.add(msg);
 	}
 }

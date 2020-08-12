@@ -86,7 +86,10 @@ class Type {
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
-		return e.native().getName();
+		return switch e.native().getName() {
+			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s: s;
+		}
 	}
 
 	public static function resolveClass(name:String):Class<Dynamic> {
@@ -105,6 +108,9 @@ class Type {
 	}
 
 	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name.indexOf(".") == -1) {
+			name = "haxe.root." + name;
+		}
 		return try {
 			var c = java.lang.Class.forName(name);
 			if (!isEnumClass(c)) {

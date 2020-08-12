@@ -237,7 +237,7 @@ and type_param = {
 
 and doc_block = {
 	doc_own: string option;
-	mutable doc_inherited: (unit -> (string option)) list
+	mutable doc_inherited: string list;
 }
 
 and documentation = doc_block option
@@ -376,7 +376,9 @@ let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited
 
 let gen_doc_text d =
 	let docs =
-		match d.doc_own with Some s -> [s] | None -> []
+		match d.doc_own with
+		| Some s -> s :: d.doc_inherited
+		| None -> d.doc_inherited
 	in
 	String.concat "\n" docs
 
