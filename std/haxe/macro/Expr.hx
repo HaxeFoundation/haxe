@@ -867,6 +867,11 @@ enum Access {
 		Abstract access modifier.
 	**/
 	AAbstract;
+
+	/**
+		Overload access modifier.
+	**/
+	AOverload;
 }
 
 /**
