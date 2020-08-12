@@ -179,20 +179,10 @@ let type_function ctx args ret fmode e do_display p =
 	Std.finally save (type_function ctx args ret fmode e do_display) p
 
 let add_constructor ctx c force_constructor p =
-	let super() =
-		match c.cl_super with
-		| None -> None
-		| Some ({ cl_constructor = Some cfsup } as csup,cparams) ->
-			Some(cfsup,csup,cparams)
-		| Some (csup,cparams) ->
-			try
-				let cfsup = Type.get_constructor csup in
-				Some(cfsup,csup,cparams)
-			with Not_found ->
-				None
-	in
-	match c.cl_constructor, super() with
-	| None, Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
+	if c.cl_constructor <> None then () else
+	let constructor = try Some (Type.get_constructor_class c (List.map snd c.cl_params)) with Not_found -> None in
+	match constructor with
+	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
@@ -254,7 +244,7 @@ let add_constructor ctx c force_constructor p =
 		) "add_constructor" in
 		cf.cf_type <- TLazy r;
 		c.cl_constructor <- Some cf;
-	| None,_ when force_constructor ->
+	| _ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
 			tf_type = ctx.t.tvoid;

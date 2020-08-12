@@ -36,18 +36,7 @@ let unify_cf map_type c cf el =
 			None
 
 let find_overload map_type c cf el =
-	let matches = ref [] in
-	let rec loop cfl = match cfl with
-		| cf :: cfl ->
-			begin match unify_cf map_type c cf el with
-			| Some r -> matches := r :: !matches;
-			| None -> ()
-			end;
-			loop cfl
-		| [] ->
-			List.rev !matches
-	in
-	loop (cf :: cf.cf_overloads)
+	ExtList.List.filter_map (fun cf -> unify_cf map_type c cf el) (cf :: cf.cf_overloads)
 
 let filter_overloads candidates =
 	match Overloads.Resolution.reduce_compatible candidates with
@@ -86,10 +75,10 @@ let resolve_instance_overload is_ctor map_type c name el =
 			if has_class_field_flag cf CfOverload || cf.cf_overloads <> [] then raise Not_found
 		with Not_found ->
 			if (has_class_flag c CInterface) then
-				List.iter (fun (c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c) c.cl_implements
+				List.iter (fun (c,tl) -> loop (apply_params c.cl_params (List.map map_type tl)) c) c.cl_implements
 			else match c.cl_super with
 			| None -> ()
-			| Some(c,tl) -> loop (fun t -> apply_params c.cl_params (List.map map_type tl) t) c
+			| Some(c,tl) -> loop (apply_params c.cl_params (List.map map_type tl)) c
 		end;
 	in
 	loop map_type c;
@@ -101,3 +90,7 @@ let maybe_resolve_instance_overload is_ctor map_type c cf el =
 	else match unify_cf map_type c cf el with
 		| Some fcc -> Some (fcc.fc_data)
 		| None -> Some(c,cf,List.map snd cf.cf_params)
+
+let maybe_resolve_constructor_overload c tl el =
+	let cf,c,tl = get_constructor_class c tl in
+	maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el
