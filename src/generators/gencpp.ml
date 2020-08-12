@@ -688,7 +688,16 @@ let is_native_gen_module = function
    | _ -> false
 ;;
 
+let is_extern_class class_def =
+   (has_class_flag class_def CExtern) || (has_meta_key class_def.cl_meta Meta.Extern) ||
+      (match class_def.cl_kind with
+       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
+       | _ -> false );
+;;
 
+let is_native_class class_def =
+   ((is_extern_class class_def) || (is_native_gen_class class_def)) && (not (is_internal_class class_def.cl_path))
+;;
 
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -743,8 +752,8 @@ let rec class_string klass suffix params remap =
    | _ when (has_class_flag klass CInterface) && is_native_gen_class klass ->
             (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
-   | path when (has_class_flag klass CExtern) && (not (is_internal_class path) )->
-            (join_class_path_remap klass.cl_path "::") ^ suffix
+   | _ when is_native_class klass ->
+      join_class_path_remap klass.cl_path "::"
    | _ ->
       let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
       globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ suffix
@@ -950,13 +959,6 @@ let member_type ctx field_object member =
 let is_interface obj = is_interface_type obj.etype;;
 
 let should_implement_field x = is_physical_field x;;
-
-let is_extern_class class_def =
-   (has_class_flag class_def CExtern) || (has_meta_key class_def.cl_meta Meta.Extern) ||
-      (match class_def.cl_kind with
-       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
-       | _ -> false );
-;;
 
 let is_scalar_abstract abstract_def =
    Meta.has Meta.Scalar abstract_def.a_meta && Meta.has Meta.CoreType abstract_def.a_meta
@@ -1623,7 +1625,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
        else
           "::hx::Native< " ^ name ^ "* >";
    | TCppInst klass ->
-        (cpp_class_path_of klass) ^ suffix
+      (cpp_class_path_of klass) ^ (if is_native_class klass then "" else suffix)
    | TCppInterface klass when suffix="_obj" ->
         (cpp_class_path_of klass) ^ suffix
    | TCppInterface _ -> "::Dynamic"
@@ -2003,7 +2005,7 @@ let cpp_class_name klass =
    *)
    let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
    let path = globalNamespace ^ (join_class_path_remap klass.cl_path "::") in
-   if path="::String" then path else path ^ "_obj"
+   if (is_native_class klass) || path="::String" then path else path ^ "_obj"
 ;;
 
 
@@ -6568,8 +6570,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    (* Include the real header file for the super class *)
    (match class_def.cl_super with
    | Some super ->
-      let super_path = (fst super).cl_path in
-      h_file#add_include super_path
+      let klass = fst super in
+      let include_file = get_meta_string_path klass.cl_meta Meta.Include in
+      h_file#add_include (if include_file="" then klass.cl_path else path_of_string include_file)
    | _ -> () );
 
    (* And any interfaces ... *)
