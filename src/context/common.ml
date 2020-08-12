@@ -901,7 +901,7 @@ let find_file ctx f =
 		in
 		let f_dir = Filename.dirname f
 		and platform_ext = "." ^ (platform_name_macro ctx)
-		and is_core_api = defined ctx Define.CoreApi in
+		and is_loading_core_api = defined ctx Define.CoreApi in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
@@ -918,31 +918,58 @@ let find_file ctx f =
 					in
 					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
 					let normalized_f = normalize_dir_separator f in
-					Option.may
-						(Array.iter (fun file_name ->
-							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
-							let pf,current_f =
-								if is_core_api then false,current_f
-								else begin
-									let ext = extension current_f in
-									let pf_ext = extension (remove_extension current_f) in
-									if platform_ext = pf_ext then
-										true,(remove_extension (remove_extension current_f)) ^ ext
-									else
-										false,current_f
-								end
-							in
-							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
-							if is_core_api || pf || not is_cached then begin
-								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
-								if is_cached then
-									Hashtbl.remove ctx.file_lookup_cache current_f;
-								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if normalize_dir_separator current_f = normalized_f then
-									found := full_path;
+					(*
+						This function is invoked for each file in the `dir`.
+						Each file is checked if it's specific for current platform
+						(e.g. ends with `.js.hx` while compiling for JS).
+						If it's not platform-specific:
+							Check the lookup cache and if the file is not there store full file path in the cache.
+						If the file is platform-specific:
+							Store the full file path in the lookup cache probably replacing the cached path to a
+							non-platform-specific file.
+					*)
+					let prepare_file file_own_name =
+						let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
+						(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
+						let is_platform_specific,representation =
+							(* Platform specific file extensions are not allowed for loading @:coreApi types. *)
+							if is_loading_core_api then
+								false,relative_to_classpath
+							else begin
+								let ext = extension relative_to_classpath in
+								let second_ext = extension (remove_extension relative_to_classpath) in
+								(* The file contains double extension and the secondary one matches current platform *)
+								if platform_ext = second_ext then
+									true,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+								else
+									false,relative_to_classpath
 							end
-						))
-						dir_listing;
+						in
+						(* If some path was already cached for this path while looking through other classpaths *)
+						let is_cached = Hashtbl.mem ctx.file_lookup_cache representation in
+						(*
+							Store current full path for `representation` if
+						 	- we're loading @:coreApi
+							- or this is a platform-specific file for `representation`
+							- this `representation` was never found before
+						*)
+						if is_loading_core_api || is_platform_specific || not is_cached then begin
+							let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
+							(*
+								This check is here just to save one `Hashtbl.remove` operation.
+								According to Hashtbl doc `replace` is `remove + add`. And it's
+								already known if we need to `remove` because of `is_cached`
+							*)
+							if is_cached then
+								Hashtbl.remove ctx.file_lookup_cache representation;
+							Hashtbl.add ctx.file_lookup_cache representation (Some full_path);
+							(* Check if this file is the one requested by `Common.find_file f` *)
+							if normalize_dir_separator representation = normalized_f then
+								found := full_path;
+						end
+					in
+					Option.may (Array.iter prepare_file) dir_listing;
+					(* If the file is found in this `dir` - return the full path found *)
 					if !found <> "" then !found
 					else loop (had_empty || p = "") l
 				end
