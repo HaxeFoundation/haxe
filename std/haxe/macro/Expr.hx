@@ -288,7 +288,7 @@ typedef Case = {
 	/**
 		The expression of the case, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 }
 
 /**
@@ -304,12 +304,12 @@ typedef Var = {
 	/**
 		The type-hint of the variable, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		Whether or not the variable can be assigned to.
@@ -699,12 +699,12 @@ typedef Function = {
 	/**
 		The return type-hint of the function, if available.
 	**/
-	var ret:Null<ComplexType>;
+	var ?ret:ComplexType;
 
 	/**
 		The expression of the function body, if available.
 	**/
-	var expr:Null<Expr>;
+	var ?expr:Expr;
 
 	/**
 		An optional list of function parameter type declarations.
@@ -729,7 +729,7 @@ typedef FunctionArg = {
 	/**
 		The type-hint of the function argument, if available.
 	**/
-	var type:Null<ComplexType>;
+	var ?type:ComplexType;
 
 	/**
 		The optional value of the function argument, if available.
