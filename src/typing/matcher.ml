@@ -199,6 +199,7 @@ module Pattern = struct
 			| Some map when not is_wildcard_local ->
 				let v,p = try PMap.find name map with Not_found -> verror name p in
 				unify ctx t v.v_type p;
+				if final then add_var_flag v VFinal;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
@@ -771,8 +772,6 @@ module Useless = struct
 		let rec loop acc pM = match pM with
 			| patterns :: pM ->
 				begin match patterns with
-					| ((PatConstructor _ | PatTuple _),_) :: _ ->
-						loop acc pM
 					| ((PatVariable _ | PatAny),_) :: patterns ->
 						loop (patterns :: acc) pM
 					| _ ->
@@ -830,7 +829,7 @@ module Useless = struct
 					| ((PatVariable _ | PatAny),p) :: patterns2 ->
 						let patterns1 = ExtList.List.make arity (PatAny,p) in
 						loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
-					| ((PatOr(pat1,pat2)),_) :: patterns2 ->
+					| (PatOr(pat1,pat2),_) :: patterns2 ->
 						loop pAcc qAcc rAcc (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pM)) (q1 :: q1 :: qM) (r1 :: r1 :: rM)
 					| (PatBind(_,pat1),_) :: patterns2 ->
 						loop2 (pat1 :: patterns2)
@@ -996,69 +995,52 @@ module Compile = struct
 
 	let specialize subject con cases =
 		let arity = arity con in
-		let rec loop acc cases = match cases with
-			| (case,bindings,patterns) :: cases ->
-				begin match patterns with
-					| (PatConstructor(con',patterns1),_) :: patterns2 when Constructor.equal con con' ->
-						loop ((case,bindings,patterns1 @ patterns2) :: acc) cases
-					| (PatVariable v,p) :: patterns2 ->
-						let patterns1 = ExtList.List.make arity (PatAny,p) in
-						loop ((case,((v,p,subject) :: bindings),patterns1 @ patterns2) :: acc) cases
-					| ((PatAny,_)) as pat :: patterns2 ->
-						let patterns1 = ExtList.List.make arity pat in
-						loop ((case,bindings,patterns1 @ patterns2) :: acc) cases
-					| ((PatBind(v,pat),p)) :: patterns ->
-						loop acc ((case,((v,p,subject) :: bindings),pat :: patterns) :: cases)
-					| _ ->
-						loop acc cases
-				end
-			| [] ->
-				List.rev acc
+		let rec specialize (case,bindings,patterns) = match patterns with
+			| (PatConstructor(con',patterns1),_) :: patterns2 when Constructor.equal con con' ->
+				Some (case,bindings,patterns1 @ patterns2)
+			| (PatVariable v,p) :: patterns2 ->
+				Some (case,(v,p,subject) :: bindings,ExtList.List.make arity (PatAny,p) @ patterns2)
+			| (PatAny,_) as pat :: patterns2 ->
+				Some (case,bindings,ExtList.List.make arity pat @ patterns2)
+			| (PatBind(v,pat1),p) :: patterns ->
+				specialize (case,(v,p,subject) :: bindings,pat1 :: patterns)
+			| _ ->
+				None
 		in
-		loop [] cases
+		ExtList.List.filter_map specialize cases
 
 	let default subject cases =
-		let rec loop acc cases = match cases with
-			| (case,bindings,patterns) :: cases ->
-				begin match patterns with
-					| (PatConstructor _,_) :: _ ->
-						loop acc cases
-					| (PatVariable v,p) :: patterns ->
-						loop ((case,((v,p,subject) :: bindings),patterns) :: acc) cases
-					| (PatAny,_) :: patterns ->
-						loop ((case,bindings,patterns) :: acc) cases
-					| (PatBind(v,pat),p) :: patterns ->
-						loop acc ((case,((v,p,subject) :: bindings),pat :: patterns) :: cases)
-					| _ ->
-						loop acc cases
-				end
-			| [] ->
-				List.rev acc
+		let rec default (case,bindings,patterns) = match patterns with
+			| (PatVariable v,p) :: patterns ->
+				Some (case,((v,p,subject) :: bindings),patterns)
+			| (PatAny,_) :: patterns ->
+				Some (case,bindings,patterns)
+			| (PatBind(v,pat1),p) :: patterns ->
+				default (case,((v,p,subject) :: bindings),pat1 :: patterns)
+			| _ ->
+				None
 		in
-		loop [] cases
+		ExtList.List.filter_map default cases
 
 	let rec is_wildcard_pattern pat = match fst pat with
 		| PatVariable _ | PatAny -> true
+		| PatBind(_,pat1) -> is_wildcard_pattern pat1
 		| _ -> false
 
 	let rec expand cases =
-		let changed,cases = List.fold_left (fun (changed,acc) (case,bindings,patterns) ->
-			let rec loop f patterns = match patterns with
-				| (PatOr(pat1,pat2),_) :: patterns ->
-					true,(case,bindings,f pat2 :: patterns) :: (case,bindings,f pat1 :: patterns) :: acc
-				| (PatBind(v,pat1),p) :: patterns ->
-					loop (fun pat2 -> f (PatBind(v,pat2),p)) (pat1 :: patterns)
-				| (PatTuple patterns1,_) :: patterns2 ->
-					loop f (patterns1 @ patterns2)
-				| pat :: patterns ->
-					changed,(case,bindings,f pat :: patterns) :: acc
-				| [] ->
-					changed,((case,bindings,patterns) :: acc)
-			in
-			loop (fun pat -> pat) patterns
-		) (false,[]) cases in
-		let cases = List.rev cases in
-		if changed then expand cases else cases
+		let rec expand f (case,bindings,patterns) = match patterns with
+			| (PatOr(pat1,pat2),_) :: patterns ->
+				(expand f (case,bindings,pat1 :: patterns)) @ (expand f (case,bindings,pat2 :: patterns))
+			| (PatBind(v,pat1),p) :: patterns ->
+				expand (fun pat2 -> f (PatBind(v,pat2),p)) (case,bindings,pat1 :: patterns)
+			| (PatTuple patterns1,_) :: patterns2 ->
+				expand f (case,bindings,patterns1 @ patterns2)
+			| pat :: patterns ->
+				[(case,bindings,f pat :: patterns)]
+			| [] ->
+				[(case,bindings,patterns)]
+		in
+		List.flatten (List.map (expand (fun pat -> pat)) cases)
 
 	let s_subjects subjects =
 		String.concat " " (List.map s_expr_pretty subjects)
@@ -1076,6 +1058,7 @@ module Compile = struct
 	let select_column subjects cases =
 		let rec loop i patterns = match patterns with
 			| ((PatVariable _ | PatAny | PatExtractor _),_) :: patterns -> loop (i + 1) patterns
+			| (PatBind(_,pat1),_) :: patterns -> loop i (pat1 :: patterns)
 			| [] -> 0
 			| _ -> i
 		in
@@ -1124,21 +1107,23 @@ module Compile = struct
 				let dt2 = compile mctx subjects cases in
 				guard mctx e dt dt2
 		in
-		let rec loop patterns el = match patterns,el with
+		let rec loop patterns el bindings = match patterns,el with
 			| [PatAny,_],_ ->
-				[]
+				bindings
 			| (PatVariable v,p) :: patterns,e :: el ->
-				(v,p,e) :: loop patterns el
+				loop patterns el ((v,p,e) :: bindings)
+			| (PatBind(v,pat1),p) :: patterns,e :: el ->
+				loop (pat1 :: patterns) (e :: el) ((v,p,e) :: bindings)
 			| _ :: patterns,_ :: el ->
-				loop patterns el
+				loop patterns el bindings
 			| [],[] ->
-				[]
+				bindings
 			| [],e :: _ ->
 				error "Invalid match: Not enough patterns" e.epos
 			| (_,p) :: _,[] ->
 				error "Invalid match: Too many patterns" p
 		in
-		let bindings = bindings @ loop patterns subjects in
+		let bindings = loop patterns subjects bindings in
 		if bindings = [] then dt else bind mctx bindings dt
 
 	and compile_switch mctx subjects cases =
@@ -1158,7 +1143,7 @@ module Compile = struct
 						if case.case_guard = None then ConTable.replace unguarded con true;
 						let arg_positions = snd (List.split patterns) in
 						ConTable.replace sigma con arg_positions;
-					| PatBind(v,pat) -> loop ((v,pos pat,subject) :: bindings) pat
+					| PatBind(v,pat1) -> loop ((v,pos pat,subject) :: bindings) pat1
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
 					| _ -> error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
@@ -1208,20 +1193,20 @@ module Compile = struct
 		let num_extractors,extractors = List.fold_left (fun (i,extractors) (_,_,patterns) ->
 			let rec loop bindings pat = match pat with
 				| (PatExtractor(v,e1,pat),_) -> i + 1,Some (v,e1,pat,bindings) :: extractors
-				| (PatBind(v,pat1),_) -> loop (v :: bindings) pat1
+				| (PatBind(v,pat1),p) -> loop ((v,p,subject) :: bindings) pat1
 				| _ -> i,None :: extractors
 			in
 			loop [] (List.hd patterns)
 		) (0,[]) cases in
 		let pat_any = (PatAny,null_pos) in
 		let _,_,ex_subjects,cases,bindings = List.fold_left2 (fun (left,right,subjects,cases,ex_bindings) (case,bindings,patterns) extractor -> match extractor,patterns with
-			| Some(v,e1,pat,vars), _ :: patterns ->
+			| Some(v,e1,pat,bindings1), _ :: patterns ->
 				let rec loop e = match e.eexpr with
 					| TLocal v' when v' == v -> subject
 					| _ -> Type.map_expr loop e
 				in
 				let e1 = loop e1 in
-				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
+				let bindings = bindings1 @ bindings in
 				begin try
 					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
 					let ev = mk (TLocal v) v.v_type e1.epos in
