@@ -252,7 +252,7 @@ and tenum_field = {
 	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
-	ef_doc : Ast.documentation;
+	mutable ef_doc : Ast.documentation;
 	ef_index : int;
 	mutable ef_params : type_params;
 	mutable ef_meta : metadata;
@@ -264,7 +264,7 @@ and tenum = {
 	e_pos : pos;
 	e_name_pos : pos;
 	e_private : bool;
-	e_doc : Ast.documentation;
+	mutable e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
@@ -295,7 +295,7 @@ and tabstract = {
 	a_pos : pos;
 	a_name_pos : pos;
 	a_private : bool;
-	a_doc : Ast.documentation;
+	mutable a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;

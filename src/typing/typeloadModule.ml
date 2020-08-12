@@ -701,6 +701,8 @@ let init_module_type ctx context_init (decl,p) =
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
+		if Meta.has Meta.InheritDoc c.cl_meta then
+				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
@@ -779,13 +781,16 @@ let init_module_type ctx context_init (decl,p) =
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
 			names := (fst c.ec_name) :: !names;
+			if Meta.has Meta.InheritDoc f.ef_meta then
+				delay ctx PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
 		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
-
+		if Meta.has Meta.InheritDoc e.e_meta then
+			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx e.e_meta in
@@ -906,7 +911,9 @@ let init_module_type ctx context_init (decl,p) =
 				a.a_this <- TAbstract(a,List.map snd a.a_params)
 			else
 				error "Abstract is missing underlying type declaration" a.a_pos
-		end
+		end;
+		if Meta.has Meta.InheritDoc a.a_meta then
+			delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a);
 	| EStatic _ ->
 		(* nothing to do here as module fields are collected into a special EClass *)
 		()
