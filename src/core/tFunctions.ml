@@ -749,6 +749,12 @@ let quick_field_dynamic t s =
 	try quick_field t s
 	with Not_found -> FDynamic s
 
+let rec get_constructor_class c tl =
+	match c.cl_constructor, c.cl_super with
+	| Some cf, _ -> (cf,c,tl)
+	| None, None -> raise Not_found
+	| None, Some (csup,tlsup) -> get_constructor_class csup (List.map (apply_params c.cl_params tl) tlsup)
+
 let rec get_constructor c =
 	match c.cl_constructor, c.cl_super with
 	| Some c, _ -> c
