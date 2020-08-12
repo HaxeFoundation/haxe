@@ -955,14 +955,7 @@ let find_file ctx f =
 						*)
 						if is_loading_core_api || is_platform_specific || not is_cached then begin
 							let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-							(*
-								This check is here just to save one `Hashtbl.remove` operation.
-								According to Hashtbl doc `replace` is `remove + add`. And it's
-								already known if we need to `remove` because of `is_cached`
-							*)
-							if is_cached then
-								Hashtbl.remove ctx.file_lookup_cache representation;
-							Hashtbl.add ctx.file_lookup_cache representation (Some full_path);
+							Hashtbl.replace ctx.file_lookup_cache representation (Some full_path);
 							(* Check if this file is the one requested by `Common.find_file f` *)
 							if normalize_dir_separator representation = normalized_f then
 								found := full_path;
