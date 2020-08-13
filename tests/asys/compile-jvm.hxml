@@ -1,0 +1,2 @@
+compile-each.hxml
+--jvm bin/test.jar
