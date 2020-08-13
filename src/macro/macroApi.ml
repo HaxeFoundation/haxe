@@ -1337,7 +1337,7 @@ let decode_efield v =
 	let name = decode_string (field v "name")
 	and t = decode_type (field v "type") in
 	match t with
-	| TEnum (enm,_) ->
+	| TEnum (enm,_) | TFun (_,TEnum (enm,_)) ->
 		(try PMap.find name enm.e_constrs
 		with Not_found -> raise Invalid_expr)
 	| _ ->
