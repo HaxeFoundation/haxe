@@ -296,6 +296,11 @@ extern class Global {
 	static function echo(args:Rest<String>):Void;
 
 	/**
+		@see http://php.net/manual/en/function.print-r.php
+	**/
+	static function print_r(expression:Any, ?returnOutput:Bool):EitherType<Bool, String>;
+
+	/**
 		@see http://php.net/manual/en/function.sprintf.php
 	**/
 	static function sprintf(format:String, args:Rest<Dynamic>):EitherType<String, Bool>;
