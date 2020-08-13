@@ -15,92 +15,90 @@ import php.Resource;
 **/
 @:coreApi
 class FileSystem {
-	static final jobs = new InfiniteJobExecutor();
-
-	static function create(executor:IJobExecutor = null):IFileSystem {
-		return new FileSystemImpl(executor == null ? jobs : executor);
+	static public function create(executor:IJobExecutor = null):IFileSystem {
+		return new FileSystemImpl(executor == null ? Native.defaultExecutor : executor);
 	}
 
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void
-		new FileSystemImpl(jobs).openFile(path, flag, callback);
+		new FileSystemImpl(Native.defaultExecutor).openFile(path, flag, callback);
 
 	static public function tempFile(callback:Callback<File>):Void
-		new FileSystemImpl(jobs).tempFile(callback);
+		new FileSystemImpl(Native.defaultExecutor).tempFile(callback);
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void
-		new FileSystemImpl(jobs).readBytes(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).readBytes(path, callback);
 
 	static public function readString(path:FilePath, callback:Callback<String>):Void
-		new FileSystemImpl(jobs).readString(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).readString(path, callback);
 
 	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).writeBytes(path, data, flag, callback);
+		new FileSystemImpl(Native.defaultExecutor).writeBytes(path, data, flag, callback);
 
 	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).writeString(path, text, flag, callback);
+		new FileSystemImpl(Native.defaultExecutor).writeString(path, text, flag, callback);
 
 	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void
-		new FileSystemImpl(jobs).openDirectory(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).openDirectory(path, callback);
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
-		new FileSystemImpl(jobs).listDirectory(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).listDirectory(path, callback);
 
 	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).createDirectory(path, permissions, recursive, callback);
+		new FileSystemImpl(Native.defaultExecutor).createDirectory(path, permissions, recursive, callback);
 
 	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
-		new FileSystemImpl(jobs).uniqueDirectory(prefix, permissions, recursive, callback);
+		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).move(oldPath, newPath, overwrite, callback);
+		new FileSystemImpl(Native.defaultExecutor).move(oldPath, newPath, overwrite, callback);
 
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).deleteFile(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).deleteFile(path, callback);
 
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).deleteDirectory(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).deleteDirectory(path, callback);
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void
-		new FileSystemImpl(jobs).info(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).info(path, callback);
 
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void
-		new FileSystemImpl(jobs).check(path, mode, callback);
+		new FileSystemImpl(Native.defaultExecutor).check(path, mode, callback);
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void
-		new FileSystemImpl(jobs).isDirectory(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).isDirectory(path, callback);
 
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void
-		new FileSystemImpl(jobs).isFile(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).isFile(path, callback);
 
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).setPermissions(path, permissions, callback);
+		new FileSystemImpl(Native.defaultExecutor).setPermissions(path, permissions, callback);
 
 	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).setOwner(path, userId, groupId, callback);
+		new FileSystemImpl(Native.defaultExecutor).setOwner(path, userId, groupId, callback);
 
 	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).setLinkOwner(path, userId, groupId, callback);
+		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, userId, groupId, callback);
 
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).link(target, path, type, callback);
+		new FileSystemImpl(Native.defaultExecutor).link(target, path, type, callback);
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void
-		new FileSystemImpl(jobs).isLink(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).isLink(path, callback);
 
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void
-		new FileSystemImpl(jobs).readLink(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).readLink(path, callback);
 
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void
-		new FileSystemImpl(jobs).linkInfo(path, callback);
+		new FileSystemImpl(Native.defaultExecutor).linkInfo(path, callback);
 
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).copyFile(source, destination, overwrite, callback);
+		new FileSystemImpl(Native.defaultExecutor).copyFile(source, destination, overwrite, callback);
 
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).resize(path, newSize, callback);
+		new FileSystemImpl(Native.defaultExecutor).resize(path, newSize, callback);
 
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(jobs).setTimes(path, accessTime, modificationTime, callback);
+		new FileSystemImpl(Native.defaultExecutor).setTimes(path, accessTime, modificationTime, callback);
 
 	static function phpStatToHx(phpStat:NativeArray):FileInfo {
 		return {
@@ -121,15 +119,6 @@ class FileSystem {
 	}
 }
 
-private class InfiniteJobExecutor extends php.DefaultJobExecutor {
-	override public function shutdownNow():Void {
-		throw new haxe.Exception('Cannot shut down this instance of job executor as it is used by default for asys API');
-	}
-
-	override public function shutdown(_):Void {
-		throw new haxe.Exception('Cannot shut down this instance of job executor as it is used by default for asys API');
-	}
-}
 
 private class FileSystemImpl implements IFileSystem {
 	final jobs:IJobExecutor;
