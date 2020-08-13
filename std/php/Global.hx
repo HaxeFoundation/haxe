@@ -1547,6 +1547,11 @@ extern class Global {
 	static function gzuncompress(data:String, ?length:Int):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.mime-content-type.php
+	**/
+	static function mime_content_type(filename:String):EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.move-uploaded-file.php
 	**/
 	static function move_uploaded_file(filename:String, destination:String):Bool;
