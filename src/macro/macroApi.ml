@@ -1334,13 +1334,17 @@ let decode_cfield v =
 	cf
 
 let decode_efield v =
-	let name = decode_string (field v "name")
-	and t = decode_type (field v "type") in
-	match follow t with
-	| TEnum (enm,_) | TFun (_,TEnum (enm,_)) ->
-		(try PMap.find name enm.e_constrs
-		with Not_found -> raise Invalid_expr)
-	| _ ->
+	let rec get_enum t =
+		match follow t with
+		| TEnum (enm,_) -> enm
+		| TFun (_,t) -> get_enum t
+		| _ -> raise Not_found
+	in
+	let name = decode_string (field v "name") in
+	try
+		let enm = get_enum (decode_type (field v "type")) in
+		PMap.find name enm.e_constrs
+	with Not_found ->
 		raise Invalid_expr
 
 let decode_field_access v =
