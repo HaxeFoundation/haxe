@@ -1414,6 +1414,11 @@ extern class Global {
 	static function session_start(?options:NativeArray):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.session-status.php
+	**/
+	static function session_status():Int;
+
+	/**
 		@see http://php.net/manual/en/function.session-unset.php
 	**/
 	static function session_unset():Void;
