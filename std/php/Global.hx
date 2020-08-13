@@ -1399,9 +1399,19 @@ extern class Global {
 	static function session_cache_expire(?new_cache_expire:Int):Int;
 
 	/**
+		@see http://php.net/manual/en/function.session-decode.php
+	**/
+	static function session_decode(data:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.session-destroy.php
 	**/
 	static function session_destroy():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-encode.php
+	**/
+	static function session_encode():String;
 
 	/**
 		@see http://php.net/manual/en/function.session-name.php
