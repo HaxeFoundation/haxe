@@ -706,6 +706,11 @@ extern class Global {
 	static function filemtime(filename:String):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.filesize.php
+	**/
+	static function filesize(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.clearstatcache.php
 	**/
 	static function clearstatcache(clear_realpath_cache:Bool = false, ?filename:String):Bool;
