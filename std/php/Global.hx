@@ -691,6 +691,21 @@ extern class Global {
 	static function file_put_contents(filename:String, data:Dynamic, flags:Int = 0, ?context:Resource):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.fileatime.php
+	**/
+	static function fileatime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filectime.php
+	**/
+	static function filectime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filemtime.php
+	**/
+	static function filemtime(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.clearstatcache.php
 	**/
 	static function clearstatcache(clear_realpath_cache:Bool = false, ?filename:String):Bool;
