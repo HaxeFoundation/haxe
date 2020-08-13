@@ -22,18 +22,6 @@ interface IJobExecutor {
 	function addJob<R>(job:()->R, callback:Callback<Exception,R>):Void;
 
 	/**
-		Schedule a new asynchronous `job` to execute.
-
-		An outcome of the `job` is passed to the `callback`.
-
-		If the `job` immediately throws an exception it will be passed as an error to the
-		`callback`.
-
-		@throws haxe.IJobExecutor.DeadJobExecutor if this executor has been shut down.
-	**/
-	function addAsyncJob<E,R>(job:(callback:Callback<E,R>)->Void, callback:Callback<Exception,R>):Void;
-
-	/**
 		Returns `true` if this executor is active and accepts new jobs.
 		Returns `false` if this executor has been shut down.
 	**/
@@ -45,6 +33,8 @@ interface IJobExecutor {
 		Ignores outcome of any job, which may finish after the shutdown.
 
 		Any new jobs will be rejected with an exception.
+
+		@throws haxe.IJobExecutor.DeadJobExecutor if this executor has been shut down already.
 	**/
 	function shutdownNow():Void;
 
@@ -56,5 +46,5 @@ interface IJobExecutor {
 
 		@throws haxe.IJobExecutor.DeadJobExecutor if this executor has been shut down already.
 	**/
-	function shutdown(callback:Callback<Exception,NoData>):Void;
+	function shutdown():Void;
 }
