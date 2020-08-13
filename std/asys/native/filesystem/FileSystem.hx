@@ -22,7 +22,7 @@ class FileSystem {
 
 		Default executor implementation depends on a target platform.
 	**/
-	static function create(executor:IJobExecutor = null):IFileSystem {
+	static public function create(executor:IJobExecutor = null):IFileSystem {
 		throw new NotImplementedException();
 	}
 
