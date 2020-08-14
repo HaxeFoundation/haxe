@@ -253,6 +253,13 @@ extern class Const {
 	static final PHP_BINARY_READ:Int;
 
 	/**
+		@see http://php.net/manual/en/function.session-status.php
+	**/
+	static final PHP_SESSION_DISABLED:Int;
+	static final PHP_SESSION_NONE:Int;
+	static final PHP_SESSION_ACTIVE:Int;
+
+	/**
 		@see http://php.net/manual/en/json.constants.php
 	**/
 	static final JSON_ERROR_NONE:Int;

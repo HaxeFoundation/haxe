@@ -1459,6 +1459,8 @@ let init_field (ctx,cctx,fctx) f =
 			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	if Meta.has Meta.InheritDoc cf.cf_meta then
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf
 
 let check_overload ctx f fs =
@@ -1609,7 +1611,7 @@ let init_class ctx c p context_init herits fields =
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
 						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
-						mainf.cf_overloads <- cf :: mainf.cf_overloads
+						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
 					else
 						let type_kind,path = match c.cl_kind with
 							| KAbstractImpl a -> "abstract",a.a_path

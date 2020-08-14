@@ -296,6 +296,11 @@ extern class Global {
 	static function echo(args:Rest<String>):Void;
 
 	/**
+		@see http://php.net/manual/en/function.print-r.php
+	**/
+	static function print_r(expression:Any, ?returnOutput:Bool):EitherType<Bool, String>;
+
+	/**
 		@see http://php.net/manual/en/function.sprintf.php
 	**/
 	static function sprintf(format:String, args:Rest<Dynamic>):EitherType<String, Bool>;
@@ -689,6 +694,26 @@ extern class Global {
 		@see http://php.net/manual/en/function.file-put-contents.php
 	**/
 	static function file_put_contents(filename:String, data:Dynamic, flags:Int = 0, ?context:Resource):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.fileatime.php
+	**/
+	static function fileatime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filectime.php
+	**/
+	static function filectime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filemtime.php
+	**/
+	static function filemtime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filesize.php
+	**/
+	static function filesize(filename:String):EitherType<Int, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.clearstatcache.php
@@ -1399,6 +1424,21 @@ extern class Global {
 	static function session_cache_expire(?new_cache_expire:Int):Int;
 
 	/**
+		@see http://php.net/manual/en/function.session-decode.php
+	**/
+	static function session_decode(data:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-destroy.php
+	**/
+	static function session_destroy():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-encode.php
+	**/
+	static function session_encode():String;
+
+	/**
 		@see http://php.net/manual/en/function.session-name.php
 	**/
 	static function session_name(?name:String):String;
@@ -1407,6 +1447,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.session-start.php
 	**/
 	static function session_start(?options:NativeArray):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-status.php
+	**/
+	static function session_status():Int;
 
 	/**
 		@see http://php.net/manual/en/function.session-unset.php
@@ -1500,6 +1545,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.gzuncompress.php
 	**/
 	static function gzuncompress(data:String, ?length:Int):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mime-content-type.php
+	**/
+	static function mime_content_type(filename:String):EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.move-uploaded-file.php

@@ -1334,16 +1334,18 @@ let decode_cfield v =
 	cf
 
 let decode_efield v =
-	{
-		ef_name = decode_string (field v "name");
-		ef_type = decode_type (field v "type");
-		ef_pos = decode_pos (field v "pos");
-		ef_name_pos = decode_pos (field v "namePos");
-		ef_index = decode_int (field v "index");
-		ef_meta = []; (* TODO *)
-		ef_doc = decode_doc (field v "doc");
-		ef_params = decode_type_params (field v "params")
-	}
+	let rec get_enum t =
+		match follow t with
+		| TEnum (enm,_) -> enm
+		| TFun (_,t) -> get_enum t
+		| _ -> raise Not_found
+	in
+	let name = decode_string (field v "name") in
+	try
+		let enm = get_enum (decode_type (field v "type")) in
+		PMap.find name enm.e_constrs
+	with Not_found ->
+		raise Invalid_expr
 
 let decode_field_access v =
 	match decode_enum v with

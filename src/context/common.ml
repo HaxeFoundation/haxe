@@ -877,9 +877,63 @@ let platform ctx p = ctx.platform = p
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
-let normalize_dir_separator path =
-	if is_windows then String.map (fun c -> if c = '/' then '\\' else c) path
-	else path
+let cache_directory ctx class_path dir f_dir =
+	let platform_ext = "." ^ (platform_name_macro ctx)
+	and is_loading_core_api = defined ctx Define.CoreApi in
+	let remove_extension file =
+		try String.sub file 0 (String.rindex file '.')
+		with Not_found -> file
+	in
+	let extension file =
+		try
+			let dot_pos = String.rindex file '.' in
+			String.sub file dot_pos (String.length file - dot_pos)
+		with Not_found -> file
+	in
+	let dir_listing =
+		try Some (Sys.readdir dir);
+		with Sys_error _ -> None
+	in
+	Hashtbl.add ctx.readdir_cache (class_path,dir) dir_listing;
+	(*
+		This function is invoked for each file in the `dir`.
+		Each file is checked if it's specific for current platform
+		(e.g. ends with `.js.hx` while compiling for JS).
+		If it's not platform-specific:
+			Check the lookup cache and if the file is not there store full file path in the cache.
+		If the file is platform-specific:
+			Store the full file path in the lookup cache probably replacing the cached path to a
+			non-platform-specific file.
+	*)
+	let prepare_file file_own_name =
+		let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
+		(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
+		let is_platform_specific,representation =
+			(* Platform specific file extensions are not allowed for loading @:coreApi types. *)
+			if is_loading_core_api then
+				false,relative_to_classpath
+			else begin
+				let ext = extension relative_to_classpath in
+				let second_ext = extension (remove_extension relative_to_classpath) in
+				(* The file contains double extension and the secondary one matches current platform *)
+				if platform_ext = second_ext then
+					true,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+				else
+					false,relative_to_classpath
+			end
+		in
+		(*
+			Store current full path for `representation` if
+			- we're loading @:coreApi
+			- or this is a platform-specific file for `representation`
+			- this `representation` was never found before
+		*)
+		if is_loading_core_api || is_platform_specific || not (Hashtbl.mem ctx.file_lookup_cache representation) then begin
+			let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
+			Hashtbl.replace ctx.file_lookup_cache representation (Some full_path);
+		end
+	in
+	Option.may (Array.iter prepare_file) dir_listing
 
 let find_file ctx f =
 	try
@@ -889,65 +943,30 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
-		let remove_extension file =
-			try String.sub file 0 (String.rindex file '.')
-			with Not_found -> file
-		in
-		let extension file =
-			try
-				let dot_pos = String.rindex file '.' in
-				String.sub file dot_pos (String.length file - dot_pos)
-			with Not_found -> file
-		in
-		let f_dir = Filename.dirname f
-		and platform_ext = "." ^ (platform_name_macro ctx)
-		and is_core_api = defined ctx Define.CoreApi in
+		let f_dir = Filename.dirname f in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
 				let dir = Filename.dirname file in
+				(* If we have seen the directory before, we can assume that the file isn't in there because the else case
+				   below would have added it to `file_lookup_cache`, which we check before we get here. *)
 				if Hashtbl.mem ctx.readdir_cache (p,dir) then
 					loop (had_empty || p = "") l
 				else begin
-					let found = ref "" in
-					let dir_listing =
-						try Some (Sys.readdir dir);
-						with Sys_error _ -> None
-					in
-					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
-					let normalized_f = normalize_dir_separator f in
-					Option.may
-						(Array.iter (fun file_name ->
-							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
-							let pf,current_f =
-								if is_core_api then false,current_f
-								else begin
-									let ext = extension current_f in
-									let pf_ext = extension (remove_extension current_f) in
-									if platform_ext = pf_ext then
-										true,(remove_extension (remove_extension current_f)) ^ ext
-									else
-										false,current_f
-								end
-							in
-							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
-							if is_core_api || pf || not is_cached then begin
-								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
-								if is_cached then
-									Hashtbl.remove ctx.file_lookup_cache current_f;
-								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if normalize_dir_separator current_f = normalized_f then
-									found := full_path;
-							end
-						))
-						dir_listing;
-					if !found <> "" then !found
-					else loop (had_empty || p = "") l
+					cache_directory ctx p dir f_dir;
+					(* Caching might have located the file we're looking for, so check the lookup cache again. *)
+					try
+						begin match Hashtbl.find ctx.file_lookup_cache f with
+						| Some f -> f
+						| None -> raise Not_found
+						end
+					with Not_found ->
+						loop (had_empty || p = "") l
 				end
 		in
-		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
+		let r = try Some (loop false ctx.class_path) with Not_found -> None in
 		Hashtbl.add ctx.file_lookup_cache f r;
 		match r with
 		| None -> raise Not_found
