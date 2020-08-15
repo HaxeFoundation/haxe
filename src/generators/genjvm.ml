@@ -2169,7 +2169,7 @@ class tclass_to_jvm gctx c = object(self)
 		if (has_class_flag c CAbstract) then jc#add_access_flag 0x0400; (* abstract *)
 		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
 
-	method private handle_relation_type_params =
+	method private build_bridges =
 		let map_type_params t =
 			let has_type_param = ref false in
 			let rec loop t = match follow t with
@@ -2255,7 +2255,11 @@ class tclass_to_jvm gctx c = object(self)
 		| fields,Some(c_sup,tl) ->
 			List.iter (fun cf_impl ->
 				match cf_impl.cf_kind,raw_class_field (fun cf -> apply_params c_sup.cl_params tl cf.cf_type) c_sup tl cf_impl.cf_name with
-				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) -> check false cf cf_impl
+				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) ->
+					if not (has_class_field_flag cf CfOverload) && jsignature_of_type gctx cf.cf_type <> jsignature_of_type gctx cf_impl.cf_type then
+						make_bridge cf_impl cf.cf_type
+					else
+						check false cf cf_impl
 				| _ -> ()
 			) fields
 		| _ ->
@@ -2519,7 +2523,7 @@ class tclass_to_jvm gctx c = object(self)
 		if not (has_class_flag c CInterface) then begin
 			self#generate_empty_ctor;
 			self#generate_implicit_ctors;
-			self#handle_relation_type_params;
+			self#build_bridges;
 		end;
 		self#generate_signature;
 		if gctx.dynamic_level > 0 && not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then

@@ -325,42 +325,6 @@ object(self)
 			super_call_fields = DynArray.to_list super_call_fields;
 		}
 
-	method check_overrides c = match List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields with
-		| [] ->
-			()
-		| fields ->
-			let csup,map_type = match c.cl_super with
-				| Some(c,tl) -> c,apply_params c.cl_params tl
-				| None -> die "" __LOC__
-			in
-			let fix_covariant_return cf =
-				let tl = match follow cf.cf_type with
-					| TFun(tl,_) -> tl
-					| _ -> die "" __LOC__
-				in
-				match resolve_instance_overload false map_type csup cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
-				| Some(_,cf',_) ->
-					let tr = match follow cf'.cf_type with
-						| TFun(_,tr) -> tr
-						| _ -> die "" __LOC__
-					in
-					cf.cf_type <- TFun(tl,tr);
-					cf.cf_expr <- begin match cf.cf_expr with
-						| Some ({eexpr = TFunction tf} as e) ->
-							Some {e with eexpr = TFunction {tf with tf_type = tr}}
-						| e ->
-							e
-					end;
-				| None ->
-					()
-					(* TODO: this should never happen if we get the unification right *)
-					(* Error.error "Could not find overload" cf.cf_pos *)
-			in
-			List.iter (fun cf ->
-				fix_covariant_return cf;
-				List.iter fix_covariant_return cf.cf_overloads
-			) fields
-
 	method preprocess_class (c : tclass) =
 		let has_dynamic_instance_method = ref false in
 		let has_field_init = ref false in
@@ -379,7 +343,6 @@ object(self)
 			| MStatic ->
 				()
 		in
-		self#check_overrides c;
 		List.iter (field MStatic) c.cl_ordered_statics;
 		List.iter (field MInstance) c.cl_ordered_fields;
 		match c.cl_constructor with
