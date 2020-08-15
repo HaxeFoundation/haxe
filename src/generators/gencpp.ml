@@ -53,6 +53,11 @@ let class_text path =
    "::" ^ (join_class_path path "::")
 ;;
 
+let params_text f = function
+	| [] -> ""
+	| params -> "<" ^ String.concat ", " (List.map f params) ^ ">"
+;;
+
 (* The internal classes are implemented by the core hxcpp system, so the cpp
    classes should not be generated *)
 let is_internal_class = function
@@ -695,8 +700,16 @@ let is_extern_class class_def =
        | _ -> false );
 ;;
 
+let is_true_extern_class class_def =
+   is_extern_class class_def && not (is_internal_class class_def.cl_path)
+;;
+
 let is_native_class class_def =
-   ((is_extern_class class_def) || (is_native_gen_class class_def)) && (not (is_internal_class class_def.cl_path))
+   is_true_extern_class class_def || is_native_gen_class class_def
+;;
+
+let class_params_text f class_def params =
+   if is_true_extern_class class_def then params_text f params else ""
 ;;
 
 (*  Get a string to represent a type.
@@ -753,7 +766,7 @@ let rec class_string klass suffix params remap =
             (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
    | _ when is_native_class klass ->
-      join_class_path_remap klass.cl_path "::"
+      (join_class_path_remap klass.cl_path "::") ^ (class_params_text type_string klass params)
    | _ ->
       let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
       globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ suffix
@@ -1366,7 +1379,7 @@ type tcpp =
    | TCppNativePointer of tclass
    | TCppVariant
    | TCppCode of tcpp
-   | TCppInst of tclass
+   | TCppInst of tclass * tcpp list
    | TCppInterface of tclass
    | TCppProtocol of tclass
    | TCppClass
@@ -1634,8 +1647,10 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
           name
        else
           "::hx::Native< " ^ name ^ "* >";
-   | TCppInst klass ->
-      (cpp_class_path_of klass) ^ (if is_native_class klass then "" else suffix)
+   | TCppInst(klass,params) when is_native_class klass ->
+      (cpp_class_path_of klass) ^ (class_params_text tcpp_to_string klass params)
+   | TCppInst(klass,_) ->
+      (cpp_class_path_of klass) ^ suffix
    | TCppInterface klass when suffix="_obj" ->
         (cpp_class_path_of klass) ^ suffix
    | TCppInterface _ -> "::Dynamic"
@@ -1688,7 +1703,7 @@ let is_cpp_scalar cpp_type =
 
 let is_cpp_array_implementer cppType =
    match cppType with
-   | TCppInst (klass)
+   | TCppInst (klass,_)
    | TCppInterface (klass) ->
       (match klass.cl_array_access with
       | Some _ -> true
@@ -1726,7 +1741,7 @@ let rec cpp_is_struct_access t =
    match t with
    | TCppFunction _ -> true
    | TCppStruct _-> false
-   | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
+   | TCppInst (class_def,_) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 ;;
@@ -1929,10 +1944,10 @@ let rec cpp_type_of stack ctx haxe_type =
             TCppNativePointer(klass)
          else if (has_class_flag klass CInterface) then
             TCppInterface(klass)
-         else if (has_class_flag klass CExtern) && (not (is_internal_class klass.cl_path) ) then
-            TCppInst(klass)
+         else if (is_native_class klass) then
+            TCppInst(klass, List.map (fun param -> cpp_type_of stack ctx param) params)
          else
-            TCppInst(klass)
+            TCppInst(klass, [])
        )
 
 let cpp_type_of ctx = cpp_type_of [] ctx
@@ -2206,8 +2221,8 @@ let cpp_no_debug_synbol ctx var =
    (ctx.ctx_debug_level<=1) || (match var.v_kind with VUser _ -> false | _ -> true) ||
       match cpp_type_of ctx var.v_type with
       | TCppStar _ | TCppReference _ -> true
-      | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
-      | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.Unreflective) -> true
+      | TCppInst (class_def,_) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
+      | TCppInst (class_def,_) when (has_meta_key class_def.cl_meta Meta.Unreflective) -> true
       | _->
          let name = cpp_var_debug_name_of var in
          (String.length name) >4 && (String.sub name 0 4) = "_hx_"
@@ -2225,7 +2240,7 @@ let cpp_debug_var_visible ctx var =
 let only_stack_access ctx haxe_type =
    let tcpp = cpp_type_of ctx haxe_type in
    match tcpp with
-   | TCppInst(klass) -> has_meta_key klass.cl_meta Meta.StackOnly
+   | TCppInst(klass,_) -> has_meta_key klass.cl_meta Meta.StackOnly
    | _ -> false;
 ;;
 
@@ -2247,9 +2262,9 @@ let is_array_splice_call obj member =
 let is_map_get_call obj member =
    member.cf_name="get" &&
    (match obj.cpptype  with
-   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
-   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
-   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")},_) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")},_) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")},_) -> true
    | _ -> false
    )
 ;;
@@ -2257,9 +2272,9 @@ let is_map_get_call obj member =
 let is_map_set_call obj member =
    member.cf_name="set" &&
    (match obj.cpptype  with
-   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
-   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
-   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")},_) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")},_) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")},_) -> true
    | _ -> false
    )
 ;;
@@ -2334,7 +2349,7 @@ let cpp_enum_name_of field =
 
 let is_object_element ctx member_type =
   match member_type with
-   | TCppInst x
+   | TCppInst(x,_)
    | TCppInterface x
        -> not (is_extern_class x)
    | TCppDynamic
@@ -2840,7 +2855,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
             let retypedArgs = retype_function_args args arg_types in
             let created_type = cpp_type_of expr.etype in
-            gc_stack := !gc_stack || (match created_type with | TCppInst(t) -> not (is_native_class t) | _ -> false );
+            gc_stack := !gc_stack || (match created_type with | TCppInst(t,_) -> not (is_native_class t) | _ -> false );
             CppCall( FuncNew(created_type), retypedArgs), created_type
 
          | TFunction func ->
@@ -2895,7 +2910,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                  CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
               | TCppObjectArray elem ->
                  CppArray( ArrayObject(retypedObj,retypedIdx,elem) ), elem
-              | TCppInst({cl_array_access = Some _ } as klass) ->
+              | TCppInst({cl_array_access = Some _ } as klass,_) ->
                  CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
               | TCppDynamicArray ->
                  CppArray( ArrayVirtual(retypedObj, retypedIdx) ), TCppDynamic
@@ -3173,10 +3188,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
       end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
          match return_type with
          | TCppUnchanged -> cppExpr
-         | TCppInst(t) when (has_meta_key t.cl_meta Meta.StructAccess) ->
-             let structType = TCppStruct( TCppInst(t) ) in
+         | TCppInst(t,pl) when (has_meta_key t.cl_meta Meta.StructAccess) ->
+             let structType = TCppStruct( TCppInst(t,pl) ) in
              let structCast =  mk_cppexpr (CppCast(cppExpr,structType)) structType in
-             mk_cppexpr (CppCast(structCast,(TCppInst t))) (TCppInst t)
+             mk_cppexpr (CppCast(structCast,TCppInst(t,pl))) (TCppInst(t,pl))
 
          | TCppObjectArray _
          | TCppScalarArray _
@@ -3264,7 +3279,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppStar(t,const), TCppStruct _ ->
              mk_cppexpr (CppDereference(cppExpr)) return_type
 
-         | TCppInst(t), TCppStar _ when (is_native_class t) && (match cppExpr.cppexpr with
+         | TCppInst(t,_), TCppStar _ when (is_native_class t) && (match cppExpr.cppexpr with
             | CppCall(FuncNew(_), _) -> true
             | _ -> false) ->
             mk_cppexpr (CppNewNative(cppExpr)) return_type
@@ -3281,8 +3296,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | t, TCppProtocol protocol ->
               mk_cppexpr (CppCastProtocol(cppExpr,protocol)) return_type
 
-         | TCppInst(t), TCppDynamic when (has_meta_key t.cl_meta Meta.StructAccess) ->
-             let structType = TCppStruct( TCppInst(t) ) in
+         | TCppInst(t,pl), TCppDynamic when (has_meta_key t.cl_meta Meta.StructAccess) ->
+             let structType = TCppStruct( TCppInst(t,pl) ) in
              let structCast =  mk_cppexpr (CppCast(cppExpr,structType)) structType in
              mk_cppexpr (CppCast(structCast,TCppDynamic)) TCppDynamic
 
@@ -3578,7 +3593,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
            expr.cpppos);
          out " ]"
 
-      | CppCall(FuncNew( TCppInst klass), args) when can_quick_alloc klass ->
+      | CppCall(FuncNew(TCppInst(klass,_)), args) when can_quick_alloc klass ->
          out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_CTX ");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
@@ -3633,14 +3648,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
-         | FuncSuperConstruct(TCppInst klass) when is_native_class klass ->
+         | FuncSuperConstruct(TCppInst(klass,_)) when is_native_class klass ->
             doCall := false;
 
          | FuncSuperConstruct _ ->
             out ((if not ctx.ctx_real_this_ptr then "__this->" else "") ^  "super::__construct")
 
-         | FuncSuper(_,TCppInst(klass),field) when is_native_class klass ->
-            out ((cpp_class_path_of klass) ^ "::" ^ (cpp_member_name_of field));
+         | FuncSuper(_,TCppInst(klass,params),field) when is_native_class klass ->
+            out ((cpp_class_path_of klass) ^ (class_params_text tcpp_to_string klass params) ^ "::" ^ (cpp_member_name_of field))
 
          | FuncSuper(this,_,field) ->
             out ( (if this==ThisReal then "this->" else "__->") ^ "super::" ^ (cpp_member_name_of field) )
@@ -3653,8 +3668,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >::__new"
             | TCppObjC klass ->  (cpp_class_path_of klass) ^ "_obj::__new"
             | TCppNativePointer klass -> "new " ^ (cpp_class_path_of klass);
-            | TCppInst klass when is_native_class klass -> cpp_class_path_of klass
-            | TCppInst klass -> (cpp_class_path_of klass) ^ "_obj::__new"
+            | TCppInst(klass,params) when is_native_class klass -> (cpp_class_path_of klass) ^ (class_params_text tcpp_to_string klass params)
+            | TCppInst(klass,_) -> (cpp_class_path_of klass) ^ "_obj::__new"
             | TCppClass -> "::hx::Class_obj::__new";
             | TCppFunction _ -> tcpp_to_string newType
             | _ -> abort ("Unknown 'new' target " ^ (tcpp_to_string newType)) expr.cpppos
@@ -4455,7 +4470,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       let needsWrapper t = match t with
          | TCppStar _ -> true
-         | TCppInst(t) -> has_meta_key t.cl_meta Meta.StructAccess
+         | TCppInst(t,_) -> has_meta_key t.cl_meta Meta.StructAccess
          | _ -> false
       in
       let orig_debug = ctx.ctx_debug_level in
@@ -4501,7 +4516,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                   match return_type with
                     | TCppStar _ ->
                        output "return (cpp::Pointer<const void *>) "
-                    | TCppInst(t) when has_meta_key t.cl_meta Meta.StructAccess ->
+                    | TCppInst(t,_) when has_meta_key t.cl_meta Meta.StructAccess ->
                        output ("return (cpp::Struct< " ^ (tcpp_to_string return_type) ^ " >) ");
                     | _ -> output "return ";
                end;
@@ -4517,7 +4532,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                      (match arg with
                        | TCppStar (t,const) ->
                           output ("(cpp::" ^ (if const then "Const" else "") ^"Pointer<" ^ (tcpp_to_string t)^" >) ")
-                       | TCppInst(t) when has_meta_key t.cl_meta Meta.StructAccess ->
+                       | TCppInst(t,_) when has_meta_key t.cl_meta Meta.StructAccess ->
                           output ("(cpp::Struct< " ^ (tcpp_to_string arg) ^ " >) ");
                        | _ -> () );
                      output ("a" ^ (string_of_int i));
@@ -5818,7 +5833,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                out (class_name ^ "::" ^ class_name ^ "(" ^ constructor_type_args ^ ")");
 
                (match class_def.cl_super with
-               | Some (klass, _) ->
+               | Some (klass,params) ->
                   let rec find_super_args = function
                      | TCall ({ eexpr = TConst TSuper }, args) :: _ -> Some args
                      | (TParenthesis(e) | TMeta(_,e) | TCast(e,None)) :: rest -> find_super_args (e.eexpr :: rest)
@@ -5828,7 +5843,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   in
                   (match find_super_args [function_def.tf_expr.eexpr] with
                   | Some args ->
-                     out ("\n:" ^ (cpp_class_path_of klass) ^ "(");
+                     out ("\n:" ^ (cpp_class_path_of klass) ^ (class_params_text type_string klass params) ^ "(");
                      let sep = ref "" in
                      List.iter (fun arg ->
                         out !sep; sep := ",";
@@ -6136,7 +6151,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       let toCommon t f value =
          t ^ "( " ^ ( match cpp_type_of ctx f.cf_type with
-           | TCppInst(t) as inst when (has_meta_key t.cl_meta Meta.StructAccess)
+           | TCppInst(t,_) as inst when (has_meta_key t.cl_meta Meta.StructAccess)
               -> "cpp::Struct< " ^ (tcpp_to_string inst) ^ " >( " ^ value ^ " )"
            | TCppStar(t,_) -> "cpp::Pointer<void *>( " ^ value ^ " )"
            | _ -> value
@@ -6184,7 +6199,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       let castable f =
          match cpp_type_of ctx f.cf_type with
-           | TCppInst(t) as inst when (has_meta_key t.cl_meta Meta.StructAccess)
+           | TCppInst(t,_) as inst when (has_meta_key t.cl_meta Meta.StructAccess)
               -> "cpp::Struct< " ^ (tcpp_to_string inst) ^ " > "
            | TCppStar(t,_) -> "cpp::Pointer< " ^ ( tcpp_to_string t ) ^ " >"
            | _ -> ctx_type_string ctx f.cf_type
@@ -7084,7 +7099,7 @@ let rec script_cpptype_string cppType = match cppType with
    | TCppProtocol _ -> "cpp.ObjC.Protocol"
    | TCppNativePointer klass -> "cpp.Pointer." ^ (join_class_path klass.cl_path ".")
    | TCppInterface klass -> (join_class_path klass.cl_path ".")
-   | TCppInst klass -> (join_class_path klass.cl_path ".")
+   | TCppInst(klass,_) -> (join_class_path klass.cl_path ".")
    | TCppClass -> "Class"
    | TCppGlobal -> "?global";
    | TCppNull -> "null";
@@ -7974,11 +7989,11 @@ class script_writer ctx filename asciiOut =
             | FuncEnumConstruct(enum,field) ->
                this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^
                    (this#commentOf field.ef_name) ^ "\n");
-            | FuncSuperConstruct(TCppInst klass) when (is_native_gen_class klass) && (is_native_class klass) ->
+            | FuncSuperConstruct(TCppInst(klass,_)) when (is_native_gen_class klass) && (is_native_class klass) ->
                abort "Unsupported super for native class constructor" expression.cpppos;
             | FuncSuperConstruct childType ->
                this#write ((this#op IaCallSuperNew) ^ (this#astType childType) ^ " " ^ argN ^ "\n");
-            | FuncSuper(_,TCppInst(klass),_) when (is_native_gen_class klass) && (is_native_class klass) ->
+            | FuncSuper(_,TCppInst(klass,_),_) when (is_native_gen_class klass) && (is_native_class klass) ->
                abort "Unsupported super for native class method" expression.cpppos;
             | FuncSuper(_,objType,field) ->
                this#write ( (this#op IaCallSuper) ^ (this#astType objType) ^ " " ^ (this#stringText field.cf_name) ^
