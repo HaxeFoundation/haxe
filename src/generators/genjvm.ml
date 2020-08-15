@@ -2170,101 +2170,76 @@ class tclass_to_jvm gctx c = object(self)
 		if Meta.has Meta.JvmSynthetic c.cl_meta then jc#add_access_flag 0x1000 (* synthetic *)
 
 	method private build_bridges =
-		let map_type_params t =
-			let has_type_param = ref false in
-			let rec loop t = match follow t with
-				| TInst({cl_kind = KTypeParameter tl},_) ->
-					has_type_param := true;
-					begin match tl with
-					| [t] -> t
-					| _ -> t_dynamic
-					end
-				| _ -> Type.map loop t
+		let make_bridge name jsig_from jsig_to =
+			let args_from,ret_from = match jsig_from with
+				| TMethod(jsigs,jsig) -> jsigs,jsig
+				| _ -> die "" __LOC__
 			in
-			let t = match follow t with
-				| TFun(tl,tr) ->
-					let tl = List.map (fun (n,o,t) -> n,o,loop t) tl in
-					let tr = loop tr in
-					TFun(tl,tr)
-				| _ ->
-					die "" __LOC__
+			let args_to,ret_to = match jsig_to with
+				| TMethod(jsigs,jsig) -> jsigs,jsig
+				| _ -> die "" __LOC__
 			in
-			if !has_type_param then Some t else None
+			let jm = jc#spawn_method name jsig_from [MPublic;MSynthetic;MBridge] in
+			gctx.typed_functions#make_forward_method_jsig jc jm name args_from ret_from args_to ret_to
 		in
-		let make_bridge cf_impl t =
-			let jsig = jsignature_of_type gctx t in
-			if not (jc#has_method cf_impl.cf_name jsig) then begin
-				begin match follow t with
-				| TFun(tl,tr) ->
-					let jm = jc#spawn_method cf_impl.cf_name jsig [MPublic;MSynthetic;MBridge] in
-					jm#load_this;
-					let jsig_impl = jsignature_of_type gctx cf_impl.cf_type in
-					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> die "" __LOC__ in
-					List.iter2 (fun (n,_,t) jsig ->
-						let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
-						load();
-						jm#cast jsig;
-					) tl jsigs;
-					jm#invokevirtual c.cl_path cf_impl.cf_name jsig_impl;
-					if not (ExtType.is_void (follow tr)) then jm#cast (jsignature_of_type gctx tr);
-					jm#return;
-				| _ ->
+		let maybe_make_bridge name jsig_from jsig_to =
+			if not (jc#has_method name jsig_from) then make_bridge name jsig_from jsig_to
+		in
+		let compare_fields cf_impl cf_super =
+			let jsig_super = jsignature_of_type gctx cf_super.cf_type in
+			let jsig_impl = jsignature_of_type gctx cf_impl.cf_type in
+			if jsig_super <> jsig_impl then
+				maybe_make_bridge cf_impl.cf_name jsig_super jsig_impl
+		in
+		let find_overload map_type c cf =
+			let tl = match follow (map_type cf.cf_type) with
+				| TFun(tl,_) -> tl
+				| _ -> die "" __LOC__
+			in
+			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
+		in
+		let if_method f cf = match cf.cf_kind with
+			| Method _ ->
+				f cf;
+				List.iter f cf.cf_overloads
+			| _ ->
+				()
+		in
+		begin match c.cl_super with
+		| Some (c_sup,tl) ->
+			let map_type = apply_params c_sup.cl_params tl in
+			let check_override cf =
+				if has_class_field_flag cf CfOverload then begin match find_overload map_type c_sup cf with
+				| Some (_,cf_super,_) ->
+					compare_fields cf cf_super
+				| None ->
+					()
+				end else begin
+					let _,_,cf_super = raw_class_field (fun cf -> cf.cf_type) c_sup (List.map snd c_sup.cl_params) cf.cf_name in
+					compare_fields cf cf_super
+				end
+			in
+			let check cf =
+				if has_class_field_flag cf CfOverride then check_override cf;
+			in
+			List.iter (if_method check) c.cl_ordered_fields
+		| None ->
+			()
+		end;
+		let rec check_interface map_type (c_int,tl) =
+			let map_type t = map_type (apply_params c_int.cl_params tl t) in
+			let check cf =
+				begin match find_overload map_type c cf with
+				| Some (_,cf_impl,_) ->
+					compare_fields cf_impl cf
+				| None ->
 					()
 				end
-			end
+			in
+			List.iter (if_method check) c_int.cl_ordered_fields;
+			List.iter (check_interface map_type) c_int.cl_implements
 		in
-		let check is_interface cf cf_impl =
-			match map_type_params cf.cf_type with
-			| Some t ->
-				make_bridge cf_impl t
-			| None ->
-				(* If we implement an interface with variance, we need a bridge method too (#8528). *)
-				if is_interface && not (type_iseq cf.cf_type cf_impl.cf_type) then make_bridge cf_impl cf.cf_type
-		in
-		let check is_interface cf cf_impl =
-			check is_interface cf cf_impl;
-			(* TODO: I think this is incorrect... have to investigate though *)
-			(* List.iter (fun cf -> check is_interface cf cf_impl) cf.cf_overloads *)
-		in
-		let rec loop map_type c_int =
-			List.iter (fun (c_int,tl) ->
-				(* Note: We have to apply parent params before child params (#9219). *)
-				let map_type t = map_type (apply_params c_int.cl_params tl t) in
-				List.iter (fun cf ->
-					match cf.cf_kind,raw_class_field (fun cf -> map_type cf.cf_type) c (List.map snd c.cl_params) cf.cf_name with
-					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c ->
-						let tl = match follow (map_type cf.cf_type) with
-							| TFun(tl,_) -> tl
-							| _ -> die "" __LOC__
-						in
-						begin match OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
-							| Some(_,cf_impl,_) -> check true cf cf_impl
-							| None -> ()
-						end;
-					| _ ->
-						()
-				) c_int.cl_ordered_fields;
-				loop map_type c_int
-			) c_int.cl_implements
-		in
-		loop (fun t -> t) c;
-		let overrides = List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields in
-		begin match overrides,c.cl_super with
-		| [],_ ->
-			()
-		| fields,Some(c_sup,tl) ->
-			List.iter (fun cf_impl ->
-				match cf_impl.cf_kind,raw_class_field (fun cf -> apply_params c_sup.cl_params tl cf.cf_type) c_sup tl cf_impl.cf_name with
-				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) ->
-					if not (has_class_field_flag cf CfOverload) && jsignature_of_type gctx cf.cf_type <> jsignature_of_type gctx cf_impl.cf_type then
-						make_bridge cf_impl cf.cf_type
-					else
-						check false cf cf_impl
-				| _ -> ()
-			) fields
-		| _ ->
-			die "" __LOC__
-		end
+		List.iter (check_interface (fun t -> t)) c.cl_implements
 
 	method private set_interfaces =
 		List.iter (fun (c_int,tl) ->
