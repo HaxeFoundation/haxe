@@ -1775,7 +1775,9 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
-			encode_string_map encode_string (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
+			let pmap_resources = Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty in
+			let encode_string_to_bytes s = encode_bytes (Bytes.of_string s) in
+			encode_string_map encode_string_to_bytes pmap_resources
 		);
 		"get_local_module", vfun0 (fun() ->
 			let m = (get_api()).current_module() in
