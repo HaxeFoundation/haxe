@@ -7,6 +7,7 @@
 	Bugfixes:
 
 	all : fixed `switch` typing error for arrow functions with `Void` return type (#9813)
+	macro : fixed `haxe.macro.Context.getResources()` (#9838)
 	php : fixed false detection of `catch` vars in anonymous functions as captured from outer scope
 	php : fixed return type of extern definition for `fseek` function
 	cs,java : fixed generation of `@:generic` classes with anonymous functions (#9799)
