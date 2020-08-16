@@ -8,34 +8,46 @@ import php.Global.*;
 import php.Syntax.*;
 import php.NativeArray;
 
-@:coreType @:coreApi abstract FilePath {
+private typedef NativeFilePath = php.NativeString;
+
+@:coreApi abstract FilePath(NativeFilePath) {
 	public static var SEPARATOR(get,never):String;
 	static inline function get_SEPARATOR():String {
 		return php.Const.DIRECTORY_SEPARATOR;
 	}
 
+	@:allow(asys.native.filesystem)
+	inline function new(s:String) {
+		this = s;
+	}
+
+	@:allow(asys.native.filesystem)
+	inline function phpStr():php.NativeString {
+		return this;
+	}
+
 	@:from public static inline function fromString(path:String):FilePath {
-		return cast path;
+		return new FilePath(path);
 	}
 
 	@:from public static inline function fromBytes(path:Bytes):FilePath {
-		return cast path.toString();
+		return new FilePath(path.toString());
 	}
 
 	@:to public inline function toBytes():Bytes {
-		return Bytes.ofString(cast this);
+		return Bytes.ofString(this);
 	}
 
 	@:to public function toString():String {
-		if(!mb_check_encoding(cast this, 'UTF-8'))
+		if(!mb_check_encoding(this, 'UTF-8'))
 			throw new EncodingException('File path is not a valid unicode string');
-		return cast this;
+		return this;
 	}
 
 	public function toReadableString(patch:Int = '?'.code):String {
 		var oldPatch:Any = mb_substitute_character();
 		mb_substitute_character(patch);
-		var result = mb_scrub(cast this);
+		var result = mb_scrub(this);
 		mb_substitute_character(oldPatch);
 		return result;
 	}
@@ -51,23 +63,22 @@ import php.NativeArray;
 				throw new FsException(CustomError('Unable to get current working directory'), this);
 			return result;
 		}
-		var path:NativeString = cast this;
-		var fullPath = if(path == '') {
+		var fullPath = if(this == '') {
 			cwd();
-		} else if(path[0] == '/') {
-			path;
+		} else if(this[0] == '/') {
+			this;
 		} else if(SEPARATOR == '\\') {
-			if(path[0] == '\\') {
-				path;
+			if(this[0] == '\\') {
+				this;
 			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
 			//but PHP doesn't have a function to get current directory of another drive
-			} else if(preg_match('/^[a-zA-Z]:/', path)) {
-				path;
+			} else if(preg_match('/^[a-zA-Z]:/', this)) {
+				this;
 			} else {
-				rtrim(cwd() + SEPARATOR + path, '\\/');
+				rtrim(cwd() + SEPARATOR + this, '\\/');
 			}
 		} else {
-			rtrim(cwd() + SEPARATOR + path, '/');
+			rtrim(cwd() + SEPARATOR + this, '/');
 		}
 
 		var parts:NativeIndexedArray<String> = if(SEPARATOR == '\\') {
@@ -93,9 +104,9 @@ import php.NativeArray;
 
 	public function real(callback:Callback<FilePath>):Void {
 		EntryPoint.runInMainThread(() -> {
-			var resolved = realpath(cast this);
+			var resolved = realpath(this);
 			if(resolved == false) {
-				callback.fail(new FsException(CustomError('Unable to resolve real path'), this));
+				callback.fail(new FsException(CustomError('Unable to resolve real path'), new FilePath(this)));
 			} else {
 				callback.success((resolved:String));
 			}
