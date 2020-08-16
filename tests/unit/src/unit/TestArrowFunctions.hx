@@ -10,13 +10,13 @@ class TestArrowFunctions extends Test {
 	var f0_1: () -> W;
 
 	var f1_0: Int->Int;
-	var f1_1: ?Int->Int;
+	var f1_1: ?Null<Int>->Int;
 
 	var f2_0: Int->Int;
 
 	var f3_0: Int->Int->Int;
-	var f3_1: ?Int->String->Int;
-	var f3_2: Int->?Int->Int;
+	var f3_1: ?Null<Int>->String->Int;
+	var f3_2: Int->?Null<Int>->Int;
 
 	var f4:   Int->(Int->Int);
 	var f5:   Int->Int->(Int->Int);
@@ -87,7 +87,6 @@ class TestArrowFunctions extends Test {
 		f3_1 = (?a:Int, b:String) -> a + b.length;
 		f3_2 = (a:Int, ?b:Int) -> a + b;
 
-		#if !(flash || hl) // Cannot skip not nullable argument
 		f3_1 = function (a=1, b:String) return a + b.length;
 		eq(f3_1("--"),3);
 
@@ -108,7 +107,6 @@ class TestArrowFunctions extends Test {
 
 		f3_2 = (a:Int, b=2) -> a + b;
 		eq(f3_2(1),3);
-		#end
 
 		f4 = function (a) return function (b) return a + b;
 		f4 = a -> b -> a + b;

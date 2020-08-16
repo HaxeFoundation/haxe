@@ -1,8 +1,8 @@
-class Main1 {
+class Main2 {
     static function main() {
 		var v : Float = 0;
 		foo(v);
     }
 
-	static function foo(x=0,y:Float) { }
+	extern static function foo(x=0,y:Float): Void;
 }

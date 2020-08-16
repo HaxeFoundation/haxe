@@ -82,7 +82,11 @@ object(self)
 		| Some l ->
 			l
 		| None ->
-			let l = List.map (fun (n,eo,t) -> n,eo <> None,t) with_default in
+			let l = List.map (fun (n,eo,t) ->
+				let opt = eo <> None in
+				let t = if opt && not is_extern then ctx.t.tnull t else t in
+				n,opt,t
+			) with_default in
 			type_repr <- Some l;
 			l
 

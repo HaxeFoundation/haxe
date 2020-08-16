@@ -164,8 +164,6 @@ type platform_config = {
 	pf_add_final_return : bool;
 	(** does the platform natively support overloaded functions *)
 	pf_overload : bool;
-	(** can the platform use default values for non-nullable arguments *)
-	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
 	(** supports function == function **)
@@ -422,7 +420,6 @@ let default_config =
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
 		pf_overload = false;
-		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
 		pf_uses_utf16 = true;
@@ -493,7 +490,6 @@ let get_config com =
 			default_config with
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
