@@ -3,6 +3,8 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.exceptions.NotImplementedException;
 
+private typedef NativeFilePath = Dynamic;
+
 /**
 	Represents a relative or absolute file path.
 
@@ -12,7 +14,7 @@ import haxe.exceptions.NotImplementedException;
 	TODO: add API from `haxe.io.Path`
 	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
-@:coreType @:coreApi abstract FilePath {
+@:coreApi abstract FilePath(NativeFilePath) {
 	public static var SEPARATOR(get,never):String;
 	static function get_SEPARATOR():String {
 		return Sys.systemName() == 'Windows' ? '\\' : '/';
