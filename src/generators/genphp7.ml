@@ -1241,7 +1241,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			else if get_type_name type_path = "" then
 				match get_module_path type_path with
 				| [] -> "\\"
-				| _ -> "\\" ^ (String.concat "\\" (get_real_path (get_module_path type_path))) ^ "\\"
+				| module_path -> "\\" ^ (String.concat "\\" (get_real_path module_path)) ^ "\\"
 			else begin
 				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
