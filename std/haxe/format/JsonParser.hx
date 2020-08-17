@@ -302,7 +302,7 @@ class JsonParser {
 
 		var f = Std.parseFloat(str.substr(start, pos - start));
 		var i = Std.int(f);
-		return if (i == f) i else f;
+		return if (!point && i == f) i else f;
 	}
 
 	inline function nextChar() {
