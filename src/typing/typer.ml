@@ -2219,7 +2219,8 @@ and type_return ?(implicit=false) ctx e with_type p =
 		end;
 		try
 			let with_expected_type =
-				if implicit then WithType.of_implicit_return ctx.ret
+				if ExtType.is_void (follow ctx.ret) then WithType.no_value
+				else if implicit then WithType.of_implicit_return ctx.ret
 				else WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
