@@ -845,9 +845,18 @@ module Converter = struct
 				begin match jf.jf_descriptor with
 				| TMethod(args,ret) ->
 					let local_names = extract_local_names() in
+					let args_count = List.length args
+					and is_varargs = AccessFlags.has_flag jf.jf_flags MVarargs in
 					let convert_arg i jsig =
 						let name = local_names (i + 1) in
-						((name,p),false,[],Some (convert_signature ctx p jsig,p),None)
+						let hx_sig =
+							match jsig with
+							| TArray (jsig1,_) when is_varargs && i + 1 = args_count ->
+								mk_type_path (["haxe";"extern"], "Rest") [TPType (convert_signature ctx p jsig1,p)]
+							| _ ->
+								convert_signature ctx p jsig
+						in
+						((name,p),false,[],Some (hx_sig,p),None)
 					in
 					let f = {
 						f_params = List.map (fun tp -> convert_type_parameter ctx tp p) jf.jf_types;

@@ -123,17 +123,9 @@ class Type {
 		}
 	}
 
-	static final emptyArg = {
-		var a = new java.NativeArray(1);
-		a[0] = (null : jvm.EmptyConstructor);
-		a;
-	}
+	static final emptyArg = (null : jvm.EmptyConstructor);
 
-	static final emptyClass = {
-		var a = new java.NativeArray(1);
-		a[0] = jvm.EmptyConstructor.native();
-		a;
-	}
+	static final emptyClass = jvm.EmptyConstructor.native();
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var args = @:privateAccess args.getNative();
@@ -178,7 +170,8 @@ class Type {
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass)
+				.newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}
