@@ -53,33 +53,6 @@ class TestFilePath extends FsTest {
 		check(cases);
 	}
 
-	function testReal(async:Async) {
-		var expected = Sys.getCwd() + 'test-data' + FilePath.SEPARATOR + 'sub' + FilePath.SEPARATOR + 'hello.world';
-
-		asyncAll(async, {
-			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
-			p.real((e, p) -> {
-				if(noException(e)) {
-					equals(expected, p.toString());
-				}
-			});
-		},{
-			var p:FilePath = 'test-data/symlink';
-			p.real((e, p) -> {
-				if(noException(e)) {
-					equals(expected, p.toString());
-				}
-			});
-		},{
-			var p:FilePath = 'non-existent';
-			p.real((e, _) -> {
-				assertType(e, FsException, e -> {
-					isTrue(p == e.path);
-				});
-			});
-		});
-	}
-
 	function specToReadableString() {
 		var b = Bytes.ofString('xyz😂/éé');
 		var p:FilePath = b;

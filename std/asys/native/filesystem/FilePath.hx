@@ -73,13 +73,4 @@ private typedef NativeFilePath = Dynamic;
 	public function absolute():FilePath {
 		throw new NotImplementedException();
 	}
-
-	/**
-		Get a canonical path.
-		Resolves intermediate `.`, `..`, excessive slashes and symbolic links.
-		The result may still be a relative path.
-	**/
-	public function real(callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
-	}
 }

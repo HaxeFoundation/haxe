@@ -101,15 +101,4 @@ private typedef NativeFilePath = php.NativeString;
 		array_unshift(result, parts[0]);
 		return implode(SEPARATOR, result);
 	}
-
-	public function real(callback:Callback<FilePath>):Void {
-		EntryPoint.runInMainThread(() -> {
-			var resolved = realpath(this);
-			if(resolved == false) {
-				callback.fail(new FsException(CustomError('Unable to resolve real path'), new FilePath(this)));
-			} else {
-				callback.success((resolved:String));
-			}
-		});
-	}
 }

@@ -100,6 +100,9 @@ class FileSystem {
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setTimes(path, accessTime, modificationTime, callback);
 
+	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void
+		new FileSystemImpl(Native.defaultExecutor).realPath(path, callback);
+
 	static function phpStatToHx(phpStat:NativeArray):FileInfo {
 		return {
 			atime: phpStat['atime'],
@@ -630,6 +633,24 @@ private class FileSystemImpl implements IFileSystem {
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set file times');
+				} catch(e:php.Exception) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+			},
+			callback
+		);
+	}
+
+	public inline function realPath(path:FilePath, callback:Callback<FilePath>):Void {
+		jobs.addJob(
+			() -> {
+				try {
+					switch realpath(path.phpStr()) {
+						case false:
+							throw new php.Exception('Unable to resolve real path');
+						case (_:String) => r:
+							(r:FilePath);
+					}
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}

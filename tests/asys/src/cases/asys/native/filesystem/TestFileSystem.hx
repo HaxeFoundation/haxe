@@ -599,4 +599,31 @@ class TestFileSystem extends FsTest {
 			})
 		);
 	}
+
+	function testRealPath(async:Async) {
+		var expected = Sys.getCwd() + 'test-data' + FilePath.SEPARATOR + 'sub' + FilePath.SEPARATOR + 'hello.world';
+
+		asyncAll(async, {
+			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
+			FileSystem.realPath(p, (e, p) -> {
+				if(noException(e)) {
+					equals(expected, p.toString());
+				}
+			});
+		},{
+			var p:FilePath = 'test-data/symlink';
+			FileSystem.realPath(p, (e, p) -> {
+				if(noException(e)) {
+					equals(expected, p.toString());
+				}
+			});
+		},{
+			var p:FilePath = 'non-existent';
+			FileSystem.realPath(p, (e, _) -> {
+				assertType(e, FsException, e -> {
+					isTrue(p == e.path);
+				});
+			});
+		});
+	}
 }

@@ -308,4 +308,12 @@ class FileSystem {
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
+
+	/**
+		Get a canonical absolute path.
+		Resolves intermediate `.`, `..`, excessive slashes and symbolic links.
+	**/
+	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
+		throw new NotImplementedException();
+	}
 }
