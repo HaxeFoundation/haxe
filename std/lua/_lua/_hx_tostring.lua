@@ -68,7 +68,7 @@ function _hx_tostring(obj, depth)
             if obj.length > 5 then
                 return "[...]"
             else
-                str = ""
+                local str = ""
                 for i=0, (obj.length-1) do
                     if i == 0 then
                         str = str .. _hx_tostring(obj[i], depth+1)
@@ -81,8 +81,7 @@ function _hx_tostring(obj, depth)
         elseif obj.__class__ ~= nil then
             return _hx_print_class(obj, depth)
         else
-            first = true
-            buffer = {}
+            local buffer = {}
             for k,v in pairs(obj) do
                 if _hx_hidden[k] == nil then
                     _G.table.insert(buffer, _hx_tostring(k, depth+1) .. ' : ' .. _hx_tostring(obj[k], depth+1))
@@ -97,7 +96,6 @@ function _hx_tostring(obj, depth)
 end
 
 function _hx_error(obj)
-    print(obj)
     if obj.value then
         _G.print("Runtime Error: " .. _hx_tostring(obj.value));
     else
