@@ -943,6 +943,13 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if fctx.is_abstract_member && not is_abstract_enum_field then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
+	let missing_initialization =
+		fctx.is_final
+		&& not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))
+		&& eo = None
+	in
+	if missing_initialization && fctx.is_static && fctx.is_final then
+		error (fst f.cff_name ^ ": Static final variable must be initialized") p;
 	let t = (match t with
 		| None when eo = None ->
 			error ("Variable requires type-hint or initialization") (pos f.cff_name);
@@ -965,10 +972,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf_kind = Var kind;
 	} in
 	if fctx.is_final then begin
-		if not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))  && eo = None then begin
-			if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
-			else cctx.uninitialized_final <- cf :: cctx.uninitialized_final;
-		end;
+		if missing_initialization && not fctx.is_static then
+			cctx.uninitialized_final <- cf :: cctx.uninitialized_final;
 		add_class_field_flag cf CfFinal;
 	end;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
