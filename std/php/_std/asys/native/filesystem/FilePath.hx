@@ -2,7 +2,6 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.EntryPoint;
-import haxe.exceptions.EncodingException;
 import php.*;
 import php.Global.*;
 import php.Syntax.*;
@@ -39,23 +38,9 @@ private typedef NativeFilePath = php.NativeString;
 	}
 
 	@:to public function toString():String {
-		if(!mb_check_encoding(this, 'UTF-8'))
-			throw new EncodingException('File path is not a valid unicode string');
 		return this;
 	}
 
-	public function toReadableString(patch:Int = '?'.code):String {
-		var oldPatch:Any = mb_substitute_character();
-		mb_substitute_character(patch);
-		var result = mb_scrub(this);
-		mb_substitute_character(oldPatch);
-		return result;
-	}
-
-	/**
-		Get an absolute path of this path.
-		For example translates `./path` to `/current/dir/path`.
-	**/
 	public function absolute():FilePath {
 		inline function cwd():String {
 			var result = getcwd();

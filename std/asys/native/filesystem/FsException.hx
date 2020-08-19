@@ -22,6 +22,6 @@ class FsException extends IoException {
 		Error description.
 	**/
 	override function get_message():String {
-		return super.get_message() + ' on ${path.toReadableString()}';
+		return super.get_message() + ' on ${path.toString()}';
 	}
 }

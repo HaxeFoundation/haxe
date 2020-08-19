@@ -42,12 +42,7 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
-		Encode file path to string.
-
-		Throws an exception if the path could not be converted to a valid
-		unicode string.
-
-		@throws haxe.EncodingException - if current `FilePath` cannot be converted to a unicode string.
+		Get string representation of this path.
 	**/
 	@:to public function toString():String {
 		throw new NotImplementedException();
@@ -58,17 +53,10 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
-		Encode file path to a valid unicode string replacing any invalid bytes with `patch`
-		unicode character code (the code of `?` is used by default).
-	**/
-	public function toReadableString(patch:Int = '?'.code):String {
-		throw new NotImplementedException();
-	}
-
-	/**
 		Get an absolute path of this path.
 		For example translates `./path` to `/current/dir/path`.
 		Does not resolve symbolic links.
+		It does not matter if the path does not exist.
 	**/
 	public function absolute():FilePath {
 		throw new NotImplementedException();

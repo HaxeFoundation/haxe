@@ -4,6 +4,8 @@ import haxe.io.Bytes;
 import haxe.exceptions.NotImplementedException;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.NativeArray;
+import java.NativeString;
 import java.io.File as JFile;
 
 private typedef NativeFilePath = Path;
@@ -24,27 +26,23 @@ private typedef NativeFilePath = Path;
 	}
 
 	@:from public static inline function fromString(path:String):FilePath {
-		return new FilePath(Paths.get(path));
+		return new FilePath(Paths.get(path, new NativeArray(0)));
 	}
 
 	@:from public static function fromBytes(path:Bytes):FilePath {
-		return new FilePath(Paths.get(path.getString(0, path.length, RawNative)));
+		return new FilePath(Paths.get(path.getString(0, path.length, RawNative), new NativeArray(0)));
 	}
 
-	@:to public function toBytes():Bytes {
+	@:to public inline function toBytes():Bytes {
 		return Bytes.ofString(this.toString());
 	}
 
-	@:to public function toString():String {
+	@:to public inline function toString():String {
 		return this.toString();
 	}
 
 	@:op(A == B) function equals(p:FilePath):Bool {
 		return this.equals(p.javaPath());
-	}
-
-	public function toReadableString(patch:Int = '?'.code):String {
-		throw new NotImplementedException();
 	}
 
 	public function absolute():FilePath {

@@ -5,9 +5,6 @@ import haxe.EntryPoint;
 import haxe.NoData;
 import haxe.IJobExecutor;
 
-/**
-	File system operations.
-**/
 @:coreApi
 class FileSystem {
 	static public function create(executor:IJobExecutor = null):IFileSystem {
@@ -94,6 +91,9 @@ class FileSystem {
 
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setTimes(path, accessTime, modificationTime, callback);
+
+	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void
+		new FileSystemImpl(Native.defaultExecutor).realPath(path, callback);
 }
 
 
@@ -214,6 +214,10 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public inline function realPath(path:FilePath, callback:Callback<FilePath>):Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 }
