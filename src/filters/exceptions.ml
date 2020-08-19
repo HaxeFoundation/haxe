@@ -196,7 +196,7 @@ class catch ctx catch_local catch_pos =
 		method get_haxe_exception =
 			match hx_exception_local with
 			| None ->
-				let v = gen_local ctx.typer ctx.haxe_exception_type null_pos in
+				let v = alloc_var VGenerated "`" ctx.haxe_exception_type null_pos in
 				let e = mk (TLocal v) v.v_type null_pos in
 				(* hx_exception_var <- Some v; *)
 				hx_exception_local <- Some e;
@@ -206,7 +206,7 @@ class catch ctx catch_local catch_pos =
 		method unwrap =
 			match unwrapped_local with
 			| None ->
-				let v = gen_local ctx.typer t_dynamic null_pos in
+				let v = alloc_var VGenerated "`" t_dynamic null_pos in
 				let e = mk (TLocal v) v.v_type null_pos in
 				(* unwrapped_var <- Some v; *)
 				unwrapped_local <- Some e;
@@ -274,7 +274,7 @@ let catch_native ctx catches t p =
 			current :: (transform rest)
 		(* Everything else falls into `if(Std.is(e, ExceptionType)`-fest *)
 		| rest ->
-			let catch_var = gen_local ctx.typer ctx.wildcard_catch_type null_pos in
+			let catch_var = alloc_var VGenerated "`" ctx.wildcard_catch_type null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
 				let catch = new catch ctx catch_local p in

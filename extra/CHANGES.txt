@@ -3,6 +3,7 @@
 	General improvements:
 
 	all : allowed `Any` as type parameter in `catch(e:SomeType<Any>)` (#9641)
+	all : improved compilation speed for `try..catch` expressions (#9848)
 
 	Bugfixes:
 
