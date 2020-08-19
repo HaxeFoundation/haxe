@@ -233,7 +233,7 @@ class StringTools {
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
 		#elseif (js && js_es >= 6)
-		return untyped s.startWith(start);
+		return untyped s.startsWith(start);
 		#else
 		return (s.length >= start.length && s.lastIndexOf(start, 0) == 0);
 		#end
