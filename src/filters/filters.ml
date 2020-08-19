@@ -739,9 +739,7 @@ let run com tctx main =
 		"VarLazifier",VarLazifier.apply com;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
-	(* let t = filter_timer detail_times ["expr 0"] in *)
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
-	(* t(); *)
 	let filters = [
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
 		"check_local_vars_init",check_local_vars_init tctx.com;
