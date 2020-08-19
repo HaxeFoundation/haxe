@@ -420,8 +420,6 @@ class StringTools {
 			return s.split(sub).join(by);
 		else
 			return untyped s.Replace(sub, by);
-		#elseif (js && js_es >= 6)
-		return untyped s.replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end
