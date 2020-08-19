@@ -661,7 +661,7 @@ let is_cached t =
 	m.m_processed <> !pp_counter
 
 let apply_filters_once ctx filters t =
-	if not (is_cached t) then run_expression_filters ctx filters t
+	if not (is_cached t) then run_expression_filters None ctx filters t
 
 let next_compilation() =
 	incr pp_counter
@@ -681,6 +681,10 @@ let iter_expressions fl mt =
 
 let filter_timer detailed s =
 	Timer.timer (if detailed then "filters" :: s else ["filters"])
+
+let timer_label detailed s =
+	if detailed then Some ("filters" :: s)
+	else None
 
 module ForRemap = struct
 	let apply ctx e =
@@ -731,22 +735,22 @@ let run com tctx main =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		ForRemap.apply tctx;
-		VarLazifier.apply com;
-		AbstractCast.handle_abstract_casts tctx;
+		"ForRemap.apply",ForRemap.apply tctx;
+		"VarLazifier.apply",VarLazifier.apply com;
+		"AbstractCast.handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
-	let t = filter_timer detail_times ["expr 0"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	(* let t = filter_timer detail_times ["expr 0"] in *)
+	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
+	(* t(); *)
 	let filters = [
-		fix_return_dynamic_from_void_function tctx true;
-		check_local_vars_init tctx.com;
-		check_abstract_as_value;
-		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
-		Optimizer.reduce_expression tctx;
-		InlineConstructors.inline_constructors tctx;
-		Exceptions.filter tctx;
-		CapturedVars.captured_vars com;
+		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
+		"check_local_vars_init",check_local_vars_init tctx.com;
+		"check_abstract_as_value",check_abstract_as_value;
+		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
+		"reduce_expression",Optimizer.reduce_expression tctx;
+		"inline_constructors",InlineConstructors.inline_constructors tctx;
+		"Exceptions_filter",Exceptions.filter tctx;
+		"captured_vars",CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
@@ -758,9 +762,9 @@ let run com tctx main =
 			filters
 		| _ -> filters
 	in
-	let t = filter_timer detail_times ["expr 1"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	(* let t = filter_timer detail_times ["expr 1"] in *)
+	List.iter (run_expression_filters (timer_label detail_times ["expr 1"]) tctx filters) new_types;
+	(* t(); *)
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -784,16 +788,16 @@ let run com tctx main =
 	com.stage <- CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
-		Optimizer.sanitize com;
-		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		(match com.platform with
+		"sanitize",Optimizer.sanitize com;
+		"add_final_return",if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+		"RenameVars",(match com.platform with
 		| Eval -> (fun e -> e)
 		| _ -> RenameVars.run tctx locals);
-		mark_switch_break_loops;
+		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
-	let t = filter_timer detail_times ["expr 2"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	(* let t = filter_timer detail_times ["expr 2"] in *)
+	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
+	(* t(); *)
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
@@ -830,7 +834,13 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
-	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
+	List.iter
+		(run_expression_filters
+			(timer_label detail_times [])
+			tctx
+			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
+		)
+		new_types;
 	let type_filters = [
 		Exceptions.patch_constructors;
 		check_private_path;
