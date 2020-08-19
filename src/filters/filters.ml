@@ -762,9 +762,7 @@ let run com tctx main =
 			filters
 		| _ -> filters
 	in
-	(* let t = filter_timer detail_times ["expr 1"] in *)
 	List.iter (run_expression_filters (timer_label detail_times ["expr 1"]) tctx filters) new_types;
-	(* t(); *)
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -795,9 +793,7 @@ let run com tctx main =
 		| _ -> RenameVars.run tctx locals);
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
-	(* let t = filter_timer detail_times ["expr 2"] in *)
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
-	(* t(); *)
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
