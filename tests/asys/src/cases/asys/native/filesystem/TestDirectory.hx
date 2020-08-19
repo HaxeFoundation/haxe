@@ -4,6 +4,7 @@ import asys.native.filesystem.FsException;
 import asys.native.filesystem.FileSystem;
 import asys.native.filesystem.Directory;
 
+@:depends(cases.asys.native.filesystem.TestFileSystem)
 class TestDirectory extends FsTest {
 	function test(async:Async) {
 		var contents = [];
