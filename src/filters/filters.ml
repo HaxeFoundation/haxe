@@ -735,9 +735,9 @@ let run com tctx main =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		"ForRemap.apply",ForRemap.apply tctx;
-		"VarLazifier.apply",VarLazifier.apply com;
-		"AbstractCast.handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
+		"ForRemap",ForRemap.apply tctx;
+		"VarLazifier",VarLazifier.apply com;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
 	(* let t = filter_timer detail_times ["expr 0"] in *)
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;

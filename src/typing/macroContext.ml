@@ -415,10 +415,10 @@ and flush_macro_context mint ctx =
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
-		"VarLazifier.apply",VarLazifier.apply mctx.com;
-		"AbstractCast.handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
-		"Exceptions.filter",Exceptions.filter mctx;
-		"CapturedVars.captured_vars",CapturedVars.captured_vars mctx.com;
+		"VarLazifier",VarLazifier.apply mctx.com;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
+		"Exceptions",Exceptions.filter mctx;
+		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
 	(*
 		some filters here might cause side effects that would break compilation server.
