@@ -29,14 +29,6 @@ private typedef NativeFilePath = Path;
 		return new FilePath(Paths.get(path, new NativeArray(0)));
 	}
 
-	@:from public static function fromBytes(path:Bytes):FilePath {
-		return new FilePath(Paths.get(path.getString(0, path.length, RawNative), new NativeArray(0)));
-	}
-
-	@:to public inline function toBytes():Bytes {
-		return Bytes.ofString(this.toString());
-	}
-
 	@:to public inline function toString():String {
 		return this.toString();
 	}
@@ -46,6 +38,35 @@ private typedef NativeFilePath = Path;
 	}
 
 	public function absolute():FilePath {
-		return new FilePath(this.toAbsolutePath());
+		var fullPath:NativeString = cast this.toAbsolutePath().toString();
+
+		var parts:NativeArray<String> = if(SEPARATOR == '\\') {
+			fullPath.split('\\|/');
+		} else {
+			fullPath.split('/');
+		}
+
+		var i = 1;
+		var result = new NativeArray(parts.length);
+		result[0] = parts[0];
+		var resultSize = 1;
+		while(i < parts.length) {
+			switch parts[i] {
+				case '.' | '':
+				case '..':
+					if(resultSize > 1) --resultSize;
+				case part:
+					result[resultSize++] = part;
+			}
+			i++;
+		}
+
+		var builder = new java.lang.StringBuilder();
+		for(i in 0...resultSize) {
+			if(i != 0)
+				builder.append(SEPARATOR);
+			builder.append(result[i]);
+		}
+		return new FilePath(Paths.get(builder.toString(), new NativeArray(0)));
 	}
 }
