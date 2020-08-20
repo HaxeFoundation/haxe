@@ -210,7 +210,7 @@ class StringTools {
 	**/
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
-		return untyped s.includes(value);
+		return (cast s).includes(value);
 		#else 
 		return s.indexOf(value) != -1;
 		#end
@@ -227,7 +227,7 @@ class StringTools {
 		#if java
 		return (cast s : java.NativeString).startsWith(start);
 		#elseif cs
-		return untyped s.StartsWith(start);
+		return (cast s).StartsWith(start);
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
@@ -258,7 +258,7 @@ class StringTools {
 		#elseif python
 		return python.NativeStringTools.endswith(s, end);
 		#elseif (js && js_es >= 6)
-		return untyped s.endsWith(end);
+		return (cast s).endsWith(end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
