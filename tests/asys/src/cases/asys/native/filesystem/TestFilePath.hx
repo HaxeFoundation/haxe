@@ -5,21 +5,6 @@ import haxe.io.Bytes;
 import asys.native.filesystem.FilePath;
 
 class TestFilePath extends FsTest {
-	/**
-	 * Allocates 255 bytes with values from 1 to 255.
-	 */
-	static function allBytes():Bytes {
-		var b = Bytes.alloc(255);
-		for (i in 0...b.length)
-			b.set(i, i + 1);
-		return b;
-	}
-
-	function testFromBytes_toBytes() {
-		var b = allBytes();
-		var p:FilePath = b;
-		equals(0, b.compare(p));
-	}
 
 	function testAbsolute() {
 		inline function check(cases:Map<String,String>) {

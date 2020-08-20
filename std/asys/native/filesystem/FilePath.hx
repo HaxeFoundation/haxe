@@ -28,20 +28,6 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
-		Create file path from bytes.
-	**/
-	@:from public static function fromBytes(path:Bytes):FilePath {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Encode file path to bytes.
-	**/
-	@:to public function toBytes():Bytes {
-		throw new NotImplementedException();
-	}
-
-	/**
 		Get string representation of this path.
 	**/
 	@:to public function toString():String {
@@ -55,6 +41,7 @@ private typedef NativeFilePath = Dynamic;
 	/**
 		Get an absolute path of this path.
 		For example translates `./path` to `/current/dir/path`.
+		Resolves `.` and `..` and removes excessive slashes.
 		Does not resolve symbolic links.
 		It does not matter if the path does not exist.
 	**/

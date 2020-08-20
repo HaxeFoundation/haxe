@@ -29,14 +29,6 @@ private typedef NativeFilePath = php.NativeString;
 		return new FilePath(path);
 	}
 
-	@:from public static inline function fromBytes(path:Bytes):FilePath {
-		return new FilePath(path.toString());
-	}
-
-	@:to public inline function toBytes():Bytes {
-		return Bytes.ofString(this);
-	}
-
 	@:to public function toString():String {
 		return this;
 	}
