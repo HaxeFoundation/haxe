@@ -1334,13 +1334,17 @@ let decode_cfield v =
 	cf
 
 let decode_efield v =
-	let name = decode_string (field v "name")
-	and t = decode_type (field v "type") in
-	match t with
-	| TEnum (enm,_) ->
-		(try PMap.find name enm.e_constrs
-		with Not_found -> raise Invalid_expr)
-	| _ ->
+	let rec get_enum t =
+		match follow t with
+		| TEnum (enm,_) -> enm
+		| TFun (_,t) -> get_enum t
+		| _ -> raise Not_found
+	in
+	let name = decode_string (field v "name") in
+	try
+		let enm = get_enum (decode_type (field v "type")) in
+		PMap.find name enm.e_constrs
+	with Not_found ->
 		raise Invalid_expr
 
 let decode_field_access v =
@@ -1771,7 +1775,9 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
-			encode_string_map encode_string (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
+			let pmap_resources = Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty in
+			let encode_string_to_bytes s = encode_bytes (Bytes.of_string s) in
+			encode_string_map encode_string_to_bytes pmap_resources
 		);
 		"get_local_module", vfun0 (fun() ->
 			let m = (get_api()).current_module() in

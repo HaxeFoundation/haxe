@@ -122,15 +122,18 @@ class typed_functions = object(self)
 		end;
 		meth
 
-	method make_forward_method
+	method make_forward_method_jsig
 		(jc : JvmClass.builder)
 		(jm : JvmMethod.builder)
-		(meth_from : method_signature)
-		(meth_to : method_signature)
+		(name : string)
+		(args_from : jsignature list)
+		(ret_from : jsignature option)
+		(args_to : jsignature list)
+		(ret_to : jsignature option)
 	=
 		let args = List.mapi (fun i jsig ->
 			jm#add_local (Printf.sprintf "arg%i" i) jsig VarArgument
-		) meth_from.dargs in
+		) args_from in
 		jm#finalize_arguments;
 		jm#load_this;
 		let rec loop loads jsigs = match loads,jsigs with
@@ -146,9 +149,9 @@ class typed_functions = object(self)
 			| _,[] ->
 				Globals.die "" __LOC__
 		in
-		loop args meth_to.dargs;
-		jm#invokevirtual jc#get_this_path meth_to.name (method_sig meth_to.dargs meth_to.dret);
-		begin match meth_from.dret,meth_to.dret with
+		loop args args_to;
+		jm#invokevirtual jc#get_this_path name (method_sig args_to ret_to);
+		begin match ret_from,ret_to with
 		| None,None ->
 			()
 		| Some jsig,Some _ ->
@@ -159,6 +162,14 @@ class typed_functions = object(self)
 			jm#load_default_value jsig;
 		end;
 		jm#return;
+
+	method make_forward_method
+		(jc : JvmClass.builder)
+		(jm : JvmMethod.builder)
+		(meth_from : method_signature)
+		(meth_to : method_signature)
+	=
+		self#make_forward_method_jsig jc jm meth_to.name meth_from.dargs meth_from.dret meth_to.dargs meth_to.dret
 
 	method generate_invoke_dynamic (jc : JvmClass.builder) =
 		let array_sig = TArray(object_sig,None) in

@@ -106,6 +106,10 @@ let json_of_diagnostics dctx =
 					]
 				| FieldAccess ->
 					"FieldAccess",jobject []
+				| FinalFields cfl ->
+					"FinalFields",jobject [
+						"fields",jarray (List.map (fun cf -> generate_class_field jctx (scope cf) cf) cfl)
+					]
 			in
 			let current_fields = ref [] in
 			let map_field (cf,t,ct) =

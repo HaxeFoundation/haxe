@@ -186,6 +186,54 @@ let set_needs_exception_stack v =
 	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
 		v.v_meta <- (Meta.NeedsExceptionStack,[],null_pos) :: v.v_meta
 
+class catch ctx catch_local catch_pos =
+	object (self)
+		(* val mutable hx_exception_var = None *)
+		val mutable hx_exception_local = None
+		(* val mutable unwrapped_var = None *)
+		val mutable unwrapped_local = None
+
+		method get_haxe_exception =
+			match hx_exception_local with
+			| None ->
+				let v = alloc_var VGenerated "`" ctx.haxe_exception_type null_pos in
+				let e = mk (TLocal v) v.v_type null_pos in
+				(* hx_exception_var <- Some v; *)
+				hx_exception_local <- Some e;
+				e
+			| Some e -> e
+
+		method unwrap =
+			match unwrapped_local with
+			| None ->
+				let v = alloc_var VGenerated "`" t_dynamic null_pos in
+				let e = mk (TLocal v) v.v_type null_pos in
+				(* unwrapped_var <- Some v; *)
+				unwrapped_local <- Some e;
+				e
+			| Some e -> e
+
+		method declare_haxe_exception =
+			match hx_exception_local with
+			| Some { eexpr = TLocal v } ->
+				let caught = haxe_exception_static_call ctx "caught" [catch_local] null_pos in
+				mk (TVar (v, Some caught)) ctx.basic.tvoid null_pos
+			| None ->
+				mk (TBlock[]) ctx.basic.tvoid null_pos;
+			| _ ->
+				die ~p:catch_pos "Unexpected expression generated for catch variable" __LOC__
+
+		method declare_unwrap =
+			match unwrapped_local with
+			| Some { eexpr = TLocal v } ->
+				let unwrap = haxe_exception_instance_call ctx self#get_haxe_exception "unwrap" [] null_pos in
+				mk (TVar (v, Some unwrap)) ctx.basic.tvoid null_pos
+			| None ->
+				mk (TBlock[]) ctx.basic.tvoid null_pos;
+			| _ ->
+				die ~p:catch_pos "Unexpected expression generated for catch unwrap variable" __LOC__
+	end
+
 (**
 	Transform user-written `catches` to a set of catches, which would not require
 	special handling in the target generator.
@@ -226,24 +274,10 @@ let catch_native ctx catches t p =
 			current :: (transform rest)
 		(* Everything else falls into `if(Std.is(e, ExceptionType)`-fest *)
 		| rest ->
-			let catch_var = gen_local ctx.typer ctx.wildcard_catch_type null_pos in
+			let catch_var = alloc_var VGenerated "`" ctx.wildcard_catch_type null_pos in
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
-				let haxe_exception_var = gen_local ctx.typer ctx.haxe_exception_type null_pos in
-				let haxe_exception_local = mk (TLocal haxe_exception_var) haxe_exception_var.v_type null_pos in
-				let unwrapped_var = gen_local ctx.typer t_dynamic null_pos in
-				let unwrapped_local = mk (TLocal unwrapped_var) unwrapped_var.v_type null_pos in
-				let needs_haxe_exception = ref false
-				and needs_unwrap = ref false in
-				let get_haxe_exception() =
-					needs_haxe_exception := true;
-					haxe_exception_local
-				and unwrap() =
-					needs_haxe_exception := true;
-					needs_unwrap := true;
-					unwrapped_local;
-				in
-				let catch_var_used = ref false in
+				let catch = new catch ctx catch_local p in
 				let rec transform = function
 					| (v, body) :: rest ->
 						let current_t = Abstract.follow_with_abstracts v.v_type in
@@ -255,14 +289,14 @@ let catch_native ctx catches t p =
 								if fast_eq ctx.haxe_exception_type current_t then
 									mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
 								else begin
-									std_is ctx (get_haxe_exception()) v.v_type v.v_pos
+									std_is ctx catch#get_haxe_exception v.v_type v.v_pos
 								end
 							in
 							let body =
 								if var_used then
 									mk (TBlock [
 										(* var v:ExceptionType = cast haxe_exception_local; *)
-										mk (TVar (v, Some (mk_cast (get_haxe_exception()) v.v_type null_pos))) ctx.basic.tvoid null_pos;
+										mk (TVar (v, Some (mk_cast catch#get_haxe_exception v.v_type null_pos))) ctx.basic.tvoid null_pos;
 										body
 									]) body.etype body.epos
 								else
@@ -279,7 +313,7 @@ let catch_native ctx catches t p =
 									mk (TBlock [
 										(* var v:Dynamic = haxe_exception_local.unwrap(); *)
 										if var_used then
-											mk (TVar (v, Some (unwrap()))) ctx.basic.tvoid null_pos
+											mk (TVar (v, Some catch#unwrap)) ctx.basic.tvoid null_pos
 										else
 											mk (TBlock[]) ctx.basic.tvoid null_pos;
 										body
@@ -309,15 +343,14 @@ let catch_native ctx catches t p =
 						else begin
 							set_needs_exception_stack catch_var;
 							let condition =
-								catch_var_used := true;
 								(* Std.isOfType(haxe_exception_local.unwrap(), ExceptionType) *)
-								std_is ctx (unwrap()) v.v_type v.v_pos
+								std_is ctx catch#unwrap v.v_type v.v_pos
 							in
 							let body =
 								mk (TBlock [
 									(* var v:ExceptionType = cast haxe_exception_local.unwrap() *)
 									if var_used then
-										mk (TVar (v, Some (mk_cast (unwrap()) v.v_type null_pos))) ctx.basic.tvoid null_pos
+										mk (TVar (v, Some (mk_cast catch#unwrap v.v_type null_pos))) ctx.basic.tvoid null_pos
 									else
 										mk (TBlock[]) ctx.basic.tvoid null_pos;
 									body
@@ -338,17 +371,9 @@ let catch_native ctx catches t p =
 				(* haxe.Exception.caught(catch_var) *)
 				let exprs = [
 					(* var haxe_exception_local = haxe.Exception.caught(catch_var); *)
-					if !needs_haxe_exception then
-						let caught = haxe_exception_static_call ctx "caught" [catch_local] null_pos in
-						mk (TVar (haxe_exception_var, Some caught)) ctx.basic.tvoid null_pos
-					else
-						mk (TBlock[]) ctx.basic.tvoid null_pos;
+					catch#declare_haxe_exception;
 					(* var unwrapped_local = haxe_exception_local.unwrap(); *)
-					if !needs_unwrap then
-						let unwrap = haxe_exception_instance_call ctx haxe_exception_local "unwrap" [] null_pos in
-						mk (TVar (unwrapped_var, Some unwrap)) ctx.basic.tvoid null_pos
-					else
-						mk (TBlock[]) ctx.basic.tvoid null_pos;
+					catch#declare_unwrap;
 					transformed_catches
 				] in
 				mk (TBlock exprs) t p

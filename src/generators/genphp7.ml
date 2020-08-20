@@ -108,6 +108,11 @@ let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
 let diff_lists list1 list2 = List.filter (fun x -> not (List.mem x list2)) list1
 
 (**
+	@return List of items in `list1` which `list2` does contain too
+*)
+let intersect_lists list1 list2 = List.filter (fun x -> List.mem x list2) list1
+
+(**
 	Type path of `php.Boot`
 *)
 let boot_type_path = (["php"], "Boot")
@@ -356,10 +361,8 @@ let need_parenthesis_for_binop current parent =
 	Check if specified expression may require dereferencing if used as "temporary expression"
 *)
 let needs_dereferencing for_assignment expr =
-	let rec is_create target_expr =
-		match (reveal_expr target_expr).eexpr with
-			| TParenthesis e -> is_create e
-			| TCast (e, _) -> is_create e
+	let is_create target_expr =
+		match (reveal_expr_with_parenthesis target_expr).eexpr with
 			| TNew _ -> for_assignment
 			| TArrayDecl _ -> for_assignment
 			| TObjectDecl _ -> for_assignment
@@ -404,13 +407,7 @@ let get_function_signature (field:tclass_field) : (string * bool * Type.t) list 
 let is_sure_scalar (target:Type.t) =
 	match follow target with
 		| TInst ({ cl_path = ([], "String") }, _) -> true
-		| TAbstract (abstr, _) ->
-			(match abstr.a_path with
-				| ([],"Int") -> true
-				| ([],"Float") -> true
-				| ([],"Bool") -> true
-				| _ -> false
-			)
+		| TAbstract ({ a_path = ([], ("Int" | "Float" | "Bool"))}, _) -> true
 		| _ -> false
 
 (**
@@ -485,14 +482,6 @@ let rec sure_extends_extern (target:Type.t) =
 		| _ -> false
 
 (**
-	@return `opt` value or `default` if `opt` is None
-*)
-let get_option_value (opt:'a option) default =
-	match opt with
-		| None -> default
-		| Some value -> value
-
-(**
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
 	@return String representation of created path (E.g. "/some/path/first_dir_to_create/nested_level1/nested_level2")
 *)
@@ -537,12 +526,12 @@ let get_full_type_name ?(escape=false) ?(omit_first_slash=false) (type_path:path
 (**
 	@return Short type name. E.g. returns "Test" for (["example"], "Test")
 *)
-let get_type_name (type_path:path) = match type_path with (_, type_name) -> type_name
+let get_type_name (type_path:path) = snd type_path
 
 (**
 	@return E.g. returns ["example"] for (["example"], "Test")
 *)
-let get_module_path (type_path:path) = match type_path with (module_path, _) -> module_path
+let get_module_path (type_path:path) = fst type_path
 
 (**
 	@return PHP visibility keyword.
@@ -658,11 +647,7 @@ let is_binop expr = match expr.eexpr with TBinop _ -> true | _ -> false
 *)
 let is_binop_assign expr =
 	match expr.eexpr with
-		| TBinop (operation, _, _) ->
-			(match operation with
-				| OpAssign | OpAssignOp _ -> true
-				| _ -> false
-			)
+		| TBinop ((OpAssign | OpAssignOp _), _, _) -> true
 		| _ -> false
 
 (**
@@ -1006,64 +991,40 @@ class abstract_wrapper (abstr) =
 	end
 
 (**
+	type_wrapper from table
+*)
+let get_stored_wrapper tbl wrap key : type_wrapper =
+	try
+		let wrapper = Hashtbl.find tbl key in
+		wrapper
+	with Not_found ->
+		let wrapper = wrap key in
+		Hashtbl.add tbl key wrapper;
+		wrapper
+
+(**
 	type_wrapper for classes
 *)
 let classes = Hashtbl.create 1000
-let get_class_wrapper cls  : type_wrapper =
-	try
-		let wrapper = Hashtbl.find classes cls in
-		wrapper
-	with
-		| Not_found ->
-			let wrapper = new class_wrapper cls in
-			Hashtbl.add classes cls wrapper;
-			wrapper
-		| e -> raise e
+let get_class_wrapper = get_stored_wrapper classes (fun cls -> new class_wrapper cls)
 
 (**
 	type_wrapper for enums
 *)
 let enums = Hashtbl.create 200
-let get_enum_wrapper enm : type_wrapper=
-	try
-		let wrapper = Hashtbl.find enums enm in
-		wrapper
-	with
-		| Not_found ->
-			let wrapper = new enum_wrapper enm in
-			Hashtbl.add enums enm wrapper;
-			wrapper
-		| e -> raise e
+let get_enum_wrapper = get_stored_wrapper enums (fun enm -> new enum_wrapper enm)
 
 (**
 	type_wrapper for typedefs
 *)
 let typedefs = Hashtbl.create 200
-let get_typedef_wrapper typedef : type_wrapper =
-	try
-		let wrapper = Hashtbl.find typedefs typedef in
-		wrapper
-	with
-		| Not_found ->
-			let wrapper = new typedef_wrapper typedef in
-			Hashtbl.add typedefs typedef wrapper;
-			wrapper
-		| e -> raise e
+let get_typedef_wrapper = get_stored_wrapper typedefs (fun typedef -> new typedef_wrapper typedef)
 
 (**
 	type_wrapper for abstracts
 *)
 let abstracts = Hashtbl.create 200
-let get_abstract_wrapper abstr : type_wrapper =
-	try
-		let wrapper = Hashtbl.find abstracts abstr in
-		wrapper
-	with
-		| Not_found ->
-			let wrapper = new abstract_wrapper abstr in
-			Hashtbl.add abstracts abstr wrapper;
-			wrapper
-		| e -> raise e
+let get_abstract_wrapper = get_stored_wrapper abstracts (fun abstr -> new abstract_wrapper abstr)
 
 (**
 	Returns wrapper for module_type.
@@ -1103,19 +1064,6 @@ let type_name_used_in_namespace ctx type_path as_name namespace =
 	in
 	List.mem as_name types
 	&& (namespace, as_name) <> type_path
-
-(**
-	Simple list intersection implementation.
-	@return A list of values existing in each of source lists.
-*)
-let rec list_intersect list1 list2 =
-	match list2 with
-		| [] -> []
-		| item :: rest ->
-			if List.mem item list1 then
-				item :: (list_intersect list1 rest)
-			else
-				list_intersect list1 rest
 
 (**
 	Class to simplify collecting lists of declared and used local vars.
@@ -1161,7 +1109,7 @@ class local_vars =
 							used_locals <- rest_used;
 							declared_locals <- rest_declared;
 							List.iter self#used higher_vars;
-							let captured_vars = list_intersect declared_vars (hashtbl_keys captured_locals) in
+							let captured_vars = intersect_lists declared_vars (hashtbl_keys captured_locals) in
 							List.iter (fun name -> Hashtbl.remove captured_locals name) declared_vars;
 							(higher_vars, declared_vars, captured_vars)
 		(**
@@ -1293,7 +1241,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			else if get_type_name type_path = "" then
 				match get_module_path type_path with
 				| [] -> "\\"
-				| _ -> "\\" ^ (String.concat "\\" (get_real_path (fst type_path))) ^ "\\"
+				| module_path -> "\\" ^ (String.concat "\\" (get_real_path module_path)) ^ "\\"
 			else begin
 				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in

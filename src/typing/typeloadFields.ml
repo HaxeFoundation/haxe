@@ -53,7 +53,7 @@ type class_init_ctx = {
 	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
-	mutable uninitialized_final : pos option;
+	mutable uninitialized_final : tclass_field list;
 }
 
 type field_kind =
@@ -538,7 +538,7 @@ let create_class_context ctx c context_init p =
 		abstract = abstract;
 		context_init = context_init;
 		force_constructor = false;
-		uninitialized_final = None;
+		uninitialized_final = [];
 		delayed_expr = [];
 		has_display_field = false;
 	} in
@@ -943,10 +943,13 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if fctx.is_abstract_member && not is_abstract_enum_field then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-	if fctx.is_final && not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))  && eo = None then begin
-		if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
-		else cctx.uninitialized_final <- Some f.cff_pos;
-	end;
+	let missing_initialization =
+		fctx.is_final
+		&& not (fctx.is_extern || (has_class_flag c CExtern) || (has_class_flag c CInterface))
+		&& eo = None
+	in
+	if missing_initialization && fctx.is_static && fctx.is_final then
+		error (fst f.cff_name ^ ": Static final variable must be initialized") p;
 	let t = (match t with
 		| None when eo = None ->
 			error ("Variable requires type-hint or initialization") (pos f.cff_name);
@@ -968,7 +971,11 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf_meta = f.cff_meta;
 		cf_kind = Var kind;
 	} in
-	if fctx.is_final then add_class_field_flag cf CfFinal;
+	if fctx.is_final then begin
+		if missing_initialization && not fctx.is_static then
+			cctx.uninitialized_final <- cf :: cctx.uninitialized_final;
+		add_class_field_flag cf CfFinal;
+	end;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract_member then begin
 		cf.cf_meta <- ((Meta.Custom ":impl"),[],null_pos) :: cf.cf_meta;
@@ -1676,9 +1683,20 @@ let init_class ctx c p context_init herits fields =
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
-		| Some pf when c.cl_constructor = None ->
-			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
-			display_error ctx "Example of an uninitialized final var" pf;
+		| cf :: cfl when c.cl_constructor = None ->
+			if Diagnostics.is_diagnostics_run ctx.com cf.cf_name_pos then begin
+				let diag = {
+					mf_pos = c.cl_name_pos;
+					mf_on = TClassDecl c;
+					mf_fields = [];
+					mf_cause = FinalFields (cf :: cfl);
+				} in
+				let display = ctx.com.display_information in
+				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+			end else begin
+				display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
+				display_error ctx "Example of an uninitialized final var" cf.cf_name_pos;
+			end
 		| _ ->
 			()
 	end;

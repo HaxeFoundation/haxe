@@ -48,9 +48,19 @@ let is_overridden cls field =
 	in
 	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
 
-let run_expression_filters ctx filters t =
+let run_expression_filters time_details ctx filters t =
 	let run e =
-		List.fold_left (fun e f -> f e) e filters
+		List.fold_left
+			(fun e (filter_name,f) ->
+				match time_details with
+				| Some timer_label ->
+					let t = Timer.timer (timer_label @ [filter_name]) in
+					let e = f e in
+					t();
+					e
+				| None -> f e
+			)
+			e filters
 	in
 	match t with
 	| TClassDecl c when is_removable_class c -> ()
