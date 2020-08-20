@@ -227,7 +227,7 @@ class StringTools {
 		#if java
 		return (cast s : java.NativeString).startsWith(start);
 		#elseif cs
-		return s.StartsWith(start);
+		return untyped s.StartsWith(start);
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
