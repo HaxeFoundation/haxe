@@ -1575,4 +1575,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.http-response-code.php
 	**/
 	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.version-compare.php
+	**/
+	static function version_compare(version1:String, version2:String, ?comparisonOperator:String):EitherType<Int, Bool>;
 }
