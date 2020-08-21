@@ -1094,6 +1094,11 @@ extern class Global {
 	static function mb_check_encoding(str:String = null, ?encoding:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-language.php
+	**/
+	static function mb_language(?language:String):EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-scrub.php
 	**/
 	static function mb_scrub(str:String, ?encoding:String):String;
