@@ -111,6 +111,7 @@ class TestFileSystem extends FsTest {
 		);
 	}
 
+	@:depends(testLink,testIsLink)
 	function testCheck(async:Async) {
 		asyncAll(async,
 			FileSystem.check('test-data/sub', Exists, (e, r) -> {
@@ -132,6 +133,15 @@ class TestFileSystem extends FsTest {
 			FileSystem.check('non-existent', Exists, (e, r) -> {
 				if(noException(e))
 					isFalse(r);
+			}),
+			FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
+				FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
+					if(noException(e) && isTrue(r))
+						FileSystem.check('test-data/temp/faulty-link', Exists, (e, r) -> {
+							if(noException(e))
+								isFalse(r);
+						});
+				});
 			})
 		);
 		if(!isWindows) {

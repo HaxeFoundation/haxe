@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.lang.Runnable;
 import java.lang.Throwable;
 
+@:native("haxe.java.DefaultJobExecutor")
 class DefaultJobExecutor implements IJobExecutor {
 	final service:HxThreadPoolExecutor;
 	var active = true;
@@ -42,6 +43,7 @@ class DefaultJobExecutor implements IJobExecutor {
 	}
 }
 
+@:native("haxe.java._DefaultJobExecutor.Task")
 private class Task<R> implements Runnable {
 	public final job:()->R;
 	public final callback:Callback<Exception,R>;
@@ -70,6 +72,7 @@ private class Task<R> implements Runnable {
 	}
 }
 
+@:native("haxe.java._DefaultJobExecutor.HxThreadPoolExecutor")
 private class HxThreadPoolExecutor extends ThreadPoolExecutor {
 	override overload function afterExecute(r:Runnable, t:Throwable) {
 		super.afterExecute(r, t);

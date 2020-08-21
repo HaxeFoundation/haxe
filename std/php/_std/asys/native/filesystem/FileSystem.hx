@@ -1,7 +1,6 @@
 package asys.native.filesystem;
 
 import haxe.io.Bytes;
-import haxe.EntryPoint;
 import haxe.NoData;
 import haxe.IJobExecutor;
 import php.Global.*;

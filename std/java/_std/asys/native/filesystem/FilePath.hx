@@ -16,6 +16,7 @@ private typedef NativeFilePath = Path;
 		return JFile.separator;
 	}
 
+	@:allow(asys.native.filesystem)
 	inline function new(path:Path) {
 		this = path;
 	}
