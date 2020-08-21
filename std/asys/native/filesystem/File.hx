@@ -9,7 +9,7 @@ import asys.native.IReadable;
 
 @:coreApi
 class File {
-	/** The path of this file */
+	/** The path of this file as it was at the moment of opening the file **/
 	public final path:FilePath;
 
 	function new():Void {

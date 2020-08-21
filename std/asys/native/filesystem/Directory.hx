@@ -8,7 +8,7 @@ import haxe.exceptions.NotImplementedException;
 **/
 @:coreApi
 class Directory {
-	/** The path of this directory */
+	/** The path of this directory as it was at the moment of opening the directory */
 	public final path:FilePath;
 
 	/**
