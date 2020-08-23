@@ -932,6 +932,21 @@ extern class Global {
 	static function header(string:String, replace:Bool = true, ?http_response_code:Int):Void;
 
 	/**
+		@see http://php.net/manual/en/function.header-remove.php
+	**/
+	static function header_remove(?name:String):Void;
+
+	/**
+		@see http://php.net/manual/en/function.headers-list.php
+	**/
+	static function headers_list():Array<String>;
+
+	/**
+		@see http://php.net/manual/en/function.headers-sent.php
+	**/
+	static function headers_sent(?file:String, ?line:Int):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.setcookie.php
 	**/
 	@:overload(function(name:String, value:String = "", ?options:NativeStructArray<{?expires:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
