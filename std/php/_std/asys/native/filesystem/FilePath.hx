@@ -17,7 +17,7 @@ private typedef NativeFilePath = php.NativeString;
 
 	@:allow(asys.native.filesystem)
 	inline function new(s:String) {
-		this = s;
+		this = rtrim(s, '\\/');
 	}
 
 	@:allow(asys.native.filesystem)
