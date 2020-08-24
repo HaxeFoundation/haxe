@@ -1096,7 +1096,8 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mb-language.php
 	**/
-	static function mb_language(?language:String):EitherType<String,Bool>;
+	@:overload(function(language:String):Bool {})
+	static function mb_language():String;
 
 	/**
 		@see http://php.net/manual/en/function.mb-scrub.php
