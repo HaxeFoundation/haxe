@@ -1344,6 +1344,11 @@ extern class Global {
 	static function getallheaders():NativeAssocArray<Dynamic>;
 
 	/**
+		@see http://php.net/manual/en/function.ucfirst.php
+	**/
+	static function ucfirst(string:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.ucwords.php
 	**/
 	static function ucwords(str:String, ?delimiters:String):String;
