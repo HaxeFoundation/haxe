@@ -65,6 +65,7 @@ extern class PDO {
 	@:phpClassConst static final ATTR_ORACLE_NULLS:Int;
 	@:phpClassConst static final ATTR_PERSISTENT:Int;
 	@:phpClassConst static final ATTR_STATEMENT_CLASS:Int;
+	@:phpClassConst static final ATTR_DEFAULT_FETCH_MODE:Int;
 	@:phpClassConst static final ATTR_FETCH_TABLE_NAMES:Int;
 	@:phpClassConst static final ATTR_STRINGIFY_FETCHES:Int;
 	@:phpClassConst static final ATTR_EMULATE_PREPARES:Int;
