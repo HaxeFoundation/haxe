@@ -8,9 +8,6 @@ private typedef NativeFilePath = Dynamic;
 /**
 	Represents a relative or absolute file path.
 
-	Most of the time it's a string, but some file systems allow to use arbitrary
-	bytes in file names.
-
 	TODO: add API from `haxe.io.Path`
 	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
@@ -22,6 +19,7 @@ private typedef NativeFilePath = Dynamic;
 
 	/**
 		Create file path from plain string.
+		Removes trailing slashes.
 	**/
 	@:from public static function fromString(path:String):FilePath {
 		throw new NotImplementedException();

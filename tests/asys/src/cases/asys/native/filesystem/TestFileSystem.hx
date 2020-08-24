@@ -22,7 +22,7 @@ class TestFileSystem extends FsTest {
 					same(bytesBinContent(), r);
 			}),
 			FileSystem.readBytes('test-data/', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/', e.path.toString()));
+				assertType(e, FsException, e -> equals('test-data', e.path.toString()));
 			}),
 			FileSystem.readBytes('non-existent', (e, r) -> {
 				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
@@ -37,7 +37,8 @@ class TestFileSystem extends FsTest {
 					equals('Hello, world!', r);
 			}),
 			FileSystem.readString('test-data/', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/', e.path.toString()));
+				trace('WTF!!!!');
+				assertType(e, FsException, e -> equals('test-data', e.path.toString()));
 			}),
 			FileSystem.readString('non-existent', (e, r) -> {
 				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
@@ -388,7 +389,7 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.readLink('test-data/symlink', (e, r) -> {
 				if(noException(e))
-					equals('sub' + FilePath.SEPARATOR + 'hello.world', r);
+					equals('sub' + FilePath.SEPARATOR + 'hello.world', r.toString());
 			}),
 			FileSystem.readLink('test-data/sub/hello.world', (e, r) -> {
 				assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));

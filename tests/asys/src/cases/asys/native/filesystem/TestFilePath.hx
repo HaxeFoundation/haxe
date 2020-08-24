@@ -36,5 +36,9 @@ class TestFilePath extends FsTest {
 		var s = "𠜎/aa😂/éé";
 		var p:FilePath = s;
 		s == p.toString();
+
+		var s = "some/dir/";
+		var p:FilePath = s;
+		'some/dir' == p.toString();
 	}
 }

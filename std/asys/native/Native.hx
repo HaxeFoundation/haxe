@@ -8,26 +8,15 @@ import asys.native.filesystem.IFileSystem;
 	Allows to run all IO operations through the same instance of `haxe.IJobExecutor`
 **/
 class Native implements INative {
-	static var _defaultExecutor:Null<IJobExecutor>;
-
 	@:allow(asys.native)
-	static function getDefaultExecutor():IJobExecutor {
-		switch _defaultExecutor {
-			case null:
-				var jobs =
-					#if php
-						new php.DefaultJobExecutor()
-					#elseif java
-						new java.DefaultJobExecutor(java.lang.Runtime.getRuntime().availableProcessors() + 1)
-					#else
-						#error 'Not implemented for this target'
-					#end;
-				_defaultExecutor = jobs;
-				return jobs;
-			case jobs:
-				return jobs;
-		}
-	}
+	static var defaultExecutor:IJobExecutor =
+		#if php
+			new php.DefaultJobExecutor()
+		#elseif java
+			new java.DefaultJobExecutor(java.lang.Runtime.getRuntime().availableProcessors() + 1)
+		#else
+			#error 'Not implemented for this target'
+		#end;
 
 	/** Access `asys.native.filesystem.FileSystem` API **/
 	public var filesystem(get,never):IFileSystem;
@@ -52,7 +41,7 @@ class Native implements INative {
 		Default executor implementation depends on a target platform.
 	**/
 	static function create(executor:IJobExecutor = null):INative {
-		return new Native(executor == null ? getDefaultExecutor() : executor);
+		return new Native(executor == null ? defaultExecutor : executor);
 	}
 
 	function new(executor:IJobExecutor) {
