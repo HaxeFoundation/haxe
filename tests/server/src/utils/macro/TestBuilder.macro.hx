@@ -76,7 +76,7 @@ class TestBuilder {
 	}
 
 	static function failOnException(asyncName:String, e:Expr):Expr {
-		return macro try {
+		return macro @:pos(e.pos) try {
 			$e;
 		} catch(e) {
 			Assert.fail(e.details());
