@@ -939,12 +939,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.headers-list.php
 	**/
-	static function headers_list():Array<String>;
+	static function headers_list():NativeIndexedArray<String>;
 
 	/**
 		@see http://php.net/manual/en/function.headers-sent.php
 	**/
-	static function headers_sent(?file:String, ?line:Int):Bool;
+	static function headers_sent(?file:Ref<String>, ?line:Ref<Int>):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.setcookie.php
