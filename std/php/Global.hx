@@ -1579,5 +1579,6 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.version-compare.php
 	**/
-	static function version_compare(version1:String, version2:String, ?comparisonOperator:String):EitherType<Int, Bool>;
+	@:overload(function(version1:String, version2:String, ?comparisonOperator:String):Bool {})
+	static function version_compare(version1:String, version2:String):Int;
 }
