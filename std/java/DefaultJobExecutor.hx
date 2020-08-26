@@ -3,6 +3,7 @@ package java;
 import haxe.IJobExecutor;
 import haxe.Callback;
 import haxe.Exception;
+import sys.thread.Thread;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +24,7 @@ class DefaultJobExecutor implements IJobExecutor {
 		if(!active)
 			throw new DeadJobExecutorException('Job executor has been shut down and does not accept new tasks');
 
-		service.execute(new Task(job, callback));
+		service.execute(new Task(job, Thread.current(), callback));
 	}
 
 	public function isActive():Bool {
@@ -46,14 +47,17 @@ class DefaultJobExecutor implements IJobExecutor {
 @:native("haxe.java._DefaultJobExecutor.Task")
 private class Task<R> implements Runnable {
 	public final job:()->R;
+	public final caller:Thread;
 	public final callback:Callback<Exception,R>;
 
 	var result:Null<R>;
 	var error:Null<Exception>;
 
-	public function new(job:()->R, callback:Callback<Exception,R>) {
+	public function new(job:()->R, caller:Thread, callback:Callback<Exception,R>) {
 		this.job = job;
+		this.caller = caller;
 		this.callback = callback;
+		caller.promiseEvent();
 	}
 
 	public function run() {
@@ -65,10 +69,12 @@ private class Task<R> implements Runnable {
 	}
 
 	public function submitOutcome() {
-		if(error == null)
-			callback.success(result)
-		else
-			callback.fail(error);
+		caller.schedulePromisedEvent(() -> {
+			if(error == null)
+				callback.success(result)
+			else
+				callback.fail(error);
+		});
 	}
 }
 

@@ -23,7 +23,9 @@
 package sys.thread;
 
 import java.Lib;
+import java.util.concurrent.atomic.AtomicInteger;
 
+@:coreApi
 abstract Thread(NativeThread) {
 	inline function new(t:NativeThread) {
 		this = t;
@@ -46,6 +48,19 @@ abstract Thread(NativeThread) {
 
 	public inline function sendMessage(msg:Dynamic):Void {
 		this.sendMessage(msg);
+	}
+
+	public function scheduleEvent(event:()->Void):Void {
+		this.events.add(event);
+	}
+
+	public function schedulePromisedEvent(event:()->Void):Void {
+		this.promisedEvents.decrementAndGet();
+		this.events.add(event);
+	}
+
+	public function promiseEvent():Void {
+		this.promisedEvents.incrementAndGet();
 	}
 
 	private inline function getHandle():NativeThread {
@@ -82,9 +97,12 @@ abstract Thread(NativeThread) {
 	}
 
 	public var messages:Deque<Dynamic>;
+	public var events:Deque<()->Void>;
+	public var promisedEvents = new AtomicInteger();
 
 	public function new() {
 		this.messages = new Deque();
+		this.events = new Deque();
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
@@ -100,6 +118,12 @@ private class HaxeThread extends java.lang.Thread {
 
 	@:overload override public function run():Void {
 		runFunction();
+		while(true) {
+			switch events.pop(threadObject.promisedEvents.intValue() > 0) {
+				case null: break;
+				case event: event();
+			}
+		}
 	}
 
 	public function new(hxThread:NativeThread, run:Void->Void) {
