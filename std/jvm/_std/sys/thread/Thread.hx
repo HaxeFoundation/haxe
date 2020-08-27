@@ -27,6 +27,7 @@ import java.lang.Runnable;
 import java.util.WeakHashMap;
 import java.util.Collections;
 import java.lang.Thread as JavaThread;
+import java.util.concurrent.atomic.AtomicInteger;
 
 abstract Thread(HaxeThread) from HaxeThread {
 	inline function new(t:HaxeThread) {
@@ -49,8 +50,24 @@ abstract Thread(HaxeThread) from HaxeThread {
 		this.sendMessage(msg);
 	}
 
+	public inline function scheduleEvent(event:()->Void):Void {
+		this.scheduleEvent(event);
+	}
+
+	public inline function schedulePromisedEvent(event:()->Void):Void {
+		this.schedulePromisedEvent(event);
+	}
+
+	public inline function promiseEvent():Void {
+		this.promiseEvent();
+	}
+
 	inline function getHandle():HaxeThread {
 		return this;
+	}
+
+	private static inline function processEvents():Void {
+		current().getHandle().processEvents();
 	}
 }
 
@@ -60,6 +77,8 @@ private class HaxeThread {
 	static final mainHaxeThread = new HaxeThread();
 
 	public final messages = new Deque<Dynamic>();
+	final events = new Deque<()->Void>();
+	final promisedEvents = new AtomicInteger();
 
 	public static function create(callb:()->Void):HaxeThread {
 		var hx = new HaxeThread();
@@ -95,6 +114,28 @@ private class HaxeThread {
 	public inline function readMessage(block:Bool):Dynamic {
 		return messages.pop(block);
 	}
+
+	public function scheduleEvent(event:()->Void):Void {
+		this.events.add(event);
+	}
+
+	public function schedulePromisedEvent(event:()->Void):Void {
+		this.events.add(event);
+		this.promisedEvents.decrementAndGet();
+	}
+
+	public function promiseEvent():Void {
+		this.promisedEvents.incrementAndGet();
+	}
+
+	public function processEvents() {
+		while(true) {
+			switch events.pop(promisedEvents.intValue() > 0) {
+				case null: break;
+				case event: event();
+			}
+		}
+	}
 }
 
 private class NativeHaxeThread extends java.lang.Thread {
@@ -103,5 +144,10 @@ private class NativeHaxeThread extends java.lang.Thread {
 	public function new(haxeThread:HaxeThread, callb:()->Void) {
 		super((cast callb:Runnable));
 		this.haxeThread = haxeThread;
+	}
+
+	override overload public function run() {
+		super.run();
+		haxeThread.processEvents();
 	}
 }

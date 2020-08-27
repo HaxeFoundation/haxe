@@ -73,5 +73,5 @@ package sys.thread;
 		Execute all pending events.
 		Wait and execute as many events as many times `Thread.eventComingUp()` was called.
 	**/
-	// private static function processEvents():Void;
+	private static function processEvents():Void;
 }

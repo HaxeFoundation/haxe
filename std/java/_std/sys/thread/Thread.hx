@@ -55,8 +55,8 @@ abstract Thread(NativeThread) {
 	}
 
 	public function schedulePromisedEvent(event:()->Void):Void {
-		this.promisedEvents.decrementAndGet();
 		this.events.add(event);
+		this.promisedEvents.decrementAndGet();
 	}
 
 	public function promiseEvent():Void {
@@ -65,6 +65,10 @@ abstract Thread(NativeThread) {
 
 	private inline function getHandle():NativeThread {
 		return this;
+	}
+
+	private static inline function processEvents():Void {
+		current().getHandle().processEvents();
 	}
 }
 
@@ -108,6 +112,15 @@ abstract Thread(NativeThread) {
 	public function sendMessage(msg:Dynamic):Void {
 		messages.add(msg);
 	}
+
+	public function processEvents() {
+		while(true) {
+			switch events.pop(threadObject.promisedEvents.intValue() > 0) {
+				case null: break;
+				case event: event();
+			}
+		}
+	}
 }
 
 @:native('haxe.java.vm.HaxeThread')
@@ -118,12 +131,7 @@ private class HaxeThread extends java.lang.Thread {
 
 	@:overload override public function run():Void {
 		runFunction();
-		while(true) {
-			switch events.pop(threadObject.promisedEvents.intValue() > 0) {
-				case null: break;
-				case event: event();
-			}
-		}
+		threadObject.processEvents();
 	}
 
 	public function new(hxThread:NativeThread, run:Void->Void) {
