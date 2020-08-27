@@ -4,7 +4,7 @@ import utest.Assert;
 import sys.thread.Thread;
 
 #if cpp
-class NativeThreads extends utest.Test {
+class Issue9863 extends utest.Test {
 	public function test() {
 		Assert.pass();
 	}
