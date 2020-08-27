@@ -18,8 +18,9 @@ class Js {
 					Linux.requireAptPackages(["nodejs"]);
 				}
 			case [AzurePipelines, "Mac"]:
-				runCommand("brew", ["install", "node@10"], true);
-				runCommand("brew", ["link", "--overwrite", "--force", "node@10"]);
+				runCommand("brew", ["install", "node"], true);
+				// runCommand("brew", ["install", "node@10"], true);
+				// runCommand("brew", ["link", "--overwrite", "--force", "node@10"]);
 			case _:
 				//pass
 		}

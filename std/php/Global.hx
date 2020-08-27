@@ -987,6 +987,21 @@ extern class Global {
 	static function header(string:String, replace:Bool = true, ?http_response_code:Int):Void;
 
 	/**
+		@see http://php.net/manual/en/function.header-remove.php
+	**/
+	static function header_remove(?name:String):Void;
+
+	/**
+		@see http://php.net/manual/en/function.headers-list.php
+	**/
+	static function headers_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.headers-sent.php
+	**/
+	static function headers_sent(?file:Ref<String>, ?line:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.setcookie.php
 	**/
 	@:overload(function(name:String, value:String = "", ?options:NativeStructArray<{?expires:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
@@ -1147,6 +1162,12 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-check-encoding.php
 	**/
 	static function mb_check_encoding(str:String = null, ?encoding:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.mb-language.php
+	**/
+	@:overload(function(language:String):Bool {})
+	static function mb_language():String;
 
 	/**
 		@see http://php.net/manual/en/function.mb-scrub.php
@@ -1404,6 +1425,11 @@ extern class Global {
 	static function getallheaders():NativeAssocArray<Dynamic>;
 
 	/**
+		@see http://php.net/manual/en/function.ucfirst.php
+	**/
+	static function ucfirst(string:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.ucwords.php
 	**/
 	static function ucwords(str:String, ?delimiters:String):String;
@@ -1635,4 +1661,10 @@ extern class Global {
 		@see http://php.net/manual/en/function.http-response-code.php
 	**/
 	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.version-compare.php
+	**/
+	@:overload(function(version1:String, version2:String, comparisonOperator:String):Bool {})
+	static function version_compare(version1:String, version2:String):Int;
 }
