@@ -1,39 +1,39 @@
 package lua.lib.lpeg;
 import lua.Table;
 import haxe.ds.StringMap;
-
-typedef AnyPattern = PatternImpl<Dynamic>;
-
-abstract Pattern<This:PatternImpl<This>>(PatternImpl<This>) {
-    public function new(value : PatternImpl<This>)  {
-        this = value;
-    }
-    @:op(A + B)
-    public inline function add(p:AnyPattern) : This { return cast cast(this, Int) + cast(p, Int);}
-
-    @:op(A - B)
-    public inline function sub(p:AnyPattern) : This { return cast cast(this, Int) - cast(p, Int);}
-
-    @:op(A * B)
-    public inline function mul(p:AnyPattern) : This { return cast cast(this, Int) * cast(p, Int);}
-
-    @:op(A == B)
-    public inline function eq(p:AnyPattern) : This { return cast cast(this, Int) == cast(p, Int);}
-
-    @:op(A ^ B)
-    public inline function pow(n:Int) : This { return cast cast(this, Int) ^ n;}
-    @:op(-A)
-    public inline function unm() : This { return cast -cast(this, Int);}
-
-    public inline function len() : This { return untyped __lua_length__(this);}
-    public inline function match(subject:String, ?init:Int) : Int {
-        return this.match(subject, init);
-    }
-
-}
+import haxe.extern.Rest;
+import haxe.Constraints.Function;
+import lua.lib.lpeg.Pattern.PatternMetatable as M;
 
 @:luaRequire("lpeg")
-extern class PatternImpl<This:PatternImpl<This>> {
+extern class PatternMetatable {
+    static public function __add(p1:Pattern, p2:AbstractPattern) : AbstractPattern;
+    static public function __mul(p1:Pattern, n:Int) : AbstractPattern;
+    static public function __pow(p1:Pattern, n:Int) : AbstractPattern;
+    static public function __div(p1:Pattern, n:Dynamic) : AbstractPattern;
+    static inline function __init__() : Void {
+        untyped PatternMetatable = __lua__("getmetatable(require('lpeg').P(1))");
+    }
+}
+
+
+@:forward(match)
+abstract AbstractPattern(Pattern){
+    @:op(A + B)
+    public inline function add(p:AbstractPattern) : AbstractPattern  return M.__add(this, p);
+
+    @:op(A * B)
+    public inline function mul(n:Int) : AbstractPattern  return M.__pow(this, n);
+
+    @:op(A / B)
+    public inline function divf(f:Function) : AbstractPattern  return M.__div(this, f);
+
+    public inline function len() : AbstractPattern { return untyped __lua_length__(this);}
+}
+
+
+@:luaRequire("lpeg")
+extern class Pattern {
     /**
       Converts the given value into a proper pattern, according to the following rules:
         * If the argument is a pattern, it is returned unmodified.
@@ -44,8 +44,6 @@ extern class PatternImpl<This:PatternImpl<This>> {
         * If the argument is a table, it is interpreted as a grammar (see Grammars).
         * If the argument is a function, returns a pattern equivalent to a match-time capture over the empty string.
      **/
-    @:native("P")
-    public function new(value : This) : Void;
 
     /**
       The matching function. It attempts to match the given pattern against the subject string. If the match succeeds, returns the index in the subject of the first character after the match, or the captured values (if the pattern captured any value).
@@ -54,69 +52,10 @@ extern class PatternImpl<This:PatternImpl<This>> {
 
       Unlike typical pattern-matching functions, match works only in anchored mode; that is, it tries to match the pattern with a prefix of the given subject string (at position init), not with an arbitrary substring of the subject. So, if we want to find a pattern anywhere in a string, we must either write a loop in Lua or write a pattern that matches anywhere. This second approach is easy and quite efficient;
      **/
+    public static function R(args:Rest<String>) : AbstractPattern;
     public function match(subject:String, ?init:Int) : Int;
+    public function __add(p2:AbstractPattern) : AbstractPattern;
+    public function __mul(n:Int) : AbstractPattern;
+    public function __div(n:Dynamic) : AbstractPattern;
 }
 
-extern class BeforePattern extends PatternImpl<BeforePattern> {
-    @:native("B")
-    public function new(value : AnyPattern);
-}
-
-// extern class RangePattern extends Pattern {
-//     @:native("R")
-//     public function new(args:Rest<String>);
-// }
-
-// extern class StringPattern extends Pattern {
-//     @:native("S")
-//     public function new(arg:String);
-// }
-
-// extern class VariablePattern extends Pattern {
-//     @:native("V")
-//     public function new(arg:String);
-// }
-
-// extern class CapturePattern extends Pattern {
-//     @:native("C")
-//     public function new(pattern:CapturePattern);
-// }
-
-// extern class CaptureArgPattern extends Pattern {
-//     @:native("Carg")
-//     public function new(n:Int);
-// }
-
-// extern class CaptureBeforePattern extends Pattern {
-//     @:native("Cb")
-//     public function new(name:String);
-// }
-
-// extern class CaptureValuesPattern extends Pattern {
-//     @:native("Cc")
-//     public function new(values : String);
-// }
-
-// extern class CaptureFoldingPattern extends Pattern {
-//     @:native("Cf")
-//     public function new(pattern:Pattern, func: String->Dynamic);
-// }
-
-// extern class CaptureTaggedPattern extends Pattern {
-//     @:native("Cg")
-//     public function new(pattern:Pattern, ?name:String);
-// }
-
-// extern class CapturePosition extends Pattern {
-//     @:native("Cp")
-//     public function new();
-// }
-
-// typedef PatternArgument<Pattern> = EitherType<Pattern, EitherType<String, EitherType<Int, EitherType<Bool, EitherType<AnyTable, Function>>>>>;
-
-abstract Grammar(Table<String,String>) to Table<String,String>{
-    public function new(name:String, rules : StringMap<String>) {
-       this = Table.fromMap(rules);
-       this[0] = name;
-    }
-}

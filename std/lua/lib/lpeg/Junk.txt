@@ -1,0 +1,54 @@
+// @:forward(match)
+// abstract AbstractPattern(Pattern){
+//     @:op(A | B)
+//     public static inline function either(p1:AbstractPattern, p2:AbstractPattern) : AbstractPattern {
+//         return untyped __lua__("{0} + {1}", p1, p2);
+//     }
+
+//     @:op(A - B)
+//     public static inline function negate(p1:AbstractPattern, p2:AbstractPattern) : AbstractPattern {
+//         return untyped __lua__("{0} - {1}", p1, p2);
+//     }
+
+//     @:op(~A)
+//     public static inline function exists(p1:AbstractPattern) : AbstractPattern {
+//         return untyped __lua__("#{0}", p1);
+//     }
+
+//     @:op(A + B)
+//     public static inline function concat(p1 : AbstractPattern, p2 : AbstractPattern) : AbstractPattern {
+//         return untyped __lua__("{0} * {1}", p1, p2);
+//     }
+
+//     @:op(A + B)
+//     public static inline function concatStringLhs(str : String, p : AbstractPattern) : AbstractPattern {
+//         return untyped __lua__("{0} * {1}", str, p);
+//     }
+
+//     @:op(A + B)
+//     public static inline function concatStringRhs(p : AbstractPattern, str : String) : AbstractPattern {
+//         return untyped __lua__("{0} * {1}", p, str);
+//     }
+
+//     @:op(A * B)
+//     public static inline function repeat(p : AbstractPattern, n : Int) : AbstractPattern {
+//         return untyped __lua__("{0}^{1}", p, n);
+//     }
+
+//     @:op(A >> B)
+//     public static inline function captureFunction(p : AbstractPattern, f:haxe.Constraints.Function) : AbstractPattern {
+//         return untyped __lua__("{0} / {1}", p, f);
+//     }
+
+
+//     @:op(A >> B)
+//     public static inline function capturePosition(p : AbstractPattern, n:Int) : AbstractPattern {
+//         return untyped __lua__("{0} / {1}", p, n);
+//     }
+
+//     @:op(A ^ B)
+//     public static inline function pow(p : AbstractPattern, n:Float) : AbstractPattern {
+//         return Meta.__pow(p, n);
+//     }
+
+// }

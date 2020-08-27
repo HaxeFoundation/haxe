@@ -1,0 +1,44 @@
+json            <- (object /  array) !.
+object          <- begin_object
+                        %member_list
+                   end_object
+member          <- {: string name_separator value :}
+array           <- begin_array
+                        {| (value (value_separator value)* )? |}
+                   end_array
+
+number          <- { "-" ? int frac ? exp ? } => tonumber
+exp             <- [Ee] [+-] ? [0-9]+
+frac            <- "." [0-9]+
+int             <- "0" / ( [1-9] [0-9]* )
+string          <- '"' char* -> {} => final_string '"'
+char            <- unescaped    => normal
+                / '\"'          => escape
+                / "\\"          => escape
+                / "\b"          => escape
+                / "\f"          => escape
+                / "\n"          => escape
+                / "\r"          => escape
+                / "\t"          => escape
+                / "\/"          => escape
+                / (
+                    "\u"
+                    { [0-9A-Fa-f]^4 }  => tou16
+                  )+  -> {}            => unicode
+
+unescaped       <- [^\"%c]
+value           <- "false"      => retfalse
+                /  "null"       => retnil
+                /  "true"       => rettrue
+                /  object
+                /  array
+                /  number
+                /  string
+
+begin_array     <- ws "[" ws
+end_array       <- ws "]" ws
+begin_object    <- ws "{" ws
+end_object      <- ws "}" ws
+name_separator  <- ws ":" ws
+value_separator <- ws "," ws
+ws              <- %WS*
