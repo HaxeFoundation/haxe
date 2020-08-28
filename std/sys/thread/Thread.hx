@@ -25,6 +25,7 @@ package sys.thread;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
+
 extern abstract Thread({}) {
 	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
@@ -37,9 +38,9 @@ extern abstract Thread({}) {
 	public static function current():Thread;
 
 	/**
-		Creates a new thread that will execute the `f` function, then exit.
+		Creates a new thread that will execute the `job` function, then exit.
 	**/
-	public static function create(callb:Void->Void):Thread;
+	public static function create(job:Void->Void):Thread;
 
 	/**
 		Reads a message from the thread queue. If `block` is true, the function
@@ -47,4 +48,44 @@ extern abstract Thread({}) {
 		returns `null` if no message is available.
 	**/
 	public static function readMessage(block:Bool):Dynamic;
+
+	/**
+		Schedule event for execution every `intervalMs` milliseconds in current thread.
+	**/
+	public static function repeatEvent(event:()->Void, intervalMs:Int):EventHandler;
+
+	/**
+		Prevent execution of a previousely scheduled event in current thread.
+	**/
+	public static function cancelEvent(eventHandler:EventHandler):Void;
+
+	/**
+		Notify this thread about an upcoming event.
+		This makes the thread to stay alive and wait for as many events as many times
+		`thread.promiseEvent()` was called. These events should be added via
+		`thread.runPromisedEvent()`
+	**/
+	public function promiseEvent():Void;
+
+	/**
+		Execute `event` as soon as possible after this thread finished its job.
+
+		Note that events are not guaranteed to be processed if the thread was
+		created using target native API instead of `sys.thread.Thread.create`
+		(except the main thread).
+	**/
+	public function runEvent(event:()->Void):Void;
+
+	/**
+		Add previously promised `event` for execution after this thread finished its job.
+	**/
+	public function runPromisedEvent(event:()->Void):Void;
+
+	/**
+		Execute all pending events.
+		Wait and execute as many events as many times `Thread.eventComingUp()` was called.
+	**/
+	private static function processEvents():Void;
 }
+
+@:coreType abstract EventHandler {}
