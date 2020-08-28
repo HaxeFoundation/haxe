@@ -23,89 +23,266 @@
 package sys.thread;
 
 import java.Lib;
+import java.lang.Runnable;
+import java.util.WeakHashMap;
+import java.util.Collections;
+import java.lang.Thread as JavaThread;
+import java.lang.System;
+import java.StdTypes.Int64 as Long;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.LinkedBlockingDeque;
 
-abstract Thread(NativeThread) {
-	inline function new(t:NativeThread) {
+abstract Thread(HaxeThread) from HaxeThread {
+	inline function new(t:HaxeThread) {
 		this = t;
 	}
 
-	public static function create(callb:Void->Void):Thread {
-		var ret = new NativeThread();
-		var t = new HaxeThread(ret, callb);
-		t.start();
-		return new Thread(ret);
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job);
 	}
 
-	public static function current():Thread {
-		return new Thread(NativeThread.getThread(java.lang.Thread.currentThread()));
+	public static inline function current():Thread {
+		return HaxeThread.get(JavaThread.currentThread());
 	}
 
-	public static function readMessage(block:Bool):Dynamic {
-		return current().getHandle().messages.pop(block);
+	public static inline function readMessage(block:Bool):Dynamic {
+		return current().getHandle().readMessage(block);
 	}
 
 	public inline function sendMessage(msg:Dynamic):Void {
 		this.sendMessage(msg);
 	}
 
-	private inline function getHandle():NativeThread {
+	public static inline function repeatEvent(event:()->Void, intervalMs:Int):EventHandler {
+		return current().getHandle().repeatEvent(event, intervalMs);
+	}
+
+	public static inline function cancelEvent(eventHandler:EventHandler):Void {
+		current().getHandle().cancelEvent(eventHandler);
+	}
+
+	public inline function runEvent(event:()->Void):Void {
+		this.runEvent(event);
+	}
+
+	public inline function runPromisedEvent(event:()->Void):Void {
+		this.runPromisedEvent(event);
+	}
+
+	public inline function promiseEvent():Void {
+		this.promiseEvent();
+	}
+
+	inline function getHandle():HaxeThread {
+		return this;
+	}
+
+	@:keep
+	private static function processEvents():Void {
+		current().getHandle().processEvents();
+	}
+}
+
+abstract EventHandler(RegularEvent) from RegularEvent {
+	inline function get():RegularEvent {
 		return this;
 	}
 }
 
-@:native('haxe.java.vm.Thread') private class NativeThread {
-	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, NativeThread>();
-	@:private static var mainJavaThread = java.lang.Thread.currentThread();
-	@:private static var mainHaxeThread = {
-		var ret = new NativeThread();
-		javaThreadToHaxe.set(mainJavaThread, ret);
-		ret;
-	};
+private class HaxeThread {
+	static final nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
+	static final mainJavaThread = JavaThread.currentThread();
+	static final mainHaxeThread = new HaxeThread();
 
-	public static function getThread(jt:java.lang.Thread):NativeThread {
-		if (Std.isOfType(jt, HaxeThread)) {
-			var t:HaxeThread = cast jt;
-			return t.threadObject;
-		} else if (jt == mainJavaThread) {
+	public final messages = new LinkedBlockingDeque<Dynamic>();
+	final oneTimeEvents = new LinkedBlockingDeque<()->Void>();
+	final promisedEvents = new AtomicInteger();
+	var regularEvents:Null<RegularEvent>;
+
+	public static function create(job:()->Void):HaxeThread {
+		var hx = new HaxeThread();
+		var thread = new NativeHaxeThread(hx, job);
+		thread.setDaemon(true);
+		thread.start();
+		return hx;
+	}
+
+	public static function get(javaThread:JavaThread):HaxeThread {
+		if(javaThread == mainJavaThread) {
 			return mainHaxeThread;
+		} else if(javaThread is NativeHaxeThread) {
+			return (cast javaThread:NativeHaxeThread).haxeThread;
 		} else {
-			var ret = null;
-			untyped __lock__(javaThreadToHaxe, {
-				ret = javaThreadToHaxe.get(jt);
-				if (ret == null) {
-					ret = new NativeThread();
-					javaThreadToHaxe.set(jt, ret);
-				}
-			});
-			return ret;
+			switch nativeThreads.get(javaThread) {
+				case null:
+					var hx = new HaxeThread();
+					nativeThreads.put(javaThread, hx);
+					return hx;
+				case hx:
+					return hx;
+			}
 		}
 	}
 
-	public var messages:Deque<Dynamic>;
-
-	public function new() {
-		this.messages = new Deque();
-	}
+	function new() {}
 
 	public function sendMessage(msg:Dynamic):Void {
 		messages.add(msg);
 	}
-}
 
-@:native('haxe.java.vm.HaxeThread')
-private class HaxeThread extends java.lang.Thread {
-	public var threadObject(default, null):NativeThread;
-
-	private var runFunction:Void->Void;
-
-	@:overload override public function run():Void {
-		runFunction();
+	public function readMessage(block:Bool):Dynamic {
+		return block ? messages.take() : messages.poll();
 	}
 
-	public function new(hxThread:NativeThread, run:Void->Void) {
-		super();
-		threadObject = hxThread;
-		runFunction = run;
-		setDaemon(true);
+	public function repeatEvent(event:()->Void, intervalMs:Int):EventHandler {
+		var event = new RegularEvent(event, System.currentTimeMillis() + intervalMs, intervalMs);
+		switch regularEvents {
+			case null:
+			case current:
+				event.next = current;
+				current.previous = event;
+		}
+		regularEvents = event;
+		return event;
+	}
+
+	public function cancelEvent(eventHandler:EventHandler):Void {
+		var event = @:privateAccess eventHandler.get();
+		if(regularEvents == eventHandler) {
+			regularEvents = event.next;
+		}
+		switch event.next {
+			case null:
+			case e: e.previous = event.previous;
+		}
+		switch event.previous {
+			case null:
+			case e: e.next = event.next;
+		}
+	}
+
+	public function runEvent(event:()->Void):Void {
+		this.oneTimeEvents.add(event);
+	}
+
+	public function runPromisedEvent(event:()->Void):Void {
+		this.oneTimeEvents.add(event);
+		this.promisedEvents.decrementAndGet();
+	}
+
+	public function promiseEvent():Void {
+		this.promisedEvents.incrementAndGet();
+	}
+
+	public function processEvents() {
+		var eventsToRun = [];
+		var eventsToRunIdx;
+		var nextRegularIn:Long;
+		while(true) {
+			// How much time left till the next regular event
+			nextRegularIn = -1;
+			eventsToRunIdx = 0;
+			// Collect regular events to run
+			var current = regularEvents;
+			var now = System.currentTimeMillis();
+			while(current != null) {
+				if(current.nextRunTime <= now) {
+					eventsToRun[eventsToRunIdx++] = current.run;
+					current.nextRunTime += current.interval;
+					nextRegularIn = 0;
+				} else if(nextRegularIn < 0 || current.nextRunTime - now < nextRegularIn) {
+					nextRegularIn = current.nextRunTime - now;
+				}
+				current = current.next;
+			}
+
+			// Run regular events
+			for(i in 0...eventsToRunIdx) {
+				eventsToRun[i]();
+				eventsToRun[i] = null;
+			}
+			eventsToRunIdx = 0;
+
+			// Collect pending one-time events
+			while(true) {
+				switch oneTimeEvents.poll() {
+					case null: break;
+					case event: eventsToRun[eventsToRunIdx++] = event;
+				}
+			}
+
+			// No events ready to run. Check if any events are expected to come.
+			if(eventsToRunIdx == 0 && promisedEvents.intValue() > 0) {
+				// If no more regular events are scheduled, then wait for a promised event infinitely.
+				switch nextRegularIn < 0 ? oneTimeEvents.take() : oneTimeEvents.poll(nextRegularIn, MILLISECONDS) {
+					case null:
+					case event:
+						eventsToRun[eventsToRunIdx++] = event;
+				}
+			}
+
+			//run events
+			for(i in 0...eventsToRunIdx) {
+				eventsToRun[i]();
+				eventsToRun[i] = null;
+			}
+
+			// Stop the loop if no regular events are active and no one-time events were executed.
+			if(nextRegularIn < 0 && eventsToRunIdx == 0) {
+				break;
+			}
+			// No one-time events were executed, but there's time to wait for a regular event
+			if(nextRegularIn > 0 && eventsToRunIdx == 0) {
+				JavaThread.sleep(nextRegularIn);
+			}
+		}
 	}
 }
+
+private class NativeHaxeThread extends java.lang.Thread {
+	public final haxeThread:HaxeThread;
+
+	public function new(haxeThread:HaxeThread, job:()->Void) {
+		super(new Job(job));
+		this.haxeThread = haxeThread;
+	}
+
+	override overload public function run() {
+		super.run();
+		haxeThread.processEvents();
+	}
+}
+
+private class RegularEvent {
+	public var nextRunTime:Long;
+	public final interval:Int;
+	public final run:()->Void;
+	public var next:Null<RegularEvent>;
+	public var previous:Null<RegularEvent>;
+
+	public function new(run:()->Void, nextRunTime:Long, interval:Int) {
+		this.run = run;
+		this.nextRunTime = nextRunTime;
+		this.interval = interval;
+	}
+}
+
+#if jvm
+private abstract Job(Runnable) from Runnable to Runnable {
+	public inline function new(job:()->Void) {
+		this = cast job;
+	}
+}
+#else
+private class Job implements Runnable {
+	final job:()->Void;
+
+	public function new(job:()->Void) {
+		this.job = job;
+	}
+
+	public function run() {
+		job();
+	}
+}
+#end
