@@ -72,7 +72,7 @@ private class HaxeThread {
 	public static function get(javaThread:JavaThread):HaxeThread {
 		if(javaThread == mainJavaThread) {
 			return mainHaxeThread;
-		} else if(javaThread is NativeHaxeThread) {
+		} else if(Std.isOfType(javaThread, NativeHaxeThread)) {
 			return (cast javaThread:NativeHaxeThread).haxeThread;
 		} else {
 			switch nativeThreads.get(javaThread) {
