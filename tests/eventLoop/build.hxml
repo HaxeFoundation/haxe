@@ -1,0 +1,5 @@
+--class-path src
+--main Main
+--library utest
+--dce full
+-D analyzer-optimize
