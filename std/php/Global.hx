@@ -20,6 +20,11 @@ extern class Global {
 	static function die(status:EitherType<String, Int>):Void;
 
 	/**
+		@see http://php.net/manual/en/function.error-log.php
+	**/
+	static function error_log(message:String, message_type:Int = 0, ?destination:String, ?extra_headers:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.error-reporting.php
 	**/
 	static function error_reporting(?level:Int):Int;
