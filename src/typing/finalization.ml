@@ -46,17 +46,39 @@ let get_main ctx types =
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
 		(* add haxe.EntryPoint.run() call *)
-		let main = (try
-			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
-			let ef = PMap.find "run" ec.cl_statics in
-			let p = null_pos in
-			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
-			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-			mk (TBlock [main;call]) ctx.t.tvoid p
-		with Not_found ->
-			main
-		) in
+		let add_entry_point_run exprs_rev =
+			(try
+				if ctx.com.config.pf_supports_threads then
+					raise Not_found; (* Threaded targets run event loops per thread*)
+				let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
+				let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
+				let ef = PMap.find "run" ec.cl_statics in
+				let p = null_pos in
+				let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
+				let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
+				call :: exprs_rev
+			with Not_found ->
+				exprs_rev
+			)
+		(* add sys.thread.Thread.processEvents() call *)
+		and add_event_loop exprs_rev =
+			(try
+				let et = List.find (fun t -> t_path t = (["sys";"thread";"_Thread"],"Thread_Impl_")) types in
+				let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
+				let ef = PMap.find "processEvents" ec.cl_statics in
+				let p = null_pos in
+				let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
+				let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
+				call :: exprs_rev
+			with Not_found ->
+				exprs_rev
+			)
+		in
+		let main =
+			match add_event_loop (add_entry_point_run [main]) with
+			| [e] -> e
+			| exprs_rev -> mk (TBlock (List.rev exprs_rev)) ctx.t.tvoid p
+		in
 		Some main
 
 let finalize ctx =

@@ -70,6 +70,7 @@ private class Task<R> implements Runnable {
 
 	public function submitOutcome() {
 		caller.schedulePromisedEvent(() -> {
+			trace('WTF!!!!');
 			if(error == null)
 				callback.success(result)
 			else

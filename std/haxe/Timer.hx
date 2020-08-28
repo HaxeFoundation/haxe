@@ -22,6 +22,10 @@
 
 package haxe;
 
+#if target.threaded
+import sys.thread.Thread;
+#end
+
 /**
 	The `Timer` class allows you to create asynchronous timers on platforms that
 	support events.
@@ -39,6 +43,8 @@ package haxe;
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
+	#elseif target.threaded
+	var eventHandler:EventHandler;
 	#elseif (java && !jvm)
 	private var timer:java.util.Timer;
 	private var task:java.util.TimerTask;
@@ -66,6 +72,8 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
+		#elseif target.threaded
+		eventHandler = Thread.repeatEvent(() -> this.run(), time_ms);
 		#elseif (java && !jvm)
 		timer = new java.util.Timer();
 		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
@@ -97,6 +105,8 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
+		#elseif target.threaded
+		Thread.cancelEvent(eventHandler);
 		#elseif (java && !jvm)
 		if (timer != null) {
 			timer.cancel();

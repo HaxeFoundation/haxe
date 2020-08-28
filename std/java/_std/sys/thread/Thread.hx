@@ -67,7 +67,8 @@ abstract Thread(NativeThread) {
 		return this;
 	}
 
-	private static inline function processEvents():Void {
+	@:keep
+	private static function processEvents():Void {
 		current().getHandle().processEvents();
 	}
 }
