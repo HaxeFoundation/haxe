@@ -2,33 +2,36 @@ package cases;
 
 import haxe.Timer;
 
-@:timeout(5000)
+@:timeout(10000)
+@:depends(cases.TestEvents)
 class TestTimer extends utest.Test {
 	function testCorrectInterval(async:Async) {
 		async.branch(async -> {
-			var t = new Timer(100);
 			var i = 0;
+			var interval = 0.1;
+			var t = new Timer(Std.int(interval * 1000));
 			var start = Timer.stamp();
 			t.run = () -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~100ms
-				isTrue(Math.abs(dt - 100) <= 2);
+				isTrue(Math.abs(dt - interval) <= 0.01);
 				if(i++ > 5) {
 					t.stop();
 					async.done();
 					return;
 				}
-				start += 100;
+				start += interval;
 			}
 		});
 		async.branch(async -> {
+			var delay = 0.05;
 			var start = Timer.stamp();
 			Timer.delay(() -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~50ms
-				isTrue(Math.abs(dt - 50) <= 2);
+				isTrue(Math.abs(dt - delay) <= 0.01);
 				async.done();
-			}, 50);
+			}, Std.int(delay * 1000));
 		});
 	}
 
@@ -39,17 +42,16 @@ class TestTimer extends utest.Test {
 			var thread = Thread.current();
 			var t = new Timer(100);
 			var i = 0;
-			var success = true;
+			var sameThread = true;
 			t.run = () -> {
-				success = success && thread == Thread.current();
+				sameThread = sameThread && thread == Thread.current();
 				if(i++ > 5) {
 					t.stop();
-					mainThread.sendMessage({n:n, type:'interval', success:success});
+					mainThread.sendMessage({n:n, type:'interval', sameThread:sameThread});
 				}
 			}
 			Timer.delay(() -> {
-				var success = thread && Thread.current();
-				mainThread.sendMessage({n:n, type:'delay', success:success});
+				mainThread.sendMessage({n:n, type:'delay', sameThread:thread == Thread.current()});
 			}, 50);
 		}
 
@@ -57,12 +59,12 @@ class TestTimer extends utest.Test {
 			Thread.create(work.bind(n));
 		}
 
-		//two messages with different types per thread
+		//expect two messages with different types per thread
 		var counters = [for(i in 0...10) ['delay', 'interval']];
 		for(i in 0...20) {
-			var msg:{n:Int, type:String, success:Bool} = Thread.readMessage(true);
-			isTrue(msg.success);
-			counters[msg.n].remove(msg.type);
+			var msg:{n:Int, type:String, sameThread:Bool} = Thread.readMessage(true);
+			isTrue(msg.sameThread);
+			isTrue(counters[msg.n].remove(msg.type));
 		}
 		for(types in counters) {
 			equals(0, types.length);

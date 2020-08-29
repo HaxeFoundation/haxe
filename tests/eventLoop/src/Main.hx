@@ -6,6 +6,6 @@ function main() {
 	var report = Report.create(runner);
 	report.displayHeader = AlwaysShowHeader;
 	report.displaySuccessResults = NeverShowSuccessResults;
-	runner.addCase(new cases.TestTimer());
+	runner.addCases('cases');
 	runner.run();
 }

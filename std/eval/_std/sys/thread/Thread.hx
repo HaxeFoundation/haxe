@@ -57,4 +57,30 @@ abstract Thread(NativeThread) {
 	private inline function getHandle():NativeThread {
 		return this;
 	}
+
+	public static function repeatEvent(event:()->Void, intervalMs:Int):EventHandler {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public static function cancelEvent(eventHandler:EventHandler):Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public function promiseEvent():Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public function runEvent(event:()->Void):Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	public function runPromisedEvent(event:()->Void):Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	private static function processEvents():Void {
+		throw new haxe.exceptions.NotImplementedException();
+	}
 }
+
+@:coreType abstract EventHandler {}
