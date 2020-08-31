@@ -24,6 +24,7 @@ package haxe;
 
 #if target.threaded
 import sys.thread.Thread;
+import sys.thread.EventLoop;
 #end
 
 /**
@@ -44,6 +45,7 @@ class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
 	#elseif target.threaded
+	var thread:Thread;
 	var eventHandler:EventHandler;
 	#else
 	private var event:MainLoop.MainEvent;
@@ -70,7 +72,8 @@ class Timer {
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
 		#elseif target.threaded
-		eventHandler = Thread.repeatEvent(() -> this.run(), time_ms);
+		thread = Thread.current();
+		eventHandler = thread.events.repeat(() -> this.run(), time_ms);
 		#else
 		var dt = time_ms / 1000;
 		event = MainLoop.add(function() {
@@ -100,7 +103,7 @@ class Timer {
 		#end
 		id = null;
 		#elseif target.threaded
-		Thread.cancelEvent(eventHandler);
+		thread.events.cancel(eventHandler);
 		#else
 		if (event != null) {
 			event.stop();

@@ -28,6 +28,15 @@ package sys.thread;
 
 extern abstract Thread({}) {
 	/**
+		Event loop of this thread.
+
+		Note that events are not guaranteed to be processed automatically if the
+		thread was created using target native API instead of `sys.thread.Thread.create`
+		(except the main thread).
+	**/
+	public var events(get,never):EventLoop;
+
+	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage(msg:Dynamic):Void;
@@ -50,42 +59,7 @@ extern abstract Thread({}) {
 	public static function readMessage(block:Bool):Dynamic;
 
 	/**
-		Schedule event for execution every `intervalMs` milliseconds in current thread.
-	**/
-	public static function repeatEvent(event:()->Void, intervalMs:Int):EventHandler;
-
-	/**
-		Prevent execution of a previousely scheduled event in current thread.
-	**/
-	public static function cancelEvent(eventHandler:EventHandler):Void;
-
-	/**
-		Notify this thread about an upcoming event.
-		This makes the thread to stay alive and wait for as many events as many times
-		`thread.promiseEvent()` was called. These events should be added via
-		`thread.runPromisedEvent()`
-	**/
-	public function promiseEvent():Void;
-
-	/**
-		Execute `event` as soon as possible after this thread finished its job.
-
-		Note that events are not guaranteed to be processed if the thread was
-		created using target native API instead of `sys.thread.Thread.create`
-		(except the main thread).
-	**/
-	public function runEvent(event:()->Void):Void;
-
-	/**
-		Add previously promised `event` for execution after this thread finished its job.
-	**/
-	public function runPromisedEvent(event:()->Void):Void;
-
-	/**
-		Execute all pending events.
-		Wait and execute as many events as many times `Thread.eventComingUp()` was called.
+		Run event loop of the current thread
 	**/
 	private static function processEvents():Void;
 }
-
-@:coreType abstract EventHandler {}

@@ -25,6 +25,8 @@ package sys.thread;
 import eval.vm.NativeThread;
 
 abstract Thread(NativeThread) {
+	public var events(get,never):EventLoop;
+
 	inline function new(h:NativeThread):Void {
 		this = h;
 	}
@@ -58,29 +60,11 @@ abstract Thread(NativeThread) {
 		return this;
 	}
 
-	public static function repeatEvent(event:()->Void, intervalMs:Int):EventHandler {
+	inline function get_events():EventLoop {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
-	public static function cancelEvent(eventHandler:EventHandler):Void {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	public function promiseEvent():Void {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	public function runEvent(event:()->Void):Void {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	public function runPromisedEvent(event:()->Void):Void {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	private static function processEvents():Void {
+	static function processEvents():Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 }
-
-@:coreType abstract EventHandler {}
