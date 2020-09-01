@@ -164,7 +164,7 @@ private class HaxeThread {
 		var thread = new HaxeThread(null);
 		var item = {handle:null, thread:new HaxeThread(null)};
 		threadsMutex.acquire();
-		threads.push(item);
+		var index = threads.push(item);
 		threadsMutex.release();
 		item.handle = thread_create(_ -> {
 			if(item.thread.handle == null) {
@@ -175,21 +175,25 @@ private class HaxeThread {
 				callb();
 				item.thread.events.loop();
 			} catch(e) {
-				dropThread(thread);
+				dropThread(item, index);
 				throw e;
 			}
-			dropThread(thread);
+			dropThread(item, index);
 		}, null);
 		item.thread.handle = item.handle;
 		return item.thread;
 	}
 
-	static function dropThread(thread:HaxeThread) {
+	static function dropThread(item, probableIndex:Int) {
 		threadsMutex.acquire();
-		for(i => item in threads) {
-			if(item.thread == thread) {
-				threads.splice(i, 1);
-				break;
+		if(threads[probableIndex] == item) {
+			threads.splice(probableIndex, 1);
+		} else {
+			for(i => item2 in threads) {
+				if(item2 == item) {
+					threads.splice(i, 1);
+					break;
+				}
 			}
 		}
 		threadsMutex.release();
