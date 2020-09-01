@@ -37,7 +37,11 @@ abstract Thread(HaxeThread) {
 		var hx:Null<HaxeThread> = null;
 		var native = new NativeThread(() -> {
 			cb();
-			hx.events.loop();
+			if(hx == null) {
+				HaxeThread.get(NativeThread.CurrentThread).events.loop();
+			} else {
+				hx.events.loop();
+			}
 		});
 		native.IsBackground = true;
 		hx = HaxeThread.allocate(native);
