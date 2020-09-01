@@ -91,11 +91,14 @@ private class HxThread {
 		var t:HxThread = null;
 		// Wrap the callback so it will clear the thread reference once the thread is finished
 		var wrappedCallB = () -> {
-			callb();
-			t.events.loop();
-			threadsMutex.acquire();
-			threads.remove(nt);
-			threadsMutex.release();
+			try {
+				callb();
+				t.events.loop();
+			} catch(e) {
+				dropThread(nt);
+				throw e;
+			}
+			dropThread(nt);
 		}
 		nt = new NativeThread(null, wrappedCallB);
 		t = new HxThread(nt);
@@ -104,6 +107,12 @@ private class HxThread {
 		threadsMutex.release();
 		nt.start();
 		return t;
+	}
+
+	static inline function dropThread(nt:NativeThread) {
+		threadsMutex.acquire();
+		threads.remove(nt);
+		threadsMutex.release();
 	}
 
 	public static function readMessage(block:Bool):Dynamic {
