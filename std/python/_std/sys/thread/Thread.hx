@@ -22,51 +22,83 @@
 
 package sys.thread;
 
-class Thread {
-	var nativeThread: NativeThread;
-	var messages: Deque<Dynamic>;
+abstract Thread(HxThread) from HxThread {
+	public var events(get,never):EventLoop;
 
-	static var threads = new haxe.ds.ObjectMap<NativeThread, Thread>();
+	public static inline function current():HxThread {
+		return HxThread.current();
+	}
+
+	public static inline function create(callb:Void->Void):HxThread {
+		return HxThread.create(callb);
+	}
+
+	public static inline function readMessage(block:Bool):Dynamic {
+		return HxThread.readMessage(block);
+	}
+
+	public inline function sendMessage(msg:Dynamic):Void {
+		this.sendMessage(msg);
+	}
+
+	inline function get_events():EventLoop {
+		return this.events;
+	}
+
+	@:keep
+	static public function processEvents() {
+		HxThread.current().events.loop();
+	}
+}
+
+private class HxThread {
+	public final events = new EventLoop();
+
+	final nativeThread:NativeThread;
+	final messages = new Deque<Dynamic>();
+
+	static var threads = new haxe.ds.ObjectMap<NativeThread, HxThread>();
 	static var threadsMutex: Mutex = new Mutex();
-	static var mainThread: Thread;
+	static var mainThread: HxThread;
 
 	private function new(t:NativeThread) {
 		nativeThread = t;
-		messages = new Deque<Dynamic>();
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
 		messages.add(msg);
 	}
 
-	public static function current():Thread {
+	public static function current():HxThread {
 		threadsMutex.acquire();
 		var ct = PyThreadingAPI.current_thread();
 		if (ct == PyThreadingAPI.main_thread()) {
-			if (mainThread == null) mainThread = new Thread(ct);
+			if (mainThread == null) mainThread = new HxThread(ct);
 			threadsMutex.release();
 			return mainThread;
 		}
 		// If the current thread was not created via the haxe API, it can still be wrapped
 		if (!threads.exists(ct)) {
-			threads.set(ct, new Thread(ct));
+			threads.set(ct, new HxThread(ct));
 		}
 		var t = threads.get(ct);
 		threadsMutex.release();
 		return t;
 	}
 
-	public static function create(callb:Void->Void):Thread {
+	public static function create(callb:Void->Void):HxThread {
 		var nt:NativeThread = null;
+		var t:HxThread = null;
 		// Wrap the callback so it will clear the thread reference once the thread is finished
-		var wrappedCallB = () -> { 
+		var wrappedCallB = () -> {
 			callb();
+			t.events.loop();
 			threadsMutex.acquire();
 			threads.remove(nt);
 			threadsMutex.release();
 		}
 		nt = new NativeThread(null, wrappedCallB);
-		var t = new Thread(nt);
+		t = new HxThread(nt);
 		threadsMutex.acquire();
 		threads.set(nt, t);
 		threadsMutex.release();
