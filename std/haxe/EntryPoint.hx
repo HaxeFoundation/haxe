@@ -130,6 +130,19 @@ class EntryPoint {
 		#end
 		#elseif flash
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
+		#elseif target.threaded
+		var mainThread = Thread.current();
+		var handler = null;
+		function progress() {
+			if(handler != null) {
+				mainThread.events.cancel(handler);
+			}
+			var nextTick = processEvents();
+			if (nextTick > 0) {
+				handler = mainThread.events.repeat(progress, Std.int(nextTick * 1000.0));
+			}
+		}
+		progress();
 		#elseif sys
 		while (true) {
 			var nextTick = processEvents();
