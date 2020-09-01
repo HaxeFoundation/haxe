@@ -76,7 +76,7 @@ private class HaxeThread {
 
 	public final messages = new LinkedBlockingDeque<Dynamic>();
 
-	public var events(default,null) = new EventLoop();
+	public final events = new EventLoop();
 
 	public static function create(job:()->Void):HaxeThread {
 		var hx = new HaxeThread();
