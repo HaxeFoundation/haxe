@@ -40,7 +40,10 @@ abstract Thread(NativeThread) {
 	}
 
 	public static inline function create(callb:Void->Void):Thread {
-		return new Thread(new NativeThread(callb));
+		return new Thread(new NativeThread(() -> {
+			callb();
+			NativeThread.self().events().loop();
+		}));
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
@@ -56,15 +59,16 @@ abstract Thread(NativeThread) {
 		return getHandle().id() == other.getHandle().id();
 	}
 
-	private inline function getHandle():NativeThread {
+	inline function getHandle():NativeThread {
 		return this;
 	}
 
 	inline function get_events():EventLoop {
-		throw new haxe.exceptions.NotImplementedException();
+		return this.events();
 	}
 
+	@:keep
 	static function processEvents():Void {
-		throw new haxe.exceptions.NotImplementedException();
+		current().getHandle().events().loop();
 	}
 }

@@ -2733,6 +2733,19 @@ module StdThread = struct
 		vint (Thread.id (this vthis).tthread)
 	)
 
+	let events = vifun0 (fun vthis ->
+		let thread = this vthis in
+		match thread.tevents with
+		| Some events -> events
+		| None ->
+			let vthis = encode_instance key_sys_thread_EventLoop in
+			let fnew = get_instance_constructor (get_ctx()) key_sys_thread_EventLoop null_pos in
+			ignore(call_value_on vthis (Lazy.force fnew) []);
+			thread.tevents <- Some vthis;
+			vthis
+
+	)
+
 	let join = vfun1 (fun thread ->
 		Thread.join (this thread).tthread;
 		vnull
@@ -3665,6 +3678,7 @@ let init_standard_library builtins =
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
+		"events",StdThread.events;
 		"kill",StdThread.kill;
 		"sendMessage",StdThread.sendMessage;
 	];
