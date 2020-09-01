@@ -22,40 +22,33 @@
 
 package sys.thread;
 
-@:callable
-@:coreType
-private abstract ThreadHandle {}
+abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 
-abstract Thread(ThreadHandle) {
-	inline function new(h:ThreadHandle):Void {
-		this = h;
-	}
+	public var events(get,never):EventLoop;
 
 	public inline function sendMessage(msg:Dynamic):Void {
-		thread_send(this, msg);
+		this.sendMessage(msg);
 	}
 
 	public static inline function current():Thread {
-		return new Thread(thread_current());
+		return HaxeThread.current();
 	}
 
 	public static inline function create(callb:Void->Void):Thread {
-		return new Thread(thread_create(function(_) {
-			return callb();
-		}, null));
+		return HaxeThread.create(callb);
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
-		return thread_read_message(block);
+		return HaxeThread.readMessage(block);
 	}
 
-	@:op(A == B)
-	inline function equals(other:Thread):Bool {
-		return getHandle() == other.getHandle();
+	inline function get_events():EventLoop {
+		return this.events;
 	}
 
-	private inline function getHandle():ThreadHandle {
-		return this;
+	@:keep
+	static function processEvents() {
+		HaxeThread.current().events.loop();
 	}
 
 	/**
@@ -116,9 +109,101 @@ abstract Thread(ThreadHandle) {
 		static var os_loop_stop = null;
 		static var os_sync = null;
 	 */
-	static var thread_create = neko.Lib.load("std", "thread_create", 2);
+}
 
-	static var thread_current = neko.Lib.load("std", "thread_current", 0);
-	static var thread_send = neko.Lib.load("std", "thread_send", 2);
-	static var thread_read_message = neko.Lib.load("std", "thread_read_message", 1);
+@:callable
+@:coreType
+private abstract ThreadHandle {}
+
+private class HaxeThread {
+	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle;
+	static var thread_current:()->ThreadHandle;
+	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void;
+	static var thread_read_message:(block:Bool)->Dynamic;
+
+	static var mainThreadHandle:ThreadHandle;
+	static var mainThread:HaxeThread;
+
+	static function __init__() {
+		thread_create = neko.Lib.load("std", "thread_create", 2);
+		thread_current = neko.Lib.load("std", "thread_current", 0);
+		thread_send = neko.Lib.load("std", "thread_send", 2);
+		thread_read_message = neko.Lib.load("std", "thread_read_message", 1);
+		mainThreadHandle = thread_current();
+		mainThread = new HaxeThread(mainThreadHandle);
+	}
+
+	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
+	static final threadsMutex = new Mutex();
+
+	public final events = new EventLoop();
+	public var handle:ThreadHandle;
+
+	static public function current():HaxeThread {
+		var handle = thread_current();
+		if(handle == mainThreadHandle) {
+			return mainThread;
+		}
+		threadsMutex.acquire();
+		var thread = null;
+		for(item in threads) {
+			if(item.handle == handle) {
+				thread = item.thread;
+				break;
+			}
+		}
+		if(thread == null) {
+			thread = new HaxeThread(handle);
+			threads.push({thread:thread, handle:handle});
+		}
+		threadsMutex.release();
+		return thread;
+	}
+
+	public static function create(callb:()->Void):Thread {
+		var thread = new HaxeThread(null);
+		var item = {handle:null, thread:new HaxeThread(null)};
+		threadsMutex.acquire();
+		threads.push(item);
+		threadsMutex.release();
+		item.handle = thread_create(_ -> {
+			if(item.thread.handle == null) {
+				item.handle = thread_current();
+				item.thread.handle = item.handle;
+			}
+			try {
+				callb();
+				item.thread.events.loop();
+			} catch(e) {
+				dropThread(thread);
+				throw e;
+			}
+			dropThread(thread);
+		}, null);
+		item.thread.handle = item.handle;
+		return item.thread;
+	}
+
+	static function dropThread(thread:HaxeThread) {
+		threadsMutex.acquire();
+		for(i => item in threads) {
+			if(item.thread == thread) {
+				threads.splice(i, 1);
+				break;
+			}
+		}
+		threadsMutex.release();
+	}
+
+	public static inline function readMessage(block:Bool):Dynamic {
+		return thread_read_message(block);
+	}
+
+	public function new(handle:ThreadHandle) {
+		this.handle = handle;
+	}
+
+	public function sendMessage(msg:Dynamic) {
+		thread_send(handle, msg);
+	}
 }
