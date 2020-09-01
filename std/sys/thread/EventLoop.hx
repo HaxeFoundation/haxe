@@ -33,7 +33,7 @@ class EventLoop {
 	/**
 		Schedule event for execution every `intervalMs` milliseconds in current loop.
 	**/
-	public function repeat(event:()->Void, intervalMs:Float):EventHandler {
+	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
 		mutex.acquire();
 		var interval = 0.001 * intervalMs;
 		var event = new RegularEvent(event, Sys.time() + interval, interval);

@@ -27,14 +27,20 @@ import cs.system.WeakReference;
 import cs.Lib;
 
 abstract Thread(HaxeThread) {
+	public var events(get,never):EventLoop;
+
 	inline function new(thread:HaxeThread) {
 		this = thread;
 	}
 
 	public static function create(cb:Void->Void):Thread {
-		var native = new NativeThread(cb);
+		var hx:Null<HaxeThread> = null;
+		var native = new NativeThread(() -> {
+			cb();
+			hx.events.loop();
+		});
 		native.IsBackground = true;
-		var hx = HaxeThread.allocate(native);
+		hx = HaxeThread.allocate(native);
 		native.Start();
 
 		return new Thread(hx);
@@ -55,23 +61,38 @@ abstract Thread(HaxeThread) {
 	inline function readMessageImpl(block:Bool):Dynamic {
 		return this.readMessage(block);
 	}
+
+	inline function get_events():EventLoop {
+		return this.events;
+	}
+
+	@:keep
+	static function processEvents():Void {
+		HaxeThread.get(NativeThread.CurrentThread).events.loop();
+	}
 }
 
 private class HaxeThread {
+	static final mainNativeThread = NativeThread.CurrentThread;
+	static final mainHaxeThread = new HaxeThread(NativeThread.CurrentThread);
 	static final threads = new Map<Int, WeakReference>();
+	static final threadsMutex = new cs.system.threading.Mutex();
 	static var allocateCount = 0;
 
 	public final native:NativeThread;
+	public final events = new EventLoop();
 
 	final messages = new Deque<Dynamic>();
 
 	public static function get(native:NativeThread):HaxeThread {
+		if(native == mainNativeThread) {
+			return mainHaxeThread;
+		}
 		var native = NativeThread.CurrentThread;
-		var ref:Null<WeakReference> = null;
-		Lib.lock(threads, {
-			var key = native.ManagedThreadId;
-			ref = threads.get(key);
-		});
+		var key = native.ManagedThreadId;
+		threadsMutex.WaitOne();
+		var ref = threads.get(key);
+		threadsMutex.ReleaseMutex();
 		if (ref == null || !ref.IsAlive) {
 			return allocate(native);
 		}
@@ -79,6 +100,7 @@ private class HaxeThread {
 	}
 
 	public static function allocate(native:NativeThread):HaxeThread {
+		threadsMutex.WaitOne();
 		allocateCount++;
 		inline function cleanup() {
 			if (allocateCount % 100 == 0) {
@@ -91,14 +113,13 @@ private class HaxeThread {
 		}
 		var hx = new HaxeThread(native);
 		var ref = new WeakReference(hx);
-		Lib.lock(threads, {
-			cleanup();
-			threads.set(native.ManagedThreadId, ref);
-		});
+		cleanup();
+		threads.set(native.ManagedThreadId, ref);
+		threadsMutex.ReleaseMutex();
 		return hx;
 	}
 
-	public function new(native:NativeThread) {
+	function new(native:NativeThread) {
 		this.native = native;
 	}
 
