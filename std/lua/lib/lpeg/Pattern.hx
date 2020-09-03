@@ -1,48 +1,62 @@
 package lua.lib.lpeg;
-import lua.Table;
-import haxe.ds.StringMap;
-import haxe.extern.Rest;
 import haxe.Constraints.Function;
 import lua.lib.lpeg.Pattern.PatternMetatable as M;
 
+import haxe.extern.Rest;
+import haxe.extern.EitherType as E;
+import lua.Table;
+import haxe.Constraints.Function;
+
+typedef PatternArgument = E<Pattern, E<String, E<Int, E<Bool, E<Table<String,String>, Function>>>>>;
+
 @:luaRequire("lpeg")
 extern class PatternMetatable {
-    static public function __add(v1:Dynamic, v2:Dynamic) : AbstractPattern;
-    static public function __mul(v1:Dynamic, v2:Dynamic) : AbstractPattern;
-    static public function __pow(v1:Dynamic, v2:Dynamic) : AbstractPattern;
-    static public function __div(v1:Dynamic, v2:Dynamic) : AbstractPattern;
+    static public function __add(v1:Dynamic, v2:Dynamic) : Pattern;
+    static public function __mul(v1:Dynamic, v2:Dynamic) : Pattern;
+    static public function __pow(v1:Dynamic, v2:Dynamic) : Pattern;
+    static public function __div(v1:Dynamic, v2:Dynamic) : Pattern;
     static inline function __init__() : Void {
         untyped PatternMetatable = __lua__("getmetatable(require('lpeg').P(1))");
     }
 }
 
-
 @:forward(match)
-abstract AbstractPattern(Pattern){
+abstract Pattern(PatternImpl){
     @:op(A + B)
-    public static inline function add(p1:AbstractPattern, p2 : AbstractPattern) : AbstractPattern  return M.__mul(p1, p2);
+    public static inline function add(p1:Pattern, p2 : Pattern) : Pattern  return M.__mul(p1, p2);
 
     @:op(A + B)
-    public static inline function addString(p : AbstractPattern, str:String) : AbstractPattern  return M.__mul(p, str);
+    public static inline function addString(p : Pattern, str:String) : Pattern  return M.__mul(p, str);
 
     @:op(A + B)
-    public static inline function addStringPre(str : String, p : AbstractPattern) : AbstractPattern  return M.__mul(str, p);
+    public static inline function addStringPre(str : String, p : Pattern) : Pattern  return M.__mul(str, p);
 
-    // @:op(A | B)
-    // public inline function or(p:AbstractPattern) : AbstractPattern  return M.__add(this, p);
+    @:op(A | B)
+    public static inline function or(p1:Pattern, p2:Pattern) : Pattern  return M.__add(p1, p2);
+
+    @:op(A | B)
+    public static inline function orString(p:Pattern, s:String) : Pattern  return M.__add(p, s);
+
+    @:op(A | B)
+    public static inline function orStringPre(s:String, p:Pattern) : Pattern  return M.__add(s, p);
 
     @:op(A * B)
-    public static inline function mul(p: AbstractPattern, n:Int) : AbstractPattern  return M.__pow(p, n);
+    public static inline function mul(p: Pattern, n:Int) : Pattern  return M.__pow(p, n);
 
     @:op(A >> B)
-    public static inline function divf(p : AbstractPattern, f:Function) : AbstractPattern  return M.__div(p, f);
+    public static inline function divf(p : Pattern, f:Function) : Pattern  return M.__div(p, f);
 
-    public inline function len() : AbstractPattern { return untyped __lua_length__(this);}
+    public inline function len() : Pattern { return untyped __lua_length__(this);}
+
+    inline public static function P(p:PatternArgument) : Pattern  return PatternImpl.P(p);
+    inline public static function R(arg:String) : Pattern return PatternImpl.R(arg);
+    inline public static function Cf(p:Pattern, f : Function) : Pattern return PatternImpl.Cf(p, f);
 }
 
 
+
 @:luaRequire("lpeg")
-extern class Pattern {
+extern class PatternImpl {
     /**
       Converts the given value into a proper pattern, according to the following rules:
         * If the argument is a pattern, it is returned unmodified.
@@ -61,11 +75,9 @@ extern class Pattern {
 
       Unlike typical pattern-matching functions, match works only in anchored mode; that is, it tries to match the pattern with a prefix of the given subject string (at position init), not with an arbitrary substring of the subject. So, if we want to find a pattern anywhere in a string, we must either write a loop in Lua or write a pattern that matches anywhere. This second approach is easy and quite efficient;
      **/
-    public static function R(args:Rest<String>) : AbstractPattern;
-    public static function Cf(p:AbstractPattern, f : Function) : AbstractPattern;
+    public static function P(p:PatternArgument) : Pattern;
+    public static function R(args:Rest<String>) : Pattern;
+    public static function Cf(p:Pattern, f : Function) : Pattern;
     public function match(subject:String, ?init:Int) : Int;
-    public function __add(p2:AbstractPattern) : AbstractPattern;
-    public function __mul(n:Int) : AbstractPattern;
-    public function __div(n:Dynamic) : AbstractPattern;
 }
 
