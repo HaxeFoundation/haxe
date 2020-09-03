@@ -22,47 +22,122 @@
 
 package sys.thread;
 
-typedef ThreadHandle = hl.Abstract<"hl_thread">;
+abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
+	public var events(get,never):EventLoop;
 
-abstract Thread(ThreadHandle) {
-	public function sendMessage(msg:Dynamic) {
-		getQueue(this).add(msg);
+	public inline function sendMessage(msg:Dynamic) {
+		this.sendMessage(msg);
 	}
 
-	public static function readMessage(block = true):Dynamic {
-		return getQueue(cast current()).pop(block);
+	public static inline function readMessage(block = true):Dynamic {
+		return HaxeThread.current().readMessage(block);
 	}
 
-	static var queue_mutex:Mutex = null;
-	static var threads_queues:Array<{t:ThreadHandle, q:Deque<Dynamic>}> = null;
-
-	static function getQueue(t:ThreadHandle) {
-		if (queue_mutex == null) {
-			queue_mutex = new Mutex();
-			threads_queues = [];
-		}
-		queue_mutex.acquire();
-		var q = null;
-		for (tq in threads_queues)
-			if (tq.t == t) {
-				q = tq.q;
-				break;
-			}
-		if (q == null) {
-			q = new Deque<Dynamic>();
-			threads_queues.push({t: t, q: q});
-		}
-		queue_mutex.release();
-		return q;
+	public static inline function create(callb:Void->Void):Thread {
+		return HaxeThread.create(callb);
 	}
+
+	public static function current():Thread {
+		return HaxeThread.current();
+	}
+
+	inline function get_events():EventLoop {
+		return this.events;
+	}
+
+	@:keep
+	static public function processEvents() {
+		HaxeThread.current().events.loop();
+	}
+}
+
+private typedef ThreadHandle = hl.Abstract<"hl_thread">;
+
+private class HaxeThread {
+	static final mainThreadHandle:ThreadHandle = currentHandle();
+	static final mainThread:HaxeThread = new HaxeThread(currentHandle());
+	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
+	static final threadsMutex = new Mutex();
+
+	public final events = new EventLoop();
+	public var handle:ThreadHandle;
+	final messages = new Deque();
 
 	@:hlNative("std", "thread_create")
-	public static function create(callb:Void->Void):Thread {
+	static function createHandle(callb:Void->Void):ThreadHandle {
 		return null;
 	}
 
 	@:hlNative("std", "thread_current")
-	public static function current():Thread {
+	static function currentHandle():ThreadHandle {
 		return null;
+	}
+
+	static public function current():HaxeThread {
+		var handle = currentHandle();
+		if(handle == mainThreadHandle) {
+			return mainThread;
+		}
+		threadsMutex.acquire();
+		var thread = null;
+		for(item in threads) {
+			if(item.handle == handle) {
+				thread = item.thread;
+				break;
+			}
+		}
+		if(thread == null) {
+			thread = new HaxeThread(handle);
+			threads.push({thread:thread, handle:handle});
+		}
+		threadsMutex.release();
+		return thread;
+	}
+
+	public static function create(callb:()->Void):Thread {
+		var thread = new HaxeThread(null);
+		var item = {handle:null, thread:new HaxeThread(null)};
+		threadsMutex.acquire();
+		threads.push(item);
+		threadsMutex.release();
+		item.handle = createHandle(() -> {
+			if(item.thread.handle == null) {
+				item.handle = currentHandle();
+				item.thread.handle = item.handle;
+			}
+			try {
+				callb();
+				item.thread.events.loop();
+			} catch(e) {
+				dropThread(thread);
+				throw e;
+			}
+			dropThread(thread);
+		});
+		item.thread.handle = item.handle;
+		return item.thread;
+	}
+
+	static function dropThread(thread:HaxeThread) {
+		threadsMutex.acquire();
+		for(i => item in threads) {
+			if(item.thread == thread) {
+				threads.splice(i, 1);
+				break;
+			}
+		}
+		threadsMutex.release();
+	}
+
+	public function readMessage(block:Bool):Dynamic {
+		return messages.pop(block);
+	}
+
+	public function new(handle:ThreadHandle) {
+		this.handle = handle;
+	}
+
+	public function sendMessage(msg:Dynamic) {
+		messages.add(msg);
 	}
 }
