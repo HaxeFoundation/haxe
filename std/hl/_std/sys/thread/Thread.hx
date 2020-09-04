@@ -63,6 +63,9 @@ private class HaxeThread {
 	public var handle:ThreadHandle;
 	final messages = new Deque();
 
+	static var ids = 0;
+	var id = ids++;
+
 	@:hlNative("std", "thread_create")
 	static function createHandle(callb:Void->Void):ThreadHandle {
 		return null;
@@ -95,7 +98,6 @@ private class HaxeThread {
 	}
 
 	public static function create(callb:()->Void):Thread {
-		var thread = new HaxeThread(null);
 		var item = {handle:null, thread:new HaxeThread(null)};
 		threadsMutex.acquire();
 		threads.push(item);
@@ -109,19 +111,19 @@ private class HaxeThread {
 				callb();
 				item.thread.events.loop();
 			} catch(e) {
-				dropThread(thread);
+				dropThread(item);
 				throw e;
 			}
-			dropThread(thread);
+			dropThread(item);
 		});
 		item.thread.handle = item.handle;
 		return item.thread;
 	}
 
-	static function dropThread(thread:HaxeThread) {
+	static function dropThread(deleteItem) {
 		threadsMutex.acquire();
 		for(i => item in threads) {
-			if(item.thread == thread) {
+			if(item == deleteItem) {
 				threads.splice(i, 1);
 				break;
 			}
