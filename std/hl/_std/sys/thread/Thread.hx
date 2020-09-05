@@ -22,9 +22,9 @@
 
 package sys.thread;
 
-typedef ThreadHandle = hl.Abstract<"hl_thread">;
+private typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
-abstract Thread(ThreadHandle) {
+abstract Thread(ThreadHandle) from ThreadHandle to ThreadHandle {
 	public function sendMessage(msg:Dynamic) {
 		getQueue(this).add(msg);
 	}
@@ -56,8 +56,31 @@ abstract Thread(ThreadHandle) {
 		return q;
 	}
 
+	static public function create(callb:()->Void):Thread {
+		return createHandle(() -> {
+			try {
+				callb();
+			} catch(e) {
+				dropThread(current());
+				throw e;
+			}
+			dropThread(current());
+		});
+	}
+
+	static inline function dropThread(handle:ThreadHandle) {
+		queue_mutex.acquire();
+		for (i => tq in threads_queues) {
+			if (tq.t == handle) {
+				threads_queues.splice(i, 1);
+				break;
+			}
+		}
+		queue_mutex.release();
+	}
+
 	@:hlNative("std", "thread_create")
-	public static function create(callb:Void->Void):Thread {
+	static function createHandle(callb:()->Void):ThreadHandle {
 		return null;
 	}
 
