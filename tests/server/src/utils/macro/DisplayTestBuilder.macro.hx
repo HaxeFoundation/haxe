@@ -46,10 +46,9 @@ class DisplayTestBuilder {
 	static function generateInit(field:Field):Expr {
 		return switch field.doc {
 			case null:
-				macro async.setTimeout(5000);
+				macro {}
 			case src:
 				macro {
-					async.setTimeout(5000);
 					_markers = utils.Markers.parse($v{src});
 					vfs.putContent("Main.hx", markers.source);
 				}
