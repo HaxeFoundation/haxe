@@ -15,6 +15,7 @@
 	cs,java : fixed generation of `@:generic` classes with anonymous functions (#9799)
 	jvm : fixed sending/reading messages with `sys.thread.Threads` for threads created outside of Haxe (#9863)
 	flash : fixed loading swc libraries containing `Vector` without a type parameter (#9805)
+	hl : fixed messages being send to wrong threads with `sendMessage`/`readMessage` in `sys.thread.Thread` (#9875)
 
 2020-07-22 4.1.3
 
