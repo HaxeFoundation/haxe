@@ -14,7 +14,7 @@ class TestTimer extends utest.Test {
 			t.run = () -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~100ms
-				isTrue(dt >= interval);
+				isTrue(dt >= interval, 'Passed time ($dt seconds) is too small. At least $interval seconds expected.');
 				if(i++ > 5) {
 					t.stop();
 					async.done();
@@ -29,7 +29,7 @@ class TestTimer extends utest.Test {
 			Timer.delay(() -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~50ms
-				isTrue(dt >= delay);
+				isTrue(dt >= delay, 'Passed time ($dt seconds) is too small. At least $interval seconds expected.');
 				async.done();
 			}, Std.int(delay * 1000));
 		});

@@ -135,7 +135,6 @@ class EventLoop {
 				case {nextEventAt:time}:
 					waitLock.wait(time - Sys.time());
 			}
-			// break;
 		}
 	}
 
