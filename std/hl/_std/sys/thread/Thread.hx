@@ -55,12 +55,11 @@ private typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
 private class HaxeThread {
 	static final mainThreadHandle:ThreadHandle = currentHandle();
-	static final mainThread:HaxeThread = new HaxeThread(currentHandle());
+	static final mainThread:HaxeThread = new HaxeThread();
 	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
 	static final threadsMutex = new Mutex();
 
 	public final events = new EventLoop();
-	public var handle:ThreadHandle;
 	final messages = new Deque();
 
 	static var ids = 0;
@@ -90,7 +89,7 @@ private class HaxeThread {
 			}
 		}
 		if(thread == null) {
-			thread = new HaxeThread(handle);
+			thread = new HaxeThread();
 			threads.push({thread:thread, handle:handle});
 		}
 		threadsMutex.release();
@@ -98,14 +97,13 @@ private class HaxeThread {
 	}
 
 	public static function create(callb:()->Void):Thread {
-		var item = {handle:null, thread:new HaxeThread(null)};
+		var item = {handle:null, thread:new HaxeThread()};
 		threadsMutex.acquire();
 		threads.push(item);
 		threadsMutex.release();
 		item.handle = createHandle(() -> {
-			if(item.thread.handle == null) {
+			if(item.handle == null) {
 				item.handle = currentHandle();
-				item.thread.handle = item.handle;
 			}
 			try {
 				callb();
@@ -116,7 +114,6 @@ private class HaxeThread {
 			}
 			dropThread(item);
 		});
-		item.thread.handle = item.handle;
 		return item.thread;
 	}
 
@@ -135,9 +132,7 @@ private class HaxeThread {
 		return messages.pop(block);
 	}
 
-	public function new(handle:ThreadHandle) {
-		this.handle = handle;
-	}
+	public function new() {}
 
 	public function sendMessage(msg:Dynamic) {
 		messages.add(msg);
