@@ -14,7 +14,7 @@ class TestTimer extends utest.Test {
 			t.run = () -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~100ms
-				isTrue(Math.abs(dt - interval) <= 0.01);
+				floatEquals(interval, dt, 0.01);
 				if(i++ > 5) {
 					t.stop();
 					async.done();
@@ -29,7 +29,7 @@ class TestTimer extends utest.Test {
 			Timer.delay(() -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~50ms
-				isTrue(Math.abs(dt - delay) <= 0.01);
+				floatEquals(delay, dt, 0.01);
 				async.done();
 			}, Std.int(delay * 1000));
 		});
