@@ -8,7 +8,6 @@ import utest.Assert;
 using StringTools;
 using Lambda;
 
-@:timeout(10000)
 class ServerTests extends TestCase {
 	function testNoModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));

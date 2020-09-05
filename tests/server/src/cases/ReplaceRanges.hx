@@ -5,7 +5,6 @@ import haxe.display.FsPath;
 import haxe.display.Display;
 import utest.Assert.*;
 
-@:timeout(5000)
 // TODO: somebody has to clean this up
 class ReplaceRanges extends TestCase {
 	function complete<S, T>(content:String, markerIndex:Int, cb:(response:CompletionResponse<S, T>, markers:Map<Int, Int>) -> Void) {
