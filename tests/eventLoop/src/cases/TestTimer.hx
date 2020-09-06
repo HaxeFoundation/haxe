@@ -8,30 +8,30 @@ class TestTimer extends utest.Test {
 	function testCorrectInterval(async:Async) {
 		async.branch(async -> {
 			var i = 0;
-			var interval = 0.1;
-			var t = new Timer(Std.int(interval * 1000));
+			var interval = 100;
+			var t = new Timer(interval);
 			var start = Timer.stamp();
 			t.run = () -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~100ms
-				isTrue(dt >= interval, 'Passed time ($dt seconds) is too small. At least $interval seconds expected.');
+				isTrue(Math.round(dt * 1000) >= interval, 'Passed time ($dt seconds) is too small. At least $interval milliseconds expected.');
 				if(i++ > 5) {
 					t.stop();
 					async.done();
 					return;
 				}
-				start += interval;
+				start += interval * 0.001;
 			}
 		});
 		async.branch(async -> {
-			var delay = 0.05;
+			var delay = 50;
 			var start = Timer.stamp();
 			Timer.delay(() -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~50ms
-				isTrue(dt >= delay, 'Passed time ($dt seconds) is too small. At least $delay seconds expected.');
+				isTrue(Math.round(dt * 1000) >= delay, 'Passed time ($dt seconds) is too small. At least $delay milliseconds expected.');
 				async.done();
-			}, Std.int(delay * 1000));
+			}, delay);
 		});
 	}
 
