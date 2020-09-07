@@ -63,6 +63,7 @@ private class HaxeThread {
 
 	public final events = new EventLoop();
 	public var handle:ThreadHandle;
+	final messages = new Deque<Dynamic>();
 
 	static public function current():HaxeThread {
 		var handle = currentHandle();
@@ -129,7 +130,7 @@ private class HaxeThread {
 	}
 
 	public inline function sendMessage(msg:Dynamic):Void {
-		untyped __global__.__hxcpp_thread_send(this, msg);
+		messages.add(msg);
 	}
 
 	static inline function currentHandle():ThreadHandle {
@@ -140,7 +141,7 @@ private class HaxeThread {
 		return untyped __global__.__hxcpp_thread_create(callb);
 	}
 
-	public static function readMessage(block:Bool):Dynamic {
-		return untyped __global__.__hxcpp_thread_read_message(block);
+	public static inline function readMessage(block:Bool):Dynamic {
+		return current().messages.pop(block);
 	}
 }
