@@ -22,7 +22,7 @@
 
 package haxe;
 
-#if target.threaded
+#if (target.threaded && !cppia)
 import sys.thread.Thread;
 import sys.thread.EventLoop;
 #end
@@ -44,7 +44,7 @@ import sys.thread.EventLoop;
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif target.threaded
+	#elseif (target.threaded && !cppia)
 	var thread:Thread;
 	var eventHandler:EventHandler;
 	#else
@@ -71,7 +71,7 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif target.threaded
+		#elseif (target.threaded && !cppia)
 		thread = Thread.current();
 		eventHandler = thread.events.repeat(() -> this.run(), time_ms);
 		#else
@@ -102,7 +102,7 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif target.threaded
+		#elseif (target.threaded && !cppia)
 		thread.events.cancel(eventHandler);
 		#else
 		if (event != null) {

@@ -1,6 +1,6 @@
 package haxe;
 
-#if target.threaded
+#if (target.threaded && !cppia)
 import sys.thread.Lock;
 import sys.thread.Mutex;
 import sys.thread.Thread;
@@ -130,7 +130,7 @@ class EntryPoint {
 		#end
 		#elseif flash
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
-		#elseif target.threaded
+		#elseif (target.threaded && !cppia)
 		var mainThread = Thread.current();
 		var handler = null;
 		function progress() {
