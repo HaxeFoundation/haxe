@@ -67,7 +67,7 @@ abstract Thread(HaxeThread) from HaxeThread {
 		return this;
 	}
 
-	inline function get_events():EventLoop {
+	function get_events():EventLoop {
 		if(this.events == null)
 			throw new NoEventLoopException();
 		return this.events;

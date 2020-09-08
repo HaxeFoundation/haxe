@@ -39,10 +39,33 @@ abstract Thread(NativeThread) {
 		return new Thread(NativeThread.self());
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
+	public static inline function create(job:()->Void):Thread {
+		return new Thread(new NativeThread(job));
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = NativeThread.self();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
 		return new Thread(new NativeThread(() -> {
-			callb();
-			NativeThread.self().events().loop();
+			var thread = NativeThread.self();
+			thread.events = new EventLoop();
+			job();
+			thread.events.loop();
 		}));
 	}
 
@@ -63,12 +86,20 @@ abstract Thread(NativeThread) {
 		return this;
 	}
 
-	inline function get_events():EventLoop {
-		return this.events();
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
 	}
 
 	@:keep
+	static function initEventLoop() {
+		NativeThread.self().events = new EventLoop();
+	}
+
+
+	@:keep
 	static function processEvents():Void {
-		current().getHandle().events().loop();
+		NativeThread.self().events.loop();
 	}
 }

@@ -95,7 +95,7 @@ let create com api is_macro =
 	let thread = {
 		tthread = Thread.self();
 		tstorage = IntMap.empty;
-		tevents = None;
+		tevents = vnull;
 		tdeque = EvalThread.Deque.create();
 	} in
 	let eval = EvalThread.create_eval thread in
