@@ -142,7 +142,7 @@ class EventLoop {
 				case {nextEventAt:time}:
 					var timeout = time - Sys.time();
 					trace('waiting for $timeout');
-					waitLock.wait(Math.max(0, timout));
+					waitLock.wait(Math.max(0, timeout));
 			}
 		}
 	}
