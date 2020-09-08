@@ -33,8 +33,16 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 		return HaxeThread.current().readMessage(block);
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return HaxeThread.create(callb);
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job, false);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return HaxeThread.create(job, true);
 	}
 
 	public static function current():Thread {
@@ -42,7 +50,14 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 	}
 
 	inline function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
 		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.current().events = new EventLoop();
 	}
 
 	@:keep
@@ -59,7 +74,7 @@ private class HaxeThread {
 	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
 	static final threadsMutex = new Mutex();
 
-	public final events = new EventLoop();
+	public var events(default,null):Null<EventLoop>;
 	final messages = new Deque();
 
 	static var ids = 0;
@@ -96,18 +111,21 @@ private class HaxeThread {
 		return thread;
 	}
 
-	public static function create(callb:()->Void):Thread {
+	public static function create(callb:()->Void, withEventLoop:Bool):Thread {
 		var item = {handle:null, thread:new HaxeThread()};
 		threadsMutex.acquire();
 		threads.push(item);
 		threadsMutex.release();
+		if(withEventLoop)
+			item.thread.events = new EventLoop();
 		item.handle = createHandle(() -> {
 			if(item.handle == null) {
 				item.handle = currentHandle();
 			}
 			try {
 				callb();
-				item.thread.events.loop();
+				if(withEventLoop)
+					item.thread.events.loop();
 			} catch(e) {
 				dropThread(item);
 				throw e;
@@ -115,6 +133,23 @@ private class HaxeThread {
 			dropThread(item);
 		});
 		return item.thread;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = current();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
 	}
 
 	static function dropThread(deleteItem) {
