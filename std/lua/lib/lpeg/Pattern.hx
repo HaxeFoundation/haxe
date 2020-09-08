@@ -1,5 +1,4 @@
 package lua.lib.lpeg;
-import haxe.Constraints.Function;
 import lua.lib.lpeg.Pattern.PatternMetatable as M;
 
 import haxe.extern.Rest;
@@ -46,12 +45,24 @@ abstract Pattern(PatternImpl){
     @:op(A >> B)
     public static inline function divf(p : Pattern, f:Function) : Pattern  return M.__div(p, f);
 
+    @:op(A >> B)
+    public static inline function divi(p : Pattern, i:Int) : Pattern  return M.__div(p, i);
+
     public inline function len() : Pattern { return untyped __lua_length__(this);}
 
     inline public static function P(p:PatternArgument) : Pattern  return PatternImpl.P(p);
     inline public static function R(arg:String) : Pattern return PatternImpl.R(arg);
     inline public static function Cf(p:Pattern, f : Function) : Pattern return PatternImpl.Cf(p, f);
+    inline public static function Ct(p:Pattern) : Table<Dynamic, String> return PatternImpl.Ct(p);
+    inline public static function Cc(val:Dynamic) : Pattern return PatternImpl.Cc(val);
+    inline public static function Ca(p:Pattern) : Pattern {
+        return Cf(Cc([]) + p, (acc:Array<String>, v : Dynamic)-> {
+            acc.push(v);
+            return acc;
+        });
+    }
 }
+
 
 
 
@@ -78,6 +89,9 @@ extern class PatternImpl {
     public static function P(p:PatternArgument) : Pattern;
     public static function R(args:Rest<String>) : Pattern;
     public static function Cf(p:Pattern, f : Function) : Pattern;
-    public function match(subject:String, ?init:Int) : Int;
+    public static function Cc(val:Rest<Dynamic>) : Pattern;
+
+    public static function Ct(p:Pattern) : Table<String,String>;
+    public function match(subject:String, ?init:Int) : Dynamic;
 }
 

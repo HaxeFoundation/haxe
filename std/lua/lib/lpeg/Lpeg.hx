@@ -32,6 +32,41 @@ extern class Lpeg {
      **/
     public static function setmaxstack(max:Int) : Void;
 
-    public static function locale(arg:Table<String,Pattern>) : Table<String,Pattern>;
+    public static function locale(arg:Table<String,Pattern>) : Predef;
 
+}
+
+typedef Predef = {
+    a : Pattern,
+    c : Pattern,
+    d : Pattern,
+    g : Pattern,
+    l : Pattern,
+    p : Pattern,
+    s : Pattern,
+    u : Pattern,
+    w : Pattern,
+    x : Pattern,
+
+    A : Pattern,
+    C : Pattern,
+    D : Pattern,
+    G : Pattern,
+    L : Pattern,
+    P : Pattern,
+    S : Pattern,
+    U : Pattern,
+    W : Pattern,
+    X : Pattern,
+
+    alpha : Pattern,
+    cntrl : Pattern,
+    digit : Pattern,
+    graph : Pattern,
+    lower : Pattern,
+    punct : Pattern,
+    space : Pattern,
+    upper : Pattern,
+    alnum : Pattern,
+    xdigit : Pattern
 }
