@@ -132,7 +132,6 @@ class EventLoop {
 	public function loop():Void {
 		var events = [];
 		while(true) {
-			trace('loop $id at ${Sys.time()}');
 			var r = __progress(Sys.time(), events);
 			switch r {
 				case {nextEventAt:-2}:
@@ -141,12 +140,12 @@ class EventLoop {
 				case {nextEventAt:-1, anyTime:true}:
 					waitLock.wait();
 				case {nextEventAt:time}:
-					waitLock.wait(time - Sys.time());
+					var timeout = time - Sys.time();
+					trace('waiting for $timeout');
+					waitLock.wait(Math.max(0, timout));
 			}
 		}
 	}
-	static var ids = 0;
-	var id = ids++;
 
 	/**
 		`.pogress` implementation with a resuable array for internal usage.
@@ -162,8 +161,10 @@ class EventLoop {
 		// When the next event is expected to run
 		var nextEventAt:Float = -1;
 
-		// Collect regular events to run
 		mutex.acquire();
+		//reset waitLock
+		while(waitLock.wait(0)) {}
+		// Collect regular events to run
 		var current = regularEvents;
 		while(current != null) {
 			if(current.nextRunTime <= now) {
