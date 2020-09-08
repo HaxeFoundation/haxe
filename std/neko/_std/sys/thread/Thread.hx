@@ -116,22 +116,13 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 private abstract ThreadHandle {}
 
 private class HaxeThread {
-	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle;
-	static var thread_current:()->ThreadHandle;
-	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void;
-	static var thread_read_message:(block:Bool)->Dynamic;
+	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle = neko.Lib.load("std", "thread_create", 2);
+	static var thread_current:()->ThreadHandle = neko.Lib.load("std", "thread_current", 0);
+	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void = neko.Lib.load("std", "thread_send", 2);
+	static var thread_read_message:(block:Bool)->Dynamic = neko.Lib.load("std", "thread_read_message", 1);
 
-	static var mainThreadHandle:ThreadHandle;
-	static var mainThread:HaxeThread;
-
-	static function __init__() {
-		thread_create = neko.Lib.load("std", "thread_create", 2);
-		thread_current = neko.Lib.load("std", "thread_current", 0);
-		thread_send = neko.Lib.load("std", "thread_send", 2);
-		thread_read_message = neko.Lib.load("std", "thread_read_message", 1);
-		mainThreadHandle = thread_current();
-		mainThread = new HaxeThread(mainThreadHandle);
-	}
+	static var mainThreadHandle = thread_current();
+	static var mainThread = new HaxeThread(mainThreadHandle);
 
 	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
 	static final threadsMutex = new Mutex();
