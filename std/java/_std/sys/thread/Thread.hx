@@ -40,11 +40,19 @@ abstract Thread(HaxeThread) from HaxeThread {
 	}
 
 	public static inline function create(job:()->Void):Thread {
-		return HaxeThread.create(job);
+		return HaxeThread.create(job, false);
 	}
 
 	public static inline function current():Thread {
 		return HaxeThread.get(JavaThread.currentThread());
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):HaxeThread {
+		return HaxeThread.create(job, true);
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
@@ -60,7 +68,14 @@ abstract Thread(HaxeThread) from HaxeThread {
 	}
 
 	inline function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
 		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.get(JavaThread.currentThread()).events = new EventLoop();
 	}
 
 	@:keep //TODO: keep only if events are actually used
@@ -76,11 +91,13 @@ private class HaxeThread {
 
 	public final messages = new LinkedBlockingDeque<Dynamic>();
 
-	public final events = new EventLoop();
+	public var events(default,null):Null<EventLoop>;
 
-	public static function create(job:()->Void):HaxeThread {
+	public static function create(job:()->Void, withEventLoop:Bool):HaxeThread {
 		var hx = new HaxeThread();
-		var thread = new NativeHaxeThread(hx, job);
+		if(withEventLoop)
+			hx.events = new EventLoop();
+		var thread = new NativeHaxeThread(hx, job, withEventLoop);
 		thread.setDaemon(true);
 		thread.start();
 		return hx;
@@ -103,6 +120,23 @@ private class HaxeThread {
 		}
 	}
 
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = get(JavaThread.currentThread());
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
 	function new() {}
 
 	public function sendMessage(msg:Dynamic):Void {
@@ -116,15 +150,18 @@ private class HaxeThread {
 
 private class NativeHaxeThread extends java.lang.Thread {
 	public final haxeThread:HaxeThread;
+	final withEventLoop:Bool;
 
-	public function new(haxeThread:HaxeThread, job:()->Void) {
+	public function new(haxeThread:HaxeThread, job:()->Void, withEventLoop:Bool) {
 		super(new Job(job));
 		this.haxeThread = haxeThread;
+		this.withEventLoop = withEventLoop;
 	}
 
 	override overload public function run() {
 		super.run();
-		haxeThread.events.loop();
+		if(withEventLoop)
+			haxeThread.events.loop();
 	}
 }
 
