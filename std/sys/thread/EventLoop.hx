@@ -141,7 +141,6 @@ class EventLoop {
 					waitLock.wait();
 				case {nextEventAt:time}:
 					var timeout = time - Sys.time();
-					trace('waiting for $timeout');
 					waitLock.wait(Math.max(0, timeout));
 			}
 		}
@@ -163,7 +162,7 @@ class EventLoop {
 
 		mutex.acquire();
 		//reset waitLock
-		while(waitLock.wait(0)) {}
+		while(waitLock.wait(0.0)) {}
 		// Collect regular events to run
 		var current = regularEvents;
 		while(current != null) {
