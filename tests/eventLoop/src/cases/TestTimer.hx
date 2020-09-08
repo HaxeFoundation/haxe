@@ -56,7 +56,7 @@ class TestTimer extends utest.Test {
 		}
 
 		for(n in 0...10) {
-			Thread.create(work.bind(n));
+			Thread.createWithEventLoop(work.bind(n));
 		}
 
 		//expect two messages with different types per thread

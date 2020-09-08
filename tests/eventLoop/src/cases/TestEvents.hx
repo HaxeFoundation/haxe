@@ -3,9 +3,26 @@ package cases;
 @:timeout(1000)
 class TestEvents extends utest.Test {
 
+	function testThreadRunWithEventLoop() {
+		var eventExecuted = false;
+		var lock = new sys.thread.Lock();
+		Thread.create(() -> {
+			var thread = Thread.current();
+			raises(
+				() -> thread.events.run(() -> {}),
+				sys.thread.NoEventLoopException
+			);
+			Thread.runWithEventLoop(() -> {
+				thread.events.run(lock.release);
+			});
+		});
+		lock.wait();
+		pass();
+	}
+
 	function testRun(async:Async) {
 		var mainThread = Thread.current();
-		Thread.create(() -> {
+		Thread.createWithEventLoop(() -> {
 			var childThread = Thread.current();
 			isTrue(mainThread != childThread);
 			mainThread.events.run(() -> {
@@ -42,7 +59,7 @@ class TestEvents extends utest.Test {
 		//test in main thread
 		test(mainThread, () -> {
 			//now test in a child thread
-			Thread.create(() -> {
+			Thread.createWithEventLoop(() -> {
 				var childThread = Thread.current();
 				isTrue(childThread != mainThread);
 				test(childThread, mainThread.events.run.bind(() -> async.done()));
@@ -54,12 +71,12 @@ class TestEvents extends utest.Test {
 	function testPromisedEvents(async:Async) {
 		var mainThread = Thread.current();
 		// this thread is expected to wait for promised events
-		Thread.create(() -> {
+		Thread.createWithEventLoop(() -> {
 			var eventsExecuted = 0;
 			var testThread = Thread.current();
 			testThread.events.promise(); // 1 promised event
 			// this thread will deliver promised events to the testThread
-			Thread.create(() -> {
+			Thread.createWithEventLoop(() -> {
 				Sys.sleep(0.2);
 				testThread.events.promise(); // 2 promised events
 				testThread.events.runPromised(() -> {
