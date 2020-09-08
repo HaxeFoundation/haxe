@@ -25,12 +25,20 @@ package sys.thread;
 abstract Thread(HxThread) from HxThread {
 	public var events(get,never):EventLoop;
 
-	public static inline function current():HxThread {
+	public static inline function current():Thread {
 		return HxThread.current();
 	}
 
-	public static inline function create(callb:Void->Void):HxThread {
-		return HxThread.create(callb);
+	public static inline function create(callb:Void->Void):Thread {
+		return HxThread.create(callb, false);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HxThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return HxThread.create(job, true);
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
@@ -41,8 +49,15 @@ abstract Thread(HxThread) from HxThread {
 		this.sendMessage(msg);
 	}
 
-	inline function get_events():EventLoop {
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
 		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HxThread.current().events = new EventLoop();
 	}
 
 	@:keep
@@ -52,7 +67,7 @@ abstract Thread(HxThread) from HxThread {
 }
 
 private class HxThread {
-	public final events = new EventLoop();
+	public var events(default,null):Null<EventLoop>;
 
 	final nativeThread:NativeThread;
 	final messages = new Deque<Dynamic>();
@@ -86,14 +101,15 @@ private class HxThread {
 		return t;
 	}
 
-	public static function create(callb:Void->Void):HxThread {
+	public static function create(callb:Void->Void, withEventLoop:Bool):HxThread {
 		var nt:NativeThread = null;
 		var t:HxThread = null;
 		// Wrap the callback so it will clear the thread reference once the thread is finished
 		var wrappedCallB = () -> {
 			try {
 				callb();
-				t.events.loop();
+				if(withEventLoop)
+					t.events.loop();
 			} catch(e) {
 				dropThread(nt);
 				throw e;
@@ -102,11 +118,30 @@ private class HxThread {
 		}
 		nt = new NativeThread(null, wrappedCallB);
 		t = new HxThread(nt);
+		if(withEventLoop)
+			t.events = new EventLoop();
 		threadsMutex.acquire();
 		threads.set(nt, t);
 		threadsMutex.release();
 		nt.start();
 		return t;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = current();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
 	}
 
 	static inline function dropThread(nt:NativeThread) {
