@@ -33,8 +33,16 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 		return HaxeThread.current();
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return HaxeThread.create(callb);
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job, false);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):HaxeThread {
+		return HaxeThread.create(job, true);
 	}
 
 	public static function readMessage(block:Bool):Dynamic {
@@ -42,7 +50,14 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 	}
 
 	inline function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
 		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.current().events = new EventLoop();
 	}
 
 	@:keep
@@ -61,7 +76,7 @@ private class HaxeThread {
 	static var mainThreadHandle:ThreadHandle = currentHandle();
 	static var mainThread:HaxeThread = new HaxeThread(currentHandle());
 
-	public final events = new EventLoop();
+	public var events(default,null):Null<EventLoop>;
 	public var handle:ThreadHandle;
 	final messages = new Deque<Dynamic>();
 
@@ -86,20 +101,22 @@ private class HaxeThread {
 		return thread;
 	}
 
-	public static function create(callb:()->Void):Thread {
-		var thread = new HaxeThread(null);
+	public static function create(job:()->Void, withEventLoop:Bool):Thread {
 		var item = {handle:null, thread:new HaxeThread(null)};
 		threadsMutex.acquire();
 		var index = threads.push(item);
 		threadsMutex.release();
+		if(withEventLoop)
+			item.thread.events = new EventLoop();
 		item.handle = createHandle(() -> {
 			if(item.thread.handle == null) {
 				item.handle = currentHandle();
 				item.thread.handle = item.handle;
 			}
 			try {
-				callb();
-				item.thread.events.loop();
+				job();
+				if(withEventLoop)
+					item.thread.events.loop();
 			} catch(e) {
 				dropThread(item, index);
 				throw e;
@@ -108,6 +125,23 @@ private class HaxeThread {
 		});
 		item.thread.handle = item.handle;
 		return item.thread;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = current();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
 	}
 
 	static function dropThread(item, probableIndex:Int) {
