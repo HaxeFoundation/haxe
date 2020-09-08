@@ -125,6 +125,7 @@ class EventLoop {
 	public function loop():Void {
 		var events = [];
 		while(true) {
+			trace('loop $id at ${Sys.time()}');
 			var r = __progress(Sys.time(), events);
 			switch r {
 				case {nextEventAt:-2}:
@@ -137,6 +138,8 @@ class EventLoop {
 			}
 		}
 	}
+	static var ids = 0;
+	var id = ids++;
 
 	/**
 		`.pogress` implementation with a resuable array for internal usage.
