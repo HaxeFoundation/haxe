@@ -103,8 +103,7 @@ class EventLoop {
 
 	/**
 		Executes all pending events.
-		Returns amount of milliseconds until next event is expected to run.
-		Returns a negative number if no more events is expected.
+
 		The returned time stamps can be used with `Sys.time()` for calculations.
 	**/
 	public function progress():NextEventTime {
@@ -115,6 +114,14 @@ class EventLoop {
 			case {nextEventAt:time, anyTime:true}: AnyTime(time);
 			case {nextEventAt:time, anyTime:false}: At(time);
 		}
+	}
+
+	/**
+		Waits for a new event to be added, or `timeout` (in seconds) to expire.
+		Returns `true` if an event was added and `false` if a timeout occurs.
+	**/
+	public function wait(?timeout:Float) {
+		return waitLock.wait(timeout);
 	}
 
 	/**
