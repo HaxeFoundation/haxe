@@ -51,7 +51,7 @@ abstract Thread(HaxeThread) from HaxeThread {
 		HaxeThread.runWithEventLoop(job);
 	}
 
-	public static inline function createWithEventLoop(job:()->Void):HaxeThread {
+	public static inline function createWithEventLoop(job:()->Void):Thread {
 		return HaxeThread.create(job, true);
 	}
 

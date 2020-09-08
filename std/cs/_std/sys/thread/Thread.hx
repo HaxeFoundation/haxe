@@ -33,10 +33,24 @@ abstract Thread(HaxeThread) {
 		this = thread;
 	}
 
-	public static function create(cb:Void->Void):Thread {
+	public static function create(job:Void->Void):Thread {
+		var hx:Null<HaxeThread> = null;
+		var native = new NativeThread(job);
+		native.IsBackground = true;
+		hx = HaxeThread.allocate(native, false);
+		native.Start();
+
+		return new Thread(hx);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
 		var hx:Null<HaxeThread> = null;
 		var native = new NativeThread(() -> {
-			cb();
+			job();
 			if(hx == null) {
 				HaxeThread.get(NativeThread.CurrentThread).events.loop();
 			} else {
@@ -44,7 +58,7 @@ abstract Thread(HaxeThread) {
 			}
 		});
 		native.IsBackground = true;
-		hx = HaxeThread.allocate(native);
+		hx = HaxeThread.allocate(native, true);
 		native.Start();
 
 		return new Thread(hx);
@@ -67,7 +81,14 @@ abstract Thread(HaxeThread) {
 	}
 
 	inline function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
 		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop():Void {
+		@:privateAccess HaxeThread.get(NativeThread.CurrentThread).events = new EventLoop();
 	}
 
 	@:keep
@@ -84,7 +105,7 @@ private class HaxeThread {
 	static var allocateCount = 0;
 
 	public final native:NativeThread;
-	public final events = new EventLoop();
+	public var events(default,null):Null<EventLoop>;
 
 	final messages = new Deque<Dynamic>();
 
@@ -98,12 +119,12 @@ private class HaxeThread {
 		var ref = threads.get(key);
 		threadsMutex.ReleaseMutex();
 		if (ref == null || !ref.IsAlive) {
-			return allocate(native);
+			return allocate(native, false);
 		}
 		return ref.Target;
 	}
 
-	public static function allocate(native:NativeThread):HaxeThread {
+	public static function allocate(native:NativeThread, withEventLoop:Bool):HaxeThread {
 		threadsMutex.WaitOne();
 		allocateCount++;
 		inline function cleanup() {
@@ -116,11 +137,30 @@ private class HaxeThread {
 			}
 		}
 		var hx = new HaxeThread(native);
+		if(withEventLoop)
+			hx.events = new EventLoop();
 		var ref = new WeakReference(hx);
 		cleanup();
 		threads.set(native.ManagedThreadId, ref);
 		threadsMutex.ReleaseMutex();
 		return hx;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = get(NativeThread.CurrentThread);
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
 	}
 
 	function new(native:NativeThread) {
