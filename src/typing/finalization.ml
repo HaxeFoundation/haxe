@@ -60,11 +60,12 @@ let get_main ctx types =
 			with Not_found ->
 				[main]
 			)
+		in
 		(* add calls for event loop *)
-		and add_event_loop main =
+		let add_event_loop main =
 			(try
 				let thread = (["sys";"thread";"_Thread"],"Thread_Impl_") in
-				call_static thread "initEventLoop" :: main :: [call_static thread "processEvents"]
+				call_static thread "initEventLoop" :: add_entry_point_run main @ [call_static thread "processEvents"]
 			with Not_found ->
 				[main]
 			)
