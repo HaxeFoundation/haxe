@@ -8,8 +8,8 @@ class Issue3767 implements ITest {
 
 	#if (java || python)
 
-	@:timeout(5000)
-	function testBasicLock(async:utest.Async) {
+	function testBasicLock() {
+		var mainLock = new Lock();
 		Thread.create(() -> {
 			var lock = new Lock();
 			//it starts locked
@@ -43,8 +43,9 @@ class Issue3767 implements ITest {
 				lock.release();
 			});
 			Assert.isTrue(lock.wait());
-			async.done();
+			mainLock.release();
 		});
+		Assert.isTrue(mainLock.wait(2.0));
 	}
 
 	#end

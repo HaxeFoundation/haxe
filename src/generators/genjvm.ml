@@ -921,7 +921,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		f2 (rvalue_sig cast_type);
 		jm#cast cast_type;
 
-	method get_binop_type_sig jsig1 jsig2 = match jsig1,jsig2 with
+	method get_binop_type_sig jsig1 jsig2 =
+		match get_unboxed_type jsig1, get_unboxed_type jsig2 with
 		| TObject((["java";"lang"],"String"),_),_
 		| _,TObject((["java";"lang"],"String"),_) ->
 			string_sig

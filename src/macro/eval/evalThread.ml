@@ -111,6 +111,7 @@ let spawn ctx f =
 	let thread = {
 		tthread = Obj.magic ();
 		tstorage = IntMap.empty;
+		tevents = vnull;
 		tdeque = Deque.create();
 	} in
 	thread.tthread <- Thread.create f thread;

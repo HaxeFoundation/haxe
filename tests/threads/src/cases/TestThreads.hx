@@ -1,18 +1,18 @@
 package cases;
 
-import utest.Async;
 import utest.Assert;
 
 class TestThreads implements utest.ITest
 {
 	public function new() { }
 
-	@:timeout(40000)
-	function testSort(async:Async) {
+	function testSort() {
+		var lock = new Lock();
 		Thread.create(() -> {
 			doTestSort();
-			async.done();
+			lock.release();
 		});
+		Assert.isTrue(lock.wait(40.0));
 	}
 
 	private function doTestSort()

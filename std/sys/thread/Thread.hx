@@ -28,6 +28,15 @@ package sys.thread;
 
 extern abstract Thread({}) {
 	/**
+		Event loop of this thread (if available).
+
+		Note that by default event loop is only available in the main thread.
+		To setup an event loop in other threads use `sys.thread.Thread.runWithEventLoop`
+		or create new threads with built-in event loops using `sys.thread.Thread.createWithEventLoop`
+	**/
+	public var events(get,never):EventLoop;
+
+	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage(msg:Dynamic):Void;
@@ -39,8 +48,24 @@ extern abstract Thread({}) {
 
 	/**
 		Creates a new thread that will execute the `job` function, then exit.
+
+		This function does not setup an event loop for a new thread.
 	**/
-	public static function create(job:Void->Void):Thread;
+	public static function create(job:()->Void):Thread;
+
+	/**
+		Simply execute `job` if current thread already has an event loop.
+
+		But if current thread does not have an event loop: setup event loop,
+		run `job` and then destroy event loop. And in this case this function
+		does not return until no more events left to run.
+	**/
+	public static function runWithEventLoop(job:()->Void):Void;
+
+	/**
+		This is logically equal to `Thread.create(() -> Thread.runWithEventLoop(job));`
+	**/
+	public static function createWithEventLoop(job:()->Void):Thread;
 
 	/**
 		Reads a message from the thread queue. If `block` is true, the function
@@ -50,42 +75,12 @@ extern abstract Thread({}) {
 	public static function readMessage(block:Bool):Dynamic;
 
 	/**
-		Schedule event for execution every `intervalMs` milliseconds in current thread.
+		Initialize event loop in this thread
 	**/
-	public static function repeatEvent(event:()->Void, intervalMs:Int):EventHandler;
+	private static function initEventLoop():Void;
 
 	/**
-		Prevent execution of a previousely scheduled event in current thread.
-	**/
-	public static function cancelEvent(eventHandler:EventHandler):Void;
-
-	/**
-		Notify this thread about an upcoming event.
-		This makes the thread to stay alive and wait for as many events as many times
-		`thread.promiseEvent()` was called. These events should be added via
-		`thread.runPromisedEvent()`
-	**/
-	public function promiseEvent():Void;
-
-	/**
-		Execute `event` as soon as possible after this thread finished its job.
-
-		Note that events are not guaranteed to be processed if the thread was
-		created using target native API instead of `sys.thread.Thread.create`
-		(except the main thread).
-	**/
-	public function runEvent(event:()->Void):Void;
-
-	/**
-		Add previously promised `event` for execution after this thread finished its job.
-	**/
-	public function runPromisedEvent(event:()->Void):Void;
-
-	/**
-		Execute all pending events.
-		Wait and execute as many events as many times `Thread.eventComingUp()` was called.
+		Run event loop of the current thread
 	**/
 	private static function processEvents():Void;
 }
-
-@:coreType abstract EventHandler {}

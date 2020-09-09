@@ -43,41 +43,42 @@ let get_main ctx types =
 			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
 		if not (ExtType.is_void (follow r)) then error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
+		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
+		let call_static path method_name =
+			let et = List.find (fun t -> t_path t = path) types in
+			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
+			let ef = PMap.find method_name ec.cl_statics in
+			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) null_pos in
+			mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type null_pos,[])) ctx.t.tvoid null_pos
+		in
 		(* add haxe.EntryPoint.run() call *)
-		let add_entry_point_run exprs_rev =
+		let add_entry_point_run main =
 			(try
-				if ctx.com.config.pf_supports_threads then
-					raise Not_found; (* Threaded targets run event loops per thread*)
-				let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-				let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
-				let ef = PMap.find "run" ec.cl_statics in
-				let p = null_pos in
-				let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
-				let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-				call :: exprs_rev
+				main :: [call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
-				exprs_rev
+				[main]
 			)
-		(* add sys.thread.Thread.processEvents() call *)
-		and add_event_loop exprs_rev =
+		in
+		(* add calls for event loop *)
+		let add_event_loop main =
 			(try
-				let et = List.find (fun t -> t_path t = (["sys";"thread";"_Thread"],"Thread_Impl_")) types in
-				let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
-				let ef = PMap.find "processEvents" ec.cl_statics in
-				let p = null_pos in
-				let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
-				let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-				call :: exprs_rev
+				let thread = (["sys";"thread";"_Thread"],"Thread_Impl_") in
+				call_static thread "initEventLoop" :: add_entry_point_run main @ [call_static thread "processEvents"]
 			with Not_found ->
-				exprs_rev
+				[main]
 			)
 		in
 		let main =
-			match add_event_loop (add_entry_point_run [main]) with
+			(* Threaded targets run event loops per thread *)
+			let exprs =
+				if ctx.com.config.pf_supports_threads then add_event_loop main
+				else add_entry_point_run main
+			in
+			match exprs with
 			| [e] -> e
-			| exprs_rev -> mk (TBlock (List.rev exprs_rev)) ctx.t.tvoid p
+			| _ -> mk (TBlock exprs) ctx.t.tvoid p
 		in
 		Some main
 

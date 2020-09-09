@@ -203,6 +203,7 @@ and venum_value = {
 and vthread = {
 	mutable tthread : Thread.t;
 	tdeque : vdeque;
+	mutable tevents : value;
 	mutable tstorage : value IntMap.t;
 }
 

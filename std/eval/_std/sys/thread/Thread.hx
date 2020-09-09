@@ -25,6 +25,8 @@ package sys.thread;
 import eval.vm.NativeThread;
 
 abstract Thread(NativeThread) {
+	public var events(get,never):EventLoop;
+
 	inline function new(h:NativeThread):Void {
 		this = h;
 	}
@@ -37,8 +39,34 @@ abstract Thread(NativeThread) {
 		return new Thread(NativeThread.self());
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return new Thread(new NativeThread(callb));
+	public static inline function create(job:()->Void):Thread {
+		return new Thread(new NativeThread(job));
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = NativeThread.self();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return new Thread(new NativeThread(() -> {
+			var thread = NativeThread.self();
+			thread.events = new EventLoop();
+			job();
+			thread.events.loop();
+		}));
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
@@ -54,7 +82,24 @@ abstract Thread(NativeThread) {
 		return getHandle().id() == other.getHandle().id();
 	}
 
-	private inline function getHandle():NativeThread {
+	inline function getHandle():NativeThread {
 		return this;
+	}
+
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		NativeThread.self().events = new EventLoop();
+	}
+
+
+	@:keep
+	static function processEvents():Void {
+		NativeThread.self().events.loop();
 	}
 }

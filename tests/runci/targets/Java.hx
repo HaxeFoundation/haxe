@@ -31,6 +31,10 @@ class Java {
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
+		changeDirectory(eventLoopDir);
+		runCommand("haxe", ["build.hxml", "-java", "bin/java"].concat(args));
+		runCommand("java", ["-jar", "bin/java/Main.jar"]);
+
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"].concat(args));
 		if (systemName != "Windows") { // #8154
