@@ -926,6 +926,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| _,TObject((["java";"lang"],"String"),_) ->
 			string_sig
 		| TLong,_ | _,TLong -> TLong
+		| _,TObject((["java";"lang"],"Double"),_)
+		| TObject((["java";"lang"],"Double"),_),_
 		| TDouble,_ | _,TDouble -> TDouble
 		| TFloat,_ | _,TFloat -> TFloat
 		| TInt,_ | _,TInt -> TInt
