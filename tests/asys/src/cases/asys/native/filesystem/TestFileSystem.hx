@@ -37,7 +37,6 @@ class TestFileSystem extends FsTest {
 					equals('Hello, world!', r);
 			}),
 			FileSystem.readString('test-data/', (e, r) -> {
-				trace('WTF!!!!');
 				assertType(e, FsException, e -> equals('test-data', e.path.toString()));
 			}),
 			FileSystem.readString('non-existent', (e, r) -> {
@@ -500,8 +499,14 @@ class TestFileSystem extends FsTest {
 					}
 				});
 			}),
-			FileSystem.resize('test-data/temp/non-existent', 5, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non-existent', e.path.toString()));
+			FileSystem.resize('test-data/temp/non-existent-file', 10, (e, r) -> {
+				if(noException(e)) {
+					var expected = Bytes.alloc(10);
+					FileSystem.readBytes('test-data/temp/non-existent-file', (e, r) -> same(expected, r));
+				}
+			}),
+			FileSystem.resize('test-data/temp/non-existent-dir/file', 5, (e, r) -> {
+				assertType(e, FsException, e -> equals('test-data/temp/non-existent-dir/file', e.path.toString()));
 			})
 		);
 	}

@@ -609,7 +609,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var f = fopen(path.phpStr(), 'r+');
+					var f = fopen(path.phpStr(), 'a');
 					var success = ftruncate(f, newSize);
 					fclose(f);
 					if(success)
