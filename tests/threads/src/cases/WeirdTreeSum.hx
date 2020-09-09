@@ -2,6 +2,7 @@ package cases;
 
 import sys.io.File;
 import utest.Assert;
+import sys.thread.Lock;
 
 using StringTools;
 class Ref<T> {
@@ -57,8 +58,8 @@ typedef TreeNode<T> = {
 class WeirdTreeSum implements utest.ITest {
 	public function new() {}
 
-	@:timeout(2000)
-	public function test(async:utest.Async) {
+	public function test() {
+		var lock = new Lock();
 		Thread.create(() -> {
 			var fileContent = File.getContent("res/tree1.txt");
 			var buf = new StringBuf();
@@ -68,8 +69,9 @@ class WeirdTreeSum implements utest.ITest {
 			}
 			var tree = parseTree(buf.toString().trim())[0];
 			compare(tree);
-			async.done();
+			lock.release();
 		});
+		Assert.isTrue(lock.wait(2.0));
 	}
 
 	static function compare(tree:Tree<Int>) {
