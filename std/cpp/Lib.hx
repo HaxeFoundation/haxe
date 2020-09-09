@@ -88,7 +88,7 @@ class Lib {
 
 	public static function stringReference(inBytes:haxe.io.Bytes):String {
 		var result:String = "";
-		untyped __global__.__hxcpp_string_of_bytes(inBytes.b, result, 0, 0, true);
+		untyped __global__.__hxcpp_string_of_bytes(inBytes.b, result, 0, inBytes.length, true);
 		return result;
 	}
 

@@ -17,6 +17,7 @@
 	jvm : fixed multiplication of `Null<Float>` and `Int` (#9870)
 	flash : fixed loading swc libraries containing `Vector` without a type parameter (#9805)
 	hl : fixed messages being send to wrong threads with `sendMessage`/`readMessage` in `sys.thread.Thread` (#9875)
+	cpp : fixed `cpp.Lib.stringReference()` (#8457)
 
 2020-07-22 4.1.3
 
