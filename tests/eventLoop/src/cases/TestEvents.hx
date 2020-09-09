@@ -16,8 +16,7 @@ class TestEvents extends utest.Test {
 				thread.events.run(lock.release);
 			});
 		});
-		lock.wait();
-		pass();
+		isTrue(lock.wait(1.0));
 	}
 
 	function testRun(async:Async) {
