@@ -79,5 +79,11 @@ class Python {
 		for (py in pys) {
 			runCommand(py, ["test.py"]);
 		}
+
+		changeDirectory(eventLoopDir);
+		runCommand("haxe", ["build.hxml", "--python", "bin/test.py"]);
+		for (py in pys) {
+			runCommand(py, ["bin/test.py"]);
+		}
 	}
 }

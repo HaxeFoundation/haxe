@@ -2733,6 +2733,15 @@ module StdThread = struct
 		vint (Thread.id (this vthis).tthread)
 	)
 
+	let get_events = vifun0 (fun vthis ->
+		(this vthis).tevents
+	)
+
+	let set_events = vifun1 (fun vthis v ->
+		(this vthis).tevents <- v;
+		v
+	)
+
 	let join = vfun1 (fun thread ->
 		Thread.join (this thread).tthread;
 		vnull
@@ -3665,6 +3674,8 @@ let init_standard_library builtins =
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
+		"get_events",StdThread.get_events;
+		"set_events",StdThread.set_events;
 		"kill",StdThread.kill;
 		"sendMessage",StdThread.sendMessage;
 	];

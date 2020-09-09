@@ -68,6 +68,12 @@ class Cpp {
 		runCommand("haxe", ["compile-cpp.hxml"].concat(args));
 		runCpp("bin/cpp/Main-debug", []);
 
+		if(testCompiled) {
+			changeDirectory(eventLoopDir);
+			runCommand("haxe", ["build.hxml", "--cpp", "bin/cpp", "--debug"].concat(args));
+			runCpp("bin/cpp/Main-debug", []);
+		}
+
 		if (systemName != "Windows") { // TODO: find out why we keep getting "missed async calls" error
 			changeDirectory(threadsDir);
 			runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);

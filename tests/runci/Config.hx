@@ -20,6 +20,7 @@ class Config {
 	static public final sourcemapsDir = cwd + "sourcemaps/";
 	static public final nullSafetyDir = cwd + "nullsafety/";
 	static public final threadsDir = cwd + "threads/";
+	static public final eventLoopDir = cwd + "eventLoop/";
 
 	static public final ci:Null<Ci> =
 		if (Sys.getEnv("TF_BUILD") == "True")

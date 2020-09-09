@@ -1,6 +1,5 @@
 package cases;
 
-import utest.Async;
 import utest.Assert;
 import utest.ITest;
 
@@ -9,8 +8,8 @@ class Issue4878 implements ITest {
 
 	#if (java || python)
 
-	@:timeout(5000)
-	function test(async:Async) {
+	function test() {
+		var lock = new Lock();
 		Thread.create(() -> {
 			var mutex = new Mutex();
 			Thread.create(function() {
@@ -24,8 +23,9 @@ class Issue4878 implements ITest {
 			Assert.isFalse(mutex.tryAcquire());
 			Sys.sleep(.3);
 			Assert.isTrue(mutex.tryAcquire());
-			async.done();
+			lock.release();
 		});
+		Assert.isTrue(lock.wait(2.0));
 	}
 
 	#end

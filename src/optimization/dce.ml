@@ -860,12 +860,6 @@ let run com main mode =
 		features = Hashtbl.create 0;
 		curclass = null_class;
 	} in
-	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
-			cf.cf_meta <- (mk_keep_meta cf.cf_pos) :: cf.cf_meta
-		| _ ->
-			()
-	end;
 	List.iter (fun m ->
 		List.iter (fun (s,v) ->
 			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
