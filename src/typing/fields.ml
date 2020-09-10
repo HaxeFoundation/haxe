@@ -127,7 +127,7 @@ let field_access ctx mode f fh e pfield =
 		in
 		let default () =
 			match m, mode with
-			| MethInline, _ ->
+			| MethInline, _ when ctx.g.doinline ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
 				display_error ctx "Macro functions must be called immediately" pfield; normal()
