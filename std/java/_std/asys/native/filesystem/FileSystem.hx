@@ -6,6 +6,7 @@ import haxe.IJobExecutor;
 import java.nio.file.Files;
 import java.NativeArray;
 import java.lang.Throwable;
+import java.io.RandomAccessFile;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.OpenOption;
 
@@ -181,7 +182,21 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var result = [];
+					var dir = Files.newDirectoryStream(path.javaPath());
+					for(entry in dir) {
+						result.push(new FilePath(entry.getFileName()));
+					}
+					result;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
@@ -275,7 +290,20 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var attrs = Files.readAttributes(path.javaPath(), NOFOLLOW_LINKS);
+					for(entry in dir) {
+						result.push(new FilePath(entry.getFileName()));
+					}
+					result;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
@@ -283,7 +311,19 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var f = new RandomAccessFile(path.javaPath().toFile(), 'rw');
+					f.setLength(newSize);
+					f.close();
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {

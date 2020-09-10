@@ -47,17 +47,17 @@ class DefaultJobExecutor implements IJobExecutor {
 @:native("haxe.java._DefaultJobExecutor.Task")
 private class Task<R> implements Runnable {
 	public final job:()->R;
-	public final caller:Thread;
+	public final thread:Thread;
 	public final callback:Callback<Exception,R>;
 
 	var result:Null<R>;
 	var error:Null<Exception>;
 
-	public function new(job:()->R, caller:Thread, callback:Callback<Exception,R>) {
+	public function new(job:()->R, thread:Thread, callback:Callback<Exception,R>) {
 		this.job = job;
-		this.caller = caller;
+		this.thread = thread;
 		this.callback = callback;
-		caller.promiseEvent();
+		thread.events.promise();
 	}
 
 	public function run() {
@@ -69,8 +69,7 @@ private class Task<R> implements Runnable {
 	}
 
 	public function submitOutcome() {
-		caller.schedulePromisedEvent(() -> {
-			trace('WTF!!!!');
+		thread.events.runPromised(() -> {
 			if(error == null)
 				callback.success(result)
 			else
