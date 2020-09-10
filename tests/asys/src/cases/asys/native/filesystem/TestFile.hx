@@ -656,7 +656,7 @@ class TestFile extends FsTest {
 		asyncAll(async,
 			FileSystem.openFile('test-data/temp/set-owner', Write, (_, file) -> {
 				file.info((_, r) -> {
-					file.setOwner(r.userId, r.groupId, (e, _) -> {
+					file.setOwner(r.user, r.group, (e, _) -> {
 						noException(e);
 						file.close((_, _) -> {});
 					});

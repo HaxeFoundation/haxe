@@ -546,7 +546,7 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/set-owner', '', (e, r) -> {
 				FileSystem.info('test-data/temp/set-owner', (e, r) -> {
-					FileSystem.setOwner('test-data/temp/set-owner', r.userId, r.groupId, (e, r) -> {
+					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, r) -> {
 						noException(e);
 					});
 				});
@@ -567,7 +567,7 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.link('../sub/hello.world', 'test-data/temp/set-link-owner', (e, r) -> {
 				FileSystem.info('test-data/temp/set-link-owner', (e, r) -> {
-					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.userId, r.groupId, (e, r) -> {
+					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, r) -> {
 						noException(e);
 					});
 				});

@@ -1,6 +1,8 @@
 package asys.native.filesystem;
 
 import haxe.exceptions.NotImplementedException;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 /**
 	Data from system call to `stat`.
@@ -21,10 +23,10 @@ typedef FileStat = {
 	final ctime:Int;
 	/** Device number */
 	final dev:Int;
-	/** Group id of owner */
-	final gid:Int;
-	/** User id of owner */
-	final uid:Int;
+	/** Owning user */
+	final user:SystemUser;
+	/** Owning group */
+	final group:SystemGroup;
 	/** Inode number */
 	final ino:Int;
 	/** Inode protection mode */
@@ -84,21 +86,15 @@ abstract FileInfo(FileStat) from FileStat to FileStat {
 	inline function get_deviceNumber():Int
 		return this.dev;
 
-	/**
-		Group id of owner.
-		May be `0` in windows.
-	**/
-	public var groupId(get,never):Int;
-	inline function get_groupId():Int
-		return this.gid;
+	/** Owning group **/
+	public var group(get,never):SystemGroup;
+	inline function get_group():SystemGroup
+		return this.group;
 
-	/**
-		User id of owner.
-		May be `0` in windows.
-	**/
-	public var userId(get,never):Int;
-	inline function get_userId():Int
-		return this.uid;
+	/** Owning user **/
+	public var user(get,never):SystemUser;
+	inline function get_user():SystemUser
+		return this.user;
 
 	/** Inode number */
 	public var inodeNumber(get,never):Int;
