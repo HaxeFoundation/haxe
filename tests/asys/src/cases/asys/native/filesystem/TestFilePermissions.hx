@@ -5,8 +5,8 @@ import asys.native.filesystem.FilePermissions;
 import asys.native.filesystem.FilePermissions.octal;
 
 class TestFilePermissions extends FsTest {
-	inline function check(expected:Int, actual:FilePermissions, ?pos:PosInfos) {
-		equals(expected, (actual:Int), pos);
+	inline function check(expected:FilePermissions, actual:FilePermissions, ?pos:PosInfos) {
+		isTrue(expected == actual, 'Expected $expected but got $actual', pos);
 	}
 
 	function test() {

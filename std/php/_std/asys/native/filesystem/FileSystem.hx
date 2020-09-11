@@ -8,6 +8,8 @@ import php.Syntax;
 import php.NativeArray;
 import php.NativeIndexedArray;
 import php.Resource;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 /**
 	File system operations.
@@ -42,10 +44,10 @@ class FileSystem {
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
 		new FileSystemImpl(Native.defaultExecutor).listDirectory(path, callback);
 
-	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
+	static public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
+	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
 		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
@@ -72,11 +74,11 @@ class FileSystem {
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setPermissions(path, permissions, callback);
 
-	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(Native.defaultExecutor).setOwner(path, userId, groupId, callback);
+	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		new FileSystemImpl(Native.defaultExecutor).setOwner(path, user, group, callback);
 
-	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, userId, groupId, callback);
+	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, user, group, callback);
 
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).link(target, path, type, callback);
@@ -108,8 +110,8 @@ class FileSystem {
 			mtime: phpStat['mtime'],
 			ctime: phpStat['ctime'],
 			dev: phpStat['dev'],
-			group: phpStat['gid'],
-			user: phpStat['uid'],
+			gid: phpStat['gid'],
+			uid: phpStat['uid'],
 			ino: phpStat['ino'],
 			mode: phpStat['mode'],
 			nlink: phpStat['nlink'],
@@ -264,7 +266,7 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	public inline function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
 				try {
@@ -280,7 +282,7 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	public inline function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		jobs.addJob(
 			() -> {
 				try {
@@ -485,11 +487,11 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	public inline function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					if(chown(path.phpStr(), userId) && chgrp(path.phpStr(), groupId))
+					if(chown(path.phpStr(), user) && chgrp(path.phpStr(), group))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set owner');
@@ -501,11 +503,11 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	public inline function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					if(lchown(path.phpStr(), userId) && lchgrp(path.phpStr(), groupId))
+					if(lchown(path.phpStr(), user) && lchgrp(path.phpStr(), group))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set owner');

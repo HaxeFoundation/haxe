@@ -10,6 +10,8 @@ import php.Resource;
 import php.Global.*;
 import php.Const.*;
 import php.Syntax;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 class File {
 
@@ -140,9 +142,9 @@ class File {
 		FileSystem.setPermissions(path, mode, callback);
 	}
 
-	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>) {
+	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>) {
 		//PHP does not have `fchown`
-		FileSystem.setOwner(path, userId, groupId, callback);
+		FileSystem.setOwner(path, user, group, callback);
 	}
 
 	public function resize(newSize:Int, callback:Callback<NoData>) {

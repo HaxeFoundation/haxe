@@ -634,11 +634,11 @@ class TestFile extends FsTest {
 	function testPermissions(async:Async) {
 		asyncAll(async,
 			FileSystem.openFile('test-data/temp/set-perm', Write, (_, file) -> {
-				var mode:FilePermissions = [0, 7, 6, 5];
-				file.setPermissions(mode, (e, r) -> {
+				var permissions:FilePermissions = [0, 7, 6, 5];
+				file.setPermissions(permissions, (e, r) -> {
 					if(noException(e))
 						file.info((_, r) -> {
-							isTrue(mode == r.mode & mode);
+							isTrue(permissions == r.permissions & permissions);
 							file.close((_, _) -> {});
 						});
 				});

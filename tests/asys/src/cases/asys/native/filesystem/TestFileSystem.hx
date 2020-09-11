@@ -204,11 +204,11 @@ class TestFileSystem extends FsTest {
 	function testSetPermissions(async:Async) {
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/perm', '', (_, _) -> {
-				var mode:FilePermissions = [0, 7, 6, 5];
-				FileSystem.setPermissions('test-data/temp/perm', mode, (e, r) -> {
+				var permissions:FilePermissions = [0, 7, 6, 5];
+				FileSystem.setPermissions('test-data/temp/perm', permissions, (e, r) -> {
 					if(noException(e))
 						FileSystem.info('test-data/temp/perm', (_, r) -> {
-							isTrue(mode == r.mode & mode);
+							isTrue(permissions == r.permissions & permissions);
 						});
 				});
 			}),
@@ -546,13 +546,13 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/set-owner', '', (e, r) -> {
 				FileSystem.info('test-data/temp/set-owner', (e, r) -> {
-					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, r) -> {
+					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, _) -> {
 						noException(e);
+						FileSystem.setOwner('test-data/temp/non-existent', r.user, r.group, (e, r) -> {
+							assertType(e, FsException, e -> equals('test-data/temp/non-existent', e.path.toString()));
+						});
 					});
 				});
-			}),
-			FileSystem.setOwner('test-data/temp/non-existent', 0, 0, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non-existent', e.path.toString()));
 			})
 		);
 	}
@@ -567,13 +567,13 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.link('../sub/hello.world', 'test-data/temp/set-link-owner', (e, r) -> {
 				FileSystem.info('test-data/temp/set-link-owner', (e, r) -> {
-					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, r) -> {
+					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, _) -> {
 						noException(e);
+						FileSystem.setLinkOwner('test-data/temp/non-existent-link', r.user, r.group, (e, r) -> {
+							assertType(e, FsException, e -> equals('test-data/temp/non-existent-link', e.path.toString()));
+						});
 					});
 				});
-			}),
-			FileSystem.setLinkOwner('test-data/temp/non-existent-link', 0, 0, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non-existent-link', e.path.toString()));
 			})
 		);
 	}
