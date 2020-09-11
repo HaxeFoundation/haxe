@@ -4,6 +4,8 @@ import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.IJobExecutor;
 import haxe.exceptions.NotImplementedException;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 /**
 	File system operations.
@@ -123,7 +125,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -141,7 +143,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -228,14 +230,14 @@ class FileSystem {
 
 		If `path` is a symbolic link it is dereferenced.
 	**/
-	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
 	/**
 		Set symbolic link owner and group.
 	**/
-	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 

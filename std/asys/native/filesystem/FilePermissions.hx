@@ -3,20 +3,31 @@ package asys.native.filesystem;
 import haxe.exceptions.ArgumentException;
 import haxe.exceptions.NotImplementedException;
 
+private typedef NativePermissions = Int;
+
 /**
 	Filesystem permissions.
 
 	Note that this is not an octal number.
 	For octal numbers use `FilePermissions.octal` method.
 **/
-abstract FilePermissions(Int) from Int to Int {
+@:coreApi
+abstract FilePermissions(NativePermissions) from NativePermissions to NativePermissions {
+	/**
+		Returns `true` if the special bit (sticky, SETUID, SETGUID) is ignored
+		by current implementation.
+	**/
+	static public inline function ignoresSpecialBit():Bool {
+		return false;
+	}
+
 	/**
 		Specify file access mode as octal digits.
 
 		For example an octal access mode `0o0765`
 		could be set as `FilePermissions.octal(0, 7, 6, 5)`
 
-		@param s - sticky bit, SETUID, SETGUID
+		@param s - sticky bit, SETUID, SETGUID. This may be ignored by some implementations.
 		@param u - permissions for file owner
 		@param g - permissions for file group
 		@param o - permissions for other users
@@ -53,10 +64,17 @@ abstract FilePermissions(Int) from Int to Int {
 		Thanks to Haxe optimizations this method does not allocate an array at
 		run time if supplied with an array declaration.
 	**/
-	@:from static inline function fromOctal(mode:Array<Int>) {
+	@:from static inline function fromOctal(mode:Array<Int>):FilePermissions {
 		if(mode.length != 4) {
 			throw new ArgumentException('mode', '"mode" array should contain exactly four items');
 		}
 		return octal(mode[0], mode[1], mode[2], mode[3]);
+	}
+
+	@:op(A & B) static function intersect(perm1:FilePermissions, perm2:FilePermissions):FilePermissions;
+	@:op(A | B) static function merge(perm1:FilePermissions, perm2:FilePermissions):FilePermissions;
+
+	public inline function toString():String {
+		return '$this';
 	}
 }

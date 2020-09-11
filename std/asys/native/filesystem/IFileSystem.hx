@@ -2,6 +2,8 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.NoData;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 @:inheritDoc(asys.native.filesystem.FileSystem)
 interface IFileSystem {
@@ -31,10 +33,10 @@ interface IFileSystem {
 	public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.createDirectory)
-	public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void;
+	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.uniqueDirectory)
-	public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void;
+	public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.move)
 	public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void;
@@ -61,10 +63,10 @@ interface IFileSystem {
 	public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.setOwner)
-	public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void;
+	public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.setLinkOwner)
-	public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void;
+	public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.link)
 	public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void;

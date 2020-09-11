@@ -14,7 +14,7 @@ import asys.native.system.SystemGroup;
 		on Windows it could be a 64-bit unsigned integer. So may overflow.
 	- Decide on `size` type: `Int` limits `size` to ~2GB.
 **/
-typedef FileStat = {
+private typedef NativeInfo = {
 	/** Time of last access (Unix timestamp) */
 	final atime:Int;
 	/** Time of last modification (Unix timestamp) */
@@ -24,9 +24,9 @@ typedef FileStat = {
 	/** Device number */
 	final dev:Int;
 	/** Owning user */
-	final user:SystemUser;
+	final uid:Int;
 	/** Owning group */
-	final group:SystemGroup;
+	final gid:Int;
 	/** Inode number */
 	final ino:Int;
 	/** Inode protection mode */
@@ -46,7 +46,8 @@ typedef FileStat = {
 /**
 	Provides information about a file.
 **/
-abstract FileInfo(FileStat) from FileStat to FileStat {
+@:coreApi
+abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	/** file type bit mask */
 	static inline var S_IFMT:Int = 61440;
 	/** named pipe (fifo) */
@@ -89,21 +90,21 @@ abstract FileInfo(FileStat) from FileStat to FileStat {
 	/** Owning group **/
 	public var group(get,never):SystemGroup;
 	inline function get_group():SystemGroup
-		return this.group;
+		return this.gid;
 
 	/** Owning user **/
 	public var user(get,never):SystemUser;
 	inline function get_user():SystemUser
-		return this.user;
+		return this.uid;
 
 	/** Inode number */
 	public var inodeNumber(get,never):Int;
 	inline function get_inodeNumber():Int
 		return this.ino;
 
-	/** Inode protection mode */
-	public var mode(get,never):Int;
-	inline function get_mode():Int
+	/** File permissions */
+	public var permissions(get,never):FilePermissions;
+	inline function get_permissions():FilePermissions
 		return this.mode;
 
 	/** Number of links */

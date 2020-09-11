@@ -6,6 +6,8 @@ import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import asys.native.IWritable;
 import asys.native.IReadable;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 
 @:coreApi
 class File {
@@ -77,7 +79,7 @@ class File {
 	/**
 		Set file owner and group.
 	**/
-	public function setOwner(userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
