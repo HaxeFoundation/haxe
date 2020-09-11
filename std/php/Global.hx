@@ -555,6 +555,16 @@ extern class Global {
 	static function mt_getrandmax():Int;
 
 	/**
+		@see http://php.net/manual/en/function.random-bytes.php
+	**/
+	static function random_bytes(length:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.random-int.php
+	**/
+	static function random_int(min:Int, max:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.is-nan.php
 	**/
 	static function is_nan(arg:Float):Bool;
