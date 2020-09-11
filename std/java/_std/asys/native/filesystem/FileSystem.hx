@@ -3,12 +3,17 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.IJobExecutor;
-import java.nio.file.Files;
+import asys.native.system.SystemUser;
+import asys.native.system.SystemGroup;
 import java.NativeArray;
 import java.lang.Throwable;
+import java.lang.Class as JClass;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.OpenOption;
+import java.nio.file.LinkOption;
+import java.nio.file.attribute.PosixFileAttributes;
 
 @:coreApi
 class FileSystem {
@@ -40,10 +45,10 @@ class FileSystem {
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
 		new FileSystemImpl(Native.defaultExecutor).listDirectory(path, callback);
 
-	static public function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
+	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
+	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
 		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
@@ -70,11 +75,11 @@ class FileSystem {
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setPermissions(path, permissions, callback);
 
-	static public function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(Native.defaultExecutor).setOwner(path, userId, groupId, callback);
+	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		new FileSystemImpl(Native.defaultExecutor).setOwner(path, user, group, callback);
 
-	static public function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void
-		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, userId, groupId, callback);
+	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, user, group, callback);
 
 	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).link(target, path, type, callback);
@@ -199,11 +204,15 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function createDirectory(path:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
+		if(permissions == null)
+			permissions = [0, 7, 7, 7];
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
-	public inline function uniqueDirectory(prefix:FilePath, permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
+		if(permissions == null)
+			permissions = [0, 7, 7, 7];
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
@@ -251,11 +260,11 @@ private class FileSystemImpl implements IFileSystem {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
-	public inline function setOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	public inline function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
-	public inline function setLinkOwner(path:FilePath, userId:Int, groupId:Int, callback:Callback<NoData>):Void {
+	public inline function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
@@ -293,11 +302,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var attrs = Files.readAttributes(path.javaPath(), NOFOLLOW_LINKS);
-					for(entry in dir) {
-						result.push(new FilePath(entry.getFileName()));
-					}
-					result;
+					Files.readAttributes(path.javaPath(), javaClass(PosixFileAttributes), NativeArray.make(NOFOLLOW_LINKS));
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -356,5 +361,9 @@ private class FileSystemImpl implements IFileSystem {
 			case Overwrite: cast NativeArray.make(CREATE, WRITE);
 			case OverwriteRead: cast NativeArray.make(CREATE, WRITE, READ);
 		}
+	}
+
+	static inline function javaClass<T>(cls:Class<T>):JClass<T> {
+		return cast cls;
 	}
 }
