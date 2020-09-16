@@ -47,8 +47,8 @@ class FileSystem {
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
-		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(prefix, permissions, recursive, callback);
+	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
+		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(parentDirectory, prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).move(oldPath, newPath, overwrite, callback);
@@ -80,7 +80,7 @@ class FileSystem {
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, user, group, callback);
 
-	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
+	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).link(target, path, type, callback);
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void
@@ -166,7 +166,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch file_get_contents(path.phpStr()) {
+					switch file_get_contents(path) {
 						case false:
 							throw new FsException(CustomError('Failed to read a file'), path);
 						case r:
@@ -184,7 +184,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch file_get_contents(path.phpStr()) {
+					switch file_get_contents(path) {
 						case false:
 							throw new FsException(CustomError('Failed to read a file'), path);
 						case r:
@@ -202,7 +202,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var f = fopenHx(path.phpStr(), flag);
+					var f = fopenHx(path, flag);
 					fwrite(f, data.getData().toString());
 					fclose(f);
 					NoData.NoData;
@@ -218,7 +218,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var f = fopenHx(path.phpStr(), flag);
+					var f = fopenHx(path, flag);
 					fwrite(f, text);
 					fclose(f);
 					NoData.NoData;
@@ -234,7 +234,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch opendir(path.phpStr()) {
+					switch opendir(path) {
 						case false:
 							throw new php.Exception('Failed to open a directory');
 						case result:
@@ -252,7 +252,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch scandir(path.phpStr()) {
+					switch scandir(path) {
 						case false:
 							throw new php.Exception('Failed to list a directory');
 						case (_:NativeIndexedArray<String>) => list:
@@ -270,7 +270,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(mkdir(path.phpStr(), permissions, recursive))
+					if(mkdir(path, permissions, recursive))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to create a directory');
@@ -282,11 +282,12 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	public inline function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					var path:String = prefix.phpStr() + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+					prefix = (prefix == null ? '' : prefix) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+					var path:String = rtrim(parentDirectory, FilePath.SEPARATOR == '/' ? '/' : '\\/') + FilePath.SEPARATOR + prefix;
 					while(true) {
 						try {
 							if(mkdir(path, permissions, recursive))
@@ -304,7 +305,7 @@ private class FileSystemImpl implements IFileSystem {
 					}
 					(path:FilePath);
 				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), prefix);
+					throw new FsException(CustomError(e.getMessage()), parentDirectory);
 				}
 			},
 			callback
@@ -333,10 +334,10 @@ private class FileSystemImpl implements IFileSystem {
 	public inline function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
-				if(!overwrite && file_exists(newPath.phpStr()))
+				if(!overwrite && file_exists(newPath))
 					throw new FsException(FileExists, newPath);
 				try {
-					if(moveRecursive(oldPath.phpStr(), newPath.phpStr()))
+					if(moveRecursive(oldPath, newPath))
 						NoData.NoData
 					else
 						throw new FsException(CustomError('Failed to move file or directory'), oldPath);
@@ -383,7 +384,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(unlink(path.phpStr()))
+					if(unlink(path))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to delete a file');
@@ -399,7 +400,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(rmdir(path.phpStr()))
+					if(rmdir(path))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to delete a file');
@@ -415,7 +416,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch stat(path.phpStr()) {
+					switch stat(path) {
 						case false:
 							throw new php.Exception('Failed to stat');
 						case result:
@@ -433,10 +434,10 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					(!mode.has(Exists) || file_exists(path.phpStr()))
-					&& (!mode.has(Readable) || is_readable(path.phpStr()))
-					&& (!mode.has(Writable) || is_writable(path.phpStr()))
-					&& (!mode.has(Executable) || is_executable(path.phpStr()));
+					(!mode.has(Exists) || file_exists(path))
+					&& (!mode.has(Readable) || is_readable(path))
+					&& (!mode.has(Writable) || is_writable(path))
+					&& (!mode.has(Executable) || is_executable(path));
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -449,7 +450,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					is_dir(path.phpStr());
+					is_dir(path);
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -462,7 +463,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					is_file(path.phpStr());
+					is_file(path);
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -475,7 +476,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(chmod(path.phpStr(), permissions))
+					if(chmod(path, permissions))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set permissions');
@@ -491,7 +492,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(chown(path.phpStr(), user) && chgrp(path.phpStr(), group))
+					if(chown(path, user) && chgrp(path, group))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set owner');
@@ -507,7 +508,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(lchown(path.phpStr(), user) && lchgrp(path.phpStr(), group))
+					if(lchown(path, user) && lchgrp(path, group))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set owner');
@@ -519,14 +520,13 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
-	public inline function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		var path:FilePath = path == null ? basename(target.phpStr()) : path;
+	public inline function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
 				try {
 					var success = switch type {
-						case SymLink: symlink(target.phpStr(), path.phpStr());
-						case HardLink: php.Global.link(target.phpStr(), path.phpStr());
+						case SymLink: symlink(target, path);
+						case HardLink: php.Global.link(target, path);
 					}
 					if(success)
 						NoData.NoData
@@ -544,7 +544,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					is_link(path.phpStr());
+					is_link(path);
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -557,7 +557,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch readlink(path.phpStr()) {
+					switch readlink(path) {
 						case false:
 							throw new php.Exception('Failed to read a link');
 						case (_:String) => r:
@@ -575,7 +575,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch lstat(path.phpStr()) {
+					switch lstat(path) {
 						case false:
 							throw new php.Exception('Failed to stat');
 						case result:
@@ -592,10 +592,10 @@ private class FileSystemImpl implements IFileSystem {
 	public inline function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
-				if(!overwrite && file_exists(destination.phpStr()))
+				if(!overwrite && file_exists(destination))
 					throw new FsException(FileExists, destination);
 				try {
-					if(copy(source.phpStr(), destination.phpStr()))
+					if(copy(source, destination))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to copy a file');
@@ -611,7 +611,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var f = fopen(path.phpStr(), 'a');
+					var f = fopen(path, 'a');
 					var success = ftruncate(f, newSize);
 					fclose(f);
 					if(success)
@@ -630,7 +630,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(touch(path.phpStr(), modificationTime, accessTime))
+					if(touch(path, modificationTime, accessTime))
 						NoData.NoData
 					else
 						throw new php.Exception('Failed to set file times');
@@ -646,7 +646,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					switch realpath(path.phpStr()) {
+					switch realpath(path) {
 						case false:
 							throw new php.Exception('Unable to resolve real path');
 						case (_:String) => r:

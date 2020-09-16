@@ -604,8 +604,10 @@ class TestFileSystem extends FsTest {
 			FileSystem.uniqueDirectory('test-data/temp/non-existent/dir1', mode, true, (e, path) -> {
 				if(noException(e))
 					FileSystem.info(path, (e, r) -> {
-						if(noException(e))
+						if(noException(e)) {
 							isTrue(r.isDirectory());
+							isTrue(mode == r.permissions & FilePermissions.octal(0, 7, 7, 7));
+						}
 					});
 			}),
 			FileSystem.uniqueDirectory('test-data/temp/non-existent-2/dir2', false, (e, path) -> {

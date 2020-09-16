@@ -36,7 +36,7 @@ interface IFileSystem {
 	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.uniqueDirectory)
-	public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void;
+	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.move)
 	public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void;
@@ -69,7 +69,7 @@ interface IFileSystem {
 	public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.link)
-	public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void;
+	public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void;
 
 	@:inheritDoc(asys.native.filesystem.FileSystem.isLink)
 	public function isLink(path:FilePath, callback:Callback<Bool>):Void;

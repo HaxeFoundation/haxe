@@ -132,10 +132,8 @@ class FileSystem {
 	/**
 		Create a directory with auto-generated unique name.
 
-		`prefix` gets appended with random characters.
+		`prefix` (if provided) is used as the beginning of a generated name.
 		The created directory path is passed to the `callback`.
-
-		Created directory will _not_ be deleted automatically.
 
 		Default `permissions` equals to octal `0777`, which means read+write+execution
 		permissions for everyone.
@@ -143,7 +141,7 @@ class FileSystem {
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
 	**/
-	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -244,11 +242,6 @@ class FileSystem {
 	/**
 		Create a link to `target` at `path`.
 
-		If `path` is omitted a link to `target` will be created in the current
-		directory with the same name as the last component of `target` path.
-		For example `FileSystem.link('/path/to/file.ext', callback)` will create
-		a link named `file.ext` in the current directory.
-
 		If `type` is `SymLink` the `target` is expected to be an absolute path or
 		a path relative to `path`, however the existance of `target` is not checked
 		and the link is created even if `target` does not exist.
@@ -256,7 +249,7 @@ class FileSystem {
 		If `type` is `HardLink` the `target` is expected to be an existing path either
 		absolute or relative to the current working directory.
 	**/
-	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
+	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
