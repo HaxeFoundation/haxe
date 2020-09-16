@@ -8,12 +8,17 @@ import asys.native.system.SystemGroup;
 import java.NativeArray;
 import java.lang.Throwable;
 import java.lang.Class as JClass;
+import java.util.Set;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
+import java.nio.file.Path as JPath;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.OpenOption;
 import java.nio.file.LinkOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.PosixFileAttributes;
+import java.nio.file.attribute.PosixFileAttributeView;
 
 @:coreApi
 class FileSystem {
@@ -48,8 +53,8 @@ class FileSystem {
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
-		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(prefix, permissions, recursive, callback);
+	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
+		new FileSystemImpl(Native.defaultExecutor).uniqueDirectory(parentDirectory, prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).move(oldPath, newPath, overwrite, callback);
@@ -81,7 +86,7 @@ class FileSystem {
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).setLinkOwner(path, user, group, callback);
 
-	static public function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
+	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
 		new FileSystemImpl(Native.defaultExecutor).link(target, path, type, callback);
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void
@@ -131,9 +136,9 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					Bytes.ofData(Files.readAllBytes(path.javaPath()));
+					Bytes.ofData(Files.readAllBytes(path));
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -144,10 +149,10 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var bytes = Files.readAllBytes(path.javaPath());
+					var bytes = Files.readAllBytes(path);
 					new String(bytes, 0, bytes.length, "UTF-8");
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -158,10 +163,10 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					Files.write(path.javaPath(), data.getData(), hxOpenFlagToJavaOption(flag));
+					Files.write(path, data.getData(), hxOpenFlagToJavaOption(flag));
 					NoData;
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -172,10 +177,10 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					Files.write(path.javaPath(), @:privateAccess text.getBytes("UTF-8"), hxOpenFlagToJavaOption(flag));
+					Files.write(path, @:privateAccess text.getBytes("UTF-8"), hxOpenFlagToJavaOption(flag));
 					NoData;
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -191,13 +196,13 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					var result = [];
-					var dir = Files.newDirectoryStream(path.javaPath());
+					var dir = Files.newDirectoryStream(path);
 					for(entry in dir) {
 						result.push(new FilePath(entry.getFileName()));
 					}
 					result;
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -205,15 +210,42 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
-		if(permissions == null)
-			permissions = [0, 7, 7, 7];
-		throw new haxe.exceptions.NotImplementedException();
+		var jPerm:Null<Set<PosixFilePermission>> = permissions;
+		var jPerm:Set<PosixFilePermission> = jPerm == null ? FilePermissions.octal(0, 7, 7, 7) : jPerm;
+		jobs.addJob(
+			() -> {
+				try {
+					var attributes = NativeArray.make(PosixFilePermissions.asFileAttribute(jPerm));
+					if(recursive)
+						Files.createDirectories(path, attributes)
+					else
+						Files.createDirectory(path, attributes);
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
-	public function uniqueDirectory(prefix:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
-		if(permissions == null)
-			permissions = [0, 7, 7, 7];
-		throw new haxe.exceptions.NotImplementedException();
+	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
+		var prefix:String = prefix == null ? '' : prefix;
+		var jPerm:Null<Set<PosixFilePermission>> = permissions;
+		var jPerm:Set<PosixFilePermission> = jPerm == null ? FilePermissions.octal(0, 7, 7, 7) : jPerm;
+		jobs.addJob(
+			() -> {
+				try {
+					var attributes = NativeArray.make(PosixFilePermissions.asFileAttribute(jPerm));
+					if(recursive)
+						Files.createDirectories(parentDirectory, attributes);
+					Files.createTempDirectory(parentDirectory, prefix, attributes);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), parentDirectory);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
@@ -229,19 +261,28 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function info(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					Files.readAttributes(path, javaClass(PosixFileAttributes), new NativeArray(0));
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					(!mode.has(Exists) || Files.exists(path.javaPath(), new NativeArray(0)))
-					&& (!mode.has(Readable) || Files.isReadable(path.javaPath()))
-					&& (!mode.has(Writable) || Files.isWritable(path.javaPath()))
-					&& (!mode.has(Executable) || Files.isExecutable(path.javaPath()));
+					(!mode.has(Exists) || Files.exists(path, new NativeArray(0)))
+					&& (!mode.has(Readable) || Files.isReadable(path))
+					&& (!mode.has(Writable) || Files.isWritable(path))
+					&& (!mode.has(Executable) || Files.isExecutable(path));
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -249,36 +290,101 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					Files.isDirectory(path, new NativeArray(0));
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function isFile(path:FilePath, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					Files.isRegularFile(path, new NativeArray(0));
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					Files.setPosixFilePermissions(path, permissions);
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), new NativeArray(0));
+					attributes.setOwner(user);
+					attributes.setGroup(group);
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), NativeArray.make(NOFOLLOW_LINKS));
+					attributes.setOwner(user);
+					attributes.setGroup(group);
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
-	public inline function link(target:FilePath, ?path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+	public inline function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
+		jobs.addJob(
+			() -> {
+				try {
+					switch type {
+						case HardLink: Files.createLink(path, target);
+						case SymLink: Files.createSymbolicLink(path, target, new NativeArray(0));
+					}
+					NoData;
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function isLink(path:FilePath, callback:Callback<Bool>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					Files.isSymbolicLink(path.javaPath());
+					Files.isSymbolicLink(path);
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -289,9 +395,9 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					new FilePath(Files.readSymbolicLink(path.javaPath()));
+					new FilePath(Files.readSymbolicLink(path));
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -302,9 +408,9 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					Files.readAttributes(path.javaPath(), javaClass(PosixFileAttributes), NativeArray.make(NOFOLLOW_LINKS));
+					Files.readAttributes(path, javaClass(PosixFileAttributes), NativeArray.make(NOFOLLOW_LINKS));
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -319,12 +425,12 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					var f = new RandomAccessFile(path.javaPath().toFile(), 'rw');
+					var f = new RandomAccessFile((path:JPath).toFile(), 'rw');
 					f.setLength(newSize);
 					f.close();
 					NoData;
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback
@@ -339,9 +445,9 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					new FilePath(path.javaPath().toRealPath(new NativeArray(0)));
+					new FilePath((path:JPath).toRealPath(new NativeArray(0)));
 				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.getMessage()), path);
+					throw new FsException(CustomError(e.toString()), path);
 				}
 			},
 			callback

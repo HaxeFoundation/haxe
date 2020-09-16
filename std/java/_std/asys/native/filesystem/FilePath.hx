@@ -10,7 +10,7 @@ import java.io.File as JFile;
 
 private typedef NativeFilePath = Path;
 
-@:coreApi abstract FilePath(NativeFilePath) {
+@:coreApi abstract FilePath(NativeFilePath) to NativeFilePath {
 	public static var SEPARATOR(get,never):String;
 	static inline function get_SEPARATOR():String {
 		return JFile.separator;
@@ -19,11 +19,6 @@ private typedef NativeFilePath = Path;
 	@:allow(asys.native.filesystem)
 	inline function new(path:Path) {
 		this = path;
-	}
-
-	@:allow(asys.native.filesystem)
-	inline function javaPath():Path {
-		return this;
 	}
 
 	@:from public static inline function fromString(path:String):FilePath {
@@ -35,7 +30,7 @@ private typedef NativeFilePath = Path;
 	}
 
 	@:op(A == B) function equals(p:FilePath):Bool {
-		return this.equals(p.javaPath());
+		return this.equals(p);
 	}
 
 	public function absolute():FilePath {

@@ -9,6 +9,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.lang.Runnable;
 import java.lang.Throwable;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.Executors;
 
 @:native("haxe.java.DefaultJobExecutor")
 class DefaultJobExecutor implements IJobExecutor {
@@ -16,7 +18,10 @@ class DefaultJobExecutor implements IJobExecutor {
 	var active = true;
 
 	public function new(maxThreadsCount:Int) {
-		service = new HxThreadPoolExecutor(maxThreadsCount, maxThreadsCount, 60, SECONDS, new LinkedBlockingQueue<Runnable>());
+		service = new HxThreadPoolExecutor(
+			maxThreadsCount, maxThreadsCount, 60, SECONDS,
+			new LinkedBlockingQueue<Runnable>(), new DaemonThreadFactory()
+		);
 		service.allowCoreThreadTimeOut(true);
 	}
 
@@ -41,6 +46,21 @@ class DefaultJobExecutor implements IJobExecutor {
 		if(service.isShutdown())
 			throw new DeadJobExecutorException('Cannot shutdown job executor as it has been shut down already');
 		service.shutdown();
+	}
+}
+
+@:native("haxe.java.DaemonThreadFactory")
+private class DaemonThreadFactory implements ThreadFactory {
+	final factory:ThreadFactory;
+
+	public function new() {
+		factory = Executors.defaultThreadFactory();
+	}
+
+	public function newThread(r) {
+		var javaThread = factory.newThread(r);
+		javaThread.setDaemon(true);
+		return javaThread;
 	}
 }
 
