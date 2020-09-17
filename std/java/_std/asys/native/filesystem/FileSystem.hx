@@ -6,15 +6,23 @@ import haxe.IJobExecutor;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import java.NativeArray;
+import java.lang.Exception as JException;
 import java.lang.Throwable;
 import java.lang.Class as JClass;
 import java.util.Set;
 import java.io.RandomAccessFile;
+import java.util.concurrent.TimeUnit;
 import java.nio.file.Files;
 import java.nio.file.Path as JPath;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.OpenOption;
 import java.nio.file.LinkOption;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.CopyOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.FileSystemException;
+import java.nio.file.NotDirectoryException;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.PosixFileAttributes;
@@ -137,6 +145,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Bytes.ofData(Files.readAllBytes(path));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -151,6 +161,8 @@ private class FileSystemImpl implements IFileSystem {
 				try {
 					var bytes = Files.readAllBytes(path);
 					new String(bytes, 0, bytes.length, "UTF-8");
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -165,6 +177,8 @@ private class FileSystemImpl implements IFileSystem {
 				try {
 					Files.write(path, data.getData(), hxOpenFlagToJavaOption(flag));
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -179,6 +193,8 @@ private class FileSystemImpl implements IFileSystem {
 				try {
 					Files.write(path, @:privateAccess text.getBytes("UTF-8"), hxOpenFlagToJavaOption(flag));
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -201,6 +217,8 @@ private class FileSystemImpl implements IFileSystem {
 						result.push(new FilePath(entry.getFileName()));
 					}
 					result;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -221,6 +239,8 @@ private class FileSystemImpl implements IFileSystem {
 					else
 						Files.createDirectory(path, attributes);
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -240,6 +260,8 @@ private class FileSystemImpl implements IFileSystem {
 					if(recursive)
 						Files.createDirectories(parentDirectory, attributes);
 					Files.createTempDirectory(parentDirectory, prefix, attributes);
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), parentDirectory);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), parentDirectory);
 				}
@@ -249,15 +271,59 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var options = overwrite ? NativeArray.make((cast StandardCopyOption.REPLACE_EXISTING:CopyOption)) : new NativeArray(0);
+					Files.move(oldPath, newPath, options);
+					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), oldPath);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), oldPath);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					if(Files.isDirectory(path, new NativeArray(0))) {
+						throw new JException('Not a file');
+					}
+					Files.delete(path);
+					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					if(Files.isDirectory(path, new NativeArray(0))) {
+						Files.delete(path);
+					} else {
+						throw new NotDirectoryException(path);
+					}
+					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function info(path:FilePath, callback:Callback<FileInfo>):Void {
@@ -265,6 +331,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Files.readAttributes(path, javaClass(PosixFileAttributes), new NativeArray(0));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -281,6 +349,8 @@ private class FileSystemImpl implements IFileSystem {
 					&& (!mode.has(Readable) || Files.isReadable(path))
 					&& (!mode.has(Writable) || Files.isWritable(path))
 					&& (!mode.has(Executable) || Files.isExecutable(path));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -294,6 +364,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Files.isDirectory(path, new NativeArray(0));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -307,6 +379,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Files.isRegularFile(path, new NativeArray(0));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -321,6 +395,8 @@ private class FileSystemImpl implements IFileSystem {
 				try {
 					Files.setPosixFilePermissions(path, permissions);
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -337,6 +413,8 @@ private class FileSystemImpl implements IFileSystem {
 					attributes.setOwner(user);
 					attributes.setGroup(group);
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -353,6 +431,8 @@ private class FileSystemImpl implements IFileSystem {
 					attributes.setOwner(user);
 					attributes.setGroup(group);
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -370,6 +450,8 @@ private class FileSystemImpl implements IFileSystem {
 						case SymLink: Files.createSymbolicLink(path, target, new NativeArray(0));
 					}
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -383,6 +465,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Files.isSymbolicLink(path);
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -396,6 +480,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					new FilePath(Files.readSymbolicLink(path));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -409,6 +495,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					Files.readAttributes(path, javaClass(PosixFileAttributes), NativeArray.make(NOFOLLOW_LINKS));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -418,7 +506,22 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var options = overwrite
+						? NativeArray.make((cast NOFOLLOW_LINKS:CopyOption), (cast REPLACE_EXISTING:CopyOption))
+						: NativeArray.make((cast NOFOLLOW_LINKS:CopyOption));
+					Files.copy(source, destination, options);
+					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), source);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), source);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
@@ -429,6 +532,8 @@ private class FileSystemImpl implements IFileSystem {
 					f.setLength(newSize);
 					f.close();
 					NoData;
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -438,7 +543,28 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				inline function set() {
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), new NativeArray(0));
+					attributes.setTimes(FileTime.from(modificationTime, SECONDS), FileTime.from(accessTime, SECONDS), @:nullSafety(Off) (null:FileTime));
+					return NoData;
+				}
+				try {
+					try {
+						set();
+					} catch(e:NoSuchFileException) {
+						Files.createFile(path, new NativeArray(0));
+						set();
+					}
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function realPath(path:FilePath, callback:Callback<FilePath>):Void {
@@ -446,6 +572,8 @@ private class FileSystemImpl implements IFileSystem {
 			() -> {
 				try {
 					new FilePath((path:JPath).toRealPath(new NativeArray(0)));
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
