@@ -149,7 +149,8 @@ class FileSystem {
 		Move and/or rename the file or directory from `oldPath` to `newPath`.
 
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
-		the destination is overwritten.
+		the destination is overwritten. However, operation fails if `newPath` is
+		a non-empty directory.
 	**/
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();

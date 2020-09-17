@@ -257,14 +257,20 @@ class TestFileSystem extends FsTest {
 								asyncAll(async,
 									//overwrite
 									createData('test-data/temp/dir2', 'world', () -> {
-										FileSystem.move('test-data/temp/dir2', 'test-data/temp/moved', (e, r) -> {
+										FileSystem.move('test-data/temp/dir2/file', 'test-data/temp/moved/file', true, (e, r) -> {
 											if(noException(e))
 												FileSystem.readString('test-data/temp/moved/file', (e, r) -> equals('world', r));
 										});
 									}),
 									//disable overwrite
 									createData('test-data/temp/dir3', 'unexpected', () -> {
-										FileSystem.move('test-data/temp/dir3', 'test-data/temp/moved', false, (e, r) -> {
+										FileSystem.move('test-data/temp/dir3/file', 'test-data/temp/moved/file', false, (e, r) -> {
+											isOfType(e, FsException);
+										});
+									}),
+									//non-empty directory
+									createData('test-data/temp/dir4', 'hello', () -> {
+										FileSystem.move('test-data/temp/dir4', 'test-data/temp/moved', true, (e, r) -> {
 											isOfType(e, FsException);
 										});
 									})

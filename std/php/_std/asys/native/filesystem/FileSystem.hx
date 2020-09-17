@@ -337,8 +337,8 @@ private class FileSystemImpl implements IFileSystem {
 				if(!overwrite && file_exists(newPath))
 					throw new FsException(FileExists, newPath);
 				try {
-					if(moveRecursive(oldPath, newPath))
-						NoData.NoData
+					if(rename(oldPath, newPath))
+						NoData
 					else
 						throw new FsException(CustomError('Failed to move file or directory'), oldPath);
 				} catch(e:FsException) {
