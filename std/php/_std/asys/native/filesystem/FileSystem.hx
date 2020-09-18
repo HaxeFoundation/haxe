@@ -328,9 +328,6 @@ private class FileSystemImpl implements IFileSystem {
 		return codes[Std.random(codes.length)];
 	}
 
-	// TODO:
-	// This implementation is wrong. It will fail if any entry of a moved directory is not allowed to move
-	// (e.g. because of permissions)
 	public inline function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
@@ -349,35 +346,6 @@ private class FileSystemImpl implements IFileSystem {
 			},
 			callback
 		);
-	}
-
-	/**
-	 * This is required to avoid "Directory not empty" warning from `rename` function
-	 */
-	static function moveRecursive(oldPath:String, newPath:String):Bool {
-		if(is_dir(newPath) && is_dir(oldPath)) {
-			var dir = opendir(oldPath);
-			var success = true;
-			if(dir == false)
-				throw new FsException(CustomError('Failed to read directory'), oldPath);
-			try {
-				while(true) {
-					switch readdir(dir) {
-						case '.' | '..':
-						case false:
-							break;
-						case entry:
-							success = moveRecursive('$oldPath/$entry', '$newPath/$entry') && success;
-					}
-				}
-			} catch(e:php.Exception) {
-				try closedir(dir) catch(_) {}
-				throw e;
-			}
-			return success;
-		} else {
-			return rename(oldPath, newPath);
-		}
 	}
 
 	public inline function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
