@@ -2,6 +2,7 @@ package asys.native.filesystem;
 
 import haxe.NoData;
 import haxe.EntryPoint;
+import haxe.IJobExecutor;
 import haxe.exceptions.NotImplementedException;
 import php.Resource;
 import php.Global.*;
@@ -11,45 +12,49 @@ class Directory {
 	public var buffer:Int = 32;
 
 	final handle:Resource;
+	final executor:IJobExecutor;
 
-	function new(handle:Resource, path:FilePath) {
+	function new(handle:Resource, path:FilePath, executor:IJobExecutor) {
 		this.handle = handle;
 		this.path = path;
+		this.executor = executor;
 	}
 
 	public function next(callback:Callback<Null<FilePath>>) {
-		EntryPoint.runInMainThread(() -> {
-			var result = try {
-				var entry = readdir(handle);
-				while(entry != false && (entry == '.' || entry == '..')) {
-					entry = readdir(handle);
+		executor.addJob(
+			() -> {
+				var result = try {
+					var entry = readdir(handle);
+					while(entry != false && (entry == '.' || entry == '..')) {
+						entry = readdir(handle);
+					}
+					entry;
+				} catch(e:php.Exception) {
+					throw new FsException(CustomError(e.getMessage()), path);
 				}
-				entry;
-			} catch(e:php.Exception) {
-				callback.fail(new FsException(CustomError(e.getMessage()), path));
-				return;
-			}
-			switch result {
-				case false:
-					callback.success(null);
-				case (_:String) => s:
-					callback.success(s);
-			}
-		});
+				switch result {
+					case false: null;
+					case (_:String) => s: (s:FilePath);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
 		Close the directory.
 	**/
 	public function close(callback:Callback<NoData>) {
-		EntryPoint.runInMainThread(() -> {
-			try {
-				closedir(handle);
-			} catch(e:php.Exception) {
-				callback.fail(new FsException(CustomError(e.getMessage()), path));
-				return;
-			}
-			callback.success(NoData);
-		});
+		executor.addJob(
+			() -> {
+				try {
+					closedir(handle);
+				} catch(e:php.Exception) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+				NoData;
+			},
+			callback
+		);
 	}
 }

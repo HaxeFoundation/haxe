@@ -135,7 +135,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					cast @:privateAccess new File(fopenHx(path, flag), path);
+					cast @:privateAccess new File(fopenHx(path, flag), path, jobs);
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}
@@ -152,7 +152,7 @@ private class FileSystemImpl implements IFileSystem {
 						case false:
 							throw new php.Exception('Failed to create a temporary file');
 						case fd:
-							@:privateAccess new File(fd, stream_get_meta_data(fd)['uri']);
+							@:privateAccess new File(fd, stream_get_meta_data(fd)['uri'], jobs);
 					}
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), '(unknown path)');
@@ -238,7 +238,7 @@ private class FileSystemImpl implements IFileSystem {
 						case false:
 							throw new php.Exception('Failed to open a directory');
 						case result:
-							@:privateAccess new Directory(result, path);
+							@:privateAccess new Directory(result, path, jobs);
 					}
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
