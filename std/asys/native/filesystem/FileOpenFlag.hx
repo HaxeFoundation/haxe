@@ -11,13 +11,6 @@ enum abstract FileOpenFlag<T>(Int) {
 	var Append:FileOpenFlag<FileAppend>;
 
 	/**
-		Open file for appending and reading.
-		The file is created if it does not exist.
-		Writing always appends to the end of the file.
-	**/
-	var AppendRead:FileOpenFlag<FileAppendRead>;
-
-	/**
 		Open file for reading.
 		Fails if the file does not exist.
 	**/
@@ -37,9 +30,8 @@ enum abstract FileOpenFlag<T>(Int) {
 	var Write:FileOpenFlag<FileWrite>;
 
 	/**
-		Open file for writing.
-		The file is truncated if it exists.
-		Fails if the file doesn't exist.
+		Create and open file for writing.
+		Fails if the file already exists.
 	**/
 	var WriteX:FileOpenFlag<FileWrite>;
 
@@ -51,9 +43,8 @@ enum abstract FileOpenFlag<T>(Int) {
 	var WriteRead:FileOpenFlag<File>;
 
 	/**
-		Open file for writing and reading.
-		The file is truncated if it exists.
-		Fails if the file doesn't exists.
+		Create and open file for writing and reading.
+		Fails if the file already exists.
 	**/
 	var WriteReadX:FileOpenFlag<File>;
 

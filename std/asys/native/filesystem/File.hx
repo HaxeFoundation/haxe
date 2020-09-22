@@ -56,13 +56,6 @@ class File {
 	}
 
 	/**
-		Synchronize file in-memory state with the storage device.
-	**/
-	public function sync(callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
 		Get file status information.
 	**/
 	public function info(callback:Callback<FileInfo>):Void {
@@ -103,7 +96,7 @@ class File {
 	}
 
 	/**
-		Acquire or release a file lock.
+		Acquire or release a file lock for the current process.
 
 		The `callback` is supplied with `true` if a lock was successfully acquired.
 
@@ -119,6 +112,8 @@ class File {
 		Although a lock may be released automatically on file closing, for a
 		consistent cross-platform behavior it is strongly recommended to always
 		release a lock manually.
+
+		This lock is _not_ suitable for controlling access to a file by multiple threads.
 	**/
 	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
@@ -126,6 +121,8 @@ class File {
 
 	/**
 		Close the file.
+
+		Does not fail if the file is already closed.
 	**/
 	public function close(callback:Callback<NoData>):Void {
 		throw new NotImplementedException();

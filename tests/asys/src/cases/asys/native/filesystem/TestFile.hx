@@ -111,73 +111,76 @@ class TestFile extends FsTest {
 		);
 	}
 
-	function testOpenAppendRead(async:Async) {
-		asyncAll(async,
-			//existing file
-			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/append-read.bin', (_, _) -> {
-				FileSystem.openFile('test-data/temp/append-read.bin', AppendRead, (e, file) -> {
-					if(noException(e)) {
-						var data = bytes([3, 2, 1, 0]);
-						var b = new BytesOutput();
-						var bytesBin = bytesBinContent();
-						b.writeBytes(bytesBin, 0, bytesBin.length);
-						b.writeBytes(data, 1, 2);
-						var expected = b.getBytes();
-						file.write(data, 1, 2, (e, r) -> {
-							if(noException(e)) {
-								equals(2, r);
-								var readBuf = Bytes.alloc(4);
-								file.read(bytesBin.length - 2, readBuf, 0, 4, (e, r) -> {
-									if(noException(e)) {
-										equals(4, Int64.toInt(r));
-										same(expected.sub(expected.length - 4, 4), readBuf);
-										file.close((e, _) -> {
-											if(noException(e))
-												FileSystem.readBytes('test-data/temp/append-read.bin', (_, r) -> {
-													same(expected, r);
-												});
-										});
-									}
-								});
-							}
-						});
-					}
-				});
-			}),
-			//non-existent file
-			FileSystem.openFile('test-data/temp/non-existent.bin', AppendRead, (e, file) -> {
-				if(noException(e)) {
-					var buffer = bytes([1, 2, 3, 4, 5]);
-					file.write(buffer, 0, buffer.length, (e, r) -> {
-						if(noException(e) && equals(buffer.length, r)) {
-							var readBuf = Bytes.alloc(buffer.length);
-							file.read(0, readBuf, 0, buffer.length, (e, r) -> {
-								if(noException(e)) {
-									equals(buffer.length, r);
-									same(buffer, readBuf);
-									file.close((e, _) -> {
-										if(noException(e))
-											FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
-												same(buffer, r);
-											});
-									});
-								}
-							});
-						}
-					});
-				}
-			}),
-			//in non-existent directory
-			FileSystem.openFile('test-data/temp/non/existent.bin', AppendRead, (e, file) -> {
-				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent.bin', e.path.toString());
-				});
-			})
-		);
-	}
+	/*
+		Remove `AppendRead` flag because not all targets support this combination.
+	*/
+	// function testOpenAppendRead(async:Async) {
+	// 	asyncAll(async,
+	// 		//existing file
+	// 		FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/append-read.bin', (_, _) -> {
+	// 			FileSystem.openFile('test-data/temp/append-read.bin', AppendRead, (e, file) -> {
+	// 				if(noException(e)) {
+	// 					var data = bytes([3, 2, 1, 0]);
+	// 					var b = new BytesOutput();
+	// 					var bytesBin = bytesBinContent();
+	// 					b.writeBytes(bytesBin, 0, bytesBin.length);
+	// 					b.writeBytes(data, 1, 2);
+	// 					var expected = b.getBytes();
+	// 					file.write(data, 1, 2, (e, r) -> {
+	// 						if(noException(e)) {
+	// 							equals(2, r);
+	// 							var readBuf = Bytes.alloc(4);
+	// 							file.read(bytesBin.length - 2, readBuf, 0, 4, (e, r) -> {
+	// 								if(noException(e)) {
+	// 									equals(4, Int64.toInt(r));
+	// 									same(expected.sub(expected.length - 4, 4), readBuf);
+	// 									file.close((e, _) -> {
+	// 										if(noException(e))
+	// 											FileSystem.readBytes('test-data/temp/append-read.bin', (_, r) -> {
+	// 												same(expected, r);
+	// 											});
+	// 									});
+	// 								}
+	// 							});
+	// 						}
+	// 					});
+	// 				}
+	// 			});
+	// 		}),
+	// 		//non-existent file
+	// 		FileSystem.openFile('test-data/temp/non-existent.bin', AppendRead, (e, file) -> {
+	// 			if(noException(e)) {
+	// 				var buffer = bytes([1, 2, 3, 4, 5]);
+	// 				file.write(buffer, 0, buffer.length, (e, r) -> {
+	// 					if(noException(e) && equals(buffer.length, r)) {
+	// 						var readBuf = Bytes.alloc(buffer.length);
+	// 						file.read(0, readBuf, 0, buffer.length, (e, r) -> {
+	// 							if(noException(e)) {
+	// 								equals(buffer.length, r);
+	// 								same(buffer, readBuf);
+	// 								file.close((e, _) -> {
+	// 									if(noException(e))
+	// 										FileSystem.readBytes('test-data/temp/non-existent.bin', (_, r) -> {
+	// 											same(buffer, r);
+	// 										});
+	// 								});
+	// 							}
+	// 						});
+	// 					}
+	// 				});
+	// 			}
+	// 		}),
+	// 		//in non-existent directory
+	// 		FileSystem.openFile('test-data/temp/non/existent.bin', AppendRead, (e, file) -> {
+	// 			assertType(e, FsException, e -> {
+	// 				equals('test-data/temp/non/existent.bin', e.path.toString());
+	// 			});
+	// 		})
+	// 	);
+	// }
 
 	@:depends(testOpenRead)
-	function testRead_OutOfBounds(async:Async) {
+	function testRead_BufferOutOfBounds(async:Async) {
 		asyncAll(async,
 			FileSystem.openFile('test-data/sub/hello.world', Read, (_, file) -> {
 				var buf = Bytes.alloc(10);
@@ -187,13 +190,18 @@ class TestFile extends FsTest {
 					//offset negative
 					file.read(0, buf, -1, buf.length, (e, _) -> {
 						assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
-						//offset >= buf.length
-						file.read(0, buf, buf.length, buf.length, (e, _) -> {
-							assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
-							//length negative
-							file.read(0, buf, buf.length, -1, (e, _) -> {
+						//offset == buf.length
+						file.read(0, buf, buf.length, buf.length, (e, r) -> {
+							if(noException(e))
+								equals(0, r);
+							//offset > buf.length
+							file.read(0, buf, buf.length + 1, buf.length, (e, _) -> {
 								assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
-								file.close((_, _) -> {});
+								//length negative
+								file.read(0, buf, buf.length, -1, (e, _) -> {
+									assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+									file.close((_, _) -> {});
+								});
 							});
 						});
 					});
@@ -203,7 +211,7 @@ class TestFile extends FsTest {
 	}
 
 	@:depends(testOpenWrite)
-	function testWrite_OutOfBounds(async:Async) {
+	function testWrite_BufferOutOfBounds(async:Async) {
 		asyncAll(async,
 			FileSystem.openFile('test-data/temp/write.oob', Write, (_, file) -> {
 				var buf = bytes([1, 2, 3]);
@@ -213,13 +221,18 @@ class TestFile extends FsTest {
 					//offset negative
 					file.write(0, buf, -1, buf.length, (e, _) -> {
 						assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
-						//offset >= buf.length
-						file.write(0, buf, buf.length, buf.length, (e, _) -> {
-							assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
-							//length negative
-							file.write(0, buf, 0, -1, (e, _) -> {
+						//offset == buf.length
+						file.write(0, buf, buf.length, buf.length, (e, r) -> {
+							if(noException(e))
+								equals(0, r);
+							//offset > buf.length
+							file.write(0, buf, buf.length + 1, buf.length, (e, _) -> {
 								assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
-								file.close((_, _) -> {});
+								//length negative
+								file.write(0, buf, 0, -1, (e, _) -> {
+									assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+									file.close((_, _) -> {});
+								});
 							});
 						});
 					});
@@ -595,24 +608,6 @@ class TestFile extends FsTest {
 		);
 	}
 
-	//TODO create a test which actually tests `sync` behavior
-#if !php
-	@:depends(testOpenWrite)
-	function testSync(async:Async) {
-		asyncAll(async,
-			FileSystem.openFile('test-data/temp/sync', Write, (e, file) -> {
-				var data = bytes([123, 234, 56]);
-				file.write(0, data, 0, data.length, (_, _) -> {
-					file.sync((e, _) -> {
-						if(noException(e))
-							file.close((_, _) -> {});
-					});
-				});
-			})
-		);
-	}
-#end
-
 	@:depends(testOpenRead)
 	function testInfo(async:Async) {
 		asyncAll(async,
@@ -746,6 +741,18 @@ class TestFile extends FsTest {
 							file.close((_, _) -> {});
 						});
 					}
+				});
+			})
+		);
+	}
+
+	@:depends(testOpenRead)
+	function testClose_multipleClose(async:Async) {
+		asyncAll(async,
+			FileSystem.openFile('test-data/bytes.bin', Read, (e, file) -> {
+				file.close((e, _) -> {
+					if(noException(e))
+						file.close((e, _) -> noException(e));
 				});
 			})
 		);
