@@ -23,6 +23,7 @@ class File {
 	var fs:Null<IFileSystem>;
 	var isClosed:Bool = false;
 
+	@:allow(asys.native.filesystem)
 	function new(handle:Resource, path:FilePath, executor:IJobExecutor) {
 		this.handle = handle;
 		this.path = path;
@@ -37,7 +38,7 @@ class File {
 						throw new php.Exception('File.write(): negative length');
 					if(position < 0)
 						throw new php.Exception('File.write(): negative position');
-					if(offset < 0 || offset >= buffer.length)
+					if(offset < 0 || offset > buffer.length)
 						throw new php.Exception('File.write(): offset out of buffer bounds');
 					if(fseek(handle, int64ToInt(position)) == 0)
 						fwrite(handle, buffer.getData().sub(offset, length))
@@ -65,9 +66,11 @@ class File {
 						throw new php.Exception('File.read(): negative length');
 					if(position < 0)
 						throw new php.Exception('File.read(): negative position');
-					if(offset < 0 || offset >= buffer.length)
+					if(offset < 0 || offset > buffer.length)
 						throw new php.Exception('File.read(): offset out of buffer bounds');
-					if(fseek(handle, int64ToInt(position)) == 0)
+					if(offset == buffer.length)
+						('':haxe.extern.EitherType<Bool,String>)
+					else if(fseek(handle, int64ToInt(position)) == 0)
 						fread(handle, length)
 					else
 						throw new php.Exception('File.read(): Failed to set file position');
@@ -108,29 +111,6 @@ class File {
 					NoData
 				else
 					throw new FsException(CustomError('Failed to flush a file'), path);
-			},
-			callback
-		);
-	}
-
-	public function sync(callback:Callback<NoData>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					if(function_exists('eio_fsync')) {
-						Syntax.code('eio_fsync({0})', handle);
-					} else {
-						throw new php.Exception('asys.native.filesystem.File.sync requires Eio extension to be enabled in PHP. See https://www.php.net/manual/en/book.eio.php');
-					}
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				switch result {
-					case false:
-						throw new FsException(CustomError('Failed to sync a file'), path);
-					case _:
-						NoData;
-				}
 			},
 			callback
 		);
@@ -208,7 +188,7 @@ class File {
 		executor.addJob(
 			() -> {
 				var result = try {
-					fclose(handle);
+					is_resource(handle) ? fclose(handle) : true;
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}

@@ -94,6 +94,11 @@ extern class Global {
 	static function is_null(value:Dynamic):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.is-resource.php
+	**/
+	static function is_resource(value:Dynamic):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.is-subclass-of.php
 	**/
 	static function is_subclass_of(value:Dynamic, className:String, allow_string:Bool = true):Bool;
