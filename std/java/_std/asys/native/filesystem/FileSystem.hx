@@ -27,6 +27,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.channels.FileChannel;
 
 @:coreApi
 class FileSystem {
@@ -128,16 +129,38 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new haxe.exceptions.NotImplementedException();
-		// jobs.addJob(
-		// 	() -> {
-		// 	},
-		// 	callback
-		// );
+		jobs.addJob(
+			() -> {
+				try {
+					var channel = FileChannel.open(path, hxOpenFlagToJavaOption(flag));
+					cast new File(path, channel, jobs);
+				} catch(e:FileSystemException) {
+					var reason = e.getReason();
+					throw new FsException(CustomError(reason == null ? e.toString() : reason), path);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function tempFile(callback:Callback<File>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					var path = new FilePath(Files.createTempFile(@:nullSafety(Off) (null:String), @:nullSafety(Off) (null:String), new NativeArray(0)));
+					var channel = FileChannel.open(path, hxOpenFlagToJavaOption(ReadWrite));
+					cast new File(path, channel, jobs, true);
+				} catch(e:FileSystemException) {
+					var reason = e.getReason();
+					throw new FsException(CustomError(reason == null ? e.toString() : reason), '(unknown path)');
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), '(unknown path)');
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
@@ -204,7 +227,18 @@ private class FileSystemImpl implements IFileSystem {
 	}
 
 	public inline function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		jobs.addJob(
+			() -> {
+				try {
+					new Directory(path, Files.newDirectoryStream(path), jobs);
+				} catch(e:FileSystemException) {
+					throw new FsException(CustomError(e.getReason()), path);
+				} catch(e:Throwable) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	public inline function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
@@ -585,13 +619,12 @@ private class FileSystemImpl implements IFileSystem {
 	static function hxOpenFlagToJavaOption(flag:FileOpenFlag<Dynamic>):NativeArray<OpenOption> {
 		return switch flag {
 			case Append: cast NativeArray.make(CREATE, WRITE, APPEND);
-			case AppendRead: cast NativeArray.make(CREATE, WRITE, APPEND, READ);
 			case Read: cast NativeArray.make(READ);
 			case ReadWrite: cast NativeArray.make(READ, WRITE);
 			case Write: cast NativeArray.make(CREATE, WRITE, TRUNCATE_EXISTING);
-			case WriteX: cast NativeArray.make(WRITE, TRUNCATE_EXISTING);
+			case WriteX: cast NativeArray.make(CREATE_NEW, WRITE);
 			case WriteRead: cast NativeArray.make(CREATE, WRITE, READ, TRUNCATE_EXISTING);
-			case WriteReadX: cast NativeArray.make(WRITE, READ, TRUNCATE_EXISTING);
+			case WriteReadX: cast NativeArray.make(CREATE_NEW, WRITE, READ);
 			case Overwrite: cast NativeArray.make(CREATE, WRITE);
 			case OverwriteRead: cast NativeArray.make(CREATE, WRITE, READ);
 		}
