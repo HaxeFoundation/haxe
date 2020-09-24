@@ -9,7 +9,7 @@ import php.NativeArray;
 
 private typedef NativeFilePath = php.NativeString;
 
-@:coreApi abstract FilePath(NativeFilePath) {
+@:coreApi abstract FilePath(NativeFilePath) to String to NativeString {
 	public static var SEPARATOR(get,never):String;
 	static inline function get_SEPARATOR():String {
 		return php.Const.DIRECTORY_SEPARATOR;
@@ -24,7 +24,7 @@ private typedef NativeFilePath = php.NativeString;
 		return new FilePath(path);
 	}
 
-	@:to public function toString():String {
+	public function toString():String {
 		return this;
 	}
 

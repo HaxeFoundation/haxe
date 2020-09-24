@@ -1,6 +1,5 @@
 package asys.native.filesystem;
 
-import haxe.io.Bytes;
 import haxe.exceptions.NotImplementedException;
 
 private typedef NativeFilePath = Dynamic;
