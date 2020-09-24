@@ -31,8 +31,6 @@ enum IoErrorType {
 	TimedOut;
 	/** Connection refused */
 	ConnectionRefused;
-	/** Other errors from system calls described in <error.h> */
-	ErrorCode(code:PosixErrorCode);
 	/** Any other error */
 	CustomError(message:String);
 }
@@ -69,8 +67,6 @@ class IoErrorTypeTools {
 				"Operation timed out";
 			case ConnectionRefused:
 				"Connection refused";
-			case ErrorCode(errNo):
-				errNo.toString();
 			case CustomError(message):
 				message;
 		}
