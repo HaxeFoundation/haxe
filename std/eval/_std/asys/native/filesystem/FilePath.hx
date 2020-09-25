@@ -2,10 +2,11 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
+import eval.NativeString;
 
-private typedef NativeFilePath = Bytes;
+private typedef NativeFilePath = NativeString;
 
-@:coreApi abstract FilePath(NativeFilePath) {
+@:coreApi abstract FilePath(NativeFilePath) to NativeString {
 	public static var SEPARATOR(get,never):String;
 	static var __SEPARATOR:Null<String>;
 	static function get_SEPARATOR():String {
@@ -23,49 +24,51 @@ private typedef NativeFilePath = Bytes;
 		return c == '/'.code || (SEPARATOR == '\\' && c == '\\'.code);
 	}
 
-	@:from public static function fromString(path:String):FilePath {
-		return new FilePath(Bytes.ofString(path));
+	@:from public static inline function fromString(path:String):FilePath {
+		return new FilePath(path);
 	}
 
-	inline function new(b:Bytes) {
+	inline function new(b:NativeString) {
 		this = b;
 	}
 
 	@:to public function toString():String {
-		switch this.length {
-			case 0 | 1: return this.toString();
+		var bytes = this.toBytes();
+		switch bytes.length {
+			case 0 | 1: return bytes.toString();
 			//trim trailing slashes
 			case (_ - 1) => i:
-				while(i > 0 && isSeparator(this.get(i))) {
+				while(i > 0 && isSeparator(bytes.get(i))) {
 					--i;
 				}
-				return this.getString(0, i + 1);
+				return bytes.getString(0, i + 1);
 		}
 	}
 
 	@:op(A == B) inline function equals(p:FilePath):Bool {
-		return this.compare(p.asBytes()) == 0;
+		return this.equals(p);
 	}
 
 	public function absolute():FilePath {
+		var thisBytes = this.toBytes();
 		var separatorCode = StringTools.fastCodeAt(SEPARATOR, 0);
 		inline function withCwd() {
 			var b = new BytesBuffer();
 			b.addString(Sys.getCwd());
 			b.addByte(separatorCode);
-			b.addBytes(this, 0, this.length);
+			b.addBytes(thisBytes, 0, thisBytes.length);
 			return b.getBytes();
 		}
-		var fullPath = if(this.length == 0) {
+		var fullPath = if(thisBytes.length == 0) {
 			withCwd();
-		} else if(this.get(0) == '/'.code) {
-			this;
+		} else if(thisBytes.get(0) == '/'.code) {
+			thisBytes;
 		} else if(separatorCode == '\\'.code) {
-			if(this.get(0) == '\\'.code) {
-				this;
+			if(thisBytes.get(0) == '\\'.code) {
+				thisBytes;
 			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
-			} else if(this.length > 1 && this.get(1) == ':'.code) {
-				this;
+			} else if(thisBytes.length > 1 && thisBytes.get(1) == ':'.code) {
+				thisBytes;
 			} else {
 				withCwd();
 			}
@@ -143,9 +146,5 @@ private typedef NativeFilePath = Bytes;
 		}
 
 		return new FilePath(result.getBytes());
-	}
-
-	inline function asBytes():Bytes {
-		return this;
 	}
 }
