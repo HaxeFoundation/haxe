@@ -111,6 +111,7 @@ class TestFileSystem extends FsTest {
 		);
 	}
 
+	//TODO test `Executable`
 	@:depends(testLink,testIsLink)
 	function testCheck(async:Async) {
 		asyncAll(async,
