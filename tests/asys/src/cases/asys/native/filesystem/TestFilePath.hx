@@ -16,7 +16,10 @@ class TestFilePath extends FsTest {
 		var cases = [
 			'./' => haxe.io.Path.removeTrailingSlashes(cwd),
 			'non-existent.file' => cwd + 'non-existent.file',
-			'path/to/../../non-existent.file' => cwd + 'non-existent.file'
+			'path/to/../../non-existent.file' => cwd + 'non-existent.file',
+			'single-dot-before-double-dot/./../non-existent.file' => cwd + 'non-existent.file',
+			'path/to/../' => cwd + 'path',
+			'...' => cwd + '...'
 		];
 		check(cases);
 		cases = if(isWindows) {

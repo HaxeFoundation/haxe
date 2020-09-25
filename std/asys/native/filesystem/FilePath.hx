@@ -8,9 +8,12 @@ private typedef NativeFilePath = Dynamic;
 	Represents a relative or absolute file path.
 
 	TODO: add API from `haxe.io.Path`
-	TODO: `@:coreType` for now as I'm not sure `String` would fit it best for all targets.
 **/
 @:coreApi abstract FilePath(NativeFilePath) {
+	/**
+		Standard directory separator character for current platform.
+		E.g. `\\` for Windows or `/` for Unix-like systems.
+	**/
 	public static var SEPARATOR(get,never):String;
 	static function get_SEPARATOR():String {
 		return Sys.systemName() == 'Windows' ? '\\' : '/';
