@@ -73,7 +73,7 @@ class DefaultJobExecutor implements IJobExecutor {
 				throw new DeadJobExecutorException('Cannot shutdown job executor as it has been shut down already');
 			active = false;
 			for(worker in workers)
-				workerHandler();
+				workerHandler(worker);
 		} catch(e) {
 			workersMutex.release();
 			throw e;
@@ -86,7 +86,7 @@ private class Worker {
 	public var queueSize(default,null):Int = 0;
 	public var ignoreOutcomes(default,null):Bool = false;
 
-	final keepRunning = true;
+	var keepRunning = true;
 	final thread:Thread;
 	final queue = new Deque<Null<Task<Dynamic>>>();
 
@@ -115,12 +115,10 @@ private class Worker {
 			switch queue.pop(true) {
 				case null:
 				case task:
-					--queueSize;
 					if(!ignoreOutcomes) {
-						busy = true;
-						task.run(worker);
-						busy = false;
+						task.run();
 					}
+					--queueSize;
 			}
 		}
 	}
@@ -135,10 +133,11 @@ private class Task<R> {
 	var result:Null<R>;
 	var error:Null<Exception>;
 
-	public function new(job:()->R, callback:Callback<Exception,R>, thread:Thread) {
+	public function new(job:()->R, callback:Callback<Exception,R>, thread:Thread, worker:Worker) {
 		this.job = job;
 		this.callback = callback;
 		this.worker = worker;
+		this.thread = thread;
 		thread.events.promise();
 	}
 

@@ -14,6 +14,8 @@ class Native implements INative {
 			new php.DefaultJobExecutor()
 		#elseif java
 			new java.DefaultJobExecutor(java.lang.Runtime.getRuntime().availableProcessors() + 1)
+		#elseif eval
+			new eval.DefaultJobExecutor(8)
 		#else
 			#error 'Not implemented for this target'
 		#end;
