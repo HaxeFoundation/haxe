@@ -120,6 +120,7 @@ and s_value depth v =
 	| VFieldClosure _ -> rclosure
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString s -> s
+	| VNativeString s -> create_unknown_vstring s
 	| VArray va -> s_array (depth + 1) va
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d

@@ -62,7 +62,7 @@ let var_to_json name value vio env =
 		in
 		JObject fields
 	in
-	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
+	let string_repr s = "\"" ^ (StringHelper.s_escape s) ^ "\"" in
 	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"
@@ -76,12 +76,13 @@ let var_to_json name value vio env =
 				| vl -> name ^ "(...)"
 			end
 		| VObject o -> "{...}"
-		| VString s -> string_repr s
+		| VString s -> string_repr s.sstring
 		| VArray _ | VVector _ -> "[...]"
 		| VInstance vi -> (rev_hash vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> (s_proto_kind proto).sstring
 		| VFunction _ | VFieldClosure _ -> "<fun>"
 		| VLazy f -> level2_value_repr (!f())
+		| VNativeString s -> string_repr s
 	in
 	let fields_string fields =
 		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash name) (level2_value_repr value)) fields in
@@ -117,7 +118,7 @@ let var_to_json name value vio env =
 				jv "Anonymous" (fields_string fields) (List.length fields)
 			end
 		| VString s ->
-			jv "String" (string_repr s) 2
+			jv "String" (string_repr s.sstring) 2
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
@@ -143,6 +144,8 @@ let var_to_json name value vio env =
 			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
 		| VLazy f -> value_string (!f())
+		| VNativeString s ->
+			jv "NativeString" (string_repr s) 0
 	in
 	value_string value
 
@@ -262,7 +265,7 @@ let output_scope_vars env scope =
 
 let output_inner_vars v env =
 	let rec loop v = match v with
-		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
+		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ -> []
 		| VEnumValue ve ->
 			begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 				| PEnum names ->
@@ -424,7 +427,7 @@ module ValueCompletion = struct
 			| _ -> "field"
 		in
 		let rec loop v = match v with
-			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ ->
+			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ ->
 				[]
 			| VObject o ->
 				let fields = object_fields o in

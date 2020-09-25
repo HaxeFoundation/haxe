@@ -109,6 +109,7 @@ type value =
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
 	| VLazy of (unit -> value) ref
+	| VNativeString of string
 
 and vfunc = value list -> value
 
@@ -263,6 +264,7 @@ let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
+let vnative_string s = VNativeString s
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
