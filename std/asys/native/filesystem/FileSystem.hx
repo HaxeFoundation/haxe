@@ -269,7 +269,7 @@ class FileSystem {
 	}
 
 	/**
-		Get symbolic link information at the given path.
+		Get information at the given path without following symbolic links.
 	**/
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
 		throw new NotImplementedException();
@@ -295,9 +295,7 @@ class FileSystem {
 	}
 
 	/**
-		Change access and modification times of a file.
-
-		If the file does not exist, it is created.
+		Change access and modification times of an existing file.
 
 		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
 	**/

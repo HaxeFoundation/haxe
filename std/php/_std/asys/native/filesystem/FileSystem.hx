@@ -598,10 +598,14 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					if(touch(path, modificationTime, accessTime))
-						NoData.NoData
-					else
-						throw new php.Exception('Failed to set file times');
+					if(file_exists(path)) {
+						if(touch(path, modificationTime, accessTime))
+							NoData.NoData
+						else
+							throw new php.Exception('Failed to set file times');
+					} else {
+						throw new php.Exception('No such file');
+					}
 				} catch(e:php.Exception) {
 					throw new FsException(CustomError(e.getMessage()), path);
 				}

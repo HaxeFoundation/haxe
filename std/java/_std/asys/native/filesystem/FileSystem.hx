@@ -579,18 +579,10 @@ private class FileSystemImpl implements IFileSystem {
 	public inline function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
-				inline function set() {
+				try {
 					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), new NativeArray(0));
 					attributes.setTimes(FileTime.from(modificationTime, SECONDS), FileTime.from(accessTime, SECONDS), @:nullSafety(Off) (null:FileTime));
-					return NoData;
-				}
-				try {
-					try {
-						set();
-					} catch(e:NoSuchFileException) {
-						Files.createFile(path, new NativeArray(0));
-						set();
-					}
+					NoData;
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {

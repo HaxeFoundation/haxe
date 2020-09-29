@@ -1,5 +1,6 @@
 package cases.asys.native.filesystem;
 
+import haxe.PosInfos;
 import asys.native.filesystem.FilePermissions;
 import haxe.NoData;
 import asys.native.filesystem.Callback;
@@ -47,12 +48,12 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testReadString)
 	function testWriteString(async:Async) {
-		function writeAndCheck(textToWrite:String, expectedContent:String, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void) {
+		function writeAndCheck(textToWrite:String, expectedContent:String, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void, ?pos:PosInfos) {
 			FileSystem.writeString('test-data/temp/test.txt', textToWrite, flag, (e, _) -> {
-				if(noException(e))
+				if(noException(e, pos))
 					FileSystem.readString('test-data/temp/test.txt', (e, r) -> {
-						if(noException(e))
-							callback(equals(expectedContent, r))
+						if(noException(e, pos))
+							callback(equals(expectedContent, r, pos))
 						else
 							callback(false);
 					})
@@ -80,12 +81,12 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testReadBytes)
 	function testWriteBytes(async:Async) {
-		function writeAndCheck(bytesToWrite:Bytes, expectedContent:Bytes, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void) {
+		function writeAndCheck(bytesToWrite:Bytes, expectedContent:Bytes, flag:FileOpenFlag<Dynamic>, callback:(ok:Bool)->Void, ?pos:PosInfos) {
 			FileSystem.writeBytes('test-data/temp/test.bin', bytesToWrite, flag, (e, _) -> {
-				if(noException(e))
+				if(noException(e, pos))
 					FileSystem.readBytes('test-data/temp/test.bin', (e, r) -> {
-						if(noException(e))
-							callback(same(expectedContent, r))
+						if(noException(e, pos))
+							callback(same(expectedContent, r, pos))
 						else
 							callback(true);
 					})
@@ -229,9 +230,9 @@ class TestFileSystem extends FsTest {
 			FileSystem.createDirectory('test-data/temp/non/existent', (e, r) -> {
 				assertType(e, FsException, e -> equals('test-data/temp/non/existent', e.path.toString()));
 			}),
-			FileSystem.createDirectory('test-data/temp/non-existent1/non-existent2', true, (e, r) -> {
+			FileSystem.createDirectory('test-data/temp/non-existent1/non-existent2/non-existent3', true, (e, r) -> {
 				if(noException(e))
-					FileSystem.isDirectory('test-data/temp/dir', (e, r) -> isTrue(r));
+					FileSystem.isDirectory('test-data/temp/non-existent1/non-existent2/non-existent3', (e, r) -> isTrue(r));
 			})
 		);
 	}
@@ -531,11 +532,7 @@ class TestFileSystem extends FsTest {
 					});
 			}),
 			FileSystem.setTimes('test-data/temp/set-times-non-existent', accessTime, modificationTime, (e, r) -> {
-				if(noException(e))
-					FileSystem.info('test-data/temp/set-times-non-existent', (e, r) -> {
-						equals(modificationTime, r.modificationTime);
-						equals(accessTime, r.accessTime);
-					});
+				assertType(e, FsException, e -> equals('test-data/temp/set-times-non-existent', e.path.toString()));
 			}),
 			FileSystem.setTimes('test-data/temp/non/existent/set-times', accessTime, modificationTime, (e, r) -> {
 				assertType(e, FsException, e -> equals('test-data/temp/non/existent/set-times', e.path.toString()));
@@ -644,7 +641,7 @@ class TestFileSystem extends FsTest {
 			});
 		},{
 			var p:FilePath = 'non-existent';
-			FileSystem.realPath(p, (e, _) -> {
+			FileSystem.realPath(p, (e, r) -> {
 				assertType(e, FsException, e -> {
 					isTrue(p == e.path);
 				});
