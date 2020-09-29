@@ -1,6 +1,7 @@
 package asys.native.filesystem;
 
 import haxe.io.Bytes;
+import haxe.io.BytesBuffer;
 import haxe.NoData;
 import haxe.IJobExecutor;
 import haxe.ValueException;
@@ -137,7 +138,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					read(path);
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -150,7 +151,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					read(path).toString();
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -159,11 +160,33 @@ private class FileSystemImpl implements IFileSystem {
 		);
 	}
 
+	inline function read(path:FilePath):Bytes {
+		var fd = Unix.openFile(path, [O_RDONLY], 292);
+		var buffer = new BytesBuffer();
+		var b = Bytes.alloc(512);
+		try {
+			while(true) {
+				var r = Unix.read(fd, b, 0, 512);
+				if(r > 0) {
+					buffer.addBytes(b, 0, r);
+				} else {
+					break;
+				}
+			}
+		} catch(e) {
+			Unix.closeFile(fd);
+			throw e;
+		}
+		Unix.closeFile(fd);
+		return buffer.getBytes();
+	}
+
 	public inline function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					write(path, flag, data, 0, data.length);
+					NoData;
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -176,13 +199,26 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					var bytes = Bytes.ofString(text);
+					write(path, flag, bytes, 0, bytes.length);
+					NoData;
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
 			},
 			callback
 		);
+	}
+
+	inline function write(path:FilePath, flag:FileOpenFlag<Dynamic>, bytes:Bytes, pos:Int, length:Int) {
+		var fd = Unix.openFile(path, evalOpenFlags(flag), 438); //permissions: 0666
+		try {
+			Unix.write(fd, bytes, pos, length);
+		} catch(e) {
+			Unix.closeFile(fd);
+			throw e;
+		}
+		Unix.closeFile(fd);
 	}
 
 	public inline function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
@@ -215,7 +251,8 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					Unix.mkdir(path, @:nullSafety(Off) (permissions:Int), recursive);
+					NoData;
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -228,7 +265,20 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					var prefix:String = (prefix == null ? '' : prefix) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+					var path = @:privateAccess parentDirectory.join(prefix);
+					while(true) {
+						try {
+							Unix.mkdir(path, @:nullSafety(Off) (permissions:Int), recursive);
+							break;
+						} catch(err:PosixError) {
+							switch err {
+								case EEXIST: path = @:privateAccess path.join(getRandomChar());
+								case _: throw err;
+							}
+						}
+					}
+					(path:FilePath);
 				} catch(e) {
 					throw new FsException(CustomError(e.message), parentDirectory);
 				}
@@ -296,7 +346,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					Unix.stat(path);
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -322,7 +372,14 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					try {
+						Unix.isDirectory(path);
+					} catch(err:PosixError) {
+						switch err {
+							case ENOENT: false;
+							case _: throw err;
+						}
+					}
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -335,7 +392,14 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					try {
+						Unix.isFile(path);
+					} catch(err:PosixError) {
+						switch err {
+							case ENOENT: false;
+							case _: throw err;
+						}
+					}
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -433,7 +497,7 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					Unix.lstat(path);
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -472,7 +536,8 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					Unix.utimes(path, accessTime, modificationTime);
+					NoData;
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
@@ -485,12 +550,26 @@ private class FileSystemImpl implements IFileSystem {
 		jobs.addJob(
 			() -> {
 				try {
-					throw new haxe.exceptions.NotImplementedException();
+					@:privateAccess new FilePath(Unix.realPath(path));
 				} catch(e) {
 					throw new FsException(CustomError(e.message), path);
 				}
 			},
 			callback
 		);
+	}
+
+	static function evalOpenFlags(flag:FileOpenFlag<Dynamic>):Array<OpenFlag> {
+		return switch flag {
+			case Append: [O_WRONLY, O_APPEND, O_CREAT];
+			case Read: [O_RDONLY];
+			case ReadWrite: [O_RDWR];
+			case Write: [O_WRONLY, O_CREAT, O_TRUNC];
+			case WriteX: [O_WRONLY, O_CREAT, O_EXCL];
+			case WriteRead: [O_RDWR, O_TRUNC, O_CREAT];
+			case WriteReadX: [O_RDWR, O_CREAT, O_EXCL];
+			case Overwrite: [O_WRONLY, O_CREAT];
+			case OverwriteRead: [O_RDWR, O_CREAT];
+		}
 	}
 }

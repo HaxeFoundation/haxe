@@ -199,7 +199,7 @@ let value_signature v =
 			incr cache_length;
 			f()
 	in
-	let function_count = ref 0 in
+	let cache_count = ref 0 in
 	let rec loop v = match v with
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
@@ -325,8 +325,15 @@ let value_signature v =
 			(* Custom format: enumerate functions as F0, F1 etc. *)
 			cache v (fun () ->
 				addc 'F';
-				add (string_of_int !function_count);
-				incr function_count
+				add (string_of_int !cache_count);
+				incr cache_count
+			)
+		| VFileDescriptor _ ->
+			(* Custom format: enumerate descriptors as D0, D1 etc. *)
+			cache v (fun () ->
+				addc 'D';
+				add (string_of_int !cache_count);
+				incr cache_count
 			)
 		| VLazy f ->
 			loop (!f())

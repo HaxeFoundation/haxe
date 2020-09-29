@@ -83,13 +83,149 @@ let encode_error err =
 	in
 	encode_enum_value key_eval_PosixError index (Array.of_list args) None
 
+(**
+	Execute `fn` and re-throw any exceptions into Haxe code.
+*)
+let exec fn =
+	try
+		fn()
+	with
+	| Unix_error (err,_,_) ->
+		throw (encode_error err) null_pos
+	| e ->
+		exc_string (Printexc.to_string e)
+
 let is_link = vfun1 (fun v ->
 	let path = decode_native_string v in
-	let info =
-		try
-			lstat path
-		with Unix_error (err,_,_) ->
-			throw (encode_error err) null_pos
+	let st = exec (fun () -> lstat path) in
+	vbool (st.st_kind = S_LNK)
+)
+
+let is_file = vfun1 (fun v ->
+	let path = decode_native_string v in
+	let st = exec (fun () -> stat path) in
+	vbool (st.st_kind = S_REG)
+)
+
+let is_directory = vfun1 (fun v ->
+	let path = decode_native_string v in
+	let st = exec (fun () -> stat path) in
+	vbool (st.st_kind = S_DIR)
+)
+
+let encode_stat st =
+	let kind =
+		match st.st_kind with
+		| S_REG -> 0
+		| S_DIR -> 1
+		| S_CHR -> 2
+		| S_BLK -> 3
+		| S_LNK -> 4
+		| S_FIFO -> 5
+		| S_SOCK -> 6
 	in
-	vbool (info.st_kind = S_LNK)
+	encode_obj_s [
+		"st_dev",vint st.st_dev;
+		"st_ino",vint st.st_ino;
+		"st_kind",vint kind;
+		"st_perm",vint st.st_perm;
+		"st_nlink",vint st.st_nlink;
+		"st_uid",vint st.st_uid;
+		"st_gid",vint st.st_gid;
+		"st_rdev",vint st.st_rdev;
+		"st_size",vint st.st_size;
+		"st_atime",vint (int_of_float st.st_atime);
+		"st_mtime",vint (int_of_float st.st_mtime);
+		"st_ctime",vint (int_of_float st.st_ctime);
+	]
+
+let get_stat = vfun1 (fun v ->
+	let path = decode_native_string v in
+	encode_stat (exec (fun () -> stat path))
+)
+
+let get_lstat = vfun1 (fun v ->
+	let path = decode_native_string v in
+	encode_stat (exec (fun () -> lstat path))
+)
+
+let set_utimes = vfun3 (fun v_path v_access v_modification ->
+	let path = decode_native_string v_path
+	and access_time = match v_access with VInt32 i32 -> Int32.to_float i32 | v -> decode_float v
+	and modification_time = match v_modification with VInt32 i32 -> Int32.to_float i32 | v -> decode_float v in
+	exec (fun() -> utimes path access_time modification_time);
+	vnull
+)
+
+let get_real_path = vfun1 (fun v ->
+	let path = decode_native_string v in
+	vnative_string (exec (fun () ->
+		if Globals.is_windows then
+			Extc.get_real_path path
+		else
+			Extc.get_full_path path
+	))
+)
+
+let mkdir = vfun3 (fun v_path v_permissions v_recursive ->
+	let path = decode_native_string v_path
+	and permissions = decode_int v_permissions
+	and recursive = decode_bool v_recursive in
+	let rec create path =
+		try
+			mkdir path permissions
+		with Unix_error (ENOENT, _, _) when recursive ->
+			create (Filename.dirname path);
+			mkdir path permissions
+	in
+	exec (fun () -> create path);
+	vnull
+)
+
+let open_file = vfun3 (fun v_path v_flags v_permissions ->
+	let decode_flag v =
+		match decode_int v with
+		| 0 -> O_RDONLY
+		| 1 -> O_WRONLY
+		| 2 -> O_RDWR
+		| 3 -> O_NONBLOCK
+		| 4 -> O_APPEND
+		| 5 -> O_CREAT
+		| 6 -> O_TRUNC
+		| 7 -> O_EXCL
+		| 8 -> O_NOCTTY
+		| 9 -> O_DSYNC
+		| 10 -> O_SYNC
+		| 11 -> O_RSYNC
+		| 12 -> O_SHARE_DELETE
+		| 13 -> O_CLOEXEC
+		| 14 -> O_KEEPEXEC
+		| i -> exc_string ("Unknown OpenFlag value: " ^ (string_of_int i))
+	in
+	let path = decode_native_string v_path
+	and flags = List.map decode_flag (decode_array v_flags)
+	and permissions = decode_int v_permissions in
+	vfile_descriptor (exec (fun () -> openfile path flags permissions))
+)
+
+let close_file = vfun1 (fun v ->
+	let fd = decode_file_descriptor v in
+	exec (fun () -> close fd);
+	vnull
+)
+
+let read_file = vfun4 (fun v_file v_buffer v_pos v_length ->
+	let fd = decode_file_descriptor v_file
+	and b = decode_bytes v_buffer
+	and pos = decode_int v_pos
+	and length = decode_int v_length in
+	vint (exec (fun () -> read fd b pos length))
+)
+
+let write_file = vfun4 (fun v_file v_buffer v_pos v_length ->
+	let fd = decode_file_descriptor v_file
+	and b = decode_bytes v_buffer
+	and pos = decode_int v_pos
+	and length = decode_int v_length in
+	vint (exec (fun () -> write fd b pos length))
 )

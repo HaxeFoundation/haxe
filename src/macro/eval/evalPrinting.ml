@@ -40,6 +40,7 @@ let rtrue = create_ascii "true"
 let rfalse = create_ascii "false"
 let rfun = create_ascii "#fun"
 let rclosure = create_ascii "#closure"
+let rdescriptor = create_ascii "#descriptor"
 
 let s_date d =
 	let open Unix in
@@ -108,6 +109,7 @@ and s_value depth v =
 	in
 	if depth > 5 then rstop
 	else match v with
+	| VFileDescriptor _ -> rdescriptor
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
 	| VTrue -> rtrue

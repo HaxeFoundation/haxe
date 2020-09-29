@@ -147,4 +147,23 @@ private typedef NativeFilePath = NativeString;
 
 		return new FilePath(result.getBytes());
 	}
+
+	function join(path:FilePath):FilePath {
+		var thisBytes = this.toBytes();
+		var i = thisBytes.length - 1;
+		var separatorCode = StringTools.fastCodeAt(SEPARATOR, 0);
+		while(i >= 0) {
+			var c = thisBytes.get(i);
+			if(c != separatorCode && c != '/'.code) {
+				break;
+			}
+			--i;
+		}
+		var buffer = new BytesBuffer();
+		buffer.addBytes(thisBytes, 0, (i >= 0 ? i + 1 : thisBytes.length));
+		buffer.addByte(separatorCode);
+		var thatBytes = (path:NativeString).toBytes();
+		buffer.addBytes(thatBytes, 0, thatBytes.length);
+		return new FilePath(buffer.getBytes());
+	}
 }
