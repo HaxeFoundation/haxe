@@ -1032,7 +1032,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						(fun () ->
 							jm#get_code#pop;
 							self#texpr rvalue_any e2;
-							self#boolop (CmpSpecial (jm#get_code#if_nonnull sig2))
+							match op with
+							| CmpEq | CmpGe | CmpLe ->
+								self#boolop (CmpSpecial (jm#get_code#if_nonnull sig2))
+							| CmpNe ->
+								self#boolop (CmpSpecial (jm#get_code#if_null sig2))
+							| _ ->
+								jm#get_code#pop;
+								jm#get_code#bconst false
 						)
 						(fun () ->
 							jm#cast ~not_null:true cast_type;
