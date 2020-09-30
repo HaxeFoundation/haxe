@@ -34,7 +34,7 @@ private typedef StringKeyValue = {
 	platforms. There are two intended usages:
 
 	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
-	(not available on flash)
+	(only available on `sys` targets)
 	- create a `new haxe.Http(url)`, register your callbacks for `onData`,
 	`onError` and `onStatus`, then call `request()`.
 **/
